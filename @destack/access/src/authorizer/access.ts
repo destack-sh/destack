@@ -643,17 +643,29 @@ export class Access {
         lag: number,
         now: number,
     ): Promise<void> {
-        // refuse the nearest scope whose home has not confirmed access lately
-        const origins = await Replica.origins(database, CHAIN_PUBLICATION, chain);
-        for (const scope of chain) {
-            const origin = origins.get(scope);
-            if (origin !== undefined && now - origin.confirmedAt > lag) {
-                throw AccessError.of(
-                    "STALE",
-                    `the home of ${scope} has not confirmed access for over ${lag} ms`,
-                );
-            }
+        const stale = await Access.unconfirmed(database, chain, lag, now);
+        if (stale !== undefined) {
+            throw AccessError.of(
+                "STALE",
+                `the home of ${stale} has not confirmed access for over ${lag} ms`,
+            );
         }
+    }
+
+    /** Read the nearest scope of a chain whose home is silent past the lag, absent for none. */
+    static async unconfirmed(
+        database: DatabaseConnection,
+        chain: readonly string[],
+        lag: number,
+        now: number,
+    ): Promise<string | undefined> {
+        const origins = await Replica.origins(database, CHAIN_PUBLICATION, chain);
+
+        return chain.find((scope) => {
+            const origin = origins.get(scope);
+
+            return origin !== undefined && now - origin.confirmedAt > lag;
+        });
     }
 
     /** Read roles by scope or identifier, with their permissions and relationships. */
