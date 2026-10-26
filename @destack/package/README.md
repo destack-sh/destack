@@ -50,17 +50,16 @@ export default definePackage({ resources: { main: pagesDatabase } });
         "files": { "access": "read" }
     },
     "declarations": {
-        "defineNotification": {
+        "defineWorkflow": {
             "describes": [
                 {
-                    "kind": "notification",
-                    "function": "./inspect#describeNotification",
-                    "vocabulary": "./inspect#notificationVocabulary"
+                    "kind": "workflow",
+                    "function": "./inspect#describeWorkflow"
                 },
                 {
-                    "kind": "setting",
-                    "package": "@destack/setting",
-                    "value": "./inspect#notificationPreference"
+                    "kind": "object",
+                    "package": "@destack/object",
+                    "value": "./inspect#workflowRun"
                 }
             ]
         }

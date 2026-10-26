@@ -6,6 +6,16 @@ import { WorkloadDescription } from "./workload.ts";
 import { ViewDescription } from "./view.ts";
 import { DeclarationName } from "../definition/package.ts";
 
+/** An output's export: its emitted file and the dependency specifiers its chunks import. */
+export const OutputExport = schema.object({
+    /** The emitted file of the export. */
+    path: PackagePath,
+    /** The dependency specifiers the export's chunks import, such as `@destack/object/client`. */
+    imports: schema.array(schema.string().min(1)),
+});
+/** An output's export: its emitted file and the dependency specifiers its chunks import. */
+export type OutputExport = schema.Infer<typeof OutputExport>;
+
 /** Compiled files and dependencies for one runtime. */
 export const PackageOutput = schema.object({
     /** The runtime the output is compiled for. */
@@ -19,7 +29,7 @@ export const PackageOutput = schema.object({
     /** The output directory within the build. */
     directory: PackagePath,
     /** Generated entrypoints keyed by their exported names. */
-    exports: schema.record(schema.string().min(1), PackagePath),
+    exports: schema.record(schema.string().min(1), OutputExport),
     /** Exact dependencies referenced by runtime code. */
     dependencies: schema.record(DependencyName, DependencyRelease),
 });

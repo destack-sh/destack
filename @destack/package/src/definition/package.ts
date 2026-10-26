@@ -64,6 +64,13 @@ export const DependencyName = Object.assign(
                 .slice(0, specifier.startsWith("@") ? 2 : 1)
                 .join("/");
         },
+
+        /** Read the export subpath of a bare import specifier: `.`, or `./` and the rest. */
+        subpath(specifier: string): string {
+            const rest = specifier.slice(DependencyName.of(specifier).length);
+
+            return `.${rest}`;
+        },
     },
 );
 
