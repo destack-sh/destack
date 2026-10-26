@@ -46,14 +46,14 @@ test("decide a use from an account's entitlements: unknown until replicated, blo
     }).toEqual({
         pending: ["unknown", "unknown", "unknown", "unknown", "unknown", "unknown"],
         replicated: [
-            { status: "false", reason: "Blocked", message: "database reached its limit of 1000" },
+            { status: "false", reason: "Blocked", message: "database is at its limit of 1000" },
             { status: "true", reason: "Within", message: "storage within the plan" },
             {
                 status: "false",
                 reason: "Unentitled",
                 message: "no plan of the account grants compute",
             },
-            { status: "false", reason: "Blocked", message: "network reached its limit of 1000" },
+            { status: "false", reason: "Blocked", message: "network is at its limit of 1000" },
             { status: "true", reason: "Within", message: "shared tenancy within the plan" },
             {
                 status: "false",

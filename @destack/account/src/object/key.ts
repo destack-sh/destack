@@ -76,9 +76,9 @@ export const key = defineObject(
             input: schema.object({ proof: CompactProof }),
             isPredicted: false,
         }),
-        enroll: method.create("enroll", { isInternal: true }),
-        suspend: method.mutation({ permission: "suspend", isInternal: true }),
-        resume: method.mutation({ permission: "suspend", isInternal: true }),
+        enroll: method.create("enroll", { visibility: "package" }),
+        suspend: method.mutation({ permission: "suspend", visibility: "package" }),
+        resume: method.mutation({ permission: "suspend", visibility: "package" }),
         revoke: method.mutation({ permission: "revoke" }),
     }),
 ).implement({

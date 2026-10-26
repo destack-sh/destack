@@ -69,7 +69,7 @@ export const session = defineObject(
     (method) => ({
         revoke: method.mutation({ permission: "revoke" }),
         revokeOthers: method.mutation({ permission: "revoke" }),
-        attach: method.update("attach", { isInternal: true, fields: ["clientId"] }),
+        attach: method.update("attach", { visibility: "package", fields: ["clientId"] }),
     }),
 ).implement({
     methods: {

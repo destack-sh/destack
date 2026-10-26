@@ -95,7 +95,7 @@ async function native(accounts: TestAccountStore) {
     });
     onTestFinished(() => logins.close());
 
-    // reach the laptop's own loopback through its simulated network
+    // call the laptop's own loopback through its simulated network
     const { network } = laptop;
 
     // sign people in with the keychain's refresh tokens

@@ -35,13 +35,13 @@ export const deviceAuthorization = defineObject(
                         to: "approved",
                         permission: "decide",
                         fields: ["userId"],
-                        isInternal: true,
+                        visibility: "package",
                     },
                     deny: {
                         from: ["pending"],
                         to: "denied",
                         permission: "decide",
-                        isInternal: true,
+                        visibility: "package",
                     },
                 },
             }),
@@ -78,17 +78,17 @@ export const deviceAuthorization = defineObject(
                 "interval",
                 "expiresAt",
             ],
-            isInternal: true,
+            visibility: "package",
             isPredicted: false,
         }),
         /** Record a poll, with the wait before the next poll. */
         poll: method.update("poll", {
             fields: ["polledAt", "interval"],
-            isInternal: true,
+            visibility: "package",
             isPredicted: false,
         }),
         /** Remove the codes once the client takes its tokens. */
-        delete: method.delete("redeem", { isInternal: true }),
+        delete: method.delete("redeem", { visibility: "package" }),
     }),
 );
 /** A stored device authorization. */

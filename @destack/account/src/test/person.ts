@@ -63,7 +63,7 @@ export const PersonSignIn = schema.object({
 /** A person's sign-in on a client, as a template stores it to restore the person. */
 export type PersonSignIn = schema.Infer<typeof PersonSignIn>;
 
-/** A person signed in on a client of their own, reaching packages with a token for each. */
+/** A person signed in on a client of their own, calling packages with a token for each. */
 export class TestPerson {
     /** The person's user. */
     readonly id: Identifier<"user">;

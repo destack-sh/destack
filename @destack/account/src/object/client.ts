@@ -152,7 +152,7 @@ export const client = defineObject(
         /** Withdraw a client with its keys and sessions. */
         revoke: method.mutation({ permission: "revoke" }),
         /** Record the client's proven contact now. */
-        report: method.mutation({ permission: "report", isInternal: true }),
+        report: method.mutation({ permission: "report", visibility: "package" }),
     }),
 ).implement({
     methods: {

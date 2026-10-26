@@ -66,6 +66,7 @@ import {
     ProviderCode,
     RESIDENCY_RELAY,
     Residency,
+    residency,
     type ResidencyCode,
     type ResidencyDefinition,
     SpaceKind,
@@ -117,6 +118,9 @@ export const ISSUER = `${ACCOUNTS_URL}${OAUTH_PATH}`;
 
 /** The email of the person operating the fixture's universe. */
 export const OPERATOR_EMAIL = "operator@example.com";
+
+/** The installation a residency's space provides entitlements as in tests, as finance does. */
+const BILLING_INSTALLATION = "billing";
 
 /** The email of the person owning the fixture's accounts, the handle acme's. */
 export const OWNER_EMAIL = "acme@example.test";
@@ -423,6 +427,8 @@ export class TestAccountStore implements AsyncDisposable {
     readonly #authenticate: (keyring: Keyring) => Promise<BetterAuthAuthenticator>;
     /** Route a request of the universe's origin to the package mounted at its path. */
     readonly #fetch: (request: Request) => Promise<Response>;
+    /** The billing installation of each residency's space, related once, by residency. */
+    readonly #entitlers = new Map<ResidencyCode, Promise<Subject>>();
 
     /** Store a served account package. */
     private constructor(
@@ -865,10 +871,10 @@ export class TestAccountStore implements AsyncDisposable {
                 ? { packageId: ENTITLED_PACKAGE, name: granted, resource: granted }
                 : { ...granted.feature, resource: null };
 
-        // act as the account's residency home, whose installations provide entitlements
+        // act as the billing installation of the account's residency space, as finance does
         const snapshot = Snapshot.live(this.database);
-        const home = await Account.locate(snapshot, accountId);
-        const provider = principal.space.reference(Scope.universe.id, home);
+        const { residencyId } = await Account.of(snapshot, accountId);
+        const provider = await this.#entitler(residencyId);
         const now = this.store.clock.now();
 
         // replace the one the account has with one of the terms
@@ -904,6 +910,41 @@ export class TestAccountStore implements AsyncDisposable {
         );
 
         return this.cloud(placed.machineId);
+    }
+
+    /** Read the billing installation of a residency's space, related to it by its operator once. */
+    #entitler(residencyId: ResidencyCode): Promise<Subject> {
+        // relate each residency's installation once, whichever entitlement asks first
+        const known = this.#entitlers.get(residencyId);
+        if (known !== undefined) {
+            return known;
+        }
+        const relating = (async () => {
+            // derive the installation the residency's space declares for billing
+            const snapshot = Snapshot.live(this.database);
+            const home = await Scope.object(snapshot, await this.residencySpace(residencyId));
+            const id = await InstallationId.declared(
+                home,
+                BILLING_INSTALLATION,
+                this.environment.crypto,
+            );
+            const installed = principal.installation.reference(home.id, id);
+
+            // relate it to the residency as the universe's operator
+            const operator = await this.signIn(OPERATOR_EMAIL);
+            await operator.client(objectPackage).relationship.create({
+                scope: Scope.universe.id,
+                requestId: RequestId.create(this.store.environment),
+                object: residency.reference(Scope.universe.id, residencyId),
+                relation: "installation",
+                subject: installed,
+            });
+
+            return installed;
+        })();
+        this.#entitlers.set(residencyId, relating);
+
+        return relating;
     }
 
     /** Read the relay a residency's home declares, which the universe relates to the residency. */

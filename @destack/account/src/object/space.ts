@@ -109,7 +109,7 @@ export const space = defineObject(
         update: method.update("update", { fields: ["title", "approval"] }),
 
         /** Move the space to another stack, which its machine applies. */
-        upgrade: method.update("upgrade", { fields: ["stack"], isInternal: true }),
+        upgrade: method.update("upgrade", { fields: ["stack"], visibility: "package" }),
 
         /** Move a space to another address within its account. */
         rename: method.mutation({

@@ -232,7 +232,7 @@ export const placement = defineObject(
         },
     },
     (method) => ({
-        create: method.create("create", { isInternal: true, fields: ["machineId", "epoch"] }),
+        create: method.create("create", { visibility: "package", fields: ["machineId", "epoch"] }),
 
         /** Serve a space at an epoch. */
         place: method.mutation({ permission: "place", input: Serving }),
@@ -295,8 +295,11 @@ export const assignment = defineObject(
     },
     (method) => ({
         /** Give a machine work in a space, as the machine serving it. */
-        create: method.create("give", { fields: ["placementId", "machineId"], isInternal: true }),
+        create: method.create("give", {
+            fields: ["placementId", "machineId"],
+            visibility: "package",
+        }),
         /** End a machine's work in a space, as the machine serving it. */
-        delete: method.delete("give", { isInternal: true }),
+        delete: method.delete("give", { visibility: "package" }),
     }),
 );

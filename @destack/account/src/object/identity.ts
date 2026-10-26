@@ -86,7 +86,7 @@ export const operation = defineObject(
         /** Mark an operation nullified by a later one a higher-priority rotation key signed. */
         nullify: method.update("extend", {
             fields: ["isNullified"],
-            isInternal: true,
+            visibility: "package",
             isPredicted: false,
         }),
     }),

@@ -55,11 +55,11 @@ export const authorizationRequest = defineObject(
                 "maxAge",
                 "expiresAt",
             ],
-            isInternal: true,
+            visibility: "package",
             isPredicted: false,
         }),
         /** Remove a request once the person decided on it. */
-        delete: method.delete("push", { isInternal: true }),
+        delete: method.delete("push", { visibility: "package" }),
     }),
 );
 /** A stored authorization request. */

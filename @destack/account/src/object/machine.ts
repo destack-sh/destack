@@ -243,7 +243,7 @@ export const machine = defineObject(
             input: KeyProof,
         }),
         declare: method.create("declare", {
-            isInternal: true,
+            visibility: "package",
             fields: ["name", "size"],
             variants: { kind: { cloud: CLOUD_COLUMNS } },
             input: KeyProof.pick({ publicKey: true }),

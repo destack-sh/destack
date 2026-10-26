@@ -37,10 +37,10 @@ export const stage = defineObject(
         },
     },
     (method) => ({
-        create: method.create("write", { isInternal: true }),
+        create: method.create("write", { visibility: "package" }),
         get: method.get("read"),
         list: method.list("read"),
-        delete: method.delete("write", { isInternal: true }),
+        delete: method.delete("write", { visibility: "package" }),
     }),
 );
 /** A persisted account stage. */

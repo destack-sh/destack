@@ -29,11 +29,15 @@ export const oauthConsent = defineObject(
         /** Grant a client the scopes a person approved. */
         create: method.create("grant", {
             fields: ["clientId", "scopes", "grantedAt"],
-            isInternal: true,
+            visibility: "package",
             isPredicted: false,
         }),
         /** Widen a consent to the further scopes a person approved. */
-        widen: method.update("grant", { fields: ["scopes"], isInternal: true, isPredicted: false }),
+        widen: method.update("grant", {
+            fields: ["scopes"],
+            visibility: "package",
+            isPredicted: false,
+        }),
         /** Revoke a consent, ending the client's refresh tokens. */
         revoke: method.delete("revoke"),
     }),

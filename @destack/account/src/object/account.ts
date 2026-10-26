@@ -78,6 +78,8 @@ export const account = defineObject(
                 contained(principal.machine),
                 relation("installed"),
             ),
+            // let the residency's installations set the account's entitlements
+            entitle: relation("installed"),
             // let the residency's machines and home claim names in the account
             claim: relation("claimant"),
             // let the residency's relay publish the tunnels of the account's machines
@@ -96,7 +98,7 @@ export const account = defineObject(
             provision: relation("home"),
         },
         shareable: {},
-        reserved: ["administer", "replicate", "serve", "claim", "place", "provision"],
+        reserved: ["administer", "replicate", "serve", "entitle", "claim", "place", "provision"],
         elevated: { delete: sudo, administer: sudo, impersonate: sudo },
         constraints: {
             handle: { kind: "index", on: ["handle"] },

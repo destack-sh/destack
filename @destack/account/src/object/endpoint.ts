@@ -33,15 +33,15 @@ export const endpoint = defineObject(
         /** Publish a machine's first endpoint, as its machine's publish does. */
         create: method.create("publish", {
             fields: ["url", "relay"],
-            isInternal: true,
+            visibility: "package",
             isPredicted: false,
         }),
 
         /** Replace a published endpoint, as its machine's publish does. */
-        update: method.update("publish", { fields: ["url", "relay"], isInternal: true }),
+        update: method.update("publish", { fields: ["url", "relay"], visibility: "package" }),
 
         /** Withdraw an endpoint with its revoked machine. */
-        delete: method.delete("withdraw", { isInternal: true }),
+        delete: method.delete("withdraw", { visibility: "package" }),
     }),
 );
 /** An endpoint as its table stores it. */

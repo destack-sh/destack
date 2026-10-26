@@ -65,11 +65,11 @@ export const authorizationCode = defineObject(
                 "status",
                 "expiresAt",
             ],
-            isInternal: true,
+            visibility: "package",
             isPredicted: false,
         }),
         /** Spend a code, refusing one spent before. */
-        redeem: method.mutation({ permission: "redeem", isInternal: true }),
+        redeem: method.mutation({ permission: "redeem", visibility: "package" }),
     }),
 ).implement({
     methods: {

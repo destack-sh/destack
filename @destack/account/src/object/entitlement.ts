@@ -70,8 +70,8 @@ export const entitlement = defineObject(
         permissions: {
             // let the account's readers and its residency's servers read
             read: union(through("scope", "read"), through("scope", "serve")),
-            // let its residency's servers derive it
-            provide: through("scope", "serve"),
+            // let its residency's installations set it
+            provide: through("scope", "entitle"),
         },
         reserved: ["provide"],
         constraints: {
@@ -104,13 +104,14 @@ export const entitlement = defineObject(
             },
         },
     },
+    // let installations push the entitlements they provide, as finance does from a residency's space
     (method) => ({
-        create: method.create("provide", { isInternal: true }),
+        create: method.create("provide", { visibility: "installation" }),
         update: method.update("provide", {
-            isInternal: true,
+            visibility: "installation",
             fields: ["value", "limit", "resetAt", "state", "resource"],
         }),
-        delete: method.delete("provide", { isInternal: true }),
+        delete: method.delete("provide", { visibility: "installation" }),
     }),
 );
 /** An account's entitlement to a feature, as its table stores it. */
@@ -230,7 +231,7 @@ export const Entitlement = {
         else if (row.state === "blocked") {
             const limit = row.limit === null ? "its spending limit" : `its limit of ${row.limit}`;
 
-            return { status: "false", reason: "Blocked", message: `${used} reached ${limit}` };
+            return { status: "false", reason: "Blocked", message: `${used} is at ${limit}` };
         }
         // allow any other use
         else {
