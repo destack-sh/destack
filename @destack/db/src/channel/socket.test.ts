@@ -25,13 +25,13 @@ async function party(path: string) {
     const received: Note[] = [];
     const joined = Promise.withResolvers<void>();
     let joins = 0;
-    const stop = channel.listen(
-        (message) => received.push(message),
-        () => {
+    const stop = channel.listen({
+        receive: (message) => received.push(message),
+        resume: () => {
             joins++;
             joined.resolve();
         },
-    );
+    });
     await joined.promise;
 
     return { channel, received, stop, joins: () => joins };
@@ -112,7 +112,7 @@ test("keep hearing the channel when a listener starts as the last one stops", as
     const first = await party(path);
     first.stop();
     const received: Note[] = [];
-    const stop = first.channel.listen((message) => received.push(message));
+    const stop = first.channel.listen({ receive: (message) => received.push(message) });
     onTestFinished(stop);
 
     // deliver another party's message to the new listener
@@ -133,7 +133,7 @@ test("refuse messages and listeners on a channel once it is closed", async () =>
     await channel.close();
     const refusals = [
         () => channel.notify({ kind: "commit", from: "closed" }),
-        () => channel.listen(() => {}),
+        () => channel.listen({ receive: () => {} }),
     ].map((use) => {
         try {
             use();

@@ -2,9 +2,8 @@ import { type Clock, Random } from "@destack/environment";
 import type { DatabaseEnvironment } from "../database/connection.ts";
 import { errorCode } from "../error/error.ts";
 import { present, Uuid } from "@destack/schema";
-import type postgres from "postgres";
 import { ConnectionState, DatabaseConnection, requireDistinct } from "../database/connection.ts";
-import type { Channel, Hearing } from "../channel/channel.ts";
+import type { Channel, ChannelListener, Hearing } from "../channel/channel.ts";
 import { CHANNEL_PREFIX } from "../log/schema.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { PostgresSession } from "../database/session.ts";
@@ -166,17 +165,8 @@ export function postgresChannel(
 
     return {
         notify: (message) => notifyInFragments(send, party, message, random),
-        listen: (receive, resume, fail) => {
-            const stop = listenToChannel(
-                pool.listener,
-                name,
-                party,
-                failures,
-                receive,
-                resume,
-                fail,
-                clock,
-            );
+        listen: (listener) => {
+            const stop = listenToChannel(pool, name, party, failures, listener, clock);
 
             return () => track(stop());
         },
@@ -236,15 +226,17 @@ function notifyInFragments(
 
 /** Listen to a channel's notifications until stopped. */
 function listenToChannel(
-    client: postgres.Sql,
+    pool: PostgresPool,
     name: Promise<string>,
     party: string,
     failures: Set<(error: unknown) => void>,
-    receive: (message: unknown) => void,
-    resume: (() => void) | undefined,
-    fail: ((error: unknown) => void) | undefined,
+    listener: ChannelListener<unknown>,
     clock: Clock,
 ): () => Promise<void> {
+    // pause while the listening connection is closed, which the next listen resumes
+    const { receive, resume, fail, pause } = listener;
+    const unwatch = pool.onListenerClose(() => pause?.());
+
     // deliver each notification once listening, resuming on each reconnect
     const expected = new Map<string, () => void>();
     const hearAll = () => {
@@ -275,8 +267,8 @@ function listenToChannel(
     };
     const subscription = name.then(async (resolved) => {
         // listen, then hear tokens as a party of the channel
-        const listener = await clock.trackHost(
-            client.listen(resolved, reassembler(resolved, party, hearing, clock), () => {
+        const subscribed = await clock.trackHost(
+            pool.listener.listen(resolved, reassembler(resolved, party, hearing, clock), () => {
                 // settle every token wait on a reconnect, which may have lost notifications
                 hearAll();
                 resume?.();
@@ -286,21 +278,22 @@ function listenToChannel(
         parties.add(expected);
         listening.set(resolved, parties);
 
-        return { listener, resolved };
+        return { subscribed, resolved };
     });
     subscription.catch((error: unknown) => failing(error));
 
     // stop listening, settling once unlistened
     return () => {
         failures.delete(failing);
+        unwatch();
 
         return subscription.then(
-            ({ listener, resolved }) => {
+            ({ subscribed, resolved }) => {
                 // stop hearing tokens, settling the ones this party waited for
                 listening.get(resolved)?.delete(expected);
                 hearAll();
 
-                return listener.unlisten().catch((error: unknown) => {
+                return subscribed.unlisten().catch((error: unknown) => {
                     // count a closed connection as stopped, and fail on anything else
                     const code = errorCode(error);
                     if (code === undefined || !CLOSED_CODES.has(code)) {

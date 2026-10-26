@@ -41,6 +41,8 @@ export class PostgresPool {
     readonly #schemas = new Map<postgres.Sql, string | undefined>();
     /** The clock of the work each reserved connection serves, until released. */
     readonly #holders = new Map<postgres.Sql, Clock>();
+    /** The callbacks of each listening party, called whenever the listening connection closes. */
+    readonly #closings = new Set<() => void>();
 
     /** Open a pool of a server, passing JSON as text and reporting the server's warnings. */
     constructor(
@@ -56,13 +58,16 @@ export class PostgresPool {
         } = {},
     ) {
         // open the connections lazily, each starting without a schema
-        const open = () => {
+        const open = (closed?: () => void) => {
             const sql: postgres.Sql = postgres(address, {
                 max: 1,
                 prepare: false,
                 connection: { ...options.settings, search_path: NO_SCHEMA },
                 onnotice: reportNotices(environment.telemetry),
-                onclose: () => this.#schemas.set(sql, NO_SCHEMA),
+                onclose: () => {
+                    this.#schemas.set(sql, NO_SCHEMA);
+                    closed?.();
+                },
             });
 
             // pass JSON columns' text to the server as it is, since columns encode JSON themselves
@@ -74,7 +79,11 @@ export class PostgresPool {
         };
         this.#connections = Array.from({ length: options.connections ?? POOL_CONNECTIONS }, open);
         this.#idle = [...this.#connections];
-        this.listener = open();
+        this.listener = open(() => {
+            for (const closing of this.#closings) {
+                closing();
+            }
+        });
         this.#wait = options.wait ?? RESERVE_WAIT_MILLISECONDS;
     }
 
@@ -119,6 +128,13 @@ export class PostgresPool {
         } finally {
             this.release(sql);
         }
+    }
+
+    /** Call back whenever the listening connection closes, until stopped. */
+    onListenerClose(closing: () => void): () => void {
+        this.#closings.add(closing);
+
+        return () => this.#closings.delete(closing);
     }
 
     /** Close the pool's connections after their queries. */

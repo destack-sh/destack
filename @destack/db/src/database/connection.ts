@@ -2,7 +2,7 @@ import type { Clock, Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
 import { exists, fill, render, type SQL, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError, type DeclaredNames } from "../error/error.ts";
-import { DatabaseDriver, type DriverOptions, OperationDuration } from "./driver.ts";
+import { DatabaseDriver, OperationDuration } from "./driver.ts";
 import type { ColumnCipher } from "./cipher.ts";
 import type { Session } from "./session.ts";
 import { type Insert, type Table, TABLE } from "../table/table.ts";
@@ -15,7 +15,6 @@ import {
     readEmpty,
     readState,
     readTables,
-    STATE,
     unappliedTables,
     type DeclareOptions,
     type TableState,
@@ -29,9 +28,8 @@ import { TransactionIdentity } from "../log/transaction.ts";
 import { Log } from "../log/log.ts";
 import { Transaction } from "../log/commit.ts";
 import { type Announcer, CommitWatch } from "../log/watch.ts";
-import { LOG, LOG_EPOCH, LOG_HORIZON, LOG_TABLES, LOG_TOPIC } from "../log/schema.ts";
+import { LOG_TABLES, LOG_TOPIC } from "../log/schema.ts";
 import { ReadCache } from "../log/cache.ts";
-import { literal, quote } from "../dialect/quote.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
 import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
@@ -42,11 +40,14 @@ import { ModelQueryBuilder, type Queries } from "../query/find.ts";
 import type { Model } from "../query/model.ts";
 import type { Row } from "../table/row.ts";
 
-/** The rows each read cache stores: 1 MB of 0.5 KB rows and 4 MB of 2 KB keys, 10 MB for two. */
-const CACHED_ROWS = 2048;
+/** The weight each read cache of a database stores, in rows: 2 MB of 0.5 KB rows, 4 MB for both. */
+const CACHED_ROWS = 4096;
 
-/** The most rows one cached read has, as a resolve reads a few dozen. */
-const SHARED_ROWS = 64;
+/** The most rows one cached read has: a metadata read has a few dozen, a listing page 100. */
+const CACHED_READ_ROWS = 128;
+
+/** The key bytes weighing as much as one row, the half kilobyte a row averages. */
+const KEY_BYTES_PER_ROW = 512;
 
 /** The referential actions that write the referencing rows. */
 const WRITING_ACTIONS: ReadonlySet<string> = new Set(["cascade", "set null", "set default"]);
@@ -75,24 +76,9 @@ export class DatabaseConnection<
         this.relations = relations;
     }
 
-    /** Open a connection on the same session that counts the operations it submits. */
+    /** Open a connection on the same session that counts its own operations. */
     metered(): DatabaseConnection<Models> {
-        return this.#copy({ isSharing: this.driver.isSharing });
-    }
-
-    /** Open a connection on the same session whose shared reads go through the shared caches. */
-    sharing(): DatabaseConnection<Models> {
-        return this.#copy({ isSharing: true, meter: this.driver.meter });
-    }
-
-    /** Open a connection on the same session and transaction with other driver options. */
-    #copy(options: DriverOptions): DatabaseConnection<Models> {
-        const driver = new DatabaseDriver(
-            this.driver.session,
-            this.state,
-            this.driver.transaction,
-            options,
-        );
+        const driver = new DatabaseDriver(this.driver.session, this.state, this.driver.transaction);
 
         return new DatabaseConnection(driver, this.tables, this.relations);
     }
@@ -254,10 +240,10 @@ export class DatabaseConnection<
 
     /** Execute a script in one round trip: DDL and pragmas alone, or a transaction's writes. */
     async executeScript(script: string): Promise<void> {
-        // stamp an enclosing transaction
+        // stamp an enclosing transaction, then commit the script as a write of every table
         const every = new Set(this.state.cascades.keys());
         await this.driver.transaction?.identity.stamp();
-        await this.driver.commit(() => this.driver.session.exec(script), every);
+        await this.driver.commit(() => this.driver.session.exec(script), every, every);
     }
 
     /** Run SQL and parse each row by a schema. */
@@ -392,6 +378,7 @@ export class DatabaseConnection<
         // open the transaction, or a savepoint sharing the outermost one's writes and identity
         const isNested = this.driver.transaction !== undefined;
         const written = this.driver.transaction?.written ?? new Set<string>();
+        const scripted = this.driver.transaction?.scripted ?? new Set<string>();
         let attempt: TransactionIdentity | undefined;
         const execute = () =>
             this.driver.session.transaction(
@@ -419,6 +406,7 @@ export class DatabaseConnection<
                         session,
                         operation,
                         written,
+                        scripted,
                         identity,
                         signal,
                     ).catch(async (error: unknown) => {
@@ -457,8 +445,9 @@ export class DatabaseConnection<
             "SERIALIZATION_FAILURE",
             async () => {
                 written.clear();
+                scripted.clear();
                 try {
-                    const committed = await this.driver.commit(execute, written);
+                    const committed = await this.driver.commit(execute, written, scripted);
                     attempt?.commit();
 
                     return committed;
@@ -476,10 +465,11 @@ export class DatabaseConnection<
         session: Session,
         operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
         written: Set<string>,
+        scripted: Set<string>,
         identity: TransactionIdentity,
         signal?: AbortSignal,
     ): Promise<Value> {
-        const state = new TransactionState(written, identity, signal);
+        const state = new TransactionState(written, scripted, identity, signal);
         const transaction = new DatabaseConnection(
             new DatabaseDriver(session, this.state, state),
             this.tables,
@@ -540,19 +530,13 @@ export class ConnectionState {
     readonly declared: DeclaredNames;
     /** The SQL names of the tables without change triggers: unlogged ones and the log's tables. */
     readonly unlogged: ReadonlySet<string>;
-    /** The SQL names of the tables whose reads transactions share through the read caches. */
-    readonly shared: ReadonlySet<string>;
-    /** The statement reading the shared tables' log version, absent without shared tables. */
-    readonly versionStatement: string | undefined;
-    /** The cache of `values` reads of shared tables, by statement, each at its tables' version. */
-    readonly valueCache = new ReadCache<unknown[][]>(CACHED_ROWS, SHARED_ROWS, (rows) =>
-        Math.max(1, rows.length),
-    );
-    /** The cache of `all` reads of shared tables, by statement, each at its tables' version. */
+    /** The cache of live `values` reads, by statement, each at its tables' commit versions. */
+    readonly valueCache = new ReadCache<unknown[][]>(CACHED_ROWS, CACHED_READ_ROWS, weigh);
+    /** The cache of live `all` reads, by statement, each at its tables' commit versions. */
     readonly recordCache = new ReadCache<Record<string, unknown>[]>(
         CACHED_ROWS,
-        SHARED_ROWS,
-        (rows) => Math.max(1, rows.length),
+        CACHED_READ_ROWS,
+        weigh,
     );
     /** The cipher of sensitive columns, absent until the database is keyed. */
     cipher: ColumnCipher | undefined = undefined;
@@ -607,7 +591,7 @@ export class ConnectionState {
             ]),
         );
 
-        // watch commits on the log channel, announcing those the database leaves unannounced
+        // list the tables with change triggers and those without
         const logged = tables
             .filter((table) => table[TABLE].retention !== "none")
             .map((table) => table[TABLE].sqlName);
@@ -617,18 +601,24 @@ export class ConnectionState {
                 .map((table) => table[TABLE].sqlName),
             ...LOG_TABLES,
         ]);
-        this.shared = new Set(
-            tables.filter((table) => table[TABLE].isShared).map((table) => table[TABLE].sqlName),
+
+        // list the append-only tables, whose deletes go unlogged
+        const appendOnly = new Set(
+            tables
+                .filter((table) => table[TABLE].isAppendOnly)
+                .map((table) => table[TABLE].sqlName),
         );
-        this.versionStatement = versionStatement(
-            [...this.shared],
-            options.dialect,
-            options.namespace,
-        );
+
+        // watch commits on the log channel, the database announcing the logged tables but append-only ones
         this.commits = new CommitWatch(
             openChannel === undefined ? undefined : typedChannel(openChannel(LOG_TOPIC), Commit),
-            new Set(options.announcer === "database" ? logged : []),
+            new Set(
+                options.announcer === "database"
+                    ? logged.filter((table) => !appendOnly.has(table))
+                    : [],
+            ),
             [...this.cascades.keys()],
+            this.unlogged,
         );
     }
 
@@ -680,37 +670,9 @@ export class ConnectionState {
     }
 }
 
-/** Write the statement reading the log, epoch, horizon, and each table's sequence and migration. */
-function versionStatement(
-    tables: readonly string[],
-    dialect: Dialect,
-    namespace: string | undefined,
-): string | undefined {
-    // read nothing without shared tables
-    if (tables.length === 0) {
-        return undefined;
-    }
-
-    // take each table's latest sequence through the log's table index, in the tables' order
-    const name = (table: string) =>
-        quote(relation(table, dialect === "sqlite" ? namespace : undefined));
-    const latest = tables.map(
-        (table) => `(SELECT max(sequence) FROM ${name(LOG)} WHERE "table" = ${literal(table)})`,
-    );
-
-    // take each table's latest migration, as its state records it
-    const state = quote(relation(STATE, namespace));
-    const applied = tables.map(
-        (table) =>
-            `(SELECT applied_at FROM ${state} WHERE "table" = ${literal(relation(table, namespace))})`,
-    );
-
-    // read them after the log, the epoch and the horizon, in one row
-    const log = `(SELECT log FROM ${name(LOG_EPOCH)} WHERE slot = 1)`;
-    const epoch = `(SELECT epoch FROM ${name(LOG_EPOCH)} WHERE slot = 1)`;
-    const horizon = `(SELECT sequence FROM ${name(LOG_HORIZON)} WHERE slot = 1)`;
-
-    return `SELECT ${[log, epoch, horizon, ...latest, ...applied].join(", ")}`;
+/** Weigh a cached read by its rows and its key's length, at least one row. */
+function weigh(key: string, rows: readonly unknown[]): number {
+    return Math.max(1, rows.length) + Math.ceil(key.length / KEY_BYTES_PER_ROW);
 }
 
 /** List the tables a write to each table changes, itself first, through triggers and actions. */

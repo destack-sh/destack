@@ -111,24 +111,26 @@ export function serveDatabase(
     const run = stepRunner(client, transactions, environment.clock);
 
     // announce this owner to a joining party
-    const stop = channel.listen((message) => {
-        if (message.kind === "join") {
-            channel.notify({ kind: "serving", owner });
-        }
-        // answer each request to this owner
-        else if (message.kind === "request" && message.to === owner) {
-            run(message.step).then(
-                (value) =>
-                    channel.notify({ kind: "answer", to: message.from, id: message.id, value }),
-                (error: unknown) =>
-                    channel.notify({
-                        kind: "answer",
-                        to: message.from,
-                        id: message.id,
-                        error: describeError(error),
-                    }),
-            );
-        }
+    const stop = channel.listen({
+        receive: (message) => {
+            if (message.kind === "join") {
+                channel.notify({ kind: "serving", owner });
+            }
+            // answer each request to this owner
+            else if (message.kind === "request" && message.to === owner) {
+                run(message.step).then(
+                    (value) =>
+                        channel.notify({ kind: "answer", to: message.from, id: message.id, value }),
+                    (error: unknown) =>
+                        channel.notify({
+                            kind: "answer",
+                            to: message.from,
+                            id: message.id,
+                            error: describeError(error),
+                        }),
+                );
+            }
+        },
     });
 
     // announce this owner
@@ -405,16 +407,15 @@ export class SharedClient extends SharedQuery implements SqliteConnectionClient 
             notify: (message) => channel.notify(message),
             hear: (token) => channel.hear(token),
             close: () => channel.close(),
-            listen: (receive, resume, fail) =>
-                shared.listen(
-                    (message) => {
+            listen: (listener) =>
+                shared.listen({
+                    ...listener,
+                    receive: (message) => {
                         if (message.kind === "commit") {
-                            receive(message);
+                            listener.receive(message);
                         }
                     },
-                    resume,
-                    fail,
-                ),
+                }),
         };
     }
 
@@ -483,7 +484,7 @@ export class Party {
         const channel = typedChannel(raw, Message);
         this.#channel = channel;
         this.#name = name;
-        this.#stop = channel.listen((message) => this.#receive(message));
+        this.#stop = channel.listen({ receive: (message) => this.#receive(message) });
         channel.notify({ kind: "join" });
     }
 

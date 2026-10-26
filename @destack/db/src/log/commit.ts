@@ -254,9 +254,15 @@ export class ChangeSet {
         // validate reads under the lock and check references after the writes
         await database.transaction(
             async (transaction) => {
-                // serialize against other commits, then refuse once a later commit touched a read
-                await transaction.log.serialize();
-                await ChangeSet.requireCurrent(transaction, base, reads);
+                // take the commit lock, then read the position in the same round trip when validating reads
+                const locked = transaction.log.serialize();
+                const reading = reads.tables.length === 0 ? undefined : transaction.log.position();
+                const [, position] = await Promise.all([locked, reading]);
+
+                // refuse once a commit since the base touched a read
+                if (position !== undefined) {
+                    await ChangeSet.requireCurrent(transaction, base, reads, position);
+                }
 
                 // send the records, then each run of one table's changes, in one round trip
                 await Promise.all([
@@ -443,18 +449,20 @@ export class ChangeSet {
         );
     }
 
-    /** Refuse with `CONCURRENT_UPDATE` once a later commit touched a transaction's reads. */
+    /** Refuse with `CONCURRENT_UPDATE` once a commit up to a position touched the reads. */
     static async requireCurrent(
         transaction: DatabaseConnection,
         base: LogPosition,
         reads: ReadSet,
+        position: LogPosition,
     ): Promise<void> {
-        // require the base's epoch, whose sequences the log continues
+        // pass a transaction that read nothing
         const tables = reads.tables;
         if (tables.length === 0) {
             return;
         }
-        const position = await transaction.log.position();
+
+        // refuse a log that restarted since the base
         if (position.epoch !== base.epoch) {
             throw DatabaseError.of(
                 "CONCURRENT_UPDATE",
@@ -473,12 +481,16 @@ export class ChangeSet {
                 }
                 throw error;
             });
+
+            // refuse a page that touched a read
             if (page.changes.some((change) => reads.touches(change))) {
                 throw DatabaseError.of(
                     "CONCURRENT_UPDATE",
                     "another commit changed what the transaction read",
                 );
             }
+
+            // end at the last page
             if (page.sequence <= after) {
                 return;
             }
@@ -489,7 +501,7 @@ export class ChangeSet {
 
 /** A transaction in progress over a database: its start position, reads and writes. */
 export class Transaction {
-    /** The database the transaction reads and commits to, sharing reads of shared tables. */
+    /** The database the transaction reads and commits to. */
     readonly database: DatabaseConnection;
     /** The transaction's start position, checked against the log at commit, null if read-only. */
     readonly #base: LogPosition | null;
@@ -506,7 +518,7 @@ export class Transaction {
 
     /** Start a transaction at a position, or one that only reads at null. */
     constructor(database: DatabaseConnection, base: LogPosition | null) {
-        this.database = database.sharing();
+        this.database = database;
         this.#base = base;
     }
 
@@ -552,8 +564,11 @@ export class Transaction {
                     throw error;
                 }
 
-                // count the lost race, and stop once the caller aborts
+                // count the lost race, and expire the cached reads so the rerun reads anew
                 database.state.lostRaces += 1;
+                database.state.commits.expire();
+
+                // stop once the caller aborts
                 signal?.throwIfAborted();
             }
         }
@@ -580,8 +595,13 @@ export class Transaction {
 
     /** Refuse as a lost race once a commit after the transaction's start changed what it read. */
     async requireCurrent(): Promise<void> {
-        if (this.#base !== null) {
-            await ChangeSet.requireCurrent(this.database, this.#base, this.reads);
+        // read the position and the changes since the base from the database, past the cache
+        const base = this.#base;
+        if (base !== null && this.reads.tables.length > 0) {
+            await this.database.transaction(async (transaction) => {
+                const position = await transaction.log.position();
+                await ChangeSet.requireCurrent(transaction, base, this.reads, position);
+            });
         }
     }
 

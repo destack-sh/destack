@@ -39,15 +39,15 @@ test("send small and large messages whole through a PostgreSQL channel, splittin
     const isReceived = Promise.withResolvers<void>();
     const listening = typedChannel(postgresChannel(listener, Promise.resolve(name), world), Note);
     const sending = typedChannel(postgresChannel(sender, Promise.resolve(name), world), Note);
-    const stop = listening.listen(
-        (message) => {
+    const stop = listening.listen({
+        receive: (message) => {
             received.push(message);
             if (received.length === 2) {
                 isReceived.resolve();
             }
         },
-        () => joined.resolve(),
-    );
+        resume: () => joined.resolve(),
+    });
     onTestFinished(async () => {
         // stop listening and close both channels before ending both pools
         stop();
@@ -208,13 +208,13 @@ test("announce a schema's commits on its channel alone, never to a database of a
     if (channel === undefined) {
         throw new Error("the database announces no commits");
     }
-    const stop = channel.listen(
-        (message) => {
+    const stop = channel.listen({
+        receive: (message) => {
             received.push(message);
             isReceived.resolve();
         },
-        () => joined.resolve(),
-    );
+        resume: () => joined.resolve(),
+    });
     onTestFinished(stop);
     await joined.promise;
 
@@ -293,13 +293,13 @@ test("send a listening writer's commit token in its commit notification, counted
     const isReceived = Promise.withResolvers<void>();
     const joined = Promise.withResolvers<void>();
     const openChannel = present(database.state.openChannel, "the database's channels");
-    const stop = openChannel(LOG_TOPIC).listen(
-        (message) => {
+    const stop = openChannel(LOG_TOPIC).listen({
+        receive: (message) => {
             received.push(message);
             isReceived.resolve();
         },
-        () => joined.resolve(),
-    );
+        resume: () => joined.resolve(),
+    });
     onTestFinished(stop);
     await joined.promise;
 

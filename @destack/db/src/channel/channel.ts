@@ -4,16 +4,24 @@ import { schema } from "@destack/schema";
 export interface Channel<Message> {
     /** Send a message to every other party. */
     notify(message: Message): void;
-    /** Receive other parties' messages until stopped, resuming per delivery start. */
-    listen(
-        receive: (message: Message) => void,
-        resume?: () => void,
-        fail?: (error: unknown) => void,
-    ): () => void;
+    /** Receive other parties' messages until stopped. */
+    listen(listener: ChannelListener<Message>): () => void;
     /** Wait until every party listening in this process heard a commit with a token. */
     readonly hear: (token: string) => Hearing;
     /** Leave the channel, releasing what opening and joining it took. */
     readonly close: () => Promise<void>;
+}
+
+/** A party listening on a channel: what it receives, and how delivery starts, ends and fails. */
+export interface ChannelListener<Message> {
+    /** Receive another party's message. */
+    readonly receive: (message: Message) => void;
+    /** Recheck once delivery starts or starts again. */
+    readonly resume?: () => void;
+    /** Fail once delivery fails. */
+    readonly fail?: (error: unknown) => void;
+    /** Stop trusting delivery once it is lost, until it resumes. */
+    readonly pause?: () => void;
 }
 
 /** The wait for a commit's token to reach every party listening in a process. */
@@ -50,22 +58,21 @@ export function typedChannel<Message>(
         notify: (value) => channel.notify(value),
         hear: (token) => channel.hear(token),
         close: () => channel.close(),
-        listen: (receive, resume, fail) =>
-            channel.listen(
-                (value) => {
+        listen: (listener) =>
+            channel.listen({
+                ...listener,
+                receive: (value) => {
                     // deliver a parsed message, and fail on one the schema refuses
                     const parsed = message.safeParse(value);
                     if (parsed.success) {
-                        receive(parsed.data);
-                    } else if (fail !== undefined) {
-                        fail(parsed.error);
+                        listener.receive(parsed.data);
+                    } else if (listener.fail !== undefined) {
+                        listener.fail(parsed.error);
                     } else {
                         throw parsed.error;
                     }
                 },
-                resume,
-                fail,
-            ),
+            }),
     };
 }
 
@@ -86,7 +93,7 @@ export function channelHub<Payload>(): () => Channel<Payload> {
                     }
                 }
             },
-            listen: (receive, resume) => {
+            listen: ({ receive, resume }) => {
                 // deliver each later message
                 listeners.add(receive);
                 local.add(receive);

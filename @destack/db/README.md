@@ -149,13 +149,14 @@ await transaction.write(
 await transaction.commit();
 ```
 
-## Shared reads
+## Cached reads
 
-A table declared `log: { isShared: true }` lets transactions share their reads of it, each read kept at its tables' latest change until a commit writes them.
+A read outside a SQL transaction is answered from memory until a commit writes one of its tables, once the connection hears every commit.
 
 ```ts
-export const member = defineTable("member", columns, { log: { isShared: true } });
-const transaction = await Transaction.open(database); // reads shared tables through database.sharing()
+await database.log.listening(); // hear other writers' commits on the database's channel
+await database.select().from(member); // reads the database
+await database.select().from(member); // answers from memory until a commit writes member
 ```
 
 ## Log

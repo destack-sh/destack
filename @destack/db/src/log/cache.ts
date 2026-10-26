@@ -1,14 +1,14 @@
-import { LogPosition } from "./position.ts";
+import { nth } from "@destack/schema";
 
-/** Reads of one kind, each stored at its read's log position, least recently used dropped. */
+/** Reads of one kind, each kept with its tables' commit versions, least recently used dropped. */
 export class ReadCache<Value> {
     /** The most weight the stored values have together. */
     readonly #capacity: number;
     /** The most weight one stored value has. */
     readonly #maximum: number;
-    /** Weigh a value, such as by its rows. */
-    readonly #weigh: (value: Value) => number;
-    /** The values read with their positions and weights, least recently used first. */
+    /** Weigh a value and its key, such as by its rows. */
+    readonly #weigh: (key: string, value: Value) => number;
+    /** The values read with their versions and weights, least recently used first. */
     readonly #values = new Map<string, Entry<Value> & { readonly weight: number }>();
     /** The reads running, by key. */
     readonly #reading = new Map<string, Entry<Promise<Value>>>();
@@ -16,39 +16,41 @@ export class ReadCache<Value> {
     #weight = 0;
 
     /** Store values up to a total weight, each at most a maximum weight. */
-    constructor(capacity: number, maximum: number, weigh: (value: Value) => number) {
+    constructor(capacity: number, maximum: number, weigh: (key: string, value: Value) => number) {
         this.#capacity = capacity;
         this.#maximum = maximum;
         this.#weigh = weigh;
     }
 
-    /** Read a value at a position or later, from memory or once through a shared read. */
-    get(key: string, read: () => Promise<Value>, position: LogPosition): Promise<Value> {
-        // answer a value stored at the position or later, marking it used last
+    /** Read a value at its tables' versions, from memory or once through a shared read. */
+    get(key: string, versions: readonly number[], read: () => Promise<Value>): Promise<Value> {
+        // answer a value stored at the same versions, marking it used last
         const kept = this.#values.get(key);
-        if (kept !== undefined && !LogPosition.isAfter(position, kept.position)) {
+        if (kept !== undefined && isSame(kept.versions, versions)) {
             this.#values.delete(key);
             this.#values.set(key, kept);
 
             return Promise.resolve(kept.value);
         }
 
-        // answer a running read at the position or later
+        // answer a read running at the same versions
         const running = this.#reading.get(key);
-        if (running !== undefined && !LogPosition.isAfter(position, running.position)) {
+        if (running !== undefined && isSame(running.versions, versions)) {
             return running.value;
         }
 
-        // read anew, storing the value unless a newer one arrives meanwhile
+        // read anew, storing the value at the versions read before it unless a newer one arrived
         const reading: Promise<Value> = read().then(
             (value) => {
-                // finish the running read, and store its value unless a newer one arrived
-                const newest = this.#values.get(key);
+                // finish the running read
                 if (this.#reading.get(key)?.value === reading) {
                     this.#reading.delete(key);
                 }
-                if (newest === undefined || !LogPosition.isAfter(newest.position, position)) {
-                    this.#set(key, value, position);
+
+                // store the value unless a newer one arrived meanwhile
+                const newest = this.#values.get(key);
+                if (newest === undefined || !isNewer(newest.versions, versions)) {
+                    this.#set(key, value, versions);
                 }
 
                 return value;
@@ -60,22 +62,22 @@ export class ReadCache<Value> {
                 throw error;
             },
         );
-        this.#reading.set(key, { value: reading, position });
+        this.#reading.set(key, { value: reading, versions });
 
         return reading;
     }
 
     /** Store a read value, dropping the least recently used ones past the capacity. */
-    #set(key: string, value: Value, position: LogPosition): void {
+    #set(key: string, value: Value, versions: readonly number[]): void {
         // replace the key's value, storing none heavier than the maximum
         this.#forget(key);
-        const weight = this.#weigh(value);
+        const weight = this.#weigh(key, value);
         if (weight > this.#maximum) {
             return;
         }
 
         // store the value last, dropping the oldest past the capacity
-        this.#values.set(key, { value, position, weight });
+        this.#values.set(key, { value, versions, weight });
         this.#weight += weight;
         for (const oldest of this.#values.keys()) {
             if (this.#weight <= this.#capacity) {
@@ -95,10 +97,23 @@ export class ReadCache<Value> {
     }
 }
 
-/** A value with the log position it was read at. */
+/** A value with its tables' commit versions when it was read. */
 interface Entry<Value> {
     /** The value. */
     readonly value: Value;
-    /** The log position it was read at. */
-    readonly position: LogPosition;
+    /** The commit version of each table it read, in the read's table order. */
+    readonly versions: readonly number[];
+}
+
+/** Decide whether a version list moved past another: no table older, one newer. */
+function isNewer(left: readonly number[], right: readonly number[]): boolean {
+    return (
+        left.every((version, index) => version >= nth(right, index)) &&
+        left.some((version, index) => version > nth(right, index))
+    );
+}
+
+/** Decide whether two version lists are equal. */
+function isSame(left: readonly number[], right: readonly number[]): boolean {
+    return left.length === right.length && left.every((version, index) => version === right[index]);
 }

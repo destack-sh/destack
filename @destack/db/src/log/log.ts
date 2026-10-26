@@ -344,18 +344,58 @@ export class Log {
         return new Snapshot(this.database, position, rewind);
     }
 
-    /** Read the position of the latest commit. */
+    /** Read the position of the latest commit, from memory until a commit writes the log. */
     async position(): Promise<LogPosition> {
-        // read the latest commit once per commit, and afresh inside a transaction seeing its writes
-        return this.database.driver.transaction === undefined
-            ? this.database.state.commits.head(() => this.#latest())
-            : this.#latest();
+        // read the head, with the tables written since the watch caught up on a shared log
+        const { commits } = this.database.state;
+        const caught = commits.caughtUp;
+        const isCatching = commits.isShared && this.database.driver.transaction === undefined;
+        const statement =
+            isCatching && caught !== undefined ? this.#headSince(caught.sequence) : this.#head();
+        const head = await this.#readHead(statement);
+        const sequence = latestOf(head.logged, head.horizon);
+        const position = { log: head.log, epoch: head.epoch, sequence };
+
+        // leave a sole writer's or a transaction's position as read
+        if (!isCatching) {
+            return position;
+        }
+
+        // start catching up at the head, the watch having heard every commit since delivery began
+        if (caught === undefined) {
+            commits.catchUp(position, []);
+        }
+        // wake every table after a restart, or once compaction removed the changes
+        else if (caught.epoch !== head.epoch || caught.sequence < head.horizon) {
+            commits.catchUp(position, "every");
+        }
+        // wake the tables of the commits the watch has yet to hear
+        else if (sequence > caught.sequence) {
+            commits.catchUp(position, head.written);
+        }
+
+        return position;
+    }
+
+    /** Select the log's head. */
+    #head(): SQL {
+        return selectHead(this.database.dialect);
+    }
+
+    /** Select the log's head with the tables commits after a sequence wrote, comma separated. */
+    #headSince(after: number): SQL {
+        const written =
+            this.database.dialect === "sqlite"
+                ? sql`group_concat(DISTINCT "table")`
+                : sql`string_agg(DISTINCT "table", ',')`;
+
+        return sql`${this.#head()}, (SELECT ${written} FROM ${sql.relation(LOG)} WHERE sequence > ${after}) AS written`;
     }
 
     /** Read the position of some scopes' latest change to some tables, or the horizon. */
     async changed(tables: readonly Table[], scopes: readonly string[]): Promise<LogPosition> {
         // read the newest committed entry of the scopes in the tables through the log's scope index
-        const head = await this.#readHead();
+        const head = await this.#readHead(this.#head());
         const names = tables.map((table) => sql`${table[TABLE].sqlName}`);
         const scoped = sql.join(
             scopes.map((scope) => sql`${scope}`),
@@ -375,27 +415,23 @@ export class Log {
         return { log: head.log, epoch: head.epoch, sequence: latestOf(sequence, head.horizon) };
     }
 
-    /** Read the position of the latest commit. */
-    async #latest(): Promise<LogPosition> {
-        const head = await this.#readHead();
-
-        return { log: head.log, epoch: head.epoch, sequence: latestOf(head.logged, head.horizon) };
-    }
-
     /** Read the log's head row: its log, epoch, latest sequence and horizon. */
-    async #readHead(): Promise<{
+    async #readHead(statement: SQL): Promise<{
         readonly log: string;
         readonly epoch: string;
         readonly logged: number | null;
         readonly horizon: number;
+        readonly written: readonly string[];
     }> {
-        const [row] = await this.database.all(selectHead(this.database.dialect));
+        const [row] = await this.database.all(statement);
+        const written = row?.["written"];
 
         return {
             log: LogColumn.text(row?.["log"]),
             epoch: LogColumn.text(row?.["epoch"]),
             logged: LogColumn.nullableInteger(row?.["logged"]),
             horizon: LogColumn.integer(row?.["horizon"]),
+            written: typeof written === "string" ? written.split(",") : [],
         };
     }
 

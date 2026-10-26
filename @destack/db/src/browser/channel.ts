@@ -12,7 +12,7 @@ export function broadcastChannel(
     return {
         notify: (message) => port.send(message),
         hear: () => HEARD,
-        listen: (receive, resume) => {
+        listen: ({ receive, resume }) => {
             // deliver each later message
             const subscription = port.on(receive);
             resume?.();

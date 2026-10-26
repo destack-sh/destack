@@ -129,7 +129,6 @@ export class Table<
                 constraints: () => [],
                 retention: state.log?.retention ?? "none",
                 isAppendOnly: state.log?.appendOnly === true,
-                isShared: false,
                 moved: {},
                 convert: {},
                 aggregates: [],
@@ -276,8 +275,6 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly retention: ChangeRetention;
     /** Whether rows are only ever inserted, deletes going unlogged. */
     readonly isAppendOnly: boolean;
-    /** Whether transactions share cached reads of the table, each refreshed by the table's log. */
-    readonly isShared: boolean;
     /** The table's previous names. */
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
@@ -330,7 +327,6 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         this.columns = columns;
         this.retention = declaration.retention;
         this.isAppendOnly = declaration.isAppendOnly;
-        this.isShared = declaration.isShared;
         this.moved = declaration.moved;
         this.convert = declaration.convert;
         this.aggregates = declaration.aggregates;
@@ -615,8 +611,6 @@ interface TableDeclaration {
     readonly retention: ChangeRetention;
     /** Whether rows are only ever inserted, deletes going unlogged. */
     readonly isAppendOnly: boolean;
-    /** Whether transactions share cached reads of the table, each refreshed by the table's log. */
-    readonly isShared: boolean;
     /** The table's previous names. */
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
@@ -681,20 +675,9 @@ export interface Dependent {
 export type LogOptions = {
     /** How long the log retains the changes, the window by default. */
     readonly retention?: Exclude<ChangeRetention, "none">;
-} & (
-    | {
-          /** Whether rows are only inserted, as events are. */
-          readonly appendOnly?: false;
-          /** Whether transactions share cached reads of the table, refreshed by its log. */
-          readonly isShared?: boolean;
-      }
-    | {
-          /** Rows are only inserted, as events are. */
-          readonly appendOnly: true;
-          /** The table is never shared, as its deletes go unlogged. */
-          readonly isShared?: false;
-      }
-);
+    /** Whether rows are only inserted, as events are, their deletes going unlogged. */
+    readonly appendOnly?: boolean;
+};
 
 /** The options of a table. */
 export interface TableOptions<Columns> {
@@ -838,7 +821,6 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
             constraints: () => options.constraints?.(columns) ?? [],
             retention: options.log === undefined ? "none" : (options.log.retention ?? "window"),
             isAppendOnly: options.log?.appendOnly === true,
-            isShared: options.log?.isShared === true,
             moved: options.moved ?? {},
             convert: options.convert ?? {},
             aggregates: options.aggregates ?? [],
@@ -871,7 +853,6 @@ export function alias<Definition extends Table, Name extends string>(
             constraints: () => [],
             retention: source[TABLE].retention,
             isAppendOnly: source[TABLE].isAppendOnly,
-            isShared: source[TABLE].isShared,
             moved: source[TABLE].moved,
             convert: source[TABLE].convert,
             aggregates: source[TABLE].aggregates,

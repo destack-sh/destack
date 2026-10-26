@@ -13,7 +13,7 @@ import { testSimulation } from "@destack/test/world";
 /** The writers and readers the stress test interleaves: 500 each, about 75 ms on SQLite. */
 const STRESS_TRANSACTIONS = 500;
 
-/** The members the shared-read stress test commits while readers share reads: 200, tens of ms. */
+/** The members the cached-read stress test commits while readers read: 200, tens of ms. */
 const STRESS_MEMBERS = 200;
 
 /** Tasks in folders, with a priority. */
@@ -86,7 +86,7 @@ const bookmark = defineTable(
     { log: {}, constraints: (entry) => [unique("commit_pin_place").on(entry.person, entry.place)] },
 );
 
-/** Members of folders whose reads transactions share while the log of members stands. */
+/** Members of folders, in the log's window. */
 const member = defineTable(
     "commit_member",
     {
@@ -97,10 +97,10 @@ const member = defineTable(
         /** The member's role in the folder. */
         role: text("role").notNull(),
     },
-    { log: { isShared: true } },
+    { log: {} },
 );
 
-/** Roles of folders, in the log's history, whose reads transactions share. */
+/** Roles of folders, in the log's history. */
 const role = defineTable(
     "commit_role",
     {
@@ -109,10 +109,10 @@ const role = defineTable(
         /** The folder the role belongs to. */
         scope: text("scope").notNull(),
     },
-    { log: { retention: "history", isShared: true } },
+    { log: { retention: "history" } },
 );
 
-/** Declare shared units with one predefined row of a name. */
+/** Declare units with one predefined row of a name. */
 function unitTable(name: string) {
     return defineTable(
         "commit_unit",
@@ -124,7 +124,7 @@ function unitTable(name: string) {
             /** The unit's name. */
             name: text("name").notNull(),
         },
-        { log: { isShared: true }, predefined: [{ id: "metre", scope: "si", name }] },
+        { log: {}, predefined: [{ id: "metre", scope: "si", name }] },
     );
 }
 
@@ -1020,7 +1020,7 @@ test("refuse writing a predefined row, and write other rows of its table", async
     });
 });
 
-test("share reads of a shared table among transactions until a commit writes it, each seeing its writes", async () => {
+test("answer a live read from memory until a commit writes its table, each transaction seeing its own writes", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -1040,6 +1040,9 @@ test("share reads of a shared table among transactions until a commit writes it,
     await database.transaction((transaction) =>
         transaction.insert(task).values({ id: "a", scope: "inbox", priority: 1 }).execute(),
     );
+
+    // hear other writers' commits, as a serving store does
+    await database.log.listening();
     const counted = async (read: () => Promise<readonly unknown[]>) => {
         const before = database.driver.state.statements;
         const rows = await read();
@@ -1053,10 +1056,10 @@ test("share reads of a shared table among transactions until a commit writes it,
             .findMany({ where: { scope: "s" } });
     const inbox = () => Transaction.reading(database).view().read(task).findMany({});
 
-    // read the members twice at one version, and the unshared tasks twice
+    // read the members twice and the tasks twice, each read once from the database
     const first = await counted(() => members(Transaction.reading(database)));
     const second = await counted(() => members(Transaction.reading(database)));
-    const unshared = [await counted(inbox), await counted(inbox)];
+    const inboxes = [await counted(inbox), await counted(inbox)];
 
     // commit a member, seen by its transaction, then read the members anew
     const mine = await Transaction.run(database, async (transaction) => {
@@ -1067,20 +1070,20 @@ test("share reads of a shared table among transactions until a commit writes it,
     });
     const third = await counted(() => members(Transaction.reading(database)));
 
-    // read the version alone while the members stand
-    expect({ first, second, unshared, mine, third }).toEqual({
-        first: { rows: 2, statements: 2 },
-        second: { rows: 2, statements: 1 },
-        unshared: [
+    // read nothing again while the members stand, and the members anew once a commit wrote them
+    expect({ first, second, inboxes, mine, third }).toEqual({
+        first: { rows: 2, statements: 1 },
+        second: { rows: 2, statements: 0 },
+        inboxes: [
             { rows: 1, statements: 1 },
-            { rows: 1, statements: 1 },
+            { rows: 1, statements: 0 },
         ],
         mine: ["ada", "bob", "carol"],
-        third: { rows: 3, statements: 2 },
+        third: { rows: 3, statements: 1 },
     });
 });
 
-test("read a shared table's committed rows anew once compaction removed their log entries", async () => {
+test("read a table's rows anew after a commit wrote it, past compaction removing its log entries", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -1118,8 +1121,8 @@ test("read a shared table's committed rows anew once compaction removed their lo
     });
 });
 
-test("read a shared table's predefined rows anew once a migration changes them", async () => {
-    // share a read of the predefined unit, migrating at one frozen millisecond
+test("read a table's predefined rows anew once a migration changes them", async () => {
+    // cache a read of the predefined unit, migrating at one frozen millisecond
     const before = unitTable("Metre");
     const environment = testSimulation().environment("store");
     const storage = await TestDatabase.create([before], { environment });
@@ -1130,7 +1133,7 @@ test("read a shared table's predefined rows anew once a migration changes them",
         (await Transaction.reading(database).view().read(before).findMany({})).map(
             (row) => row.name,
         );
-    const shared = await names();
+    const cached = await names();
 
     // rename the predefined unit through two migrations in one millisecond, reading after each
     const applied = async () =>
@@ -1146,16 +1149,16 @@ test("read a shared table's predefined rows anew once a migration changes them",
 
     // see each rename past the cached read, as every apply moves the table's version
     expect({
-        shared,
+        cached,
         renamed,
         restored: await names(),
         moves: versions
             .slice(1)
             .map((version, index) => nth(version, 0) - nth(nth(versions, index), 0)),
-    }).toEqual({ shared: ["Metre"], renamed: ["Meter"], restored: ["Metre"], moves: [1, 1] });
+    }).toEqual({ cached: ["Metre"], renamed: ["Meter"], restored: ["Metre"], moves: [1, 1] });
 });
 
-test("see every member committed before a shared read starts, while writers and readers interleave", async () => {
+test("see every member committed before a cached read starts, while writers and readers interleave", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -1183,7 +1186,7 @@ test("see every member committed before a shared read starts, while writers and 
         finished[scope] = nth(finished, scope) + 1;
     };
 
-    // read the scope each commit writes beside the commit, with members to share
+    // read the scope each commit writes beside the commit
     const read = async (scope: number) => {
         const before = nth(finished, scope);
         const rows = await Transaction.reading(database)
@@ -1206,11 +1209,11 @@ test("see every member committed before a shared read starts, while writers and 
     }).toEqual({ stale: 0, members: STRESS_MEMBERS });
 });
 
-test("read the shared tables' version again after it failed, through the same transaction", async () => {
+test("read anew after a read failed, through the same transaction once the table exists", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // fail a shared read before the tables and the log exist
+    // fail a read before the tables and the log exist
     const storage = await TestDatabase.create([member], { environment: world });
     onTestFinished(() => storage.close());
     const { database } = storage;
@@ -1233,11 +1236,11 @@ test("read the shared tables' version again after it failed, through the same tr
     });
 });
 
-test("share a read across commits writing other shared tables, reading anew once its table changes", async () => {
+test("answer a read from memory across commits writing other tables, reading anew once its table changes", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // store a member and a role, both shared
+    // store a member and a role
     const storage = await TestDatabase.create([member, role], {
         environment: world,
         isMigrated: true,
@@ -1247,6 +1250,9 @@ test("share a read across commits writing other shared tables, reading anew once
     await database.transaction((transaction) =>
         transaction.insert(member).values({ id: "ada", scope: "s", role: "owner" }).execute(),
     );
+
+    // hear other writers' commits, as a serving store does
+    await database.log.listening();
     const counted = async () => {
         const before = database.driver.state.statements;
         await Transaction.reading(database).view().read(member).findMany({});
@@ -1267,8 +1273,8 @@ test("share a read across commits writing other shared tables, reading anew once
 
     // read the members anew after the member alone
     expect({ first, afterRole, afterMember }).toEqual({
-        first: 2,
-        afterRole: 1,
-        afterMember: 2,
+        first: 1,
+        afterRole: 0,
+        afterMember: 1,
     });
 });

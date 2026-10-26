@@ -13,12 +13,21 @@ export class TransactionState {
     readonly signal: AbortSignal | undefined;
     /** The SQL names of the tables the outermost transaction writes, which its commit announces. */
     readonly written: Set<string>;
+    /** The SQL names of the tables its scripts change, which the connection announces itself. */
+    readonly scripted: Set<string>;
     /** The outermost transaction's log identity, stamped at its first write. */
     readonly identity: TransactionIdentity;
 
     /** Create the state, recording its writes and identity as the outermost transaction's. */
-    constructor(written: Set<string>, identity: TransactionIdentity, signal?: AbortSignal) {
+    constructor(
+        written: Set<string>,
+        scripted: Set<string>,
+        identity: TransactionIdentity,
+        signal?: AbortSignal,
+    ) {
+        // store the outermost transaction's writes, scripts and identity, and the signal
         this.written = written;
+        this.scripted = scripted;
         this.identity = identity;
         this.signal = signal;
     }

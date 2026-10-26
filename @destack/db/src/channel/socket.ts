@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type { Environment, FileLock, Socket, SocketListener } from "@destack/environment";
-import { type Channel, HEARD, type Hearing } from "./channel.ts";
+import { type Channel, type ChannelListener, HEARD, type Hearing } from "./channel.ts";
 
 /** The hex digits of a path digest in its socket name, fitting macOS's 104-byte socket paths. */
 const NAME_DIGITS = 16;
@@ -18,16 +18,6 @@ interface Peer {
     readonly socket: Socket;
     /** The writer sending lines over it. */
     readonly writer: WritableStreamDefaultWriter<Uint8Array>;
-}
-
-/** One listener of a channel. */
-interface Listener {
-    /** Receive another party's message. */
-    readonly receive: (message: unknown) => void;
-    /** Recheck once the party joins or joins again. */
-    readonly resume: (() => void) | undefined;
-    /** Fail once delivery ends. */
-    readonly fail: ((error: unknown) => void) | undefined;
 }
 
 /** Connect every process on one machine sharing a path through a Unix socket. */
@@ -58,7 +48,7 @@ class SocketChannel implements Channel<unknown> {
     /** The environment whose runtime directory and sockets the parties meet through. */
     readonly #environment: Environment<"files" | "server">;
     /** The listeners in this process. */
-    readonly #listeners = new Set<Listener>();
+    readonly #listeners = new Set<ChannelListener<unknown>>();
     /** The lines sent before joining. */
     #queued: string[] = [];
     /** The join in progress or done. */
@@ -106,17 +96,13 @@ class SocketChannel implements Channel<unknown> {
     }
 
     /** Receive the other parties' messages until stopped, resuming on each join. */
-    listen(
-        receive: (message: unknown) => void,
-        resume?: () => void,
-        fail?: (error: unknown) => void,
-    ): () => void {
+    listen(given: ChannelListener<unknown>): () => void {
         // refuse a closed channel, then join, or resume at once when joined already
         this.#requireOpen();
-        const listener = { receive, resume, fail };
+        const listener = { ...given };
         this.#listeners.add(listener);
         if (this.#isJoined) {
-            resume?.();
+            listener.resume?.();
         } else {
             this.#join();
         }
@@ -241,9 +227,13 @@ class SocketChannel implements Channel<unknown> {
         this.#read(peer, (line) => this.#deliver(line))
             .catch((error: unknown) => this.#fail(error))
             .finally(() => {
+                // pause the listeners, whose next join resumes them
                 if (this.#peer === peer) {
                     this.#peer = undefined;
                     this.#joining = undefined;
+                    for (const listener of this.#listeners) {
+                        listener.pause?.();
+                    }
                     if (this.#listeners.size > 0) {
                         this.#join();
                     }

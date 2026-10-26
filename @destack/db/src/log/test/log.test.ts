@@ -784,3 +784,95 @@ test("read the position of a scope's latest change to some tables, past later ch
         compacted: before,
     });
 });
+
+test("read the log's position from memory until a commit writes the log, past commits of unlogged tables", async () => {
+    const { database } = await open();
+    const { state } = database.driver;
+    const counted = async () => {
+        const before = state.statements;
+        const { sequence } = await database.log.position();
+
+        return { sequence, statements: state.statements - before };
+    };
+
+    // hear other writers' commits as a serving store does, catch up once, then read the position
+    await database.log.listening();
+    await database.log.position();
+    await database.log.position();
+    const warm = await counted();
+
+    // commit an unlogged lease, then a logged note
+    await database.transaction((transaction) =>
+        transaction.insert(lease).values({ name: "a", expiresAt: 1 }).execute(),
+    );
+    const afterLease = await counted();
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
+    const afterNote = await counted();
+
+    // read the position again only once the log has a new entry
+    expect({ warm, afterLease, afterNote }).toEqual({
+        warm: { sequence: 0, statements: 0 },
+        afterLease: { sequence: 0, statements: 0 },
+        afterNote: { sequence: 1, statements: 1 },
+    });
+});
+
+test("answer a read from memory until another connection's commit of its table reaches this connection", async () => {
+    const { storage, database } = await open("file");
+    const other = await storage.connect(changeTables);
+    onTestFinished(() => other.close());
+    const { state } = database.driver;
+    const counted = async () => {
+        const before = state.statements;
+        const ids = (await database.select().from(note)).map((row) => row.id);
+
+        return { ids, statements: state.statements - before };
+    };
+
+    // hear other writers' commits, then read the notes twice
+    await database.log.listening();
+    const cold = await counted();
+    const warm = await counted();
+
+    // commit a note through the other connection, and wait until this connection hears it
+    await other.transaction((transaction) => transaction.insert(note).values(first).execute());
+    const { sequence } = await other.log.position();
+    await database.log.wait(sequence, AbortSignal.timeout(5000));
+    const heard = await counted();
+
+    // read the notes anew once the other commit arrives
+    expect({ cold, warm, heard }).toEqual({
+        cold: { ids: [], statements: 1 },
+        warm: { ids: [], statements: 0 },
+        heard: { ids: [first.id], statements: 1 },
+    });
+});
+
+test("answer a read anew once another connection deletes an append-only row, which the log never records", async () => {
+    const { storage, database } = await open("file");
+    const other = await storage.connect(changeTables);
+    onTestFinished(() => other.close());
+    const name = reading[TABLE].sqlName;
+    await database.transaction((transaction) =>
+        transaction.insert(reading).values({ id: "r", scope: "inbox", value: 1 }).execute(),
+    );
+
+    // hear commits, then read the readings from the database
+    await database.log.listening();
+    const readings = async () => (await database.select().from(reading)).map((row) => row.id);
+    const before = await readings();
+
+    // delete the reading through the other connection, and wait until this connection hears it
+    const { generation } = database.state.commits;
+    await other.transaction((transaction) =>
+        transaction.delete(reading).where(eq(reading.id, "r")).execute(),
+    );
+    await database.log.until(
+        async (tables) => tables.has(name),
+        AbortSignal.timeout(5000),
+        generation,
+    );
+
+    // read the readings anew without the deleted one
+    expect({ before, after: await readings() }).toEqual({ before: ["r"], after: [] });
+});
