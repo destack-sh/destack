@@ -29,6 +29,9 @@ const SOURCES = {
 /** The interval between two sweeps the sweep tests simulate: an hour. */
 const INTERVAL = 60 * 60 * 1000;
 
+/** A minute, in milliseconds. */
+const MINUTE_MILLISECONDS = 60_000;
+
 /** The builds the many-builds sweep test stores, half of them retained. */
 const STRESS_BUILDS = 20;
 
@@ -798,7 +801,7 @@ async function upload(
     return [response.status, text === "" ? null : JSON.parse(text)];
 }
 
-test("retain the union of every root's builds, and forget a root that retains nothing", async () => {
+test("retain the union of every root's builds, record when each was rooted, and forget a root", async () => {
     // store two builds, each retained by a separate root
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -814,15 +817,26 @@ test("retain the union of every root's builds, and forget a root that retains no
     const second = await store.put(
         await written({ ...SOURCES, "src/extra.ts": "export {};\n" }, environment.crypto),
     );
-    await store.root("space-a", new Set([first]));
-    await store.root("space-b", new Set([second]));
+    const now = new Date(environment.clock.now());
+    await store.root("space-a", new Set([first]), now);
+    await store.root("space-b", new Set([second]), now);
     const both = await store.retained();
 
-    // forget one root, leaving the other's builds retained
-    await store.root("space-a", new Set());
+    // root nothing under a third root a minute later, recording only its time
+    const later = new Date(now.getTime() + MINUTE_MILLISECONDS);
+    await store.root("space-c", new Set(), later);
 
-    expect({ both: [...both].toSorted(), after: [...(await store.retained())] }).toEqual({
+    // forget one root, leaving the other's builds retained
+    await store.forget("space-a");
+    expect({
+        both: [...both].toSorted(),
+        rooted: await Promise.all(
+            ["space-a", "space-b", "space-c"].map((name) => store.rootedAt(name)),
+        ),
+        after: [...(await store.retained())],
+    }).toEqual({
         both: [first, second].toSorted(),
+        rooted: [undefined, now.getTime(), later.getTime()],
         after: [second],
     });
 });
@@ -864,7 +878,7 @@ test("retain a rooted build with the builds its workloads import, leaving export
             ),
         ),
     );
-    await store.root("space-a", new Set([root]));
+    await store.root("space-a", new Set([root]), new Date(environment.clock.now()));
 
     // retain the application, the library and the unit its client imports, but not the heavy library
     expect({
@@ -983,7 +997,7 @@ test("retain a rooted build's runtime build and its maps, and pass over a depend
             ),
         ),
     );
-    await store.root("space-a", new Set([served, importing]));
+    await store.root("space-a", new Set([served, importing]), new Date(simulation.clock.now()));
     const runtime = await store.attachRuntime(served, "bun");
     const maps = present(await store.referrer(runtime, MAPS_REFERRER), "the maps build");
 
@@ -1012,7 +1026,7 @@ test("sweep a store at most once per interval, once among concurrent sweeps, and
             environment.crypto,
         ),
     );
-    await store.root("space-a", new Set([live]));
+    await store.root("space-a", new Set([live]), new Date(environment.clock.now()));
     const start = simulation.clock.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
     const manifests = async () =>

@@ -117,7 +117,8 @@ export class LocalPackageStore
 
     /** Root some builds by a directory, until the directory is gone. */
     async rootDirectory(directory: string, manifests: ReadonlySet<string>): Promise<void> {
-        await this.root(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests);
+        const now = new Date(this.environment.clock.now());
+        await this.root(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests, now);
     }
 
     /** Clone a stored file to a path, creating its folder, copying where cloning is unsupported. */
@@ -134,7 +135,7 @@ export class LocalPackageStore
                 ? name.slice(DIRECTORY_ROOT_PREFIX.length)
                 : undefined;
             if (directory !== undefined && !(await this.environment.files.exists(directory))) {
-                await this.root(name, new Set());
+                await this.forget(name);
             }
         }
 

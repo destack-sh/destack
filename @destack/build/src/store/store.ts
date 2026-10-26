@@ -58,8 +58,13 @@ const TYPE_DECLARATION = /\.d\.[cm]?ts$/u;
 /** The prefix of the keys of the roots, each retaining manifests under its name. */
 const ROOTS_PREFIX = "roots/";
 
-/** The manifests one root retains. */
-const Roots = schema.array(Digest);
+/** A root's record: when it was written and the manifests it retains. */
+const Root = schema.object({
+    /** When the root was written, in UTC epoch milliseconds on the writer's clock. */
+    rootedAt: Instant,
+    /** The manifests the root retains. */
+    manifests: schema.array(Digest),
+});
 
 /** Decide which of some stored digests a sweep retains, read in batches the bucket lists. */
 export type Retention = (digests: readonly string[]) => Promise<ReadonlySet<string>>;
@@ -438,20 +443,24 @@ export class PackageStore<
         });
     }
 
-    /** Set the manifests a root retains, such as a space's, replacing what it retained before. */
-    async root(name: string, manifests: ReadonlySet<string>): Promise<void> {
-        // forget a root that retains nothing
-        const key = `${ROOTS_PREFIX}${name}`;
-        if (manifests.size === 0) {
-            await this.bucket.delete(key);
-
-            return;
-        }
-
-        // write the root's manifests
-        await this.bucket.put(key, JSON.stringify([...manifests].toSorted()), {
+    /** Set the manifests a root retains at a moment, such as a space's, replacing earlier ones. */
+    async root(name: string, manifests: ReadonlySet<string>, now: Date): Promise<void> {
+        const root = { rootedAt: now.getTime(), manifests: [...manifests].toSorted() };
+        await this.bucket.put(`${ROOTS_PREFIX}${name}`, JSON.stringify(root), {
             httpMetadata: { contentType: "application/json" },
         });
+    }
+
+    /** Forget a root, retaining nothing by it. */
+    async forget(name: string): Promise<void> {
+        await this.bucket.delete(`${ROOTS_PREFIX}${name}`);
+    }
+
+    /** Read when a root was last written, in UTC epoch milliseconds, absent without one. */
+    async rootedAt(name: string): Promise<number | undefined> {
+        const object = await this.bucket.get(`${ROOTS_PREFIX}${name}`);
+
+        return object === null ? undefined : Root.parse(await object.json()).rootedAt;
     }
 
     /** Read the manifests each root retains, by root name. */
@@ -461,10 +470,8 @@ export class PackageStore<
             // skip a root forgotten since the listing
             const object = await this.bucket.get(file.key);
             if (object !== null) {
-                roots.set(
-                    file.key.slice(ROOTS_PREFIX.length),
-                    new Set(Roots.parse(await object.json())),
-                );
+                const { manifests } = Root.parse(await object.json());
+                roots.set(file.key.slice(ROOTS_PREFIX.length), new Set(manifests));
             }
         }
 

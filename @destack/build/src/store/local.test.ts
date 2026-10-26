@@ -135,7 +135,7 @@ test("collect an unrooted build and its tree a week after storing it, on the nex
         await using store = await LocalPackageStore.open(directory, environment);
         rooted = await store.put(await written("export const answer = 42;\n", environment.crypto));
         dropped = await store.put(await written("export const answer = 43;\n", environment.crypto));
-        await store.root("answer", new Set([rooted]));
+        await store.root("answer", new Set([rooted]), new Date(clock.now()));
         await files.mkdir(join(store.trees, dropped, "node_modules"), { recursive: true });
         await files.mkdir(join(store.trees, rooted, "node_modules"), { recursive: true });
     }
