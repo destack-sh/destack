@@ -86,6 +86,7 @@ const host = simulation.node("host"); // its environment, process and network id
 await host.start((environment, signal) => Host.start(environment, signal));
 simulation.network.degrade({ drop: 0.01, delay: { least: 5, most: 80 } }); // a lost message breaks its socket
 simulation.network.partition("tab", "host");
+simulation.network.publish("host", { hostname: "127.0.0.1", port: 0, fetch }); // its port on the host too, for real child processes
 host.crash(); // drops its memory, listeners and sockets, keeps its files and database
 await simulation.run({ until: () => run.state === "completed" }); // skips time to each next timer
 await simulation.jump(simulation.clock.now() + 30 * DAY); // a 30-day sleep: each due wait wakes once

@@ -1,4 +1,5 @@
 import { BunNetwork } from "./bun.ts";
+import { BunServer } from "../server/bun.ts";
 import type { Network } from "./network.ts";
 import type {
     Listener,
@@ -303,6 +304,27 @@ export class SimulatedNetwork {
         return {
             http: (options) => this.#serve(node, options),
             socket: async (options) => this.#listen(node, options),
+        };
+    }
+
+    /** Publish a node's listener on the host at its port, outside the simulated links. */
+    publish<Attachment>(node: string, options: ServeOptions<Attachment>): Listener<Attachment> {
+        // listen on the host at a free port unless given, counting its requests on the clock
+        const host = BunServer.http({
+            ...options,
+            fetch: (request, listener) =>
+                this.#clock.trackHost(Promise.resolve(options.fetch(request, listener))),
+        });
+
+        // serve the node at the same address, stopping both together
+        const simulated = this.#serve(node, { ...options, port: Number(host.url.port) });
+
+        return {
+            url: simulated.url,
+            upgrade: simulated.upgrade,
+            stop: async (isClosingActive) => {
+                await Promise.all([host.stop(isClosingActive), simulated.stop(isClosingActive)]);
+            },
         };
     }
 
@@ -782,10 +804,14 @@ export class SimulatedNetwork {
             throw refusal(`fetch failed: the response from ${origin} was lost`, "ConnectionClosed");
         }
 
-        // hand the node a copy of the response, as a real network does
+        // hand the node a copy of the response whose body fails once the request aborts, as fetch does
         const { body, status, statusText, headers } = answer.response;
+        const delivered =
+            body === null
+                ? null
+                : body.pipeThrough(new TransformStream(), { signal: request.signal });
 
-        return new Response(body, { status, statusText, headers });
+        return new Response(delivered, { status, statusText, headers });
     }
 
     /** Open a node's socket to a listener. */

@@ -8,6 +8,7 @@ import {
     Simulation,
 } from "../src/simulation/index.ts";
 import type { ServerSocket, Socket } from "../src/index.ts";
+import { BunNetwork } from "../src/network/bun.ts";
 
 /** The simulations' start: 2026-10-16 at midnight UTC. */
 const START = Date.UTC(2026, 9, 16);
@@ -1016,6 +1017,73 @@ test("give up an aborted request, lose a response cut on its way back, and keep 
         cut: ["TypeError", "fetch failed: the response from https://cut.test was lost"],
         again: "new",
     });
+});
+
+test("fail a streamed response's body once its request aborts, cancelling the listener's stream, as fetch does", async () => {
+    // serve a stream that sends one chunk and never ends, noting its cancellation
+    await using simulation = new Simulation({ seed: 1, start: START });
+    let cancelled: unknown;
+    simulation.network.server("server").http({
+        hostname: "stream.test",
+        port: 443,
+        fetch: () =>
+            new Response(
+                new ReadableStream({
+                    start: (controller) => controller.enqueue(new TextEncoder().encode("first")),
+                    cancel: (reason) => {
+                        cancelled = reason;
+                    },
+                }),
+            ),
+    });
+
+    // read the first chunk, then abort the request and read on
+    const { network } = simulation.environment("client");
+    const controller = new AbortController();
+    const response = await simulation.drive(
+        network.fetch(new Request("https://stream.test/", { signal: controller.signal })),
+    );
+    const reader = response.body!.getReader();
+    const first = new TextDecoder().decode((await reader.read()).value);
+    controller.abort(new DOMException("stopped", "AbortError"));
+    const rest = await reader.read().then(
+        () => "read",
+        (error: Error) => [error.name, error.message],
+    );
+
+    expect({ first, rest, cancelled: (cancelled as Error | undefined)?.name }).toEqual({
+        first: "first",
+        rest: ["AbortError", "stopped"],
+        cancelled: "AbortError",
+    });
+});
+
+test("publish a node's listener on the host at its port, answering host processes and nodes alike", async () => {
+    // publish a node's listener, answering each request with its path
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const published = simulation.network.publish("server", {
+        hostname: "127.0.0.1",
+        port: 0,
+        fetch: (request) => new Response(new URL(request.url).pathname),
+    });
+
+    // call it from the host and from another node at the same address
+    const fromHost = await simulation.drive(
+        simulation.clock.trackHost(
+            BunNetwork.fetch(new Request(new URL("/host", published.url))).then((response) =>
+                response.text(),
+            ),
+        ),
+    );
+    const { network } = simulation.environment("client");
+    const fromNode = await simulation.drive(
+        network
+            .fetch(new Request(new URL("/node", published.url)))
+            .then((response) => response.text()),
+    );
+    await published.stop(true);
+
+    expect({ fromHost, fromNode }).toEqual({ fromHost: "/host", fromNode: "/node" });
 });
 
 test("refuse host work stalled past the stall timeout, and hand work driven during a timed run a run of its own", async () => {
