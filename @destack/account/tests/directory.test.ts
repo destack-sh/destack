@@ -204,7 +204,7 @@ test("read a space's address in its account for those reading the account, an or
     ]);
 });
 
-test("locate each of many spaces placed on a machine in two statements, its placement and its machine's endpoint", async () => {
+test("locate each of many spaces placed on a machine in one statement for its placement, reading the machine's endpoint once", async () => {
     // run in a world of its own
     await using simulation = testSimulation();
     const world = simulation.environment("test");
@@ -246,14 +246,15 @@ test("locate each of many spaces placed on a machine in two statements, its plac
             ),
     );
 
-    // locate each through a connection counting its statements
+    // hear commits as a serving store does, then locate each through a connection counting its statements
+    await database.log.listening();
     const reader = database.metered();
     const directory = new Directory(Snapshot.live(reader));
     const located = await Promise.all(spaces.map((id) => directory.locate(id, NOW)));
 
-    // read two rows per space: its placement and its machine's endpoint
+    // read each space's placement, and the machine's endpoint once from the database
     expect({ statements: reader.driver.operations, located }).toEqual({
-        statements: 2 * STRESS_SPACES,
+        statements: STRESS_SPACES + 1,
         located: placed.map((row) => ({ placement: row, url: "https://machine.test/" })),
     });
 });
