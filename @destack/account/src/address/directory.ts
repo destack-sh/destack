@@ -1,7 +1,7 @@
-import type { Environment } from "@destack/environment";
-import type { Snapshot } from "@destack/db";
+import type { Clock, Environment } from "@destack/environment";
+import { type Snapshot, TABLE } from "@destack/db";
 import { Claim, claimTable, type ObjectType } from "@destack/object";
-import { nth, schema, type Identifier } from "@destack/schema";
+import { nth, present, schema, type Identifier } from "@destack/schema";
 import { type Fetch, PackageMount, SpaceMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
@@ -90,47 +90,82 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     /** Locate a space's placement and the URL its machine answers at now. */
     async locate(spaceId: Identifier<"space">, now: number): Promise<PlacementEndpoint> {
         // read the placement, then where its machine answers
-        const placed = await this.snapshot
-            .read(placement.table)
-            .findFirst({ where: { id: spaceId } });
+        const placed = await this.#placement(spaceId);
         if (placed === undefined) {
             throw AccountError.of("SPACE_NOT_PLACED", `nothing responds for ${spaceId}`);
         }
-        const { machineId } = placed;
-        const url = await this.answering(machineId, now);
+        const url = await this.answering(placed.machine, now);
 
-        return {
-            placement: {
-                id: placed.id,
-                scope: placed.scope,
-                machine: machineId,
-                epoch: placed.epoch,
-            },
-            url,
-        };
+        return { placement: placed, url };
+    }
+
+    /** Find a space's placement and its machine's URL now, absent until both are known. */
+    async #find(spaceId: Identifier<"space">, now: number): Promise<PlacementEndpoint | undefined> {
+        // read the placement, then the endpoint its machine publishes
+        const placed = await this.#placement(spaceId);
+        const published =
+            placed === undefined
+                ? undefined
+                : await this.snapshot
+                      .read(endpoint.table)
+                      .findFirst({ where: { id: placed.machine } });
+
+        return placed === undefined ||
+            published === undefined ||
+            !Endpoint.isAnswering(published, now)
+            ? undefined
+            : { placement: placed, url: published.url };
     }
 
     /** Stream follows of a space's rows from its object package, where its machine answers. */
-    publisher(scope: string, fetch: Fetch, environment: Environment): Publisher {
+    publisher(this: Directory, scope: string, fetch: Fetch, environment: Environment): Publisher {
+        // connect to the space's object package where the directory places it
         const space = schema.identifier("space").parse(scope);
-        const connect = async () => {
-            // connect to the space's object package where its machine answers now
-            const located = await this.locate(space, environment.clock.now());
+        const connect = async (located: PlacementEndpoint) => {
             const url = `${SpaceMount.url(located.url, space)}${PackageMount.path(objectPackage.id)}`;
 
             return createClient(objectPackage, { url, fetch }, environment);
         };
+        const whenPlaced = (signal: AbortSignal) =>
+            this.waitForPlacement(space, environment.clock, signal);
+        const located = () => this.locate(space, environment.clock.now());
 
         return {
             stream: async function* (followed, signal) {
-                const objects = await connect();
+                // wait until the replicated directory places the space at a machine that answers
+                const objects = await connect(await whenPlaced(signal));
                 yield* await objects.store.stream(followed, { signal });
             },
+            // confirm only after a stream, once the space is placed
             confirm: async (subscription, watermark) => {
-                const objects = await connect();
+                const objects = await connect(await located());
                 await objects.store.confirm({ subscription, watermark });
             },
         };
+    }
+
+    /** Wait until the directory places a space at a machine that answers, and locate it. */
+    async waitForPlacement(
+        this: Directory,
+        spaceId: Identifier<"space">,
+        clock: Pick<Clock, "now">,
+        signal: AbortSignal,
+    ): Promise<PlacementEndpoint> {
+        // find the space at each commit of placements or endpoints until it is placed and its machine answers
+        const watched = [placement.table[TABLE].sqlName, endpoint.table[TABLE].sqlName];
+        let located: PlacementEndpoint | undefined;
+        await this.snapshot.database.log.until(async (committed) => {
+            if (watched.some((table) => committed.has(table))) {
+                located = await this.#find(spaceId, clock.now());
+            }
+
+            return located !== undefined;
+        }, signal);
+
+        // refuse an aborted wait
+        signal.throwIfAborted();
+
+        return present(located, `the placement of ${spaceId}`);
     }
 
     /** Read the URL a machine answers at now. */
@@ -146,6 +181,24 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         }
 
         return published.url;
+    }
+
+    /** Read a space's placement, absent for a space placed nowhere. */
+    async #placement(
+        spaceId: Identifier<"space">,
+    ): Promise<PlacementEndpoint["placement"] | undefined> {
+        const placed = await this.snapshot
+            .read(placement.table)
+            .findFirst({ where: { id: spaceId } });
+
+        return placed === undefined
+            ? undefined
+            : {
+                  id: placed.id,
+                  scope: placed.scope,
+                  machine: placed.machineId,
+                  epoch: placed.epoch,
+              };
     }
 
     /** Find the object an active name resolves to. */

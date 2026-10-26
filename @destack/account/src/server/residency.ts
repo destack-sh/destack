@@ -165,7 +165,7 @@ async function machines(
     });
 }
 
-/** Find the account selling a handle's packages to the buyers of a residency's home. */
+/** Find the account selling a handle's packages to the buyers of a residency's space. */
 async function publisher(
     context: MethodContextOf<typeof residency, "publisher">,
 ): Promise<ResultOf<typeof residency, "publisher">> {
@@ -182,9 +182,7 @@ async function publisher(
     const platform = await UniverseRole.operating(context);
     const isPlatform = holder.objectId === platform || holder.owner === platform;
     if (isPlatform) {
-        return (await Residency.isSpace(context, context.input.space))
-            ? Account.ofHome(context.input.space)
-            : null;
+        return Account.ofHome(Residency.requireSpace(context.target));
     }
 
     return account.identifies(holder.objectId) ? account.identifier(holder.objectId) : null;

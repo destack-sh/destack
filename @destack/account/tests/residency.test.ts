@@ -405,32 +405,32 @@ test("relate an organization's residents again when one of its accounts lives in
     expect([before, await residents()]).toEqual([["eu"], ["eu", "us"]]);
 });
 
-test("find the account selling a handle's packages to a residency home's buyers: the handle's account, the home's platform account for the platform's handles, none otherwise", async () => {
-    // store the residencies' homes and a cloud machine asking
+test("find the account selling a handle's packages to a residency's buyers as its space: the handle's account, the residency space's platform account for the platform's handles, none otherwise", async () => {
+    // store the residencies' spaces, each asking for its residency
     await using fixture = await TestAccountStore.open();
-    const [europe, america] = [await fixture.residencySpace("eu"), await fixture.residencySpace("us")];
-    const asking = fixture.as(
-        (await fixture.declareCloudMachine(fixture.platform, "eu")).machineId,
-    );
-    const publisher = (handle: string, spaceId: string) =>
-        asking
-            .client(accountPackage)
-            .residency.publisher({ handle, space: schema.identifier("space").parse(spaceId) });
+    const [europe, america] = [
+        await fixture.residencySpace("eu"),
+        await fixture.residencySpace("us"),
+    ];
+    const spaces = { eu: await homeOf(fixture, "eu"), us: await homeOf(fixture, "us") };
+    const publisher = (handle: string, code: "eu" | "us") =>
+        spaces[code].client(accountPackage).residency.publisher({
+            ...residency.target({ scope: Scope.universe.id, id: code }),
+            handle,
+        });
 
     // sell a person's packages through their account, and the platform's through each residency space's account
     expect([
-        await publisher("acme", europe),
-        await publisher("destack", europe),
-        await publisher("destack", america),
-        await publisher("destack-us", europe),
-        await publisher("unclaimed", europe),
-        await publisher("destack", Account.home(ids.account)),
+        await publisher("acme", "eu"),
+        await publisher("destack", "eu"),
+        await publisher("destack", "us"),
+        await publisher("destack-us", "eu"),
+        await publisher("unclaimed", "eu"),
     ]).toEqual([
         ids.account,
         Account.ofHome(europe),
         Account.ofHome(america),
         Account.ofHome(europe),
-        null,
         null,
     ]);
 });
@@ -452,7 +452,11 @@ test("relate an installation its residency's space declares once its release ask
         name: "@example/modest",
         version: "2026.9.0",
     });
-    const universal = [account.permission("serve"), entitlement.permission("provide")];
+    const universal = [
+        account.permission("serve"),
+        entitlement.permission("provide"),
+        residency.permission("locate"),
+    ];
     const asking = new Map([
         [billing.id, universal],
         [greedy.id, [...universal, user.permission("suspend")]],
@@ -537,7 +541,7 @@ test("relate an installation its residency's space declares once its release ask
             [
                 "FORBIDDEN",
                 "UNIVERSE_PERMISSIONS_MISMATCH",
-                `${greedy.id}@2026.9.0 asks for account.serve, entitlement.provide, user.suspend in the universe, not what a residency's installation holds`,
+                `${greedy.id}@2026.9.0 asks for account.serve, entitlement.provide, residency.locate, user.suspend in the universe, not what a residency's installation holds`,
             ],
             [
                 "FORBIDDEN",
@@ -573,6 +577,7 @@ test("let an installation its residency's home declares provide entitlements in 
                                         universe: [
                                             account.permission("serve"),
                                             entitlement.permission("provide"),
+                                            residency.permission("locate"),
                                         ],
                                     },
                                 },

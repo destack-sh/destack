@@ -89,8 +89,8 @@ export const residency = defineObject(
             install: relation("space"),
             // let its cloud machines and its space claim names in its accounts
             claim: union(relation("machine"), relation("space")),
-            // let its space read which residency it serves
-            locate: relation("space"),
+            // let every signed-in caller read its space and the accounts selling to its buyers, as the universe's signed-in role grants
+            locate: none(),
             // let the contents of its accounts act as its residents, such as their spaces' installations
             reside: relation("resident"),
             operate: none(),
@@ -102,12 +102,12 @@ export const residency = defineObject(
         /** Store a residency the universe declares, shown to everyone. */
         create: method.create("operate", {
             fields: ["name"],
-            isInternal: true,
+            visibility: "package",
             isPredicted: false,
         }),
 
         /** Rename a residency, or give it its space. */
-        update: method.update("operate", { fields: ["name", "space"], isInternal: true }),
+        update: method.update("operate", { fields: ["name", "space"], visibility: "package" }),
 
         /** Relate an installation its space declares, its release asking for what that gives. */
         touch: method.mutation({ permission: "install", input: ResidencyInstallation }),
@@ -135,15 +135,12 @@ export const residency = defineObject(
             output: schema.array(ServingMachine),
         }),
 
-        /** Find the account selling a handle's packages to the buyers of a residency's space. */
+        /** Find the account selling a handle's packages to the buyers of the residency's space. */
         publisher: method.query({
             permission: "locate",
-            target: "scope",
             input: schema.object({
                 /** The handle. */
                 handle: AccountHandle,
-                /** The residency's space. */
-                space: schema.identifier("space"),
             }),
             output: schema.identifier("account").nullable(),
         }),
@@ -174,6 +171,7 @@ export const Residency = {
         return [
             { packageId, type: "account", name: "serve" },
             { packageId, type: "entitlement", name: "provide" },
+            { packageId, type: "residency", name: "locate" },
         ];
     },
 
@@ -211,17 +209,6 @@ export const Residency = {
         );
 
         return found === undefined ? undefined : ResidencyCode.parse(found.objectId);
-    },
-
-    /** Report whether a space is a residency's space, the platform's account's space in it. */
-    async isSpace(reader: Pick<Snapshot, "read">, spaceId: string): Promise<boolean> {
-        const found = await reader.read(residency.table).findFirst({
-            where: {
-                space: schema.identifier("space").parse(spaceId),
-            },
-        });
-
-        return found !== undefined;
     },
 
     /** Read a residency's space, and refuse a residency without one. */
