@@ -141,16 +141,13 @@ export const comment = defineObject(
     }),
 );
 
-/** A comment as its table stores it. */
-export type CommentRow = Select<typeof comment.table>;
-
 /** A comment: its thread, where its notifications go, its excerpt and its mentions. */
 export class Comment {
     /** The comment's row. */
-    readonly row: CommentRow;
+    readonly row: Select<typeof comment.table>;
 
     /** Read a comment from its row. */
-    constructor(row: CommentRow) {
+    constructor(row: Comment["row"]) {
         this.row = row;
     }
 
