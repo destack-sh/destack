@@ -32,6 +32,13 @@ for (const channel of ["", "-dev"]) {
     }
 }
 
+// render the favicon at each size browsers ask for
+for (const size of [16, 32, 48]) {
+    const source = join(directory, "favicon", "favicon.svg");
+    const output = join(directory, "favicon", `favicon-${size}.png`);
+    execFileSync("rsvg-convert", ["-w", String(size), "-h", String(size), "-o", output, source]);
+}
+
 // render each social layout at its intended upload size
 for (const name of ["x-header", "linkedin-company", "linkedin-profile"]) {
     const source = join(directory, "banner", `${name}.svg`);

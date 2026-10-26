@@ -1,10 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><defs><clipPath id="n1tiletile"><rect width="32" height="32"/></clipPath></defs><g clip-path="url(#n1tiletile)"><defs><radialGradient id="n1tilesky" cx="0.3" cy="0.25" r="1"><stop offset="0" stop-color="#1e4257"/><stop offset="0.55" stop-color="#11293b"/><stop offset="1" stop-color="#0a1a26"/></radialGradient></defs><rect width="32" height="32" fill="url(#n1tilesky)"/><circle cx="20.92" cy="28.82" r="0.60" fill="#f1eadb" opacity="0.37"/><circle cx="4.99" cy="24.65" r="0.35" fill="#f1eadb" opacity="0.62"/><circle cx="2.34" cy="12.64" r="0.28" fill="#f1eadb" opacity="0.78"/><circle cx="3.11" cy="26.46" r="0.28" fill="#f1eadb" opacity="0.76"/><circle cx="13.15" cy="30.01" r="0.35" fill="#f1eadb" opacity="0.44"/><circle cx="28.62" cy="23.42" r="0.35" fill="#f1eadb" opacity="0.35"/><circle cx="23.39" cy="3.06" r="0.28" fill="#f1eadb" opacity="0.78"/><circle cx="17.15" cy="2.43" r="0.35" fill="#f1eadb" opacity="0.36"/><circle cx="30.17" cy="9.45" r="0.28" fill="#f1eadb" opacity="0.87"/><circle cx="29.88" cy="7.79" r="0.45" fill="#f1eadb" opacity="0.40"/><defs><linearGradient id="n1tilestreak" x1="2.4" y1="8.2" x2="9.2" y2="5.4" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#f1eadb" stop-opacity="0"/><stop offset="1" stop-color="#f1eadb" stop-opacity="0.95"/></linearGradient></defs><path d="M2.4 8.2L9.2 5.4" stroke="url(#n1tilestreak)" stroke-width="0.55" stroke-linecap="round"/><circle cx="9.2" cy="5.4" r="0.41250000000000003" fill="#f1eadb"/><defs>
-<clipPath id="n1tilefront"><path d="M-60 16H92V96H-60Z" transform="rotate(-22 16 16)"/></clipPath>
-<clipPath id="n1tileglobe"><circle cx="16" cy="16" r="9.2"/></clipPath>
-<mask id="n1tilecut" maskUnits="userSpaceOnUse" x="-60" y="-60" width="152" height="152"><rect x="-60" y="-60" width="152" height="152" fill="#fff"/>
-<g clip-path="url(#n1tilefront)"><ellipse cx="16" cy="16" rx="13.4" ry="3.7" transform="rotate(-22 16 16)" fill="none" stroke="#000" stroke-width="5.1"/></g></mask>
-</defs>
-<ellipse cx="16" cy="16" rx="13.4" ry="3.7" transform="rotate(-22 16 16)" fill="none" stroke="#ff792e" stroke-width="2.3"/>
-<g mask="url(#n1tilecut)"><circle cx="16" cy="16" r="9.2" fill="#ff792e"/>
-<g clip-path="url(#n1tileglobe)"><circle cx="19.86" cy="19.86" r="9.38" fill="#c64a17"/></g></g>
-<g clip-path="url(#n1tilefront)"><ellipse cx="16" cy="16" rx="13.4" ry="3.7" transform="rotate(-22 16 16)" fill="none" stroke="#ff792e" stroke-width="2.3"/></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <clipPath id="tile"><rect width="32" height="32"/></clipPath>
+    <clipPath id="front"><path d="M-8 16H40V40H-8Z" transform="rotate(-22 16 16)"/></clipPath>
+    <clipPath id="globe"><circle cx="16" cy="16" r="11"/></clipPath>
+    <mask id="gap" maskUnits="userSpaceOnUse" x="-8" y="-8" width="48" height="48">
+      <rect x="-8" y="-8" width="48" height="48" fill="#fff"/>
+      <g clip-path="url(#front)"><ellipse cx="16" cy="16" rx="15.2" ry="4.2" transform="rotate(-22 16 16)" fill="none" stroke="#000" stroke-width="5.8"/></g>
+    </mask>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="32" height="32" fill="#11293b"/>
+    <circle cx="16.00" cy="1.60" r="0.5" fill="#f1eadb" opacity="0.85"/><circle cx="23.10" cy="3.70" r="0.26" fill="#f1eadb" opacity="0.4"/><circle cx="29.56" cy="8.17" r="0.32" fill="#f1eadb" opacity="0.55"/><circle cx="29.85" cy="16.00" r="0.28" fill="#f1eadb" opacity="0.45"/><circle cx="28.02" cy="22.94" r="0.24" fill="#f1eadb" opacity="0.35"/><circle cx="23.99" cy="29.84" r="0.34" fill="#f1eadb" opacity="0.6"/><circle cx="16.00" cy="29.75" r="0.27" fill="#f1eadb" opacity="0.42"/><circle cx="7.77" cy="30.26" r="0.4" fill="#f1eadb" opacity="0.7"/><circle cx="3.84" cy="23.02" r="0.25" fill="#f1eadb" opacity="0.38"/><circle cx="2.00" cy="16.00" r="0.3" fill="#f1eadb" opacity="0.5"/><circle cx="4.12" cy="9.14" r="0.23" fill="#f1eadb" opacity="0.34"/><circle cx="8.09" cy="2.30" r="0.33" fill="#f1eadb" opacity="0.55"/>
+  </g>
+  <g transform="translate(3.2 3.2) scale(0.8)">
+    <ellipse cx="16" cy="16" rx="15.2" ry="4.2" transform="rotate(-22 16 16)" fill="none" stroke="#f1eadb" stroke-width="2.6"/>
+    <g mask="url(#gap)">
+      <circle cx="16" cy="16" r="11" fill="#ff792e"/>
+      <circle cx="20.62" cy="20.62" r="11.22" fill="#c64a17" clip-path="url(#globe)"/>
+    </g>
+    <g clip-path="url(#front)"><ellipse cx="16" cy="16" rx="15.2" ry="4.2" transform="rotate(-22 16 16)" fill="none" stroke="#f1eadb" stroke-width="2.6"/></g>
+  </g>
+</svg>
