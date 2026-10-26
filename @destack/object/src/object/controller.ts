@@ -74,10 +74,11 @@ export interface ObjectController<Object extends ObjectType = ObjectType> {
 export interface ObjectWatch<Watched extends Table = Table> {
     /** The watched table. */
     readonly table: Watched;
-    /** Read the keys a changed row selects. */
+    /** Read the keys a changed row selects, given the change with its row before and after. */
     keys(
         row: RowImage<Watched>,
         database: DatabaseConnection,
+        change: Change<Watched>,
     ): readonly KeyFields[] | Promise<readonly KeyFields[]>;
 }
 
@@ -141,7 +142,7 @@ export const ObjectController = {
             const watched = (
                 await Promise.all(
                     (watches.get(change.table) ?? []).map(async (watch) =>
-                        watch.keys(Change.image(change), store.database),
+                        watch.keys(Change.image(change), store.database, change),
                     ),
                 )
             ).flat();

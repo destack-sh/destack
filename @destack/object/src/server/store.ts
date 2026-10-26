@@ -8,7 +8,7 @@ import {
     decisionTables,
     type TupleReader,
     Policy,
-    type Access,
+    Access,
     type ChainOptions,
     type TableMapping,
     Caller,
@@ -1122,6 +1122,7 @@ export class ObjectStore {
                 : {
                       ready: (signal) => this.#awaitReady(signal),
                       synced: (signal) => this.#awaitReady(signal),
+                      confirmed: (signal) => this.#awaitConfirmed(signal),
                   }),
             router: this.router(routed),
         };
@@ -1230,6 +1231,30 @@ export class ObjectStore {
                 this.#readiness = undefined;
             }
         }
+    }
+
+    /** Wait until no home of the store's chain is silent past the lag, as writes require. */
+    async #awaitConfirmed(signal: AbortSignal): Promise<void> {
+        // check now and after each commit to the replicas' records
+        const { database } = this;
+        const records = new Set(sync.replicaRecordTables.map((table) => table[TABLE].sqlName));
+        await database.log.until(async (committed) => {
+            // leave commits that change no replica's record, then read the chain's silent home
+            if (![...committed].some((table) => records.has(table))) {
+                return false;
+            }
+            const chain = (await Scope.chain(Snapshot.live(database), this.scope)).map(
+                (link) => link.object.id,
+            );
+            const stale = await Access.unconfirmed(
+                database,
+                chain,
+                this.authorizer.lag,
+                this.clock.now(),
+            );
+
+            return stale === undefined;
+        }, signal);
     }
 
     /** Wait until the chain's replicas are confirmed within the lag, checked on record changes. */

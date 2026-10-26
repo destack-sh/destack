@@ -826,7 +826,7 @@ test("replicate a person's grant to an installation of the space from the univer
     expect(remaining.map((row) => row.id)).toEqual([granted]);
 });
 
-test("serve a woken store only once its home confirms the replicas it stored unheard past the lag", async () => {
+test("serve a woken store and let its controllers act only once its home confirms the replicas it stored unheard past the lag", async () => {
     // insert an account and its space at home, both databases on the world's clock
     const simulation = testSimulation();
     const { clock } = simulation;
@@ -916,12 +916,18 @@ test("serve a woken store only once its home confirms the replicas it stored unh
     const pages = Promise.withResolvers<void>();
     const woken = await open(pages.promise);
     const handle = definePackage({ objects: { document } });
-    const ready = present(woken.implement(handle, [], []).ready, "the readiness wait");
+    const implemented = woken.implement(handle, [], []);
+    const ready = present(implemented.ready, "the readiness wait");
+    const confirmed = present(implemented.confirmed, "the confirmation wait");
     const waking = new AbortController();
     onTestFinished(() => waking.abort());
     let isReady = false;
+    let isConfirmed = false;
     const readying = ready(waking.signal).then(() => {
         isReady = true;
+    });
+    const confirming = confirmed(waking.signal).then(() => {
+        isConfirmed = true;
     });
     const following = follow(woken, waking.signal);
     const now = clock.now();
@@ -943,14 +949,17 @@ test("serve a woken store only once its home confirms the replicas it stored unh
     for (let turn = 0; turn < READY_TURNS; turn++) {
         await yieldToEventLoop();
     }
-    const isReadyBefore = isReady;
+    const before = { isReady, isConfirmed };
 
     // release the pages, which confirm the replicas fresh and make the store ready
     pages.resolve();
-    await readying;
+    await Promise.all([readying, confirming]);
     waking.abort();
     await following;
-    expect({ isReadyBefore, isReady }).toEqual({ isReadyBefore: false, isReady: true });
+    expect({ before, after: { isReady, isConfirmed } }).toEqual({
+        before: { isReady: false, isConfirmed: false },
+        after: { isReady: true, isConfirmed: true },
+    });
 });
 
 test("follow replicates as a server without methods, journal or call key", async () => {
