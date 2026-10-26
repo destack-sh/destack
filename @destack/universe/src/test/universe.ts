@@ -197,6 +197,8 @@ export class TestUniverse implements AsyncDisposable {
     readonly #people: Map<string, TestPerson>;
     /** The billing installation of each residency's space, related once, by residency. */
     readonly #entitlers = new Map<ResidencyCode, Promise<Subject>>();
+    /** The operator's joining of the platform organization, once started. */
+    #joining: Promise<void> | undefined;
     /** The object types the universe serves by name, each with its package. */
     readonly #types: ReadonlyMap<
         string,
@@ -401,8 +403,17 @@ export class TestUniverse implements AsyncDisposable {
 
     /** Sign the operator in as an owner of the platform organization, accepting its invitation. */
     async operator(): Promise<TestPerson> {
-        // sign the operator in, and find the invitation the platform stores for them
+        // sign the operator in, joining the organization once however many callers ask at once
         const operator = await this.signIn(OPERATOR_EMAIL);
+        this.#joining ??= this.#join(operator);
+        await this.#joining;
+
+        return operator;
+    }
+
+    /** Accept the operator's invitation to the platform organization, if one is open. */
+    async #join(operator: TestPerson): Promise<void> {
+        // find the invitation the platform stores for the operator
         const organizationId = present(
             await UniverseRole.operating(Snapshot.live(this.storage.database)),
             "the platform organization",
@@ -421,8 +432,6 @@ export class TestUniverse implements AsyncDisposable {
             });
             await this.settle();
         }
-
-        return operator;
     }
 
     /** Restore a person the world signed in, on the client they signed in on. */
@@ -512,8 +521,8 @@ export class TestUniverse implements AsyncDisposable {
             const id = await InstallationId.declared(home, BILLING_INSTALLATION, crypto);
             const installed = principal.installation.reference(home.id, id);
 
-            // relate it to the residency as the universe's operator
-            const operator = await this.signIn(OPERATOR_EMAIL);
+            // relate it to the residency as the universe's operator, an owner of the platform organization
+            const operator = await this.operator();
             await operator.client(objectPackage).relationship.create({
                 scope: Scope.universe.id,
                 requestId: RequestId.create(this.universe.store.environment),
