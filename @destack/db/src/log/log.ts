@@ -568,8 +568,9 @@ export class Log {
     until(
         check: (tables: ReadonlySet<string>) => Promise<boolean>,
         signal: AbortSignal,
+        generation?: number,
     ): Promise<boolean> {
-        return this.database.state.commits.until(check, signal);
+        return this.database.state.commits.until(check, signal, generation);
     }
 
     /** Yield each page of selected changes past a sequence, or every advance, until aborted. */
@@ -585,7 +586,11 @@ export class Log {
         const tables = new Set(selection.tables.map((table) => table[TABLE].sqlName));
         let after = selection.after;
         while (!signal.aborted) {
+            // read the page, noting the watch's generation before it
+            const { generation } = this.database.state.commits;
             const page = await this.read({ ...selection, after });
+
+            // yield a page with changes, or an advance when asked
             const isYielded =
                 page.changes.length > 0 || (options.isAdvancing === true && page.sequence > after);
             const isFull = page.changes.length >= (selection.limit ?? PAGE_LIMIT);
@@ -603,6 +608,7 @@ export class Log {
                             [...committed].some((table) => tables.has(table))) &&
                         (await this.#includes(next)),
                     signal,
+                    generation,
                 );
             }
         }

@@ -28,7 +28,7 @@ export class CommitWatch {
     readonly #failListening: (error: unknown) => void;
     /** The latest sequence an announced commit ended at, all earlier ones committed, else zero. */
     #sequence = 0;
-    /** The commits heard since the watch began. */
+    /** The wakes since the watch began: each commit heard, delivery start and stop. */
     #generation = 0;
     /** The waits for this connection's commit tokens to reach every listening party. */
     readonly #hearings = new Map<string, Hearing>();
@@ -60,6 +60,11 @@ export class CommitWatch {
     /** The latest sequence an announced commit ended at, all earlier ones committed, else zero. */
     get sequence(): number {
         return this.#sequence;
+    }
+
+    /** The wakes since the watch began: each commit heard, delivery start and stop. */
+    get generation(): number {
+        return this.#generation;
     }
 
     /** Whether the watch listens for the commits announced on its channel. */
@@ -147,9 +152,10 @@ export class CommitWatch {
     async until(
         check: (tables: ReadonlySet<string>) => Promise<boolean>,
         signal: AbortSignal,
+        generation?: number,
     ): Promise<boolean> {
-        // collect the tables of each commit from here on
-        const committed = new Set(this.#tables);
+        // collect each commit's tables from here on, starting from every table unless no wake came since the generation
+        const committed = new Set(generation === this.#generation ? [] : this.#tables);
         this.#committed.add(committed);
         try {
             // check first once the watch hears other writers' commits
