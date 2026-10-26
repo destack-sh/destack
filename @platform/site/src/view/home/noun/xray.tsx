@@ -2,7 +2,7 @@ import { Icon } from "@destack/icon";
 import gitCommit from "@destack/icon/phosphor/git-commit";
 import * as style from "@destack/style";
 import { color, font, motion } from "@destack/theme/tokens.stylex";
-import { createEffect, createSignal, onSettled } from "@destack/view";
+import { createEffect, createSignal, onSettled, useEnvironment } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
@@ -21,6 +21,7 @@ import { type Service, serviceCount, serviceLabels, serviceParts } from "./servi
 import type { Item } from "../figure/item";
 import type { OptionMark } from "../figure/picker";
 import { typeScale } from "../../layout/type.stylex";
+import { requestFrame } from "@destack/view/primitives/raf";
 
 /** A browser narrower than a phone, where each tag shows only its mark. */
 const NARROW = "@container (max-width: 479px)";
@@ -113,7 +114,8 @@ export function XRay(properties: {
     lit: number | undefined;
     onLight: (row: number | undefined) => void;
 }) {
-    // hold the browser and the elements marked for the x-ray
+    // hold the page's display, the browser and the elements marked for the x-ray
+    const environment = useEnvironment();
     const [root, setRoot] = createSignal<HTMLDivElement>();
     const [boxes, setBoxes] = createSignal<readonly Box[]>([]);
 
@@ -191,9 +193,7 @@ export function XRay(properties: {
             properties.lit,
             ...Array.from({ length: serviceCount }, (_, index) => properties.isOpenAt(index)),
         ],
-        () => {
-            requestAnimationFrame(measure);
-        },
+        () => requestFrame(measure, environment.display),
     );
     onSettled(() => {
         const browser = root();

@@ -11,7 +11,7 @@ import {
 } from "../figure/price";
 import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import { createEffect, createSignal } from "@destack/view";
+import { createEffect, createSignal, useEnvironment } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
 import { agentPromptOf } from "../../content/site";
@@ -28,6 +28,7 @@ import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 import { type Category, type Tool, toolOf, tools } from "../tool/tool";
 import { typeScale, tracking } from "../../layout/type.stylex";
+import { requestFrame } from "@destack/view/primitives/raf";
 
 /** A wall narrower than its widest row of tools at full size, where its chips tighten. */
 const COMPACT = "@container (max-width: 640px)";
@@ -161,7 +162,8 @@ export function ToolWall(properties: {
     isOpen: boolean;
     onPick: (tool: Tool) => void;
 }) {
-    // hold the wall and where each mark sat at the last layout
+    // hold the page's display, the wall and where each mark sat at the last layout
+    const environment = useEnvironment();
     const [wall, setWall] = createSignal<HTMLOListElement>();
     let places = new Map<string, DOMRect>();
 
@@ -174,13 +176,11 @@ export function ToolWall(properties: {
     createEffect(
         () => ({ isOpen: properties.isOpen, picks: properties.picks, isShown: isShown() }),
         (state) => {
-            const frame = requestAnimationFrame(() => {
+            return requestFrame(() => {
                 const element = wall();
                 places =
                     element && state.isShown ? move(element, places) : new Map<string, DOMRect>();
-            });
-
-            return () => cancelAnimationFrame(frame);
+            }, environment.display);
         },
     );
 

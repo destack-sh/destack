@@ -1,5 +1,12 @@
 import * as style from "@destack/style";
-import { createEffect, createSignal, onCleanup, onSettled, untrack } from "@destack/view";
+import {
+    createEffect,
+    createSignal,
+    onCleanup,
+    onSettled,
+    untrack,
+    useEnvironment,
+} from "@destack/view";
 import { Metadata } from "@destack/view/document";
 
 import { Noun } from "../home/noun/noun";
@@ -13,6 +20,7 @@ import { PastParticiple } from "../home/past/past";
 import { Verb } from "../home/verb/verb";
 import { lattice } from "../layout/lattice.stylex";
 import "../home/figure/figure.css";
+import { requestIdle } from "@destack/view/primitives/scheduled";
 
 /** The figures' entries in page order, each the anchor of the section it heads. */
 const FIGURES = [
@@ -30,12 +38,11 @@ const SETTLE_TIME = 320;
 /** The longest wait for an idle moment before switching the next off-screen figure anyway. */
 const IDLE_TIMEOUT = 400;
 
-/** The milliseconds between off-screen figures in a browser without idle callbacks. */
-const IDLE_FALLBACK = 50;
-
 /** Render the public Destack homepage. */
 export function Home() {
-    // hold whether the stack is open, which every figure follows
+    // hold the page's clock and display, and whether the stack is open, which every figure follows
+    const environment = useEnvironment();
+    const { clock } = environment;
     const [isOpen, setIsOpen] = createSignal(false);
 
     // follow which page blocks show, so a switch finds the figures on screen without reading layout
@@ -78,23 +85,26 @@ export function Home() {
 
         // switch each figure off screen once the switch's transition has settled, one per idle moment
         const later = FIGURES.flatMap((_, index) => (isShown[index] === true ? [] : [index]));
-        let isCancelled = false;
+        let cancelIdle: (() => void) | undefined;
         const next = () => {
-            // take the next figure, stopping once none is left or a newer switch took over
+            // take the next figure, stopping once none is left
             const figure = later.shift();
-            if (figure === undefined || isCancelled) {
+            if (figure === undefined) {
                 return;
             }
 
             // switch it, then wait for the next idle moment
             setOpens((current) => current.map((state, index) => (index === figure ? open : state)));
-            whenIdle(next);
+            cancelIdle = requestIdle(next, IDLE_TIMEOUT, environment.display);
         };
-        const start = setTimeout(() => whenIdle(next), SETTLE_TIME);
+        const start = clock.setTimeout(() => {
+            cancelIdle = requestIdle(next, IDLE_TIMEOUT, environment.display);
+        }, SETTLE_TIME);
 
+        // stop once a newer switch takes over
         return () => {
-            isCancelled = true;
-            clearTimeout(start);
+            clock.clearTimeout(start);
+            cancelIdle?.();
         };
     });
     const isOpenAt = (figure: number) => opens()[figure] ?? false;
@@ -135,18 +145,6 @@ export function Home() {
             <Interval />
         </>
     );
-}
-
-/** Run a callback in the browser's next idle moment, or soon where it has no idle callbacks. */
-function whenIdle(callback: () => void): void {
-    // use idle callbacks where they exist
-    if (typeof requestIdleCallback === "function") {
-        requestIdleCallback(callback, { timeout: IDLE_TIMEOUT });
-    }
-    // fall back to a short timeout in Safari, which has none
-    else {
-        setTimeout(callback, IDLE_FALLBACK);
-    }
 }
 
 /** Return the page blocks each figure spans: its entry's section up to the next figure's. */

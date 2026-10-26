@@ -2,12 +2,13 @@ import { frame } from "../layout/frame.stylex";
 import * as style from "@destack/style";
 import { Shader, type ShaderFailure, type ShaderMount } from "@destack/shader";
 import { color, motion } from "@destack/theme/tokens.stylex";
-import { createSignal, type JSX, onCleanup, useTelemetry } from "@destack/view";
+import { createSignal, type JSX, onCleanup, useEnvironment, useTelemetry } from "@destack/view";
 
 import { night } from "../theme.ts";
 import type { TelemetryScope } from "@destack/telemetry";
 import { isMotionReduced } from "@destack/view/motion";
 import { makeEventListener } from "@destack/view/primitives/event-listener";
+import { loopFrames } from "@destack/view/primitives/raf";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
 /** The distance the goo field reaches past the site frame, in CSS pixels. */
@@ -208,9 +209,9 @@ export function Goo(properties: { children?: JSX.Element; xstyle?: style.Styles 
 
 /** Draw the site's one goo field over the page and under its bars, filling every island cell. */
 export function GooField() {
-    // hold the frame loop, ending it with the field, and the telemetry its failures go to
+    // hold the page's environment, the frame loop's end with the field, and the telemetry its failures go to
     const telemetry = useTelemetry();
-    let frameRequest = 0;
+    const environment = useEnvironment();
     let stop: (() => void) | undefined;
     onCleanup(() => stop?.());
 
@@ -286,7 +287,6 @@ export function GooField() {
                     mount.setUniforms({ u_islandCount: 0 });
                     isCleared = true;
                 }
-                frameRequest = requestAnimationFrame(draw);
 
                 return;
             }
@@ -364,14 +364,13 @@ export function GooField() {
                 });
                 setIsFieldPainted(true);
             }
-            frameRequest = requestAnimationFrame(draw);
         };
-        frameRequest = requestAnimationFrame(draw);
+        const stopFrames = loopFrames(draw, environment.display);
 
         // release the frames and listeners with the field
         stop = () => {
             // stop the frames, the pointer and the page observers
-            cancelAnimationFrame(frameRequest);
+            stopFrames();
             stopPointing();
             stopResizing();
             pageSize.unobserve(document.body);

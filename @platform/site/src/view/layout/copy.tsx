@@ -2,9 +2,9 @@ import { Icon } from "@destack/icon";
 import check from "@destack/icon/phosphor/check";
 import copy from "@destack/icon/phosphor/copy";
 import * as style from "@destack/style";
-import { type Accessor, createSignal, type JSX, merge, omit, onCleanup, Show } from "@destack/view";
+import { type Accessor, createSignal, type JSX, merge, omit, Show } from "@destack/view";
 import { writeClipboard } from "@destack/view/primitives/clipboard";
-import { makeTimer } from "@destack/view/primitives/timer";
+import { Timeout } from "@destack/view/primitives/timer";
 import { Button, type ButtonProperties } from "@destack/ui/button";
 import { visuallyHiddenStyle } from "@destack/ui/visually-hidden";
 
@@ -26,17 +26,15 @@ export interface Copy {
 export function createCopy(): Copy {
     // hold the shown state and the timer that resets it
     const [isCopied, setIsCopied] = createSignal(false, { ownedWrite: true });
-    let stop: (() => void) | undefined;
-    onCleanup(() => stop?.());
+    const timer = new Timeout();
 
     return {
         isCopied,
         async copy(text) {
             // write the text, then show it as copied until the duration passes
             await writeClipboard(text);
-            stop?.();
             setIsCopied(true);
-            stop = makeTimer(() => setIsCopied(false), COPIED_DURATION, setTimeout);
+            timer.set(() => setIsCopied(false), COPIED_DURATION);
         },
     };
 }

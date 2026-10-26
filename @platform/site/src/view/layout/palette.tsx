@@ -17,7 +17,7 @@ import {
 } from "@destack/ui/command";
 import { present, schema } from "@destack/schema";
 import { Kbd } from "@destack/ui/kbd";
-import { createMemo, createSignal, For, onSettled, Show } from "@destack/view";
+import { createMemo, createSignal, For, onSettled, Show, useEnvironment } from "@destack/view";
 import type { LocalAppearance } from "@destack/view/document";
 import { Accelerator, isCommandPlatform } from "@destack/view/palette";
 import { createShortcut } from "@destack/view/primitives/keyboard";
@@ -57,6 +57,7 @@ const COPIED_TIME = 700;
 /** Search the site's pages, sections and commands from anywhere, on ⌘K, Ctrl+K or a slash. */
 export function CommandPalette(properties: { appearance: LocalAppearance }) {
     // hold whether the palette is open, its menu, the search and the loaded entries
+    const { clock } = useEnvironment();
     const navigate = useNavigate();
     const { selected: download } = createDownloads();
     const [isOpen, setIsOpen] = createSignal(false);
@@ -166,7 +167,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
         } else if (action.kind === "copy") {
             await navigator.clipboard.writeText(action.text);
             setCopied(command.id);
-            setTimeout(() => setIsOpen(false), COPIED_TIME);
+            clock.setTimeout(() => setIsOpen(false), COPIED_TIME);
         } else if (action.kind === "appearance") {
             properties.appearance.setAppearance(action.appearance);
             setIsOpen(false);

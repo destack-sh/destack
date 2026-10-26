@@ -1,7 +1,8 @@
 import { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
-import { EnvironmentContext, TelemetryContext, ViewEnvironment } from "@destack/view";
+import { BrowserEnvironment } from "@destack/environment/browser";
+import { EnvironmentContext, TelemetryContext } from "@destack/view";
 import { renderToStream } from "@destack/web/render";
 import manifest from "virtual:solid-manifest";
 import { DefaultErrorBoundary } from "virtual:solid-ssr-error-boundary.tsx";
@@ -15,7 +16,7 @@ const scope = TelemetryScope.of(import.meta.destack.package, Environment.system.
 export function render() {
     return renderToStream(
         () => (
-            <EnvironmentContext value={ViewEnvironment.server(Environment.system)}>
+            <EnvironmentContext value={BrowserEnvironment.server(Environment.system)}>
                 <TelemetryContext value={scope}>
                     <DefaultErrorBoundary>
                         <Document>

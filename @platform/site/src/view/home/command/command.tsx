@@ -66,7 +66,7 @@ export function Command(properties: { isOpen: boolean }) {
     createTimer(
         () => setBeat((current) => current + 1),
         () => (!isReduced() && isShown() ? BEAT : false),
-        setInterval,
+        "interval",
     );
     createEffect(
         () => properties.isOpen,

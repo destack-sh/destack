@@ -29,6 +29,7 @@ import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.ts";
 import { writePageSources } from "./sources.ts";
 import { withLock } from "./lock.ts";
 import { imageFiles, type TransformedImage, transformImage } from "@destack/view/build";
+import { BunCrypto } from "@destack/environment/bun";
 import type { ImageMetadata } from "@destack/view/media";
 
 /** A public documentation path: lowercase hyphenated segments ending in a Markdown file. */
@@ -264,7 +265,7 @@ function publishFile(route: string, bytes: Uint8Array) {
 /** Render and publish a raster image's files, returning its metadata with its blurred rendition. */
 async function publishImage(path: string): Promise<ImageMetadata> {
     // write each file but the original's own format at its own width, which the original serves
-    const rendered = await transformImage(readFileSync(path));
+    const rendered = await transformImage(readFileSync(path), {}, BunCrypto);
     for (const file of rendered.files) {
         if (file.width !== rendered.width || file.format !== rendered.format) {
             publishFile(fileRouteFor(path, file.width, file.format), file.data);
@@ -766,10 +767,11 @@ async function coverOf(source: { readonly path: string; readonly alt: string } |
     }
 
     // describe the cover by its size and type, which its routes follow
-    const { width, height, format } = await transformImage(readFileSync(source.path), {
-        widths: [],
-        formats: [],
-    });
+    const { width, height, format } = await transformImage(
+        readFileSync(source.path),
+        { widths: [], formats: [] },
+        BunCrypto,
+    );
 
     return { image: describeImage(source.path, { width, height, format }), alt: source.alt };
 }

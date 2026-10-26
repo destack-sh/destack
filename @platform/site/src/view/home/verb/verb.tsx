@@ -1,8 +1,8 @@
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { color } from "@destack/theme/tokens.stylex";
-import { createSignal } from "@destack/view";
-import { createTimer } from "@destack/view/primitives/timer";
+import { createSignal, useEnvironment } from "@destack/view";
+import { createTimer, Timeout } from "@destack/view/primitives/timer";
 import { createReducedMotion } from "@destack/view/motion";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
@@ -91,7 +91,8 @@ export function Verb(properties: {
     picks: readonly Tool[];
     onChoose: (tool: Tool) => void;
 }) {
-    // hold the holding pointed at, the one the browser settles on a moment later, and the one chosen
+    // hold the page's clock, the holding pointed at, the one the browser settles on a moment later, and the one chosen
+    const { clock } = useEnvironment();
     const [lit, setLit] = createSignal<number | undefined>(undefined);
     const [settled, setSettled] = createSignal<number | undefined>(undefined);
     const [chosen, setChosen] = createSignal<number | undefined>(undefined);
@@ -102,7 +103,7 @@ export function Verb(properties: {
         setIsTouched(true);
         setChosen(row);
     };
-    let settling: ReturnType<typeof setTimeout> | undefined;
+    const settling = new Timeout();
     const lighting = {
         get lit() {
             return lit() ?? chosen();
@@ -114,8 +115,7 @@ export function Verb(properties: {
         onLight: (row: number | undefined) => {
             // light the row at once, and turn the browser only once the pointer rests
             setLit(row);
-            clearTimeout(settling);
-            settling = setTimeout(() => setSettled(row), row === undefined ? settleOut : settleIn);
+            settling.set(() => setSettled(row), row === undefined ? settleOut : settleIn);
         },
     };
 
@@ -145,7 +145,7 @@ export function Verb(properties: {
     const [asking, setAsking] = createSignal<number | undefined>(undefined);
     const remix = (row: number) => {
         setAsking(row);
-        setTimeout(() => {
+        clock.setTimeout(() => {
             setRemixed((rows) => (rows.includes(row) ? rows : [...rows, row]));
             setAsking(undefined);
         }, remixTime);
@@ -219,7 +219,7 @@ export function Verb(properties: {
             !isReduced()
                 ? firstRemixAt
                 : false,
-        setTimeout,
+        "timeout",
     );
 
     // turn to the next page the viewer may see every page time, held while still or off screen
@@ -243,7 +243,7 @@ export function Verb(properties: {
             setTurned(next);
         },
         () => (isReduced() || isTouched() || !isShown() ? false : pageTime),
-        setInterval,
+        "interval",
     );
 
     return (

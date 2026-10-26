@@ -1,4 +1,5 @@
 import type { TelemetryScope } from "@destack/telemetry";
+import type { Display } from "@destack/environment/browser";
 
 /** The media query for a system that prefers dark colors. */
 const PREFERS_DARK = "(prefers-color-scheme: dark)";
@@ -7,7 +8,11 @@ const PREFERS_DARK = "(prefers-color-scheme: dark)";
 const leastScale = 0.75;
 
 /** Render Mermaid fences and follow the reader theme. */
-export function renderDiagrams(article: HTMLElement, telemetry: TelemetryScope): () => void {
+export function renderDiagrams(
+    article: HTMLElement,
+    telemetry: TelemetryScope,
+    display: Display,
+): () => void {
     // retain source for theme changes and failed renders
     const diagrams = Array.from(
         article.querySelectorAll<HTMLElement>("[data-mermaid]"),
@@ -26,7 +31,7 @@ export function renderDiagrams(article: HTMLElement, telemetry: TelemetryScope):
     }
 
     // serialize updates and discard results from an unmounted reader
-    const preference = window.matchMedia(PREFERS_DARK);
+    const preference = display.media(PREFERS_DARK);
     let isDisposed = false;
     let pending = Promise.resolve();
     const update = () => {

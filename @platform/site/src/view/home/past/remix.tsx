@@ -2,7 +2,7 @@ import { frame } from "../../layout/frame.stylex";
 import { color, motion } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { createMemo, createSignal, For, onSettled } from "@destack/view";
+import { createMemo, createSignal, For, onSettled, useEnvironment } from "@destack/view";
 
 import {
     boardCells,
@@ -21,6 +21,7 @@ import { movement } from "../../layout/motion.stylex";
 import { makeEventListener } from "@destack/view/primitives/event-listener";
 import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
+import { requestFrame } from "@destack/view/primitives/raf";
 
 /** The milliseconds each open scene holds before the next one begins. */
 const sceneTime = 5200;
@@ -459,7 +460,8 @@ export function Remix(properties: {
     revealOf: (row: number) => number;
     onScene: (scene: number) => void;
 }) {
-    // hold the scene, the dragged card, and the elements to measure
+    // hold the page's display, the scene, the dragged card, and the elements to measure
+    const environment = useEnvironment();
     const [scene, setScene] = createSignal(0);
     const [drag, setDrag] = createSignal<{ id: string; x: number; y: number }>();
     let layer: HTMLDivElement | undefined;
@@ -573,7 +575,7 @@ export function Remix(properties: {
         // hold the cables, the animation frame, the scene timing, and the motion state
         const isStill = isMotionReduced(layer);
         const cables = new Map<string, Cable>();
-        let animationFrame: number | undefined;
+        let cancelFrame: (() => void) | undefined;
         let nextScene: number | undefined;
         let wasOpen = properties.isOpen;
         let wasScene = scene();
@@ -581,7 +583,7 @@ export function Remix(properties: {
         let changedAt = -Infinity;
         let delay = 0;
         let isStirring = false;
-        const narrowScreen = window.matchMedia("(max-width: 1099px)");
+        const narrowScreen = environment.display.media("(max-width: 1099px)");
 
         // measure the boxes of the given cards within the layer, all before any cable is drawn
         const measure = (measured: Iterable<string>) => {
@@ -988,11 +990,11 @@ export function Remix(properties: {
             }
 
             // keep looping while on screen, and rest until the layer comes back into view
-            animationFrame = wake.isVisible ? requestAnimationFrame(loop) : undefined;
+            cancelFrame = wake.isVisible ? requestFrame(loop, environment.display) : undefined;
         };
-        animationFrame = requestAnimationFrame(loop);
+        cancelFrame = requestFrame(loop, environment.display);
         wake.resume = () => {
-            animationFrame ??= requestAnimationFrame(loop);
+            cancelFrame ??= requestFrame(loop, environment.display);
         };
 
         // retrace after the layout changes or the layer comes into view, and rest while off screen
@@ -1000,9 +1002,7 @@ export function Remix(properties: {
         sight.add(layer);
 
         return () => {
-            if (animationFrame !== undefined) {
-                cancelAnimationFrame(animationFrame);
-            }
+            cancelFrame?.();
         };
     });
 

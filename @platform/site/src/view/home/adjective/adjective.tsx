@@ -62,7 +62,7 @@ export function Adjective(properties: { isOpen: boolean }) {
     createTimer(
         () => setBeat((current) => current + 1),
         () => (!isReduced() && isShown() && held() === undefined ? BEAT : false),
-        setInterval,
+        "interval",
     );
     createEffect(
         () => properties.isOpen,

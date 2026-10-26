@@ -33,7 +33,6 @@ export async function run(
         document: "src/view/document.tsx",
         entryServer: "src/view/entry-server.tsx",
         entryClient: "src/view/entry-client.tsx",
-        renderMode: "async" as const,
         site: origin,
         prerender: { routes: prerenderRoutes, notFound: "/404" },
         metadata: await metadataOptions(),

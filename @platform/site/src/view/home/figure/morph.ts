@@ -1,9 +1,10 @@
 import { flush } from "@destack/view";
+import type { Display } from "@destack/environment/browser";
 
 /** Apply a state change as one view transition, morphing the elements both states share. */
-export function morph(update: () => void): void {
+export function morph(update: () => void, display: Display): void {
     // apply the change at once where the browser cannot morph, the reader asks for less motion, or nothing that morphs is on screen
-    const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const isStill = display.media("(prefers-reduced-motion: reduce)").matches;
     const isShown = [...document.querySelectorAll("[data-morph]")].some((element) => {
         const bounds = element.getBoundingClientRect();
 

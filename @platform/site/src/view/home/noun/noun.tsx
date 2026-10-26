@@ -72,7 +72,7 @@ export function Noun(properties: { isOpen: boolean }) {
     createTimer(
         () => setTurns((current) => current + 1),
         () => (!isReduced() && isShown() && !isTouched() ? turnTime : false),
-        setInterval,
+        "interval",
     );
 
     // rent each category's chosen service, or the one its row has turned to

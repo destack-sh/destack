@@ -11,8 +11,10 @@ import {
     omit,
     onSettled,
     Show,
+    useEnvironment,
 } from "@destack/view";
 import { createEventListener } from "@destack/view/primitives/event-listener";
+import { requestFrame } from "@destack/view/primitives/raf";
 
 /** The styles of a table of contents and its elements. */
 const styles = style.create({
@@ -138,17 +140,20 @@ export function createCurrentHeading(
     // start at the first heading
     const [current, setCurrent] = createSignal<string | undefined>(ids()[0], { ownedWrite: true });
 
-    // read the heading being read once per frame while the page scrolls or resizes
-    let frame = 0;
+    // read the heading being read once per frame of the page's display while the page scrolls or resizes
+    const environment = useEnvironment();
+    let cancelFrame: (() => void) | undefined;
     const update = () => {
-        cancelAnimationFrame(frame);
-        frame = requestAnimationFrame(() => setCurrent(currentOf(ids(), offset())));
+        cancelFrame ??= requestFrame(() => {
+            cancelFrame = undefined;
+            setCurrent(currentOf(ids(), offset()));
+        }, environment.display);
     };
     createEventListener(() => window, ["scroll", "resize"], update, { passive: true });
     onSettled(() => {
         update();
 
-        return () => cancelAnimationFrame(frame);
+        return () => cancelFrame?.();
     });
 
     return current;

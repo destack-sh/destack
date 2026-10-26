@@ -5,7 +5,8 @@ import { Icon } from "@destack/icon";
 import { text } from "@destack/theme/text";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
-import { createSignal, type JSX, onSettled, useTelemetry } from "@destack/view";
+import { createSignal, type JSX, onSettled, useEnvironment, useTelemetry } from "@destack/view";
+import type { Display } from "@destack/environment/browser";
 import * as style from "@destack/style";
 
 import type { PageSource } from "../content/source";
@@ -16,6 +17,7 @@ import { renderDiagrams } from "./diagram";
 import { publicationStyles } from "./publication.stylex";
 import { screen } from "../layout/screen.stylex";
 import { createEventListener } from "@destack/view/primitives/event-listener";
+import { requestFrame } from "@destack/view/primitives/raf";
 
 /** Properties for the shared reading frame. */
 type ReaderProperties = {
@@ -62,6 +64,7 @@ export function Reader(properties: ReaderProperties) {
     let article: HTMLElement | undefined;
     const sourceCommands = createPageSourceCommands(properties.source);
     const telemetry = useTelemetry();
+    const environment = useEnvironment();
 
     // render diagrams after the article mounts
     onSettled(() => {
@@ -69,14 +72,18 @@ export function Reader(properties: ReaderProperties) {
             throw new TypeError("the reader rendered without its article");
         }
 
-        return renderDiagrams(article, telemetry);
+        return renderDiagrams(article, telemetry, environment.display);
     });
 
     // align direct links once the webfonts load and on each hash change
     onSettled(() => {
-        void document.fonts.ready.then(scrollAfterLayout);
+        void document.fonts.ready.then(() => scrollAfterLayout(environment.display));
     });
-    createEventListener(() => window, "hashchange", scrollAfterLayout);
+    createEventListener(
+        () => window,
+        "hashchange",
+        () => scrollAfterLayout(environment.display),
+    );
 
     return (
         <div
@@ -159,9 +166,9 @@ function ReaderToolbar(properties: ReaderToolbarProperties) {
     );
 }
 
-/** Scroll to the heading the URL names once layout settles. */
-function scrollAfterLayout() {
-    window.requestAnimationFrame(scrollToHeading);
+/** Scroll to the heading the URL names once layout settles, on the display's next frame. */
+function scrollAfterLayout(display: Display) {
+    requestFrame(scrollToHeading, display);
 }
 
 /** Scroll to the heading the URL names. */

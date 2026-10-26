@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { type JSX, onSettled } from "@destack/view";
+import { type JSX, onSettled, useEnvironment } from "@destack/view";
 
 import { stir, waveAt } from "../../effect/wave";
 import { font, shadow } from "@destack/theme/tokens.stylex";
@@ -7,6 +7,7 @@ import { flotsam } from "./flotsam.stylex";
 import { palette } from "../../palette.stylex";
 import { media } from "@destack/style/media.stylex";
 import { typeScale, tracking } from "../../layout/type.stylex";
+import { loopFrames } from "@destack/view/primitives/raf";
 
 /** How far in from each edge of the water the surface starts to dip away, in CSS pixels. */
 const edgeReach = 110;
@@ -207,7 +208,9 @@ export function Flotsam(properties: {
     waterline: string;
     pieces?: readonly Piece[];
 }) {
-    // pick the pieces and hold their elements
+    // pick the pieces and hold their elements and the page's clock
+    const environment = useEnvironment();
+    const { clock } = environment;
     const pieces = properties.pieces ?? vendorFlotsam;
     let water: HTMLDivElement | undefined;
     const elements: HTMLDivElement[] = [];
@@ -221,9 +224,8 @@ export function Flotsam(properties: {
             throw new TypeError("the flotsam rendered without its water");
         }
 
-        // hold the frame and the time of the last one
-        let frame: number | undefined;
-        let last = performance.now();
+        // hold the time of the last frame, unknown before the first
+        let last: number | undefined;
 
         // start each piece somewhere random, some already on the water and some still to come
         const width = () => water.clientWidth;
@@ -334,7 +336,7 @@ export function Flotsam(properties: {
                 const size = 3 + Math.random() * 4;
                 element.style.cssText = `left:${(x + (Math.random() - 0.5) * 24).toFixed(1)}px;top:${(20 + Math.random() * 20).toFixed(1)}px;width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;animation-delay:${(index * 0.15).toFixed(2)}s`;
                 water.append(element);
-                setTimeout(() => element.remove(), 2400);
+                clock.setTimeout(() => element.remove(), 2400);
             }
         };
 
@@ -382,9 +384,8 @@ export function Flotsam(properties: {
 
         // drift each piece along, riding and tilting with the waves, and send it round again with a new tag
         const loop = (now: number) => {
-            // schedule the next frame and measure the time since the last
-            frame = requestAnimationFrame(loop);
-            const elapsed = Math.min(0.1, (now - last) / 1000);
+            // measure the time since the last frame
+            const elapsed = last === undefined ? 0 : Math.min(0.1, (now - last) / 1000);
             last = now;
             if (!properties.isAdrift) {
                 return;
@@ -549,13 +550,8 @@ export function Flotsam(properties: {
                 );
             });
         };
-        frame = requestAnimationFrame(loop);
 
-        return () => {
-            if (frame !== undefined) {
-                cancelAnimationFrame(frame);
-            }
-        };
+        return loopFrames(loop, environment.display);
     });
 
     return (

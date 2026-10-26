@@ -3,7 +3,15 @@ import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.style
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { Shader, type ShaderFailure } from "@destack/shader";
-import { createMemo, createSignal, For, type JSX, onSettled, useTelemetry } from "@destack/view";
+import {
+    createMemo,
+    createSignal,
+    For,
+    type JSX,
+    onSettled,
+    useEnvironment,
+    useTelemetry,
+} from "@destack/view";
 
 import { charge } from "../../effect/goo";
 import {
@@ -42,8 +50,9 @@ import { isMotionReduced } from "@destack/view/motion";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
-import { makeTimer } from "@destack/view/primitives/timer";
+import { makeTimer, Timeout } from "@destack/view/primitives/timer";
 import { typeScale, tracking } from "../../layout/type.stylex";
+import { requestFrame } from "@destack/view/primitives/raf";
 
 /** The rows above the waterline today. */
 const dryRows = 2;
@@ -364,6 +373,8 @@ const tapeGaps = [0, 1];
 export function StackFigure(properties: { onChange: (isOpen: boolean) => void }) {
     // hold the chosen stack, the scene, the canvases, the effect timers, and the telemetry
     const telemetry = useTelemetry();
+    const environment = useEnvironment();
+    const { clock } = environment;
     const [stack, setStack] = createSignal<Stack>("today");
     const [isPainted, setIsPainted] = createSignal(false);
     const [scene, setScene] = createSignal(0);
@@ -386,7 +397,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     let figureElement: HTMLElement | undefined;
     let drawingElement: HTMLDivElement | undefined;
     let waterElement: HTMLDivElement | undefined;
-    let settle: ReturnType<typeof setTimeout> | undefined;
+    const settle = new Timeout();
     let isStill = false;
 
     // hold the waterline, the bergs under it, and a count of its moves that refreshes the shaders
@@ -475,10 +486,10 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         charge(0);
 
         // bring the open stack to life only once the water has fully drained
-        clearTimeout(settle);
+        settle.clear();
         setIsLive(false);
         if (next === "destack") {
-            settle = setTimeout(() => setIsLive(true), TRAVEL);
+            settle.set(() => setIsLive(true), TRAVEL);
         }
 
         // move the water, at once when motion is reduced, revealing rows as it passes them
@@ -492,13 +503,13 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     };
 
     // follow the waterline frame by frame until its move ends
-    let tracing = 0;
+    let stopTracing: (() => void) | undefined;
     const trace = () => {
-        cancelAnimationFrame(tracing);
+        stopTracing?.();
         const step = () => {
             follow(waterline.level());
             if (waterline.progress() < 1) {
-                tracing = requestAnimationFrame(step);
+                stopTracing = requestFrame(step, environment.display);
             }
         };
         step();
@@ -508,7 +519,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     createEventListener(
         () => document,
         commandEvents.switchStack,
-        () => morph(() => select(isOpen() ? "today" : "destack")),
+        () => morph(() => select(isOpen() ? "today" : "destack"), environment.display),
     );
 
     // rest the water on its line, and again through resizes
@@ -542,7 +553,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         isStill = isMotionReduced(figure);
 
         // swap the silos unless motion is reduced, rest the water, and watch the figure
-        const stopSwapping = isStill ? undefined : makeTimer(swap, swapTime, setInterval);
+        const stopSwapping = isStill ? undefined : makeTimer(swap, swapTime, "interval", clock);
         rest();
         resizes.observe(drawing);
         sight.add(figure);
@@ -550,8 +561,8 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         return () => {
             // stop the swapping, the settling timer and the frames
             stopSwapping?.();
-            clearTimeout(settle);
-            cancelAnimationFrame(tracing);
+            settle.clear();
+            stopTracing?.();
         };
     });
 
