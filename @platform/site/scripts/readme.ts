@@ -11,9 +11,6 @@ const SITE = "http://localhost:3737/";
 /** The directory the README's images go in, beside the repository's other GitHub files. */
 const OUTPUT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", ".github", "readme");
 
-/** The browser height the figures are captured in, tall enough for a whole section. */
-const VIEWPORT_HEIGHT = 900;
-
 /** The device pixel ratio of the capture, about twice the README column's density. */
 const SCALE = 1.5;
 
@@ -68,28 +65,34 @@ const QUALITY = 82;
 /** The pixels of transparent margin around the windows, room for their shadows. */
 const MARGIN = 12;
 
-/** The figures the README shows: their file, their section's entry, viewport and window parts. */
+/** The figures the README shows: their file, section entry, viewport, window parts and height. */
 const FIGURES = [
     {
         file: "space",
         entry: "verb",
-        // a tablet layout, where the browser spans the frame at about 1000 pixels
-        viewport: 1080,
+        // a tablet layout, where the browser spans the frame at about 980 pixels
+        viewport: { width: 1080, height: 900 },
         windows: ["section:has(#verb) [data-component=Browser]"],
+        // taller than the layout's 480 pixels, about as tall for its width as the stack
+        height: 690,
     },
     {
         file: "engine",
         entry: "noun",
-        // a tablet layout, where the browser spans the frame at about 1000 pixels
-        viewport: 1080,
+        // a tablet layout, where the browser spans the frame at about 980 pixels
+        viewport: { width: 1080, height: 900 },
         windows: ["section:has(#noun) [data-component=XRay]"],
+        // taller than the layout's 544 pixels, about as tall for its width as the stack
+        height: 690,
     },
     {
         file: "stack",
         entry: "past-participle",
-        // a desktop layout wide enough for the layer column, where the window is about 1170 pixels
-        viewport: 1320,
+        // a desktop layout tall enough for the whole stack, where the window is 1150 by 808 pixels
+        viewport: { width: 1320, height: 1300 },
         windows: ["[data-component=LayerList]"],
+        // the layout's own height
+        height: undefined,
     },
 ] as const;
 
@@ -118,7 +121,7 @@ async function exportFigures(environment: Environment<"files" | "process">) {
     const context = await browser.newContext({ colorScheme: SCHEME, deviceScaleFactor: SCALE });
     const page = await context.newPage();
     for (const figure of FIGURES) {
-        await page.setViewportSize({ width: figure.viewport, height: VIEWPORT_HEIGHT });
+        await page.setViewportSize(figure.viewport);
         await page.goto(SITE, { waitUntil: "load" });
         const frames = await capture(page, figure);
         const file = join(OUTPUT, `${figure.file}.webp`);
@@ -132,7 +135,7 @@ async function exportFigures(environment: Environment<"files" | "process">) {
 async function capture(page: Page, figure: Figure): Promise<readonly Frame[]> {
     // bring the figure's label to the top of the browser window, and clear everything behind its windows
     const clip = await page.evaluate(
-        ({ entry, windows, margin }) => {
+        ({ entry, windows, height, margin }) => {
             // find the figure's label and scroll it to the top
             const label = document.getElementById(entry)?.closest("section")?.querySelector("[data-figure-label]");
             if (!label) {
@@ -154,12 +157,26 @@ async function capture(page: Page, figure: Figure): Promise<readonly Frame[]> {
                       )
                     : undefined;
                 const frame = around ?? inside;
-                if (!frame) {
+                if (!(frame instanceof HTMLElement)) {
                     throw new Error(`no window around or inside ${part}`);
                 }
 
                 return frame;
             });
+
+            // size the windows to the figure's height, where it has one, and let their section grow around them
+            for (const frame of frames) {
+                if (height !== undefined) {
+                    frame.style.height = `${height}px`;
+                    for (let element = frame.parentElement; element; element = element.parentElement) {
+                        element.style.height = "auto";
+                        element.style.gridTemplateRows = "none";
+                        if (element.tagName === "SECTION") {
+                            break;
+                        }
+                    }
+                }
+            }
 
             // clear the backgrounds behind the windows, up to the page itself
             for (const frame of frames) {
@@ -177,7 +194,7 @@ async function capture(page: Page, figure: Figure): Promise<readonly Frame[]> {
 
             return { x: left, y: top, width: right - left, height: bottom - top };
         },
-        { entry: figure.entry, windows: [...figure.windows], margin: MARGIN },
+        { entry: figure.entry, windows: [...figure.windows], height: figure.height, margin: MARGIN },
     );
 
     // hold a browser figure on its first tab, which stops it turning its pages on its own
