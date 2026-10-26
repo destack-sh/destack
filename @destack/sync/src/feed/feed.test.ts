@@ -722,3 +722,24 @@ test("end a stream drained while it waits at a completed page of its position", 
         { reset: false, complete: true, changes: [], position: snapshot.position },
     ]);
 });
+
+test("place a stream resumed at the log's head at once, with a completed page of its position", async () => {
+    // commit a note, then resume the inbox's notes at the head with a heartbeat a minute away
+    const simulation = new Simulation({ seed: 1, start: 1000 });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note], { heartbeat: 60_000 });
+    await database.transaction(async (transaction) => await transaction.insert(note).values(first));
+    const head = await database.log.position();
+    const pages = feed.subscribe(
+        { notes: { table: note, scopes: ["inbox"] } },
+        head,
+        AbortSignal.timeout(5000),
+    );
+
+    // read the first page before the clock moves
+    const placed = await nextValue(pages);
+    expect({ placed, now: simulation.clock.now() }).toEqual({
+        placed: { reset: false, complete: true, changes: [], position: head },
+        now: 1000,
+    });
+});
