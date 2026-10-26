@@ -40,7 +40,7 @@ for (const size of [16, 32, 48]) {
 }
 
 // render each social layout at its intended upload size
-for (const name of ["x-header", "linkedin-company", "linkedin-profile"]) {
+for (const name of ["og", "github-social", "x-header", "linkedin-company", "linkedin-profile"]) {
     const source = join(directory, "banner", `${name}.svg`);
     execFileSync("rsvg-convert", ["-o", source.replace(/\.svg$/, ".png"), source]);
 }
