@@ -18,6 +18,7 @@ import { agentPrompt } from "../content/site";
 import { InstallList } from "../install/install";
 import { CommandPalette } from "./palette";
 import { frame } from "./frame.stylex";
+import { Goo } from "../effect/goo";
 import { Mark } from "./mark";
 import { lattice } from "./lattice.stylex";
 import {
@@ -69,71 +70,80 @@ export function TopBar() {
     return (
         <header {...style.attrs(styles.root)}>
             <Sheet open={isMenuOpen()} onOpenChange={setIsMenuOpen}>
-                <div {...style.attrs(lattice.frame, lattice.ruleBottom, styles.bar)}>
-                    {/* run the head as a dictionary page does: the headword, its guide words, then the controls */}
-                    <div {...style.attrs(styles.content)}>
-                        <Link href={home.href} {...style.attrs(styles.brand)}>
-                            <Mark />
-                            <span {...style.attrs(styles.headword)}>Destack</span>
-                        </Link>
-                        <nav aria-label="Primary navigation" {...style.attrs(styles.navigation)}>
-                            {menu.map((destination, index) => (
-                                <>
-                                    {index > 0 && (
-                                        <span aria-hidden="true" {...style.attrs(styles.dot)}>
-                                            ·
-                                        </span>
-                                    )}
-                                    <MenuLink
-                                        destination={destination}
-                                        isActive={active() === destination}
-                                    />
-                                </>
-                            ))}
-                        </nav>
+                <Goo xstyle={styles.band}>
+                    <div {...style.attrs(lattice.frame, lattice.ruleBottom, styles.bar)}>
+                        {/* run the head as a dictionary page does: the headword, its guide words, then the controls */}
+                        <div {...style.attrs(styles.content)}>
+                            <Link href={home.href} {...style.attrs(styles.brand)}>
+                                <Mark />
+                                <span {...style.attrs(styles.headword)}>Destack</span>
+                            </Link>
+                            <nav
+                                aria-label="Primary navigation"
+                                {...style.attrs(styles.navigation)}
+                            >
+                                {menu.map((destination, index) => (
+                                    <>
+                                        {index > 0 && (
+                                            <span aria-hidden="true" {...style.attrs(styles.dot)}>
+                                                ·
+                                            </span>
+                                        )}
+                                        <MenuLink
+                                            destination={destination}
+                                            isActive={active() === destination}
+                                        />
+                                    </>
+                                ))}
+                            </nav>
 
-                        {/* keep search, appearance, your home space, sign in and the install together at the row's end */}
-                        {/* TODO #Incomplete: open your home space and the Destack account sign in once accounts are live */}
-                        <div {...style.attrs(styles.tools)}>
-                            <CommandPalette appearance={appearance} />
-                            <AppearanceToggle appearance={appearance} />
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                disabled
-                                aria-label="Your home space, soon"
-                                xstyle={[styles.idle, styles.home]}
-                            >
-                                <Icon icon={house} xstyle={styles.tool} />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                disabled
-                                aria-label="Sign in, soon"
-                                xstyle={[styles.idle, styles.account]}
-                            >
-                                <Icon icon={user} xstyle={styles.tool} />
-                            </Button>
-                            <Popover>
-                                <PopoverTrigger size="sm" xstyle={styles.get}>
-                                    Get Destack
-                                </PopoverTrigger>
-                                <PopoverContent side="bottom" align="end" xstyle={styles.install}>
-                                    <InstallList prompt={agentPrompt} />
-                                </PopoverContent>
-                            </Popover>
-                            <SheetTrigger
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Menu"
-                                xstyle={styles.menuButton}
-                            >
-                                <Icon icon={list} xstyle={styles.tool} />
-                            </SheetTrigger>
+                            {/* keep search, appearance, your home space, sign in and the install together at the row's end */}
+                            {/* TODO #Incomplete: open your home space and the Destack account sign in once accounts are live */}
+                            <div {...style.attrs(styles.tools)}>
+                                <CommandPalette appearance={appearance} />
+                                <AppearanceToggle appearance={appearance} />
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled
+                                    aria-label="Your home space, soon"
+                                    xstyle={[styles.idle, styles.home]}
+                                >
+                                    <Icon icon={house} xstyle={styles.tool} />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled
+                                    aria-label="Sign in, soon"
+                                    xstyle={[styles.idle, styles.account]}
+                                >
+                                    <Icon icon={user} xstyle={styles.tool} />
+                                </Button>
+                                <Popover>
+                                    <PopoverTrigger size="sm" xstyle={styles.get}>
+                                        Get Destack
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                        side="bottom"
+                                        align="end"
+                                        xstyle={styles.install}
+                                    >
+                                        <InstallList prompt={agentPrompt} />
+                                    </PopoverContent>
+                                </Popover>
+                                <SheetTrigger
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Menu"
+                                    xstyle={styles.menuButton}
+                                >
+                                    <Icon icon={list} xstyle={styles.tool} />
+                                </SheetTrigger>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </Goo>
                 <SheetContent
                     side="right"
                     aria-label="Site navigation"
@@ -230,8 +240,14 @@ function MenuLink(properties: {
 const styles = style.create({
     root: {
         color: color.foreground,
+        marginInline: "auto",
+        maxWidth: frame.width,
         position: "relative",
+        width: "100%",
         zIndex: 1,
+    },
+    band: {
+        minHeight: frame.bar,
     },
     bar: {
         fontFamily: font.text,

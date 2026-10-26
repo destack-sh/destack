@@ -8,6 +8,8 @@ const radius = 11;
 const ringReach = { across: 15.2, down: 4.2 };
 /** The ring's inclination, in degrees. */
 const ringTilt = -22;
+/** The share of the tile the planet and its ring fill. */
+const planetScale = 0.8;
 
 /** The ring's ellipse and inclination, shared by every rendering of the mark. */
 const ring = {
@@ -24,8 +26,17 @@ const SIGNAL = "#ff792e";
 /** The dark side of the planet. */
 const shadow = "#c64a17";
 
-/** Render the Destack planet mark, its ring in the text colour around it. */
+/** The navy of the tile, the planet's own space. */
+const space = "#11293b";
+
+/** The cream of the ring. */
+const cream = "#f1eadb";
+
+/** Render the Destack mark: the planet on its own navy tile, as in `@platform/brand/mark.svg`. */
 export function Mark(properties: { xstyle?: style.Styles }) {
+    // inset the planet so its ring clears the tile's edges
+    const inset = (32 * (1 - planetScale)) / 2;
+
     return (
         <svg
             aria-hidden="true"
@@ -47,22 +58,27 @@ export function Mark(properties: { xstyle?: style.Styles }) {
                 </mask>
             </defs>
 
-            {/* draw the back of the ring, then the globe with its shadow side, cut by the gap in front */}
-            <ellipse {...ring} fill="none" stroke="currentColor" stroke-width="2.6" />
-            <g mask="url(#mark-gap)">
-                <circle cx={centre.x} cy={centre.y} r={radius} fill={SIGNAL} />
-                <circle
-                    cx="20.62"
-                    cy="20.62"
-                    r="11.22"
-                    fill={shadow}
-                    clip-path="url(#mark-globe)"
-                />
-            </g>
+            {/* lay the tile, the planet's space */}
+            <rect width="32" height="32" rx="7" fill={space} />
 
-            {/* close the ring in front of the globe */}
-            <g clip-path="url(#mark-front)">
-                <ellipse {...ring} fill="none" stroke="currentColor" stroke-width="2.6" />
+            {/* draw the back of the ring, then the globe with its shadow side, cut by the gap in front */}
+            <g transform={`translate(${inset} ${inset}) scale(${planetScale})`}>
+                <ellipse {...ring} fill="none" stroke={cream} stroke-width="2.6" />
+                <g mask="url(#mark-gap)">
+                    <circle cx={centre.x} cy={centre.y} r={radius} fill={SIGNAL} />
+                    <circle
+                        cx="20.62"
+                        cy="20.62"
+                        r="11.22"
+                        fill={shadow}
+                        clip-path="url(#mark-globe)"
+                    />
+                </g>
+
+                {/* close the ring in front of the globe */}
+                <g clip-path="url(#mark-front)">
+                    <ellipse {...ring} fill="none" stroke={cream} stroke-width="2.6" />
+                </g>
             </g>
         </svg>
     );
