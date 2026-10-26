@@ -1312,7 +1312,10 @@ export class Replica {
             } catch (error) {
                 // resume with a fresh credential once the source refused the lapsed one
                 isLapsed = SyncError.is(error, "CREDENTIAL_LAPSED");
-                if (!isLapsed) {
+
+                // end quietly on this follow's own abort, failing on anything else
+                const isAborted = signal.aborted && error === signal.reason;
+                if (!isLapsed && !isAborted) {
                     throw error;
                 }
             }
