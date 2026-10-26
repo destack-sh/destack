@@ -36,7 +36,7 @@ import accountPackage from "../src/package.ts";
 import { TestAccountStore, ISSUER, ids, type TestPerson, OWNER_EMAIL } from "../src/test/index.ts";
 import type { TestCaller } from "@destack/object/test";
 import { claimNames, firstPage, place } from "./fixture.ts";
-import { Claim, Claimant, relationship } from "@destack/object";
+import { Claim, Claimant, type ClaimLookup, type ClaimOwner, relationship } from "@destack/object";
 
 /** The machines a residency's spaces spread over. */
 /** The origin of the residency's relay, which publishes the tunnels it accepts. */
@@ -200,10 +200,20 @@ async function url(fixture: TestAccountStore, caller: TestCaller, scope: string,
 }
 
 /** Find the owners of names as a caller. */
-function claims(caller: TestCaller) {
+function claims(caller: TestCaller): ClaimLookup {
     return {
-        owner: async (index: string, key: string) =>
-            (await caller.client(accountPackage).claim.owner({ index, key })) ?? undefined,
+        resolve: async ({ index, keys }) => {
+            // ask for each name's owner, keeping the claimed ones
+            const owners = new Map<string, ClaimOwner>();
+            for (const key of keys) {
+                const owner = await caller.client(accountPackage).claim.owner({ index, key });
+                if (owner !== null) {
+                    owners.set(key, owner);
+                }
+            }
+
+            return owners;
+        },
     };
 }
 
@@ -953,7 +963,7 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
     const unsetCondition = {
         status: "true",
         reason: "Unset",
-        message: `the space stays local on ${machineId} until a person sets its tenancy`,
+        message: `placed local on ${machineId}`,
     };
     expect([unset, unentitled, kept, none, one, two]).toEqual([
         { kind: "stay", condition: unsetCondition },
@@ -976,6 +986,52 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
             "Ambiguous",
             `transfer the space to one of the account's machines: ${[first.machineId, second.machineId].toSorted().join(", ")}`,
         ),
+    ]);
+});
+
+test("move a space off a draining machine, decide again once it is placed, and keep its placement when nothing changed", async () => {
+    // place the laptop's space on the laptop beside the peer, both personal machines of the account
+    const opened = await openPlacement();
+    await using fixture = opened.fixture;
+    const { accountId, laptop, local, peer, owner } = opened;
+    const read = async () =>
+        present(
+            await Snapshot.live(fixture.database)
+                .read(placement.table)
+                .findFirst({ where: { id: laptop } }),
+            "the laptop's placement",
+        );
+    const placed = (await read()).schedule;
+
+    // drain the laptop, which moves the space to the peer
+    await owner.client(accountPackage).machine.drain({
+        scope: accountId,
+        id: local.subject.id,
+        requestId: RequestId.create(fixture.environment),
+    });
+    await fixture.served.settle();
+    const draining = (await read()).schedule;
+
+    // place the space on the peer, which decides again in the same call
+    await move(fixture, local, { accountId, id: laptop }, 1, peer.subject.id);
+    await serve(fixture, peer, accountId, laptop, 2);
+    const moved = await read();
+
+    // change the plan, which decides again without a new decision
+    await fixture.entitle(accountId, "tenancy", { kind: "static", value: ["local"] });
+    await fixture.served.settle();
+    const kept = await read();
+
+    // compare each decision, and the revision a decision without change keeps
+    const unset = (machineId: string) => ({
+        kind: "stay",
+        condition: { status: "true", reason: "Unset", message: `placed local on ${machineId}` },
+    });
+    expect([placed, draining, moved.schedule, kept.revision]).toEqual([
+        unset(local.subject.id),
+        { kind: "move", machine: peer.subject.id },
+        unset(peer.subject.id),
+        moved.revision,
     ]);
 });
 

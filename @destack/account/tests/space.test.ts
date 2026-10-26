@@ -1,7 +1,7 @@
 import accountPackage from "../src/package.ts";
 import { accessRelationship, Role } from "@destack/access";
 import { eq, Snapshot } from "@destack/db";
-import { Claim } from "@destack/object";
+import { Claim, type ClaimLookup, type ClaimOwner } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import { expect, test, refusal } from "@destack/test";
 import { Account, placement, space } from "../src/object/index.ts";
@@ -51,9 +51,19 @@ test("place a new space on its account's residency cloud machine, on a machine o
     const shared = await create(fixture, person, "shared", ids.machine);
 
     // store each placement beside the home's, and claim each name for its space
-    const owners = {
-        owner: async (index: string, key: string) =>
-            (await person.client(accountPackage).claim.owner({ index, key })) ?? undefined,
+    const owners: ClaimLookup = {
+        resolve: async ({ index, keys }) => {
+            // ask for each name's owner, keeping the claimed ones
+            const owners = new Map<string, ClaimOwner>();
+            for (const key of keys) {
+                const owner = await person.client(accountPackage).claim.owner({ index, key });
+                if (owner !== null) {
+                    owners.set(key, owner);
+                }
+            }
+
+            return owners;
+        },
     };
     expect({
         placements: await placements(fixture, person),

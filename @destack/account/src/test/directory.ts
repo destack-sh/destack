@@ -89,7 +89,7 @@ export const TestDirectory = {
             readonly transferId: Identifier<"transfer">;
         } | null = null,
     ): Promise<void> {
-        // write the space and the machines a placement names once, then the placement or a replacement of it
+        // write the space a placement belongs to once, then the placement or a replacement of it
         const now = clock.now();
         const stored = {
             id: placed.id,
@@ -110,20 +110,8 @@ export const TestDirectory = {
                 condition: { status: "true", reason: "Unset", message: "placed by the test" },
             } as const,
         };
-        const machines = [placed.machine, ...(move === null ? [] : [move.target])].map((id) => ({
-            id,
-            scope: placed.scope,
-            name: id.slice(-8),
-            kind: "personal" as const,
-            platform: "macOS" as const,
-            architecture: "arm64" as const,
-            model: "Mac",
-            createdAt: now,
-            updatedAt: now,
-        }));
         await database.transaction(async (transaction) => {
             await transaction.insert(space.table).values(stored).onConflictDoNothing();
-            await transaction.insert(machine.table).values(machines).onConflictDoNothing();
             await transaction
                 .insert(placement.table)
                 .values({ id: placed.id, ...fields, createdAt: now, updatedAt: now })

@@ -1,6 +1,6 @@
 import type { Clock, Environment } from "@destack/environment";
 import { type Snapshot, TABLE } from "@destack/db";
-import { Claim, claimTable, type ObjectType } from "@destack/object";
+import { Claim, ClaimLookup, claimTable, type ObjectType } from "@destack/object";
 import { nth, present, schema, type Identifier } from "@destack/schema";
 import { type Fetch, PackageMount, SpaceMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
@@ -60,7 +60,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         }
 
         // find the object claiming the name within the account
-        const claims = { owner: (index: string, key: string) => this.#owner(index, key) };
+        const claims = ClaimLookup.of(this.snapshot.read(claimTable));
         const found = await Claim.lookup(type, claims, "name", [origin.space], accountId);
 
         return found === undefined
@@ -199,10 +199,5 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
                   machine: placed.machineId,
                   epoch: placed.epoch,
               };
-    }
-
-    /** Find the object an active name resolves to. */
-    #owner(index: string, key: string) {
-        return Claim.owner(this.snapshot.read(claimTable), { index, key });
     }
 }

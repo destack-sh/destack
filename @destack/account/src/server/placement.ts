@@ -30,10 +30,10 @@ export function implementPlacement(): typeof placement {
     return placement.implement({
         methods: { place, move, decide, withdraw, assign, unassign },
         controller: {
-            // decide every placement again once a machine, plan or residency it depends on changes
+            // decide every placement again after each of its writes, which converges a decision a concurrent change outdated
             pending: {},
             watches: [
-                // decide again once a machine's standing changes, for its account or its residency's
+                // decide again once a machine comes, goes or changes its standing, for its account or its residency's
                 ObjectWatch.of(machine.table, async (_row, database, change) => {
                     // leave a change no decision reads, such as a heartbeat
                     const before = Change.before(change);
@@ -57,12 +57,6 @@ export function implementPlacement(): typeof placement {
                               schema.identifier("account").parse(row.scope),
                           ])
                         : [],
-                ),
-                // decide again for an account whose residency changed
-                ObjectWatch.of(account.table, (row, database, change) =>
-                    row.residencyId === Change.before(change)?.residencyId
-                        ? []
-                        : accountPlacements(database, [row.id]),
                 ),
             ],
             reconcile,
@@ -93,8 +87,10 @@ async function place(
         );
     }
 
-    // serve the space at the epoch, ending any move and its receiver's access, decided again for its machine
+    // end any move and its receiver's access
     await releaseReceivers(context, current, null);
+
+    // serve the space at the epoch, decided again for the machine
     const placed = { ...current, machineId: caller };
     const decided = await decideSchedule(context, placed, context.environment.crypto);
 
@@ -190,34 +186,37 @@ export async function decideSchedule(
     row: Pick<Select<typeof placement.table>, "id" | "scope" | "machineId">,
     crypto: DigestCrypto,
 ): Promise<Schedule> {
-    // read the space's tenancy, its account's entitlement and the tenancy of the machine serving it
-    const placed = await reader.read(space.table).findFirst({ where: { id: row.id } });
-    const { tenancy } = present(placed, `space ${row.id}`);
+    // read the space's tenancy, its account's plan and the machine serving it
+    const placed = present(
+        await reader.read(space.table).findFirst({ where: { id: row.id } }),
+        `space ${row.id}`,
+    );
     const entitled = await reader.read(entitlement.table).findMany({ where: { scope: row.scope } });
-    const serving = await reader.read(machine.table).findFirst({ where: { id: row.machineId } });
-    const local = Machine.tenancy(present(serving, `machine ${row.machineId}`));
+    const serving = present(
+        await reader.read(machine.table).findFirst({ where: { id: row.machineId } }),
+        `machine ${row.machineId}`,
+    );
 
-    // keep a space on its machine until a person sets its tenancy
-    if (tenancy === null) {
-        const message = `the space stays ${local} on ${row.machineId} until a person sets its tenancy`;
+    // keep the serving machine's tenancy while none is set, and the machine while it stands
+    const local = Machine.tenancy(serving);
+    const asked = placed.tenancy ?? local;
+    const allowed = Entitlement.decide(entitled, { tenancy: asked });
+    const isStanding = serving.status === "enabled" && serving.revokedAt === null;
 
-        return { kind: "stay", condition: { status: "true", reason: "Unset", message } };
-    }
-
-    // refuse a tenancy the account's plan does not unlock
-    const allowed = Entitlement.decide(entitled, { tenancy });
-    if (allowed.status !== "true") {
+    // refuse a tenancy a person set that the account's plan does not unlock
+    if (placed.tenancy !== null && allowed.status !== "true") {
         return { kind: "stay", condition: allowed };
     }
-    // leave a space on its machine when its tenancy matches
-    else if (tenancy === local) {
+    // leave a space on a standing machine of its tenancy, saying whether a person set it
+    else if (asked === local && isStanding) {
+        const reason = placed.tenancy === null ? "Unset" : "Placed";
         const message = `placed ${local} on ${row.machineId}`;
 
-        return { kind: "stay", condition: { status: "true", reason: "Placed", message } };
+        return { kind: "stay", condition: { status: "true", reason, message } };
     }
     // move it to its tenancy's machine, or leave it where no machine runs the tenancy
     else {
-        return await tenancyMachine(reader, row, tenancy, crypto);
+        return await tenancyMachine(reader, row, asked, crypto);
     }
 }
 
@@ -270,7 +269,7 @@ async function tenancyMachine(
     }
 }
 
-/** Decide whether a machine change can change a decision: added, removed, standing or home. */
+/** Decide whether a machine change can change a decision: added, removed or standing. */
 function isMachineChanged(
     before: Select<typeof machine.table> | null,
     after: Select<typeof machine.table> | null,
@@ -279,10 +278,7 @@ function isMachineChanged(
         before === null ||
         after === null ||
         after.status !== before.status ||
-        after.revokedAt !== before.revokedAt ||
-        after.kind !== before.kind ||
-        after.scope !== before.scope ||
-        after.residencyId !== before.residencyId
+        after.revokedAt !== before.revokedAt
     );
 }
 
