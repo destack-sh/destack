@@ -587,6 +587,11 @@ export class Replica {
         return records.some((record) => name === undefined || record.tables.includes(name));
     }
 
+    /** The tables holding replicas' records and the keys they include, by name. */
+    static get recordTables(): readonly string[] {
+        return [...replicaRecordTables, replicaKey].map((table) => table[TABLE].sqlName);
+    }
+
     /** Wait until a scope's replicas and the required ones reflect its home up to a position. */
     static async wait(
         database: DatabaseConnection,
@@ -596,7 +601,7 @@ export class Replica {
         required: readonly Pick<Subscription, "name" | "scope">[] = [],
     ): Promise<boolean> {
         // check again only once a commit changes a replica's record or the keys it includes
-        const tables = [...replicaRecordTables, replicaKey].map((table) => table[TABLE].sqlName);
+        const tables = Replica.recordTables;
 
         return database.log.until(
             async (committed) =>
