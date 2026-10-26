@@ -12,6 +12,7 @@
         "format": "destack-check format src build scripts content.ts",
         "format-check": "destack-check format-check src build scripts content.ts",
         "lint": "destack-check check src build scripts content.ts",
+        "readme": "bun run scripts/readme.ts",
         "test": "bun run scripts/test-highlighting.ts && bun run scripts/test-markdown.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p build/tsconfig.json --noEmit",
         "generate": "bun run scripts/sync-assets.ts && bun run scripts/generate-release.ts && bun run scripts/generate-pricing.ts && bun run scripts/generate-content.ts"
@@ -50,6 +51,8 @@
         "highlight.js": "11.11.1",
         "@destack/build": "workspace:*",
         "@platform/pricing": "workspace:*",
+        "playwright-core": "1.64.1",
+        "sharp": "0.35.5",
         "vite": "8.3.0"
     }
 }
