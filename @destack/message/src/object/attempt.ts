@@ -19,7 +19,7 @@ export const messageAttempt = defineObject(
     },
     (method) => ({
         /** Record a provider's try, as the message controller does. */
-        create: method.create("record", { isInternal: true }),
+        create: method.create("record", { visibility: "package" }),
     }),
 );
 /** A message attempt as its table stores it. */
