@@ -162,7 +162,7 @@ export class Universe implements AsyncDisposable {
                     name: "residencies",
                     apply: () => Residency.apply(store, definition.residencies),
                 },
-                ...new Platform(store, definition.platform, definition.stacks.residency).steps(),
+                ...platform.steps(),
             ];
             for (const each of steps) {
                 await step.run(each.name, schema.null(), async () => {
@@ -215,7 +215,10 @@ export class Universe implements AsyncDisposable {
                 directory.publisher(scope, connect(objectPackage.id), options.environment),
         });
 
-        // receive the universe at its first start, and start applying its definition unless a run applies it
+        // apply the platform through the universe's store
+        const platform = new Platform(store, definition.platform, definition.stacks.residency);
+
+        // receive the universe at its first start
         await Authorization.run(
             store.authorizer,
             store.database,
@@ -224,16 +227,23 @@ export class Universe implements AsyncDisposable {
             (authorization) =>
                 Installation.receive(authorization, Scope.universe, [], UNIVERSE_PACKAGES, store),
         );
+
+        // apply the definition unless its latest run completed and the operator stays invited
         const digest = await Digest.json(definition, options.environment.crypto);
-        const applier = store.as(apply.run);
-        await store.mutate(applier, {
-            id: RequestId.create(store.environment),
-            calls: [apply.start({ digest }, { key: digest, actor: applier.subject })],
-        });
-        const [started] = await Snapshot.live(database)
+        const [latest] = await Snapshot.live(database)
             .read(apply.run.table)
             .findMany({ where: { key: digest }, orderBy: { createdAt: "desc" }, limit: 1 });
-        const applying = new Run(apply, present(started, `the run applying ${digest}`));
+        const isApplied = latest?.state === "completed" && (await platform.isOperatorInvited(now));
+
+        // follow the applied run, else the run the start answers: a new one or the live one
+        const applier = store.as(apply.run);
+        const [current] = isApplied
+            ? [latest]
+            : await store.mutate(applier, {
+                  id: RequestId.create(store.environment),
+                  calls: [apply.start({ digest }, { key: digest, actor: applier.subject })],
+              });
+        const applying = new Run(apply, current);
 
         // sign in with the universe's identity
         const keystore = await IdentityKeystore.universe(

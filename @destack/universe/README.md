@@ -5,7 +5,7 @@
 ```ts
 await database.migrate(universeDatabase.tables); // the account database's tables and the apply runs
 await using universe = await Universe.start({
-    definition, // applied by one `apply` run per digest; the packages answer once it completes
+    definition, // applied by one `apply` run per digest, again while the operator is uninvited; the packages answer once it completes
     origin,
     database,
     keyring,
