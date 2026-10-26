@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { inArray } from "@destack/db";
-import { nth, present, Identifier } from "@destack/schema";
+import { present, Identifier } from "@destack/schema";
 import { Replica, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import type { ObjectReference } from "@destack/sync";
@@ -254,7 +254,10 @@ test("register the client of a space's connection without an integration at the 
     await space.objects.wait({ scope: primary.scope.id, ...head }, signal);
     await complete(space, created.id, await primary.server.approve(url));
     const [row] = await space.connections();
-    const stored = await primary.database.select().from(integration.table);
+    const stored = await primary.database
+        .select()
+        .from(integration.table)
+        .orderBy(integration.table.registration);
     const reference = connection.reference(space.scope.id, created.id);
     const leased = await space.bindAndLease(reference, new Request("https://api.test/items"));
 
@@ -264,10 +267,16 @@ test("register the client of a space's connection without an integration at the 
         spaceServer: space.server.requests,
         leased: leased.request.headers.get("authorization"),
     }).toEqual({
-        integration: integration.reference(primary.scope.id, nth(stored, 1).id),
+        integration: integration.reference(
+            primary.scope.id,
+            present(
+                stored.find((each) => each.registration === "dynamic"),
+                "the dynamic integration",
+            ).id,
+        ),
         stored: [
-            [primary.scope.id, "static"],
             [primary.scope.id, "dynamic"],
+            [primary.scope.id, "static"],
         ],
         spaceServer: [],
         leased: "Bearer access-1",
