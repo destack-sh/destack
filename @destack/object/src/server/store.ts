@@ -2611,17 +2611,36 @@ export class ObjectStore {
         else {
             const { including, followed } =
                 history.kind === "replicated" ? history : { including: [], followed: [] };
-            if (!(await sync.Replica.isAt(this.database, watermark.scope, watermark, followed))) {
+            if (!(await this.#isReplicated(watermark, history))) {
                 await this.sink.request(watermark, [...including, ...followed]);
             }
 
-            return await sync.Replica.wait(
-                this.database,
-                watermark.scope,
-                watermark,
+            // read the history again at each replica change, as the sink drops replicas it stops following
+            const tables = sync.Replica.recordTables;
+
+            return await this.database.log.until(
+                async (committed) =>
+                    tables.some((table) => committed.has(table)) &&
+                    (await this.#isReplicated(watermark, await this.history(watermark))),
                 signal,
-                followed,
             );
+        }
+    }
+
+    /** Report whether a history's replicas reached a watermark, refusing a lost history. */
+    async #isReplicated(watermark: Watermark, history: WatermarkHistory): Promise<boolean> {
+        // refuse a history the store no longer has
+        if (history.kind === "stale") {
+            throw DatabaseError.of(
+                "EPOCH_STALE",
+                `${watermark.scope} no longer has the watermark's history`,
+            );
+        }
+        // read the replicas the store follows now, or any replica of the scope
+        else {
+            const followed = history.kind === "replicated" ? history.followed : [];
+
+            return await sync.Replica.isAt(this.database, watermark.scope, watermark, followed);
         }
     }
 
