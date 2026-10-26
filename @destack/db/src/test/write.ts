@@ -38,9 +38,11 @@ async function write(
         };
     }
 
-    // leave the index for the run's setup
+    // leave the index for the run's setup, whole or not at all
     const index = JSON.stringify(ImageIndex.parse(images));
-    await BunEnvironment.system.files.writeTextFile(join(directory, "images.json"), index);
+    const { files } = BunEnvironment.system;
+    await files.writeTextFile(join(directory, "images.json.partial"), index);
+    await files.rename(join(directory, "images.json.partial"), join(directory, "images.json"));
 }
 
 /** The module, the run's directory, its id and its database, as the run's setup passes them. */

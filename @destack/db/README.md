@@ -232,7 +232,7 @@ test("keep notes", async () => {
 
 ## Templates
 
-A `TestTemplate` is the databases and rows tests start with, written once per run in a seeded world and copied into each test by `TestDatabase.copy`, which forks that world.
+A `TestTemplate` is the databases and rows tests start with, written in a seeded world, kept below `node_modules/.cache/destack/templates` until its sources change, and copied into each test by `TestDatabase.copy`, which forks that world.
 
 ```ts
 export const templates = [
