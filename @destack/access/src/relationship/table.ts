@@ -69,7 +69,7 @@ export const accessRelationship = defineTable(
         linkSecret: text("link_secret"),
     },
     {
-        log: { retention: "history", isShared: true },
+        log: { retention: "history" },
         constraints: (relationship) => [
             index("relationship_expiry").on(relationship.expiresAt),
             index("relationship_object_key").on(relationship.objectKey),

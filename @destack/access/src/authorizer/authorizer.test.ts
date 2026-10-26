@@ -877,24 +877,30 @@ databaseTest(
                 grants: [...access.grants.keys()],
             };
         };
+        const relate = async (count: number, prefix: string) =>
+            await database.transaction(
+                async (transaction) =>
+                    await transaction.insert(accessRelationship).values(
+                        Array.from({ length: count }, (_, index) =>
+                            Relationship.encode({
+                                id: Identifier.create("relationship", fixture.environment),
+                                object: node.reference("personal", `${prefix}-${index}`),
+                                relation: "editor",
+                                subject: userSubject(`${prefix}-stranger-${index}`),
+                                createdAt: bob.now,
+                                expiresAt: null,
+                            }),
+                        ),
+                    ),
+            );
+
+        // warm the reads, then resolve bob after one other subject's relationship
+        await resolve();
+        await relate(1, "single");
         const few = await resolve();
 
         // relate many other subjects to notes of the scope, then resolve bob again
-        await database.transaction(
-            async (transaction) =>
-                await transaction.insert(accessRelationship).values(
-                    Array.from({ length: STRESS_RELATIONSHIPS }, (_, index) =>
-                        Relationship.encode({
-                            id: Identifier.create("relationship", fixture.environment),
-                            object: node.reference("personal", `stress-${index}`),
-                            relation: "editor",
-                            subject: userSubject(`stranger-${index}`),
-                            createdAt: bob.now,
-                            expiresAt: null,
-                        }),
-                    ),
-                ),
-        );
+        await relate(STRESS_RELATIONSHIPS, "stress");
         const many = await resolve();
 
         // read the same statements and grants either way

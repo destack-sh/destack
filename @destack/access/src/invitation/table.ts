@@ -64,7 +64,7 @@ export const accessInvitation = defineTable(
         status: text("status").validate(InvitationStatus).notNull().default("pending"),
     },
     {
-        log: { retention: "history", isShared: true },
+        log: { retention: "history" },
         constraints: (invitation) => [
             index("invitation_object").on(
                 invitation.objectPackageId,
