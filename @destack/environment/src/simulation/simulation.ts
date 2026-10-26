@@ -368,12 +368,62 @@ export class Simulation {
         await this.run({ to });
     }
 
-    /** Run until some work settles, failing loudly once the simulation goes idle before it does. */
-    async drive<Value>(work: Promise<Value>): Promise<Value> {
-        // move time until the work settles
+    /** Await a promise at the current time, or plainly inside a run that moves time. */
+    async settle<Value>(promise: Promise<Value>): Promise<Value> {
+        // await the promise inside a run or drive, which alone moves time
+        if (this.#waits.length > 0) {
+            return await promise;
+        }
+
+        // let a finishing loop stop
+        await this.#moving;
+
+        // run the promise's turns and the timers due now, never moving time
+        const outcome = { isSettled: false };
+        const settled = promise.finally(() => {
+            outcome.isSettled = true;
+        });
+        let quietSince = Clock.system.now();
+        while (!outcome.isSettled) {
+            // settle the promise's turns, then wake the timers due now
+            const progress = this.#progress();
+            await Promise.race([settled.then(noop, noop), this.#settle()]);
+            const { next } = this.clock;
+            const now = this.clock.now();
+            const isQuiet = Clock.system.now() - quietSince >= this.#stallTimeout;
+            if (next !== undefined && next <= now) {
+                this.clock.set(now);
+                quietSince = Clock.system.now();
+            }
+            // refuse a promise quiet past the host's stall limit beside a later timer, which it waits on
+            else if (!outcome.isSettled && isQuiet && next !== undefined) {
+                throw new Error(
+                    `the promise waits on a later time, its next timer in ${next - now} ms: advance or jump the simulation`,
+                );
+            }
+            // refuse a promise quiet past the host's stall limit with no timer, which waits on host work or nothing
+            else if (!outcome.isSettled && isQuiet) {
+                throw new Error(
+                    `the promise stayed quiet for ${this.#stallTimeout} ms with no timer due: it waits on host work or on nothing`,
+                );
+            }
+            // wait a host macrotask for untracked host work, such as a database's notifications
+            // NOTE #Robustness: untracked host work settles only within the stall timeout; track it on the clock
+            else if (!outcome.isSettled) {
+                await Promise.race([settled.then(noop, noop), Simulation.#macrotask()]);
+                quietSince = this.#progress() === progress ? quietSince : Clock.system.now();
+            }
+        }
+
+        return await settled;
+    }
+
+    /** Run until a promise settles, failing loudly once the simulation goes idle before it does. */
+    async drive<Value>(promise: Promise<Value>): Promise<Value> {
+        // move time until the promise settles
         let isSettled = false;
         const until = () => isSettled;
-        const settled = work.finally(() => {
+        const settled = promise.finally(() => {
             isSettled = true;
             this.#withdraw(until);
         });
@@ -498,8 +548,11 @@ export class Simulation {
             }
             // refuse a condition its deadline passed
             else if (wait.until !== undefined && isAtDeadline) {
+                const waiting = this.clock.flights().join("\n");
                 wait.reject(
-                    new Error("the simulation reached its deadline before its condition held"),
+                    new Error(
+                        `the simulation reached its deadline before its condition held, its next timer at ${next ?? "none"}:\n${waiting}`,
+                    ),
                 );
             }
             // answer a time once it passed

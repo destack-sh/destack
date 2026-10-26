@@ -1160,3 +1160,39 @@ test("decode a gzip response as Bun's fetch does, and keep its encoding when ask
         stored: [(await stored.bytes()).length, stored.headers.get("content-encoding")],
     }).toEqual({ decoded: ["stored", null], stored: [encoded.length, "gzip"] });
 });
+
+test("settle work and the timers due now without moving the clock, refuse work waiting on a later time, and leave a settle inside a drive to the drive", async () => {
+    // settle a chain of zero-delay timers and a host round trip at the start
+    await using simulation = new Simulation({ seed: 1, start: START, stallTimeout: 50 });
+    const settled = await simulation.settle(
+        (async () => {
+            await simulation.clock.sleep(0);
+            await simulation.clock.trackHost(
+                new Promise<void>((resolve) => setTimeout(resolve, 5)),
+            );
+            await simulation.clock.sleep(0);
+
+            return simulation.clock.now();
+        })(),
+    );
+
+    // refuse a wait a second ahead, leaving the clock where it was
+    const refused = await simulation.settle(simulation.clock.sleep(1000)).then(
+        () => "settled",
+        (error: Error) => error.message,
+    );
+
+    const now = simulation.clock.now();
+
+    // leave a settle inside a drive to the drive, which alone moves time, in a world of its own
+    await using driving = new Simulation({ seed: 1, start: START });
+    await driving.drive(driving.settle(driving.clock.sleep(500)));
+
+    expect({ settled, refused, now, driven: driving.clock.now() }).toEqual({
+        settled: START,
+        refused:
+            "the promise waits on a later time, its next timer in 1000 ms: advance or jump the simulation",
+        now: START,
+        driven: START + 500,
+    });
+});
