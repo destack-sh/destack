@@ -84,6 +84,14 @@
         padding-inline-start: var(--destack-space-6);
     }
 
+    [data-slot="prose"] :where(ul) {
+        list-style-type: disc;
+    }
+
+    [data-slot="prose"] :where(ol) {
+        list-style-type: decimal;
+    }
+
     [data-slot="prose"] :where(li)::marker {
         color: var(--destack-color-muted-foreground);
     }
