@@ -4,7 +4,6 @@ import { defineObject, field, PackageHandle } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
-import { ObjectReference } from "@destack/sync";
 import { comment, favourite, presence, reaction, receipt } from "../object/index.ts";
 
 /** The articles application, whose articles carry every social attachment. */

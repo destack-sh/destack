@@ -207,7 +207,7 @@ export class Comment {
         ];
     }
 
-    /** Build the call notifying the principals the comment mentions, which subscribes them, if any. */
+    /** Build the call notifying the principals the comment mentions, none without any. */
     mention(mentioned: readonly Subject[]) {
         return mentioned.length === 0
             ? []
@@ -224,6 +224,7 @@ export class Comment {
 
     /** Build the calls subscribing its author, notifying and announcing a new comment. */
     announce() {
+        // read whether it replies, its author and the principals it mentions
         const isReply = this.row.threadId !== null;
         const author = ObjectReference.at("author", this.row);
         const mentioned = this.mentioned();

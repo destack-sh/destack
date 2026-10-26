@@ -23,7 +23,7 @@ export const receipt = defineObject(
         create: method.create("own"),
         list: method.list("own"),
         /** Move the mark to now. */
-        update: method.update("own", { isInternal: true }),
+        update: method.update("own", { visibility: "package" }),
         delete: method.delete("own"),
     }),
 );
