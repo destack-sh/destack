@@ -96,7 +96,7 @@ test.for(Object.entries(requests))(
 
         // render the home page from an emitted server output
         const server = build.manifest.outputs["website-server"];
-        const entry = server?.emit === true ? server.exports["."] : undefined;
+        const entry = server?.emit === true ? server.exports["."]?.path : undefined;
         const rendered =
             entry === undefined ? undefined : await renderHome(join(destination, entry));
 

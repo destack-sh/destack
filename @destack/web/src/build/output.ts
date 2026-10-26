@@ -9,7 +9,7 @@ import {
     type Plugin,
     runtimeConditions,
 } from "@destack/package/build";
-import type { PackageOutput } from "@destack/package/manifest";
+import type { OutputExport, PackageOutput } from "@destack/package/manifest";
 import type { Runtime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
 import { SolidApplication, VIEW_PACKAGE } from "@destack/view/build";
@@ -386,19 +386,21 @@ function describeSide(build: WebBuild, side: "client" | "server", output: string
     };
 }
 
-/** Export a server's handler when distributed. */
+/** Export a server's handler when distributed, importing no dependency as it bundles them. */
 function sideExports(
     application: WebOptions,
     side: "client" | "server",
     output: string,
-): Record<string, string> {
+): Record<string, OutputExport> {
     // export the distributed server handler
     if (side === "server") {
-        return isEmitted(application) ? { ".": `output/${output}/server.js` } : {};
+        return isEmitted(application)
+            ? { ".": { path: `output/${output}/server.js`, imports: [] } }
+            : {};
     }
     // export the browser page of an application without server rendering
     else if (application.ssr === false && application.prerender === undefined) {
-        return { ".": `output/${output}/index.html` };
+        return { ".": { path: `output/${output}/index.html`, imports: [] } };
     }
     // export nothing from a server-rendered browser output
     else {
