@@ -2,7 +2,6 @@ import { DeclarationName, ModuleMetadata, type Package, PackageId } from "@desta
 import type { CallableName, ObjectType } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Accelerator } from "../palette/accelerator.ts";
-import { ViewError } from "../error/error.ts";
 
 /** A command as its package defines it: a named call of one object type's method. */
 export interface CommandDefinition<Object extends ObjectType = ObjectType> {
@@ -55,15 +54,9 @@ export function defineCommand<const Object extends ObjectType>(
     definition: CommandDefinition<Object>,
     module?: ModuleMetadata,
 ): Command<Object> {
-    // stamp the declaring package and validate the name and method
+    // stamp the declaring package and validate the name, its type allowing only clients' methods
     const owner = ModuleMetadata.require(module, "defineCommand").package;
     DeclarationName.parse(definition.name);
-    if (definition.object.methods[definition.method]?.isInternal === true) {
-        throw ViewError.of(
-            "INTERNAL_METHOD",
-            `command ${definition.name} calls the internal method ${definition.method}`,
-        );
-    }
 
     return new Command(owner, definition);
 }

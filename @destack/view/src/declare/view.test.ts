@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, expectTypeOf, test } from "@destack/test";
 import { none } from "@destack/access";
 import { defineObject } from "@destack/object";
 import { Package, PackageId } from "@destack/package";
@@ -99,4 +99,25 @@ test("describe a declared command by the method it calls and its key combination
             keybinding: "mod+l",
         },
     ]);
+});
+
+test("type a command's method as one clients call, leaving package and installation methods out", () => {
+    // declare archived notes with a client, an installation and a package method
+    const archived = defineObject(
+        {
+            name: "archived",
+            plural: "archived",
+            scope: space,
+            fields: {},
+            permissions: { read: none() },
+        },
+        (method) => ({
+            open: method.mutation({ permission: "read" }),
+            restore: method.mutation({ permission: "read", visibility: "installation" }),
+            purge: method.mutation({ permission: "read", visibility: "package" }),
+        }),
+    );
+    expectTypeOf<Parameters<typeof defineCommand<typeof archived>>[0]["method"]>().toEqualTypeOf<
+        "get" | "list" | "open"
+    >();
 });
