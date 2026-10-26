@@ -75,7 +75,7 @@ test(
     "mount each declared view from a separate browser chunk and describe it in the output",
     { timeout: NOTEBOOK_BUILD_MILLISECONDS },
     async () => {
-        // build the notebook package's browser output on its stored dependency builds, in a world
+        // build the notebook package's browser output on its stored dependency builds, the router's JSX on view's runtime
         await using simulation = testSimulation();
         await using store = await testStore();
         await using compilers = await CompilerPool.open(store);
@@ -97,7 +97,7 @@ test(
         const entrypoint = output.views["notebooks"]?.entrypoint ?? "";
         expect([
             Object.keys(output.views),
-            output.exports["./view/notebooks"] === entrypoint,
+            output.exports["./view/notebooks"]?.path === entrypoint,
             /^output\/browser\/view-notebooks-[\w-]+\.js$/u.test(entrypoint),
         ]).toEqual([["notebooks"], true, true]);
 
