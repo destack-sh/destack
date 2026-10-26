@@ -979,33 +979,34 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
     ]);
 });
 
-test("relate a move's target as the space's one receiver, replace it on the next move, and release it once the space is placed again", async () => {
+test("relate a move's target as the space's one receiver, keep it when asked again, replace it on the next move, and release it once the space is placed again", async () => {
     // move the laptop's space toward the peer, then toward a third machine of the account
     const opened = await openPlacement();
     await using fixture = opened.fixture;
     const { accountId, laptop, local, peer, owner } = opened;
     const third = fixture.as(await fixture.enroll(accountId, owner));
     const target = { accountId, id: laptop };
-    const receivers = async () =>
-        (
-            await Relationship.readOn(
-                Snapshot.live(fixture.database),
-                space.reference(accountId, laptop),
-                { relation: "receiver" },
-            )
-        ).map((row) => row.subjectId);
+    const related = () =>
+        Relationship.readOn(Snapshot.live(fixture.database), space.reference(accountId, laptop), {
+            relation: "receiver",
+        });
+    const receivers = async () => (await related()).map((row) => row.subjectId);
 
-    // relate the peer, then the third machine in its place, then none once the laptop places it again
+    // relate the peer, then the third machine in its place, keep it when asked again, then none once the laptop places it again
     const moved = [await move(fixture, local, target, 1, peer.subject.id)];
     const first = await receivers();
     moved.push(await move(fixture, local, target, 1, third.subject.id));
-    const second = await receivers();
+    const second = await related();
+    moved.push(await move(fixture, local, target, 1, third.subject.id));
+    const again = await related();
     moved.push(await serve(fixture, local, accountId, laptop, 1));
 
-    expect([moved, first, second, await receivers()]).toEqual([
-        ["done", "done", "done"],
+    // compare the relationships by identifier, as asking again keeps the same one
+    expect([moved, first, second.map((row) => row.subjectId), again, await receivers()]).toEqual([
+        ["done", "done", "done", "done"],
         [peer.subject.id],
         [third.subject.id],
+        second,
         [],
     ]);
 });

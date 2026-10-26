@@ -94,7 +94,7 @@ async function place(
     }
 
     // serve the space at the epoch, ending any move and its receiver's access, decided again for its machine
-    await releaseReceivers(context, current);
+    await releaseReceivers(context, current, null);
     const placed = { ...current, machineId: caller };
     const decided = await decideSchedule(context, placed, context.environment.crypto);
 
@@ -116,8 +116,8 @@ async function move(
     Placement.requireServed(target, context.input.epoch);
     await Placement.requireMachine(context, target, context.input.target);
 
-    // relate the target as the space's receiver alone, which lets it replicate the space's chain
-    await releaseReceivers(context, target);
+    // relate the target as the space's one receiver, keeping its relationship when it already is one
+    await releaseReceivers(context, target, context.input.target);
     await StoreRelationship.touch(context, {
         object: space.reference(target.scope, target.id),
         relation: "receiver",
@@ -127,14 +127,19 @@ async function move(
     return context.update({ targetId: context.input.target, transferId: context.input.transferId });
 }
 
-/** Revoke the receivers of a space's moves, as the store. */
+/** Revoke the receivers of a space's moves but a kept machine, as the store. */
 async function releaseReceivers(
     context: MethodContext,
     row: Pick<Placement, "id" | "scope">,
+    kept: Identifier<"machine"> | null,
 ): Promise<void> {
+    // read the receivers other than the kept machine
     const object = space.reference(row.scope, row.id);
     const receivers = await Relationship.readOn(context, object, { relation: "receiver" });
-    for (const each of receivers) {
+    const released = receivers.filter((each) => each.subjectId !== kept);
+
+    // revoke each, which ends its replication of the space's chain
+    for (const each of released) {
         const subject = ObjectReference.at("subject", each);
         await StoreRelationship.delete(context, { object, relation: "receiver", subject });
     }
