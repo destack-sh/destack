@@ -168,7 +168,7 @@ export function postgresChannel(
         notify: (message) => notifyInFragments(send, party, message, random),
         listen: (receive, resume, fail) => {
             const stop = listenToChannel(
-                pool.sql,
+                pool.listener,
                 name,
                 party,
                 failures,

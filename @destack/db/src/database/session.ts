@@ -3,7 +3,7 @@ import type postgres from "postgres";
 import type { Dialect } from "../dialect/dialect.ts";
 import { quote } from "../dialect/quote.ts";
 import { DatabaseError } from "../error/error.ts";
-import type { PostgresPool } from "../postgres/pool.ts";
+import type { PostgresPool, PostgresReservation } from "../postgres/pool.ts";
 import type { DriverValue } from "../table/column.ts";
 import type { SqliteConnectionClient, SqliteQueryClient } from "../sqlite/client.ts";
 
@@ -114,7 +114,7 @@ export class SqliteSession implements Session {
 /** Where a PostgreSQL session runs: on a pool, or in a transaction at a savepoint depth. */
 export type PostgresConnection =
     | { readonly pool: PostgresPool }
-    | { readonly transaction: postgres.ReservedSql; readonly depth: number };
+    | { readonly transaction: postgres.Sql; readonly depth: number };
 
 /** Statements over a PostgreSQL pool, or one of its transactions on a reserved connection. */
 export class PostgresSession implements Session {
@@ -167,7 +167,7 @@ export class PostgresSession implements Session {
         );
     }
 
-    /** Run a script of statements as one simple query, in a transaction of its own outside one. */
+    /** Run a script of statements as one simple query, one implicit transaction outside one. */
     async exec(script: string): Promise<void> {
         await this.#statement((client) => client.unsafe(script).simple().execute());
     }
@@ -177,17 +177,18 @@ export class PostgresSession implements Session {
         operation: (session: Session) => Promise<Value>,
         options: SessionTransaction,
     ): Promise<Value> {
-        // begin in the schema on an idle connection, reserved before the opening counts as host work
+        // reserve a connection in the schema, then begin on it
         const { connection, schema } = this;
         const clock = this.#clock;
         if ("pool" in connection) {
             const { pool } = connection;
             const access = options.isReadOnly ? "READ ONLY" : "READ WRITE";
-            const open = begin(`ISOLATION LEVEL ${options.isolationLevel} ${access}`, schema);
-            const transaction = await pool.reserve(clock);
+            const open = `BEGIN ISOLATION LEVEL ${options.isolationLevel} ${access}`;
+            const reserved = await pool.reserve(clock, schema);
+            const transaction = reserved.sql;
             try {
                 return await transact(clock, operation, (body) =>
-                    block(transaction, { open, commit: "COMMIT", rollback: "ROLLBACK" }, () =>
+                    block(reserved, { open, commit: "COMMIT", rollback: "ROLLBACK" }, () =>
                         body(new PostgresSession({ transaction, depth: 0 }, schema, clock)),
                     ),
                 );
@@ -211,7 +212,7 @@ export class PostgresSession implements Session {
 
         return await transact(clock, operation, (body) =>
             block(
-                transaction,
+                { sql: transaction, ready: Promise.resolve() },
                 {
                     open: `SAVEPOINT ${savepoint}`,
                     commit: `RELEASE SAVEPOINT ${savepoint}`,
@@ -224,7 +225,7 @@ export class PostgresSession implements Session {
         });
     }
 
-    /** Run one statement, in a transaction of its own outside one, in one round trip. */
+    /** Run one statement, in the open transaction or on its own in one round trip. */
     async #statement<Result>(run: (client: postgres.Sql) => Promise<Result>): Promise<Result> {
         // run it in the open transaction, nested ones included, as the log identity stamps there
         const { connection, schema } = this;
@@ -232,50 +233,46 @@ export class PostgresSession implements Session {
             return await this.#clock.trackHost(run(connection.transaction));
         }
 
-        // send the opening, the statement and the commit at once on an idle connection
+        // send the statement after any search path change on a connection reserved in the schema
         const { pool } = connection;
         const clock = this.#clock;
-        const reserved = await pool.reserve(clock);
+        const { sql, ready } = await pool.reserve(clock, schema);
         try {
-            const settled = await clock.trackHost(
-                Promise.allSettled([
-                    reserved.unsafe(begin("", schema)).simple().execute(),
-                    run(reserved),
-                    reserved.unsafe("COMMIT").simple().execute(),
-                ]),
-            );
+            const settled = await clock.trackHost(Promise.allSettled([ready, run(sql)]));
 
             // answer the statement's result, or fail with the first failure
-            const [opened, ran, committed] = settled;
-            if (
-                opened.status === "fulfilled" &&
-                ran.status === "fulfilled" &&
-                committed.status === "fulfilled"
-            ) {
+            const [changed, ran] = settled;
+            if (changed.status === "fulfilled" && ran.status === "fulfilled") {
                 return ran.value;
             }
             throw firstFailure(settled);
         } finally {
-            pool.release(reserved);
+            pool.release(sql);
         }
     }
 }
 
 /** Run a body between the statements opening and committing a block, rolling back on failure. */
 async function block<Value>(
-    client: postgres.Sql,
+    reserved: PostgresReservation,
     statements: { readonly open: string; readonly commit: string; readonly rollback: string },
     body: () => Promise<Value>,
 ): Promise<Value> {
-    // send the opening before the body's statements, then wait for both
+    // send the opening before the body's statements, after the connection's search path
+    const client = reserved.sql;
     const settled = await Promise.allSettled([
+        reserved.ready,
         client.unsafe(statements.open).simple().execute(),
         body(),
     ]);
 
     // commit a block whose opening and body succeeded, refusing a commit the server rolled back
-    const [opened, ran] = settled;
-    if (opened.status === "fulfilled" && ran.status === "fulfilled") {
+    const [changed, opened, ran] = settled;
+    if (
+        changed.status === "fulfilled" &&
+        opened.status === "fulfilled" &&
+        ran.status === "fulfilled"
+    ) {
         const committed = await client.unsafe(statements.commit).simple().execute();
         if (committed.command === "ROLLBACK") {
             throw DatabaseError.of(
@@ -287,7 +284,7 @@ async function block<Value>(
         return ran.value;
     }
 
-    // roll back a failed block, failing with its first failure, and the rollback's should it fail too
+    // roll back a failed block, then fail with its first failure
     const failure = firstFailure(settled);
     try {
         await client.unsafe(statements.rollback).simple().execute();
@@ -310,16 +307,6 @@ function firstFailure(settled: readonly PromiseSettledResult<unknown>[]): unknow
     }
 
     throw new TypeError("the settled work has no failure");
-}
-
-/** Write the statement beginning a transaction of some mode in a schema. */
-function begin(mode: string, schema: string): string {
-    return `${`BEGIN ${mode}`.trimEnd()};\n${searchPath(schema)}`;
-}
-
-/** Write the statement running the rest of a transaction in a schema. */
-function searchPath(schema: string): string {
-    return `SET LOCAL search_path TO ${quote(schema)}`;
 }
 
 /** Run a transaction's body, counting its opening and its end in flight on a clock. */

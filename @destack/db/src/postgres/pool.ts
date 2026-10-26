@@ -2,6 +2,7 @@ import type { Clock, Environment } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import postgres from "postgres";
+import { quote } from "../dialect/quote.ts";
 import { DatabaseError } from "../error/error.ts";
 
 /** The connections of one pool: five, within the six a Worker opens per Hyperdrive. */
@@ -10,20 +11,36 @@ const POOL_CONNECTIONS = 5;
 /** How long a reservation waits for an idle connection before failing: 30 s, HikariCP's default. */
 const RESERVE_WAIT_MILLISECONDS = 30_000;
 
-/** The search path of a pool's connections: none, so a statement outside a schema fails. */
+/** The search path of a new connection: none, so a statement outside a schema fails. */
 const NO_SCHEMA = '""';
 
 /** The PostgreSQL type identifiers of json and jsonb. */
 const JSON_TYPES = [114, 3802] as const;
 
-/** A PostgreSQL pool whose databases each run in a schema, reserving connections a bounded time. */
-export class PostgresPool {
-    /** The postgres.js pool, which listens for every database on it. */
+/** A connection reserved from a pool, and its search path change sent ahead of the work. */
+export interface PostgresReservation {
+    /** The reserved connection. */
     readonly sql: postgres.Sql;
+    /** The search path change, settled at once when the connection is in the schema already. */
+    readonly ready: Promise<unknown>;
+}
+
+/** A PostgreSQL pool of single connections, each in the schema it last ran in. */
+export class PostgresPool {
+    /** The connection listening for every database on the pool. */
+    readonly listener: postgres.Sql;
     /** How long a reservation waits for an idle connection before failing, in milliseconds. */
     readonly #wait: number;
+    /** The pool's connections. */
+    readonly #connections: readonly postgres.Sql[];
+    /** The connections no work has reserved. */
+    readonly #idle: postgres.Sql[];
+    /** The reservations waiting for a connection, oldest first. */
+    readonly #waiters: ((sql: postgres.Sql) => void)[] = [];
+    /** The search path each connection has set, unknown after a change failed. */
+    readonly #schemas = new Map<postgres.Sql, string | undefined>();
     /** The clock of the work each reserved connection serves, until released. */
-    readonly #holders = new Map<postgres.ReservedSql, Clock>();
+    readonly #holders = new Map<postgres.Sql, Clock>();
 
     /** Open a pool of a server, passing JSON as text and reporting the server's warnings. */
     constructor(
@@ -38,85 +55,142 @@ export class PostgresPool {
             readonly wait?: number;
         } = {},
     ) {
-        // leave each connection without a schema, and plan each statement in its schema
-        this.sql = postgres(address, {
-            max: options.connections ?? POOL_CONNECTIONS,
-            prepare: false,
-            connection: { ...options.settings, search_path: NO_SCHEMA },
-            onnotice: reportNotices(environment.telemetry),
-        });
+        // open the connections lazily, each starting without a schema
+        const open = () => {
+            const sql: postgres.Sql = postgres(address, {
+                max: 1,
+                prepare: false,
+                connection: { ...options.settings, search_path: NO_SCHEMA },
+                onnotice: reportNotices(environment.telemetry),
+                onclose: () => this.#schemas.set(sql, NO_SCHEMA),
+            });
+
+            // pass JSON columns' text to the server as it is, since columns encode JSON themselves
+            for (const type of JSON_TYPES) {
+                sql.options.serializers[type] = (value: unknown) => value;
+            }
+
+            return sql;
+        };
+        this.#connections = Array.from({ length: options.connections ?? POOL_CONNECTIONS }, open);
+        this.#idle = [...this.#connections];
+        this.listener = open();
         this.#wait = options.wait ?? RESERVE_WAIT_MILLISECONDS;
-
-        // pass JSON columns' text to the server as it is, since columns encode JSON themselves
-        for (const type of JSON_TYPES) {
-            this.sql.options.serializers[type] = (value: unknown) => value;
-        }
     }
 
-    /** Reserve an idle connection for work on a clock, failing once none frees within the wait. */
-    async reserve(clock: Clock): Promise<postgres.ReservedSql> {
-        // count the wait as host work while other clocks' work has connections, as it waits on them
-        const reserving = this.sql.reserve();
-        if ([...this.#holders.values()].some((holder) => holder !== clock)) {
-            void clock.trackHost(reserving);
+    /** Reserve an idle connection for work in a schema, failing once none frees within the wait. */
+    async reserve(clock: Clock, schema: string): Promise<PostgresReservation> {
+        // take a connection for the clock's work
+        const sql = await this.#take(clock);
+
+        // set the connection's search path once it changes, forgetting it should the change fail
+        if (this.#schemas.get(sql) === schema) {
+            return { sql, ready: Promise.resolve() };
         }
+        this.#schemas.set(sql, schema);
+        const ready = sql
+            .unsafe(`SET search_path TO ${quote(schema)}`)
+            .simple()
+            .execute()
+            .catch((error: unknown) => {
+                this.#schemas.set(sql, undefined);
+                throw error;
+            });
 
-        // race the reservation against the wait on the clock
-        const stop = new AbortController();
-        const isReserved = await Promise.race([
-            reserving.then(() => true),
-            clock.sleep(this.#wait, stop.signal).then(
-                () => false,
-                (error: unknown) => {
-                    if (!stop.signal.aborted) {
-                        throw error;
-                    }
-
-                    return true;
-                },
-            ),
-        ]).finally(() => stop.abort());
-
-        // refuse a wait no connection ended, giving back a connection that comes after it
-        if (!isReserved) {
-            void reserving.then(
-                (late) => late.release(),
-                () => undefined,
-            );
-            throw DatabaseError.of(
-                "CONNECTION_TIMEOUT",
-                `waited ${this.#wait} ms for a connection: every one is in a transaction`,
-            );
-        }
-
-        // record the clock the connection serves until released
-        const reserved = await reserving;
-        this.#holders.set(reserved, clock);
-
-        return reserved;
+        return { sql, ready };
     }
 
-    /** Give back a reserved connection, refusing one the pool did not reserve or took back. */
-    release(reserved: postgres.ReservedSql): void {
-        if (!this.#holders.delete(reserved)) {
+    /** Give back a reserved connection to the oldest waiting reservation, else to the idle ones. */
+    release(sql: postgres.Sql): void {
+        // refuse a connection the pool did not reserve or took back
+        if (!this.#holders.delete(sql)) {
             throw new TypeError("the connection is not reserved from this pool");
         }
-        reserved.release();
+
+        // hand it on
+        this.#handOn(sql);
     }
 
-    /** Run work on a connection reserved for it, such as one statement outside every schema. */
+    /** Run work that reads and writes no table, such as a notification, in any schema. */
     async run<Value>(clock: Clock, work: (sql: postgres.Sql) => Promise<Value>): Promise<Value> {
-        const reserved = await this.reserve(clock);
+        const sql = await this.#take(clock);
         try {
-            return await work(reserved);
+            return await work(sql);
         } finally {
-            this.release(reserved);
+            this.release(sql);
         }
     }
 
     /** Close the pool's connections after their queries. */
-    end(): Promise<void> {
-        return this.sql.end();
+    async end(): Promise<void> {
+        await Promise.all([...this.#connections, this.listener].map((sql) => sql.end()));
+    }
+
+    /** Take an idle connection for work on a clock, else wait for a release. */
+    async #take(clock: Clock): Promise<postgres.Sql> {
+        const sql = this.#idle.pop() ?? (await this.#waitForRelease(clock));
+        this.#holders.set(sql, clock);
+
+        return sql;
+    }
+
+    /** Wait for a released connection on a clock, failing once none comes within the wait. */
+    async #waitForRelease(clock: Clock): Promise<postgres.Sql> {
+        // queue the wait, counting it as host work while other clocks' work has connections
+        const released = Promise.withResolvers<postgres.Sql>();
+        const ended = Promise.withResolvers<void>();
+        this.#waiters.push(released.resolve);
+        if ([...this.#holders.values()].some((holder) => holder !== clock)) {
+            void clock.trackHost(ended.promise);
+        }
+        try {
+            // race the release against the wait on the clock
+            const stop = new AbortController();
+            const sql = await Promise.race([
+                released.promise,
+                clock.sleep(this.#wait, stop.signal).then(
+                    () => undefined,
+                    (error: unknown) => {
+                        if (!stop.signal.aborted) {
+                            throw error;
+                        }
+
+                        return undefined;
+                    },
+                ),
+            ]).finally(() => stop.abort());
+
+            // take a connection released before or as the wait ended, else refuse the wait
+            const isQueued = this.#waiters.includes(released.resolve);
+            if (sql !== undefined || !isQueued) {
+                return sql ?? (await released.promise);
+            }
+            throw DatabaseError.of(
+                "CONNECTION_TIMEOUT",
+                `waited ${this.#wait} ms for a connection: every one is in a transaction`,
+            );
+        } catch (error) {
+            // leave the queue, handing on a connection a release gave the wait meanwhile
+            const index = this.#waiters.indexOf(released.resolve);
+            if (index === -1) {
+                this.#handOn(await released.promise);
+            } else {
+                this.#waiters.splice(index, 1);
+            }
+            throw error;
+        } finally {
+            ended.resolve();
+        }
+    }
+
+    /** Give a free connection to the oldest waiting reservation, else to the idle ones. */
+    #handOn(sql: postgres.Sql): void {
+        const waiter = this.#waiters.shift();
+        if (waiter === undefined) {
+            this.#idle.push(sql);
+        } else {
+            waiter(sql);
+        }
     }
 }
 
