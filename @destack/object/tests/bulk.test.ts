@@ -353,7 +353,8 @@ test("create and trash a thousand objects in as many statements as one object", 
     const { storage, call } = await serveLabels(world);
     const state = storage.database.driver.state;
 
-    // create two labels first, warming the shared access reads
+    // hear other writers' commits as a serving store does, then create two labels, warming the cached reads
+    await storage.database.log.listening();
     await call(users.frank, "createMany", { items: items(2) });
 
     // count the statements of creating one and a thousand labels, then of trashing the thousand
@@ -376,9 +377,9 @@ test("create and trash a thousand objects in as many statements as one object", 
     // spend a few statements per batch of rows, PostgreSQL assigning its transaction identity
     const extra = TestDatabase.target() === "postgresql" ? 1 : 0;
     expect(statements).toEqual({
-        createOne: 10 + extra,
-        createThousand: 10 + extra,
-        trashThousand: 12 + extra,
+        createOne: 11 + extra,
+        createThousand: 11 + extra,
+        trashThousand: 13 + extra,
     });
 });
 

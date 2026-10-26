@@ -410,7 +410,8 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         );
     const asOwner = AccessContext.of(Caller.of(owner), world.clock.now());
 
-    // store the host's installation state
+    // store the host's installation state, and hold the stream's second value until released
+    const released = Promise.withResolvers<void>();
     let isEnabled = true;
     let invocations = 0;
     let authentications = 0;
@@ -444,6 +445,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             }),
             watch: implementation.watch.handler(async function* () {
                 yield "first";
+                await released.promise;
                 yield "second";
             }),
         }),
@@ -578,6 +580,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const stream = await client.watch({ id: "one" });
     expect(await stream.next()).toEqual({ done: false, value: "first" });
     await database.update(noteTable).set({ public: false }).where(eq(noteTable.id, "one"));
+    released.resolve();
     expect(await refusal(stream.next())).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
