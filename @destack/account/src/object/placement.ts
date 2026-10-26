@@ -1,5 +1,5 @@
 import { contained, none, principal, relation, through, union } from "@destack/access";
-import type { Snapshot } from "@destack/db";
+import type { Select, Snapshot } from "@destack/db";
 import { Condition, defineObject, field } from "@destack/object";
 import { Digest, type DigestCrypto, Identifier, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
@@ -8,27 +8,53 @@ import { machine } from "./machine.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
+/** The tenancies: shared or dedicated cloud machines, or a space's people's computers. */
+const TENANCIES = ["shared", "dedicated", "local"] as const;
+
+/** The sources of a space's tenancy: set by a person, or the tenancy setting's default. */
+const TENANCY_SOURCES = ["set", "default"] as const;
+
 /** Where a space's work runs: shared or dedicated cloud machines, or its people's computers. */
-export const Tenancy = schema.enum(["shared", "dedicated", "local"]);
+export const Tenancy = schema.enum(TENANCIES);
 /** Where a space's work runs. */
 export type Tenancy = schema.Infer<typeof Tenancy>;
 
 /** Where a space's tenancy comes from: set by a person, or the tenancy setting's default. */
-export const TenancySource = schema.enum(["set", "default"]);
+export const TenancySource = schema.enum(TENANCY_SOURCES);
 /** Where a space's tenancy comes from. */
 export type TenancySource = schema.Infer<typeof TenancySource>;
 
-/** Where a space's tenancy places it: on its machine with the reason, or moving. */
+/** A space's ask for a tenancy at its placement's epoch. */
+export const TenancyRequest = schema.object({
+    /** The epoch of the placement the space asks at. */
+    epoch: schema.number().int().min(1),
+    /** The tenancy the space asks for. */
+    tenancy: Tenancy,
+    /** Where the tenancy comes from: set by a person, or the default. */
+    source: TenancySource,
+});
+/** A space's ask for a tenancy at its placement's epoch. */
+export type TenancyRequest = schema.Infer<typeof TenancyRequest>;
+
+/** Where a space's tenancy places it for the request it answers: unasked, staying or moving. */
 export const Schedule = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** The space has not asked for a tenancy yet. */
+        kind: schema.literal("unrequested"),
+    }),
     schema.object({
         /** The space stays on its machine. */
         kind: schema.literal("stay"),
+        /** The request the decision answers. */
+        request: TenancyRequest,
         /** Why it stays: placed, unset, unentitled or without a machine to move to. */
         condition: Condition,
     }),
     schema.object({
         /** The space moves. */
         kind: schema.literal("move"),
+        /** The request the decision answers. */
+        request: TenancyRequest,
         /** The machine it moves to. */
         machine: schema.identifier("machine"),
     }),
@@ -140,6 +166,22 @@ export const Placement = Object.assign(PlacementSchema, {
         }
     },
 
+    /** Report whether the universe decided a placement's current request at its epoch. */
+    isDecided(
+        row: Pick<
+            Select<typeof placement.table>,
+            "epoch" | "tenancy" | "tenancySource" | "schedule"
+        >,
+    ): boolean {
+        const { schedule } = row;
+
+        return schedule.kind === "unrequested"
+            ? row.tenancy === null
+            : schedule.request.epoch === row.epoch &&
+                  schedule.request.tenancy === row.tenancy &&
+                  schedule.request.source === row.tenancySource;
+    },
+
     /** Refuse a call at an epoch other than the space's current epoch. */
     requireServed(row: Pick<Placement, "id" | "epoch">, epoch: number): void {
         if (row.epoch !== epoch) {
@@ -188,6 +230,12 @@ export const placement = defineObject(
             target: field.reference(principal.machine).optional(),
             /** The transfer moving the space to the target machine. */
             transferId: field.string(schema.identifier("transfer")).optional(),
+            /** The tenancy the space asks for, absent until it asks. */
+            tenancy: field.enum(TENANCIES).optional(),
+            /** Where the asked tenancy comes from, absent until the space asks. */
+            tenancySource: field.enum(TENANCY_SOURCES).optional(),
+            /** Where the universe places the space for its tenancy. */
+            schedule: field.json(Schedule),
         },
         relations: {
             // the placed space itself, under the placement's identifier
@@ -205,8 +253,10 @@ export const placement = defineObject(
             create: none(),
             place: union(relation("machine"), relation("target")),
             move: relation("machine"),
-            // the space and the machine serving it decide where its tenancy places it
-            schedule: union(relation("self"), relation("machine")),
+            // the space and the machine serving it ask for the space's tenancy
+            request: union(relation("self"), relation("machine")),
+            // the universe decides where the tenancy places the space
+            schedule: none(),
             // the machine serving the space alone, which owners' roles leave out
             serve: relation("machine"),
         },
@@ -229,10 +279,22 @@ export const placement = defineObject(
                 },
             },
             targeted: { kind: "index", on: ["targetId"] },
+            requested: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { tenancy: { isNull: true }, tenancySource: { isNull: true } },
+                        { tenancy: { isNotNull: true }, tenancySource: { isNotNull: true } },
+                    ],
+                },
+            },
         },
     },
     (method) => ({
-        create: method.create("create", { visibility: "package", fields: ["machineId", "epoch"] }),
+        create: method.create("create", {
+            visibility: "package",
+            fields: ["machineId", "epoch", "schedule"],
+        }),
 
         /** Serve a space at an epoch. */
         place: method.mutation({ permission: "place", input: Serving }),
@@ -248,16 +310,20 @@ export const placement = defineObject(
             }),
         }),
 
-        /** Decide where a space's tenancy places it at its epoch: on its machine, or on another. */
-        schedule: method.query({
+        /** Ask for the space's tenancy at its epoch, as the space or the machine serving it. */
+        request: method.mutation({
+            permission: "request",
+            input: TenancyRequest,
+        }),
+
+        /** Record where the universe places the space for its tenancy. */
+        schedule: method.mutation({
             permission: "schedule",
-            input: Serving.extend({
-                /** The tenancy the space asks for. */
-                tenancy: Tenancy,
-                /** Where the tenancy comes from: set by a person, or the default. */
-                source: TenancySource,
+            visibility: "package",
+            input: schema.object({
+                /** The decision. */
+                schedule: Schedule,
             }),
-            output: Schedule,
         }),
 
         /** End a space's placement, as the machine serving it at its epoch. */

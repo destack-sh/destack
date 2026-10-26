@@ -11,7 +11,7 @@ import { claim } from "../object/claim.ts";
 import { machine } from "../object/machine.ts";
 import { implementPlacement } from "../server/placement.ts";
 import { implementSpace } from "../server/space.ts";
-import { assignment, placement, type Placement } from "../object/placement.ts";
+import { assignment, placement, Placement } from "../object/placement.ts";
 import { Package } from "@destack/package";
 import { endpoint } from "../object/endpoint.ts";
 import accountPackage from "../package.ts";
@@ -96,6 +96,7 @@ export const TestDirectory = {
             epoch: placed.epoch,
             targetId: move?.target ?? null,
             transferId: move?.transferId ?? null,
+            schedule: { kind: "unrequested" } as const,
         };
         await database.transaction(
             async (transaction) =>

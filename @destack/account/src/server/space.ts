@@ -60,6 +60,7 @@ async function create(
             id: context.id,
             machineId: target,
             epoch: 1,
+            schedule: { kind: "unrequested" } as const,
         }),
     ]);
 

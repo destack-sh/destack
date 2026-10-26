@@ -24,10 +24,12 @@ import {
     machine,
     machineShape,
     Placement,
+    placement,
     residency,
     space,
     type Tenancy,
     type TenancySource,
+    type TenancyRequest,
 } from "../src/object/index.ts";
 import { ACCESS_TOKEN_TYPE } from "../src/oauth/index.ts";
 import { MachineIdentity } from "../src/client/index.ts";
@@ -898,15 +900,32 @@ test("refuse declaring an account's dedicated cloud machine its plan does not un
     ]);
 });
 
-test("schedule a space where its tenancy keeps it: unentitled, placed, unset, without a machine, ambiguous, or moving", async () => {
-    // place the laptop's space on the laptop, a personal machine of the account
+test("schedule a space where its tenancy keeps it: unrequested, unentitled, placed, unset, without a machine, ambiguous, or moving", async () => {
+    // place the laptop's space on the laptop, a personal machine of the account, which has asked for nothing yet
     const opened = await openPlacement();
     await using fixture = opened.fixture;
     const { accountId, laptop, local } = opened;
-    const schedule = (tenancy: Tenancy, source: TenancySource = "set") =>
-        local
-            .client(accountPackage)
-            .placement.schedule({ accountId, id: laptop, epoch: 1, tenancy, source });
+    const decided = async () => {
+        await fixture.served.settle();
+        const row = await Snapshot.live(fixture.database)
+            .read(placement.table)
+            .findFirst({ where: { id: laptop } });
+
+        return present(row, "the laptop's placement").schedule;
+    };
+    const unrequested = await decided();
+    const schedule = async (tenancy: Tenancy, source: TenancySource = "set") => {
+        await local.client(accountPackage).placement.request({
+            accountId,
+            id: laptop,
+            requestId: RequestId.create(fixture.environment),
+            epoch: 1,
+            tenancy,
+            source,
+        });
+
+        return await decided();
+    };
 
     // refuse any tenancy no plan of the account unlocks
     const unentitled = await schedule("local");
@@ -922,18 +941,24 @@ test("schedule a space where its tenancy keeps it: unentitled, placed, unset, wi
         await schedule("shared"),
     ];
 
-    // find no dedicated machine of the account, then one to move to, then two to choose between
+    // find no dedicated machine of the account, then decide again once one and then two are declared
     const none = await schedule("dedicated");
     const first = await fixture.declareCloudMachine(accountId, "eu");
-    const one = await schedule("dedicated");
+    const one = await decided();
     const second = await fixture.declareCloudMachine(accountId, "eu");
-    const two = await schedule("dedicated");
+    const two = await decided();
 
-    expect([unentitled, kept, none, one, two]).toEqual([
-        stay("Unentitled", "no plan of the account grants local tenancy"),
+    // stamp each decision with the request it answers
+    const asked = (tenancy: Tenancy, source: TenancySource = "set") => ({
+        request: { epoch: 1, tenancy, source },
+    });
+    expect([unrequested, unentitled, kept, none, one, two]).toEqual([
+        { kind: "unrequested" },
+        stay(asked("local"), "Unentitled", "no plan of the account grants local tenancy"),
         [
             {
                 kind: "stay",
+                ...asked("local"),
                 condition: {
                     status: "true",
                     reason: "Placed",
@@ -941,18 +966,109 @@ test("schedule a space where its tenancy keeps it: unentitled, placed, unset, wi
                 },
             },
             stay(
+                asked("shared", "default"),
                 "Unset",
                 "the space keeps the default tenancy shared on its machine until tenancy is set",
             ),
-            { kind: "move", machine: ids.machine },
+            { kind: "move", ...asked("shared"), machine: ids.machine },
         ],
-        stay("NoMachine", "the account has no cloud machine"),
-        { kind: "move", machine: first.machineId },
+        stay(asked("dedicated"), "NoMachine", "the account has no cloud machine"),
+        { kind: "move", ...asked("dedicated"), machine: first.machineId },
         stay(
+            asked("dedicated"),
             "Ambiguous",
             `transfer the space to one of the account's machines: ${[first.machineId, second.machineId].toSorted().join(", ")}`,
         ),
     ]);
+});
+
+test("record a decision for the placement's current request only, leaving one for an earlier request out", async () => {
+    // ask for local tenancy on the laptop under a plan unlocking it, and settle its decision
+    const opened = await openPlacement();
+    await using fixture = opened.fixture;
+    const { accountId, laptop, local } = opened;
+    await fixture.entitle(accountId, "tenancy", { kind: "static", value: ["shared", "local"] });
+    await local.client(accountPackage).placement.request({
+        accountId,
+        id: laptop,
+        requestId: RequestId.create(fixture.environment),
+        epoch: 1,
+        tenancy: "local",
+        source: "set",
+    });
+    await fixture.served.settle();
+    const read = async () =>
+        present(
+            await Snapshot.live(fixture.database)
+                .read(placement.table)
+                .findFirst({ where: { id: laptop } }),
+            "the laptop's placement",
+        ).schedule;
+    const decided = await read();
+
+    // record a move decided for an earlier shared request, as a late pass would
+    await fixture.store.mutate(fixture.store.as(placement), {
+        id: RequestId.create(fixture.environment),
+        calls: [
+            placement.call("schedule", {
+                ...placement.target({ scope: accountId, id: laptop }),
+                schedule: {
+                    kind: "move",
+                    request: { epoch: 1, tenancy: "shared", source: "set" },
+                    machine: ids.machine,
+                },
+            }),
+        ],
+    });
+
+    expect({ decided, kept: await read() }).toEqual({
+        decided: {
+            kind: "stay",
+            request: { epoch: 1, tenancy: "local", source: "set" },
+            condition: {
+                status: "true",
+                reason: "Placed",
+                message: `placed local on ${local.subject.id}`,
+            },
+        },
+        kept: decided,
+    });
+});
+
+test("keep the placement as it is when the space asks again for the tenancy it asked for", async () => {
+    // ask for local tenancy on the laptop, settle its decision, and read the placement
+    const opened = await openPlacement();
+    await using fixture = opened.fixture;
+    const { accountId, laptop, local } = opened;
+    const ask = () =>
+        local.client(accountPackage).placement.request({
+            accountId,
+            id: laptop,
+            requestId: RequestId.create(fixture.environment),
+            epoch: 1,
+            tenancy: "local",
+            source: "set",
+        });
+    const read = async () =>
+        present(
+            await Snapshot.live(fixture.database)
+                .read(placement.table)
+                .findFirst({ where: { id: laptop } }),
+            "the laptop's placement",
+        );
+    await ask();
+    await fixture.served.settle();
+    const first = await read();
+
+    // ask again for the same tenancy
+    await ask();
+    await fixture.served.settle();
+    const again = await read();
+
+    expect({ revision: again.revision, schedule: again.schedule }).toEqual({
+        revision: first.revision,
+        schedule: first.schedule,
+    });
 });
 
 test("relate a move's target as the space's one receiver, replace it on the next move, and release it once the space is placed again", async () => {
@@ -987,6 +1103,6 @@ test("relate a move's target as the space's one receiver, replace it on the next
 });
 
 /** Describe a placement staying put for a reason, as its unmet condition reads. */
-function stay(reason: string, message: string) {
-    return { kind: "stay", condition: { status: "false", reason, message } };
+function stay(asked: { readonly request: TenancyRequest }, reason: string, message: string) {
+    return { kind: "stay", ...asked, condition: { status: "false", reason, message } };
 }
