@@ -30,6 +30,7 @@ import {
     organization,
     RESIDENCY_RELAY,
     Residency,
+    residency,
     space,
     type StackSource,
 } from "@destack/account/object";
@@ -50,6 +51,8 @@ import {
 } from "../universe/universe.ts";
 import { TestMachine } from "./machine.ts";
 
+/** The installation a residency's space provides entitlements as in tests, as finance does. */
+const BILLING_INSTALLATION = "billing";
 /** The origin a test universe answers at, which no request leaves the process for. */
 const TEST_ORIGIN = "https://universe.test";
 
@@ -192,6 +195,8 @@ export class TestUniverse implements AsyncDisposable {
     readonly #keyring: string;
     /** Each person signed in, by email. */
     readonly #people: Map<string, TestPerson>;
+    /** The billing installation of each residency's space, related once, by residency. */
+    readonly #entitlers = new Map<ResidencyCode, Promise<Subject>>();
     /** The object types the universe serves by name, each with its package. */
     readonly #types: ReadonlyMap<
         string,
@@ -269,23 +274,23 @@ export class TestUniverse implements AsyncDisposable {
         const residencies = options.residencies ?? [{ code: TEST_RESIDENCY, name: "Europe" }];
         const machines = new Map<ResidencyCode, DeclaredMachine>();
         const declared = await Promise.all(
-            residencies.map(async (residency) => {
+            residencies.map(async (declaredResidency) => {
                 // generate the machine's key, or restore the one the world kept
-                const restored = options.world?.machines[residency.code];
+                const restored = options.world?.machines[declaredResidency.code];
                 const id = restored?.id ?? Identifier.create("machine", environment);
                 const keychain = new MemoryKeychain(restored?.secrets);
                 const publicKey =
                     restored?.key ??
                     (await new MachineIdentity(id, keychain, environment).generate()).publicKey;
-                machines.set(residency.code, { id, keychain, key: publicKey });
+                machines.set(declaredResidency.code, { id, keychain, key: publicKey });
 
                 return {
                     ...TEST_LOCATION,
                     id,
-                    name: `${residency.code}-cloud`,
-                    residencyId: residency.code,
+                    name: `${declaredResidency.code}-cloud`,
+                    residencyId: declaredResidency.code,
                     key: publicKey,
-                    origin: `https://${residency.code}.machine.test/`,
+                    origin: `https://${declaredResidency.code}.machine.test/`,
                 };
             }),
         );
@@ -492,7 +497,39 @@ export class TestUniverse implements AsyncDisposable {
         });
     }
 
-    /** Entitle an account to a resource or feature as its residency's home does. */
+    /** Read the billing installation of a residency's space, related to it by its operator once. */
+    #entitler(residencyId: ResidencyCode): Promise<Subject> {
+        // relate each residency's installation once, whichever entitlement asks first
+        const known = this.#entitlers.get(residencyId);
+        if (known !== undefined) {
+            return known;
+        }
+        const relating = (async () => {
+            // derive the installation the residency's space declares for billing
+            const snapshot = Snapshot.live(this.storage.database);
+            const home = await Scope.object(snapshot, await Residency.space(snapshot, residencyId));
+            const crypto = this.universe.store.environment.crypto;
+            const id = await InstallationId.declared(home, BILLING_INSTALLATION, crypto);
+            const installed = principal.installation.reference(home.id, id);
+
+            // relate it to the residency as the universe's operator
+            const operator = await this.signIn(OPERATOR_EMAIL);
+            await operator.client(objectPackage).relationship.create({
+                scope: Scope.universe.id,
+                requestId: RequestId.create(this.universe.store.environment),
+                object: residency.reference(Scope.universe.id, residencyId),
+                relation: "installation",
+                subject: installed,
+            });
+
+            return installed;
+        })();
+        this.#entitlers.set(residencyId, relating);
+
+        return relating;
+    }
+
+    /** Entitle an account to a resource or feature as finance does from its residency's space. */
     async entitle(
         accountId: Identifier<"account">,
         granted: EntitlementResource | { readonly feature: FeatureReference },
@@ -504,11 +541,11 @@ export class TestUniverse implements AsyncDisposable {
                 ? { packageId: ENTITLED_PACKAGE, name: granted, resource: granted }
                 : { ...granted.feature, resource: null };
 
-        // act as the account's residency home, whose installations provide entitlements
+        // act as the billing installation of the account's residency space, as finance does
         const { store } = this.universe;
         const snapshot = Snapshot.live(this.storage.database);
-        const home = await Account.locate(snapshot, accountId);
-        const provider = principal.space.reference(Scope.universe.id, home);
+        const { residencyId } = await Account.of(snapshot, accountId);
+        const provider = await this.#entitler(residencyId);
         const now = this.clock.now();
 
         // replace the one the account has with one of the terms
@@ -660,11 +697,11 @@ export class TestUniverse implements AsyncDisposable {
 
     /** Open a residency's cloud machine following the directory, from a world when restored. */
     async machine(
-        residency: ResidencyCode = TEST_RESIDENCY,
+        code: ResidencyCode = TEST_RESIDENCY,
         restored: Pick<Parameters<typeof TestMachine.open>[0], "storage" | "world"> = {},
     ): Promise<TestMachine> {
         // prove the residency's declared machine, calling the universe in process
-        const declared = present(this.#machines.get(residency), `a cloud machine of ${residency}`);
+        const declared = present(this.#machines.get(code), `a cloud machine of ${code}`);
         const opened = await TestMachine.open({
             ...restored,
             id: declared.id,
@@ -771,10 +808,10 @@ export class TestUniverse implements AsyncDisposable {
     }
 
     /** Read the relay a residency's home declares, which the universe relates to the residency. */
-    async relay(residency: ResidencyCode = TEST_RESIDENCY): Promise<Subject> {
+    async relay(code: ResidencyCode = TEST_RESIDENCY): Promise<Subject> {
         // derive the installation the home's stack declares under the relay's name
         const snapshot = Snapshot.live(this.storage.database);
-        const home = await Scope.object(snapshot, await Residency.space(snapshot, residency));
+        const home = await Scope.object(snapshot, await Residency.space(snapshot, code));
         const id = await InstallationId.declared(home, RESIDENCY_RELAY, this.environment.crypto);
 
         return principal.installation.reference(home.id, id);
