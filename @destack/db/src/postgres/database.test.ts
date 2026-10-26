@@ -9,7 +9,8 @@ import { declareState } from "../migration/state.ts";
 import { asc, eq, sql, type SQL } from "../sql/index.ts";
 import { integer, text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
-import { connectPostgres, reportNotices } from "./connection.ts";
+import { connectPostgres } from "./connection.ts";
+import { PostgresPool, reportNotices } from "./pool.ts";
 import { postgresChannel } from "./database.ts";
 import { TestDatabase } from "../test/database.ts";
 import { first, note, revision } from "../log/test/fixture.ts";
@@ -30,13 +31,15 @@ test("send small and large messages whole through a PostgreSQL channel, splittin
 
     // listen with one client and notify with another
     const address = TestDatabase.address();
-    const listener = postgres(address, { max: 1 });
-    const sender = postgres(address, { max: 4 });
+    const listener = new PostgresPool(address, world, { connections: 1 });
+    const sender = new PostgresPool(address, world, { connections: 4 });
     const name = `destack_test_${Uuid.v4(world.random).replaceAll("-", "")}`;
     const received: Note[] = [];
     const joined = Promise.withResolvers<void>();
     const isReceived = Promise.withResolvers<void>();
-    const stop = typedChannel(postgresChannel(listener, Promise.resolve(name), world), Note).listen(
+    const listening = typedChannel(postgresChannel(listener, Promise.resolve(name), world), Note);
+    const sending = typedChannel(postgresChannel(sender, Promise.resolve(name), world), Note);
+    const stop = listening.listen(
         (message) => {
             received.push(message);
             if (received.length === 2) {
@@ -46,17 +49,17 @@ test("send small and large messages whole through a PostgreSQL channel, splittin
         () => joined.resolve(),
     );
     onTestFinished(async () => {
-        // stop listening before closing both clients
+        // stop listening and close both channels before ending both pools
         stop();
+        await Promise.all([listening.close(), sending.close()]);
         await Promise.all([listener.end(), sender.end()]);
     });
     await joined.promise;
 
     // send a small message and one of about 60 kB with multi-byte characters across fragments
     const large = "äöü€😀".repeat(5_000);
-    const channel = typedChannel(postgresChannel(sender, Promise.resolve(name), world), Note);
-    channel.notify({ from: "small", body: "hello" });
-    channel.notify({ from: "large", body: large });
+    sending.notify({ from: "small", body: "hello" });
+    sending.notify({ from: "large", body: large });
     await isReceived.promise;
 
     // receive both exactly, in any order
@@ -122,15 +125,7 @@ test("list text keys in byte order through their index once migrated to byte col
     });
     const name = `test_${Uuid.v4(world.random).replaceAll("-", "")}`;
     await administration.unsafe(`CREATE SCHEMA "${name}"`);
-    const database = await connectPostgres(
-        postgres(icu.href, {
-            max: 2,
-            connection: { search_path: name },
-            onnotice: reportNotices(world.telemetry),
-        }),
-        [entry],
-        { environment: world },
-    );
+    const database = await connectPostgres(icu.href, [entry], { environment: world, schema: name });
     onTestFinished(async () => {
         await database.close();
         await administration.unsafe(`DROP SCHEMA "${name}" CASCADE`);
@@ -149,7 +144,7 @@ test("list text keys in byte order through their index once migrated to byte col
     await applyPlan(database, await database.plan({ declared: earlier }));
     await database.insert(entry).values(KEYS.toReversed().map((key) => ({ key, size: 1 })));
     const table = entry[TABLE].sqlName;
-    const listing = sql`SELECT key, size FROM ${sql.identifier(table)} ORDER BY key COLLATE "C" LIMIT 3`;
+    const listing = sql`SELECT key, size FROM ${sql.relation(table)} ORDER BY key COLLATE "C" LIMIT 3`;
     const list = async () =>
         (await database.select().from(entry).orderBy(asc(entry.key)).limit(3)).map(
             (row) => row.key,

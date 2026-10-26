@@ -97,11 +97,12 @@ const database = work.get(context);
 
 ## Connections
 
-`connectBunSqlite` and `connectPostgres` open a database on Bun and PostgreSQL in an environment, and `DurableObjectDatabaseHost` opens one in a Durable Object, which `DurableObjectDatabase` (`/cloudflare/durable`) serves.
+`connectBunSqlite` opens a database on Bun, `connectPostgres` opens one as a PostgreSQL schema on its own pool or a shared one, and `DurableObjectDatabaseHost` opens one in a Durable Object, which `DurableObjectDatabase` (`/cloudflare/durable`) serves.
 
 ```ts
 const file = await connectBunSqlite("work.db", work, { environment });
-const pool = await connectPostgres(url, work, { environment });
+const owned = await connectPostgres(url, work, { environment, schema: "work" });
+const shared = await connectPostgres(host.pool, work, { environment, schema: "work" });
 const storage = new DurableObjectDatabaseHost(state.storage, environment).connect(work, {
     namespace: "work",
 });

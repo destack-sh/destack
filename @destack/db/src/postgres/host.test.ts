@@ -10,7 +10,8 @@ import { databaseProvider } from "../provider/provider.ts";
 import { text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { MemoryContentStore } from "@destack/resource/test";
-import { connectPostgres, reportNotices } from "./connection.ts";
+import { connectPostgres } from "./connection.ts";
+import { reportNotices } from "./pool.ts";
 import { PostgresDatabaseHost } from "./host.ts";
 import { testHost } from "@destack/test/host";
 
@@ -34,8 +35,10 @@ function outcome(connecting: Promise<DatabaseConnection & AsyncDisposable>): Pro
 
 /** Store databases in the test server, dropping some records' schemas after the test. */
 function openHost(address: string, ids: readonly ResourceId[]): PostgresDatabaseHost {
-    // drop the schemas a failed test leaves behind
+    // close the host's pool, then drop the schemas a failed test leaves behind
+    const host = new PostgresDatabaseHost(new URL(address), testHost());
     onTestFinished(async () => {
+        await host.close();
         const administration = postgres(address, {
             max: 1,
             onnotice: reportNotices(testHost().telemetry),
@@ -46,7 +49,7 @@ function openHost(address: string, ids: readonly ResourceId[]): PostgresDatabase
         await administration.end();
     });
 
-    return new PostgresDatabaseHost(new URL(address), testHost());
+    return host;
 }
 
 /** Describe an unprovisioned database resource of a new identifier. */
@@ -79,8 +82,9 @@ test("provision a PostgreSQL schema twice with the same log, plan and apply it, 
     // provision the schema twice, and refuse connecting before its tables apply
     const qualified = note[TABLE].sqlName;
     const epoch = async (schemaName: string) => {
-        await using connection = await connectPostgres(host.connector.url(schemaName), [], {
+        await using connection = await connectPostgres(host.pool, [], {
             environment: system,
+            schema: schemaName,
         });
 
         return (await connection.log.position()).epoch;

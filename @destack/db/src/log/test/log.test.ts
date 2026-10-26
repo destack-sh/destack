@@ -134,7 +134,7 @@ test("log committed changes of tables in commit order", async () => {
         "changes after 0 were compacted: list the tables again",
     ]);
     const history = await database.execute(
-        sql`SELECT "table" FROM ${sql.identifier("__destack_log")} ORDER BY sequence`,
+        sql`SELECT "table" FROM ${sql.relation("__destack_log")} ORDER BY sequence`,
         schema.object({ table: schema.string() }),
     );
     expect(history.map((entry) => entry.table)).toEqual([
@@ -575,9 +575,9 @@ test("retain the changes after a consumer's slot until it expires or is dropped,
         `changes after ${kept} were compacted: list the tables again`,
     ]);
     await database.log.drop("subscription");
-    expect(
-        await database.all(sql`SELECT name FROM ${sql.identifier("__destack_log_slot")}`),
-    ).toEqual([]);
+    expect(await database.all(sql`SELECT name FROM ${sql.relation("__destack_log_slot")}`)).toEqual(
+        [],
+    );
 });
 
 test("bound a transaction's changes by the positions around it", async () => {

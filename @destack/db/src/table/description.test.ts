@@ -55,7 +55,7 @@ test("fill JSON columns with their declared defaults", async () => {
 
     // insert through raw SQL to use the database defaults
     await storage.database.run(
-        sql`INSERT INTO ${sql.identifier(shelf[TABLE].sqlName)} (id) VALUES ('a')`,
+        sql`INSERT INTO ${sql.relation(shelf[TABLE].sqlName)} (id) VALUES ('a')`,
     );
     expect(await storage.database.select().from(shelf)).toEqual([
         { id: "a", labels: [], layout: {} },
@@ -80,7 +80,7 @@ test("refuse a value outside an enum column's values in the database itself", as
     expect(
         await refusal(
             storage.database.all(
-                sql`INSERT INTO ${sql.identifier(lamp[TABLE].sqlName)} (id, state) VALUES ('c', 'dim')`,
+                sql`INSERT INTO ${sql.relation(lamp[TABLE].sqlName)} (id, state) VALUES ('c', 'dim')`,
             ),
         ),
     ).toEqual(["BAD_REQUEST", "RECORD_INVALID", "a record fails a declared check"]);

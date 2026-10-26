@@ -9,9 +9,10 @@ import type { DatabaseHost } from "../provider/provider.ts";
 import { sql } from "../sql/index.ts";
 import { Table } from "../table/table.ts";
 import { connectPostgres } from "./connection.ts";
+import { PostgresPool } from "./pool.ts";
 import { PostgresConnector } from "./connector.ts";
 
-/** Store databases in one PostgreSQL cluster database, one schema per database resource. */
+/** Store databases in one PostgreSQL cluster database, one schema per database, over one pool. */
 export class PostgresDatabaseHost implements DatabaseHost {
     /** The provider code of PostgreSQL databases. */
     readonly provider = "postgresql";
@@ -20,11 +21,24 @@ export class PostgresDatabaseHost implements DatabaseHost {
 
     /** The machine's clock and randomness, which the databases stamp changes at and draw from. */
     readonly environment: DatabaseEnvironment;
+    /** The pool every schema's database runs on, with one connection listening for all. */
+    readonly pool: PostgresPool;
 
     /** Store databases in the cluster a PostgreSQL URL selects, in the machine's environment. */
     constructor(cluster: URL, environment: DatabaseEnvironment) {
         this.connector = new PostgresConnector(cluster);
         this.environment = environment;
+        this.pool = new PostgresPool(cluster.href, environment);
+    }
+
+    /** Close the pool at the end of the host's scope. */
+    [Symbol.asyncDispose](): Promise<void> {
+        return this.close();
+    }
+
+    /** Close the pool after its databases closed. */
+    close(): Promise<void> {
+        return this.pool.end();
     }
 
     /** Create the database's schema for the resource. */
@@ -73,9 +87,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<Plan> {
         const connect = (tables: readonly Table[]) =>
-            connectPostgres(this.connector.url(ResourceRecord.reference(record)), tables, {
-                environment: this.environment,
-            });
+            this.#connect(ResourceRecord.reference(record), tables);
 
         return DatabaseHandle.plan(
             connect,
@@ -90,9 +102,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         digest: Digest,
     ): Promise<void> {
         const connect = (tables: readonly Table[]) =>
-            connectPostgres(this.connector.url(ResourceRecord.reference(record)), tables, {
-                environment: this.environment,
-            });
+            this.#connect(ResourceRecord.reference(record), tables);
         const states = desired.map((state) => state.tables.postgresql);
 
         return DatabaseHandle.apply(connect, states, digest, record.id);
@@ -104,9 +114,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<DatabaseHandle> {
         const connect = (tables: readonly Table[]) =>
-            connectPostgres(this.connector.url(ResourceRecord.reference(record)), tables, {
-                environment: this.environment,
-            });
+            this.#connect(ResourceRecord.reference(record), tables);
 
         return DatabaseHandle.open(
             connect,
@@ -114,10 +122,11 @@ export class PostgresDatabaseHost implements DatabaseHost {
         );
     }
 
-    /** Connect to one schema of the cluster. */
-    #connect(namespace: string) {
-        return connectPostgres(this.connector.url(namespace), [], {
+    /** Connect to one schema of the cluster on the shared pool. */
+    #connect(reference: string, tables: readonly Table[] = []) {
+        return connectPostgres(this.pool, tables, {
             environment: this.environment,
+            schema: reference,
         });
     }
 

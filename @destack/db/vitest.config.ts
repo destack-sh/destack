@@ -1,7 +1,7 @@
 import { BunEnvironment } from "@destack/environment/bun";
 import { defineConfiguration } from "@destack/test/config";
 
-/** The tests of PostgreSQL's own behavior: its connector, its host, its channel and its concurrent commits. */
+/** The tests of PostgreSQL's connector, host, channel and concurrent commits. */
 const POSTGRESQL = ["src/postgres/**/*.test.ts", "src/log/test/concurrency.test.ts"];
 
 export default defineConfiguration(

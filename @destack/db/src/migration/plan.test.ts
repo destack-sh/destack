@@ -252,7 +252,7 @@ test("rename, drop, add and index columns while preserving rows", async () => {
     await database.transaction(
         async (transaction) =>
             await transaction.run(
-                sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
+                sql`INSERT INTO ${sql.relation(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
             ),
     );
 
@@ -288,7 +288,7 @@ test("convert rows to a new release and log the converted values", async () => {
     await database.transaction(
         async (transaction) =>
             await transaction.run(
-                sql`INSERT INTO ${sql.identifier(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
+                sql`INSERT INTO ${sql.relation(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
             ),
     );
     const before = (await database.log.position()).sequence;
@@ -317,15 +317,18 @@ test("convert rows to a new release and log the converted values", async () => {
 });
 
 test("name what the declarations must fix instead of planning", async () => {
-    const database = await open([taskUnfilled]);
+    const database = await open([taskOne]);
     await database.migrate([taskOne]);
     await database.transaction(
         async (transaction) =>
             await transaction.run(
-                sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent) VALUES ('t', 's', 'Plan', 0)`,
+                sql`INSERT INTO ${sql.relation(table(taskOne))} (id, scope, name, urgent) VALUES ('t', 's', 'Plan', 0)`,
             ),
     );
-    await database.run(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(sql`CREATE TABLE ${sql.relation(table(labelPlain))} (id TEXT)`),
+    );
 
     // report the column no task row fills and the unmanaged table
     expect(
@@ -388,7 +391,7 @@ test("widen column values freely and narrow them only by a conversion", async ()
     const database = await open([preferenceConverted]);
     await database.migrate([preferenceOne]);
     await database.run(
-        sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
+        sql`INSERT INTO ${sql.relation(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
     );
 
     // accept the widened mode, refuse the unconverted narrowing and convert the declared one
@@ -443,7 +446,7 @@ test("refuse requiring a key stored values lack without a conversion, reading ro
     const database = await open([layoutSized]);
     await database.migrate([layoutOne]);
     await database.run(
-        sql`INSERT INTO ${sql.identifier(table(layoutOne))} (id, settings) VALUES ('a', '{"theme":"dark"}')`,
+        sql`INSERT INTO ${sql.relation(table(layoutOne))} (id, settings) VALUES ('a', '{"theme":"dark"}')`,
     );
 
     // refuse the key every stored row lacks, and read a row exactly as stored
@@ -483,7 +486,7 @@ test("refuse a conversion writing a value its column refuses, leaving the rows a
     const database = await open([preferenceMisconverted]);
     await database.migrate([preferenceOne]);
     await database.run(
-        sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
+        sql`INSERT INTO ${sql.relation(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
     );
 
     // refuse the conversion loudly and roll it back
@@ -494,7 +497,7 @@ test("refuse a conversion writing a value its column refuses, leaving the rows a
     ]);
     expect(
         await database.execute(
-            sql`SELECT mode FROM ${sql.identifier(table(preferenceOne))}`,
+            sql`SELECT mode FROM ${sql.relation(table(preferenceOne))}`,
             schema.object({ mode: schema.unknown() }),
         ),
     ).toEqual([{ mode: TestDatabase.target() === "sqlite" ? '"emacs"' : "emacs" }]);
@@ -521,7 +524,7 @@ test("convert rows by the conversion a rebuilt release adds, once", async () => 
     const database = await open([preferenceRebuilt]);
     await database.migrate([preferenceOne]);
     await database.run(
-        sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
+        sql`INSERT INTO ${sql.relation(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
     );
 
     // convert the rows the earlier build wrote, then find the database current
@@ -561,7 +564,7 @@ test("narrow values and require a new column without a default only over a table
     const filled = await open([preferenceStrict]);
     await filled.migrate([preferenceOne]);
     await filled.run(
-        sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
+        sql`INSERT INTO ${sql.relation(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
     );
     const refused = await filled.migrate([preferenceStrict]).then(
         () => [],
@@ -671,18 +674,18 @@ test("rebuild a table other tables reference, preserving their rows", async () =
     const database = await open([folderOne, document]);
     await database.migrate([folderOne, document]);
     await database.run(
-        sql`INSERT INTO ${sql.identifier(table(folderOne))} (id, extra) VALUES ('f', 'x')`,
+        sql`INSERT INTO ${sql.relation(table(folderOne))} (id, extra) VALUES ('f', 'x')`,
     );
     await database.run(
-        sql`INSERT INTO ${sql.identifier(table(document))} (id, folder_id) VALUES ('d', 'f')`,
+        sql`INSERT INTO ${sql.relation(table(document))} (id, folder_id) VALUES ('d', 'f')`,
     );
 
     // drop the referenced column and leave the reference valid
     await database.migrate([folderTwo, document]);
     expect(
-        await database.all(sql`SELECT id, folder_id FROM ${sql.identifier(table(document))}`),
+        await database.all(sql`SELECT id, folder_id FROM ${sql.relation(table(document))}`),
     ).toEqual([{ id: "d", folder_id: "f" }]);
-    expect(await database.all(sql`SELECT id FROM ${sql.identifier(table(folderTwo))}`)).toEqual([
+    expect(await database.all(sql`SELECT id FROM ${sql.relation(table(folderTwo))}`)).toEqual([
         { id: "f" },
     ]);
 });
@@ -690,7 +693,7 @@ test("rebuild a table other tables reference, preserving their rows", async () =
 test("report a failing migration statement as a failed migration", async () => {
     const database = await open([labelPlain]);
     await database.migrate([labelPlain]);
-    const name = sql.identifier(table(labelPlain));
+    const name = sql.relation(table(labelPlain));
     await database.run(sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x')`);
 
     // fail to make duplicate codes unique and leave the state unchanged
@@ -728,7 +731,7 @@ test("make a column unique and enforce it", async () => {
             await database.plan({ declared: declareState([labelUnique], TestDatabase.target()) }),
         ),
     ).toEqual([]);
-    const name = sql.identifier(table(labelUnique));
+    const name = sql.relation(table(labelUnique));
     await database.run(
         sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x') ON CONFLICT DO NOTHING`,
     );
@@ -759,7 +762,7 @@ test("expand for two running releases, bridge a renamed column, then contract", 
     await database.transaction(
         async (transaction) =>
             await transaction.run(
-                sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
+                sql`INSERT INTO ${sql.relation(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
             ),
     );
 
@@ -789,7 +792,7 @@ test("expand for two running releases, bridge a renamed column, then contract", 
     expect(await release([taskTwo]).check(database)).toEqual([]);
 
     // make both names equal
-    const name = sql.identifier(table(taskOne));
+    const name = sql.relation(table(taskOne));
     await database.transaction(
         async (transaction) =>
             await transaction.run(

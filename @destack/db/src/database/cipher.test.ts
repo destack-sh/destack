@@ -66,7 +66,7 @@ async function open() {
 
 /** Read the stored text of the sealed columns in key order. */
 async function stored(database: Awaited<ReturnType<typeof open>>) {
-    const name = sql.identifier(credential[TABLE].sqlName);
+    const name = sql.relation(credential[TABLE].sqlName);
 
     return Stored.parse(await database.all(sql`SELECT secret, token FROM ${name} ORDER BY id`));
 }

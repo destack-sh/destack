@@ -45,8 +45,9 @@ test("refuse an unmigrated PostgreSQL database, then open the migrated one as it
     ]);
 
     // migrate the schema and write a note through a sole writer
-    const migration = await connectPostgres(connector.url(name), notes, {
+    const migration = await connectPostgres(connector.cluster.href, notes, {
         environment: world,
+        schema: name,
     });
     await migration.migrate(notes.tables);
     await migration.close();

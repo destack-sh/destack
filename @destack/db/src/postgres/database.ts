@@ -8,14 +8,12 @@ import type { Channel, Hearing } from "../channel/channel.ts";
 import { CHANNEL_PREFIX } from "../log/schema.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { PostgresSession } from "../database/session.ts";
+import type { PostgresPool } from "./pool.ts";
 import { expandTrees } from "../tree/tree.ts";
 import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
 import { Relations } from "../query/relation.ts";
 import type { Model } from "../query/model.ts";
-
-/** The PostgreSQL type identifiers of json and jsonb. */
-const JSON_TYPES = [114, 3802] as const;
 
 /** The encoder measuring characters' UTF-8 widths. */
 const UTF8 = new TextEncoder();
@@ -39,50 +37,54 @@ export type PostgresWriteMode = "shared" | "sole";
 export interface PostgresConnectOptions {
     /** Whether the connection is the database's sole writer, shared by default. */
     readonly writers?: PostgresWriteMode;
+    /** The database's schema, in which each statement runs. */
+    readonly schema: string;
     /** The clock, randomness, crypto and telemetry the connection runs on. */
     readonly environment: DatabaseEnvironment;
 }
 
-/** A PostgreSQL database with a separate pool. */
+/** A PostgreSQL database: a schema, on a pool of its own or one shared across schemas. */
 export class PostgresDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > extends DatabaseConnection<Models> {
-    /** The PostgreSQL connection pool. */
-    readonly $client: postgres.Sql;
+    /** The pool the database runs on. */
+    readonly pool: PostgresPool;
+
+    /** Who closes the database's pool: the database for a pool of its own, or its caller. */
+    readonly #poolCloser: "database" | "caller";
 
     /** Bind tables to a pool, listening to other writers' commits unless it is the sole writer. */
     constructor(
-        client: postgres.Sql,
+        pool: PostgresPool,
         tables: declaration.Database<Models> | readonly Table[],
-        options: PostgresConnectOptions,
+        options: PostgresConnectOptions & { readonly poolCloser: "database" | "caller" },
     ) {
         // read how the connection writes, and declare the tables with their tree tables
-        const { writers = "shared", environment } = options;
+        const { writers = "shared", schema, environment } = options;
         const { clock } = environment;
         const declared = "tables" in tables ? tables.tables : expandTrees(tables);
         requireDistinct(declared, "postgresql");
-        passJsonText(client);
 
-        // name each channel within the pool's schema, as the log's notifications do
-        let schema: Promise<string> | undefined;
+        // key each channel by the database's schema, as the log's notifications do
+        let hashed: Promise<string> | undefined;
         const channel = (name: string) => {
-            schema ??= clock.trackHost(
-                client<{ hash: string }[]>`SELECT md5(current_schema()) AS hash`.then(
-                    ([row]) => present(row, "the schema's hash").hash,
-                ),
+            hashed ??= clock.trackHost(
+                pool
+                    .run(clock, (sql) => sql<{ hash: string }[]>`SELECT md5(${schema}) AS hash`)
+                    .then(([row]) => present(row, "the schema's hash").hash),
             );
 
-            return schema.then((hash) => `${CHANNEL_PREFIX}${name}_${hash}`);
+            return hashed.then((hash) => `${CHANNEL_PREFIX}${name}_${hash}`);
         };
         super(
             new DatabaseDriver(
-                new PostgresSession(client, clock),
+                new PostgresSession({ pool }, schema, clock),
                 new ConnectionState({
                     locality: "networked",
                     openChannel:
                         writers === "sole"
                             ? undefined
-                            : (name) => postgresChannel(client, channel(name), environment),
+                            : (name) => postgresChannel(pool, channel(name), environment),
                     announcer: "database",
                     environment,
                     tables: declared,
@@ -93,7 +95,8 @@ export class PostgresDatabase<
             declared,
             "tables" in tables ? tables.relations : new Relations<Models>(),
         );
-        this.$client = client;
+        this.pool = pool;
+        this.#poolCloser = options.poolCloser;
     }
 
     /** Close the pool when its owner's scope ends. */
@@ -101,16 +104,13 @@ export class PostgresDatabase<
         return this.close();
     }
 
-    /** Close the pool after pending queries. */
+    /** Stop listening after pending queries, closing a pool of its own. */
     async close(): Promise<void> {
-        await this.state.close(() => this.$client.end());
-    }
-}
-
-/** Pass JSON columns' text to the server as it is, since columns encode JSON themselves. */
-function passJsonText(client: postgres.Sql): void {
-    for (const type of JSON_TYPES) {
-        client.options.serializers[type] = (value: unknown) => value;
+        await this.state.close(async () => {
+            if (this.#poolCloser === "database") {
+                await this.pool.end();
+            }
+        });
     }
 }
 
@@ -119,7 +119,7 @@ const listening = new Map<string, Set<Map<string, () => void>>>();
 
 /** Connect every party of a PostgreSQL notification channel with JSON messages. */
 export function postgresChannel(
-    client: postgres.Sql,
+    pool: PostgresPool,
     name: Promise<string>,
     environment: DatabaseEnvironment,
 ): Channel<unknown> {
@@ -127,32 +127,63 @@ export function postgresChannel(
     const { clock, random } = environment;
     const party = Uuid.v4(random);
     const failures = new Set<(error: unknown) => void>();
-    const send = (payload: string) =>
-        void name
-            .then((resolved) => clock.trackHost(client.notify(resolved, payload)))
-            .catch((error: unknown) => {
-                // drop a notification a closed connection leaves nobody to send to
-                const code = errorCode(error);
-                if (code !== undefined && CLOSED_CODES.has(code)) {
-                    return;
-                }
 
-                // fail every listener, or fail loudly without one
-                if (failures.size === 0) {
-                    throw error;
-                }
-                for (const fail of failures) {
-                    fail(error);
-                }
-            });
+    // track the sends and unlistens in flight, which closing waits for
+    const pending = new Set<Promise<void>>();
+    const track = (work: Promise<unknown>) => {
+        const settled = work.then(
+            () => undefined,
+            () => undefined,
+        );
+        pending.add(settled);
+        void settled.then(() => pending.delete(settled));
+    };
+
+    // send each payload on a reserved connection, failing the listeners as it fails
+    const send = (payload: string) => {
+        const sending = name.then((resolved) =>
+            clock.trackHost(
+                pool.run(clock, (sql) => sql`SELECT pg_notify(${resolved}, ${payload})`),
+            ),
+        );
+        track(sending);
+        void sending.catch((error: unknown) => {
+            // drop a notification a closed connection leaves nobody to send to
+            const code = errorCode(error);
+            if (code !== undefined && CLOSED_CODES.has(code)) {
+                return;
+            }
+
+            // fail every listener, or fail loudly without one
+            if (failures.size === 0) {
+                throw error;
+            }
+            for (const fail of failures) {
+                fail(error);
+            }
+        });
+    };
 
     return {
         notify: (message) => notifyInFragments(send, party, message, random),
-        listen: (receive, resume, fail) =>
-            listenToChannel(client, name, party, failures, receive, resume, fail, clock),
+        listen: (receive, resume, fail) => {
+            const stop = listenToChannel(
+                pool.sql,
+                name,
+                party,
+                failures,
+                receive,
+                resume,
+                fail,
+                clock,
+            );
+
+            return () => track(stop());
+        },
         hear: (token) => hearEveryParty(name, token),
-        // leave nothing open, as each listen ends with its listener
-        close: async () => {},
+        close: async () => {
+            await Promise.all(pending);
+        },
     };
 }
 
@@ -213,7 +244,7 @@ function listenToChannel(
     resume: (() => void) | undefined,
     fail: ((error: unknown) => void) | undefined,
     clock: Clock,
-): () => void {
+): () => Promise<void> {
     // deliver each notification once listening, resuming on each reconnect
     const expected = new Map<string, () => void>();
     const hearAll = () => {
@@ -259,10 +290,11 @@ function listenToChannel(
     });
     subscription.catch((error: unknown) => failing(error));
 
-    // stop listening
+    // stop listening, settling once unlistened
     return () => {
         failures.delete(failing);
-        void subscription.then(
+
+        return subscription.then(
             ({ listener, resolved }) => {
                 // stop hearing tokens, settling the ones this party waited for
                 listening.get(resolved)?.delete(expected);

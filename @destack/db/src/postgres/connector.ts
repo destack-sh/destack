@@ -6,9 +6,6 @@ import type { Model } from "../query/model.ts";
 import { connectPostgres } from "./connection.ts";
 import type { PostgresDatabase } from "./database.ts";
 
-/** The connection parameter that selects a database's schema. */
-const SCHEMA_PARAMETER = "search_path";
-
 /** Open the databases of one PostgreSQL cluster, each a binding's schema, as sole writer. */
 export class PostgresConnector implements DatabaseConnector {
     /** The provider code of PostgreSQL databases. */
@@ -25,25 +22,17 @@ export class PostgresConnector implements DatabaseConnector {
         this.cluster = cluster;
     }
 
-    /** Build the URL of one schema of the cluster. */
-    url(schema: string): string {
-        const url = new URL(this.cluster);
-        url.searchParams.set(SCHEMA_PARAMETER, schema);
-
-        return url.href;
-    }
-
     /** Open the schema a binding refers to, refusing one lacking its declaration's tables. */
     async connect<Models extends Readonly<Record<string, Model>>>(
         binding: Pick<ResourceBinding, "reference">,
         declaration: Database<Models>,
         environment: Environment,
     ): Promise<PostgresDatabase<Models>> {
-        // open the binding's pool as the sole writer in the environment
-        const url = this.url(binding.reference);
-        const connection = await connectPostgres(url, declaration, {
+        // open the binding's schema on a pool of its own, as the sole writer in the environment
+        const connection = await connectPostgres(this.cluster.href, declaration, {
             writers: "sole",
             environment,
+            schema: binding.reference,
         });
 
         // refuse a database lacking its tables
