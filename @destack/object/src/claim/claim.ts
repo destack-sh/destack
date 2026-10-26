@@ -78,15 +78,18 @@ export type ClaimRefusal = schema.Infer<typeof ClaimRefusal>;
 
 /** The lookup of the objects active names resolve to. */
 export interface ClaimLookup {
-    /** Find the object an active name resolves to, none for a free or reserved name. */
-    readonly owner: (index: string, key: string) => Promise<ClaimOwner | undefined>;
+    /** Find the objects active keys of one index resolve to, by key. */
+    readonly resolve: (names: {
+        readonly index: string;
+        readonly keys: readonly string[];
+    }) => Promise<ReadonlyMap<string, ClaimOwner>>;
 }
 
 /** The lookups of the objects active names resolve to. */
 export const ClaimLookup = {
     /** Look names up in a reader of the claims. */
     of(claims: RelationalQueryBuilder<typeof claimTable>): ClaimLookup {
-        return { owner: (named, key) => Claim.owner(claims, { index: named, key }) };
+        return { resolve: (names) => Claim.resolve(claims, names) };
     },
 };
 
@@ -171,9 +174,26 @@ export const Claim = Object.assign(claim, {
         values: readonly unknown[],
         scope?: string,
     ): Promise<{ readonly scope: string; readonly id: string } | undefined> {
-        // find the owner of the keyed values
-        const keyed = Claim.key(type, name, values, scope);
-        const found = await claims.owner(keyed.index, keyed.key);
+        return await Claim.first(type, claims, name, [values], scope);
+    },
+
+    /** Look up the first candidate values an object claims in an index, all in one lookup. */
+    async first(
+        type: ObjectType,
+        claims: ClaimLookup,
+        name: string,
+        candidates: readonly (readonly unknown[])[],
+        scope?: string,
+    ): Promise<{ readonly scope: string; readonly id: string } | undefined> {
+        // key every candidate, then find their owners at once
+        const keyed = candidates.map((values) => Claim.key(type, name, values, scope));
+        const named = Claim.index(type, name);
+        const owners = await claims.resolve({ index: named, keys: keyed.map((each) => each.key) });
+
+        // take the first candidate an object claims
+        const found = keyed
+            .map((each) => owners.get(each.key))
+            .find((owner) => owner !== undefined);
 
         return found === undefined ? undefined : { scope: found.owner, id: found.objectId };
     },
@@ -309,6 +329,18 @@ export const Claim = Object.assign(claim, {
         });
 
         return found === undefined ? undefined : { objectId: found.objectId, owner: found.owner };
+    },
+
+    /** Find the objects active keys of one index resolve to, by key, in one read. */
+    async resolve(
+        claims: RelationalQueryBuilder<typeof claimTable>,
+        names: { readonly index: string; readonly keys: readonly string[] },
+    ): Promise<ReadonlyMap<string, ClaimOwner>> {
+        const rows = await claims.findMany({
+            where: { index: names.index, key: { in: [...names.keys] }, state: "active" },
+        });
+
+        return new Map(rows.map((row) => [row.key, { objectId: row.objectId, owner: row.owner }]));
     },
 
     /** List the keys of one index some object claims, active or reserved, in one read. */

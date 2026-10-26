@@ -12,7 +12,7 @@ import {
 import { ClaimController, type ClaimPrimary, implementPackage } from "../src/server/index.ts";
 import {
     Claim,
-    type ClaimLookup,
+    ClaimLookup,
     ClaimRefusal,
     Claimant,
     claimTable,
@@ -510,7 +510,7 @@ async function universeStorage(world: Environment) {
 
 /** Find the objects active names resolve to in the universe's database. */
 function names(database: DatabaseConnection): ClaimLookup {
-    return { owner: (index, key) => Claim.owner(readClaims(database), { index, key }) };
+    return ClaimLookup.of(readClaims(database));
 }
 
 /** Read the claims in a database, as store code reads them. */
