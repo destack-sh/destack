@@ -39,18 +39,6 @@ export type Comparable = schema.Infer<typeof Comparable>;
 /** A comparison operator. */
 export type Operator = (typeof COMPARISONS)[number];
 
-/** A placeholder in its JSON form, as declarations and the wire send it. */
-const PlaceholderJson = schema.object({
-    /** The placeholder's name. */
-    placeholder: schema.string().min(1),
-});
-
-/** A placeholder as a condition reads it, in memory or in its JSON form. */
-const PlaceholderValue: schema.Schema<Placeholder> = schema.union([
-    schema.instanceof(Placeholder),
-    PlaceholderJson.transform((value) => new Placeholder(value.placeholder)),
-]);
-
 /** Another field of the row a comparison reads. */
 export const FieldReference = schema.object({
     /** The field's name. */
@@ -58,12 +46,6 @@ export const FieldReference = schema.object({
 });
 /** Another field of the row a comparison reads. */
 export type FieldReference = schema.Infer<typeof FieldReference>;
-
-/** A placeholder read when the condition runs, or another field of the row. */
-const Operand = schema.union([PlaceholderValue, FieldReference]);
-
-/** A field's comparand: a value, a placeholder read when the condition runs, or another field. */
-const Comparand = schema.union([Comparable, PlaceholderValue, FieldReference]);
 
 /** The comparisons of one field. */
 export type FieldCondition<Value extends Comparable = Comparable> = {
@@ -136,50 +118,6 @@ export type LengthCondition = {
     /** Negate a comparison. */
     readonly NOT?: LengthCondition;
 };
-
-/** The comparisons of a text's length, as resolving reads them. */
-const LengthCondition: schema.Schema<LengthCondition> = schema.lazy(() =>
-    schema.object({
-        eq: schema.int().nonnegative().exactOptional(),
-        ne: schema.int().nonnegative().exactOptional(),
-        lt: schema.int().nonnegative().exactOptional(),
-        lte: schema.int().nonnegative().exactOptional(),
-        gt: schema.int().nonnegative().exactOptional(),
-        gte: schema.int().nonnegative().exactOptional(),
-        in: schema.array(schema.int().nonnegative()).exactOptional(),
-        notIn: schema.array(schema.int().nonnegative()).exactOptional(),
-        AND: schema.array(LengthCondition).exactOptional(),
-        OR: schema.array(LengthCondition).exactOptional(),
-        NOT: LengthCondition.exactOptional(),
-    }),
-);
-
-/** The comparisons of one field, as resolving reads them. */
-const FieldCondition: schema.Schema<FieldCondition> = schema.lazy(() =>
-    schema.object({
-        eq: Comparand.exactOptional(),
-        ne: Comparand.exactOptional(),
-        lt: Comparand.exactOptional(),
-        lte: Comparand.exactOptional(),
-        gt: Comparand.exactOptional(),
-        gte: Comparand.exactOptional(),
-        in: schema.array(Comparable).exactOptional(),
-        notIn: schema.array(Comparable).exactOptional(),
-        like: schema.string().exactOptional(),
-        ilike: schema.string().exactOptional(),
-        notLike: schema.string().exactOptional(),
-        notIlike: schema.string().exactOptional(),
-        startsWith: schema.string().exactOptional(),
-        endsWith: schema.string().exactOptional(),
-        characters: schema.string().min(1).exactOptional(),
-        length: schema.union([schema.int().nonnegative(), LengthCondition]).exactOptional(),
-        isNull: schema.literal(true).exactOptional(),
-        isNotNull: schema.literal(true).exactOptional(),
-        AND: schema.array(FieldCondition).exactOptional(),
-        OR: schema.array(FieldCondition).exactOptional(),
-        NOT: FieldCondition.exactOptional(),
-    }),
-);
 
 /** The value a field compares with, never for a field no condition compares. */
 type ComparableOf<Value> =
@@ -351,9 +289,9 @@ function resolveField(name: string, entry: OpenEntry): Predicate {
     }
 
     // compare with a placeholder or another field, or apply the field's comparisons
-    const operand = Operand.safeParse(entry);
-    if (operand.success) {
-        return { kind: "compare", operator: "eq", name, value: operand.data };
+    const operand = operandOf(entry);
+    if (operand !== undefined) {
+        return { kind: "compare", operator: "eq", name, value: operand };
     } else {
         return fieldPredicate(name, comparisonsOf(name, entry));
     }
@@ -482,15 +420,245 @@ function nestedPredicates(name: string, field: FieldCondition): Predicate[] {
 
 /** Read an entry as a field's comparisons. */
 function comparisonsOf(name: string, entry: OpenEntry): FieldCondition {
-    const parsed = FieldCondition.safeParse(entry);
-    if (!parsed.success) {
+    const comparisons = readComparisons(entry);
+    if (comparisons === undefined) {
         throw DatabaseError.of(
             "QUERY_INVALID",
             `condition field ${name} needs a value or comparisons`,
         );
     }
 
-    return parsed.data;
+    return comparisons;
+}
+
+/** Read a value as a placeholder or another field, absent for anything else. */
+function operandOf(value: unknown): Placeholder | FieldReference | undefined {
+    // take a placeholder as it is
+    if (value instanceof Placeholder) {
+        return value;
+    }
+    // refuse anything but a JSON form with exactly one key
+    else if (!isRecord(value) || Object.keys(value).length !== 1) {
+        return undefined;
+    }
+
+    // read a placeholder's JSON form
+    const { placeholder, field } = value;
+    if (isText(placeholder)) {
+        return new Placeholder(placeholder);
+    }
+    // read another field
+    else if (isText(field)) {
+        return { field };
+    }
+    // refuse any other key
+    else {
+        return undefined;
+    }
+}
+
+/** Read a value as a field's comparisons, absent for anything else. */
+function readComparisons(value: unknown): FieldCondition | undefined {
+    // require an object
+    if (!isRecord(value)) {
+        return undefined;
+    }
+
+    // read each comparison by its operator, refusing an unknown or invalid one
+    const comparisons: { -readonly [Key in keyof FieldCondition]: FieldCondition[Key] } = {};
+    for (const [operator, operand] of Object.entries(value)) {
+        switch (operator) {
+            case "eq":
+            case "ne":
+            case "lt":
+            case "lte":
+            case "gt":
+            case "gte": {
+                const read = isComparable(operand) ? operand : operandOf(operand);
+                if (read === undefined) {
+                    return undefined;
+                }
+                comparisons[operator] = read;
+                break;
+            }
+            case "in":
+            case "notIn": {
+                const read = readEach(operand, (each) => (isComparable(each) ? each : undefined));
+                if (read === undefined) {
+                    return undefined;
+                }
+                comparisons[operator] = read;
+                break;
+            }
+            case "like":
+            case "ilike":
+            case "notLike":
+            case "notIlike":
+            case "startsWith":
+            case "endsWith": {
+                if (typeof operand !== "string") {
+                    return undefined;
+                }
+                comparisons[operator] = operand;
+                break;
+            }
+            case "characters": {
+                if (!isText(operand)) {
+                    return undefined;
+                }
+                comparisons[operator] = operand;
+                break;
+            }
+            case "length": {
+                const read = isCount(operand) ? operand : readLength(operand);
+                if (read === undefined) {
+                    return undefined;
+                }
+                comparisons[operator] = read;
+                break;
+            }
+            case "isNull":
+            case "isNotNull": {
+                if (operand !== true) {
+                    return undefined;
+                }
+                comparisons[operator] = operand;
+                break;
+            }
+            case "AND":
+            case "OR": {
+                const read = readEach(operand, readComparisons);
+                if (read === undefined) {
+                    return undefined;
+                }
+                comparisons[operator] = read;
+                break;
+            }
+            case "NOT": {
+                const read = readComparisons(operand);
+                if (read === undefined) {
+                    return undefined;
+                }
+                comparisons[operator] = read;
+                break;
+            }
+            default:
+                return undefined;
+        }
+    }
+
+    return comparisons;
+}
+
+/** Read a value as the comparisons of a text's length, absent for anything else. */
+function readLength(value: unknown): LengthCondition | undefined {
+    // require an object
+    if (!isRecord(value)) {
+        return undefined;
+    }
+
+    // read each comparison by its operator, refusing an unknown or invalid one
+    const comparisons: {
+        -readonly [Key in keyof LengthCondition]: LengthCondition[Key];
+    } = {};
+    for (const [operator, operand] of Object.entries(value)) {
+        switch (operator) {
+            case "eq":
+            case "ne":
+            case "lt":
+            case "lte":
+            case "gt":
+            case "gte": {
+                if (!isCount(operand)) {
+                    return undefined;
+                }
+                comparisons[operator] = operand;
+                break;
+            }
+            case "in":
+            case "notIn": {
+                const read = readEach(operand, (each) => (isCount(each) ? each : undefined));
+                if (read === undefined) {
+                    return undefined;
+                }
+                comparisons[operator] = read;
+                break;
+            }
+            case "AND":
+            case "OR": {
+                const read = readEach(operand, readLength);
+                if (read === undefined) {
+                    return undefined;
+                }
+                comparisons[operator] = read;
+                break;
+            }
+            case "NOT": {
+                const read = readLength(operand);
+                if (read === undefined) {
+                    return undefined;
+                }
+                comparisons[operator] = read;
+                break;
+            }
+            default:
+                return undefined;
+        }
+    }
+
+    return comparisons;
+}
+
+/** Read every element of a list, absent when it is no list or an element is invalid. */
+function readEach<Read>(
+    value: unknown,
+    read: (element: unknown) => Read | undefined,
+): Read[] | undefined {
+    // require a list
+    if (!Array.isArray(value)) {
+        return undefined;
+    }
+
+    // read each element, refusing the list at an invalid one
+    const elements: Read[] = [];
+    for (const element of value) {
+        const each = read(element);
+        if (each === undefined) {
+            return undefined;
+        }
+        elements.push(each);
+    }
+
+    return elements;
+}
+
+/** Report whether a value is an object, neither a list nor a placeholder. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value) &&
+        !(value instanceof Placeholder)
+    );
+}
+
+/** Report whether a value is text, a finite number or a boolean, which a field compares with. */
+function isComparable(value: unknown): value is Comparable {
+    return (
+        typeof value === "string" ||
+        typeof value === "boolean" ||
+        (typeof value === "number" && Number.isFinite(value))
+    );
+}
+
+/** Report whether a value is non-empty text. */
+function isText(value: unknown): value is string {
+    return typeof value === "string" && value.length > 0;
+}
+
+/** Report whether a value is a non-negative whole number. */
+function isCount(value: unknown): value is number {
+    return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 /** Read an entry as one condition. */

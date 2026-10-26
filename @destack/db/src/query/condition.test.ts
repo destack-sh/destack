@@ -1,4 +1,4 @@
-import { asc, sql } from "../sql/index.ts";
+import { asc, Placeholder, sql } from "../sql/index.ts";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { defineTable, Table } from "../table/table.ts";
@@ -270,6 +270,48 @@ test("refuse comparing fields that order as different values, and a field the ta
     ]);
 });
 
+test("read a placeholder's or a field's JSON form as its operand, and refuse unknown or mistyped comparisons", async () => {
+    // read the JSON forms the wire sends
+    const fields = Namespace.fields(sample);
+    expect([
+        Condition.resolve({ name: { placeholder: "query" } }, fields),
+        Condition.resolve({ name: { ne: { placeholder: "query" } } }, fields),
+        Condition.resolve({ count: { field: "ratio" } }, fields),
+        Condition.resolve({ count: { gt: { field: "ratio" } } }, fields),
+    ]).toEqual([
+        Condition.resolve({ name: new Placeholder("query") }, fields),
+        Condition.resolve({ name: { ne: new Placeholder("query") } }, fields),
+        Predicate.all({
+            kind: "compare",
+            operator: "eq",
+            name: "count",
+            value: { field: "ratio" },
+        }),
+        Predicate.all({
+            kind: "compare",
+            operator: "gt",
+            name: "count",
+            value: { field: "ratio" },
+        }),
+    ]);
+
+    // refuse an unknown operator, a mistyped operand, a negative length, an empty placeholder name and a mistyped negation
+    const refused = (condition: Condition) => refusal(() => Condition.resolve(condition, fields));
+    expect([
+        await refused({ name: { contains: "a" } }),
+        await refused({ name: { like: 1 } }),
+        await refused({ name: { length: -1 } }),
+        await refused({ name: { eq: { placeholder: "" } } }),
+        await refused({ name: { NOT: { isNull: false } } }),
+    ]).toEqual([
+        invalidField("name"),
+        invalidField("name"),
+        invalidField("name"),
+        invalidField("name"),
+        invalidField("name"),
+    ]);
+});
+
 test("refuse conditions beyond a thousand terms", () => {
     // accept a thousand values and refuse one more
     const values = Array.from({ length: 1000 }, (_, index) => index);
@@ -407,3 +449,8 @@ test("resolve conditions by their row's fields, and read their fields, relations
     const resolved = Condition.resolve(parsed, new Set(["status", "due", "priority"]));
     expect(JSON.parse(JSON.stringify(resolved))).toEqual(JSON.parse(JSON.stringify(predicate)));
 });
+
+/** Read the refusal of a field's comparisons that are neither a value nor known comparisons. */
+function invalidField(name: string): readonly string[] {
+    return ["BAD_REQUEST", "QUERY_INVALID", `condition field ${name} needs a value or comparisons`];
+}
