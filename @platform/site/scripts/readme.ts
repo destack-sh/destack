@@ -11,8 +11,8 @@ const SITE = "http://localhost:3737/";
 /** The directory the README's images go in, beside the repository's other GitHub files. */
 const OUTPUT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", ".github", "readme");
 
-/** The device pixel ratio of the capture, about twice the README column's density. */
-const SCALE = 1.5;
+/** The device pixel ratio of the capture, for the retina screens GitHub shows it on. */
+const SCALE = 2;
 
 /** The milliseconds each state of a figure holds before it switches. */
 const HOLD = 2000;
@@ -58,9 +58,6 @@ const OVERSHOOT = 1.2;
 
 /** The share of the window's width the line rests from each edge, so both states always show. */
 const REST = 0.05;
-
-/** The WebP quality of the frames, high enough for crisp text. */
-const QUALITY = 82;
 
 /** The pixels of transparent margin around the windows, room for their shadows. */
 const MARGIN = 12;
@@ -315,12 +312,12 @@ async function split(stacked: Buffer, destacked: Buffer, x: number, size: Size) 
         .toBuffer();
 }
 
-/** Encode frames as one looping animated WebP. */
+/** Encode frames as one looping lossless animated WebP, which keeps text exact. */
 async function encode(frames: readonly Frame[], file: string) {
     await sharp(
         frames.map((frame) => frame.image),
         { join: { animated: true } },
     )
-        .webp({ delay: frames.map((frame) => frame.delay), loop: 0, quality: QUALITY })
+        .webp({ delay: frames.map((frame) => frame.delay), loop: 0, lossless: true })
         .toFile(file);
 }
