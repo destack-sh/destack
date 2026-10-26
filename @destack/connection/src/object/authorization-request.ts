@@ -79,7 +79,7 @@ export const authorizationRequest = defineObject(
     (method) => ({
         /** Record a started authorization of one kind, as the connection package. */
         start: method.create("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["userId", "session"],
             variants: {
                 kind: {
@@ -90,9 +90,9 @@ export const authorizationRequest = defineObject(
             },
         }),
         /** Record the seconds between polls the server asks for, as the connection package. */
-        update: method.update("record", { isInternal: true, fields: ["interval"] }),
+        update: method.update("record", { visibility: "package", fields: ["interval"] }),
         /** Use the authorization once, as the connection package. */
-        delete: method.delete("record", { isInternal: true }),
+        delete: method.delete("record", { visibility: "package" }),
     }),
 );
 /** A pending authorization of a connection. */
