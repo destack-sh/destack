@@ -3,39 +3,7 @@
 Destack is composed of six layers, from the people using it down to the machines running it.
 Each layer is a set of packages under [`@destack`](@destack); the tables below list what each package does and the prior art it follows.
 
-```mermaid
-flowchart TB
-    subgraph identity["01 Identity"]
-        direction LR
-        identity_identity["identity"] ~~~ identity_account["account"] ~~~ identity_connection["connection"]
-    end
-    subgraph presentation["02 Presentation"]
-        direction LR
-        presentation_style["style"] ~~~ presentation_theme["theme"] ~~~ presentation_icon["icon"] ~~~ presentation_view["view"] ~~~ presentation_shader["shader"]
-        presentation_ui["ui"] ~~~ presentation_web["web"] ~~~ presentation_desktop["desktop"] ~~~ presentation_cli["cli"]
-    end
-    subgraph application["03 Application"]
-        direction LR
-        application_error["error"] ~~~ application_telemetry["telemetry"] ~~~ application_locale["locale"] ~~~ application_environment["environment"] ~~~ application_access["access"] ~~~ application_setting["setting"]
-        application_workflow["workflow"] ~~~ application_message["message"] ~~~ application_notification["notification"] ~~~ application_social["social"] ~~~ application_observability["observability"] ~~~ application_finance["finance"]
-    end
-    subgraph persistence["04 Persistence"]
-        direction LR
-        persistence_schema["schema"] ~~~ persistence_db["db"] ~~~ persistence_sync["sync"] ~~~ persistence_bucket["bucket"]
-        persistence_event["event"] ~~~ persistence_object["object"] ~~~ persistence_vault["vault"]
-    end
-    subgraph source["05 Source"]
-        direction LR
-        source_package["package"] ~~~ source_resource["resource"] ~~~ source_test["test"] ~~~ source_build["build"] ~~~ source_stack["stack"] ~~~ source_forge["forge"]
-    end
-    subgraph infrastructure["06 Infrastructure"]
-        direction LR
-        infrastructure_sandbox["sandbox"] ~~~ infrastructure_update["update"] ~~~ infrastructure_relay["relay"] ~~~ infrastructure_machine["machine"] ~~~ infrastructure_universe["universe"]
-    end
-    identity ~~~ presentation ~~~ application ~~~ persistence ~~~ source ~~~ infrastructure
-```
-
-### 01 Identity
+## 01 Identity
 
 Who you are, and who gets in.
 
@@ -45,7 +13,7 @@ Who you are, and who gets in.
 | [`@destack/account`](@destack/account) | Sign people in with magic links, passkeys, two-factor and OAuth, and serve accounts, spaces, domains and an OpenID Connect provider | Better Auth |
 | [`@destack/connection`](@destack/connection) | Store credentials for external accounts and attach them to outbound requests | Nango |
 
-### 02 Presentation
+## 02 Presentation
 
 What you see and touch.
 
@@ -61,7 +29,7 @@ What you see and touch.
 | [`@destack/desktop`](@destack/desktop) | Run the native shell: windows, menus, banners, the badge, the tray and the command palette | Tauri |
 | [`@destack/cli`](@destack/cli) | Read and change a space's objects, stacks, installations and packages from the terminal | kubectl, gh |
 
-### 03 Application
+## 03 Application
 
 What your apps actually do.
 
@@ -80,7 +48,7 @@ What your apps actually do.
 | [`@destack/observability`](@destack/observability) | Store a space's logs, spans and metrics, group failures into issues, fire alerts, and declare usage meters | Sentry, Grafana |
 | [`@destack/finance`](@destack/finance) | Declare products, features and metered usage, bill through a payment provider, and derive entitlements | Autumn, Orb |
 
-### 04 Persistence
+## 04 Persistence
 
 What they remember.
 
@@ -94,7 +62,7 @@ What they remember.
 | [`@destack/object`](@destack/object) | Declare object types and their packages: synced tables with access rules, methods served and called over oRPC, workloads, history and events | Convex, oRPC, OpenAPI |
 | [`@destack/vault`](@destack/vault) | Store versioned secrets encrypted at rest, generate keys, and stage and promote versions | AWS Secrets Manager |
 
-### 05 Source
+## 05 Source
 
 Where it all comes from, and how it changes.
 
@@ -107,7 +75,7 @@ Where it all comes from, and how it changes.
 | [`@destack/stack`](@destack/stack) | Declare a space's resources and package installations, and apply them as revisions with a plan and an approval | Pulumi, CloudFormation |
 | [`@destack/forge`](@destack/forge) | Host Git repositories and publish packages as npm releases | GitHub, npm |
 
-### 06 Infrastructure
+## 06 Infrastructure
 
 Where it all runs.
 
