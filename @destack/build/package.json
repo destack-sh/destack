@@ -42,11 +42,6 @@
         "vite": "8.3.0"
     },
     "devDependencies": {
-        "@destack/observability": "workspace:*",
-        "@destack/setting": "workspace:*",
-        "@destack/theme": "workspace:*",
-        "@destack/vault": "workspace:*",
-        "@destack/web": "workspace:*",
         "@types/bun": "1.4.2"
     }
 }

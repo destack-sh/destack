@@ -8,13 +8,13 @@ _default:
 typecheck:
     bun run typecheck
 
-# lint
+# lint, leaving the byte-exact fixtures to the packages they copy
 lint:
-    bun run destack-check check src tests vitest.config.ts README.md
+    bun run destack-check check src tests/*.ts vitest.config.ts README.md
 
-# check formatting
+# check formatting, leaving the byte-exact fixtures alone
 format-check:
-    bun run destack-check format-check src tests vitest.config.ts package.json destack.json
+    bun run destack-check format-check src tests/*.ts vitest.config.ts package.json destack.json
 
 # typecheck, lint and check formatting
 check: typecheck lint format-check
@@ -23,9 +23,9 @@ check: typecheck lint format-check
 test:
     bun run test
 
-# format
+# format, leaving the byte-exact fixtures alone
 format *args:
-    bun run destack-check format {{args}} src tests vitest.config.ts package.json destack.json
+    bun run destack-check format {{args}} src tests/*.ts vitest.config.ts package.json destack.json
 
 # update fixtures
 update:
