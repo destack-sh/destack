@@ -105,7 +105,7 @@ export const secret = defineObject(
     (method) => ({
         create: method.create("create", { fields: ["name"] }),
         /** Provision a secret an installation's declaration binds, as its space generates it. */
-        provision: method.create("provision", { isInternal: true, fields: ["name"] }),
+        provision: method.create("provision", { visibility: "installation", fields: ["name"] }),
         get: method.get("get"),
         list: method.list("list"),
         read: method.query({
@@ -117,7 +117,7 @@ export const secret = defineObject(
         /** Write a generated first version of a secret without one. */
         generate: method.mutation({
             permission: "provision",
-            isInternal: true,
+            visibility: "installation",
             input: SecretGeneration.pick({ algorithm: true }),
         }),
         /** Rename a secret, or point its `current` alias at a readable version. */
@@ -186,6 +186,6 @@ export const secretVersion = defineObject(
         enable: method.mutation({ permission: "enable" }),
         destroy: method.mutation({ permission: "destroy" }),
         /** Destroy a version's value as its secret's purge does. */
-        erase: method.mutation({ permission: "erase", isInternal: true }),
+        erase: method.mutation({ permission: "erase", visibility: "package" }),
     }),
 );
