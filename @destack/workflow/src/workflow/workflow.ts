@@ -73,7 +73,7 @@ export interface Workflow<
     /** The object types the workflow declares: its runs, their steps and its triggers. */
     readonly objects: Readonly<Record<string, ObjectType>>;
     /** Build the call starting a run, which a method makes in its own transaction. */
-    readonly start: (input: NoInfer<Input>, options: RunStart) => Call;
+    readonly start: (input: NoInfer<Input>, options: RunStart) => Call<Run["row"]>;
     /** Implement the workflow with its function and the triggers starting it. */
     readonly implement: (
         run: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,

@@ -48,9 +48,6 @@ export const ENDED_STATES = [
     "cancelled",
 ] as const satisfies readonly RunState[];
 
-/** A run's row as its workflow's run type stores it. */
-export type RunRow = Select<RunType["table"]>;
-
 /** The outcome of one advance: when the run wakes, absent once ended or waiting on writes. */
 type Outcome = { readonly wake: number | undefined; readonly isEnded: boolean };
 
@@ -59,10 +56,10 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
     /** The workflow the run belongs to. */
     readonly workflow: Workflow<Input, Output, Waits>;
     /** The run's row. */
-    readonly row: RunRow;
+    readonly row: Select<RunType["table"]>;
 
     /** Read a run of a workflow from its row. */
-    constructor(workflow: Workflow<Input, Output, Waits>, row: RunRow) {
+    constructor(workflow: Workflow<Input, Output, Waits>, row: Select<RunType["table"]>) {
         this.workflow = workflow;
         this.row = row;
     }
@@ -106,7 +103,7 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
         workflow: Workflow<Input, Output, Waits>,
         context: MethodContextOf<RunType, "create">,
         next: NextOf<RunType, "create">,
-    ): Promise<RunRow> {
+    ): Promise<Run["row"]> {
         // find the live run of the key
         const creation = context.input;
         const { key } = creation;
@@ -192,7 +189,7 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
     static async end<Input, Output, Waits extends ObjectType, Ended>(
         workflow: Workflow<Input, Output, Waits>,
         context: Pick<MethodContext, "read" | "objects" | "mutate" | "self">,
-        target: RunRow,
+        target: Run["row"],
         next: () => Promise<Ended>,
     ): Promise<Ended> {
         // end the run, then cancel its live children that end with it
