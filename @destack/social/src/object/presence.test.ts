@@ -109,7 +109,11 @@ test("show an article's readers who is on it once per writer, what they do and w
                 }),
             ),
         ),
-    ).toEqual(["CONFLICT", "DUPLICATE", "another presence has the same parent, principal, and writerId"]);
+    ).toEqual([
+        "CONFLICT",
+        "DUPLICATE",
+        "another presence has the same parent, principal, and writerId",
+    ]);
 
     // let another principal reuse the writer only for its own row
     const reused = await kit.call(

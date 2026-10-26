@@ -138,8 +138,8 @@ export class TestSocial implements AsyncDisposable {
         // copy the space with its installations, people and roles into a fork of its world
         const { space, world } = await TestSpace.copy(SOCIAL_TEMPLATE, SPACE_OPTIONS);
 
-        // serve it, driving the work through the fork
-        return space.simulation.drive(TestSocial.#open(space, world));
+        // serve it, settling the work under the fork
+        return space.simulation.settle(TestSocial.#open(space, world));
     }
 
     /** Serve a copied space to its people and the agent. */
@@ -156,16 +156,16 @@ export class TestSocial implements AsyncDisposable {
             agent: TestSocial.#mentioned(principal.installation, world.agent),
         };
 
-        // call as the people and the agent's installation, driven through the simulation
-        const drive = <Value>(work: Promise<Value>) => simulation.drive(work);
+        // call as the people and the agent's installation, settled under the simulation
+        const settle = <Value>(work: Promise<Value>) => simulation.settle(work);
         const callers = {
-            alice: space.person(served, nth(people, 0)).driven(drive),
-            bob: space.person(served, nth(people, 1)).driven(drive),
-            carol: space.person(served, nth(people, 2)).driven(drive),
-            dave: space.person(served, nth(people, 3)).driven(drive),
+            alice: space.person(served, nth(people, 0)).driven(settle),
+            bob: space.person(served, nth(people, 1)).driven(settle),
+            carol: space.person(served, nth(people, 2)).driven(settle),
+            dave: space.person(served, nth(people, 3)).driven(settle),
             agent: served
                 .as(principal.installation.reference(ids.space, world.agent))
-                .driven(drive),
+                .driven(settle),
         };
 
         return new TestSocial({ space, served, simulation, actors, callers });
@@ -265,7 +265,7 @@ export class TestSocial implements AsyncDisposable {
 
     /** Settle the space's controllers under the simulation. */
     settle(): Promise<void> {
-        return this.simulation.drive(this.space.settle(this.served));
+        return this.simulation.settle(this.space.settle(this.served));
     }
 
     /** Follow the space's presence as an actor's client does, replicating it over HTTP. */
@@ -291,7 +291,9 @@ export class TestSocial implements AsyncDisposable {
         });
 
         // keep the follower until the kit closes, reading its rows under the simulation
-        const follower = new TestFollower(client, resources, (work) => this.simulation.drive(work));
+        const follower = new TestFollower(client, resources, (work) =>
+            this.simulation.settle(work),
+        );
         this.#followers.push(follower);
 
         return follower;
@@ -300,13 +302,13 @@ export class TestSocial implements AsyncDisposable {
     /** End the follows, stop serving the space, then close it. */
     async [Symbol.asyncDispose](): Promise<void> {
         // end the follows before the databases close
-        await this.simulation.drive(
+        await this.simulation.settle(
             Promise.all(this.#followers.map((follower) => follower.close())),
         );
 
         // stop serving, then close the space, under the simulation
-        await this.simulation.drive(this.served[Symbol.asyncDispose]());
-        await this.simulation.drive(this.space[Symbol.asyncDispose]());
+        await this.simulation.settle(this.served[Symbol.asyncDispose]());
+        await this.simulation.settle(this.space[Symbol.asyncDispose]());
     }
 }
 
@@ -327,25 +329,25 @@ export class TestFollower {
     /** The rows read last, as JSON. */
     #last: string | undefined;
     /** Run work under the kit's simulation. */
-    readonly #drive: <Value>(work: Promise<Value>) => Promise<Value>;
+    readonly #settle: <Value>(work: Promise<Value>) => Promise<Value>;
 
     /** Run a client and watch its presence rows. */
     constructor(
         client: ObjectClient<{ readonly presence: typeof presence }>,
         resources: AsyncDisposableStack,
-        drive: <Value>(work: Promise<Value>) => Promise<Value>,
+        settle: <Value>(work: Promise<Value>) => Promise<Value>,
     ) {
-        // keep the client, its resources and the drive, then run it and watch its presence rows
+        // keep the client, its resources and the settle, then run it and watch its presence rows
         this.#client = client;
         this.#resources = resources;
-        this.#drive = drive;
+        this.#settle = settle;
         this.#running = client.run(this.#stopping.signal, (error) => this.#failures.push(error));
         this.#values = client.query.presence.findMany().subscribe().watch(this.#stopping.signal);
     }
 
     /** Read the rows once they differ from the rows read last, under the simulation. */
     rows(): Promise<Record<string, unknown>[]> {
-        return this.#drive(this.#changed());
+        return this.#settle(this.#changed());
     }
 
     /** Read the rows once they differ from the rows read last. */
