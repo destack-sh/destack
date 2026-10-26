@@ -70,26 +70,26 @@ const FIGURES = [
     {
         file: "space",
         entry: "verb",
-        // a tablet layout, where the browser spans the frame at about 980 pixels
-        viewport: { width: 1080, height: 900 },
+        // a tablet layout, where the browser spans the frame at 850 pixels
+        viewport: { width: 948, height: 900 },
         windows: ["section:has(#verb) [data-component=Browser]"],
         // taller than the layout's 480 pixels, about as tall for its width as the stack
-        height: 690,
+        height: 600,
     },
     {
         file: "engine",
         entry: "noun",
-        // a tablet layout, where the browser spans the frame at about 980 pixels
-        viewport: { width: 1080, height: 900 },
+        // a tablet layout, where the browser spans the frame at 850 pixels
+        viewport: { width: 948, height: 900 },
         windows: ["section:has(#noun) [data-component=XRay]"],
         // taller than the layout's 544 pixels, about as tall for its width as the stack
-        height: 690,
+        height: 600,
     },
     {
         file: "stack",
         entry: "past-participle",
-        // a desktop layout tall enough for the whole stack, where the window is 1150 by 808 pixels
-        viewport: { width: 1320, height: 1300 },
+        // the narrowest desktop layout, where the window is 1002 by 702 pixels
+        viewport: { width: 1100, height: 1030 },
         windows: ["[data-component=LayerList]"],
         // the layout's own height
         height: undefined,
