@@ -93,8 +93,8 @@ const FIGURES = [
     },
 ] as const;
 
-/** The colour schemes the README shows, one image each, as GitHub's own theme picks. */
-const SCHEMES = ["light", "dark"] as const;
+/** The colour scheme the README's images show, in GitHub's light and dark themes alike. */
+const SCHEME = "light";
 
 /** One captured frame of a figure and how long it shows. */
 type Frame = { image: Buffer; delay: number };
@@ -107,26 +107,23 @@ type Figure = (typeof FIGURES)[number];
 
 await exportFigures(BunEnvironment.system);
 
-/** Capture every figure in every scheme from one browser, and write each as a looping image. */
+/** Capture every figure from one browser, and write each as a looping image. */
 async function exportFigures(environment: Environment<"files" | "process">) {
     // make the output directory and open the installed Chrome
     const { files, process } = environment;
     await files.mkdir(OUTPUT, { recursive: true });
     const browser = await chromium.launch({ channel: "chrome" });
 
-    // capture each figure at its viewport in each scheme
-    for (const scheme of SCHEMES) {
-        const context = await browser.newContext({ colorScheme: scheme, deviceScaleFactor: SCALE });
-        const page = await context.newPage();
-        for (const figure of FIGURES) {
-            await page.setViewportSize({ width: figure.viewport, height: VIEWPORT_HEIGHT });
-            await page.goto(SITE, { waitUntil: "load" });
-            const frames = await capture(page, figure);
-            const file = join(OUTPUT, `${figure.file}-${scheme}.webp`);
-            await encode(frames, file);
-            await process.stdout.write(`wrote ${file}\n`);
-        }
-        await context.close();
+    // capture each figure at its viewport
+    const context = await browser.newContext({ colorScheme: SCHEME, deviceScaleFactor: SCALE });
+    const page = await context.newPage();
+    for (const figure of FIGURES) {
+        await page.setViewportSize({ width: figure.viewport, height: VIEWPORT_HEIGHT });
+        await page.goto(SITE, { waitUntil: "load" });
+        const frames = await capture(page, figure);
+        const file = join(OUTPUT, `${figure.file}.webp`);
+        await encode(frames, file);
+        await process.stdout.write(`wrote ${file}\n`);
     }
     await browser.close();
 }
