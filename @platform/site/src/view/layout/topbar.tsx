@@ -281,7 +281,7 @@ const styles = style.create({
     },
     navigation: {
         alignItems: "baseline",
-        color: color.mutedForeground,
+        color: color.foreground,
         display: { default: "flex", [media.maxMd]: "none" },
         fontSize: typeScale.body,
         insetInlineStart: "50%",
@@ -295,26 +295,21 @@ const styles = style.create({
     },
     link: {
         color: {
-            default: color.mutedForeground,
-            ":hover": { default: null, [media.hover]: color.foreground },
-        },
-        textDecorationColor: {
-            default: color.border,
+            default: color.foreground,
             ":hover": { default: null, [media.hover]: color.primary },
         },
-        textDecorationLine: "underline",
+        textDecorationColor: color.primary,
+        textDecorationLine: "none",
         textDecorationSkipInk: "none",
-        textDecorationThickness: "0.08em",
+        textDecorationThickness: "0.12em",
         textUnderlineOffset: "0.2em",
     },
     active: {
-        color: color.foreground,
-        textDecorationColor: color.primary,
-        textDecorationThickness: "0.12em",
+        textDecorationLine: "underline",
     },
     pending: {
+        color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
         cursor: "default",
-        textDecorationLine: "none",
     },
     tool: {
         width: "20px",
@@ -327,6 +322,11 @@ const styles = style.create({
         marginInlineStart: "auto",
     },
     get: {
+        backgroundColor: {
+            default: color.foreground,
+            ":hover": { default: null, [media.hover]: color.primary },
+        },
+        color: color.background,
         marginInlineStart: { default: "0.5rem", [media.maxMd]: "0.25rem" },
         whiteSpace: "nowrap",
     },

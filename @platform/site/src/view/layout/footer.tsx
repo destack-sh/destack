@@ -190,13 +190,14 @@ const styles = style.create({
     },
     link: {
         color: {
-            default: `color-mix(in srgb, ${color.foreground} 85%, transparent)`,
+            default: color.foreground,
             ":hover": { default: null, [media.hover]: color.primary },
         },
         fontSize: typeScale.small,
         textDecorationLine: "none",
     },
     pending: {
+        color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
         cursor: "default",
     },
     fine: {
