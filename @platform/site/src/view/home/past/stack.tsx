@@ -1260,7 +1260,7 @@ const styles = style.create({
         fontWeight: 600,
         lineHeight: "1.375rem",
         translate: "0 0.125rem",
-        display: { default: "grid", [media.maxMd]: "none" },
+        display: { default: "grid", [screen.narrowDesktop]: "none", [media.maxMd]: "none" },
     },
     pool: {
         backgroundColor: palette.water,
