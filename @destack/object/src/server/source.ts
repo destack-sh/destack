@@ -224,22 +224,27 @@ export class ObjectSource {
         subscription: sync.Subscription,
         context: RequestContext,
     ): Promise<ReplicaFollower> {
+        // follow on behalf of the caller's own principal as the caller itself
+        const { subject: given, after: _after, ...rest } = subscription;
+        const isSelf = given !== undefined && Subject.same(ObjectSource.#principal(context), given);
+        const subject = isSelf ? undefined : given;
+        const request: Omit<sync.Subscription, "after"> =
+            subject === undefined ? rest : { ...rest, subject };
+
+        // decide by the publication's audience
         switch (publication.audience) {
             case "caller": {
                 // decide for the caller, or for the principal it may follow on behalf of
-                await this.store.enter(context, subscription.scope);
-                if (subscription.subject === undefined) {
+                await this.store.enter(context, request.scope);
+                if (subject === undefined) {
                     return { context };
                 }
-                const subject = subscription.subject;
                 await this.#requireFollow(subject, context);
 
                 return { subject };
             }
             case "contained":
             case "reader": {
-                const { after: _after, ...request } = subscription;
-
                 return this.#follower(request, context);
             }
         }
@@ -331,14 +336,8 @@ export class ObjectSource {
         return Caller.principal(caller);
     }
 
-    /** Require the caller to be a principal, or to have `follow` on the principal's object. */
+    /** Require the caller to have `follow` on a principal's object. */
     async #requireFollow(subject: Subject, context: RequestContext): Promise<void> {
-        // allow the principal itself
-        const acting = ObjectSource.#principal(context);
-        if (Subject.same(acting, subject)) {
-            return;
-        }
-
         // require a principal type its followers declare
         const policy = this.store.authorizer.policy(subject);
         if (!Object.hasOwn(policy.definition.permissions, FOLLOW)) {

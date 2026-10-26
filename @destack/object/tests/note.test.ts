@@ -612,6 +612,48 @@ test("resume a store stream from the last event it sent, at that page's position
     ]);
 });
 
+test("follow a caller's access rows on behalf of the caller itself as without a subject", async () => {
+    // run in a world of its own, alice with a notebook
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    const { connect, endpoint, environment } = await serveNotes({ simulation });
+    await connect(users.alice).notebook.create({
+        spaceId,
+        requestId: RequestId.create(environment),
+        name: "Research",
+    });
+    const store = ObjectClient.store(endpoint(users.alice), world);
+    const subscription = {
+        name: "access",
+        publication: "access",
+        scope: spaceId,
+        target: spaceId,
+        parameters: {},
+    };
+
+    // read the rows up to the first complete page, without a subject and with alice as it
+    const complete = async (subject?: ReturnType<typeof principal.user.reference>) => {
+        const controller = new AbortController();
+        const asked = subject === undefined ? subscription : { ...subscription, subject };
+        const changes: Page["changes"][number][] = [];
+        for await (const page of await store.stream(asked, { signal: controller.signal })) {
+            changes.push(...page.changes);
+            if (page.complete) {
+                controller.abort();
+
+                return changes;
+            }
+        }
+        throw new TypeError("the stream ended before a complete page");
+    };
+    const alice = principal.user.reference("universe", users.alice);
+    const own = await complete();
+    expect({ isFilled: own.length > 0, onBehalf: await complete(alice) }).toEqual({
+        isFilled: true,
+        onBehalf: own,
+    });
+});
+
 test("restart a caller's access stream only on access changes concerning the caller", async () => {
     // run in a world of its own
     const simulation = testSimulation();
