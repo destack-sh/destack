@@ -41,7 +41,7 @@ import {
     START,
 } from "../test/fixture.ts";
 import type { Query } from "../query/query.ts";
-import type { AggregateRow } from "../query/aggregate.ts";
+import type { AggregateGroup } from "../query/aggregate.ts";
 import type { Page } from "../query/page.ts";
 import { Scope } from "../scope/scope.ts";
 import { Simulation } from "@destack/environment/simulation";
@@ -1592,7 +1592,7 @@ function taskOf(projectId: string, state: string, rank: number) {
 }
 
 /** Sort an item's groups by their group values. */
-function byGroup(groups: readonly AggregateRow[]): AggregateRow[] {
+function byGroup(groups: readonly AggregateGroup[]): AggregateGroup[] {
     return groups.toSorted((left, right) =>
         JSON.stringify(left.group) < JSON.stringify(right.group) ? -1 : 1,
     );

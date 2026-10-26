@@ -44,7 +44,7 @@ import { Page, type ResultChange, type RowChange } from "../query/page.ts";
 import { PublicationAudience, Subscription, type Resumption } from "./publication.ts";
 import { Subject } from "../call/subject.ts";
 import type { Query, Item } from "../query/query.ts";
-import type { AggregateRow } from "../query/aggregate.ts";
+import type { AggregateGroup } from "../query/aggregate.ts";
 import { Node } from "../query/node.ts";
 import type { Prediction } from "../prediction/prediction.ts";
 import { EVERYONE } from "../feed/audience.ts";
@@ -1026,7 +1026,7 @@ export class Replica {
         name: string,
         query: Omit<Query, "scopes">,
         prediction?: Prediction,
-    ): Promise<AggregateRow[]> {
+    ): Promise<AggregateGroup[]> {
         const node = new Node(name, { ...query, scopes: [this.scope] }, [this.scope]);
         const groups = await this.#groups(database, node, prediction);
 

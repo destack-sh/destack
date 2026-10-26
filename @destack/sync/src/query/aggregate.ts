@@ -34,7 +34,7 @@ export type AggregateOptions<Entity extends Model> = {
 } & Aggregate;
 
 /** One group of an aggregate's rows: its group values and its measures, by name. */
-export type AggregateRow<Options extends Aggregate = Aggregate> = {
+export type AggregateGroup<Options extends Aggregate = Aggregate> = {
     /** The values of the group columns. */
     readonly group: { readonly [Name in GroupColumnOf<Options>]: Scalar };
     /** The measures, by name. */

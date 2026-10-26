@@ -14,7 +14,7 @@ import { canonicalize, nth, found, zip } from "@destack/schema";
 import { type Audience, Watch } from "../feed/audience.ts";
 import { Node } from "../query/node.ts";
 import type { Query, Item } from "../query/query.ts";
-import type { AggregateRow } from "../query/aggregate.ts";
+import type { AggregateGroup } from "../query/aggregate.ts";
 import { Aggregation, Mirror, Relation } from "./aggregation.ts";
 import { SyncError } from "../error/error.ts";
 import { Materialization } from "./materialization.ts";
@@ -381,7 +381,7 @@ export class Dataflow implements Arrangement {
     }
 
     /** Read an aggregate root's current groups. */
-    async results(name: string): Promise<readonly AggregateRow[]> {
+    async results(name: string): Promise<readonly AggregateGroup[]> {
         const pipeline = this.#root(name);
         if (pipeline instanceof Selection) {
             throw new TypeError(`dataflow query ${name} reads rows, not groups`);
@@ -653,7 +653,7 @@ export class Dataflow implements Arrangement {
         readonly included: { readonly name: string; readonly items: (readonly Item[])[][] }[];
         readonly measured: {
             readonly name: string;
-            readonly groups: (readonly AggregateRow[])[][];
+            readonly groups: (readonly AggregateGroup[])[][];
         }[];
     }> {
         // collect the includes in child order
@@ -661,7 +661,7 @@ export class Dataflow implements Arrangement {
         const included: { readonly name: string; readonly items: (readonly Item[])[][] }[] = [];
         const measured: {
             readonly name: string;
-            readonly groups: (readonly AggregateRow[])[][];
+            readonly groups: (readonly AggregateGroup[])[][];
         }[] = [];
         for (const [child, pipelined] of zip(node.children, pipeline.children)) {
             // list each selected row's partition of the include
@@ -750,7 +750,7 @@ export class Dataflow implements Arrangement {
         partitions: readonly (readonly (string | undefined)[])[],
         orders: readonly (readonly string[])[],
         materialization: Materialization,
-    ): (readonly AggregateRow[])[][] {
+    ): (readonly AggregateGroup[])[][] {
         return zip(partitions, orders).map(([list, keys]) =>
             zip(list, keys).map(([partition, key]) => {
                 // reuse the previous groups when equal
@@ -769,7 +769,7 @@ export class Dataflow implements Arrangement {
         child: Node,
         pipeline: Pipeline,
         name: string | undefined,
-    ): readonly AggregateRow[] {
+    ): readonly AggregateGroup[] {
         // list the partition's groups
         const aggregate = child.aggregate;
         if (aggregate === undefined) {
@@ -787,10 +787,10 @@ export class Dataflow implements Arrangement {
     }
 
     /** Read an aggregate pipeline's groups in one partition. */
-    static #groups(pipeline: Pipeline, name: string): AggregateRow[] {
+    static #groups(pipeline: Pipeline, name: string): AggregateGroup[] {
         // read the mirrored or counted groups
         const node = pipeline.node;
-        let groups: AggregateRow[];
+        let groups: AggregateGroup[];
         if (pipeline instanceof Mirror) {
             groups = pipeline.groups();
         } else if (pipeline instanceof Aggregation) {

@@ -1,5 +1,5 @@
 import { type FindOptions, type Relation, Relations, type Row, type Table } from "@destack/db";
-import type { Aggregate, AggregateRow } from "./aggregate.ts";
+import type { Aggregate, AggregateGroup } from "./aggregate.ts";
 
 /** What a subscriber's query selects at one level: a relational read, or aggregates of its rows. */
 export interface QuerySelection extends FindOptions {
@@ -28,7 +28,7 @@ export type Item = {
     /** Each include's items, a key include's item as a one-element or empty list. */
     readonly with: Readonly<Record<string, readonly Item[]>>;
     /** Each aggregate include's groups, a whole include's measures as one ungrouped group. */
-    readonly measures: Readonly<Record<string, readonly AggregateRow[]>>;
+    readonly measures: Readonly<Record<string, readonly AggregateGroup[]>>;
 };
 
 /** Resolve a query's included relation as a query of the related table, with the relation. */

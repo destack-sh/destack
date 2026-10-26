@@ -1,7 +1,7 @@
 import { type Row, type Table, TABLE } from "@destack/db";
 import { nth } from "@destack/schema";
 import type { Item } from "../query/query.ts";
-import type { AggregateRow } from "../query/aggregate.ts";
+import type { AggregateGroup } from "../query/aggregate.ts";
 import type { Member, Partition } from "./pipeline.ts";
 
 /** One built result row: its selected row, its concealed columns, and the entry readers see. */
@@ -83,7 +83,7 @@ export class Materialization {
     }
 
     /** Read a row's last groups of an aggregate include, so equal new groups share identity. */
-    previous(key: string, name: string): readonly AggregateRow[] | undefined {
+    previous(key: string, name: string): readonly AggregateGroup[] | undefined {
         return this.#built.get(key)?.entry.measures[name];
     }
 
@@ -94,7 +94,7 @@ export class Materialization {
         source: Row,
         hidden: readonly string[],
         included: readonly (readonly [string, readonly Item[]])[],
-        measured: readonly (readonly [string, readonly AggregateRow[]])[],
+        measured: readonly (readonly [string, readonly AggregateGroup[]])[],
     ): Item {
         // take the last entry when nothing it was built from changed
         const joined = hidden.join(",");
