@@ -31,9 +31,6 @@ const columns: readonly Column[] = [
     { caption: "Cost", unit: "$/mo", note: "US dollars a month", isQuiet: false },
 ];
 
-/** What a page reads across the bill: its own row, and the value it reads from each other row. */
-export type Trace = { row: number; links: ReadonlyMap<number, string> };
-
 /** Draw a figure's bill as a ledger of blocks: database, files, compute and cost. */
 export function Bill(properties: {
     isWindow: boolean;
@@ -43,7 +40,6 @@ export function Bill(properties: {
     isOpenAt: Stagger;
     lighting?: Lighting;
     onToggle?: (row: number) => void;
-    trace?: Trace | undefined;
     optionsOf?: (row: number) => readonly Option[];
     onChoose?: (row: number, name: string) => void;
 }) {
@@ -73,7 +69,6 @@ export function Bill(properties: {
                 tint: isOwned(index) ? palette.signal : line.tint,
                 plan: isOwned(index) ? "Billed per usage" : planOf(item),
                 isEmpty: isEmptyOf(line.entry.stacked.mark) && !isOwned(index),
-                link: properties.trace?.links.get(index + 1),
                 options: isOwned(index) ? [] : (properties.optionsOf?.(index + 1) ?? []),
                 cells: cellsOf(line, properties.scale, isOwned(index)),
             };
@@ -100,7 +95,6 @@ export function Bill(properties: {
             rows={rows()}
             isWhole={isWhole()}
             lit={lightOf(properties.lighting)}
-            traced={properties.trace === undefined ? undefined : properties.trace.row - 1}
             isPressable={properties.lighting !== undefined || properties.onToggle !== undefined}
             onPoint={(index) => properties.lighting?.onLight(rowOf(index))}
             onPress={press}

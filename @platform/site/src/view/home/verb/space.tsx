@@ -198,17 +198,13 @@ function isYourApp(job: Job) {
     return job === "builder" || isProject(job);
 }
 
-/** One page the browser shows: its row, job, path in your space, viewers, and what it reads. */
+/** One page the browser shows: its row, job, path in your space, and viewers. */
 export type Page = {
     row: number;
     job: Job;
     path: string;
     viewers: readonly Viewer[];
-    links: readonly Link[];
 };
-
-/** A value a page shows from another app of your space: that app's job and the value. */
-type Link = readonly [job: Job, value: string];
 
 /** The pages the browser turns through, one per ledger row. */
 export const pages: readonly Page[] = [
@@ -217,120 +213,72 @@ export const pages: readonly Page[] = [
         job: "documents",
         path: "/launch",
         viewers: ["Me", "Agent"],
-        links: [
-            ["tasks", "1 of 4 done"],
-            ["calendar", "Launch week"],
-        ],
     },
     {
         row: 2,
         job: "tables",
         path: "/press",
         viewers: ["Me", "Agent"],
-        links: [
-            ["calendar", "Call Wed 11:00"],
-            ["mail", "Last mail Oct 22"],
-        ],
     },
     {
         row: 3,
         job: "tasks",
         path: "/tasks",
         viewers: ["Me"],
-        links: [
-            ["documents", "Launch post"],
-            ["tables", "9 subscriptions"],
-            ["calendar", "Demo · Wed 11:00"],
-            ["chat", "Post in #launch"],
-            ["mail", "400 of 400 sent"],
-            ["workflows", "Runs Fri 09:00"],
-            ["builder", "1,840 waiting"],
-        ],
     },
     {
         row: 4,
         job: "calendar",
         path: "/book",
         viewers: ["Me", "Agent", "Public"],
-        links: [
-            ["tables", "Demo · Ines"],
-            ["tasks", "Go live · DST-17"],
-            ["mail", "Invites · 400"],
-        ],
     },
     {
         row: 5,
         job: "chat",
         path: "/chat",
         viewers: ["Me", "Agent"],
-        links: [
-            ["documents", "Launch page"],
-            ["tasks", "DST-14"],
-            ["calendar", "Wed 11:00"],
-        ],
     },
     {
         row: 6,
         job: "mail",
         path: "/mail",
         viewers: ["Me", "Agent"],
-        links: [["builder", "1,840 waiting"]],
     },
     {
         row: 7,
         job: "canvas",
         path: "/plan",
         viewers: ["Me", "Agent"],
-        links: [["tasks", "6 tasks"]],
     },
     {
         row: 8,
         job: "workflows",
         path: "/workflows",
         viewers: ["Me", "Agent"],
-        links: [
-            ["tables", "press-followup"],
-            ["mail", "invite-400"],
-            ["builder", "signup.create"],
-        ],
     },
     {
         row: 9,
         job: "builder",
         path: "/waitlist",
         viewers: ["Me", "Agent", "Public"],
-        links: [
-            ["documents", "Launch post"],
-            ["chat", "1 · #launch"],
-            ["mail", "Batch 1"],
-        ],
     },
     {
         row: 10,
         job: "data",
         path: "/data",
         viewers: ["Me", "Agent"],
-        links: [["workflows", "Every 15 minutes"]],
     },
     {
         row: 11,
         job: "tracker",
         path: "/launch-tracker",
         viewers: ["Me", "Agent"],
-        links: [
-            ["tasks", "1 of 4 done"],
-            ["calendar", "Go live · Fri 24"],
-        ],
     },
     {
         row: 12,
         job: "changelog",
         path: "/changelog",
         viewers: ["Me", "Agent", "Public"],
-        links: [
-            ["documents", "Launch post"],
-            ["mail", "Sent to 1,840"],
-        ],
     },
 ];
 

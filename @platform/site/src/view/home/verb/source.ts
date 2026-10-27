@@ -7,10 +7,11 @@ import { Monzo } from "../personal/monzo";
 import { Steam } from "../personal/steam";
 import { Strava } from "../personal/strava";
 
+/** The bill row's label for a personal app, whichever app it shows: an app outside your space. */
+const EXTERNAL = "External";
+
 /** A personal app your agent connects to your space, its data synced into a table of yours. */
 export type Source = {
-    /** The job the app does, set as the bill row's label. */
-    label: string;
     /** The app's name. */
     name: string;
     /** The app's mark in the diagram icons. */
@@ -34,7 +35,6 @@ export type Source = {
 /** The personal apps the hero's data row turns through, each with a public API or export. */
 export const sources: readonly Source[] = [
     {
-        label: "Fitness",
         name: "Strava",
         icon: "strava",
         tint: "#fc4c02",
@@ -50,7 +50,6 @@ export const sources: readonly Source[] = [
         page: Strava,
     },
     {
-        label: "Banking",
         name: "Monzo",
         icon: "monzo",
         tint: "#ff4f40",
@@ -66,7 +65,6 @@ export const sources: readonly Source[] = [
         page: Monzo,
     },
     {
-        label: "Reading",
         name: "Goodreads",
         icon: "goodreads",
         tint: "#553b08",
@@ -82,7 +80,6 @@ export const sources: readonly Source[] = [
         page: Goodreads,
     },
     {
-        label: "Games",
         name: "Steam",
         icon: "steam",
         tint: "#1b2838",
@@ -98,7 +95,6 @@ export const sources: readonly Source[] = [
         page: Steam,
     },
     {
-        label: "Films",
         name: "Letterboxd",
         icon: "letterboxd",
         tint: "#00a35c",
@@ -119,13 +115,13 @@ export const sources: readonly Source[] = [
 export function entryOf(source: Source): Entry {
     return {
         stacked: {
-            label: source.label,
+            label: EXTERNAL,
             mark: { icon: source.icon, tint: source.tint },
             name: source.name,
             price: { kind: "bundled", basis: `kept in ${source.name}` },
         },
         destacked: {
-            label: source.label,
+            label: EXTERNAL,
             mark: { icon: source.icon, tint: source.tint },
             name: source.name,
             price: { kind: "included" },
