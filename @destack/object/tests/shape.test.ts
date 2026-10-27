@@ -42,7 +42,7 @@ const icons = page.follow(iconed, {
         row.icon === null ? undefined : { key: { scope: row.scope, icon: row.icon } },
 });
 
-test("subscribe to a fixed key and to one key per row the follower has, each toward its scope's publisher, and relist once a row changes the keys", async () => {
+test("subscribe to a fixed key and to one key per row the follower has as one replica per scope toward its publisher, and relist once a row changes the keys", async () => {
     // run in a world of its own
     const simulation = testSimulation();
     const world = simulation.environment("test");
@@ -67,7 +67,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         publisher: (scope) => {
             // use one publisher per scope
             const publisher = publishers.get(scope) ?? {
-                confirm: async () => {},
+                request: async () => {},
                 stream: () => (async function* () {})(),
             };
             publishers.set(scope, publisher);
@@ -101,46 +101,52 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
     await create("Ideas", "💡");
     const second = await listed();
 
-    // label each replica by its shape, scope and parameters, with the shape's queries as parameters
-    const plan = {
-        name: `titled:${Scope.universe.id}:Plan`,
+    // follow each scope's keys as one replica, naming each key's queries by its shape and parameters
+    const followed = (scope: string, queries: Record<string, unknown>) => ({
+        name: `follow:${scope}`,
         publication: "queries",
-        scope: Scope.universe.id,
-        target: spaceId,
-        parameters: { queries: { "0:page": { object: "page", where: { title: "Plan" } } } },
-        isScopePublisher: true,
-    };
-    const icon = (glyph: string) => ({
-        name: `iconed:${spaceId}:${glyph}`,
-        publication: "queries",
-        scope: spaceId,
-        target: spaceId,
-        parameters: { queries: { "0:page": { object: "page", where: { icon: glyph } } } },
-        isScopePublisher: true,
-    });
-    // follow the store's scope chain beside the follows, every link from the space's publisher, with the grants at the universe
-    const chain = (scope: string) => ({
-        name: `chain:${spaceId}`,
-        publication: "chain",
         scope,
         target: spaceId,
-        parameters: {
-            scopes: [spaceId, Scope.universe.id],
-            local: [page.typeReference],
-            types: [],
-            via: [],
-            between: [],
-        },
-        isScopePublisher: scope === spaceId,
+        parameters: { queries },
+        isScopePublisher: true,
     });
-    const chained = [chain(spaceId), chain(Scope.universe.id)];
+    const plan = followed(Scope.universe.id, {
+        "titled:Plan:0:page": { object: "page", where: { title: "Plan" } },
+    });
+    const icon = (...glyphs: readonly string[]) =>
+        followed(
+            spaceId,
+            Object.fromEntries(
+                glyphs.map((glyph) => [
+                    `iconed:${glyph}:0:page`,
+                    { object: "page", where: { icon: glyph } },
+                ]),
+            ),
+        );
+    // follow the store's scope chain beside the follows in one replica from the space's publisher, with the grants at the universe
+    const chained = [
+        {
+            name: `chain:${spaceId}`,
+            publication: "chain",
+            scope: spaceId,
+            target: spaceId,
+            parameters: {
+                scopes: [spaceId, Scope.universe.id],
+                local: [page.typeReference],
+                replicated: [spaceId, Scope.universe.id].map((scope) => ({ scope, types: [] })),
+                via: [],
+                between: [],
+            },
+            isScopePublisher: true,
+        },
+    ];
     expect({
         first,
         second,
         isWatched: (subscriber.watches ?? []).includes(page.table),
     }).toEqual({
         first: [...chained, plan, icon("📌")],
-        second: [...chained, plan, icon("📌"), icon("💡")],
+        second: [...chained, plan, icon("📌", "💡")],
         isWatched: true,
     });
 });

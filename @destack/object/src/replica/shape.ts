@@ -1,15 +1,11 @@
-import {
-    type Condition,
-    type DatabaseConnection,
-    eq,
-    type RowImage,
-    type Snapshot,
-    sql,
-} from "@destack/db";
-import { type Duration, schema } from "@destack/schema";
-import { replica, Subject, type Subscription } from "@destack/sync";
+import { type Condition, type DatabaseConnection, type RowImage, type Snapshot } from "@destack/db";
+import { canonicalize, type Duration, schema } from "@destack/schema";
+import { Replica, Subject, type Subscription } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
-import { QUERIES_PUBLICATION, type ObjectQuery } from "./replica.ts";
+import { QUERIES_PUBLICATION, QueriesParameters, type ObjectQuery } from "./replica.ts";
+
+/** The name the replicas of a store's followed shapes start with. */
+const FOLLOW_REPLICA = "follow";
 
 /** A shape's key: the scope whose rows it reads, and the parameters its queries take. */
 export type ShapeKey<Parameters extends object> = {
@@ -49,70 +45,71 @@ export class Shape<Parameters extends object = object> {
         return this.#definition.queries(parameters);
     }
 
-    /** Build the replica name of a key: the one writer of replica names. */
-    replicaName(key: ShapeKey<Parameters>): string {
-        // join the scope and the parameters' values in their names' order
-        const { scope, ...parameters } = key;
-
-        return [this.name, scope, ...Shape.#values(parameters)].join(":");
-    }
-
-    /** List the replicas a database has of the shape for some parameters, at whatever scope. */
-    async replicas(
-        database: DatabaseConnection,
-        parameters: Parameters,
-    ): Promise<{ readonly name: string; readonly scope: string }[]> {
-        // match the names the scope of each record completes
-        const suffix = Shape.#values(parameters)
-            .map((value) => `:${value}`)
-            .join("");
-
-        return await database
-            .select({ name: replica.name, scope: replica.scope })
-            .from(replica)
-            .where(eq(replica.name, sql`${`${this.name}:`} || ${replica.scope} || ${suffix}`));
-    }
-
-    /** Subscribe to a key for a follower, on behalf of a principal if given. */
-    subscription(key: ShapeKey<Parameters>, target: string, subject?: Subject): Subscription {
-        // label each query of the key's parameters by its type and position
-        const { scope, ...rest } = key;
-        const named = this.#named(this.parameters.parse(rest), "");
-
-        return {
-            name: this.replicaName(key),
-            publication: QUERIES_PUBLICATION,
+    /** Build the name of the replica following the shapes' keys at a scope for a principal. */
+    static replicaName(scope: string, subject?: Subject): string {
+        return [
+            FOLLOW_REPLICA,
             scope,
-            target,
-            ...(subject === undefined ? {} : { subject }),
-            parameters: { queries: schema.json().parse(named) },
-        };
+            ...(subject === undefined ? [] : [Subject.key(subject)]),
+        ].join(":");
     }
 
-    /** Subscribe to the keys a follower acquired at one scope, as one replica. */
-    onDemandSubscription(
+    /** Subscribe a follower to some shapes' keys at one scope as one replica. */
+    static subscription(
         scope: string,
-        keys: readonly Parameters[],
+        followed: readonly ShapeKeys[],
         target: string,
         subject?: Subject,
     ): Subscription {
-        // label each key's queries by its parameter values, its type and its position
-        const named = Object.fromEntries(
-            keys.flatMap((parameters) =>
-                Object.entries(this.#named(parameters, `${Shape.#values(parameters).join(":")}:`)),
-            ),
+        // name each shape's keys' queries under the shape
+        const queries = Object.fromEntries(
+            followed.flatMap(({ shape, keys }) => Object.entries(shape.#keyed(keys))),
         );
 
         return {
-            name: [this.name, scope, ...(subject === undefined ? [] : [Subject.key(subject)])].join(
-                ":",
-            ),
+            name: Shape.replicaName(scope, subject),
             publication: QUERIES_PUBLICATION,
             scope,
             target,
             ...(subject === undefined ? {} : { subject }),
-            parameters: { queries: schema.json().parse(named) },
+            parameters: { queries: schema.json().parse(queries) },
         };
+    }
+
+    /** Report whether a database's synced replica follows a key's queries. */
+    async isSynced(
+        database: DatabaseConnection,
+        key: ShapeKey<Parameters>,
+        subject?: Subject,
+    ): Promise<boolean> {
+        // require a synced replica of the key's scope
+        const { scope, ...rest } = key;
+        const name = Shape.replicaName(scope, subject);
+        const recorded = await Replica.subscription(database, name, scope);
+        if (recorded === undefined || !(await Replica.isSynced(database, name, scope))) {
+            return false;
+        }
+
+        // require each of the key's queries among the recorded ones
+        const has = QueriesParameters.parse(recorded.parameters).queries ?? {};
+        const wanted = this.#keyed([this.parameters.parse(rest)]);
+
+        return Object.entries(wanted).every(
+            ([named, query]) =>
+                has[named] !== undefined && canonicalize(has[named]) === canonicalize(query),
+        );
+    }
+
+    /** Name each key's queries by the shape, the key's values, its type and position. */
+    #keyed(keys: readonly object[]): Record<string, ObjectQuery> {
+        return Object.fromEntries(
+            keys.flatMap((key) => {
+                const parameters = this.parameters.parse(key);
+                const prefix = [this.name, ...Shape.#values(parameters)].join(":");
+
+                return Object.entries(this.#named(parameters, `${prefix}:`));
+            }),
+        );
     }
 
     /** Name the queries of some parameters by a prefix, their type and position. */
@@ -139,6 +136,14 @@ export class Shape<Parameters extends object = object> {
             .toSorted(([left], [right]) => left.localeCompare(right))
             .map(([, value]) => String(value));
     }
+}
+
+/** Some keys of one shape a replica follows at one scope. */
+export interface ShapeKeys {
+    /** The shape. */
+    readonly shape: Shape;
+    /** The keys' parameters beside the scope. */
+    readonly keys: readonly object[];
 }
 
 /** A shape as its package declares it: its name, key parameters, object types and queries. */
