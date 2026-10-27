@@ -118,7 +118,6 @@ export class Server implements AsyncDisposable {
                     new Error(`${controller.name} failed to reconcile ${key}`, { cause: error }),
                 );
             },
-            ...(options.instance === undefined ? {} : { lease: { holder: options.instance } }),
             ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
             ...(confirmed === undefined ? {} : { ready: confirmed }),
             clock: options.environment.clock,
@@ -628,8 +627,6 @@ export interface ServerOptions extends PackageHandler {
     readonly authorizeMachine: (call: ProcedureContext<RequestContext>) => Promise<void>;
     /** The longest drain, in milliseconds. */
     drainTimeout: number;
-    /** This instance's lease holder name. */
-    instance?: string;
     /** Set a wake-up for the controllers' earliest due key, so an evicted instance runs it. */
     alarm?: Alarm;
     /** Report a controller's failure to the host beside its telemetry. */

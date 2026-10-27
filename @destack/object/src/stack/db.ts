@@ -7,6 +7,7 @@ import {
     integer,
     json,
     lease,
+    lock,
     text,
     TABLE,
     uniqueIndex,
@@ -55,12 +56,13 @@ export const journal = defineTable(
     },
 );
 
-/** Each object store's system tables: access, journal, settlement, lease, bucket and follow key. */
+/** Each object store's system tables, from access to follow keys. */
 export const SYSTEM_TABLES: readonly Table[] = [
     ...accessTables,
     journal,
     settlement,
     lease,
+    lock,
     bucket,
     followKey,
 ];

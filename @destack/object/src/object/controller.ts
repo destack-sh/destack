@@ -247,7 +247,6 @@ export const ObjectController = {
                 store,
                 caller,
                 signal: reconciliation.signal,
-                ...(reconciliation.epoch === undefined ? {} : { epoch: reconciliation.epoch }),
                 changed: () => reconciliation.changed(),
                 mutate,
                 observe,
