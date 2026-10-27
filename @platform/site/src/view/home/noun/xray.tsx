@@ -2,7 +2,7 @@ import { Icon } from "@destack/icon";
 import gitCommit from "@destack/icon/phosphor/git-commit";
 import * as style from "@destack/style";
 import { color, font, motion } from "@destack/theme/tokens.stylex";
-import { createEffect, createSignal, onSettled, useEnvironment } from "@destack/view";
+import { createEffect, createSignal, type JSX, onSettled, useEnvironment } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
@@ -15,7 +15,8 @@ import { accentOf } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
 import { sectionOf } from "../verb/apps";
 import { ArtifactFrame, artifactAddressOf, artifactMarkOf } from "../command/artifact";
-import type { Assistant } from "../command/chat";
+import { type Assistant, assistantOptions, assistants } from "../command/chat";
+import type { Option } from "../figure/picker";
 import type { Job } from "../verb/space";
 import { sources } from "../verb/source";
 import { present } from "@destack/schema";
@@ -44,6 +45,24 @@ const wiring: readonly string[] = [
 
 /** The domain your space serves its apps on, plainly your own. */
 const CUSTOM_DOMAIN = "mydomain.com";
+
+/** The coding agent that leaves your app on your own computer's dev server. */
+const CODING_AGENT = "Claude Code";
+
+/** The address a dev server serves your app at, Vite's default port. */
+const DEV_SERVER = "localhost:5173";
+
+/** The agents an app is made with: the assistants, then the coding agent. */
+export const makers = [...assistants, CODING_AGENT] as const;
+
+/** The agent an app is made with. */
+export type Maker = (typeof makers)[number];
+
+/** Each maker as the picker offers it, by its mark and colour. */
+export const makerOptions: readonly Option[] = [
+    ...assistantOptions,
+    { name: CODING_AGENT, mark: { icon: "claude", tint: "#c96442" } },
+];
 
 /** Your apps on the rail once owned, the launch tracker first. */
 const apps: readonly (readonly [
@@ -115,7 +134,7 @@ type Rectangle = { left: number; top: number; right: number; bottom: number };
 /** Draw your launch tracker in a browser, x-rayed: each part outlined with its service. */
 export function XRay(properties: {
     rented: readonly Service[];
-    assistant: Assistant;
+    maker: Maker;
     isOpenAt: Stagger;
     lit: number | undefined;
     onLight: (row: number | undefined) => void;
@@ -217,11 +236,21 @@ export function XRay(properties: {
     const isStacked = () => !properties.isOpenAt(0);
     const isHosted = () => properties.isOpenAt(serviceCount + 1);
 
-    // address the app at the assistant's public link until the space hosts it on your domain
-    const address = () =>
-        isHosted()
-            ? { host: CUSTOM_DOMAIN, path: pathOf(app()) }
-            : artifactAddressOf(properties.assistant);
+    // read the assistant whose artifact the app is, or none when it runs on a dev server
+    const assistant = (): Assistant | undefined =>
+        properties.maker === CODING_AGENT ? undefined : properties.maker;
+
+    // address the app where its maker left it until the space hosts it on your domain
+    const address = () => {
+        const made = assistant();
+        if (isHosted()) {
+            return { host: CUSTOM_DOMAIN, path: pathOf(app()) };
+        } else if (made === undefined) {
+            return { host: DEV_SERVER, path: "/" };
+        }
+
+        return artifactAddressOf(made);
+    };
 
     return (
         <div
@@ -254,7 +283,7 @@ export function XRay(properties: {
                                 page === row() && browserStyles.tabOn,
                             )}
                         >
-                            <Favicon {...artifactMarkOf(properties.assistant)} />
+                            <MakerMark assistant={assistant()} />
                             <span
                                 {...style.attrs(
                                     browserStyles.tabTitle,
@@ -322,14 +351,14 @@ export function XRay(properties: {
                     ) : undefined}
                     <main {...style.attrs(appStyles.main, styles.page)}>
                         {isStacked() ? (
-                            <ArtifactFrame assistant={properties.assistant} title={app()[2]}>
+                            <MadeFrame assistant={assistant()} title={app()[2]}>
                                 {sectionOf(
                                     row(),
                                     "start",
                                     present(sources[0], "first source"),
                                     false,
                                 )}
-                            </ArtifactFrame>
+                            </MadeFrame>
                         ) : (
                             sectionOf(row(), "start", present(sources[0], "first source"), false)
                         )}
@@ -606,6 +635,48 @@ function wiringAt(index: number): string {
     }
 
     return kind;
+}
+
+/** Draw the app where it was made: in its assistant's artifact page, or bare on a dev server. */
+function MadeFrame(properties: {
+    assistant: Assistant | undefined;
+    title: string;
+    children: JSX.Element;
+}) {
+    return (
+        <>
+            {properties.assistant === undefined ? (
+                properties.children
+            ) : (
+                <ArtifactFrame assistant={properties.assistant} title={properties.title}>
+                    {properties.children}
+                </ArtifactFrame>
+            )}
+        </>
+    );
+}
+
+/** Return the maker a picker option names, refusing any other name. */
+export function makerOf(name: string): Maker {
+    const maker = makers.find((candidate) => candidate === name);
+    if (maker === undefined) {
+        throw new RangeError(`no maker named ${name}`);
+    }
+
+    return maker;
+}
+
+/** Draw the tab mark of where the app was made: its assistant's, or a dev server's computer. */
+function MakerMark(properties: { assistant: Assistant | undefined }) {
+    return (
+        <>
+            {properties.assistant === undefined ? (
+                <Favicon icon="computer" tint={palette.ink} />
+            ) : (
+                <Favicon {...artifactMarkOf(properties.assistant)} />
+            )}
+        </>
+    );
 }
 
 /** Draw a rented service's mark: its picture, or its shape from the icon set in its tint. */

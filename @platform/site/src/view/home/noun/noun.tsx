@@ -13,7 +13,7 @@ import { Label, LabelRow } from "../entry/label";
 import { audienceOf, audiences, Dial } from "../figure/dial";
 import { Bill } from "../figure/bill";
 import { accentOf } from "../figure/item";
-import { XRay } from "./xray";
+import { type Maker, makerOf, makerOptions, XRay } from "./xray";
 import {
     categoryOf,
     entriesWith,
@@ -26,7 +26,6 @@ import {
     vendorsOf,
 } from "./service";
 import { type Option, Picker } from "../figure/picker";
-import { type Assistant, assistantOptions, assistants } from "../command/chat";
 import { createSteps } from "../figure/stagger";
 import { BASE_USERS, workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
@@ -49,8 +48,8 @@ const noun: Form = {
         highlight: ["complete", "software engine"],
         sentence: (
             <>
-                Make high quality custom software easily, with <em>one</em> standardised pipeline
-                that agents love.
+                Make high-quality custom software easily, with one standardised pipeline that{" "}
+                <em>your</em> agents love.
             </>
         ),
         gloss: "Unreal Engine, for everyday software",
@@ -80,16 +79,11 @@ export function Noun(properties: { isOpen: boolean }) {
         "interval",
     );
 
-    // hold the assistant whose artifact the app starts as, Claude until the reader picks another
-    const [assistant, setAssistant] = createSignal<Assistant>("Claude");
-    const chooseAssistant = (name: string) => {
+    // hold the agent the app was made with, Claude until the reader picks another
+    const [maker, setMaker] = createSignal<Maker>("Claude");
+    const chooseMaker = (name: string) => {
         setIsTouched(true);
-        setAssistant(
-            present(
-                assistants.find((candidate) => candidate === name),
-                `assistant ${name}`,
-            ),
-        );
+        setMaker(makerOf(name));
     };
 
     // rent each category's chosen service, or the one its row has turned to
@@ -156,25 +150,25 @@ export function Noun(properties: { isOpen: boolean }) {
                     end={
                         isOpenAt(0) ? undefined : (
                             <Picker
-                                label="Agent"
-                                options={assistantOptions}
-                                shown={assistant()}
+                                label="Made with"
+                                options={makerOptions}
+                                shown={maker()}
                                 progress={undefined}
-                                onChoose={chooseAssistant}
+                                onChoose={chooseMaker}
                             />
                         )
                     }
                 >
                     <Label>
                         {isOpenAt(0)
-                            ? "Your app, built on one engine"
-                            : "Your agent's app, as an artifact"}
+                            ? "Your custom app, in production"
+                            : "Your custom app, stuck where your agent made it"}
                     </Label>
                 </LabelRow>
                 <div {...style.attrs(styles.window)}>
                     <XRay
                         rented={rented()}
-                        assistant={assistant()}
+                        maker={maker()}
                         isOpenAt={isOpenAt}
                         lit={lit()}
                         onLight={setLit}
@@ -235,15 +229,15 @@ function optionsOf(row: number): readonly Option[] {
     }));
 }
 
-/** Label the ledger by how many bills the stack sends: nine, one, or some between. */
+/** Label the ledger by how many vendors the app still rents from: nine, fewer, or one engine. */
 function keyOf(rented: number) {
     if (rented === serviceCount) {
-        return "Nine bills";
+        return "Nine vendors";
     } else if (rented === 0) {
-        return "One bill";
+        return "One engine";
     }
 
-    return "Fewer bills";
+    return "Fewer vendors";
 }
 
 /** The noun section styles. */

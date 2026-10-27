@@ -64,7 +64,7 @@ export function Tally(properties: {
                         />
                     }
                 >
-                    <Label>{properties.isOpen ? "Paid by usage" : "Paid per seat"}</Label>
+                    <Label>{properties.isOpen ? "Owned, paid by use" : "Rented by the seat"}</Label>
                 </LabelRow>
                 <Bill
                     isWindow

@@ -46,8 +46,8 @@ const command: Form = {
         highlight: ["programmable"],
         sentence: (
             <>
-                One API for every app in <em>your</em> space, so your agents can read, change, and
-                build across all of them.
+                One API for every app in <em>your</em> space: your agents read, change, and build
+                across all of them.
             </>
         ),
         gloss: "as scriptable as a terminal, across every app",
