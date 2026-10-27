@@ -3224,16 +3224,21 @@ export class ObjectStore {
             run: this.#invoker(transaction, authorization, context, options),
         });
 
-        // authorize the call unless prepared, then execute it, hiding a denial the caller cannot see
+        // authorize the call here unless prepared, or asked at its rows' home for a caller acting alone, which the home authorizes
         let executed: unknown;
+        const isAskedAtHome = this.#isAskedAtHome(object, method);
         try {
-            if (prepared === undefined) {
+            if (prepared === undefined && (!isAskedAtHome || caller.actors.length > 0)) {
                 await method.authorize?.(called, execution);
             }
-            executed = this.#isAskedAtHome(object, method)
+
+            // ask a query at its rows' home, else execute it here
+            executed = isAskedAtHome
                 ? await this.#askHome(object, name, input, scope, caller)
                 : await method.execute(called, execution);
-        } catch (error) {
+        }
+        // hide a denial the caller cannot see
+        catch (error) {
             throw await this.#conceal(authorization, caller, called.target, error);
         }
 
