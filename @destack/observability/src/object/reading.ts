@@ -1,13 +1,14 @@
 import { through } from "@destack/access";
 import { account, space } from "@destack/account/object";
-import { defineObject, field } from "@destack/object";
+import { defineObject, field, installation } from "@destack/object";
 import { schema } from "@destack/schema";
-import { EVENT_FLUSH } from "../event/policy.ts";
-import { telemetryRetention } from "../setting/index.ts";
 import { REQUEST_LIFETIME_MILLISECONDS } from "@destack/sync";
-import { installation } from "@destack/stack/object";
+import { EVENT_FLUSH } from "../event/policy.ts";
 
-/** What a reading keeps beside its keys: the level an averaged meter held when read. */
+/** How long a space keeps its readings: a yearly period plus Stripe's 35 days for late meters. */
+const READING_RETENTION = { days: 365 + 35 } as const;
+
+/** What a reading keeps beside its keys: the level of an averaged meter when read. */
 export const ReadingData = schema.object({
     /** The level, absent for a counter. */
     level: schema.number().exactOptional(),
@@ -24,10 +25,10 @@ export const reading = defineObject(
         storage: {
             kind: "events",
             flush: EVENT_FLUSH,
-            retention: { setting: telemetryRetention.definition },
+            retention: READING_RETENTION,
             delivery: "exactly-once",
         },
-        // bill each space's readings from the log's start an hour at a time, held as long as a billing call may retry
+        // bill each space's readings an hour at a time, kept while a billing call may retry
         readers: {
             metering: {
                 by: "scope",
@@ -47,7 +48,7 @@ export const reading = defineObject(
             payer: field.reference(account),
             /** The increment in the meter's unit: a delta, or a level times milliseconds. */
             value: field.number(),
-            /** The level an averaged meter held when read. */
+            /** The level of an averaged meter when read. */
             data: field.json(ReadingData),
         },
         permissions: {
@@ -59,7 +60,7 @@ export const reading = defineObject(
     (method) => ({
         /** Append the readings a machine measured. */
         append: method.createMany("append", {
-            isInternal: true,
+            visibility: "package",
             fields: ["meter", "installationId", "sku", "payerId", "value", "data"],
         }),
     }),

@@ -9,9 +9,9 @@
         ".": "./src/index.ts",
         "./server": "./src/server.ts",
         "./setting": "./src/setting/index.ts",
-        "./stack": "./src/stack/index.ts",
         "./object": "./src/object/index.ts",
         "./package": "./src/package.ts",
+        "./error": "./src/error/index.ts",
         "./meter": "./src/meter/index.ts",
         "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts"

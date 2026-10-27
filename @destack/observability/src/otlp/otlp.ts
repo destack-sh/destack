@@ -1,8 +1,8 @@
 import { Event } from "@destack/event";
 import type { Select } from "@destack/db";
 import type { ObjectType } from "@destack/object";
-import { Digest, type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
+import { Digest, type DigestCrypto, type Identifier, schema } from "@destack/schema";
+import { ObservabilityError } from "../error/error.ts";
 import {
     ACTION_EVENT,
     ANALYTICS_ATTRIBUTES,
@@ -23,6 +23,7 @@ import {
     type Instrumentation,
     PERSON_ATTRIBUTE,
     SENSITIVE_PREFIX,
+    textOf,
 } from "../event/index.ts";
 import { type INSTRUMENTS, SPAN_STATUSES } from "../object/index.ts";
 import type * as kinds from "../object/index.ts";
@@ -270,7 +271,7 @@ export type Item<Type extends ObjectType> = Omit<Select<Type["table"]>, "scope" 
 };
 
 /** The events of one resource, by type. */
-export interface Decoded {
+export interface OtlpEvents {
     /** The log records. */
     readonly log: Item<typeof kinds.log>[];
     /** The spans. */
@@ -286,7 +287,7 @@ export interface Decoded {
 }
 
 /** A log record's or a span's attributes split for keeping. */
-interface Split {
+interface AttributeSplit {
     /** The attributes kept as a key. */
     readonly attributes: AttributeKey;
     /** The attributes marked personal, absent without a person to seal them under. */
@@ -305,7 +306,7 @@ type OtlpLogRecord =
 type OtlpMetric =
     OtlpMetricsRequest["resourceMetrics"][number]["scopeMetrics"][number]["metrics"][number];
 
-/** What every log record carries: its event name, time, identity, body, trace and attributes. */
+/** What every log record has: its event name, time, identity, body, trace and attributes. */
 interface OtlpRecord {
     /** The event name. */
     readonly name: string;
@@ -318,7 +319,7 @@ interface OtlpRecord {
     /** The trace. */
     readonly trace: string | undefined;
     /** The attributes split for keeping. */
-    readonly split: Split;
+    readonly split: AttributeSplit;
 }
 
 /** An OTLP/JSON export request of one signal. */
@@ -351,9 +352,10 @@ export class OtlpExport {
             ),
         );
         if (claimed.size > 0) {
-            throw new CallError("FORBIDDEN", {
-                message: `only the receiver records an export's emitter, found ${[...claimed].join(", ")}`,
-            });
+            throw ObservabilityError.of(
+                "EMITTER_ATTRIBUTE_RESERVED",
+                `only the receiver can record an export's emitter, found ${[...claimed].join(", ")}`,
+            );
         }
 
         // append the known attributes as text to each resource's own
@@ -407,15 +409,14 @@ export class OtlpExport {
     }
 
     /** Decode each resource's records in a scope, under the emitter its attributes name. */
-    async decode(scope: string): Promise<OtlpResource[]> {
+    async decode(scope: string, crypto: DigestCrypto): Promise<OtlpResource[]> {
         // decode the log records of each resource
         if (this.signal === "logs") {
             return Promise.all(
                 OtlpLogsRequest.parse(this.body).resourceLogs.map(async (group) => {
-                    const resource = new OtlpResource(scope, group.resource.attributes);
-                    await resource.addLogs(group.scopeLogs);
+                    const decoder = new OtlpDecoder(scope, group.resource.attributes, crypto);
 
-                    return resource;
+                    return new OtlpResource(decoder.emitter, await decoder.logs(group.scopeLogs));
                 }),
             );
         }
@@ -423,10 +424,9 @@ export class OtlpExport {
         else if (this.signal === "traces") {
             return Promise.all(
                 OtlpTracesRequest.parse(this.body).resourceSpans.map(async (group) => {
-                    const resource = new OtlpResource(scope, group.resource.attributes);
-                    await resource.addSpans(group.scopeSpans);
+                    const decoder = new OtlpDecoder(scope, group.resource.attributes, crypto);
 
-                    return resource;
+                    return new OtlpResource(decoder.emitter, await decoder.spans(group.scopeSpans));
                 }),
             );
         }
@@ -434,10 +434,10 @@ export class OtlpExport {
         else {
             return Promise.all(
                 OtlpMetricsRequest.parse(this.body).resourceMetrics.map(async (group) => {
-                    const resource = new OtlpResource(scope, group.resource.attributes);
-                    await resource.addMetrics(group.scopeMetrics);
+                    const decoder = new OtlpDecoder(scope, group.resource.attributes, crypto);
+                    const events = await decoder.metrics(group.scopeMetrics);
 
-                    return resource;
+                    return new OtlpResource(decoder.emitter, events);
                 }),
             );
         }
@@ -448,18 +448,61 @@ export class OtlpExport {
 export class OtlpResource {
     /** The emitter. */
     readonly emitter: OtlpEmitter;
-    /** The events decoded so far, by type. */
-    events: Decoded = { log: [], span: [], metric: [], visit: [], action: [], session: [] };
+    /** The events, by type, before their issues and visitor are known. */
+    readonly events: OtlpEvents;
+
+    /** Take a resource's emitter and its decoded events. */
+    constructor(emitter: OtlpEmitter, events: OtlpEvents) {
+        this.emitter = emitter;
+        this.events = events;
+    }
+
+    /** Build the items to append: events with their issues, visits with the visitor's hash. */
+    items(known: {
+        readonly issues: ReadonlyMap<string, string>;
+        readonly visitor?: string;
+    }): OtlpEvents {
+        // set each log record's and span's issue
+        const { issues, visitor } = known;
+        const log = this.events.log.map((event, index) => ({
+            ...event,
+            issue: issues.get(`log:${index}`) ?? null,
+        }));
+        const span = this.events.span.map((event, index) => ({
+            ...event,
+            issue: issues.get(`span:${index}`) ?? null,
+        }));
+
+        // set the visitor's hash on each visit, action and session
+        const hashed = <Visited>(events: readonly Visited[]) =>
+            visitor === undefined ? [...events] : events.map((event) => ({ ...event, visitor }));
+
+        return {
+            log,
+            span,
+            metric: this.events.metric,
+            visit: hashed(this.events.visit),
+            action: hashed(this.events.action),
+            session: hashed(this.events.session),
+        };
+    }
+}
+
+/** Decodes one resource's records under the emitter its forwarding machine named. */
+class OtlpDecoder {
+    /** The emitter. */
+    readonly emitter: OtlpEmitter;
+    /** The WebCrypto hashing event identities. */
+    readonly #crypto: DigestCrypto;
 
     /** Read a resource's emitter in a scope from the attributes its forwarding machine set. */
-    constructor(scope: string, resource: readonly OtlpKeyValue[]) {
+    constructor(scope: string, resource: readonly OtlpKeyValue[], crypto: DigestCrypto) {
+        // hash event identities with the WebCrypto
+        this.#crypto = crypto;
+
         // read the forwarder's attributes as text
         const attributes = attributesOf(resource);
-        const text = (key: string) => {
-            const value = attributes[key];
-
-            return typeof value === "string" && value !== "" ? value : undefined;
-        };
+        const text = (key: string) => textOf(attributes[key]);
         const installation = text(EMITTER_ATTRIBUTES.installation);
         const instance = text(EMITTER_ATTRIBUTES.instance);
         const build = text(EMITTER_ATTRIBUTES.build);
@@ -484,38 +527,48 @@ export class OtlpResource {
         };
     }
 
-    /** Add the resource's log records, visits and actions. */
-    async addLogs(groups: OtlpLogsRequest["resourceLogs"][number]["scopeLogs"]): Promise<void> {
+    /** Decode the resource's log records, visits, actions and session ends. */
+    async logs(groups: OtlpLogsRequest["resourceLogs"][number]["scopeLogs"]): Promise<OtlpEvents> {
+        const events = OtlpDecoder.#events();
         for (const { scope, logRecords } of groups) {
             for (const record of logRecords) {
                 // read a visit, an action or a session's end by its reserved name, else a log record
                 const read = await this.#record(record);
                 if (read.name === VISIT_EVENT) {
-                    this.events.visit.push(this.#visit(read));
+                    events.visit.push(this.#visit(read));
                 } else if (read.name === ACTION_EVENT) {
-                    this.events.action.push(this.#action(read));
+                    events.action.push(this.#action(read));
                 } else if (read.name === SESSION_EVENTS.end) {
-                    this.events.session.push(this.#session(read));
+                    events.session.push(this.#session(read));
                 } else {
-                    this.events.log.push(this.#log(record, read, scope));
+                    events.log.push(this.#log(record, read, scope));
                 }
             }
         }
+
+        return events;
     }
 
-    /** Add the resource's spans with their annotations and links. */
-    async addSpans(
+    /** Decode the resource's spans with their annotations and links. */
+    async spans(
         groups: OtlpTracesRequest["resourceSpans"][number]["scopeSpans"],
-    ): Promise<void> {
+    ): Promise<OtlpEvents> {
+        const events = OtlpDecoder.#events();
         for (const { scope, spans } of groups) {
             for (const span of spans) {
                 // time the span and split its attributes
                 const start = microseconds(span.startTimeUnixNano);
                 const end = microseconds(span.endTimeUnixNano);
+                if (end < start) {
+                    throw ObservabilityError.of(
+                        "SPAN_TIMES_INVALID",
+                        `span ${span.spanId} ends before it starts`,
+                    );
+                }
                 const split = this.#split(attributesOf(span.attributes));
 
                 // add it with its annotations and links
-                this.events.span.push({
+                events.span.push({
                     id: await this.#identity([span.traceId, span.spanId]),
                     time: start,
                     ...this.#stamp(),
@@ -523,7 +576,7 @@ export class OtlpResource {
                     trace: span.traceId,
                     parent: presentText(span.parentSpanId) ?? null,
                     status: SPAN_STATUSES[span.status.code],
-                    duration: Math.max(0, end - start),
+                    duration: end - start,
                     issue: null,
                     session: split.session,
                     person: split.person,
@@ -547,42 +600,27 @@ export class OtlpResource {
                 });
             }
         }
+
+        return events;
     }
 
-    /** Add the points of the resource's metrics. */
-    async addMetrics(
+    /** Decode the points of the resource's metrics. */
+    async metrics(
         groups: OtlpMetricsRequest["resourceMetrics"][number]["scopeMetrics"],
-    ): Promise<void> {
+    ): Promise<OtlpEvents> {
+        const events = OtlpDecoder.#events();
         for (const { scope, metrics } of groups) {
             for (const metric of metrics) {
-                this.events.metric.push(...(await this.#points(metric, scope)));
+                events.metric.push(...(await this.#points(metric, scope)));
             }
         }
+
+        return events;
     }
 
-    /** Set the issue of each log record and span recording a grouped exception, by `type:index`. */
-    setIssues(issues: ReadonlyMap<string, string>): void {
-        this.events = {
-            ...this.events,
-            log: this.events.log.map((event, index) => ({
-                ...event,
-                issue: issues.get(`log:${index}`) ?? event.issue,
-            })),
-            span: this.events.span.map((event, index) => ({
-                ...event,
-                issue: issues.get(`span:${index}`) ?? event.issue,
-            })),
-        };
-    }
-
-    /** Set the visitor's hash on each visit, action and session. */
-    setVisitor(visitor: string): void {
-        this.events = {
-            ...this.events,
-            visit: this.events.visit.map((event) => ({ ...event, visitor })),
-            action: this.events.action.map((event) => ({ ...event, visitor })),
-            session: this.events.session.map((event) => ({ ...event, visitor })),
-        };
+    /** Build an empty list of each type's events. */
+    static #events(): OtlpEvents {
+        return { log: [], span: [], metric: [], visit: [], action: [], session: [] };
     }
 
     /** Read a metric's points. */
@@ -600,9 +638,10 @@ export class OtlpResource {
                     // refuse a point without its value
                     const value = each.asInt ?? each.asDouble;
                     if (value === undefined) {
-                        throw new CallError("BAD_REQUEST", {
-                            message: `a point of metric ${metric.name} carries no value`,
-                        });
+                        throw ObservabilityError.of(
+                            "POINT_VALUE_MISSING",
+                            `metric ${metric.name} has a point with no value`,
+                        );
                     }
 
                     return this.#point(metric, scope, each, {
@@ -639,9 +678,10 @@ export class OtlpResource {
         }
         // refuse explicit-bucket histograms
         else {
-            throw new CallError("BAD_REQUEST", {
-                message: `metric ${metric.name} is no delta sum, gauge or exponential histogram`,
-            });
+            throw ObservabilityError.of(
+                "METRIC_UNSUPPORTED",
+                `metric ${metric.name} is not a delta sum, gauge or exponential histogram`,
+            );
         }
     }
 
@@ -686,7 +726,7 @@ export class OtlpResource {
         };
     }
 
-    /** Read what every log record carries. */
+    /** Read what every log record has. */
     async #record(record: OtlpLogRecord): Promise<OtlpRecord> {
         // require the event name and the time
         const time = record.timeUnixNano ?? record.observedTimeUnixNano;
@@ -695,9 +735,9 @@ export class OtlpResource {
                 ? record.body?.stringValue
                 : record.eventName;
         if (name === undefined || name === "") {
-            throw new CallError("BAD_REQUEST", { message: "a log record names no event" });
+            throw ObservabilityError.of("LOG_EVENT_MISSING", "the log record has no event name");
         } else if (time === undefined) {
-            throw new CallError("BAD_REQUEST", { message: `log record ${name} carries no time` });
+            throw ObservabilityError.of("LOG_TIME_MISSING", `log record ${name} has no time`);
         }
 
         // read the body as text, the trace and the attributes
@@ -745,11 +785,7 @@ export class OtlpResource {
     #visit(read: OtlpRecord): Item<typeof kinds.visit> {
         // read the visit's text attributes
         const { attributes, person, personal } = read.split;
-        const text = (key: string) => {
-            const value = attributes[key];
-
-            return typeof value === "string" && value !== "" ? value : undefined;
-        };
+        const text = (key: string) => textOf(attributes[key]);
         const path = text(ANALYTICS_ATTRIBUTES.path);
         const title = text(ANALYTICS_ATTRIBUTES.title);
         const referrer = text(ANALYTICS_ATTRIBUTES.referrer);
@@ -758,7 +794,7 @@ export class OtlpResource {
         // refuse a visit naming no route
         const route = text(ANALYTICS_ATTRIBUTES.route);
         if (route === undefined) {
-            throw new CallError("BAD_REQUEST", { message: "a visit names no route" });
+            throw ObservabilityError.of("VISIT_ROUTE_MISSING", "the visit has no route");
         }
 
         return {
@@ -787,12 +823,15 @@ export class OtlpResource {
             [ANALYTICS_ATTRIBUTES.route]: route,
             ...properties
         } = read.split.attributes;
+        if (typeof name !== "string" || name === "") {
+            throw ObservabilityError.of("ACTION_NAME_MISSING", "the action has no name");
+        }
 
         return {
             id: read.id,
             time: read.at,
             ...this.#stamp(),
-            name: typeof name === "string" ? name : "",
+            name,
             route: typeof route === "string" ? route : null,
             session: read.split.session,
             trace: read.trace ?? null,
@@ -805,12 +844,16 @@ export class OtlpResource {
 
     /** Read a session's end record as the session, by how it ended. */
     #session(read: OtlpRecord): Item<typeof kinds.session> {
-        // refuse an end naming no status the sessions know
-        const status = SESSION_STATUSES.find(
-            (each) => each === read.split.attributes[SESSION_STATUS_ATTRIBUTE],
-        );
-        if (status === undefined) {
-            throw new CallError("BAD_REQUEST", { message: "a session's end names no status" });
+        // refuse an end without a status, or with an unknown one
+        const value = read.split.attributes[SESSION_STATUS_ATTRIBUTE];
+        const status = SESSION_STATUSES.find((each) => each === value);
+        if (value === undefined) {
+            throw ObservabilityError.of("SESSION_STATUS_MISSING", "the session end has no status");
+        } else if (status === undefined) {
+            throw ObservabilityError.of(
+                "SESSION_STATUS_INVALID",
+                `unknown session status ${JSON.stringify(value)}`,
+            );
         }
 
         return {
@@ -828,15 +871,21 @@ export class OtlpResource {
     }
 
     /** Split attributes into the queried ones and the personal ones. */
-    #split(attributes: Attributes): Split {
-        // read the person the emitter verified, else the one the attributes name
+    #split(attributes: Attributes): AttributeSplit {
+        // read the person the emitter verified, else the one a workload instance's record names
         const named = attributes[PERSON_ATTRIBUTE];
-        const person =
-            this.emitter.person ?? (typeof named === "string" && named !== "" ? named : null);
+        const claimed = textOf(named);
+        const { person: verified, instance } = this.emitter;
+        if (instance === undefined && claimed !== undefined && claimed !== verified) {
+            throw ObservabilityError.of(
+                "PERSON_UNVERIFIED",
+                `a page record names person ${claimed}, whom its machine did not verify`,
+            );
+        }
+        const person = verified ?? claimed ?? null;
 
         // read the session they were recorded in
-        const recorded = attributes[SESSION_ATTRIBUTE];
-        const session = typeof recorded === "string" && recorded !== "" ? recorded : null;
+        const session = textOf(attributes[SESSION_ATTRIBUTE]) ?? null;
 
         // separate the personal attributes, and only for a person
         const personal = Object.fromEntries(
@@ -865,7 +914,7 @@ export class OtlpResource {
 
     /** Identify an event of the resource by its contents, the same on every retry. */
     #identity(contents: readonly unknown[]): Promise<string> {
-        return Event.identity(this.emitter.scope, contents);
+        return Event.identity(this.emitter.scope, contents, this.#crypto);
     }
 
     /** Read the installation and build the forwarder named, as keys. */
@@ -888,9 +937,10 @@ export class OtlpResource {
 /** Refuse a cumulative metric, whose points cannot be added up: a gauge names no temporality. */
 function requireDelta(metric: OtlpMetric, temporality: number | undefined): void {
     if (temporality !== undefined && temporality !== DELTA) {
-        throw new CallError("BAD_REQUEST", {
-            message: `metric ${metric.name} is cumulative: export deltas`,
-        });
+        throw ObservabilityError.of(
+            "TEMPORALITY_UNSUPPORTED",
+            `metric ${metric.name} is cumulative: export deltas`,
+        );
     }
 }
 
@@ -924,7 +974,7 @@ function presentText(value: string | undefined): string | undefined {
 
 /** Read OTLP attributes as attribute values, writing nested lists as JSON. */
 function attributesOf(list: readonly OtlpKeyValue[]): Attributes {
-    // drop the attributes without a value, as an empty value carries none
+    // drop the attributes without a value
     return Object.fromEntries(
         list.flatMap(({ key, value }) => {
             const read = valueOf(value ?? {});

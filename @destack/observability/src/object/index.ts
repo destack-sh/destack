@@ -3,6 +3,7 @@ export * from "./alert.ts";
 export * from "./silence.ts";
 export * from "./issue.ts";
 export * from "./issue-person.ts";
+export * from "./exception.ts";
 export * from "./visitor-salt.ts";
 export * from "./log.ts";
 export * from "./span.ts";

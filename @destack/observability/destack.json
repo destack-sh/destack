@@ -13,9 +13,6 @@
         "./setting": {
             "runtimes": ["bun", "workerd"]
         },
-        "./stack": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./inspect": {
             "runtimes": ["bun"]
         }

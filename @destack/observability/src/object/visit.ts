@@ -1,8 +1,7 @@
 import { through, union } from "@destack/access";
 import { space } from "@destack/account/object";
-import { defineObject, field } from "@destack/object";
+import { defineObject, field, installation } from "@destack/object";
 import { schema } from "@destack/schema";
-import { installation } from "@destack/stack/object";
 import { PersonalAttributes } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { analyticsRetention } from "../setting/index.ts";
@@ -62,6 +61,7 @@ export const visit = defineObject(
     (method) => ({
         /** Append the records an export carries. */
         append: method.createMany("append", {
+            visibility: "package",
             fields: [
                 "installationId",
                 "build",

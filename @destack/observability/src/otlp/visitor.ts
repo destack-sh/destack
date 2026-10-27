@@ -2,7 +2,7 @@ import { Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { CallError } from "@destack/object";
 import { RequestId } from "@destack/sync";
-import { type Identifier, present } from "@destack/schema";
+import { type Identifier, present, Digest } from "@destack/schema";
 import { visitorSalt, type VisitorSalt } from "../object/visitor-salt.ts";
 
 /** The salt bytes of one day. */
@@ -27,13 +27,13 @@ export interface VisitorOrigin {
 /** A space's anonymous visitors, hashed under one salt per day. */
 export class Visitor {
     /** The store of the space's salts. */
-    readonly #store: Pick<ObjectStore, "database" | "serving" | "mutate">;
+    readonly #store: Pick<ObjectStore, "database" | "as" | "mutate" | "environment">;
     /** The space. */
     readonly #space: Identifier<"space">;
 
     /** Hash a space's visitors through its store. */
     constructor(
-        store: Pick<ObjectStore, "database" | "serving" | "mutate">,
+        store: Pick<ObjectStore, "database" | "as" | "mutate" | "environment">,
         space: Identifier<"space">,
     ) {
         this.#store = store;
@@ -43,15 +43,15 @@ export class Visitor {
     /** Hash a browser under the salt of the day a time falls in. */
     async hash(origin: VisitorOrigin, now: number): Promise<string> {
         // hash the day's salt with the browser
-        const salt = await this.#salt(new Date(now).toISOString().slice(0, DAY_LENGTH), now);
+        const salt = await this.#salt(new Date(now).toISOString().slice(0, DAY_LENGTH));
         const text = [salt.salt, origin.installation, origin.address, origin.userAgent].join("\n");
-        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+        const digest = await Digest.of(text, this.#store.environment.crypto);
 
-        return new Uint8Array(digest).toHex().slice(0, VISITOR_DIGITS);
+        return digest.slice(0, VISITOR_DIGITS);
     }
 
     /** Read a day's salt, creating it on the day's first visit. */
-    async #salt(day: string, now: number): Promise<VisitorSalt> {
+    async #salt(day: string): Promise<VisitorSalt> {
         // read the day's salt
         const known = await this.#read(day);
         if (known !== undefined) {
@@ -59,11 +59,11 @@ export class Visitor {
         }
 
         // create it, reading the one a concurrent intake created first
-        const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES)).toHex();
+        const salt = this.#store.environment.random.bytes(SALT_BYTES).toHex();
         const create = visitorSalt.call("create", { ...visitorSalt.in(this.#space), day, salt });
         try {
-            const [created] = await this.#store.mutate(this.#store.serving(visitorSalt), {
-                id: RequestId.create(now),
+            const [created] = await this.#store.mutate(this.#store.as(visitorSalt), {
+                id: RequestId.create(this.#store.environment),
                 calls: [create],
             });
 

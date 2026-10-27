@@ -36,3 +36,8 @@ export const SENSITIVE_PREFIX = "sensitive.";
 
 /** The attribute of the person a signal acted for. */
 export const PERSON_ATTRIBUTE = "enduser.id";
+
+/** Read an attribute value as text, absent unless it is a non-empty string. */
+export function textOf(value: Attributes[string] | undefined): string | undefined {
+    return typeof value === "string" && value !== "" ? value : undefined;
+}

@@ -4,13 +4,13 @@
 
 ```ts
 await client.span.list({ spaceId, where: { trace } });
-await client.issue.update({ spaceId, requestId, id, until: { kind: "revision", after } });
-await client.issue.resolve({ spaceId, requestId, id });
+await client.issue.resolve({ spaceId, requestId, id, until: { kind: "revision", after } }); // reopen on a later revision
+await client.issue.ignore({ spaceId, requestId, id, until: { kind: "never" } });
 ```
 
 ## Events
 
-`log`, `span`, `metric`, `session`, `visit` and `action` are events types keyed by session, their personal attributes masked unless the reader may unmask them.
+`log`, `span`, `metric`, `session`, `visit` and `action` are events types, all but `metric` keyed by session, their personal attributes masked unless the reader may unmask them.
 
 ```ts
 import { log, session } from "@destack/observability";
@@ -21,13 +21,21 @@ await events.series(session.eventKind(), { scopes }, { fold: "count", group: ["b
 
 ## OTLP
 
-The `otlp` adapter takes OTLP/HTTP JSON exports at `/v1/traces`, `/v1/logs` and `/v1/metrics` into the request's scope, grouping a space's exceptions into its issues.
+The `otlp` adapter takes OTLP/HTTP JSON exports at `/v1/traces`, `/v1/logs` and `/v1/metrics` into the request's scope, appending an `exception` event for each failure a log record or span carries.
 
 ```ts
 import { OtlpExport, OtlpIntake } from "@destack/observability";
 
 const stamped = new OtlpExport("logs", body).stamp({ installation, build }); // as the forwarding machine
-await new OtlpIntake(store).append(caller, scope, "logs", stamped.body);
+await new OtlpIntake(store).append(caller, scope, "logs", stamped.body); // appends only, its retries once each
+```
+
+## Exceptions
+
+Each `exception` event names its issue by installation and fingerprint, and the `issues` reader counts a minute of a space's exceptions into their issues at a time, as Sentry buffers its counters.
+
+```ts
+await client.exception.list({ spaceId, where: { issue } }); // an issue's exceptions, kept as long as its logs
 ```
 
 ## Issues and alerts
@@ -66,21 +74,21 @@ await client.silence.create({
 
 ## Server
 
-The package's server serves issues, alert rules, alerts and the `otlp` adapter, and each events type keeps its events as long as the space's retention setting says.
+The package's server, its default export of `./server`, serves issues, alert rules, alerts, the responses to fired alerts and the `otlp` adapter.
 
 ```ts
 import observabilityServer from "@destack/observability/server";
 
-storage: { kind: "events", flush: EVENT_FLUSH, retention: { setting: telemetryRetention.definition } },
+const store = new ObjectStore({ servers: [observabilityServer, notificationServer], ...options });
 ```
 
 ## Readings
 
-A `reading` records one increment of a meter a space used, with the SKU and payer it is billed at, and its `metering` reader hands each hour's readings to the machine billing them.
+A `reading` records one increment of a meter a space used, with the SKU and payer it is billed at, and its `metering` reader hands each hour's readings to the machine billing them, as `@destack/finance` does.
 
 ```ts
 await store.mutate(machine, { id, calls: [reading.call("append", { ...reading.in(spaceId), items })] });
-controllers: [reading.consume("metering", async (page) => billUses(await Usage.of(page)))],
+controllers: [reading.consume("metering", async (page) => bill(page.events))],
 ```
 
 ## Meters

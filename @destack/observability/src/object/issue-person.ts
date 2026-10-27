@@ -27,9 +27,9 @@ export const issuePerson = defineObject(
     },
     (method) => ({
         /** Record the first exception that happened to a person. */
-        create: method.create("detect", { isInternal: true }),
+        create: method.create("detect", { visibility: "package" }),
         /** Record a later exception that happened to a person. */
-        update: method.update("detect", { isInternal: true, fields: ["lastSeenAt"] }),
+        update: method.update("detect", { visibility: "package", fields: ["lastSeenAt"] }),
     }),
 );
 /** A person an issue affected, as its table stores it. */

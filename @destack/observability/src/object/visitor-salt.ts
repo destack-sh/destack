@@ -1,4 +1,4 @@
-import { contained, none } from "@destack/access";
+import { none } from "@destack/access";
 import { space } from "@destack/account/object";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
@@ -20,8 +20,8 @@ export const visitorSalt = defineObject(
         },
         permissions: {
             read: none(),
-            // let the space's own observability create the day's salt
-            write: contained(),
+            // let observability's code create the day's salt, through its role
+            write: none(),
         },
         constraints: {
             day: { kind: "unique", on: ["scope", "day"] },
@@ -29,7 +29,7 @@ export const visitorSalt = defineObject(
     },
     (method) => ({
         /** Create the salt of a new day. */
-        create: method.create("write", { isInternal: true }),
+        create: method.create("write", { visibility: "package" }),
     }),
 );
 

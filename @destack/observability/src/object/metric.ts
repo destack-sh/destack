@@ -1,9 +1,8 @@
 import { through, union } from "@destack/access";
 import { machine, space } from "@destack/account/object";
 import { Histogram } from "@destack/event";
-import { defineObject, field } from "@destack/object";
+import { defineObject, field, installation } from "@destack/object";
 import { schema } from "@destack/schema";
-import { installation } from "@destack/stack/object";
 import { AttributeKey, Instrumentation } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { telemetryRetention } from "../setting/index.ts";
@@ -65,6 +64,7 @@ export const metric = defineObject(
     (method) => ({
         /** Append the records an export carries. */
         append: method.createMany("append", {
+            visibility: "package",
             fields: [
                 "installationId",
                 "build",

@@ -1,8 +1,7 @@
 import { through, union } from "@destack/access";
 import { machine, space } from "@destack/account/object";
-import { defineObject, field } from "@destack/object";
+import { defineObject, field, installation } from "@destack/object";
 import { schema } from "@destack/schema";
-import { installation } from "@destack/stack/object";
 import {
     AttributeKey,
     Attributes,
@@ -94,6 +93,7 @@ export const span = defineObject(
     (method) => ({
         /** Append the records an export carries. */
         append: method.createMany("append", {
+            visibility: "package",
             fields: [
                 "installationId",
                 "build",

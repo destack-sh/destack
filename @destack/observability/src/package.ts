@@ -1,11 +1,13 @@
 import { defineAdapter, definePackage } from "@destack/object";
-import { installation } from "@destack/stack/object";
+import { rollout } from "@destack/stack/object";
+import { ObservabilityError } from "./error/error.ts";
 import {
     action,
     alert,
     alertRule,
     issue,
     issuePerson,
+    exception,
     log,
     metric,
     reading,
@@ -23,6 +25,7 @@ export default definePackage({
     objects: {
         issue,
         issuePerson,
+        exception,
         alertRule,
         alert,
         silence,
@@ -55,9 +58,10 @@ export default definePackage({
             reason: "Roll back installations when an alert rule you write fires",
             optional: true,
             permissions: {
-                installation: { space: [installation.permission("apply")] },
-                user: { space: [installation.permission("apply")] },
+                installation: { space: [rollout.permission("apply")] },
+                user: { space: [rollout.permission("apply")] },
             },
         },
     },
+    errors: ObservabilityError,
 });

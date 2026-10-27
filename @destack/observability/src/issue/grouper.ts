@@ -1,25 +1,32 @@
-import type { Call } from "@destack/sync";
-import { EventTime } from "@destack/event";
-import { and, eq, inArray, Snapshot } from "@destack/db";
+import { and, asc, eq, inArray } from "@destack/db";
+import { Event, EventTime } from "@destack/event";
+import { installation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { type Digest, type Identifier, present } from "@destack/schema";
-import { build, installation, installationRevision } from "@destack/stack/object";
-import { ISSUE_LEVELS, issue, type Issue, issuePerson } from "../object/index.ts";
+import { Digest, Identifier, present } from "@destack/schema";
+import { build, installationRevision } from "@destack/stack/object";
+import {
+    type ExceptionData,
+    Issue,
+    ISSUE_NAMESPACE,
+    ISSUE_TITLE_LENGTH,
+    type IssueOpening,
+} from "../object/index.ts";
 import type { Exception } from "./exception.ts";
-import { RequestId } from "@destack/sync";
 
-/** The component name the grouper records its calls under. */
-const GROUPER = "issues";
+/** The kind an exception's event identity derives under, apart from its record's. */
+const EXCEPTION_EVENT = "exception";
 
 /** An unexpected exception of an installation that a log record or a span recorded. */
 export interface Occurrence {
+    /** The identity counting it once: the log record or span carrying it, which retries repeat. */
+    readonly identity: string;
     /** The exception. */
     readonly exception: Exception;
     /** The installation that ran it. */
     readonly installation: Identifier<"installation">;
-    /** The digest of the build that ran it, absent when unknown. */
-    readonly build: Digest | undefined;
-    /** The person it happened to, absent when unknown. */
+    /** The digest of the build that ran it, null when unknown. */
+    readonly build: Digest | null;
+    /** The person it happened to, null when unknown. */
     readonly person: string | null;
     /** When it happened, in Unix microseconds. */
     readonly time: number;
@@ -29,8 +36,10 @@ export interface Occurrence {
 interface IssueEvent {
     /** The occurrence. */
     readonly occurrence: Occurrence;
+    /** The event identity its exception is appended once under. */
+    readonly id: string;
     /** Its grouping. */
-    readonly fingerprint: string;
+    readonly fingerprint: Digest;
     /** The installation revision that ran it, absent when unknown. */
     readonly revision: Revision | undefined;
 }
@@ -43,29 +52,51 @@ interface Revision {
     readonly createdAt: number;
 }
 
+/** An exception as its events append it. */
+export interface ExceptionItem {
+    /** The event identity, the same across exports of the exception. */
+    readonly id: string;
+    /** When it happened, in Unix microseconds. */
+    readonly time: number;
+    /** The issue it is grouped into. */
+    readonly issue: Identifier<"issue">;
+    /** The installation that ran it. */
+    readonly installationId: Identifier<"installation">;
+    /** The person it happened to, null when unknown. */
+    readonly person: string | null;
+    /** Its issue's opening and its revision's time. */
+    readonly data: ExceptionData;
+}
+
+/** A space's exceptions grouped into issues, as the events appending them. */
+export interface Grouping {
+    /** The exceptions to append, which the issues' reader counts. */
+    readonly exceptions: readonly ExceptionItem[];
+    /** The issue of each unexpected occurrence. */
+    readonly issues: ReadonlyMap<Occurrence, Identifier<"issue">>;
+}
+
 /** Groups unexpected exceptions into a space's issues. */
 export class Grouper {
     /** The object store of the issues, beside replicas of the installations and their revisions. */
-    readonly #objects: Pick<ObjectStore, "database" | "serving" | "mutate">;
+    readonly #objects: Pick<ObjectStore, "database" | "environment">;
 
     /** Group exceptions into the issues an object store keeps. */
-    constructor(objects: Pick<ObjectStore, "database" | "serving" | "mutate">) {
+    constructor(objects: Pick<ObjectStore, "database" | "environment">) {
         this.#objects = objects;
     }
 
-    /** Group a space's unexpected exceptions into its issues. */
-    async group(
-        scope: Identifier<"space">,
-        occurrences: readonly Occurrence[],
-        now: number,
-    ): Promise<ReadonlyMap<Occurrence, Identifier<"issue">>> {
+    /** Group a space's unexpected exceptions into issues, recorded by the calls it answers. */
+    async group(scope: Identifier<"space">, occurrences: readonly Occurrence[]): Promise<Grouping> {
         // resolve the unexpected exceptions into events at their revisions, grouped by installation and fingerprint
         const unexpected = occurrences.filter((occurrence) => !occurrence.exception.isExpected);
         const built = await this.#revisions(scope, unexpected);
+        const { crypto } = this.#objects.environment;
         const events = await Promise.all(
             unexpected.map(async (occurrence) => ({
                 occurrence,
-                fingerprint: await occurrence.exception.fingerprint(),
+                id: await Event.identity(scope, [EXCEPTION_EVENT, occurrence.identity], crypto),
+                fingerprint: await occurrence.exception.fingerprint(crypto),
                 revision: built.get(`${occurrence.installation} ${occurrence.build}`),
             })),
         );
@@ -75,88 +106,32 @@ export class Grouper {
             ).values(),
         ].map((group) => new IssueGroup(group));
         if (groups.length === 0) {
-            return new Map();
+            return { exceptions: [], issues: new Map() };
         }
 
-        // open new issues and count the events and people into every issue
-        const { issues, counted } = await this.#count(scope, groups, now);
-
-        // regress resolved issues and escalate ignored ones whose condition the events meet
-        const revisions = await this.#revisionsOf(counted.map(({ row }) => row));
-        const reopened = counted.filter(({ row, group }) => group.reopens(row, revisions));
-        await this.#transition(
-            "regress",
-            reopened.filter(({ row }) => row.status === "resolved"),
-            now,
-        );
-        await this.#transition(
-            "escalate",
-            reopened.filter(({ row }) => row.status === "ignored"),
-            now,
+        // record each group into the issue its installation and fingerprint derive
+        const recorded = await Promise.all(
+            groups.map(async (group) => ({ group, id: await this.#identify(scope, group) })),
         );
 
-        // answer each occurrence's issue
-        return new Map(
-            groups.flatMap((group) => {
-                const found = issues.get(group.key);
-
-                return found === undefined
-                    ? []
-                    : group.events.map((event): [Occurrence, Identifier<"issue">] => [
-                          event.occurrence,
-                          found.id,
-                      ]);
-            }),
-        );
+        return {
+            exceptions: recorded.flatMap(({ group, id }) => group.exceptions(id)),
+            issues: new Map(
+                recorded.flatMap(({ group, id }) =>
+                    group.events.map((event): [Occurrence, Identifier<"issue">] => [
+                        event.occurrence,
+                        id,
+                    ]),
+                ),
+            ),
+        };
     }
 
-    /** Open the issues the grouped events are new to. */
-    async #count(scope: Identifier<"space">, groups: readonly IssueGroup[], now: number) {
-        // open new issues
-        const known = await this.#known(scope, groups);
-        await this.#objects.mutate(
-            this.#objects.serving(issue),
-            {
-                id: RequestId.create(now),
-                calls: groups
-                    .filter((group) => !known.has(group.key))
-                    .map((group) => issue.call("open", { ...issue.in(scope), ...group.opening })),
-            },
-            { component: GROUPER },
-        );
+    /** Derive a group's issue identifier from its space, installation and fingerprint. */
+    #identify(scope: Identifier<"space">, group: IssueGroup): Promise<Identifier<"issue">> {
+        const name = [scope, group.installation, group.fingerprint].join(" ");
 
-        // count the events and people into every issue
-        const issues = await this.#known(scope, groups);
-        const counted = groups.flatMap((group) => {
-            const row = issues.get(group.key);
-
-            return row === undefined ? [] : [{ row, group }];
-        });
-        const { calls, people } = await this.#affect(counted);
-        await this.#objects.mutate(
-            this.#objects.serving(issue),
-            {
-                id: RequestId.create(now),
-                calls: [
-                    ...calls,
-                    ...counted.map(({ row, group }) => {
-                        const { latest } = group;
-
-                        return issue.call("occur", {
-                            ...issue.target(row),
-                            level: severest(group.level, row.level),
-                            lastSeenAt: Math.max(row.lastSeenAt, group.lastSeenAt),
-                            ...(latest === undefined ? {} : { lastRevisionId: latest.id }),
-                            count: row.count + group.events.length,
-                            people: people.get(row.id) ?? row.people,
-                        });
-                    }),
-                ],
-            },
-            { component: GROUPER },
-        );
-
-        return { issues, counted };
+        return Identifier.hash("issue", ISSUE_NAMESPACE, name, this.#objects.environment.crypto);
     }
 
     /** Read the revisions the occurrences ran, keyed by installation and build manifest. */
@@ -164,14 +139,10 @@ export class Grouper {
         scope: Identifier<"space">,
         occurrences: readonly Occurrence[],
     ): Promise<Map<string, Revision>> {
-        // read the revisions of the occurrences' installations from the replicas in one query
-        const installations = [
-            ...new Set(
-                occurrences.flatMap((each) =>
-                    each.build === undefined ? [] : [each.installation],
-                ),
-            ),
-        ];
+        // read the revisions of the occurrences' installations and builds from the replicas in one query
+        const built = occurrences.filter((each) => each.build !== null);
+        const installations = [...new Set(built.map((each) => each.installation))];
+        const manifests = [...new Set(built.flatMap((each) => each.build ?? []))];
         if (installations.length === 0) {
             return new Map();
         }
@@ -192,130 +163,18 @@ export class Grouper {
                 and(
                     eq(installation.table.scope, scope),
                     inArray(installation.table.id, installations),
+                    inArray(build.table.manifest, manifests),
                 ),
-            );
+            )
+            .orderBy(asc(installationRevision.table.createdAt), asc(installationRevision.table.id));
 
+        // key each build by its latest revision, as a rollback to a build makes it again
         return new Map(
             rows.map((row) => [
                 `${row.installationId} ${row.manifest}`,
                 { id: row.id, createdAt: row.createdAt },
             ]),
         );
-    }
-
-    /** Read the creation times of the revisions issues' conditions name. */
-    async #revisionsOf(rows: readonly Issue[]): Promise<Map<string, number>> {
-        // collect the revisions the conditions name
-        const named = rows.flatMap((row) =>
-            row.until.kind === "revision" ? [row.until.after] : [],
-        );
-        if (named.length === 0) {
-            return new Map();
-        }
-        const found = await this.#objects.database
-            .select({
-                id: installationRevision.table.id,
-                createdAt: installationRevision.table.createdAt,
-            })
-            .from(installationRevision.table)
-            .where(inArray(installationRevision.table.id, named));
-
-        return new Map(found.map((row) => [row.id, row.createdAt]));
-    }
-
-    /** Move issues to a status as the system, at their latest revision. */
-    async #transition(
-        name: "regress" | "escalate",
-        moved: readonly { readonly row: Issue }[],
-        now: number,
-    ): Promise<void> {
-        if (moved.length === 0) {
-            return;
-        }
-        const rows = await this.#objects.database
-            .select()
-            .from(issue.table)
-            .where(
-                inArray(
-                    issue.table.id,
-                    moved.map(({ row }) => row.id),
-                ),
-            );
-        await this.#objects.mutate(
-            this.#objects.serving(issue),
-            {
-                id: RequestId.create(now),
-                calls: rows.map((row) => issue.call(name, issue.target(row))),
-            },
-            { component: GROUPER },
-        );
-    }
-
-    /** Read a space's issues of events by installation and fingerprint. */
-    async #known(
-        scope: Identifier<"space">,
-        groups: readonly IssueGroup[],
-    ): Promise<Map<string, Issue>> {
-        const rows = await this.#objects.database
-            .select()
-            .from(issue.table)
-            .where(
-                and(
-                    eq(issue.table.scope, scope),
-                    inArray(
-                        issue.table.fingerprint,
-                        groups.map((group) => group.fingerprint),
-                    ),
-                ),
-            );
-
-        return new Map(rows.map((row) => [issueKey(row.installationId, row.fingerprint), row]));
-    }
-
-    /** Plan the people each issue's events affected: the calls keeping them, and their counts. */
-    async #affect(
-        counted: readonly { readonly row: Issue; readonly group: IssueGroup }[],
-    ): Promise<{ calls: Call[]; people: Map<string, number> }> {
-        // read the people the issues affected before
-        const known = await Snapshot.live(this.#objects.database)
-            .read(issuePerson.table)
-            .findMany({
-                where: {
-                    parentId: { in: counted.map(({ row }) => row.id) },
-                },
-            });
-        const byIssue = Map.groupBy(known, (row) => row.parentId);
-
-        // keep each person new to an issue, and the later time of each known one
-        const calls: Call[] = [];
-        const people = new Map<string, number>();
-        for (const { row, group } of counted) {
-            const kept = new Map((byIssue.get(row.id) ?? []).map((each) => [each.person, each]));
-            const affected = group.people;
-            for (const [person, lastSeenAt] of affected) {
-                const found = kept.get(person);
-                if (found === undefined) {
-                    calls.push(
-                        issuePerson.call("create", {
-                            ...issuePerson.in(row.scope),
-                            parentId: row.id,
-                            person,
-                            lastSeenAt,
-                        }),
-                    );
-                } else if (lastSeenAt > found.lastSeenAt) {
-                    calls.push(
-                        issuePerson.call("update", { ...issuePerson.target(found), lastSeenAt }),
-                    );
-                }
-            }
-
-            // count the people known and new
-            const added = [...affected.keys()].filter((person) => !kept.has(person)).length;
-            people.set(row.id, kept.size + added);
-        }
-
-        return { calls, people };
     }
 }
 
@@ -332,19 +191,36 @@ class IssueGroup {
         this.#first = present(events[0], "an issue group's first event");
     }
 
-    /** The key of the group's issue: its installation and fingerprint. */
-    get key(): string {
-        return issueKey(this.#first.occurrence.installation, this.#first.fingerprint);
+    /** The installation that ran the events. */
+    get installation(): Identifier<"installation"> {
+        return this.#first.occurrence.installation;
     }
 
     /** The fingerprint. */
-    get fingerprint(): string {
+    get fingerprint(): Digest {
         return this.#first.fingerprint;
+    }
+
+    /** List the events as the exceptions of their issue, each with the opening it alone gives. */
+    exceptions(id: Identifier<"issue">): ExceptionItem[] {
+        return this.events.map((event) => ({
+            id: event.id,
+            time: event.occurrence.time,
+            issue: id,
+            installationId: event.occurrence.installation,
+            person: event.occurrence.person,
+            data: {
+                opening: new IssueGroup([event]).opening,
+                ...(event.revision === undefined ? {} : { revisedAt: event.revision.createdAt }),
+            },
+        }));
     }
 
     /** The most severe level of the events. */
     get level(): Issue["level"] {
-        return this.events.map((event) => event.occurrence.exception.level).reduce(severest);
+        return this.events
+            .map((event) => event.occurrence.exception.level)
+            .reduce((left, right) => Issue.severest(left, right));
     }
 
     /** When the latest event happened, in Unix milliseconds. */
@@ -361,21 +237,8 @@ class IssueGroup {
         );
     }
 
-    /** The people the events affected, with the latest time each was. */
-    get people(): Map<string, number> {
-        const people = new Map<string, number>();
-        for (const event of this.events) {
-            const { person } = event.occurrence;
-            if (person !== null && person !== "") {
-                people.set(person, Math.max(people.get(person) ?? 0, timeOf(event)));
-            }
-        }
-
-        return people;
-    }
-
-    /** The input opening the group's issue, which the events are counted into after. */
-    get opening() {
+    /** The fields opening the group's issue at its first events. */
+    get opening(): IssueOpening {
         // read the first event's title, its innermost in-app symbol and an in-app frame's declaration
         const { exception, installation: installationId } = this.#first.occurrence;
         const inApp = exception.frames.filter((frame) => frame.isInApp);
@@ -395,7 +258,10 @@ class IssueGroup {
             installationId,
             fingerprint: this.#first.fingerprint,
             errorType: exception.errorType,
-            title: `${exception.type ?? exception.errorType}: ${firstLine}`.slice(0, 500),
+            title: `${exception.type ?? exception.errorType}: ${firstLine}`.slice(
+                0,
+                ISSUE_TITLE_LENGTH,
+            ),
             ...(culprit === undefined ? {} : { culprit }),
             ...(declaration === undefined ? {} : { declaration: declaration.moniker }),
             level: this.level,
@@ -404,37 +270,6 @@ class IssueGroup {
             ...(earliest === undefined ? {} : { firstRevisionId: earliest.id }),
             ...(latest === undefined ? {} : { lastRevisionId: latest.id }),
         };
-    }
-
-    /** Report whether the group reopens a resolved or ignored issue, by the issue's condition. */
-    reopens(row: Issue, revisions: ReadonlyMap<string, number>): boolean {
-        // reopen only resolved and ignored issues
-        const { until } = row;
-        if (row.status !== "resolved" && row.status !== "ignored") {
-            return false;
-        }
-
-        // reopen by the condition: any event, a later revision, a time, or a count
-        switch (until.kind) {
-            case "event":
-                return true;
-            case "revision": {
-                const after = revisions.get(until.after);
-
-                return this.events.some(
-                    (event) =>
-                        event.revision !== undefined &&
-                        after !== undefined &&
-                        event.revision.createdAt > after,
-                );
-            }
-            case "time":
-                return this.events.some((event) => timeOf(event) >= until.at);
-            case "count":
-                return row.count + this.events.length >= until.count;
-            case "never":
-                return false;
-        }
     }
 
     /** List the revisions the events ran. */
@@ -451,9 +286,4 @@ function timeOf(event: IssueEvent): number {
 /** Key an issue by its installation and fingerprint. */
 function issueKey(installationId: string, fingerprint: string): string {
     return `${installationId}\0${fingerprint}`;
-}
-
-/** Read the more severe of two levels. */
-function severest(left: Issue["level"], right: Issue["level"]): Issue["level"] {
-    return ISSUE_LEVELS.indexOf(left) <= ISSUE_LEVELS.indexOf(right) ? left : right;
 }

@@ -1,12 +1,22 @@
+import { none, permission, union } from "@destack/access";
 import { space } from "@destack/account/object";
 import { type Select } from "@destack/db";
 import { argument, plural, t } from "@destack/locale";
 import { defineNotification } from "@destack/notification/declare";
 import { type ObjectOf, defineObject, field } from "@destack/object";
 import { Digest, schema } from "@destack/schema";
-import { defineWorkflow } from "@destack/workflow";
+import { defineWorkflow, NO_OUTPUT } from "@destack/workflow";
 import { alertRule } from "./alert-rule.ts";
 import { issue } from "./issue.ts";
+
+/** The longest alert title: 500 characters, room for an issue's title and its labels. */
+export const ALERT_TITLE_LENGTH = 500;
+
+/** The longest rule title: 100 characters, a notification's subject line. */
+export const RULE_TITLE_LENGTH = 100;
+
+/** How long a resolved alert stays readable: 120 hours, Alertmanager's default data retention. */
+export const RESOLVED_RETENTION = { hours: 120 };
 
 /** The key values identifying an alert's subject, such as its installation and route. */
 export const AlertLabels = schema.record(
@@ -21,9 +31,9 @@ export const AlertExcerpt = schema.object({
     /** The alert. */
     alert: schema.identifier("alert"),
     /** The rule's name. */
-    rule: schema.string().max(100),
+    rule: schema.string().max(RULE_TITLE_LENGTH),
     /** The alert's title. */
-    title: schema.string().max(500),
+    title: schema.string().max(ALERT_TITLE_LENGTH),
 });
 /** An alert as its notifications carry it. */
 export type AlertExcerpt = schema.Infer<typeof AlertExcerpt>;
@@ -58,6 +68,7 @@ export const alert = defineObject(
         name: "alert",
         plural: "alerts",
         scope: space,
+        expiring: [{ after: RESOLVED_RETENTION, from: "resolvedAt" }],
         fields: {
             /** The rule that raised it. */
             rule: field.reference((): ObjectOf<{ identity: "alert-rule" }> => alertRule, {
@@ -72,25 +83,30 @@ export const alert = defineObject(
             /** The value crossing the rule's condition: the issue's count or the events' fold. */
             value: field.number(),
             /** What is wrong, such as an issue's title. */
-            title: field.string(schema.string().min(1).max(500)),
+            title: field.string(schema.string().min(1).max(ALERT_TITLE_LENGTH)),
             /** Whether it waits out the rule's pending period, fires, or resolved. */
             status: field.state({
                 initial: "pending",
                 transitions: {
-                    fire: {
-                        from: ["pending"],
-                        to: "firing",
-                        permission: "detect",
-                        fields: ["firedAt"],
-                    },
-                    settle: { from: ["pending", "firing"], to: "resolved", permission: "detect" },
-                    resolve: { from: ["pending", "firing"], to: "resolved", permission: "write" },
+                    fire: { from: ["pending"], to: "firing", permission: "detect" },
+                    resolve: { from: ["pending", "firing"], to: "resolved", permission: "resolve" },
                 },
             }),
             /** When it fired. */
             firedAt: field.time().optional(),
+            /** When its firing was announced and its response started, absent while silenced. */
+            announcedAt: field.time().optional(),
+            /** When it resolved. */
+            resolvedAt: field.time().optional(),
         },
-        permissions: ["read", "write", "manage", "detect"],
+        permissions: {
+            read: none(),
+            write: none(),
+            manage: none(),
+            detect: none(),
+            // let people who write alerts and the rules' evaluation resolve them alike
+            resolve: union(permission("write"), permission("detect")),
+        },
         constraints: {
             series: { kind: "index", on: ["scope", "ruleId", "fingerprint", "createdAt"] },
             ruleIssue: { kind: "index", on: ["ruleId", "issueId", "createdAt"] },
@@ -102,8 +118,14 @@ export const alert = defineObject(
         delete: false,
         /** Raise an alert of a rule for a subject, pending until it fires. */
         open: method.create("detect", {
-            isInternal: true,
+            visibility: "package",
             fields: ["ruleId", "labels", "fingerprint", "issueId", "value", "title"],
+        }),
+        /** Announce a firing alert and start its response once, after any silence on it ends. */
+        announce: method.mutation({
+            permission: "detect",
+            visibility: "package",
+            input: schema.object({}),
         }),
     }),
 );
@@ -117,4 +139,4 @@ const RespondInput = schema.object({
 });
 
 /** Run a fired alert's calls as the rule's author, each waiting on any approval it needs. */
-export const respond = defineWorkflow({ name: "respond", input: RespondInput });
+export const respond = defineWorkflow({ name: "respond", input: RespondInput, output: NO_OUTPUT });

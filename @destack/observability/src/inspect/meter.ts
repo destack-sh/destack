@@ -1,5 +1,5 @@
 import { Address, type Comparator } from "@destack/resource";
-import { PlanError } from "@destack/resource/error";
+import { unreachablePlan } from "@destack/resource/error";
 import type { JsonValue } from "@destack/schema";
 import { type Meter, MeterDescription } from "../meter/meter.ts";
 
@@ -22,7 +22,7 @@ export const compareMeter: Comparator = (before, after) => {
         detail: `keep ${field} ${earlier[field]}, or declare a meter of ${field} ${later[field]}`,
     }));
     if (problems.length > 0) {
-        throw new PlanError(problems);
+        throw unreachablePlan(problems);
     }
 
     return { steps: [] };
