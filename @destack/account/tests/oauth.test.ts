@@ -951,9 +951,9 @@ test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal i
     const reused = await answered(await refresh(tokens.refresh_token));
     const revoked = await answered(await refresh(third.refresh_token));
 
-    // refuse a fresh code once its minute passes
+    // refuse a fresh code once its minute passed and its expiry swept it
     const lapsing = codeOf(TestBrowser.location(await browser.fetch(`/oauth2/authorize?${query}`)));
-    fixture.clock.advance(61 * SECOND);
+    await fixture.simulation.jump(fixture.clock.now() + 61 * SECOND);
     const lapsed = await answered(await redeem(lapsing));
     expect({ narrowed, reused, revoked, lapsed }).toEqual({
         narrowed: [
@@ -965,7 +965,7 @@ test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal i
             { error: "invalid_grant", error_description: "the refresh token was used before" },
         ],
         revoked: [400, { error: "invalid_grant", error_description: "invalid refresh token" }],
-        lapsed: [400, { error: "invalid_grant", error_description: "the code expired" }],
+        lapsed: [400, { error: "invalid_grant", error_description: "invalid code" }],
     });
 });
 
