@@ -1,7 +1,6 @@
 export * from "./release/index.ts";
 export * from "./error/index.ts";
 export * from "./update/index.ts";
-export * from "./installation/index.ts";
 export * from "./distribution/index.ts";
 export type { Download } from "./repository/repository.ts";
 export type { DownloadOptions, DownloadProgress } from "./repository/download.ts";
@@ -11,3 +10,4 @@ export {
     PRIVATE_DIRECTORY_MODE,
     type StagedRelease,
 } from "./install/installer.ts";
+export { ShellPath } from "./install/path.ts";

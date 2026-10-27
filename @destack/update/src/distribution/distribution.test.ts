@@ -1,3 +1,4 @@
+import { ReleaseChannel } from "../release/index.ts";
 import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "@destack/test";
@@ -36,8 +37,7 @@ test("stage a newer release once, keeping it staged while none newer is publishe
         running: new Release("2026.9.0", repository.target),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        applicationIdentifier: "app.destack.desktop",
-        title: "Destack",
+        channel: new ReleaseChannel("stable"),
         environment: repository.environment,
     });
     try {

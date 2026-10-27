@@ -4,6 +4,8 @@ import type {} from "@destack/package/import-meta";
 /** The update package's failures, each reason with the call error code it answers. */
 export const UpdateError = defineErrorFamily(import.meta.destack.package, {
     // bad request
+    CHANNEL_UNKNOWN: { code: "BAD_REQUEST" },
+    ENVIRONMENT_INVALID: { code: "BAD_REQUEST" },
     METADATA_INVALID: { code: "BAD_REQUEST" },
     OPTIONS_INVALID: { code: "BAD_REQUEST" },
     REPOSITORY_INVALID: { code: "BAD_REQUEST" },
@@ -24,11 +26,15 @@ export const UpdateError = defineErrorFamily(import.meta.destack.package, {
     UPDATE_RUNNING: { code: "CONFLICT" },
 
     // precondition failed
+    DESKTOP_UNAVAILABLE: { code: "PRECONDITION_FAILED" },
     DEVELOPMENT_BUILD: { code: "PRECONDITION_FAILED" },
     INSTALLATION_METHOD_MISMATCH: { code: "PRECONDITION_FAILED" },
+    INSTALLATION_MISMATCH: { code: "PRECONDITION_FAILED" },
 
     // internal server error
     ACTIVATION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    COMMAND_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    FILE_SYSTEM_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     INSTALL_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     RECORD_INVALID: { code: "INTERNAL_SERVER_ERROR" },
 

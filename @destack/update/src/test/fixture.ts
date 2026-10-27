@@ -101,7 +101,7 @@ export class UpdateFixture implements AsyncDisposable {
     }
 
     /** The world the device updating runs in. */
-    get environment(): Environment<"files" | "process"> {
+    get environment(): Environment<"files" | "process" | "host"> {
         return this.simulation.environment(DEVICE_NODE);
     }
 

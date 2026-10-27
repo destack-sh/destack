@@ -1,3 +1,4 @@
+import { ReleaseChannel } from "../release/index.ts";
 import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { principal } from "@destack/access";
@@ -44,8 +45,7 @@ test("record a device's distribution once and stage the published release as the
         running: new Release("2026.9.0", repository.target),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        applicationIdentifier: "app.destack.desktop",
-        title: "Destack",
+        channel: new ReleaseChannel("stable"),
         environment: repository.environment,
     });
 
