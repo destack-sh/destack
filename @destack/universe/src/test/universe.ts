@@ -115,6 +115,8 @@ const TEST_LOCATION = { providerCode: "test", location: "test-1" } as const;
 export interface TestUniverseOptions {
     /** The universe's residencies, Europe alone by default, each served by one cloud machine. */
     readonly residencies?: readonly { readonly code: ResidencyCode; readonly name: string }[];
+    /** The handles the platform publishes first-party packages under, none by default. */
+    readonly publishers?: UniverseDefinition["platform"]["publishers"];
     /** The simulation it answers on at its origin, a world of its own by default. */
     readonly simulation?: Simulation;
     /** The registry it opens packages' releases from, refusing every release by default. */
@@ -303,7 +305,7 @@ export class TestUniverse implements AsyncDisposable {
                 residencyId: TEST_RESIDENCY,
                 operator: OPERATOR_EMAIL,
                 reserved: [],
-                publishers: [],
+                publishers: options.publishers ?? [],
                 handle: "destack",
                 machines: declared,
             },
@@ -716,6 +718,7 @@ export class TestUniverse implements AsyncDisposable {
             id: declared.id,
             keychain: declared.keychain,
             origin: TEST_ORIGIN,
+            head: () => this.storage.database.log.position(),
             send: this.#sender(declared.id),
             environment: this.environment,
         });
@@ -785,6 +788,7 @@ export class TestUniverse implements AsyncDisposable {
             id,
             keychain,
             origin: TEST_ORIGIN,
+            head: () => this.storage.database.log.position(),
             send: this.#sender(id),
             environment: this.environment,
         });

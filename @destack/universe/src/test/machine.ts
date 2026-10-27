@@ -59,6 +59,8 @@ export class TestMachine implements AsyncDisposable {
     readonly #keychain: MemoryKeychain;
     /** Whether the machine created its replica's database, and closes it. */
     readonly #isOwned: boolean;
+    /** Read the universe's log head, which settling follows up to. */
+    readonly #head: () => Promise<LogPosition>;
 
     /** The migrated replica database of a test machine, the same for every machine. */
     static readonly database = defineDatabase({
@@ -85,6 +87,7 @@ export class TestMachine implements AsyncDisposable {
         readonly storage: TestDatabase;
         readonly keychain: MemoryKeychain;
         readonly isOwned: boolean;
+        readonly head: () => Promise<LogPosition>;
     }) {
         // keep the machine's identity and its replica
         const accounts = PackageMount.url(fields.origin, accountPackage.id);
@@ -98,6 +101,7 @@ export class TestMachine implements AsyncDisposable {
         this.#storage = fields.storage;
         this.#keychain = fields.keychain;
         this.#isOwned = fields.isOwned;
+        this.#head = fields.head;
 
         // read the directory from the replica, and register identities as the machine
         this.directory = new Directory(Snapshot.live(fields.storage.database));
@@ -132,6 +136,8 @@ export class TestMachine implements AsyncDisposable {
         readonly storage?: TestDatabase;
         /** The keyring secrets a template kept, new ones by default. */
         readonly world?: MachineWorld;
+        /** Read the universe's log head, which settling follows up to. */
+        readonly head: () => Promise<LogPosition>;
     }): Promise<TestMachine> {
         // prove the machine by its declared key, and keep the keys of the spaces it hosts in memory, the world's when restored
         const { id, keychain, origin, send, environment } = options;
@@ -187,6 +193,7 @@ export class TestMachine implements AsyncDisposable {
             storage,
             keychain: kept,
             isOwned: options.storage === undefined,
+            head: options.head,
         });
     }
 
@@ -232,12 +239,12 @@ export class TestMachine implements AsyncDisposable {
     /** Wait until the replica follows the universe up to a position of its log, then settle it. */
     async follow(head: LogPosition, signal: AbortSignal): Promise<void> {
         await this.#replica.store.wait({ scope: Scope.universe.id, ...head }, signal);
-        await this.settle();
+        await this.#replica.settle();
     }
 
     /** Settle once the replica follows the universe's head, failing on a reported failure. */
     async settle(): Promise<void> {
-        await this.#replica.settle();
+        await this.follow(await this.#head(), new AbortController().signal);
     }
 
     /** Read the keyring secrets of the spaces' keys, as a template's value keeps them. */
