@@ -18,9 +18,8 @@
         "noUncheckedSideEffectImports": true,
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
-        "lib": ["ESNext"],
+        "lib": ["ES2024", "ESNext.Array", "ESNext.TypedArrays", "ES2025.Collection", "ES2025.RegExp", "ESNext.Disposable"],
         "types": ["bun"]
     },
-    "include": ["src", "tests", "*.config.ts"],
-    "exclude": ["tests/fixture/hello"]
+    "include": ["src", "tests", "*.config.ts"]
 }
