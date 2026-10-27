@@ -32,6 +32,7 @@ import {
     inArray,
     isNotNull,
     isNull,
+    or,
     type Select,
     sql,
     type SQL,
@@ -1081,7 +1082,7 @@ export class SpaceTransfer {
         moving: Placement,
         machine: Identifier<"machine">,
     ): Promise<SpaceTransfer | undefined> {
-        // read the latest move away from the machine before the space's current epoch
+        // read the latest uncancelled move away from the machine before the space's current epoch
         const [latest] = await database
             .select({ target: transfer.table.targetId, epoch: transfer.table.sourceEpoch })
             .from(transfer.table)
@@ -1089,7 +1090,7 @@ export class SpaceTransfer {
                 and(
                     eq(transfer.table.scope, moving.id),
                     eq(transfer.table.sourceId, machine),
-                    eq(transfer.table.outcome, "succeeded"),
+                    or(isNull(transfer.table.outcome), eq(transfer.table.outcome, "succeeded")),
                     lt(transfer.table.sourceEpoch, moving.epoch),
                 ),
             )
