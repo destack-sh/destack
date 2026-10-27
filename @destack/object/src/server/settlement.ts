@@ -38,6 +38,7 @@ export const Settlement = {
                 await transaction.insert(settlement).values({
                     id,
                     key,
+                    packageId: context.object.package.id,
                     object: context.object.name,
                     method: context.name,
                     scope: context.scope,
@@ -132,7 +133,9 @@ export const Settlement = {
     /** Settle one claimed settlement as recorded, committing or rolling back, then forget it. */
     async settle(store: ObjectStore, row: Settlement, now: number): Promise<void> {
         // find the method
-        const object = store.objects.find((served) => served.name === row.object);
+        const object = store.objects.find(
+            (served) => served.package.id === row.packageId && served.name === row.object,
+        );
         if (object === undefined) {
             throw new TypeError(
                 `settlement ${row.id} has object ${row.object}, which nothing here serves`,

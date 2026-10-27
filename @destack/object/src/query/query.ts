@@ -26,9 +26,17 @@ export function compileQueries(
         Object.entries(named).map(([name, query]): [string, Query] => {
             // find the object type and require its scope level
             const { object: objectName, scopes, ...options } = query;
-            const object = objects.find((entry) => entry.name === objectName);
+            const [object, ...rest] = objects.filter((entry) => entry.name === objectName);
+            const others = rest.filter((entry) => entry.package.id !== object?.package.id);
             if (!object) {
                 throw ObjectError.of("OBJECT_UNKNOWN", `object ${objectName} not found`);
+            }
+            // refuse a name several packages' types share, which a query cannot tell apart
+            else if (others.length > 0) {
+                throw ObjectError.of(
+                    "OBJECT_AMBIGUOUS",
+                    `object ${objectName} is a type of ${[object, ...others].map((each) => each.package.name).join(" and ")}`,
+                );
             }
             // read every scope's rows, each decided by its access
             else if (scopes === "every") {

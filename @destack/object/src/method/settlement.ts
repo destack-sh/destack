@@ -25,7 +25,9 @@ export const settlement = defineTable(
         id: text("id").primaryKey(),
         /** The idempotency key the call's external work ran under. */
         key: text("key").notNull(),
-        /** The object type the call acts on, by name. */
+        /** The package declaring the object type the call acts on. */
+        packageId: text("package_id").notNull(),
+        /** The object type the call acts on, by name within its package. */
         object: text("object").notNull(),
         /** The method's name. */
         method: text("method").notNull(),

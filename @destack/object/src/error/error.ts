@@ -53,6 +53,7 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     INCLUDE_UNKNOWN: { code: "BAD_REQUEST" },
     METHOD_UNKNOWN: { code: "BAD_REQUEST" },
     OBJECT_UNKNOWN: { code: "BAD_REQUEST" },
+    OBJECT_AMBIGUOUS: { code: "BAD_REQUEST" },
     PERMISSION_UNKNOWN: { code: "BAD_REQUEST" },
     LISTING_MISSING: { code: "BAD_REQUEST" },
     EVENTS_UNSERVED: { code: "BAD_REQUEST" },
