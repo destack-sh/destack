@@ -6,66 +6,73 @@ import { palette } from "../../palette.stylex";
 import { browserStyles } from "../figure/browser";
 import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
-import { type RunMoment, RunScreen } from "./timeline";
+import { AuditLog } from "./log";
 import { AirtableSignupsOf } from "../tool/airtable";
-import { GoogleCalendarWeek } from "../tool/googlecalendar";
+import { GmailOf } from "../tool/gmail";
+import { NotionPage } from "../tool/notion";
 import { SlackChannel } from "../tool/slack";
 import { TrelloBoard } from "../tool/trello";
-import { ZapierHistory, type ZapRun } from "../tool/zapier";
-import type { Message, Signup, Task, WeekBlock } from "../verb/corner";
-import { askers } from "./trace";
+import type { Mail, Message, Signup, Task } from "../verb/corner";
+import type { Lane } from "./session";
 
-/** A rented app you open to see what the Zap did. */
-export type Console = "zapier" | "airtable" | "trello" | "slack" | "googlecalendar";
+/** A rented app you open to see what your agent did last night. */
+export type Console = "gmail" | "airtable" | "slack" | "trello" | "notion";
 
-/** The Zap's nine runs after the approval, newest first. */
-const zapRuns: readonly ZapRun[] = askers
-    .map(([name, company], index): ZapRun => [
-        `${name} (${company})`,
-        `Oct 23, 2025 09:00:0${Math.floor((44 + index * 135) / 1000)} am`,
-    ])
-    .toReversed();
-
-/** The signups just after the bulk approve: every row modified at 09:00, demo askers among them. */
-const approved: readonly Signup[] = [
-    ["ines@orbitlabs.eu", "Website", "Oct 18", "approved", "demo asker · edited 09:00"],
-    ["jonas@kettle.dev", "Website", "Oct 19", "approved", "demo asker · edited 09:00"],
-    ["priya@nair.studio", "Launch post", "Oct 19", "approved", "demo asker · edited 09:00"],
-    ["maya@northwind.io", "Launch post", "Oct 20", "approved", "edited 09:00 · Florian"],
-    ["tara@fieldnotes.co", "Friend", "Oct 20", "approved", "edited 09:00 · Florian"],
-    ["sam@quietly.so", "Launch post", "Oct 21", "approved", "edited 09:00 · Florian"],
-    ["leo@brightpath.app", "Website", "Oct 21", "approved", "demo asker · edited 09:00"],
+/** The launch email's batches, newest first: Gmail sends to at most 500 recipients a message. */
+const batches: readonly (readonly [recipients: number, time: string])[] = [
+    [340, "17:24"],
+    [500, "17:24"],
+    [500, "17:23"],
+    [500, "17:23"],
 ];
 
-/** The launch channel: the posts from Monday, then the same posts again at 09:00. */
+/** The sent folder: the launch email in its batches, then Ines's invite from the afternoon. */
+const sent: readonly Mail[] = [
+    ...batches.map(([recipients, time]): Mail => [
+        `To: Waitlist (${recipients})`,
+        "#ea4335",
+        "Destack opens Friday",
+        "Hi there, Destack opens on Friday, and you're in.",
+        time,
+        false,
+    ]),
+    [
+        "Ines Ferreira",
+        "#a0485f",
+        "Your Destack invite",
+        "Welcome in! Your invite link works from Friday 09:00.",
+        "16:10",
+        false,
+    ],
+];
+
+/** The signups invited Thursday afternoon, each on the waitlist the email went to. */
+const invited: readonly Signup[] = [
+    ["ines@orbitlabs.eu", "Website", "Oct 18", "invited", "invited Thu 16:10"],
+    ["jonas@kettle.dev", "Website", "Oct 19", "invited", "invited Thu 16:10"],
+    ["priya@nair.studio", "Launch post", "Oct 19", "invited", "invited Thu 16:10"],
+    ["maya@northwind.io", "Launch post", "Oct 20", "invited", "invited Thu 16:10"],
+    ["tara@fieldnotes.co", "Friend", "Oct 20", "invited", "invited Thu 16:10"],
+    ["sam@quietly.so", "Launch post", "Oct 21", "invited", "invited Thu 16:10"],
+    ["leo@brightpath.app", "Website", "Oct 21", "invited", "invited Thu 16:10"],
+];
+
+/** The launch channel on launch morning: your questions, and no sign of a scheduled post. */
 const posts: readonly Message[] = [
-    ["Zapier", "Mon 10:14", "New demo request: Ines · Orbit Labs · Wed 11:00"],
-    ["Zapier", "Mon 11:02", "New demo request: Jonas · Kettle · Thu 14:00"],
-    ["Florian", "Mon 11:05", "Nice, two already."],
-    ["Zapier", "09:00", "New demo request: Ines · Orbit Labs · Wed 11:00"],
-    ["Zapier", "09:00", "New demo request: Jonas · Kettle · Thu 14:00"],
-    ["Zapier", "09:00", "New demo request: Priya · Nair Studio · Thu 15:00"],
-    ["Florian", "09:02", "why is everyone asking twice?"],
+    ["Florian", "Thu 16:12", "400 invites are out 🎉"],
+    ["Florian", "09:12", "Ines says she got the launch email twice?"],
+    ["Florian", "09:14", "and the pricing link on the launch post is a 404"],
+    ["Florian", "09:15", "where's the launch post? wasn't it scheduled for 9?"],
 ];
 
-/** The launch board: each asker's demo card, and its twin from 09:00. */
-const demoCards: readonly Task[] = askers
-    .slice(0, 4)
-    .flatMap(([name, company, task, demo]): Task[] => [
-        [task, `Demo · ${name} (${company})`, "todo", "F", "#2f7d8c", demo],
-        [`${task}b`, `Demo · ${name} (${company})`, "todo", "Z", "#ff4f00", demo],
-    ]);
-
-/** The week: the demos booked, and Ines's booked again at the same time. */
-const demoWeek: readonly WeekBlock[] = [
-    [0, 9, 9.5, "Standup", false],
-    [2, 11, 12, "Demo with Ines · Destack", false],
-    [2, 11, 12, "Demo with Ines · Destack", false],
-    [3, 9, 10, "Approve signups", false],
-    [3, 14, 15, "Demo with Jonas · Destack", false],
-    [3, 15, 16, "Demo with Priya · Destack", false],
-    [4, 10, 11, "Demo with Leo · Destack", false],
-    [4, 11, 12, "Demo with Noor · Destack", false],
+/** The launch board: the demo cards, and the demo recording closed. */
+const board: readonly Task[] = [
+    ["DST-12", "Record the demo", "done", "F", "#2f7d8c", "Thu"],
+    ["DST-14", "Press kit", "review", "F", "#2f7d8c", "Thu"],
+    ["DST-31", "Demo · Ines (Orbit Labs)", "todo", "F", "#2f7d8c", "Mon 11:00"],
+    ["DST-32", "Demo · Jonas (Kettle)", "todo", "F", "#2f7d8c", "Mon 14:00"],
+    ["DST-33", "Demo · Priya (Nair Studio)", "todo", "F", "#2f7d8c", "Tue 10:00"],
+    ["DST-34", "Demo · Leo (Brightpath)", "todo", "F", "#2f7d8c", "Tue 11:00"],
 ];
 
 /** The apps you rent, as tabs: key, logo, title, address and page. */
@@ -84,50 +91,43 @@ const consoles: readonly (readonly [
         () => <SlackChannel messages={posts} />,
     ],
     [
-        "zapier",
-        "zapier",
-        "Zap history | Zapier",
-        "zapier.com/app/history",
-        () => <ZapierHistory zap="Launch askers" runs={zapRuns} />,
+        "gmail",
+        "gmail",
+        "Sent Mail - Gmail",
+        "mail.google.com/mail/u/0/#sent",
+        () => <GmailOf folder="Sent" mails={sent} />,
     ],
     [
         "airtable",
         "airtable",
         "Launch: Signups - Airtable",
         "airtable.com/appLaunch/tblSignups",
-        () => <AirtableSignupsOf signups={approved} />,
+        () => <AirtableSignupsOf signups={invited} />,
     ],
     [
         "trello",
         "trello",
         "Launch | Trello",
         "trello.com/b/launch",
-        () => <TrelloBoard tasks={demoCards} />,
+        () => <TrelloBoard tasks={board} />,
     ],
-    [
-        "googlecalendar",
-        "googlecalendar",
-        "Google Calendar - Week of October 20",
-        "calendar.google.com/calendar/r/week",
-        () => <GoogleCalendarWeek week={demoWeek} />,
-    ],
+    ["notion", "notion", "Pricing | Notion", "notion.so/symbol/Pricing", () => <PricingDraft />],
 ];
 
 /** The colours of the vendor icons drawn from the glyph set. */
 const tints: Readonly<Record<string, string>> = {
     slack: "#4a154b",
-    zapier: "#ff4f00",
+    gmail: "#ea4335",
     airtable: "#18bfff",
     trello: "#0052cc",
-    googlecalendar: "#4285f4",
+    notion: "#191919",
 };
 
 /** Draw launch day: across rented consoles that each see a sliver, or on your own dashboard. */
 export function Inspector(properties: {
     isOpen: boolean;
     console: Console;
-    moment: RunMoment;
-    onScrub: (share: number) => void;
+    lane: Lane;
     onTouch: () => void;
 }) {
     return (
@@ -139,16 +139,35 @@ export function Inspector(properties: {
         >
             {properties.isOpen ? (
                 <SpaceBrowser>
-                    <RunScreen
-                        moment={properties.moment}
-                        onScrub={properties.onScrub}
-                        onTouch={properties.onTouch}
-                    />
+                    <AuditLog lane={properties.lane} onTouch={properties.onTouch} />
                 </SpaceBrowser>
             ) : (
                 <RentedConsoles console={properties.console} />
             )}
         </Fade>
+    );
+}
+
+/** Draw the pricing page in the site's workspace, edited Thursday and never published. */
+function PricingDraft() {
+    return (
+        <NotionPage
+            crumbs={[
+                ["🌐", "Destack site"],
+                ["💳", "Pricing"],
+            ]}
+            tools="editor"
+            icon="💳"
+            title="Pricing"
+            properties={[
+                ["status", "Status", { kind: "status", text: "Draft", isDraft: true }],
+                ["link", "Path", { kind: "text", text: "/pricing · not published" }],
+                ["clock", "Edited", { kind: "text", text: "Thu 16:40" }],
+                ["person", "Owner", { kind: "person", name: "Florian" }],
+            ]}
+        >
+            <p>Early pricing holds for everyone on the waitlist.</p>
+        </NotionPage>
     );
 }
 
@@ -221,7 +240,7 @@ function SpaceBrowser(properties: { children: JSX.Element }) {
                     <Glyph name="close" size={12} />
                 </span>
             </div>
-            <Address url="destack.app/@florian/observability/transactions/tx-91c" />
+            <Address url="destack.app/@florian/log" />
             <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
                 <div {...style.attrs(styles.full)}>{properties.children}</div>
             </div>

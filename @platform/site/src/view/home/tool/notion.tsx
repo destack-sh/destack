@@ -1,85 +1,142 @@
 import * as style from "@destack/style";
 
 import { launch, press, type PressState } from "../verb/corner";
-import { Glyph } from "../figure/glyph";
+import { Glyph, type GlyphName } from "../figure/glyph";
+import type { JSX } from "@destack/view";
 import { site } from "../figure/site.stylex";
 import { palette } from "../../palette.stylex";
 import { notion } from "./notion.stylex";
 
+/** A property's value: plain text, a status tag, or a person. */
+export type NotionValue =
+    | { kind: "text"; text: string }
+    | { kind: "status"; text: string; isDraft: boolean }
+    | { kind: "person"; name: string };
+
+/** A property of a page: its glyph, its name, and its value. */
+export type NotionProperty = readonly [glyph: GlyphName, key: string, value: NotionValue];
+
+/** The top bar's tools: a public page's, or the editor's with its publish button. */
+export type NotionTools = "public" | "editor";
+
 /** Draw the Destack launch plan as a published page behind a public link. */
 export function Notion() {
+    return (
+        <NotionPage
+            crumbs={[["🚀", "Destack launch"]]}
+            tools="public"
+            icon="🚀"
+            title="Destack launch"
+            properties={[
+                ["status", "Status", { kind: "status", text: "In progress", isDraft: false }],
+                ["calendar", "Launch", { kind: "text", text: "October 24, 2025" }],
+                ["calendar", "Demo", { kind: "text", text: "October 22, 2025 11:00 AM · Ines" }],
+                ["person", "Owner", { kind: "person", name: "Florian" }],
+            ]}
+        >
+            <p {...style.attrs(styles.notionCallout)}>
+                <span aria-hidden="true" {...style.attrs(styles.notionEmoji)}>
+                    💡
+                </span>
+                Ship to the waitlist on Thursday, then open signups on Friday.
+            </p>
+            <b {...style.attrs(styles.notionHeading)}>Before launch</b>
+            <ul {...style.attrs(styles.notionTodos)}>
+                {launch.map(([item, isDone]) => (
+                    <li {...style.attrs(styles.notionTodo)}>
+                        <span {...style.attrs(styles.notionBox, isDone && styles.notionBoxDone)}>
+                            {isDone ? <Glyph name="check" size={12} weight={3} /> : undefined}
+                        </span>
+                        <span {...style.attrs(isDone && styles.notionDone)}>{item}</span>
+                    </li>
+                ))}
+            </ul>
+        </NotionPage>
+    );
+}
+
+/** Draw a page: crumbs and tools, then cover, icon, title and properties, then the body. */
+export function NotionPage(properties: {
+    crumbs: readonly (readonly [icon: string, name: string])[];
+    tools: NotionTools;
+    icon: string;
+    title: string;
+    properties: readonly NotionProperty[];
+    children: JSX.Element;
+}) {
     return (
         <div data-component="NotionPage" {...style.attrs(styles.notion)}>
             <nav {...style.attrs(styles.notionBar)}>
                 <span {...style.attrs(styles.notionCrumb)}>
-                    <span aria-hidden="true">🚀</span>
-                    Destack launch
+                    {properties.crumbs.map(([icon, name], index) => (
+                        <span {...style.attrs(styles.contents)}>
+                            {index > 0 ? <span {...style.attrs(styles.muted)}>/</span> : undefined}
+                            <span aria-hidden="true">{icon}</span>
+                            {name}
+                        </span>
+                    ))}
                 </span>
-                <span {...style.attrs(styles.notionTools)}>
-                    <Glyph name="search" size={18} weight={1.75} />
-                    <Glyph name="share" size={18} weight={1.75} />
-                    <Glyph name="more" size={18} weight={2.5} />
-                    <span {...style.attrs(styles.notionButton)}>Get Notion free</span>
-                </span>
+                {properties.tools === "public" ? (
+                    <span {...style.attrs(styles.notionTools)}>
+                        <Glyph name="search" size={18} weight={1.75} />
+                        <Glyph name="share" size={18} weight={1.75} />
+                        <Glyph name="more" size={18} weight={2.5} />
+                        <span {...style.attrs(styles.notionButton)}>Get Notion free</span>
+                    </span>
+                ) : (
+                    <span {...style.attrs(styles.notionTools)}>
+                        <span>Share</span>
+                        <span {...style.attrs(styles.notionPublish)}>Publish</span>
+                    </span>
+                )}
             </nav>
             <span {...style.attrs(styles.notionCover)} />
             <div {...style.attrs(styles.notionBody)}>
                 <span aria-hidden="true" {...style.attrs(styles.notionIcon)}>
-                    🚀
+                    {properties.icon}
                 </span>
                 <b data-morph-title {...style.attrs(styles.notionTitle)}>
-                    Destack launch
+                    {properties.title}
                 </b>
                 <dl {...style.attrs(styles.notionProperties)}>
-                    <dt {...style.attrs(styles.notionKey)}>
-                        <Glyph name="status" size={16} weight={1.75} />
-                        Status
-                    </dt>
-                    <dd {...style.attrs(styles.notionValue)}>
-                        <span {...style.attrs(styles.notionStatus)}>
-                            <span {...style.attrs(styles.notionDot)} />
-                            In progress
-                        </span>
-                    </dd>
-                    <dt {...style.attrs(styles.notionKey)}>
-                        <Glyph name="calendar" size={16} weight={1.75} />
-                        Launch
-                    </dt>
-                    <dd {...style.attrs(styles.notionValue)}>October 24, 2025</dd>
-                    <dt {...style.attrs(styles.notionKey)}>
-                        <Glyph name="calendar" size={16} weight={1.75} />
-                        Demo
-                    </dt>
-                    <dd {...style.attrs(styles.notionValue)}>October 22, 2025 11:00 AM · Ines</dd>
-                    <dt {...style.attrs(styles.notionKey)}>
-                        <Glyph name="person" size={16} weight={1.75} />
-                        Owner
-                    </dt>
-                    <dd {...style.attrs(styles.notionValue)}>
-                        <span {...style.attrs(styles.notionPerson)}>F</span>
-                        Florian
-                    </dd>
+                    {properties.properties.map(([glyph, key, value]) => (
+                        <div {...style.attrs(styles.contents)}>
+                            <dt {...style.attrs(styles.notionKey)}>
+                                <Glyph name={glyph} size={16} weight={1.75} />
+                                {key}
+                            </dt>
+                            <dd {...style.attrs(styles.notionValue)}>
+                                {value.kind === "status" ? (
+                                    <span
+                                        {...style.attrs(
+                                            styles.notionStatus,
+                                            value.isDraft && styles.notionDraft,
+                                        )}
+                                    >
+                                        <span
+                                            {...style.attrs(
+                                                styles.notionDot,
+                                                value.isDraft && styles.notionDraftDot,
+                                            )}
+                                        />
+                                        {value.text}
+                                    </span>
+                                ) : value.kind === "person" ? (
+                                    <>
+                                        <span {...style.attrs(styles.notionPerson)}>
+                                            {value.name.slice(0, 1)}
+                                        </span>
+                                        {value.name}
+                                    </>
+                                ) : (
+                                    value.text
+                                )}
+                            </dd>
+                        </div>
+                    ))}
                 </dl>
                 <hr {...style.attrs(styles.notionRule)} />
-                <p {...style.attrs(styles.notionCallout)}>
-                    <span aria-hidden="true" {...style.attrs(styles.notionEmoji)}>
-                        💡
-                    </span>
-                    Ship to the waitlist on Thursday, then open signups on Friday.
-                </p>
-                <b {...style.attrs(styles.notionHeading)}>Before launch</b>
-                <ul {...style.attrs(styles.notionTodos)}>
-                    {launch.map(([item, isDone]) => (
-                        <li {...style.attrs(styles.notionTodo)}>
-                            <span
-                                {...style.attrs(styles.notionBox, isDone && styles.notionBoxDone)}
-                            >
-                                {isDone ? <Glyph name="check" size={12} weight={3} /> : undefined}
-                            </span>
-                            <span {...style.attrs(isDone && styles.notionDone)}>{item}</span>
-                        </li>
-                    ))}
-                </ul>
+                {properties.children}
             </div>
         </div>
     );
@@ -306,6 +363,24 @@ const styles = style.create({
         paddingBlock: "1px",
         paddingInlineStart: "8px",
         paddingInlineEnd: "9px",
+    },
+    contents: {
+        display: "contents",
+    },
+    notionPublish: {
+        backgroundColor: notion.link,
+        borderRadius: "6px",
+        color: notion.onLink,
+        fontWeight: 500,
+        paddingBlock: "3px",
+        paddingInline: "10px",
+    },
+    notionDraft: {
+        backgroundColor: notion.line,
+        color: notion.ink,
+    },
+    notionDraftDot: {
+        backgroundColor: notion.muted,
     },
     notionDot: {
         backgroundColor: notion.blue,

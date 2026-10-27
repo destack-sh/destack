@@ -14,6 +14,8 @@ import { Favicon, Glyph } from "../figure/glyph";
 import { accentOf } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
 import { sectionOf } from "../verb/apps";
+import { ArtifactFrame, artifactAddressOf, artifactMarkOf } from "../command/artifact";
+import type { Assistant } from "../command/chat";
 import type { Job } from "../verb/space";
 import { sources } from "../verb/source";
 import { present } from "@destack/schema";
@@ -39,6 +41,9 @@ const wiring: readonly string[] = [
     "deploy hook",
     "webhook",
 ];
+
+/** The domain your space serves its apps on, plainly your own. */
+const CUSTOM_DOMAIN = "mydomain.com";
 
 /** Your apps on the rail once owned, the launch tracker first. */
 const apps: readonly (readonly [
@@ -110,6 +115,7 @@ type Rectangle = { left: number; top: number; right: number; bottom: number };
 /** Draw your launch tracker in a browser, x-rayed: each part outlined with its service. */
 export function XRay(properties: {
     rented: readonly Service[];
+    assistant: Assistant;
     isOpenAt: Stagger;
     lit: number | undefined;
     onLight: (row: number | undefined) => void;
@@ -209,7 +215,13 @@ export function XRay(properties: {
     // follow the space once it takes over, and the host once hosting moves into it
     const isOwned = () => properties.isOpenAt(0);
     const isStacked = () => !properties.isOpenAt(0);
-    const isHosted = () => properties.isOpenAt(9);
+    const isHosted = () => properties.isOpenAt(serviceCount + 1);
+
+    // address the app at the assistant's public link until the space hosts it on your domain
+    const address = () =>
+        isHosted()
+            ? { host: CUSTOM_DOMAIN, path: pathOf(app()) }
+            : artifactAddressOf(properties.assistant);
 
     return (
         <div
@@ -226,8 +238,8 @@ export function XRay(properties: {
                         data-component="Tab"
                         {...style.attrs(browserStyles.tab, styles.tabWide, browserStyles.tabOn)}
                     >
-                        <Favicon icon="user" tint={palette.teal} />
-                        <span {...style.attrs(browserStyles.tabTitle)}>Florian</span>
+                        <Favicon icon={app()[1]} tint={palette.teal} />
+                        <span {...style.attrs(browserStyles.tabTitle)}>{app()[2]}</span>
                         <Glyph name="close" size={12} />
                     </span>
                 ) : (
@@ -242,7 +254,7 @@ export function XRay(properties: {
                                 page === row() && browserStyles.tabOn,
                             )}
                         >
-                            <Favicon icon="computer" tint={palette.ink} />
+                            <Favicon {...artifactMarkOf(properties.assistant)} />
                             <span
                                 {...style.attrs(
                                     browserStyles.tabTitle,
@@ -278,12 +290,8 @@ export function XRay(properties: {
                 <span data-component="AddressBar" {...style.attrs(browserStyles.omnibox)}>
                     <Glyph name="lock" size={12} />
                     <span data-xray="Hosting" {...style.attrs(browserStyles.url, styles.url)}>
-                        <span {...style.attrs(browserStyles.host)}>
-                            {isHosted() ? "destack.app" : "localhost:5173"}
-                        </span>
-                        <span {...style.attrs(browserStyles.path)}>
-                            {isHosted() ? `/@florian${pathOf(app())}` : "/"}
-                        </span>
+                        <span {...style.attrs(browserStyles.host)}>{address().host}</span>
+                        <span {...style.attrs(browserStyles.path)}>{address().path}</span>
                     </span>
                     <span {...style.attrs(styles.push)} />
                     <Glyph name="star" />
@@ -313,7 +321,18 @@ export function XRay(properties: {
                         />
                     ) : undefined}
                     <main {...style.attrs(appStyles.main, styles.page)}>
-                        {sectionOf(row(), "start", present(sources[0], "first source"), false)}
+                        {isStacked() ? (
+                            <ArtifactFrame assistant={properties.assistant} title={app()[2]}>
+                                {sectionOf(
+                                    row(),
+                                    "start",
+                                    present(sources[0], "first source"),
+                                    false,
+                                )}
+                            </ArtifactFrame>
+                        ) : (
+                            sectionOf(row(), "start", present(sources[0], "first source"), false)
+                        )}
                     </main>
                     <p {...style.attrs(appStyles.statusBar)}>
                         <span data-xray="Code" {...style.attrs(appStyles.statusEnd, styles.commit)}>

@@ -42,15 +42,15 @@ const command: Form = {
     pronunciation: "/diːˈstak/",
     partOfSpeech: "imperative",
     sense: {
-        definition: "every app, programmable and composable",
-        highlight: ["programmable", "composable"],
+        definition: "every app, programmable by your agents",
+        highlight: ["programmable"],
         sentence: (
             <>
-                One API for every app in <em>your</em> space — for you, for your agents, and on your
-                terms.
+                One API for every app in <em>your</em> space, so your agents can read, change, and
+                build across all of them.
             </>
         ),
-        gloss: "program every app like a spreadsheet",
+        gloss: "as scriptable as a terminal, across every app",
     },
 };
 
@@ -117,10 +117,10 @@ export function Command(properties: { isOpen: boolean }) {
         >
             <Entry form={command} />
             <FigureLabel
-                number={4}
+                number={5}
                 isOpen={properties.isOpen}
                 stacked="two apps, two connectors"
-                destacked="two apps, one space"
+                destacked="two apps, one API"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>

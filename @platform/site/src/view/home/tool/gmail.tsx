@@ -1,13 +1,36 @@
 import * as style from "@destack/style";
+import type { JSX } from "@destack/view";
 
-import { mails } from "../verb/corner";
+import { type Mail, mails } from "../verb/corner";
 import { Favicon, Glyph } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { palette } from "../../palette.stylex";
 import { gmail } from "./gmail.stylex";
 
+/** The folders on the side, with their unread counts. */
+const folders: readonly (readonly [folder: string, count: string])[] = [
+    ["Inbox", "2"],
+    ["Starred", ""],
+    ["Snoozed", ""],
+    ["Sent", ""],
+    ["Drafts", "1"],
+];
+
 /** Draw the launch mail as a rented inbox, with the waitlist pasted into a new message. */
 export function Gmail() {
+    return (
+        <GmailOf folder="Inbox" mails={mails}>
+            <Compose />
+        </GmailOf>
+    );
+}
+
+/** Draw a rented mailbox open on a folder, and a window over it. */
+export function GmailOf(properties: {
+    folder: string;
+    mails: readonly Mail[];
+    children?: JSX.Element;
+}) {
     return (
         <div data-component="GmailPage" {...style.attrs(styles.gmail)}>
             <nav {...style.attrs(styles.gmBar)}>
@@ -28,21 +51,20 @@ export function Gmail() {
                         <Glyph name="compose" size={18} />
                         Compose
                     </span>
-                    {[
-                        ["Inbox", "2"],
-                        ["Starred", ""],
-                        ["Snoozed", ""],
-                        ["Sent", ""],
-                        ["Drafts", "1"],
-                    ].map(([folder, count], index) => (
-                        <span {...style.attrs(styles.gmFolder, index === 0 && styles.gmFolderOn)}>
+                    {folders.map(([folder, count]) => (
+                        <span
+                            {...style.attrs(
+                                styles.gmFolder,
+                                folder === properties.folder && styles.gmFolderOn,
+                            )}
+                        >
                             {folder}
                             <span>{count}</span>
                         </span>
                     ))}
                 </nav>
                 <ul {...style.attrs(styles.gmList)}>
-                    {mails.map(([sender, tint, subject, preview, time, isUnread]) => (
+                    {properties.mails.map(([sender, tint, subject, preview, time, isUnread]) => (
                         <li {...style.attrs(styles.gmRow, !isUnread && styles.gmRowRead)}>
                             <span
                                 style={{ "background-color": tint }}
@@ -64,27 +86,34 @@ export function Gmail() {
                     ))}
                 </ul>
             </div>
-            <div data-component="ComposeWindow" {...style.attrs(styles.gmWindow)}>
-                <span {...style.attrs(styles.gmWindowHead)}>New Message</span>
-                <span {...style.attrs(styles.gmField)}>
-                    <span {...style.attrs(styles.gmPreview)}>To</span>
-                    maya@northwind.io, jonas@kettle.dev, tara@fieldnotes.co, +1,837
-                </span>
-                <span {...style.attrs(styles.gmField)}>Destack opens Friday</span>
-                <p {...style.attrs(styles.gmBody)}>
-                    Hi there, Destack opens on Friday, and you're in. Your invite link works from
-                    09:00, and early pricing holds for everyone on the waitlist.
-                </p>
-                <span {...style.attrs(styles.gmWarning)}>
-                    1,840 recipients: over the limit of 500 external recipients a message
-                </span>
-                <span {...style.attrs(styles.gmTools)}>
-                    <span {...style.attrs(styles.gmSend)}>Send</span>
-                    <Glyph name="link" size={18} />
-                    <Glyph name="file" size={18} />
-                    <Glyph name="more" size={18} />
-                </span>
-            </div>
+            {properties.children}
+        </div>
+    );
+}
+
+/** Draw the new message with the waitlist pasted in, over the limit. */
+function Compose() {
+    return (
+        <div data-component="ComposeWindow" {...style.attrs(styles.gmWindow)}>
+            <span {...style.attrs(styles.gmWindowHead)}>New Message</span>
+            <span {...style.attrs(styles.gmField)}>
+                <span {...style.attrs(styles.gmPreview)}>To</span>
+                maya@northwind.io, jonas@kettle.dev, tara@fieldnotes.co, +1,837
+            </span>
+            <span {...style.attrs(styles.gmField)}>Destack opens Friday</span>
+            <p {...style.attrs(styles.gmBody)}>
+                Hi there, Destack opens on Friday, and you're in. Your invite link works from 09:00,
+                and early pricing holds for everyone on the waitlist.
+            </p>
+            <span {...style.attrs(styles.gmWarning)}>
+                1,840 recipients: over the limit of 500 external recipients a message
+            </span>
+            <span {...style.attrs(styles.gmTools)}>
+                <span {...style.attrs(styles.gmSend)}>Send</span>
+                <Glyph name="link" size={18} />
+                <Glyph name="file" size={18} />
+                <Glyph name="more" size={18} />
+            </span>
         </div>
     );
 }

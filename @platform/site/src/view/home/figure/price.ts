@@ -138,6 +138,12 @@ const UPSTASH_FREE_STEPS = 30_000;
 /** The client errors each user meets a month: about one in every four sessions. */
 const ERRORS_PER_USER = 2;
 
+/** The size of an error event with its stack trace and breadcrumbs, about 10 KB. */
+const ERROR_SIZE = 0.01 * MB;
+
+/** The months an error tracker keeps events: Sentry Team's 90 days. */
+const ERROR_RETENTION = 3;
+
 /** Datadog's price for a host a month in US dollars: Infrastructure Pro and APM, annual. */
 const DATADOG_HOST = 46;
 
@@ -597,18 +603,17 @@ export const workloads: Readonly<Record<string, Workload>> = {
     Upstash: workloadFrom({
         perUser: { database: 0.2 * MB, requests: ACTIONS_PER_USER * STEPS_PER_ACTION },
     }),
-    Datadog: workloadFrom({
-        perUser: {
-            database: 0.9 * MB,
-            files: RECORDINGS_PER_USER * RECORDING_SIZE,
-            requests: EVENTS_PER_USER,
-        },
-    }),
+    // observability: three months of client errors with their stack traces
     Sentry: workloadFrom({
         perUser: {
-            database: 0.9 * MB,
-            files: RECORDINGS_PER_USER * RECORDING_SIZE,
-            requests: EVENTS_PER_USER,
+            database: ERRORS_PER_USER * ERROR_SIZE * ERROR_RETENTION,
+            requests: ERRORS_PER_USER,
+        },
+    }),
+    Datadog: workloadFrom({
+        perUser: {
+            database: ERRORS_PER_USER * ERROR_SIZE * ERROR_RETENTION,
+            requests: ERRORS_PER_USER,
         },
     }),
     Netlify: workloadFrom({

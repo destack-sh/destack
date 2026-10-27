@@ -116,15 +116,18 @@ export const signups: readonly Signup[] = [
     ["ines@orbitlabs.eu", "Website", "Oct 18", "invited", ""],
 ];
 
-/** The mail in the inbox, newest first. */
-export const mails: readonly (readonly [
+/** A mail: its sender, their colour, subject, preview, time, and whether it is unread. */
+export type Mail = readonly [
     sender: string,
     tint: string,
     subject: string,
     preview: string,
     time: string,
     isUnread: boolean,
-])[] = [
+];
+
+/** The mail in the inbox, newest first. */
+export const mails: readonly Mail[] = [
     [
         "Ines Ferreira",
         "#a0485f",

@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import type { JSX } from "@destack/view";
 
 import { Favicon } from "../figure/glyph";
 import type { Vendor } from "../verb/space";
@@ -73,8 +74,48 @@ export function artifactOf(
     };
 }
 
-/** Draw an app an assistant made at its public link, in that assistant's own page. */
+/** Return the address an assistant publishes an app at, split into its host and path. */
+export function artifactAddressOf(assistant: Assistant): { host: string; path: string } {
+    const site = publishers[assistant].site;
+    const slash = site.indexOf("/");
+
+    return { host: site.slice(0, slash), path: site.slice(slash) };
+}
+
+/** Return the mark an assistant's published apps carry in a browser tab. */
+export function artifactMarkOf(assistant: Assistant): { icon: string; tint: string } {
+    return { icon: publishers[assistant].icon, tint: publishers[assistant].tint };
+}
+
+/** Draw a board an assistant made at its public link, in that assistant's own page. */
 function ArtifactPage(properties: { assistant: Assistant; title: string; rows: readonly Lead[] }) {
+    return (
+        <ArtifactFrame assistant={properties.assistant} title={properties.title}>
+            <div {...style.attrs(styles.board)}>
+                <b {...style.attrs(styles.heading)}>{properties.title}</b>
+                <span {...style.attrs(styles.connect)}>
+                    Connect your own Airtable and Slack to load this board
+                </span>
+                <span {...style.attrs(styles.table)}>
+                    {properties.rows.map(([name, asked, state]) => (
+                        <span {...style.attrs(styles.row)}>
+                            <span {...style.attrs(styles.name)}>{name}</span>
+                            <span {...style.attrs(styles.asked)}>{asked}</span>
+                            <span {...style.attrs(styles.state)}>{state}</span>
+                        </span>
+                    ))}
+                </span>
+            </div>
+        </ArtifactFrame>
+    );
+}
+
+/** Draw an app an assistant published, in its page: header, sandbox and notice. */
+export function ArtifactFrame(properties: {
+    assistant: Assistant;
+    title: string;
+    children: JSX.Element;
+}) {
     const publisher = () => publishers[properties.assistant];
 
     return (
@@ -97,21 +138,7 @@ function ArtifactPage(properties: { assistant: Assistant; title: string; rows: r
             </header>
 
             {/* the app itself, sandboxed in the page */}
-            <main {...style.attrs(styles.frame)}>
-                <b {...style.attrs(styles.heading)}>{properties.title}</b>
-                <span {...style.attrs(styles.connect)}>
-                    Connect your own Airtable and Slack to load this board
-                </span>
-                <span {...style.attrs(styles.table)}>
-                    {properties.rows.map(([name, asked, state]) => (
-                        <span {...style.attrs(styles.row)}>
-                            <span {...style.attrs(styles.name)}>{name}</span>
-                            <span {...style.attrs(styles.asked)}>{asked}</span>
-                            <span {...style.attrs(styles.state)}>{state}</span>
-                        </span>
-                    ))}
-                </span>
-            </main>
+            <main {...style.attrs(styles.frame)}>{properties.children}</main>
 
             {/* the assistant's notice under every public app */}
             <footer {...style.attrs(styles.notice)}>{publisher().notice}</footer>
@@ -179,16 +206,18 @@ const styles = style.create({
         paddingInline: "11px",
     },
     frame: {
-        alignContent: "start",
         backgroundColor: chat.field,
-        display: "grid",
-        gap: "10px",
         margin: "16px",
         borderColor: chat.border,
         borderRadius: "12px",
         borderStyle: "solid",
         borderWidth: "1px",
         overflow: "hidden",
+    },
+    board: {
+        alignContent: "start",
+        display: "grid",
+        gap: "10px",
         padding: "20px",
     },
     heading: {

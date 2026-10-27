@@ -325,7 +325,11 @@ function Connectors(properties: { isOpen: boolean; connectors: readonly Connecto
             <span {...style.attrs(styles.logos)}>
                 {properties.isOpen ? (
                     <span {...style.attrs(styles.logo)}>
-                        <img alt="" src="/brand/mark.svg" {...style.attrs(styles.server)} />
+                        <img
+                            alt=""
+                            src="/brand/favicon/favicon.svg"
+                            {...style.attrs(styles.server)}
+                        />
                     </span>
                 ) : (
                     properties.connectors.map(([icon, tint], index) => (
@@ -500,7 +504,7 @@ function ToolCall(properties: { item: Extract<Item, { kind: "call" }>; isRunning
                 {...style.attrs(styles.toolHead)}
             >
                 {item().server === "destack" ? (
-                    <img alt="" src="/brand/mark.svg" {...style.attrs(styles.server)} />
+                    <img alt="" src="/brand/favicon/favicon.svg" {...style.attrs(styles.server)} />
                 ) : (
                     <Favicon icon={item().server} tint={vendorOf(item().server).tint} size={13} />
                 )}
@@ -959,10 +963,10 @@ const styles = style.create({
         width: "100%",
     },
     server: {
-        borderRadius: "3px",
+        borderRadius: "4px",
         flexShrink: 0,
-        height: "13px",
-        width: "13px",
+        height: "16px",
+        width: "16px",
     },
     toolTitle: {
         color: chat.ink,

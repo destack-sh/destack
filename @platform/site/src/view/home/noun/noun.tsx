@@ -25,7 +25,8 @@ import {
     vendorOf,
     vendorsOf,
 } from "./service";
-import type { Option } from "../figure/picker";
+import { type Option, Picker } from "../figure/picker";
+import { type Assistant, assistantOptions, assistants } from "../command/chat";
 import { createSteps } from "../figure/stagger";
 import { BASE_USERS, workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
@@ -45,14 +46,18 @@ const noun: Form = {
     partOfSpeech: "noun",
     sense: {
         definition: "a complete, absurdly integrated software engine",
-        highlight: ["complete", "absurdly integrated"],
-        sentence:
-            "Every app you make gets auth, a database, workflows and telemetry, out of the box.",
+        highlight: ["complete", "software engine"],
+        sentence: (
+            <>
+                Make high quality custom software easily, with <em>one</em> standardised pipeline
+                that agents love.
+            </>
+        ),
         gloss: "Unreal Engine, for everyday software",
     },
 };
 
-/** Show the noun at work: your launch tracker on eight rented services, or on one engine. */
+/** Show the noun at work: your launch tracker on nine rented services, or on one engine. */
 export function Noun(properties: { isOpen: boolean }) {
     // follow the motion the section shows
     const [section, setSection] = createSignal<HTMLElement>();
@@ -74,6 +79,18 @@ export function Noun(properties: { isOpen: boolean }) {
         () => (!isReduced() && isShown() && !isTouched() ? turnTime : false),
         "interval",
     );
+
+    // hold the assistant whose artifact the app starts as, Claude until the reader picks another
+    const [assistant, setAssistant] = createSignal<Assistant>("Claude");
+    const chooseAssistant = (name: string) => {
+        setIsTouched(true);
+        setAssistant(
+            present(
+                assistants.find((candidate) => candidate === name),
+                `assistant ${name}`,
+            ),
+        );
+    };
 
     // rent each category's chosen service, or the one its row has turned to
     const [picked, setPicked] = createSignal<Readonly<Partial<Record<ServiceCategory, string>>>>(
@@ -125,23 +142,43 @@ export function Noun(properties: { isOpen: boolean }) {
             ref={setSection}
             {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.section)}
         >
-            <Entry form={noun} />
+            <Entry form={noun} isTitle />
             <FigureLabel
-                number={2}
+                number={1}
                 isOpen={properties.isOpen}
-                stacked="an app you made, glued across eight services"
-                destacked="an app you made, on Destack"
+                stacked="one artifact, nine services short of an app"
+                destacked="one app, one engine"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                <Label>
-                    {isOpenAt(0)
-                        ? "Your app, built on one engine"
-                        : "Your app, stitched across eight services"}
-                </Label>
+                <LabelRow
+                    end={
+                        isOpenAt(0) ? undefined : (
+                            <Picker
+                                label="Agent"
+                                options={assistantOptions}
+                                shown={assistant()}
+                                progress={undefined}
+                                onChoose={chooseAssistant}
+                            />
+                        )
+                    }
+                >
+                    <Label>
+                        {isOpenAt(0)
+                            ? "Your app, built on one engine"
+                            : "Your agent's app, as an artifact"}
+                    </Label>
+                </LabelRow>
                 <div {...style.attrs(styles.window)}>
-                    <XRay rented={rented()} isOpenAt={isOpenAt} lit={lit()} onLight={setLit} />
+                    <XRay
+                        rented={rented()}
+                        assistant={assistant()}
+                        isOpenAt={isOpenAt}
+                        lit={lit()}
+                        onLight={setLit}
+                    />
                 </div>
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
@@ -198,10 +235,10 @@ function optionsOf(row: number): readonly Option[] {
     }));
 }
 
-/** Label the ledger by how many bills the stack sends: eight, one, or some between. */
+/** Label the ledger by how many bills the stack sends: nine, one, or some between. */
 function keyOf(rented: number) {
     if (rented === serviceCount) {
-        return "Eight bills";
+        return "Nine bills";
     } else if (rented === 0) {
         return "One bill";
     }

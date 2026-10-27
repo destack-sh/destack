@@ -12,8 +12,10 @@ export const notion = style.defineConsts({
     navy: "light-dark(#183347, #d3e5ef)",
     /** The status dot. */
     blue: "#337ea9",
-    /** Checked boxes. */
+    /** Checked boxes and the publish button. */
     link: "#2383e2",
+    /** The text on the publish button. */
+    onLink: "#ffffff",
     /** The status tag. */
     sky: "light-dark(#d3e5ef, #28456c)",
     /** The callout. */

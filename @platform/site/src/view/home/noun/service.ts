@@ -12,6 +12,7 @@ export type ServiceCategory =
     | "messaging"
     | "jobs"
     | "analytics"
+    | "observability"
     | "hosting"
     | "code";
 
@@ -45,8 +46,10 @@ export const vendors: readonly Service[] = [
 
     // analytics
     { name: "PostHog", category: "analytics", mark: { logo: "posthog.svg" } },
-    { name: "Datadog", category: "analytics", mark: { icon: "datadog", tint: "#632ca6" } },
-    { name: "Sentry", category: "analytics", mark: { icon: "sentry", tint: "#362d59" } },
+
+    // observability
+    { name: "Sentry", category: "observability", mark: { icon: "sentry", tint: "#362d59" } },
+    { name: "Datadog", category: "observability", mark: { icon: "datadog", tint: "#632ca6" } },
 
     // hosting
     { name: "Vercel", category: "hosting", mark: { logo: "vercel.png" } },
@@ -67,7 +70,7 @@ type Slot = {
     destacked: Item;
 };
 
-/** The eight rows a docs app runs on, numbered as the ledger rows. */
+/** The nine rows a docs app runs on, numbered as the ledger rows. */
 const slots: readonly Slot[] = [
     {
         category: "identity",
@@ -120,6 +123,15 @@ const slots: readonly Slot[] = [
             label: "Analytics",
             mark: { app: "telemetry" },
             name: "Telemetry",
+            price: { kind: "included" },
+        },
+    },
+    {
+        category: "observability",
+        destacked: {
+            label: "Observability",
+            mark: { app: "audit" },
+            name: "Observability",
             price: { kind: "included" },
         },
     },

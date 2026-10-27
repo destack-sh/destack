@@ -58,7 +58,7 @@ const verb: Form = {
         definition: "to reconquer your software",
         highlight: ["reconquer"],
         sentence:
-            "The apps you use, the apps you make, the agents you run — on one integrated stack.",
+            "The apps you use, the apps you make, the agents you run — all in one stack you can own.",
         gloss: "to standardise all elements of software production and deployment",
     },
 };
@@ -242,9 +242,9 @@ export function Verb(properties: {
             ref={setSection}
             {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.section)}
         >
-            <Entry form={verb} isTitle />
+            <Entry form={verb} />
             <FigureLabel
-                number={1}
+                number={2}
                 isOpen={properties.isOpen}
                 stacked="twelve apps, twelve silos"
                 destacked="twelve apps, one space"
