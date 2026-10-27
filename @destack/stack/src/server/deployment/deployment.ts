@@ -1,4 +1,5 @@
 import {
+    installation,
     InstallationName,
     type ObjectReconciliation,
     ObjectWatch,
@@ -15,12 +16,19 @@ import {
     inArray,
     isNull,
     or,
-    type Select,
     Snapshot,
     Condition,
 } from "@destack/db";
-import { SandboxError, type PackageId } from "@destack/package";
-import { nth, type JsonValue, schema, type Identifier, present, Version } from "@destack/schema";
+import { PackageError, type PackageId } from "@destack/package";
+import {
+    type Digest,
+    nth,
+    type JsonValue,
+    schema,
+    type Identifier,
+    present,
+    Version,
+} from "@destack/schema";
 import { RetryPolicy } from "@destack/environment";
 import { Scope } from "@destack/sync";
 import { Failure } from "@destack/error";
@@ -35,14 +43,14 @@ import type { BuildReader } from "@destack/package/manifest";
 import {
     Build,
     capture,
+    type Capture,
     Deployment,
     deployment,
     type Instance,
     instance,
     type InstanceCondition,
-    Installation,
-    installation,
     installationRevision,
+    Rollout,
     dependency,
 } from "../../object/index.ts";
 import { StackError } from "../../error/index.ts";
@@ -66,7 +74,7 @@ export interface DeploymentOptions {
     readonly builds: BuildStore;
     /** The providers of the machine's resource kinds, with the object each kind's resources are. */
     readonly providers: ProviderIndex;
-    /** The kinds of package objects that bindings target beside resources, such as secrets. */
+    /** The kinds of package objects that bindings target other than resources, such as secrets. */
     readonly bindables: readonly ServedBindable[];
 }
 
@@ -78,7 +86,7 @@ interface WorkloadCapture {
     readonly name: string;
     /** The resource. */
     readonly id: ResourceId;
-    /** The space keeping the resource. */
+    /** The space of the resource. */
     readonly scope: Identifier<"space">;
     /** The resource kind, such as database. */
     readonly kind: ResourceKind["name"];
@@ -96,11 +104,8 @@ interface WorkloadCapture {
     readonly conditions: Readonly<Record<string, StatusCondition>>;
 }
 
-/** A deployment's capture as its instance's start reads it. */
-type CaptureRow = Pick<
-    Select<typeof capture.table>,
-    "packageId" | "name" | "target" | "version" | "targetSpaceId"
->;
+/** The fields of a deployment's capture its instance's start reads. */
+type CaptureStart = Pick<Capture, "packageId" | "name" | "target" | "version" | "targetSpaceId">;
 
 /** Implement deployments: roll each out on this machine's runtimes. */
 export function implementDeployment(options: DeploymentOptions) {
@@ -159,9 +164,9 @@ export function implementDeployment(options: DeploymentOptions) {
             reconcile: async (reconciliation) => {
                 // reconcile a deployment of a served space the machine runs
                 const id = nth(reconciliation.rows, 0).id;
-                const rollout = await Rollout.read(id, reconciliation, options);
+                const pass = await Reconcile.read(id, reconciliation, options);
 
-                return rollout?.reconcile();
+                return pass?.reconcile();
             },
         },
     });
@@ -178,7 +183,7 @@ export function implementInstance() {
 }
 
 /** One reconcile of one deployment of a served space the machine runs, with its instances. */
-class Rollout {
+class Reconcile {
     /** The deployment. */
     readonly #current: Deployment;
     /** Its instances not stopped for good. */
@@ -195,7 +200,7 @@ class Rollout {
         reconciliation: ObjectReconciliation,
         options: DeploymentOptions,
     ) {
-        // keep the deployment with its instances, the reconciliation and the options
+        // store the deployment with its instances, the reconciliation and the options
         this.#current = current;
         this.#recorded = recorded;
         this.#reconciliation = reconciliation;
@@ -207,7 +212,7 @@ class Rollout {
         id: string,
         reconciliation: ObjectReconciliation,
         options: DeploymentOptions,
-    ): Promise<Rollout | undefined> {
+    ): Promise<Reconcile | undefined> {
         // read the deployment of a served space that the machine runs
         const database = reconciliation.database;
         const [served] = await database
@@ -237,7 +242,7 @@ class Rollout {
                 ),
             );
 
-        return new Rollout(current, recorded, reconciliation, options);
+        return new Reconcile(current, recorded, reconciliation, options);
     }
 
     /** Run the instance of an active deployment, and stop the instances of one no longer active. */
@@ -246,7 +251,7 @@ class Rollout {
         if (this.#current.status === "active") {
             return this.#runActive();
         }
-        // keep a draining deployment serving until the deployment replacing it runs
+        // let a draining deployment serve until the deployment replacing it runs
         else if (
             this.#current.status === "draining" &&
             this.#recorded.length > 0 &&
@@ -312,7 +317,7 @@ class Rollout {
             return true;
         }
 
-        // keep serving until the replacement runs an instance
+        // serve until the replacement runs an instance
         const [running] = await database
             .select({ id: instance.table.id })
             .from(instance.table)
@@ -333,16 +338,19 @@ class Rollout {
         return this.#servesPinned(replacing.since);
     }
 
-    /** Report whether every serving caller in the deployment's space pins a release since one. */
+    /** Report whether every serving caller in the space is pinned to a release since one. */
     async #servesPinned(since: Version): Promise<boolean> {
-        // read the pins of the serving callers of the deployment's installation
+        // read the pinned releases of the serving callers of the deployment's installation
         const current = this.#current;
         const database = this.#reconciliation.database;
         const [called] = await database
             .select({ name: installation.table.name })
             .from(installation.table)
             .where(eq(installation.table.id, current.installationId));
-        const { name } = present(called, `installation ${current.installationId}`);
+        const name = present(
+            present(called, `installation ${current.installationId}`).name,
+            `the name of installation ${current.installationId}`,
+        );
         const pinned = await database
             .select({ state: capture.table.state })
             .from(capture.table)
@@ -352,11 +360,11 @@ class Rollout {
                 and(
                     eq(dependency.table.scope, current.scope),
                     eq(dependency.table.reference, name),
-                    Condition.render(Deployment.serving(), deployment.table),
+                    Condition.render(Deployment.available(), deployment.table),
                 ),
             );
 
-        // keep serving while one pins a release the replacement no longer serves
+        // serve while one caller is pinned to a release the replacement no longer serves
         return pinned.every(
             (entry) =>
                 Version.compare(InstallationBindingState.parse(entry.state).release, since) >= 0,
@@ -385,7 +393,8 @@ class Rollout {
         // leave a running instance running while its process runs
         const reconciliation = this.#reconciliation;
         const now = reconciliation.now;
-        const backoff = RetryPolicy.interval(RESTART, recorded.restarts + 1);
+        const drawn = RetryPolicy.draw(`${recorded.id} ${recorded.restarts + 1}`);
+        const backoff = RetryPolicy.interval(RESTART, recorded.restarts + 1, () => drawn);
         const due = (recorded.stoppedAt ?? now) + backoff;
         const running = this.#runtime();
         if (recorded.status === "running" && running.isRunning(recorded.id)) {
@@ -399,7 +408,7 @@ class Rollout {
         // wait until every captured resource applied its current generation, observing which
         const captures = await this.#readCaptures();
         const resources = await this.#readResources(captures);
-        const waiting = Rollout.#waiting(resources);
+        const waiting = Reconcile.#waiting(resources);
         if (waiting.length > 0) {
             const names = waiting.map((entry) => entry.id).join(", ");
             await this.#observe(recorded, {
@@ -442,6 +451,7 @@ class Rollout {
 
     /** Record an instance failed to start, returning the delay before its restart. */
     async #recordFailure(recorded: Instance, restarts: number, error: unknown): Promise<number> {
+        // record the failure
         const { message } = Failure.of(error);
         await this.#observe(recorded, {
             status: "failed",
@@ -450,23 +460,26 @@ class Rollout {
             ready: ["false", "StartFailed", message],
         });
 
-        return RetryPolicy.interval(RESTART, restarts + 1);
+        // wait the backoff drawn from the instance and its restarts
+        const drawn = RetryPolicy.draw(`${recorded.id} ${restarts + 1}`);
+
+        return RetryPolicy.interval(RESTART, restarts + 1, () => drawn);
     }
 
     /** List the captured resources yet to apply their current generation. */
     static #waiting(resources: readonly WorkloadCapture[]): WorkloadCapture[] {
         return resources.filter(
             (entry) =>
-                entry.conditions["ready"]?.status !== "true" ||
-                entry.conditions["ready"].observedGeneration !== entry.generation,
+                entry.conditions["Ready"]?.status !== "true" ||
+                entry.conditions["Ready"].observedGeneration !== entry.generation,
         );
     }
 
     /** Start an instance's workload on its runtime from the revision's build with its resources. */
     async #launch(
         recorded: Instance,
-        manifest: string,
-        captures: readonly CaptureRow[],
+        manifest: Digest,
+        captures: readonly CaptureStart[],
         resources: readonly WorkloadCapture[],
         running: Runtime,
     ): Promise<void> {
@@ -486,11 +499,16 @@ class Rollout {
                 }),
             `the installation ${current.installationId}`,
         );
+        const { origin } = installed;
+        if (origin === "base") {
+            throw new TypeError(`base installation ${installed.id} deploys no workloads`);
+        }
         await running.start(
             {
                 instanceId: recorded.id,
                 installationId: current.installationId,
-                name: installed.name,
+                origin,
+                name: present(installed.name, `the name of installation ${installed.id}`),
                 scope: current.scope,
                 deploymentId: current.id,
                 build: reader,
@@ -501,11 +519,11 @@ class Rollout {
                 enabled: current.enabled,
                 directories: current.directories,
                 served: this.#served(captures),
-                installations: await Rollout.#installations(captures, reader),
+                installations: await Reconcile.#installations(captures, reader),
                 resources: resources
-                    .filter((entry) => Rollout.#isUsed(current.description, entry))
-                    .map((entry) => Rollout.#requireProvisioned(entry)),
-                settings: await Installation.settings(this.#reconciliation.database, reader, {
+                    .filter((entry) => Reconcile.#isUsed(current.description, entry))
+                    .map((entry) => this.#workloadResource(entry)),
+                settings: await Rollout.settings(this.#reconciliation.database, reader, {
                     scope: current.scope,
                     installation: current.installationId,
                 }),
@@ -524,16 +542,16 @@ class Rollout {
         );
     }
 
-    /** Refuse fs on a runtime without a filesystem. */
+    /** Refuse files on a runtime without a filesystem. */
     #refuseUnsupported(running: Runtime): void {
-        // refuse fs on a runtime without a filesystem to grant
+        // refuse files on a runtime without a filesystem to grant
         const current = this.#current;
         const granted = RUNTIME_SUPPORT[running.name];
-        if (current.description.sandbox.fs !== undefined && !granted.hasFilesystem) {
-            throw new SandboxError(
-                "UNSUPPORTED",
-                "fs",
+        if (current.description.sandbox.files !== undefined && !granted.hasFilesystem) {
+            throw PackageError.of(
+                "ABILITY_UNSUPPORTED",
                 `the ${current.runtime} runtime has no filesystem to grant`,
+                { data: { ability: "files" } },
             );
         }
     }
@@ -558,17 +576,14 @@ class Rollout {
     #runtime(): Runtime {
         const running = this.#options.runtimes.get(this.#current.runtime);
         if (running === undefined) {
-            throw new StackError(
-                "UNSERVED",
-                `this machine runs no ${this.#current.runtime} runtime`,
-            );
+            throw StackError.of("UNSERVED", `this machine has no ${this.#current.runtime} runtime`);
         }
 
         return running;
     }
 
-    /** Read the captured resources of each kind the providers keep, by the captures' targets. */
-    async #readResources(captures: readonly CaptureRow[]): Promise<WorkloadCapture[]> {
+    /** Read the captured resources of each kind the providers serve, by the captures' targets. */
+    async #readResources(captures: readonly CaptureStart[]): Promise<WorkloadCapture[]> {
         // read each kind's captured resources at once
         const providers = this.#options.providers;
         const found: WorkloadCapture[] = [];
@@ -609,7 +624,7 @@ class Rollout {
     }
 
     /** Read the deployment's captures. */
-    async #readCaptures(): Promise<CaptureRow[]> {
+    async #readCaptures(): Promise<CaptureStart[]> {
         return await this.#reconciliation.database
             .select({
                 packageId: capture.table.packageId,
@@ -623,9 +638,9 @@ class Rollout {
     }
 
     /** Select the served objects among the deployment's captures, such as secret versions. */
-    #served(rows: readonly CaptureRow[]): WorkloadServed[] {
+    #served(rows: readonly CaptureStart[]): WorkloadServed[] {
         return rows.flatMap((row) => {
-            // keep the versioned captures of a served kind
+            // take the versioned captures of a served kind
             const kind = this.#options.bindables.find((each) => each.object.identifies(row.target));
 
             return kind !== undefined && row.version !== null
@@ -646,7 +661,7 @@ class Rollout {
 
     /** Select the installations of other spaces among a deployment's captures. */
     static async #installations(
-        captures: readonly CaptureRow[],
+        captures: readonly CaptureStart[],
         build: BuildReader,
     ): Promise<WorkloadInstallation[]> {
         // read the package each captured declaration calls from the build
@@ -676,7 +691,7 @@ class Rollout {
     }
 
     /** Read a captured resource as a workload binds it, refusing one not provisioned. */
-    static #requireProvisioned(capturedResource: WorkloadCapture): WorkloadResource {
+    #workloadResource(capturedResource: WorkloadCapture): WorkloadResource {
         // require the provider of an applied resource
         const {
             generation: _generation,
@@ -685,13 +700,19 @@ class Rollout {
             ...entry
         } = capturedResource;
         if (entry.provider === null || entry.reference === null) {
-            throw new StackError("NOT_READY", `resource ${entry.id} is not provisioned`);
+            throw StackError.of(
+                "RESOURCE_UNPROVISIONED",
+                `resource ${entry.id} is not provisioned`,
+            );
         }
+
+        // give the workload the resource's provider and reference on this machine
+        const reached = { kind: entry.kind, provider: entry.provider, reference: entry.reference };
 
         return {
             ...entry,
             provider: entry.provider,
-            reference: entry.reference,
+            reference: this.#options.providers.resolve(reached),
             ...(lentFrom === null ? {} : { connection: lentFrom }),
         };
     }
@@ -717,7 +738,7 @@ class Rollout {
             ready: [status, reason, message],
             ...fields
         } = observed;
-        const previous = recorded.conditions["ready"];
+        const previous = recorded.conditions["Ready"];
         const columns: Readonly<Record<string, unknown>> = recorded;
         const isRecorded =
             previous?.status === status &&
@@ -728,7 +749,7 @@ class Rollout {
             return;
         }
 
-        // record the fields and the condition with its transition time kept while the status stays
+        // record the fields and the condition, with a transition time that stays while the status stays
         const now = this.#reconciliation.now;
         const ready: InstanceCondition = {
             status,
@@ -740,7 +761,7 @@ class Rollout {
             instance.call("update", {
                 ...instance.target(recorded),
                 ...fields,
-                conditions: { ...recorded.conditions, ready },
+                conditions: { ...recorded.conditions, Ready: ready },
                 observedAt: now,
             }),
         ]);

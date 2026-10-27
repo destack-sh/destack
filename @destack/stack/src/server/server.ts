@@ -1,22 +1,36 @@
-import { type Identifier, schema } from "@destack/schema";
+import { PROCESS_RUNTIME } from "../object/index.ts";
+import { principal } from "@destack/access";
+import { hostname } from "@destack/account/object";
+import type { PackageId, PackageRelease } from "@destack/package";
+import { type Identifier, present, schema } from "@destack/schema";
 import { Snapshot, type Database, type DatabaseConnection } from "@destack/db";
 import { type Publisher, type Subject, Scope, type Uplink } from "@destack/sync";
-import type { CallKey } from "@destack/object";
+import { type CallKey, installation } from "@destack/object";
+import type { ObjectPackage } from "@destack/object/server";
 import type accountPackage from "@destack/account/package";
 import type { ClientOf } from "@destack/object/client";
 import { type IdentityKeystore } from "@destack/account/identity";
-import { Follow, type ObjectType, type HookSandbox } from "@destack/object";
+import {
+    Follow,
+    grantShape,
+    type ObjectType,
+    type HookSandbox,
+    relationship,
+} from "@destack/object";
 import {
     Account,
     placement,
+    profileShape,
     residency,
-    residentShape,
+    residentsShape,
     space,
+    residencyShape,
     spaceShape,
+    user,
     Entitlement,
 } from "@destack/account/object";
 import {
-    type ClaimHome,
+    type ClaimPrimary,
     implementPackage,
     type ExternalStorage,
     ObjectStore,
@@ -30,14 +44,17 @@ import { implementBucket } from "./resource/bucket.ts";
 import type { Runtime } from "../runtime/index.ts";
 import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
-import { branchType, Installation, installation } from "../object/index.ts";
+import type { BaseServerContext } from "@destack/object/workload";
+import settingPackage from "@destack/setting/package";
+import workflowPackage from "@destack/workflow/package";
+import { branchType, Rollout, rollout } from "../object/index.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
 import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
 import type { ContentStore } from "@destack/resource";
 import { Bindable, Binder, type ServedBindable } from "./resource/binding.ts";
 import { implementDeployment, implementInstance } from "./deployment/deployment.ts";
-import { implementInstallation } from "./installation/installation.ts";
+import { implementInstallation, implementInstallations } from "./installation/installation.ts";
 import { InstallationAssertion } from "./installation/token.ts";
 import { implementInstallationRevision } from "./installation/revision.ts";
 import {
@@ -47,7 +64,6 @@ import {
     type SpaceProvider,
 } from "./resource/resource.ts";
 import { implementSpace, type SpaceRole } from "./host/space.ts";
-import { Scheduler } from "./host/scheduler.ts";
 import { implementTransfer, type TransferOptions } from "./host/transfer.ts";
 import { type Handoff, handoffAdapter } from "./host/handoff.ts";
 import type { EventStore } from "@destack/event";
@@ -62,7 +78,7 @@ import { hookAdapter } from "./installation/hook.ts";
 import type { SocketRegistry } from "./host/socket.ts";
 import { implementRoute } from "./access/route.ts";
 import { implementRelationship, implementRole } from "./access/role.ts";
-import { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
 /** The account package's methods a machine calls about its spaces, as the machine. */
 export interface SpaceAccounts {
@@ -84,16 +100,20 @@ type AccountClient = ClientOf<typeof accountPackage>;
 export interface SpaceOptions {
     /** The space's role on this machine, as its placement decides. */
     readonly role: SpaceRole;
+    /** The base installation of each package the space is born with, by package. */
+    readonly bases: ReadonlyMap<PackageId, BaseServerContext>;
     /** The principal the store's own work runs as. */
     readonly principal: Subject;
+    /** The partitions the space serves: itself, and its account when it is the home. */
+    readonly partitions: readonly string[];
     /** The space's database. */
     readonly database: DatabaseConnection;
     /** The key sensitive call inputs are fingerprinted under in the journal. */
     readonly callKey: CallKey;
     /** The account package, called as the machine. */
     readonly accounts: SpaceAccounts;
-    /** The claim type of unique index names, and the home serving it. */
-    readonly claims: ClaimHome;
+    /** The claim type of unique index names, and the home that serves it. */
+    readonly claims: ClaimPrimary;
     /** The account package's uplink, signed as the space or its installations. */
     readonly publisher: Uplink;
     /** Connect to the handoff of a machine moving a space here. */
@@ -107,8 +127,10 @@ export interface SpaceOptions {
     readonly buildRunner: Identifier<"machine"> | null;
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
-    /** Open the publisher at the home of a space a follow reads, such as a residency's home. */
-    readonly publisherAt: ((scope: string) => Publisher) | null;
+    /** Whether requests for the account's own hostnames reach the machine, so its routes serve. */
+    readonly isServingHostnames: boolean;
+    /** Open the publisher of a partition a follow reads at its home, such as a residency's home. */
+    readonly publisherAt: ((home: string, partition: string) => Publisher) | null;
     /** The providers with the spaces' resources. */
     readonly providers: readonly SpaceProvider[];
     /** The space's own content-addressed store of its resources' snapshots. */
@@ -121,6 +143,8 @@ export interface SpaceOptions {
     readonly sandboxes: readonly HookSandbox[];
     /** The registry of published releases. */
     readonly registry: Registry;
+    /** The release the machine ships of each package it serves in process, by package. */
+    readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
     /** The platform's declaration of every space's main database, with the platform's tables. */
     readonly main: Database;
     /** The graph indexes of the machine's spaces, swept once their builds go. */
@@ -129,7 +153,7 @@ export interface SpaceOptions {
     readonly buckets: CatalogueBucketHost;
     /** The machine's store of every build. */
     readonly builds: BuildStore;
-    /** The kinds of package objects that bindings target beside resources, such as secrets. */
+    /** The kinds of package objects that bindings target other than resources, such as secrets. */
     readonly bindables: readonly ServedBindable[];
     /** The runtimes the machine runs its instances on, in preference order. */
     readonly runtimes: readonly Runtime[];
@@ -137,7 +161,7 @@ export interface SpaceOptions {
     readonly events: EventStore;
     /** The repositories installations select and follow, null on a machine following none. */
     readonly forge: Forge | null;
-    /** The shapes the machine follows beside the space's own, such as its repository references. */
+    /** The shapes the machine follows with the space's own, such as its repository references. */
     readonly follows: readonly Follow[];
     /** The host's own controllers of the served space: its serving lifecycle and its meters. */
     readonly controllers: NonNullable<ImplementationInput["controllers"]>;
@@ -145,11 +169,11 @@ export interface SpaceOptions {
     readonly external: ExternalStorage;
     /** The live sockets of the machine's spaces. */
     readonly sockets: SocketRegistry;
-    /** The clock the machine reads time at. */
-    readonly clock: Clock;
+    /** The environment the machine runs in: its clock, randomness, crypto and network. */
+    readonly environment: Environment;
 }
 
-/** Serve the stack package over the spaces' objects, beside the other packages' resources. */
+/** Serve the stack package over the spaces' objects, next to the other packages' resources. */
 function stackServer(
     options: SpaceOptions,
     others: readonly {
@@ -157,20 +181,19 @@ function stackServer(
         readonly providers?: ImplementationInput["providers"];
     }[],
 ): PackageImplementation {
-    // index the machine's providers and bindable kinds, and schedule and move the spaces through one scheduler
+    // index the machine's providers and bindable kinds, and the moves' options
     const listed = spaceProviders(options);
     const providers = new ProviderIndex(options.machine, listed, others);
     const binder = new Binder(
         providers.objects().map((type) => Bindable.resource(providers.kind(type), type)),
         options.bindables,
     );
-    const scheduler = new Scheduler(options);
     const transfers = configureTransfers(options, providers);
 
     // serve the space's objects with the external types, a standby only those its moves write
     const isPrimary = options.role === "primary";
     const own = isPrimary
-        ? ownObjects(options, providers, binder, scheduler, transfers)
+        ? ownObjects(options, providers, binder, transfers)
         : stackObjects([implementRestore(transfers), implementTransfer(transfers)]);
 
     return implementPackage(stackPackage, {
@@ -179,8 +202,8 @@ function stackServer(
         providers: listed,
         follows: [
             ...spaceFollows(options),
-            ...(isPrimary && options.isEnforcingEntitlements ? [Entitlement.follow] : []),
-            ...(isPrimary ? options.follows : []),
+            // follow the account's entitlements, which enforcement reads
+            ...(isPrimary ? [Entitlement.follow, ...options.follows] : []),
         ],
         // answer moving spaces' targets and installations' hook sessions
         adapters: {
@@ -208,9 +231,15 @@ function primaryControllers(
                 options.database,
                 options.publisher,
                 options.machine,
-                options.clock,
+                options.environment,
             ),
-        (store) => new PlacementController(store, options.machine, options),
+        (store) =>
+            new PlacementController(
+                store,
+                schema.identifier("space").parse(options.principal.id),
+                options.machine,
+                options,
+            ),
         (store) => new ConsumerController(store, providers.objects(), options.main),
         (store) => new RetentionController(store, options.builds, options.graphs, options.store),
         ...options.providers.flatMap((provider) =>
@@ -219,12 +248,15 @@ function primaryControllers(
     ];
 }
 
+/** The packages every space is born with, each served as its base installation. */
+export const SPACE_PACKAGES = [stackPackage, objectPackage, settingPackage, workflowPackage];
+
 /** Serve a space's stack and other packages over its one database, the stack first. */
 export function serveSpace(options: SpaceOptions): {
     readonly store: ObjectStore;
     readonly packages: readonly PackageHandler[];
 } {
-    // serve each other package once, its resources provisioned beside the stack's
+    // serve each other package once, with its resources provisioned next to the stack's
     const others = options.servers.map((server) => {
         // read the package's definition once, serving it as a static one
         const definition = server.definition(server.installation);
@@ -251,45 +283,63 @@ export function serveSpace(options: SpaceOptions): {
         others.map((each) => each.served),
     );
     const access = implementPackage(objectPackage, {
-        objects: [implementRole(), implementRelationship()],
+        objects: [
+            implementRole(),
+            implementRelationship(),
+            implementInstallations({
+                issuer: options.keystore.issuer(options.database, options.principal.id),
+            }),
+        ],
     });
+    const base = (handle: Pick<ObjectPackage, "id" | "name">) =>
+        present(options.bases.get(handle.id), `the base installation of ${handle.name}`);
+    const born = [stack.at(base(stackPackage)), access.at(base(objectPackage))];
     const store = new ObjectStore({
         servers:
             options.role === "primary"
                 ? [
-                      stack,
-                      access,
-                      installedSettingsServer(options),
-                      workflowServer,
+                      ...born,
+                      installedSettingsServer(options).at(base(settingPackage)),
+                      workflowServer.at(base(workflowPackage)),
                       ...others.map((each) => each.server),
                   ]
-                : [stack, access],
+                : born,
         principal: options.principal,
+        partitions: options.partitions,
         database: options.database,
+        // know the account's hostnames, which its spaces' routes are declared on, as replicated rows
+        policies: [hostname],
         claims: options.claims,
         callKey: options.callKey,
-        clock: options.clock,
+        environment: options.environment,
         events: options.events,
         ephemeral: options.sockets.storage,
         origin: { package: stackPackage, machineId: options.machine },
         uplink: options.publisher,
-        // root the chain above a primary's space once placed, and follow none on a standby
+        // root the chain above the space by its placement, as primary or move target
         chain: async (view) => {
+            // read where the space is placed, and whether it moves here
             const served = schema.identifier("space").parse(options.principal.id);
             const row = await view.read(placement.table).findFirst({ where: { id: served } });
+            const isFollowing = options.role === "primary" || row?.targetId === options.machine;
 
-            return options.role === "primary" && row !== undefined
-                ? { kind: "home", parent: row.scope }
-                : undefined;
+            // root the chain at the placement, wait for a primary's, and follow none elsewhere
+            if (row !== undefined && isFollowing) {
+                return { kind: "home", parent: row.scope };
+            } else if (row === undefined && options.role === "primary") {
+                return { kind: "pending" };
+            }
+
+            return undefined;
         },
-        // reach the universe by the uplink, other scopes at their homes by the machine's route
+        // send to the universe by the uplink, and to other scopes at their homes by the machine's route
         publisher: (scope) => homePublisher(options, scope),
         machine: options.machine,
         branch: branchType,
         sandboxes: options.sandboxes,
     });
 
-    // verify the installations' assertions to each package beside the proofs they spend
+    // verify the installations' assertions to each package with the proofs they spend
     return {
         store,
         packages: store.packages.map((served) => {
@@ -298,7 +348,11 @@ export function serveSpace(options: SpaceOptions): {
             return {
                 ...served,
                 verify: (request: Request) =>
-                    InstallationAssertion.verify(verifier, request, options.clock.now()),
+                    InstallationAssertion.verify(
+                        verifier,
+                        request,
+                        options.environment.clock.now(),
+                    ),
             };
         }),
     };
@@ -309,7 +363,6 @@ function ownObjects(
     options: SpaceOptions,
     providers: ProviderIndex,
     binder: Binder,
-    scheduler: Scheduler,
     transfers: TransferOptions,
 ) {
     // serve the space's types with their behaviour
@@ -319,7 +372,7 @@ function ownObjects(
         implementRestore(transfers),
         implementSpace({
             keystore: options.keystore,
-            scheduler,
+            builds,
             publisher: options.publisher,
             isEnforcingEntitlements: options.isEnforcingEntitlements,
         }),
@@ -329,15 +382,18 @@ function ownObjects(
             builds,
             registry,
             binder,
-            runtimes: options.runtimes.map((runtime) => runtime.name),
+            runtimes: options.runtimes.flatMap((runtime) =>
+                runtime.name === PROCESS_RUNTIME ? [] : [runtime.name],
+            ),
             accounts: options.accounts,
             forge: options.forge,
             issuer: options.keystore.issuer(options.database, options.principal.id),
             isEnforcingEntitlements: options.isEnforcingEntitlements,
             database: options.database,
+            bundled: options.bundled,
         }),
         implementInstallationRevision(builds, registry),
-        binder.declare(),
+        binder.serve(),
         implementDeployment({
             providers,
             bindables: options.bindables,
@@ -348,7 +404,7 @@ function ownObjects(
         implementInstance(),
         implementBuild(options),
         implementTransfer(transfers),
-        implementRoute(),
+        implementRoute(options.isServingHostnames),
     ];
 
     return stackObjects(served);
@@ -365,18 +421,29 @@ function stackObjects(served: readonly ObjectType[]): ObjectType[] {
 
 /** Serve the space's installations' settings, read from the builds they install. */
 function installedSettingsServer(options: SpaceOptions): PackageImplementation {
-    const snapshot = Snapshot.live(options.database);
-    const declared = Setting.declared((written) =>
-        Installation.reader(
-            snapshot,
-            schema.identifier("space").parse(written.scope),
-            written.package ?? written.packageId,
-            written.installation,
-            options.builds.packages,
-        ),
-    );
+    const declared = Setting.declared(async (written, view) => {
+        // read the declaring package's build from the release serving it: an installation's revision, else the machine's shipped release
+        const spaceId = schema.identifier("space").parse(written.scope);
+        const shipped = options.bundled.get(written.packageId);
+        const installed = await view
+            .read(installation.table)
+            .findMany({ where: { scope: spaceId, packageId: written.packageId } });
+        const following = await view.read(rollout.table).findMany({
+            where: { id: { in: installed.map((row) => row.id) }, revisionId: { isNotNull: true } },
+        });
 
-    return settingServer({ declared, after: [installation] });
+        return following.length > 0 || shipped === undefined
+            ? Rollout.reader(
+                  view,
+                  spaceId,
+                  written.packageId,
+                  written.installation,
+                  options.builds.packages,
+              )
+            : options.builds.pull(options.registry, written.packageId, shipped.manifest);
+    });
+
+    return settingServer({ declared, after: [rollout] });
 }
 
 /** Collect the external types, refusing one under a name the space serves. */
@@ -417,16 +484,66 @@ function configureTransfers(options: SpaceOptions, providers: ProviderIndex): Tr
     };
 }
 
-/** Follow the served space's row and its residents. */
-function spaceFollows(options: Pick<SpaceOptions, "principal">): readonly Follow[] {
+/** Follow the space's row and residents, and on its primary its people's profiles and grants. */
+function spaceFollows(
+    options: Pick<SpaceOptions, "principal" | "machine" | "role">,
+): readonly Follow[] {
+    // follow the space's row as the machine wherever it is served, which it needs before acting as the space
     const served = schema.identifier("space").parse(options.principal.id);
+    const machine = principal.machine.reference(Scope.universe.id, options.machine);
+    const follows: Follow[] = [
+        Follow.of(spaceShape, {
+            keys: [
+                {
+                    key: { scope: Scope.universe.id, space: served, machine: options.machine },
+                    subject: machine,
+                },
+            ],
+        }),
+    ];
+
+    // follow nothing the space signs for on a standby, which has none of its keys
+    if (options.role !== "primary") {
+        return follows;
+    }
 
     return [
-        Follow.of(spaceShape, { keys: [{ key: { scope: Scope.universe.id, space: served } }] }),
-        residency.follow(residentShape, {
+        ...follows,
+        // follow the residencies and its residency's residents as the space, a resident itself, so it decides on them
+        Follow.of(residencyShape, { keys: [{ key: { scope: Scope.universe.id } }] }),
+        residency.follow(residentsShape, {
             key: async (row) =>
-                row.home === served
+                row.space === served
                     ? { key: { scope: Scope.universe.id, residency: row.id } }
+                    : undefined,
+        }),
+        // follow the profiles of the people related to the space once it is placed here
+        relationship.follow(profileShape, {
+            where: { subjectPackageId: user.typeReference.packageId, subjectType: user.name },
+            key: async (row, view) => {
+                const placed = await view
+                    .read(placement.table)
+                    .findFirst({ where: { id: served } });
+                const isPerson = row.subjectRelation === null && user.identifies(row.subjectId);
+
+                return isPerson && placed?.machineId === options.machine
+                    ? { key: { scope: Scope.universe.id, user: user.identifier(row.subjectId) } }
+                    : undefined;
+            },
+        }),
+        // follow the grants people delegate to the space once it is placed here
+        placement.follow(grantShape, {
+            key: async (row) =>
+                row.id === served && row.machineId === options.machine
+                    ? {
+                          key: {
+                              scope: Scope.universe.id,
+                              delegatePackageId: options.principal.packageId,
+                              delegateType: options.principal.type,
+                              delegateScope: options.principal.scope,
+                              delegateId: options.principal.id,
+                          },
+                      }
                     : undefined,
         }),
     ];
@@ -447,13 +564,15 @@ function homePublisher(
         throw new TypeError(`this machine follows nothing from the home of ${scope}`);
     }
 
-    // follow a space at itself, an account, organisation or person at their home
-    const homed = async () =>
-        publisherAt(
-            space.identifies(scope)
-                ? scope
-                : await Account.homeOf(Snapshot.live(options.database), scope),
-        );
+    // follow a space at itself, and another scope in its account's partition at the account's home
+    const homed = async () => {
+        if (space.identifies(scope)) {
+            return publisherAt(scope, scope);
+        }
+        const { id } = await Account.of(Snapshot.live(options.database), scope);
+
+        return publisherAt(Account.home(id), id);
+    };
 
     return {
         async *stream(subscription, signal) {

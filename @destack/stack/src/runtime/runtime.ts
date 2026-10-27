@@ -1,7 +1,7 @@
+import type { Random } from "@destack/environment";
 import { type Authentication, CALLER_HEADER, Caller } from "@destack/access";
 import type { DirectoryGrant, PackageId, Sandbox } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import type { ServerRuntime } from "@destack/package/runtime";
 import { BucketKind, S3_PROVIDER } from "@destack/bucket";
 import { type ResourceId, type ResourceRecord } from "@destack/resource";
 import type { Digest, Identifier, JsonValue } from "@destack/schema";
@@ -10,26 +10,33 @@ import {
     PackageMount,
     INSTALLATION_PROVIDER,
     InstallationKind,
-    CallError,
+    STORE_PATHS,
 } from "@destack/object";
 import type { Deriver } from "@destack/identity";
 import { InstallationRoot, type WorkloadStart } from "@destack/object/workload";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../error/index.ts";
+import type { DeploymentRuntime } from "../object/deployment.ts";
 
 /** The bytes of an instance's secret: 256 bits, beyond guessing. */
 const SECRET_BYTES = 32;
 
-/** What each server runtime grants its workloads. */
+/** What each runtime grants its workloads. */
 export const RUNTIME_SUPPORT: Readonly<
-    Record<ServerRuntime, { readonly hasFilesystem: boolean; readonly hasCertificates: boolean }>
+    Record<
+        DeploymentRuntime,
+        { readonly hasFilesystem: boolean; readonly hasCertificates: boolean }
+    >
 > = {
     bun: { hasFilesystem: true, hasCertificates: true },
     workerd: { hasFilesystem: false, hasCertificates: false },
+    process: { hasFilesystem: false, hasCertificates: true },
 };
 
 /** The instances a machine runs on one server runtime. */
 export interface Runtime {
-    /** The server runtime, such as bun. */
-    readonly name: ServerRuntime;
+    /** The runtime, such as bun, or the machine's process. */
+    readonly name: DeploymentRuntime;
     /** Start an instance's workload unless it serves, and resolve once it serves. */
     readonly start: (spec: InstanceSpec, exited: (code: number) => Promise<void>) => Promise<void>;
     /** Stop an instance, draining it first. */
@@ -60,6 +67,8 @@ export interface InstanceSpec {
     readonly instanceId: Identifier<"instance">;
     /** The installation the workload runs for. */
     readonly installationId: Identifier<"installation">;
+    /** Whether the installation's scope's stack declares it, or someone installed it. */
+    readonly origin: "declared" | "installed";
     /** The installation's name in its space, its address there. */
     readonly name: string;
     /** The space the installation serves. */
@@ -90,6 +99,57 @@ export interface InstanceSpec {
     readonly settings: Readonly<Record<string, JsonValue>>;
 }
 
+/** An installation calling out through its machine's egress, from an instance or its store. */
+export interface EgressCaller {
+    /** The space of the installation. */
+    readonly scope: Identifier<"space">;
+    /** The installation calling. */
+    readonly installationId: Identifier<"installation">;
+    /** The resources its declarations are bound to. */
+    readonly resources: readonly WorkloadResource[];
+    /** The installations of other spaces its declarations are bound to. */
+    readonly installations: readonly WorkloadInstallation[];
+    /** Where its code runs: an instance of a deployment, or the space's store. */
+    readonly runs:
+        | {
+              readonly kind: "instance";
+              /** The instance. */
+              readonly instanceId: Identifier<"instance">;
+              /** The deployment the instance runs. */
+              readonly deploymentId: Identifier<"deployment">;
+          }
+        | { readonly kind: "store" };
+}
+
+/** The installations calling out through a machine's egress. */
+export const EgressCaller = {
+    /** Read an instance's workload as the caller of its egress. */
+    of(spec: InstanceSpec): EgressCaller {
+        const { scope, installationId, resources, installations, instanceId, deploymentId } = spec;
+
+        return {
+            scope,
+            installationId,
+            resources,
+            installations,
+            runs: { kind: "instance", instanceId, deploymentId },
+        };
+    },
+
+    /** Report whether a caller may call a peer's path: a store procedure, else once bound. */
+    binds(
+        caller: Pick<EgressCaller, "installations">,
+        peer: { readonly name: string; readonly spaceId: string },
+        path: string,
+    ): boolean {
+        const isBound = caller.installations.some(
+            (bound) => bound.installation === peer.name && bound.scope === peer.spaceId,
+        );
+
+        return isBound || STORE_PATHS.has(path);
+    },
+};
+
 /** The starts of instances' workloads. */
 export const InstanceSpec = {
     /** Describe the start message of an instance's runner. */
@@ -98,20 +158,23 @@ export const InstanceSpec = {
         options: {
             /** The machine's egress, below which the instance calls addresses. */
             readonly egress: string;
-            /** The URL callers reach the installation at, its packages mounted below. */
+            /** The URL callers call the installation at, with its packages mounted below. */
             readonly url: string;
             /** The share of traces the installation samples. */
             readonly sampling: number;
             /** The identity of the instance's space, which the installation's root derives from. */
             readonly identity: Pick<Deriver, "derive">;
+            /** The randomness the instance's secret draws from. */
+            readonly random: Random;
         },
     ): Promise<WorkloadStart> {
-        const secret = crypto.getRandomValues(new Uint8Array(SECRET_BYTES)).toHex();
+        const secret = options.random.bytes(SECRET_BYTES).toHex();
 
         return {
             instance: spec.instanceId,
-            space: spec.scope,
+            scope: spec.scope,
             installation: spec.installationId,
+            origin: spec.origin,
             name: spec.name,
             bindings: bindings(spec, options.egress, secret),
             settings: spec.settings,
@@ -132,11 +195,12 @@ export const InstanceSpec = {
         // find the workload's entry among the output's exports
         const output = spec.build.manifest.outputs[spec.output];
         const entrypoint = output?.workloads[spec.workload]?.entrypoint;
-        const path = entrypoint === undefined ? undefined : output?.exports[entrypoint];
+        const path = entrypoint === undefined ? undefined : output?.exports[entrypoint]?.path;
         if (output === undefined || path === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `output ${spec.output} carries no entry of workload ${spec.workload}`,
-            });
+            throw StackError.of(
+                "OUTPUT_ENTRY_MISSING",
+                `output ${spec.output} has no entry for workload ${spec.workload}`,
+            );
         }
 
         return { output, path };
@@ -222,15 +286,28 @@ export class InstanceRegistry<
         await Promise.allSettled([this.#starts.get(instanceId)]);
     }
 
-    /** Wait for an instance's start in progress, then forget it. */
-    async stop(instanceId: Identifier<"instance">): Promise<Running | undefined> {
+    /** Stop an instance after any start in progress, with its secret valid until it drains. */
+    async stop(
+        instanceId: Identifier<"instance">,
+        drain: (running: Running) => Promise<void>,
+    ): Promise<void> {
+        // take the instance off the running ones after any start in progress
         await this.settle(instanceId);
         const running = this.#running.get(instanceId);
+        if (running === undefined) {
+            return;
+        }
+        this.#running.delete(instanceId);
 
-        return running !== undefined && this.forget(running) ? running : undefined;
+        // drop its secret once it drains
+        try {
+            await drain(running);
+        } finally {
+            this.#secrets.delete(running.secret);
+        }
     }
 
-    /** Forget a running instance so its secret proves nothing. */
+    /** Forget an exited instance so its secret proves nothing. */
     forget(running: Running): boolean {
         // leave an instance a later start replaced
         if (this.#running.get(running.spec.instanceId) !== running) {
@@ -258,9 +335,7 @@ export class InstanceRegistry<
     require(instanceId: Identifier<"instance">): Running {
         const running = this.#running.get(instanceId);
         if (running === undefined) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `instance ${instanceId} is not running`,
-            });
+            throw StackError.of("INSTANCE_NOT_RUNNING", `instance ${instanceId} is not running`);
         }
 
         return running;
@@ -328,9 +403,10 @@ function bindings(spec: InstanceSpec, egress: string, secret: string): WorkloadS
     for (const resource of spec.resources) {
         // refuse a resource of another package
         if (resource.packageId !== packageId) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `resource ${resource.id} binds no resource of ${packageId}`,
-            });
+            throw StackError.of(
+                "FOREIGN_RESOURCE",
+                `resource ${resource.id} does not bind a resource of ${packageId}`,
+            );
         }
 
         // bind a bucket over S3 at the egress, storing the host's reference on the machine

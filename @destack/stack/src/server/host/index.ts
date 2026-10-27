@@ -5,3 +5,5 @@ export * from "./scheduler.ts";
 export * from "./socket.ts";
 export * from "./space.ts";
 export * from "./transfer.ts";
+export * from "./host.ts";
+export * from "./peer.ts";

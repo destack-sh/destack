@@ -10,14 +10,14 @@ import {
     Change,
     Condition,
 } from "@destack/db";
-import type { Controller } from "@destack/db";
+import type { ReconcileController } from "@destack/db";
 import { type Identifier } from "@destack/schema";
 import type { Uplink } from "@destack/sync";
 import { ACTIVE_BUILD_STATES, build, deployment, Deployment } from "../../object/index.ts";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
 /** Give other machines with work in a space an assignment in the directory until it ends. */
-export class AssignmentController implements Controller {
+export class AssignmentController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "assignment";
     /** The tables of work addressed to machines, and the replicated placements and assignments. */
@@ -33,21 +33,21 @@ export class AssignmentController implements Controller {
     readonly #publisher: Uplink;
     /** This machine. */
     readonly #machine: Identifier<"machine">;
-    /** The clock the assignments are made at. */
-    readonly #clock: Clock;
+    /** The environment the assignments are made in. */
+    readonly #environment: Environment;
 
     /** Assign the work of a machine's spaces through the universe's uplink. */
     constructor(
         database: DatabaseConnection,
         publisher: Uplink,
         machine: Identifier<"machine">,
-        clock: Clock,
+        environment: Environment,
     ) {
-        // keep the machine's database, the uplink it assigns through and its clock
+        // store the machine's database, the uplink it assigns through and its environment
         this.#database = database;
         this.#publisher = publisher;
         this.#machine = machine;
-        this.#clock = clock;
+        this.#environment = environment;
     }
 
     /** List the space a change of its work, its placement or its assignments touches. */
@@ -90,7 +90,7 @@ export class AssignmentController implements Controller {
             return undefined;
         }
 
-        // assign the machines beside this one with active builds of their checkouts or live deployments
+        // assign the other machines with active builds of their checkouts or live deployments
         const working = new Set(await this.#machines(spaceId));
         working.delete(placed.machineId);
         const assigned = new Set(await this.#assigned(spaceId));
@@ -109,7 +109,7 @@ export class AssignmentController implements Controller {
         ];
         if (calls.length > 0) {
             await this.#publisher.receive({
-                id: RequestId.create(this.#clock.now()),
+                id: RequestId.create(this.#environment),
                 calls,
             });
         }
