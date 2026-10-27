@@ -1,11 +1,11 @@
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
-import { Release, ReleaseChannel } from "../release/index.ts";
+import { Release, Stage } from "../release/index.ts";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Distribution, type DistributionEnvironment } from "./distribution.ts";
 
-test("link and unlink independent Linux desktop entries and link handlers for stable and dev archives", async () => {
+test("link and unlink independent Linux desktop entries and link handlers for production and dev archives", async () => {
     // give a Linux person a home with an activated archive release
     const { files } = testSimulation().environment("setup");
     const directory = await files.makeTemporaryDirectory("destack-menu-");
@@ -41,16 +41,16 @@ test("link and unlink independent Linux desktop entries and link handlers for st
         '<svg xmlns="http://www.w3.org/2000/svg"/>',
     );
 
-    // link the stable and dev channels, stable twice, then unlink stable twice
+    // link the production and dev stages, production twice, then unlink production twice
     const record = { method: "archive" as const, application: join(release, "Destack") };
-    const stable = distributionAt(join(directory, ".destack"), "stable", environment);
+    const production = distributionAt(join(directory, ".destack"), "production", environment);
     const dev = distributionAt(join(directory, ".destack-dev"), "dev", environment);
-    const machine = await stable.link(record, { isShell: true });
+    const machine = await production.link(record, { isShell: true });
     await dev.link(record, { isShell: true });
-    await stable.link(record, { isShell: true });
+    await production.link(record, { isShell: true });
     const entry = await files.readTextFile(join(data, "applications/app.destack.desktop.desktop"));
-    await stable.unlink({ isShell: true });
-    await stable.unlink({ isShell: true });
+    await production.unlink({ isShell: true });
+    await production.unlink({ isShell: true });
 
     // keep dev's entry and icon, and answer the archive's machine
     const names = async (path: string) =>
@@ -68,10 +68,10 @@ test("link and unlink independent Linux desktop entries and link handlers for st
     });
 });
 
-/** Describe a channel's Linux distribution in a home. */
+/** Describe a stage's Linux distribution in a home. */
 function distributionAt(
     home: string,
-    channel: "stable" | "dev",
+    stage: "production" | "dev",
     environment: DistributionEnvironment,
 ): Distribution {
     return new Distribution({
@@ -81,7 +81,7 @@ function distributionAt(
         running: new Release("2026.9.0", "x86_64-unknown-linux-gnu"),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        channel: new ReleaseChannel(channel),
+        stage: new Stage(stage),
         environment,
     });
 }

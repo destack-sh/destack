@@ -1,7 +1,7 @@
 import { basename, dirname, join, relative } from "node:path";
 import { FileSystemError } from "@destack/environment";
 import type { DistributionEnvironment } from "../distribution/distribution.ts";
-import type { ReleaseChannel } from "../release/index.ts";
+import type { Stage } from "../release/index.ts";
 import { UpdateError } from "../error/error.ts";
 
 /** How long PowerShell may take to change the user's PATH, in milliseconds: a start and a write. */
@@ -10,23 +10,23 @@ const POWERSHELL_TIMEOUT_MILLISECONDS = 10_000;
 /** The permissions of a startup file the installer creates: the person's alone. */
 const STARTUP_FILE_MODE = 0o600;
 
-/** The PATH entry of a channel's commands in the user's shell or Windows environment. */
+/** The PATH entry of a stage's commands in the user's shell or Windows environment. */
 export class ShellPath {
-    /** The directory with the channel's commands, under `$HOME` when inside the home directory. */
+    /** The directory with the stage's commands, under `$HOME` when inside the home directory. */
     readonly bin: string;
-    /** The channel whose commands the entry adds. */
-    readonly channel: ReleaseChannel;
+    /** The stage whose commands the entry adds. */
+    readonly stage: Stage;
     /** The host whose shell files and Windows environment hold the entry. */
     readonly host: DistributionEnvironment;
 
-    /** Write the entry of a channel's command directory on a host. */
-    constructor(bin: string, channel: ReleaseChannel, host: DistributionEnvironment) {
+    /** Write the entry of a stage's command directory on a host. */
+    constructor(bin: string, stage: Stage, host: DistributionEnvironment) {
         this.bin = bin;
-        this.channel = channel;
+        this.stage = stage;
         this.host = host;
     }
 
-    /** Register the channel's terminal command in the user's shell. */
+    /** Register the stage's terminal command in the user's shell. */
     async add(): Promise<void> {
         // let Windows retain the user PATH independently of the current process
         const { home } = this.host.host;
@@ -70,7 +70,7 @@ export class ShellPath {
         }
     }
 
-    /** Remove only the exact PATH entries the channel's installer wrote. */
+    /** Remove only the exact PATH entries the stage's installer wrote. */
     async remove(): Promise<void> {
         // remove this exact directory from the Windows user's PATH
         const { home } = this.host.host;
@@ -111,22 +111,22 @@ export class ShellPath {
         return inside.startsWith("..") ? this.bin : `$HOME/${inside}`;
     }
 
-    /** The POSIX shell line adding the channel's commands to PATH once. */
+    /** The POSIX shell line adding the stage's commands to PATH once. */
     get #path(): string {
         return `case ":$PATH:" in *":${this.#written}:"*) ;; *) export PATH="${this.#written}:$PATH" ;; esac`;
     }
 
-    /** The fish line adding the channel's commands to PATH. */
+    /** The fish line adding the stage's commands to PATH. */
     get #fish(): string {
         return `fish_add_path --path "${this.#written}"`;
     }
 
-    /** The fish configuration file with the channel's line. */
+    /** The fish configuration file with the stage's line. */
     get #fishFile(): string {
         const { variables } = this.host.process;
         const configuration = variables["XDG_CONFIG_HOME"] ?? join(this.host.host.home, ".config");
 
-        return join(configuration, "fish/conf.d", `${this.channel.command}.fish`);
+        return join(configuration, "fish/conf.d", `${this.stage.command}.fish`);
     }
 
     /** Append one registration unless the file already contains it. */

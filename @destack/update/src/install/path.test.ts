@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
-import { ReleaseChannel } from "../release/index.ts";
+import { Stage } from "../release/index.ts";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { ShellPath } from "./path.ts";
@@ -30,12 +30,12 @@ test("register the terminal command once in the user's shell file, keeping their
     await files.writeTextFile(profile, original);
 
     // register the stable command twice, then remove it
-    const channel = new ReleaseChannel("stable");
+    const stage = new Stage("production");
     const bin = join(home, ".destack/bin");
-    await new ShellPath(bin, channel, host).add();
-    await new ShellPath(bin, channel, host).add();
+    await new ShellPath(bin, stage, host).add();
+    await new ShellPath(bin, stage, host).add();
     const registered = await files.readTextFile(profile);
-    await new ShellPath(bin, channel, host).remove();
+    await new ShellPath(bin, stage, host).remove();
     expect([registered, await files.readTextFile(profile)]).toEqual([
         `${original}\n# Destack\ncase ":$PATH:" in *":$HOME/.destack/bin:"*) ;; *) export PATH="$HOME/.destack/bin:$PATH" ;; esac\n`,
         original,

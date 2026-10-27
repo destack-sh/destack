@@ -1,7 +1,7 @@
 import { testSimulation } from "@destack/object/test";
 import { join } from "node:path";
 import { expect, test, refusal } from "@destack/test";
-import { Release, ReleaseChannel } from "../release/index.ts";
+import { Release, Stage } from "../release/index.ts";
 import { Distribution, type DistributionEnvironment } from "./distribution.ts";
 
 test("keep a distribution's record across reopening and refuse changing its installer", async () => {
@@ -45,7 +45,7 @@ function distributionAt(home: string, environment: DistributionEnvironment): Dis
         running: new Release("2026.9.0", "aarch64-apple-darwin"),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        channel: new ReleaseChannel("stable"),
+        stage: new Stage("production"),
         environment,
     });
 }

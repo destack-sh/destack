@@ -4,7 +4,7 @@ import type {} from "@destack/package/import-meta";
 /** The update package's failures, each reason with the call error code it answers. */
 export const UpdateError = defineErrorFamily(import.meta.destack.package, {
     // bad request
-    CHANNEL_UNKNOWN: { code: "BAD_REQUEST" },
+    STAGE_UNKNOWN: { code: "BAD_REQUEST" },
     ENVIRONMENT_INVALID: { code: "BAD_REQUEST" },
     METADATA_INVALID: { code: "BAD_REQUEST" },
     OPTIONS_INVALID: { code: "BAD_REQUEST" },
