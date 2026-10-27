@@ -500,8 +500,11 @@ export class PackageStore<
         for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
             const found = await stored(next);
             if (found !== undefined) {
-                const packageId = PackageManifest.package(found).id;
-                const closure = await this.closure(next, packageId, read);
+                // follow a package build's closure, and an npm unit's attached builds alone
+                const closure =
+                    "id" in found.package
+                        ? await this.closure(next, found.package.id, read)
+                        : new Set<Digest>();
                 const attached = await this.attached(next);
                 for (const needed of [...closure, ...attached.map(({ file }) => file.digest)]) {
                     if (!retained.has(needed)) {

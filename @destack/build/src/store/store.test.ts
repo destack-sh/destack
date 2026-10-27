@@ -46,11 +46,26 @@ async function temporary(files: FileSystem): Promise<string> {
     return await files.makeTemporaryDirectory("store-");
 }
 
+/** The package the stored builds build, unless one names another. */
+const ANSWER: PackageManifest["package"] = {
+    id: PackageId.parse("package-00000000-0000-7000-8000-00000000a001"),
+    name: "@example/answer",
+    version: "2026.9.0",
+};
+
+/** The npm release the tiny unit builds. */
+const TINY: PackageManifest["package"] = {
+    name: "tiny",
+    version: "1.0.0",
+    integrity: "sha512-tiny",
+};
+
 /** Write a build of some source files in memory, as a builder writes one. */
 async function written(
     sources: Readonly<Record<string, string>>,
     crypto: Crypto,
     outputs: PackageManifest["outputs"] = {},
+    built: PackageManifest["package"] = ANSWER,
 ): Promise<BuildReader> {
     // describe each source file
     const encoder = new TextEncoder();
@@ -72,11 +87,7 @@ async function written(
     };
     const manifest = PackageManifest.parse({
         formatVersion: 1,
-        package: {
-            id: "package-00000000-0000-7000-8000-00000000a001",
-            name: "@example/answer",
-            version: "2026.9.0",
-        },
+        package: built,
         language: "typescript",
         lists: {
             dependencies: await index("manifest/dependencies.json", {}),
@@ -842,7 +853,7 @@ test("retain the union of every root's builds, record when each was rooted, and 
 });
 
 test("retain a rooted build with the builds its workloads import, leaving exports no workload imports", async () => {
-    // store a library whose client export imports an npm unit and whose heavy export imports another library
+    // store a library whose client export imports an npm unit build and whose heavy export imports another library
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const directory = await temporary(environment.files);
@@ -853,7 +864,9 @@ test("retain a rooted build with the builds its workloads import, leaving export
     );
     const store = new PackageStore(bucket, environment);
     const { crypto } = environment;
-    const unit = await store.put(await written({ "src/unit.ts": "export {};\n" }, crypto));
+    const unit = await store.put(
+        await written({ "src/unit.ts": "export {};\n" }, crypto, {}, TINY),
+    );
     const heavy = await store.put(await written({ "src/heavy.ts": "export {};\n" }, crypto));
     const middle = await store.put(
         await written(
