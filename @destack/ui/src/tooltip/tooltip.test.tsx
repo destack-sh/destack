@@ -34,8 +34,8 @@ test("describe a trigger by its tooltip, anchored to it while shown", () => {
     fire(trigger, "focus");
     flush();
     expect(markup(container)).toBe(
-        '<button data-slot="tooltip-trigger" data-variant="default" data-size="icon" data-state="open" aria-describedby="id-1" aria-label="Archive">A</button>' +
-            '<div id="id-1" popover="hint" role="tooltip" data-slot="tooltip-content" data-state="open" data-side="top" data-align="center" data-popover-open="tooltip-trigger">Archive note</div>',
+        '<button data-slot="tooltip-trigger" data-variant="default" data-size="icon" data-state="open" aria-describedby="id-1" aria-label="Archive" style="anchor-name: --id-1;">A</button>' +
+            '<div style="position-anchor: --id-1;" id="id-1" popover="hint" role="tooltip" data-slot="tooltip-content" data-state="open" data-side="top" data-align="center" data-popover-open="tooltip-trigger">Archive note</div>',
     );
 });
 

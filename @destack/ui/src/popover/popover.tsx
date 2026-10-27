@@ -89,13 +89,13 @@ export class PopoverControl {
     readonly isOpen: Accessor<boolean>;
     /** Whether the page behind the open popover is inert. */
     readonly isModal: Accessor<boolean>;
-    /** Whether a title names the popover in place of its trigger. */
+    /** Whether a title labels the popover in place of its trigger. */
     readonly isTitled: Accessor<boolean>;
     /** Whether a description describes the popover. */
     readonly isDescribed: Accessor<boolean>;
     /** Replace the open state and tell the change handler. */
     readonly #setOpen: (isOpen: boolean) => void;
-    /** Replace whether a title names the popover. */
+    /** Replace whether a title labels the popover. */
     readonly #setTitled: Setter<boolean>;
     /** Replace whether a description describes the popover. */
     readonly #setDescribed: Setter<boolean>;
@@ -109,6 +109,8 @@ export class PopoverControl {
     #isShown: boolean;
     /** Stop placing the shown popover beside its trigger. */
     #unplace: () => void;
+    /** Detach the popover from its anchor. */
+    #detach: () => void;
 
     /** Create the state of a popover root, open when its properties ask for it. */
     constructor(properties: PopoverProperties) {
@@ -134,16 +136,19 @@ export class PopoverControl {
         this.#content = undefined;
         this.#isShown = false;
         this.#unplace = () => undefined;
+        this.#detach = () => undefined;
     }
 
     /** Set the button that opens the popover. */
     setTrigger(element: HTMLElement): void {
         this.#trigger = element;
+        this.#attach();
     }
 
     /** Set the element the popover is placed beside in place of its trigger. */
     setAnchor(element: HTMLElement): void {
         this.#anchor = element;
+        this.#attach();
     }
 
     /** Label the popover by its title until the title unmounts. */
@@ -161,6 +166,19 @@ export class PopoverControl {
     /** Set the popover element. */
     setContent(element: HTMLElement): void {
         this.#content = element;
+        this.#attach();
+    }
+
+    /** Attach a popover the platform shows to its anchor, beside it from its first frame. */
+    #attach(): void {
+        // anchor a modal popover only while it shows, as its dialog opens by script
+        this.#detach();
+        const content = this.#content;
+        const anchor = this.#anchor ?? this.#trigger;
+        this.#detach =
+            content === undefined || anchor === undefined || content instanceof HTMLDialogElement
+                ? () => undefined
+                : Position.attach(content, anchor, this.id);
     }
 
     /** Open the popover and tell the root's change handler. */
@@ -179,8 +197,15 @@ export class PopoverControl {
 
     /** Follow the platform opening or closing the popover, such as on Escape or a click outside. */
     follow(event: ToggleEvent): void {
+        // place a shown popover by script where the browser lacks anchor positioning, now it has a size
         this.#isShown = event.newState === "open";
         if (this.#isShown) {
+            const content = this.#content;
+            const anchor = this.#anchor ?? this.#trigger;
+            this.#unplace =
+                content === undefined || anchor === undefined
+                    ? () => undefined
+                    : Position.place(content, anchor);
             this.open();
         } else {
             this.#unplace();
@@ -209,12 +234,9 @@ export class PopoverControl {
             content.showModal();
             this.#unplace = this.#holdModal(content);
         } else if (isOpen) {
-            const anchor = this.#anchor ?? this.#trigger;
             content.showPopover(
                 this.#trigger === undefined ? undefined : { source: this.#trigger },
             );
-            this.#unplace =
-                anchor === undefined ? () => undefined : Position.place(content, anchor);
         }
         // hide it the way it shows
         else {
@@ -230,7 +252,7 @@ export class PopoverControl {
 
     /** Anchor a modal popover and lock the page's scroll. */
     #holdModal(content: HTMLDialogElement): () => void {
-        // anchor to the trigger by name and keep the page from scrolling
+        // anchor to the trigger and keep the page from scrolling
         const trigger = this.#trigger;
         const anchor = this.#anchor ?? trigger;
         const unplace = anchor === undefined ? () => undefined : Position.anchor(content, anchor);
@@ -506,7 +528,7 @@ export function PopoverHeader(properties: PopoverElementProperties<HTMLDivElemen
     return renderPart("div", "popover-header", properties, styles.header);
 }
 
-/** Render the title that names its popover. */
+/** Render the title that labels its popover. */
 export function PopoverTitle(
     properties: PopoverElementProperties<HTMLHeadingElement>,
 ): JSX.Element {

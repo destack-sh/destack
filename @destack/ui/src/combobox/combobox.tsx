@@ -168,9 +168,15 @@ export class ComboboxControl {
         if (this.#content === undefined || this.#input === undefined) {
             return;
         }
+        // attach the list to its input before showing, and place by script once it has a size
         if (isOpen) {
+            const detach = Position.attach(this.#content, this.#input, this.list.id);
             this.#content.showPopover({ source: this.#input });
-            this.#unplace = Position.place(this.#content, this.#input);
+            const unplace = Position.place(this.#content, this.#input);
+            this.#unplace = () => {
+                detach();
+                unplace();
+            };
         } else {
             this.#unplace();
             this.#content.hidePopover();

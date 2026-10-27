@@ -11,7 +11,7 @@ import {
 import { flush } from "@destack/view";
 import { markup, render } from "@destack/view/test";
 
-test("toggle a popover from its trigger through the platform's popover target, named by the trigger", () => {
+test("toggle a popover from its trigger through the platform's popover target, anchored to the trigger by name", () => {
     const { container } = render(() => (
         <Popover>
             <PopoverTrigger variant="outline">Share</PopoverTrigger>
@@ -19,8 +19,8 @@ test("toggle a popover from its trigger through the platform's popover target, n
         </Popover>
     ));
     expect(markup(container)).toBe(
-        '<button data-slot="popover-trigger" data-variant="outline" data-size="default" id="id-1-trigger" data-state="closed" popovertarget="id-1" aria-haspopup="dialog" aria-controls="id-1">Share</button>' +
-            '<div id="id-1" popover="auto" role="dialog" aria-labelledby="id-1-trigger" data-slot="popover-content" data-state="closed" data-side="bottom" data-align="start">Anyone with the link can view.</div>',
+        '<button data-slot="popover-trigger" data-variant="outline" data-size="default" id="id-1-trigger" data-state="closed" popovertarget="id-1" aria-haspopup="dialog" aria-controls="id-1" style="anchor-name: --id-1;">Share</button>' +
+            '<div style="position-anchor: --id-1;" id="id-1" popover="auto" role="dialog" aria-labelledby="id-1-trigger" data-slot="popover-content" data-state="closed" data-side="bottom" data-align="start">Anyone with the link can view.</div>',
     );
 });
 

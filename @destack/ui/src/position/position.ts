@@ -104,9 +104,27 @@ export const Position = {
         return [styles.point, styles.at(`${String(point.x)}px`, `${String(point.y)}px`)];
     },
 
+    /** Attach an overlay to its anchor by the overlay's id, where the browser anchors overlays. */
+    attach(content: HTMLElement, anchor: HTMLElement, id: string): () => void {
+        // leave placement to script where the browser lacks CSS anchor positioning
+        if (typeof CSS === "undefined" || !CSS.supports(ANCHOR_PROPERTY, "block-end")) {
+            return () => undefined;
+        }
+
+        // set the anchor's name explicitly, as an implicit anchor reaches no further than Chrome
+        const name = `--${id}`;
+        anchor.style.setProperty("anchor-name", name);
+        content.style.setProperty("position-anchor", name);
+
+        return () => {
+            anchor.style.removeProperty("anchor-name");
+            content.style.removeProperty("position-anchor");
+        };
+    },
+
     /** Place a shown overlay beside its anchor where the browser lacks CSS anchor positioning. */
     place(content: HTMLElement, anchor: HTMLElement): () => void {
-        // leave placement to the browser where it anchors popovers itself
+        // leave placement to the browser where it anchors overlays itself
         if (typeof CSS === "undefined" || CSS.supports(ANCHOR_PROPERTY, "block-end")) {
             return () => undefined;
         }
@@ -137,21 +155,14 @@ export const Position = {
         };
     },
 
-    /** Anchor a shown modal overlay to its anchor through a shared anchor name. */
+    /** Anchor a shown overlay beside its anchor: attached where the browser can, else by script. */
     anchor(content: HTMLElement, anchor: HTMLElement): () => void {
-        // place by script where the browser lacks CSS anchor positioning
-        if (typeof CSS === "undefined" || !CSS.supports(ANCHOR_PROPERTY, "block-end")) {
-            return Position.place(content, anchor);
-        }
-
-        // set the anchor's name from the overlay's id and point the overlay at it
-        const name = `--${content.id}`;
-        anchor.style.setProperty("anchor-name", name);
-        content.style.setProperty("position-anchor", name);
+        const detach = Position.attach(content, anchor, content.id);
+        const unplace = Position.place(content, anchor);
 
         return () => {
-            anchor.style.removeProperty("anchor-name");
-            content.style.removeProperty("position-anchor");
+            detach();
+            unplace();
         };
     },
 };

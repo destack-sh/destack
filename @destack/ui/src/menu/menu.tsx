@@ -125,7 +125,7 @@ export type MenuFocus = "first" | "last" | "none";
 export class MenuControl {
     /** The id of the menu element. */
     readonly id: string;
-    /** The id of the trigger that opens the menu and names it, unless it opens at a point. */
+    /** The id of the trigger that opens the menu and labels it, unless it opens at a point. */
     readonly triggerId: string;
     /** The menu this one is a submenu of, null for a top menu. */
     readonly parent: MenuControl | null;
@@ -203,8 +203,13 @@ export class MenuControl {
         if (isOpen) {
             const trigger = this.#trigger;
             const isBeside = trigger !== undefined && this.point() === undefined;
+            const detach = isBeside ? Position.attach(content, trigger, this.id) : () => undefined;
             content.showPopover(isBeside ? { source: trigger } : undefined);
-            this.#unplace = isBeside ? Position.place(content, trigger) : () => undefined;
+            const unplace = isBeside ? Position.place(content, trigger) : () => undefined;
+            this.#unplace = () => {
+                detach();
+                unplace();
+            };
             untrack(() => this.#focusItem(content));
         } else {
             this.#unplace();
