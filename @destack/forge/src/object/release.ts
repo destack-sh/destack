@@ -25,7 +25,7 @@ export const release = defineObject(
             /** The immutable calendar version. */
             version: field.string(),
             /** The SHA-256 digest of the published manifest. */
-            manifest: field.string(),
+            manifest: field.string(Digest),
             /** The full Git SHA-1 or SHA-256 commit identifier, absent for some prereleases. */
             commit: field.string().optional(),
             /** The npm archive installers download. */

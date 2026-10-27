@@ -1,12 +1,8 @@
-import { nth, found, schema } from "@destack/schema";
-import { githubPublicKey } from "./key.ts";
-import { verifyToken } from "./token.ts";
+import type { Crypto, Environment } from "@destack/environment";
+import { found, type JsonObject, nth, schema } from "@destack/schema";
 
 /** The fixture GitHub App's client ID. */
 export const APP_ID = "Iv23liFixtureApp";
-
-/** The REST API base the stand-in serves. */
-export const GITHUB_API = new URL("https://api.github.test");
 
 /** The secret the fixture GitHub App signs webhook deliveries with. */
 export const WEBHOOK_SECRET = "It's a Secret to Everybody";
@@ -15,13 +11,41 @@ export const WEBHOOK_SECRET = "It's a Secret to Everybody";
 const APP_TOKEN_SECONDS = 600;
 
 /** The host serving the stand-in's Git remotes. */
-const GITHUB_HOST = "github.com";
+export const GITHUB_HOST = "github.com";
 
 /** The lifetime claims of an app JWT, in epoch seconds. */
 const JwtLifetime = schema.looseObject({ iat: schema.number(), exp: schema.number() });
 
 /** The permissions an installation token request grants. */
-const Grant = schema.looseObject({ permissions: schema.record(schema.string(), schema.string()) });
+const Grant = schema.looseObject({
+    permissions: schema.record(schema.string(), schema.string()).default({}),
+});
+
+/** A fixed RS256 PKCS #8 key of the fixture GitHub App, as generating one takes 100 ms. */
+const PRIVATE_KEY =
+    "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCZYGBaXnG/aT61p8aryFLQSkP9iXHIIB8swHMKojFDuShYUIrCPQy/QlKwExWvbuqs1WP7E48zo2PbnbPLGOa6IDoq2wtNeWxhveOXn8BROMPIZ+qAXlsNfBjaNpKtuQUyJDm+7TcaHo0dLe7oCSu3snQw19JNFuLfMKM6pazvS/XvbA6O//WIPlrSu3sVjuuw3qigPgcjz09Y3vdG+CbZ/49Jtev/ti6ojCS5rhmRmVUEx15E1Wp+bZ3kOl+OB2ov+sO3+txOQyfQJ1pIUD+zit+kJSVzns8izFoMCd0J8pAryBoGAVZZbJXfiPwpUFou6rVkNGTvqRKYoU0j4YUrAgMBAAECggEAAfp1nCFuNZlMzQLjgUcpgNMVrBydgleeQQJI5xHQ4JklyaD+206zE13aTDEsgxdk/AEMUiBeRte9I0sIpIiPnVOt4XLzEjBdDgaluHEXau+7vo3V2h8JPeTJVjn3MMC5wjHkvfKkJ38Ri5c0D1n94PleU/BTd0wXniulGDLoTWFWXPkP9tUOLrI/V0MDPn3o1QkyaLfCtHR3t9TedqRA7qwlHBKBbSoK0MERVnvdUgJEPgOCtLGp0zFHWtlC+krHI0ROo47AEYB3X/oGM7T/OmYDOEdvQdF0mASdn/ICHIg/rIqcPuN7xpc+kzVN9aEIYIsLc77k//v3VYqNvY9YgQKBgQDL9lTGy9uEfTUQEhQjLIuay/ZFq4G9RKq2pAXtBj35G6fjXoPji/Pf8qNRFNj5HV22bAzRdfzmRhqMdSy5kyWN2+85uokGbJ5hfsaa4TY+ZdGDlq9DmCr+tu4RH4IXj2ioJ9W/lbTLHN8J87AWwvxSSj4pwgiNo7nLFxwXV0KKgQKBgQDAghErwglhkfBoig1VZgOHV2s0Vk0JIo0ocm27GQ3DT6P27KSRtHrSBxjQduQ/iHb2jKBaG9JXqsXmeuyctA2Fq/rU94h4XT76u9bhGVL1OMmQuLMHOo7nnsjueBTeJ8+p2qixcMmW23bGkwBZdji1wQC8OvuFIyRMegHgmKSBqwKBgQCYnVNGBRfWhRGFWuGyiAxV4bP+4ZwMkSrjysucVYVdtnHjUb+CLiBnO9k0PFM14+FRNHxK5uw7Kc2Ht82ldhMtmJniKk+JfRDthrz4+vdprSoeOkweWegh+6MbMOZY1rfKyzPHTS+go5PIkIz8Gx5OPLtS55sa0J2e90XPuT1TAQKBgASt5K70m3fErVxNJr/Rp/pNNKzkACFdtqKqDWLD3CLIN8sTu3hTM70RMRg4G5ozvfiGOIuYK4e3/fF5QXEZq055fLJahfWvBo3frPxxuiN9yuB6rNdbJAgbQvUQ9CjmPNT7HKibfjrtgLiY8CQ8jGpWk6b/pAd7cDFvscX8z9rbAoGBAMCrBv78RspBB/AziQ24/Xbu6wuJCmVylDly28rJQ3KiS1TTWoK+dzyd4QCs1WeuFY4acVRtF0Dh4Ce/zzkIY76Q45Kz00Ybz98O50VaWkMRlpCujDlLSLqHjiwbW63t1PRD8bjQgvc7pxo765ufc58Iz53NpWFgT4srZ9QM5F+U";
+
+/** The fixture GitHub App's public key, as SPKI. */
+const PUBLIC_KEY =
+    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmWBgWl5xv2k+tafGq8hS0EpD/YlxyCAfLMBzCqIxQ7koWFCKwj0Mv0JSsBMVr27qrNVj+xOPM6Nj252zyxjmuiA6KtsLTXlsYb3jl5/AUTjDyGfqgF5bDXwY2jaSrbkFMiQ5vu03Gh6NHS3u6Akrt7J0MNfSTRbi3zCjOqWs70v172wOjv/1iD5a0rt7FY7rsN6ooD4HI89PWN73Rvgm2f+PSbXr/7YuqIwkua4ZkZlVBMdeRNVqfm2d5DpfjgdqL/rDt/rcTkMn0CdaSFA/s4rfpCUlc57PIsxaDAndCfKQK8gaBgFWWWyV34j8KVBaLuq1ZDRk76kSmKFNI+GFKwIDAQAB";
+
+/** The RS256 parameters of the fixture GitHub App's keys. */
+const RS256 = { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" } as const;
+
+/** The Web Crypto verification parameters of each JWS algorithm the stand-ins accept. */
+const ALGORITHMS: ReadonlyMap<string, AlgorithmIdentifier | EcdsaParams> = new Map([
+    ["RS256", { name: "RSASSA-PKCS1-v1_5" }],
+    ["ES256", { name: "ECDSA", hash: "SHA-256" }],
+]);
+
+/** The JWT header fields the stand-ins read. */
+const Header = schema.looseObject({ alg: schema.string() });
+
+/** The claims of a JWT. */
+const Claims = schema.jsonObject();
+
+/** How long an installation token lasts: an hour, as GitHub issues them. */
+const TOKEN_MILLISECONDS = 3_600_000;
 
 /** A Git object as GitHub's REST API describes it. */
 interface GitObject {
@@ -55,6 +79,13 @@ export class GitHubStandIn {
     readonly requests: string[] = [];
     /** The installation each issued token belongs to. */
     readonly #tokens = new Map<string, number>();
+    /** The clock tokens expire on and the crypto the app's JWTs are verified with. */
+    readonly #environment: Pick<Environment, "clock" | "crypto">;
+
+    /** Stand in for GitHub, on a world's clock and crypto. */
+    constructor(environment: Pick<Environment, "clock" | "crypto">) {
+        this.#environment = environment;
+    }
 
     /** Take a repository. */
     add(repository: StandInRepository): void {
@@ -118,7 +149,7 @@ export class GitHubStandIn {
 
     /** Uninstall the app for a verified app JWT. */
     async #uninstall(secret: string | undefined): Promise<Response> {
-        if (secret === undefined || !(await isAppToken(secret))) {
+        if (secret === undefined || !(await isAppToken(secret, this.#environment.crypto))) {
             return Response.json({ message: "bad jwt" }, { status: 401 });
         }
 
@@ -135,7 +166,7 @@ export class GitHubStandIn {
         if (secret === undefined) {
             throw new TypeError("an installation token request presents no app jwt");
         }
-        if (!(await isAppToken(secret))) {
+        if (!(await isAppToken(secret, this.#environment.crypto))) {
             return Response.json({ message: "bad jwt" }, { status: 401 });
         }
 
@@ -144,14 +175,16 @@ export class GitHubStandIn {
         const granted = Object.entries(Grant.parse(body).permissions).map(
             ([name, level]) => `${name}_${level}`,
         );
-        const issued = `ghs_${installation}_${granted.join("_")}`;
+        const issued = [`ghs_${installation}`, ...granted].join("_");
         this.#tokens.set(issued, installation);
         this.requests.push(`  body ${JSON.stringify(body)}`);
 
         return Response.json(
             {
                 token: issued,
-                expires_at: "2026-09-27T13:00:00Z",
+                expires_at: new Date(
+                    this.#environment.clock.now() + TOKEN_MILLISECONDS,
+                ).toISOString(),
                 permissions: { contents: "read", metadata: "read" },
                 repository_selection: "selected",
             },
@@ -236,13 +269,59 @@ function presentedSecret(authorization: string | null): string | undefined {
 }
 
 /** Report whether a bearer is the app's JWT, issued by the app for at most ten minutes. */
-async function isAppToken(secret: string): Promise<boolean> {
-    const { claims } = await verifyToken(secret, await githubPublicKey());
+async function isAppToken(secret: string, crypto: Crypto): Promise<boolean> {
+    const { claims } = await verifyToken(secret, await githubPublicKey(crypto), crypto);
     const lifetime = JwtLifetime.safeParse(claims);
 
     return (
         claims["iss"] === APP_ID &&
         lifetime.success &&
         lifetime.data.exp - lifetime.data.iat <= APP_TOKEN_SECONDS
+    );
+}
+
+/** Write the fixture GitHub App's private key as a PKCS #8 PEM, as its connection stores it. */
+export function githubPrivateKey(): string {
+    const lines = PRIVATE_KEY.match(/.{1,64}/gu) ?? [];
+
+    return `-----BEGIN PRIVATE KEY-----\n${lines.join("\n")}\n-----END PRIVATE KEY-----\n`;
+}
+
+/** Import the fixture GitHub App's public key. */
+export function githubPublicKey(crypto: Crypto): Promise<CryptoKey> {
+    return crypto.importKey("spki", Uint8Array.fromBase64(PUBLIC_KEY), RS256, false, ["verify"]);
+}
+
+/** Verify a compact JWT's signature, returning its header algorithm and claims. */
+export async function verifyToken(
+    token: string,
+    key: CryptoKey,
+    crypto: Crypto,
+): Promise<{ readonly alg: string; readonly claims: JsonObject }> {
+    // decode the header and claims
+    const [header, claims, signature] = token.split(".");
+    if (header === undefined || claims === undefined || signature === undefined) {
+        throw new TypeError("a compact jwt has three parts");
+    }
+    const { alg } = Header.parse(decode(header));
+
+    // require the key's signature over the header and claims
+    const isValid = await crypto.verify(
+        found(ALGORITHMS, alg),
+        key,
+        Uint8Array.fromBase64(signature, { alphabet: "base64url" }),
+        new TextEncoder().encode(`${header}.${claims}`),
+    );
+    if (!isValid) {
+        throw new Error(`invalid ${alg} signature`);
+    }
+
+    return { alg, claims: Claims.parse(decode(claims)) };
+}
+
+/** Decode a base64url JSON part of a compact JWT. */
+function decode(part: string): unknown {
+    return JSON.parse(
+        new TextDecoder().decode(Uint8Array.fromBase64(part, { alphabet: "base64url" })),
     );
 }

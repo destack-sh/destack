@@ -5,13 +5,8 @@
     "type": "module",
     "sideEffects": false,
     "description": "Host the Git repositories of accounts and publish, resolve and distribute their Destack packages.",
-    "imports": {
-        "#git": {
-            "bun": "./src/local/connector.ts",
-            "default": "./src/storage/connector.ts"
-        }
-    },
     "exports": {
+        "./error": "./src/error/index.ts",
         "./object": "./src/object/index.ts",
         "./client": "./src/client/index.ts",
         "./server": "./src/server.ts",
@@ -37,6 +32,7 @@
         "@destack/connection": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",

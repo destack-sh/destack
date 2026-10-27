@@ -1,5 +1,9 @@
-import { expect, test } from "@destack/test";
+import { testSimulation } from "@destack/object/test";
+import { expect, refusal, test } from "@destack/test";
 import { GitHubSignature } from "./signature.ts";
+
+/** The WebCrypto the signatures run on, a world's. */
+const { crypto } = testSimulation().environment("github");
 
 /** The GitHub example of "Testing the webhook payload validation". */
 const GITHUB_EXAMPLE = {
@@ -31,6 +35,7 @@ test("sign the GitHub reference example exactly", async () => {
     const github = await new GitHubSignature().sign(
         { id: "delivery-1", event: "push", body: GITHUB_EXAMPLE.body, sentAt: NOW },
         GITHUB_EXAMPLE.secret,
+        crypto,
     );
     expect([...github.entries()]).toEqual([
         ["x-github-delivery", "delivery-1"],
@@ -49,10 +54,12 @@ test("verify a GitHub delivery and refuse a signature made with another secret",
         body,
         sentAt: NOW,
     };
-    const headers = await signature.sign(message, GITHUB_EXAMPLE.secret);
+    const headers = await signature.sign(message, GITHUB_EXAMPLE.secret, crypto);
 
     // know the delivery by its signed body
-    expect(await signature.verify(post(headers, body), GITHUB_EXAMPLE.secret, {}, NOW)).toEqual({
+    expect(
+        await signature.verify(post(headers, body), GITHUB_EXAMPLE.secret, {}, NOW, crypto),
+    ).toEqual({
         id: readDigest(headers),
         event: "push",
         payload: { ref: "refs/heads/main", after: "aa218f56b14c9653891f9e74264a383fa43fefbd" },
@@ -61,8 +68,8 @@ test("verify a GitHub delivery and refuse a signature made with another secret",
     });
 
     // refuse another secret
-    const forged = await signature.sign(message, "another secret");
-    await expect(
-        signature.verify(post(forged, body), GITHUB_EXAMPLE.secret, {}, NOW),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED", message: "webhook signature is invalid" });
+    const forged = await signature.sign(message, "another secret", crypto);
+    expect(
+        await refusal(signature.verify(post(forged, body), GITHUB_EXAMPLE.secret, {}, NOW, crypto)),
+    ).toEqual(["UNAUTHORIZED", "SIGNATURE_MISMATCH", "webhook signature does not match"]);
 });

@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/object";
+import { ForgeError } from "../error/index.ts";
 import type { WebhookDelivery } from "@destack/workflow";
 
 /** The events that the forge's GitHub App subscribes to and that change references. */
@@ -38,9 +38,10 @@ export const GitHubEvent = {
         }
         // refuse unsubscribed events
         else {
-            throw new CallError("BAD_REQUEST", {
-                message: `unsubscribed github event: ${delivery.event}`,
-            });
+            throw ForgeError.of(
+                "UNSUBSCRIBED_EVENT",
+                `unsubscribed github event: ${delivery.event}`,
+            );
         }
     },
 };

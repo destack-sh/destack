@@ -1,6 +1,6 @@
 import { ModuleMetadata } from "@destack/package";
 import { type Connector, defineResourceKind, ResourceDeclaration } from "@destack/resource";
-import { connectors } from "#git";
+import { connectors } from "./connector.ts";
 import { schema } from "@destack/schema";
 import type { GitStorage } from "./storage.ts";
 

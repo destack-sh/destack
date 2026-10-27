@@ -1,10 +1,10 @@
-import { expect, test } from "@destack/test";
-import { readdir, readFile } from "node:fs/promises";
+import { expect, refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ResourceId } from "@destack/resource";
+import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/object/test";
 import { nth, present } from "@destack/schema";
-import { CallError } from "@destack/object";
 import {
     ARTIFACTS_PROVIDER,
     type ArtifactsNamespace,
@@ -17,8 +17,11 @@ import { GitLease, LocalGitStorage } from "../src/local/index.ts";
 import { GitAdvertisement } from "../src/storage/index.ts";
 import { advertise, git, History, temporary, Worktree } from "./fixture/git.ts";
 
+/** The host the local repositories live on, a world's node over the host's files and git. */
+const host = testSimulation().environment("storage");
+
 test("create a local repository, push a branch and a tag into it, list them and delete it, each step again as well", async () => {
-    const storage = new LocalGitStorage(await temporary("destack-storage-"));
+    const storage = new LocalGitStorage(await temporary("destack-storage-"), host);
     const id = "repository-site";
 
     // create an empty repository with HEAD at a branch that does not exist yet
@@ -52,12 +55,12 @@ test("create a local repository, push a branch and a tag into it, list them and 
     );
     await storage.delete(id);
     await storage.delete(id);
-    expect(await readdir(storage.directory)).toEqual([]);
+    expect(await host.files.readDirectory(storage.directory)).toEqual([]);
 });
 
 test("parse the reference advertisement git upload-pack serves, peeling annotated tags and tags of tags", async () => {
     // write a branch, an annotated tag and a tag of that tag into a local repository
-    const storage = new LocalGitStorage(await temporary("destack-storage-"));
+    const storage = new LocalGitStorage(await temporary("destack-storage-"), host);
     const repository = fileURLToPath(await storage.create("repository-advertised"));
     const history = new History();
     const commit = history.commit("main", "README.md", "# Site\n");
@@ -97,7 +100,7 @@ test("create, list, lease and delete an Artifacts repository through its namespa
     };
 
     // create the repository, refuse it again, list its branch, lease push access and delete it twice
-    const namespace = new FakeNamespace();
+    const namespace = new TestArtifactsNamespace();
     const storage = new ArtifactsStorage(namespace, "git-site", fetch);
     const remote = await storage.create("repository-site");
     const duplicate = await storage.create("repository-site").catch((error: unknown) => error);
@@ -143,30 +146,35 @@ test("create, list, lease and delete an Artifacts repository through its namespa
 
 test("refuse a repository Artifacts created under another name, and a token with an unreadable expiry", async () => {
     // rename created repositories in one namespace, and issue tokens without a date in another
-    const renaming = new FakeNamespace({ rename: true });
-    const undated = new FakeNamespace({ expiresAt: "soon" });
-    const storage = new ArtifactsStorage(undated, "git-site", globalThis.fetch);
+    const renaming = new TestArtifactsNamespace({ rename: true });
+    const undated = new TestArtifactsNamespace({ expiresAt: "soon" });
+    const storage = new ArtifactsStorage(undated, "git-site", unreachable);
     await storage.create("repository-site");
 
     // refuse both answers as bad gateways
-    await expect(
-        new ArtifactsStorage(renaming, "git-site", globalThis.fetch).create("repository-site"),
-    ).rejects.toThrow(
-        new CallError("BAD_GATEWAY", {
-            message: "cloudflare artifacts created renamed for git-site.repository-site",
-        }),
-    );
-    await expect(storage.open("repository-site", "read")).rejects.toThrow(
-        new CallError("BAD_GATEWAY", {
-            message: "cloudflare artifacts issued a token with an invalid expiry: soon",
-        }),
-    );
+    expect([
+        await refusal(
+            new ArtifactsStorage(renaming, "git-site", unreachable).create("repository-site"),
+        ),
+        await refusal(storage.open("repository-site", "read")),
+    ]).toEqual([
+        [
+            "BAD_GATEWAY",
+            "ARTIFACT_NAME_MISMATCH",
+            "expected cloudflare artifacts to create git-site.repository-site, got renamed",
+        ],
+        [
+            "BAD_GATEWAY",
+            "TOKEN_EXPIRY_INVALID",
+            "cloudflare artifacts issued a token with an invalid expiry: soon",
+        ],
+    ]);
 });
 
 test("provision a Git storage below its resource in the bound namespace, connect to it and destroy only its repositories across pages", async () => {
     // provision two resources in one namespace, each named by its identifier
-    const namespace = new FakeNamespace();
-    const provider = artifactsProvider(namespace, "git", globalThis.fetch);
+    const namespace = new TestArtifactsNamespace();
+    const provider = artifactsProvider(namespace, "git", unreachable);
     const provision = present(provider.provision, "the artifacts provisioner");
     const resource = ResourceId.parse("git-01996ab0-0000-7000-8000-000000000003");
     const other = ResourceId.parse("git-01996ab0-0000-7000-8000-000000000004");
@@ -174,10 +182,14 @@ test("provision a Git storage below its resource in the bound namespace, connect
     const placement = await provision.provision(record);
 
     // connect to the first resource through its binding, and create repositories in both
-    const connector = ArtifactsStorage.connector(namespace, globalThis.fetch);
+    const connector = ArtifactsStorage.connector(namespace, unreachable);
     const binding = { resource, kind: "git", provider: ARTIFACTS_PROVIDER, ...placement };
-    await using storage = await connector.connect(binding, repositoryStorage);
-    const neighbour = new ArtifactsStorage(namespace, other, globalThis.fetch);
+    await using storage = await connector.connect(
+        binding,
+        repositoryStorage,
+        new Simulation({ seed: 1, start: 0 }).environment("storage"),
+    );
+    const neighbour = new ArtifactsStorage(namespace, other, unreachable);
     for (const id of ["repository-a", "repository-b", "repository-c"]) {
         await storage.create(id);
     }
@@ -202,7 +214,7 @@ test("provision a Git storage below its resource in the bound namespace, connect
 
 test("check one commit of a leased repository out into a new working tree without its history", async () => {
     // write two commits on main into a local repository
-    const storage = new LocalGitStorage(await temporary("destack-storage-"));
+    const storage = new LocalGitStorage(await temporary("destack-storage-"), host);
     const remote = await storage.create("repository-leased");
     const history = new History();
     history.commit("main", "README.md", "# Site\n");
@@ -213,16 +225,21 @@ test("check one commit of a leased repository out into a new working tree withou
     // check the first commit out through a read lease, alone
     const lease = await storage.open("repository-leased", "read");
     const directory = await temporary("destack-leased-");
-    await GitLease.checkout(lease, first, directory, new AbortController().signal);
+    await GitLease.checkout(lease, first, directory, host, new AbortController().signal);
     expect([
-        await readFile(join(directory, "README.md"), "utf8"),
+        await host.files.readTextFile(join(directory, "README.md")),
         await git(directory, "rev-parse", "HEAD"),
         await git(directory, "rev-list", "--count", "HEAD"),
     ]).toEqual(["# Site\n", first, "1"]);
 });
 
+/** Refuse a request, as these tests' storages create, list and delete without reaching Git. */
+async function unreachable(request: Request): Promise<Response> {
+    throw new TypeError(`the test reaches no Git remote, not ${request.url}`);
+}
+
 /** An Artifacts namespace storing repositories in memory as the Workers binding documents them. */
-class FakeNamespace implements ArtifactsNamespace {
+class TestArtifactsNamespace implements ArtifactsNamespace {
     /** The calls the storage made, in order. */
     readonly calls: unknown[][] = [];
     /** The repositories by name. */
@@ -249,7 +266,7 @@ class FakeNamespace implements ArtifactsNamespace {
         this.#repositories.add(name);
         const created = this.#answers.rename ? "renamed" : name;
 
-        return { name: created, remote: FakeNamespace.remote(created) };
+        return { name: created, remote: TestArtifactsNamespace.remote(created) };
     }
 
     /** Open a repository's handle, refusing a missing one. */
@@ -270,7 +287,7 @@ class FakeNamespace implements ArtifactsNamespace {
         };
 
         return {
-            remote: FakeNamespace.remote(name),
+            remote: TestArtifactsNamespace.remote(name),
             createToken: async (scope, ttl) => {
                 calls.push(["createToken", scope, ttl]);
 

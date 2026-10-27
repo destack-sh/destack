@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/object/test";
 import { expect, test } from "@destack/test";
 import { PackageArchive } from "../src/pack/index.ts";
 import { fixtureBuild } from "./fixture/build.ts";
@@ -6,8 +7,9 @@ import { COMMIT } from "./fixture/package.ts";
 test("pack a build into identical archives declaring its compiled exports and exact dependencies", async () => {
     // pack one build twice
     const build = await fixtureBuild("greeting");
-    const first = await PackageArchive.pack(build.reader, COMMIT);
-    const second = await PackageArchive.pack(build.reader, COMMIT);
+    const world = testSimulation().environment("pack");
+    const first = await PackageArchive.pack(build.reader, COMMIT, world);
+    const second = await PackageArchive.pack(build.reader, COMMIT, world);
     const list = await build.reader.distributed();
     const { bun, workerd } = build.manifest.outputs;
     if (bun === undefined || workerd === undefined) {
@@ -23,8 +25,8 @@ test("pack a build into identical archives declaring its compiled exports and ex
             exports: {
                 ".": {
                     types: "./build/src/index.ts",
-                    workerd: `./build/${workerd.exports["."]}`,
-                    default: `./build/${bun.exports["."]}`,
+                    workerd: `./build/${workerd.exports["."]?.path}`,
+                    default: `./build/${bun.exports["."]?.path}`,
                 },
             },
             dependencies: { "@example/answer": "2026.9.0" },

@@ -1,8 +1,8 @@
 import { schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
+import type { Environment } from "@destack/environment";
 import { ConnectionError, type InstallationGrant, type Token } from "@destack/connection";
 import { Assertion } from "@destack/connection/oauth";
-import { Clock } from "@destack/environment";
 
 /** The REST API version the requests send. */
 const API_VERSION = "2022-11-28";
@@ -22,23 +22,27 @@ export class GitHubIssuer {
     readonly api: string;
     /** Send requests to GitHub. */
     readonly #fetch: Fetch;
-    /** The clock the app's JWTs are issued by. */
-    readonly #clock: Clock;
+    /** The WebCrypto and randomness signing the app's tokens. */
+    readonly #environment: Pick<Environment, "crypto" | "random">;
 
-    /** Call github.com or a GitHub Enterprise Server on a clock. */
-    constructor(options: { readonly api?: string; readonly fetch: Fetch; readonly clock: Clock }) {
-        // take the API, the fetch and the clock
+    /** Call github.com or a GitHub Enterprise Server. */
+    constructor(options: {
+        readonly api?: string;
+        readonly fetch: Fetch;
+        readonly environment: Pick<Environment, "crypto" | "random">;
+    }) {
+        // take the API, the fetch and the environment signing the app's tokens
         this.api = options.api ?? "https://api.github.com";
         this.#fetch = options.fetch;
-        this.#clock = options.clock;
+        this.#environment = options.environment;
     }
 
     /** Read the installation identifier of GitHub's setup redirect. */
     installation(parameters: Readonly<Record<string, string>>): string {
         const installation = parameters["installation_id"];
         if (installation === undefined || !/^\d+$/u.test(installation)) {
-            throw new ConnectionError(
-                "INVALID_AUTHORIZATION",
+            throw ConnectionError.of(
+                "AUTHORIZATION_INVALID",
                 "the installation redirect has no installation",
             );
         }
@@ -46,12 +50,13 @@ export class GitHubIssuer {
         return installation;
     }
 
-    /** Issue an installation access token, limited to a grant's repositories and permissions. */
+    /** Issue an installation access token now, limited to a grant's repositories and rights. */
     async token(
         clientId: string,
         installation: string,
         privateKey: string,
-        grant: InstallationGrant = {},
+        grant: InstallationGrant,
+        now: number,
     ): Promise<Token> {
         // limit the token to the granted repositories and permissions
         const { resources, permissions } = grant;
@@ -70,7 +75,7 @@ export class GitHubIssuer {
         const response = await this.request(
             "POST",
             path,
-            await appToken(clientId, privateKey, this.#clock.now()),
+            await this.#appToken(clientId, privateKey, now),
             body,
         );
         const answered = InstallationToken.parse(await response.json());
@@ -82,10 +87,20 @@ export class GitHubIssuer {
         };
     }
 
-    /** Uninstall the app from the account. */
-    async revoke(clientId: string, installation: string, privateKey: string): Promise<void> {
-        const bearer = await appToken(clientId, privateKey, this.#clock.now());
+    /** Uninstall the app from the account now. */
+    async revoke(
+        clientId: string,
+        installation: string,
+        privateKey: string,
+        now: number,
+    ): Promise<void> {
+        const bearer = await this.#appToken(clientId, privateKey, now);
         await this.request("DELETE", `/app/installations/${installation}`, bearer);
+    }
+
+    /** Sign the app's JWT with its private key, issued now by its client identifier. */
+    #appToken(clientId: string, privateKey: string, now: number): Promise<string> {
+        return Assertion.sign({ issuer: clientId, key: privateKey }, now, this.#environment);
     }
 
     /** Send a REST API request with a bearer, API version and user agent, refusing errors. */
@@ -107,17 +122,12 @@ export class GitHubIssuer {
 
         // refuse an error answer
         if (!response.ok) {
-            throw new ConnectionError(
-                "REFUSED",
-                `GitHub answered ${response.status} to ${method} ${path}`,
+            throw ConnectionError.of(
+                "SERVER_FAILED",
+                `GitHub responded with ${response.status} to ${method} ${path}`,
             );
         }
 
         return response;
     }
-}
-
-/** Sign the app's JWT with its private key, issued now by its client identifier. */
-function appToken(clientId: string, privateKey: string, now: number): Promise<string> {
-    return Assertion.sign({ issuer: clientId, key: privateKey }, now);
 }

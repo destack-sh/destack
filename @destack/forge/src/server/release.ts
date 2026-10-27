@@ -1,20 +1,18 @@
 import { type PackageStore } from "@destack/build/store";
 import { type MethodContextOf, type NextOf, type ResultOf } from "@destack/object";
 import { Upgrade, Vocabulary } from "@destack/resource";
-import { type Identifier, present, Version } from "@destack/schema";
-import { RequestId, Scope } from "@destack/sync";
-import { CallError } from "@destack/object";
-import { LATEST_TAG, packageObject, release, tag, TagName } from "../object/index.ts";
+import { present, Version, schema } from "@destack/schema";
+import { RequestId } from "@destack/sync";
+import { Forge } from "./forge.ts";
+import { ForgeError } from "../error/index.ts";
+import { LATEST_TAG, packageObject, release, tag, TagName, unit } from "../object/index.ts";
 import type { Pack } from "../pack/index.ts";
 import { PackageArchive } from "../pack/index.ts";
-import { claimFollow, Forge } from "./forge.ts";
 
 /** What releases pack with: the store of pushed builds and the forge's space. */
 export interface ReleaseOptions {
     /** The store of pushed builds and npm archives. */
     readonly store: PackageStore;
-    /** The forge's space, which stores every package of its residency. */
-    readonly home: Identifier<"space">;
 }
 
 /** The release methods' handlers: packing, publishing, resolving, deprecating and yanking. */
@@ -34,46 +32,56 @@ export const ReleaseMethod = {
 
         // require a pushed build, of a commit unless it is a prerelease
         if (!(await store.contains(manifest))) {
-            throw new CallError("NOT_FOUND", {
-                message: `build ${manifest} was not pushed to the forge`,
-            });
+            throw ForgeError.of(
+                "BUILD_NOT_PUSHED",
+                `build ${manifest} was not pushed to the forge`,
+            );
         }
         const contents = await store.contents(manifest);
         const { commit, package: built } = contents.manifest;
         if (commit === undefined && !Version.isPrerelease(built.version)) {
-            throw new CallError("CONFLICT", {
-                message: `build ${manifest} compiled a working tree with uncommitted changes`,
-            });
+            throw ForgeError.of(
+                "UNCOMMITTED_CHANGES",
+                `build ${manifest} compiled a working tree with uncommitted changes`,
+            );
         }
 
         // pack the build, refusing an archive of another manifest
-        const archive = await PackageArchive.pack(contents, commit);
+        const archive = await PackageArchive.pack(contents, commit, context.environment);
         if (archive.manifest !== manifest) {
-            throw new CallError("BAD_REQUEST", {
-                message: "archived manifest differs from the build",
-            });
+            throw ForgeError.of("MANIFEST_MISMATCH", "archived manifest differs from the build");
         }
 
         // require the build to be the package's, under the package's global name
         if (archive.packageId !== parentId) {
-            throw new CallError("CONFLICT", { message: "the build is another package's" });
+            throw ForgeError.of("FOREIGN_BUILD", "the build belongs to another package");
         }
-        const named = await Forge.named(
+        const named = await Forge.package(
             archive.metadata.name,
-            options.home,
-            (claim) =>
-                context.acquire(claimFollow, { key: { scope: Scope.universe.id, ...claim } }),
             context,
+            schema.identifier("space").parse(context.scope),
         );
         if (named.id !== parentId) {
-            throw new CallError("CONFLICT", {
-                message: "the npm name belongs to another package",
-            });
+            throw ForgeError.of("NPM_NAME_TAKEN", "the npm name belongs to another package");
         }
 
         // lease and store the archive under its digest before any release refers to it
         await store.lease(archive.file.digest, until);
         await store.putFile(archive.file, async () => archive.open());
+
+        // derive the runtime builds of the build and the npm units it depends on, then lease all of them, which its readers read with it
+        const npm = await store.units(manifest, parentId);
+        const attached = await Promise.all(
+            [...npm, manifest].map(async (subject) => {
+                await store.attachRuntimes(subject);
+
+                return store.attached(subject);
+            }),
+        );
+        const units = [...new Set([...npm, ...attached.flat().map(({ file }) => file.digest)])];
+        for (const each of units) {
+            await store.lease(each, until);
+        }
 
         // read the build's declarations and the upgrade it planned
         const upgrade = contents.manifest.upgrade;
@@ -85,6 +93,7 @@ export const ReleaseMethod = {
             distribution: archive.distribution,
             metadata: archive.metadata,
             dependencies: archive.dependencies,
+            units,
             ...(upgrade === undefined
                 ? {}
                 : { upgrade: await contents.read(upgrade.file, Upgrade) }),
@@ -118,8 +127,11 @@ export const ReleaseMethod = {
             }),
         );
 
-        // point its tag at it, latest by default
+        // record its npm units, and point its tag at it, latest by default
         await context.mutate(context.caller, [
+            ...packed.units.map((digest) =>
+                unit.call("create", { parentId: created.id, manifest: digest }),
+            ),
             packageObject.call("point", {
                 id: context.input.parentId,
                 name: context.input.tag ?? LATEST_TAG,
@@ -146,7 +158,7 @@ export const ReleaseMethod = {
             .read(release)
             .findMany({ where: { parentId, version, yankedAt: { isNull: true } } });
         if (published === undefined) {
-            throw new CallError("NOT_FOUND", { message: `${parentId} lacks release ${named}` });
+            throw ForgeError.of("RELEASE_NOT_FOUND", `${parentId} has no release ${named}`);
         }
 
         return published;
@@ -185,7 +197,7 @@ export const ReleaseMethod = {
                 version: { ne: yanked.version },
                 yankedAt: { isNull: true },
             },
-            orderBy: { createdAt: "desc" },
+            orderBy: { createdAt: "desc", id: "desc" },
             limit: 1,
         });
         const highest = newest?.version;
@@ -213,32 +225,35 @@ export const ReleaseMethod = {
             limit: 1,
         });
         if (taken !== undefined) {
-            throw new CallError("CONFLICT", {
-                message: "package version was already published",
-            });
+            throw ForgeError.of("VERSION_PUBLISHED", "package version was already published");
         }
 
-        // require releases in version order, the newest release being the highest version
+        // require releases in version order, the newest release being the highest version, ties in creation order
         const [newest] = await context.read(release).findMany({
             where: { parentId: context.input.parentId },
-            orderBy: { createdAt: "desc" },
+            orderBy: { createdAt: "desc", id: "desc" },
             limit: 1,
         });
         const latest = newest?.version;
         if (latest !== undefined && Version.compare(packed.version, latest) < 0) {
-            throw new CallError("CONFLICT", {
-                message: `publish releases in version order: ${packed.version} precedes ${latest}`,
-            });
+            throw ForgeError.of(
+                "VERSION_ORDER",
+                `publish releases in version order: ${packed.version} precedes ${latest}`,
+            );
         }
         // refuse an upgrade on the first release
         else if (latest === undefined && packed.upgrade !== undefined) {
-            throw new CallError("CONFLICT", { message: "the first release plans no upgrade" });
+            throw ForgeError.of(
+                "FIRST_RELEASE_UPGRADE",
+                "the first release cannot have an upgrade",
+            );
         }
         // require an upgrade planned from the latest release
         else if (latest !== undefined && packed.upgrade?.from !== latest) {
-            throw new CallError("CONFLICT", {
-                message: `build the release against ${latest}, the latest release`,
-            });
+            throw ForgeError.of(
+                "BASE_RELEASE_STALE",
+                `the release must build against the latest release ${latest}`,
+            );
         }
     },
 

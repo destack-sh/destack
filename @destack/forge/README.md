@@ -88,7 +88,7 @@ install(
         "github-webhook": "github-webhook",
         "github-private-key": "github-private-key",
     },
-    { alias: FORGE_ALIAS },
+    { alias: FORGE_INSTALLATION },
 );
 ```
 
@@ -102,12 +102,13 @@ export default implementPackage(forgePackage, (context) => Forge.of(context).def
 
 ## Registry
 
-`Registry.of` reads a package's published releases from the forge of its account's residency, found in the directory's replica.
+`Registry.of` reads a package's published releases from the forge in its account's residency home, found through the directory's replica.
 
 ```ts
 import { Registry } from "@destack/forge/client";
 
-const registry = Registry.of(Snapshot.live(machineDatabase), home, fetch, clock);
+const home = (account) => accounts.residency.locate({ account });
+const registry = Registry.of(directory, home, fetch, clock);
 const reader = await registry.open(packageId, LATEST_TAG);
 const pinned = await registry.read(packageId, manifest);
 ```

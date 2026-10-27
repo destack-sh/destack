@@ -1,7 +1,7 @@
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { defineObject, defineShape, field } from "@destack/object";
-import { schema } from "@destack/schema";
+import { Commit, schema } from "@destack/schema";
 import { repository } from "./repository.ts";
 
 /** A branch or tag of a repository's origin as last observed. */
@@ -17,7 +17,7 @@ export const reference = defineObject(
             /** The object the reference points at directly. */
             object: field.string(),
             /** The commit the reference resolves to, absent when it resolves to no commit. */
-            commit: field.string().optional(),
+            commit: field.string(Commit).optional(),
             /** When the reference was last observed at its object. */
             observedAt: field.time(),
             /** When the origin was observed without the reference, absent while it exists. */
@@ -49,19 +49,19 @@ export const reference = defineObject(
     },
     (method) => ({
         create: method.create("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["name", "object", "commit", "observedAt"],
         }),
         createMany: method.createMany("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["name", "object", "commit", "observedAt"],
         }),
         update: method.update("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["object", "commit", "observedAt", "deletedAt"],
         }),
         updateMany: method.updateItems("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["object", "commit", "observedAt", "deletedAt"],
         }),
     }),

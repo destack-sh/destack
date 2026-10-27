@@ -1,10 +1,11 @@
+import type { Environment } from "@destack/environment";
 import { Tarball, type TarballEntry } from "@destack/package/archive";
 import { type DependencyRelease, graph, PackageDefinition, type PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import type { Runtime } from "@destack/package/runtime";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Digest, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
+import { ForgeError } from "../error/index.ts";
 import { valid } from "semver";
 import { Upgrade } from "@destack/resource";
 
@@ -52,7 +53,7 @@ type Source = schema.Infer<typeof Source>;
 /** The npm archive installers download for a release. */
 export const Distribution = schema.object({
     /** The archive's SHA-256 digest and storage key. */
-    digest: schema.string(),
+    digest: Digest,
     /** The archive's SHA-1 checksum for npm clients. */
     shasum: schema.string(),
     /** The archive's SHA-512 Subresource Integrity expression. */
@@ -107,7 +108,7 @@ export type PackageMetadata = schema.Infer<typeof PackageMetadata>;
 /** A pushed build packed for its release, before the release's transaction. */
 export const Pack = schema.object({
     /** The digest of the build's manifest. */
-    manifest: schema.string(),
+    manifest: Digest,
     /** The commit the build compiled, absent for a prerelease of uncommitted changes. */
     commit: schema.string().exactOptional(),
     /** The version the build declares. */
@@ -120,6 +121,8 @@ export const Pack = schema.object({
     dependencies: schema
         .array(schema.object({ name: schema.string(), version: schema.string() }))
         .readonly(),
+    /** The manifests of the npm units the build depends on, directly or through other units. */
+    units: schema.array(Digest).readonly(),
     /** The steps from the package's previous release, absent for its first. */
     upgrade: Upgrade.exactOptional(),
     /** The build's declarations, with their terms. */
@@ -133,7 +136,7 @@ export class PackageArchive {
     /** The package identity of the build manifest. */
     readonly packageId: PackageId;
     /** The digest of the build manifest in the archive. */
-    readonly manifest: string;
+    readonly manifest: Digest;
     /** The generated npm declaration. */
     readonly metadata: PackageMetadata;
     /** The exact releases the package requires, by package name, peers excluded. */
@@ -173,7 +176,11 @@ export class PackageArchive {
     }
 
     /** Pack a build of a commit, if any, with its compiled npm exports and exact dependencies. */
-    static async pack(source: BuildReader, commit: string | undefined): Promise<PackageArchive> {
+    static async pack(
+        source: BuildReader,
+        commit: string | undefined,
+        environment: Pick<Environment, "crypto" | "compression">,
+    ): Promise<PackageArchive> {
         // list the build's files, refusing duplicate paths
         const { manifest } = source;
         const list = await source.distributed();
@@ -205,7 +212,7 @@ export class PackageArchive {
         );
 
         // archive the entries, and count the unpacked bytes of the declarations and of the build
-        const { bytes, digests } = await PackageArchive.#archive(source, entries);
+        const { bytes, digests } = await PackageArchive.#archive(source, entries, environment);
         const declared = [...generated.values()].reduce(
             (sum, contents) => sum + contents.byteLength,
             0,
@@ -215,7 +222,7 @@ export class PackageArchive {
         return new PackageArchive(
             {
                 packageId: PackageManifest.package(manifest).id,
-                manifest: await Digest.of(description),
+                manifest: await Digest.of(description, environment.crypto),
                 metadata,
                 dependencies,
                 distribution: {
@@ -235,15 +242,14 @@ export class PackageArchive {
         for (const file of list) {
             // refuse the reserved manifest path
             if (file.path === "manifest.json") {
-                throw new CallError("BAD_REQUEST", {
-                    message: "manifest.json is reserved for the build manifest",
-                });
+                throw ForgeError.of(
+                    "RESERVED_MANIFEST",
+                    "manifest.json is reserved for the build manifest",
+                );
             }
             // refuse a duplicate path
             else if (paths.has(file.path)) {
-                throw new CallError("BAD_REQUEST", {
-                    message: `duplicate build path: ${file.path}`,
-                });
+                throw ForgeError.of("PATH_DUPLICATE", `duplicate build path: ${file.path}`);
             }
             paths.add(file.path);
         }
@@ -255,6 +261,7 @@ export class PackageArchive {
     static async #archive(
         source: BuildReader,
         entries: readonly (readonly [string, Uint8Array<ArrayBuffer> | PackageFile])[],
+        environment: Pick<Environment, "crypto" | "compression">,
     ): Promise<{
         readonly bytes: Blob;
         readonly digests: Pick<Distribution, "digest" | "shasum" | "integrity">;
@@ -270,23 +277,24 @@ export class PackageArchive {
 
         // gather the compressed chunks as they stream
         const chunks: Uint8Array<ArrayBuffer>[] = [];
-        for await (const chunk of Tarball.stream(read())) {
+        for await (const chunk of Tarball.stream(read(), environment.compression)) {
             chunks.push(chunk);
         }
 
         // hash the archive's bytes for its digest, its shasum and its integrity, as npm calls them
         const bytes = new Blob(chunks);
         const contents = new Uint8Array(await bytes.arrayBuffer());
+        const { crypto } = environment;
         const [sha256, sha1, sha512] = await Promise.all([
-            crypto.subtle.digest("SHA-256", contents),
-            crypto.subtle.digest("SHA-1", contents),
-            crypto.subtle.digest("SHA-512", contents),
+            crypto.digest("SHA-256", contents),
+            crypto.digest("SHA-1", contents),
+            crypto.digest("SHA-512", contents),
         ]);
 
         return {
             bytes,
             digests: {
-                digest: new Uint8Array(sha256).toHex(),
+                digest: Digest.parse(new Uint8Array(sha256).toHex()),
                 shasum: new Uint8Array(sha1).toHex(),
                 integrity: `sha512-${new Uint8Array(sha512).toBase64()}`,
             },
@@ -329,34 +337,31 @@ export class PackageArchive {
         // parse the declaration
         const bytes = files.get("package.json");
         if (!bytes) {
-            throw new CallError("BAD_REQUEST", { message: "build lacks package.json" });
+            throw ForgeError.of("PACKAGE_JSON_MISSING", "build has no package.json");
         }
         const source = Source.parse(JSON.parse(DECODER.decode(bytes)));
 
         // require the manifest's package id in destack.json
         const declaration = files.get("destack.json");
         if (!declaration) {
-            throw new CallError("BAD_REQUEST", { message: "build lacks destack.json" });
+            throw ForgeError.of("DECLARATION_MISSING", "build has no destack.json");
         } else if (
             PackageDefinition.read(DECODER.decode(declaration)).id !==
             PackageManifest.package(manifest).id
         ) {
-            throw new CallError("BAD_REQUEST", {
-                message: "package ID differs from its source declaration",
-            });
+            throw ForgeError.of(
+                "PACKAGE_ID_MISMATCH",
+                "package ID differs from its source declaration",
+            );
         }
 
         // require the declared npm name and the manifest's release version
         if (source.name !== manifest.package.name || source.version !== manifest.package.version) {
-            throw new CallError("BAD_REQUEST", {
-                message: "invalid npm package name or release version",
-            });
+            throw ForgeError.of("NPM_NAME_INVALID", "invalid npm package name or release version");
         }
         // refuse executables
         else if (source.bin !== undefined) {
-            throw new CallError("BAD_REQUEST", {
-                message: "executable exports require a compiled bin mapping",
-            });
+            throw ForgeError.of("BIN_MISSING", "executable exports require a compiled bin mapping");
         }
 
         return source;
@@ -373,7 +378,7 @@ export class PackageArchive {
         const ordered = CONDITION_ORDER.filter((runtime) => emitted.has(runtime));
         const fallback = ordered.at(-1);
         if (fallback === undefined) {
-            throw new CallError("BAD_REQUEST", { message: "build emits no runtime output" });
+            throw ForgeError.of("RUNTIME_OUTPUT_MISSING", "build emits no runtime output");
         }
 
         // give each runtime its own condition but the default's
@@ -423,9 +428,7 @@ export class PackageArchive {
             // require the file in the build
             const path = declared.replace(/^\.\//u, "");
             if (!paths.has(path)) {
-                throw new CallError("BAD_REQUEST", {
-                    message: `missing export source: ${entry}`,
-                });
+                throw ForgeError.of("EXPORT_SOURCE_MISSING", `missing export source: ${entry}`);
             }
             metadata.exports[entry] = { types: `./build/${path}` };
         }
@@ -462,23 +465,17 @@ export class PackageArchive {
             // require the condition's output to be built and emitted
             const output = manifest.outputs[outputName];
             if (!output) {
-                throw new CallError("BAD_REQUEST", {
-                    message: `unknown package output: ${outputName}`,
-                });
+                throw ForgeError.of("OUTPUT_UNKNOWN", `unknown package output: ${outputName}`);
             }
             // refuse a build-only output
             else if (!output.emit) {
-                throw new CallError("BAD_REQUEST", {
-                    message: `output is build-only: ${outputName}`,
-                });
+                throw ForgeError.of("BUILD_ONLY_OUTPUT", `output is build-only: ${outputName}`);
             }
 
             // load each compiled export under the condition
-            for (const [entry, path] of Object.entries(output.exports)) {
+            for (const [entry, { path }] of Object.entries(output.exports)) {
                 if (!paths.has(path) || (entry !== "." && !entry.startsWith("./"))) {
-                    throw new CallError("BAD_REQUEST", {
-                        message: `invalid compiled export: ${entry}`,
-                    });
+                    throw ForgeError.of("EXPORT_INVALID", `invalid compiled export: ${entry}`);
                 }
                 metadata.exports[entry] ??= {};
                 metadata.exports[entry][condition] = `./build/${path}`;
@@ -511,9 +508,7 @@ export class PackageArchive {
         // require an exact version
         const { name, version } = release.package;
         if (valid(version) !== version) {
-            throw new CallError("BAD_REQUEST", {
-                message: `invalid dependency version: ${dependency}`,
-            });
+            throw ForgeError.of("DEPENDENCY_INVALID", `invalid dependency version: ${dependency}`);
         }
 
         // refuse another resolution of the dependency
@@ -524,9 +519,7 @@ export class PackageArchive {
         );
         const previous = resolutions.get(dependency);
         if (previous !== undefined && previous !== resolution) {
-            throw new CallError("BAD_REQUEST", {
-                message: `conflicting dependency: ${dependency}`,
-            });
+            throw ForgeError.of("DEPENDENCY_CONFLICTING", `conflicting dependency: ${dependency}`);
         }
         resolutions.set(dependency, resolution);
     }

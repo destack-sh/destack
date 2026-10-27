@@ -1,6 +1,6 @@
-import { mkdir } from "node:fs/promises";
 import type { Lease } from "@destack/resource";
 import { Git, type GitSetting } from "./git.ts";
+import type { LocalGitEnvironment } from "./storage.ts";
 
 /** The commits fetched from a leased repository: the build's one commit, without its history. */
 const FETCH_DEPTH = 1;
@@ -12,11 +12,12 @@ export const GitLease = {
         lease: Lease,
         commit: string,
         directory: string,
+        environment: LocalGitEnvironment,
         signal: AbortSignal,
     ): Promise<void> {
         // start an empty repository in the directory
-        await mkdir(directory, { recursive: true });
-        await Git.run(directory, ["init", "--quiet"], { signal });
+        await environment.files.mkdir(directory, { recursive: true });
+        await Git.run(directory, ["init", "--quiet"], environment, { signal });
 
         // fetch the commit alone, sending the lease's headers with each request
         const headers = Object.entries(lease.headers).map(([name, value]): GitSetting => [
@@ -26,11 +27,12 @@ export const GitLease = {
         await Git.run(
             directory,
             ["fetch", "--quiet", `--depth=${FETCH_DEPTH}`, lease.url, commit],
+            environment,
             { configuration: headers, signal },
         );
 
         // check the fetched commit out
-        await Git.run(directory, ["checkout", "--quiet", "FETCH_HEAD"], {
+        await Git.run(directory, ["checkout", "--quiet", "FETCH_HEAD"], environment, {
             configuration: [["advice.detachedHead", "false"]],
             signal,
         });

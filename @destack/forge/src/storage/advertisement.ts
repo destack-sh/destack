@@ -1,4 +1,4 @@
-import { CallError } from "@destack/object";
+import { ForgeError } from "../error/index.ts";
 import type { Lease } from "@destack/resource";
 import type { Fetch } from "@destack/object";
 import type { GitListing, GitReference } from "./storage.ts";
@@ -27,9 +27,10 @@ export const GitAdvertisement = {
         // require a smart HTTP advertisement
         const type = response.headers.get("content-type");
         if (!response.ok || type !== ADVERTISEMENT_TYPE) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `git remote answered ${response.status} ${type ?? "without a content type"}`,
-            });
+            throw ForgeError.of(
+                "REMOTE_FAILED",
+                `git remote responded with ${response.status} ${type ?? "without a content type"}`,
+            );
         }
 
         return GitAdvertisement.parse(new Uint8Array(await response.arrayBuffer()));
@@ -40,9 +41,7 @@ export const GitAdvertisement = {
         // read each pkt-line after the service announcement, skipping flush packets
         const lines = GitAdvertisement.packetLines(body);
         if (lines[0] !== "# service=git-upload-pack") {
-            throw new CallError("BAD_GATEWAY", {
-                message: "git remote announced no upload-pack",
-            });
+            throw ForgeError.of("UPLOAD_PACK_MISSING", "git remote did not announce upload-pack");
         }
 
         // read the capabilities on the first reference line, and each reference and its peeled commit
@@ -53,9 +52,10 @@ export const GitAdvertisement = {
             const [advertised, capabilities] = line.split("\0");
             const [object, name] = advertised === undefined ? [] : advertised.split(" ");
             if (object === undefined || name === undefined) {
-                throw new CallError("BAD_GATEWAY", {
-                    message: `git remote advertised ${line}`,
-                });
+                throw ForgeError.of(
+                    "ADVERTISEMENT_UNEXPECTED",
+                    `unexpected git remote advertisement: ${line}`,
+                );
             }
 
             // read the default branch from HEAD's symref capability
@@ -98,9 +98,10 @@ export const GitAdvertisement = {
             const prefix = decoder.decode(body.subarray(offset, offset + LENGTH_WIDTH));
             const length = Number.parseInt(prefix, 16);
             if (!/^[0-9a-f]{4}$/u.test(prefix) || (length !== 0 && length < LENGTH_WIDTH)) {
-                throw new CallError("BAD_GATEWAY", {
-                    message: `git remote sent pkt-line ${prefix}`,
-                });
+                throw ForgeError.of(
+                    "PKT_LINE_UNEXPECTED",
+                    `unexpected pkt-line from git remote: ${prefix}`,
+                );
             }
 
             // take the payload of a data packet

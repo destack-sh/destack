@@ -1,7 +1,7 @@
 import type { Connector, Lease, LeaseMode } from "@destack/resource";
 import { schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
-import { CallError } from "@destack/object";
+import { ForgeError } from "../error/index.ts";
 import { GitAdvertisement } from "../storage/advertisement.ts";
 import type { GitStorageDeclaration } from "../storage/kind.ts";
 import type { GitListing, GitStorage } from "../storage/storage.ts";
@@ -102,9 +102,10 @@ export class ArtifactsStorage implements GitStorage {
 
         // refuse a repository created under another name
         if (created.name !== name) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `cloudflare artifacts created ${created.name} for ${name}`,
-            });
+            throw ForgeError.of(
+                "ARTIFACT_NAME_MISMATCH",
+                `expected cloudflare artifacts to create ${name}, got ${created.name}`,
+            );
         }
 
         return created.remote;
@@ -151,9 +152,10 @@ export class ArtifactsStorage implements GitStorage {
         // refuse an unreadable expiry
         const expiresAt = Date.parse(issued.expiresAt);
         if (Number.isNaN(expiresAt)) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `cloudflare artifacts issued a token with an invalid expiry: ${issued.expiresAt}`,
-            });
+            throw ForgeError.of(
+                "TOKEN_EXPIRY_INVALID",
+                `cloudflare artifacts issued a token with an invalid expiry: ${issued.expiresAt}`,
+            );
         }
 
         return {

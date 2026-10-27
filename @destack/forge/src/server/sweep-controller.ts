@@ -1,12 +1,12 @@
 import type { ObjectStore } from "@destack/object/server";
-import type { Controller } from "@destack/db";
+import type { ReconcileController } from "@destack/db";
 import type { Forge } from "./forge.ts";
 
 /** How often the forge sweeps its store: hourly, under a second for 10k builds. */
 export const SWEEP_INTERVAL_MILLISECONDS = 60 * 60 * 1000;
 
 /** Sweeps the forge's store down to the builds and archives of its releases. */
-export class SweepController implements Controller {
+export class SweepController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "forge-sweep";
     /** The forge whose store it sweeps. */

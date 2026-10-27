@@ -2,7 +2,7 @@ import { Secret } from "@destack/vault";
 import { Connection, connection, integration } from "@destack/connection/object";
 import type { Runner } from "@destack/connection/server";
 import type { Lease, LeaseMode } from "@destack/resource";
-import { CallError } from "@destack/object";
+import { ForgeError } from "../error/index.ts";
 import { GitHubSignature } from "./signature.ts";
 import { type Repository, repository } from "../object/index.ts";
 import { GitHubApp } from "./app.ts";
@@ -26,7 +26,13 @@ export class GitHubHosting {
         // verify the delivery and read the changed repository, none for a ping
         const secret = await Secret.text(this.app.secret);
         const event = GitHubEvent.read(
-            await this.signature.verify(request, secret, {}, runner.now),
+            await this.signature.verify(
+                request,
+                secret,
+                {},
+                runner.now,
+                this.app.environment.crypto,
+            ),
         );
         if (event === null) {
             return [];
@@ -60,12 +66,12 @@ export class GitHubHosting {
     /** Identify a GitHub repository through the installation of its connection's replica. */
     async identify(
         target: Repository,
-        runner: Pick<Runner, "query" | "self" | "read">,
+        runner: Pick<Runner, "query" | "self" | "read" | "now">,
     ): Promise<string> {
         // require a GitHub origin with the replica of its connection
         const { connectionId, remote } = target;
         if (target.hosting !== "github" || connectionId === null || remote === null) {
-            throw new TypeError(`repository ${target.id} lacks a github origin`);
+            throw new TypeError(`repository ${target.id} has no github origin`);
         }
         const installation = await this.#requireInstallation(
             runner,
@@ -74,7 +80,11 @@ export class GitHubHosting {
         );
 
         // read the repository by its full name
-        const found = await this.app.repository(installation, GitHubApp.fullName(remote));
+        const found = await this.app.repository(
+            installation,
+            GitHubApp.fullName(remote),
+            runner.now,
+        );
 
         return found.id;
     }
@@ -83,18 +93,19 @@ export class GitHubHosting {
     async open(
         target: Repository,
         mode: LeaseMode,
-        runner: Pick<Runner, "query" | "self" | "read">,
+        runner: Pick<Runner, "query" | "self" | "read" | "now">,
     ): Promise<Lease> {
         // refuse an incomplete origin
         const { connectionId, providerRepositoryId, remote } = target;
         if (connectionId === null || remote === null) {
-            throw new TypeError(`github repository ${target.id} lacks a complete origin`);
+            throw new TypeError(`github repository ${target.id} has an incomplete origin`);
         }
         // refuse a repository its controller has not identified yet
         else if (providerRepositoryId === null) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `github repository ${target.id} awaits its github identifier`,
-            });
+            throw ForgeError.of(
+                "GITHUB_IDENTIFIER_MISSING",
+                `github repository ${target.id} has no github identifier yet`,
+            );
         }
 
         // issue the token through the account's installation
@@ -104,7 +115,7 @@ export class GitHubHosting {
             connectionId,
         );
 
-        return this.app.open(installation, providerRepositoryId, remote, mode);
+        return this.app.open(installation, providerRepositoryId, remote, mode, runner.now);
     }
 
     /** Read the App installation of an account's connection, as the connection package lists it. */
@@ -140,9 +151,10 @@ export class GitHubHosting {
     ): Promise<string> {
         const installation = await this.installation(runner, accountId, connectionId);
         if (installation === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `the forge has no replica of connection ${connectionId}`,
-            });
+            throw ForgeError.of(
+                "CONNECTION_REPLICA_MISSING",
+                `the forge has no replica of connection ${connectionId}`,
+            );
         }
 
         return installation;

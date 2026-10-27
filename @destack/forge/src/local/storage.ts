@@ -1,8 +1,8 @@
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { join } from "node:path";
+import { type Environment, FileSystemError } from "@destack/environment";
 import type { Connector, Lease, LeaseMode } from "@destack/resource";
-import { found, zip } from "@destack/schema";
+import { found, Uuid, zip } from "@destack/schema";
 import type {
     GitListing,
     GitReference,
@@ -40,49 +40,61 @@ interface ListedReference {
     readonly taggedType: string;
 }
 
+/** The host capabilities local storage runs git and moves its directories with. */
+export type LocalGitEnvironment = Environment<"files" | "process" | "host">;
+
 /** Bare repositories in a host directory, run by the git command line. */
 export class LocalGitStorage implements GitStorage {
-    /** The connector opening a storage at its directory's file URL. */
-    static readonly connector: Connector<GitStorage, GitStorageDeclaration> = {
-        code: LOCAL_PROVIDER,
-        connect: async (binding) =>
-            Object.assign(new LocalGitStorage(fileURLToPath(binding.reference)), {
-                [Symbol.asyncDispose]: async () => {},
-            }),
-    };
-
     /** The provider name repositories stored here record. */
     readonly provider = LOCAL_PROVIDER;
     /** The directory with one bare repository per name. */
     readonly directory: string;
+    /** The host's files and processes. */
+    readonly environment: LocalGitEnvironment;
 
-    /** Store repositories in a directory. */
-    constructor(directory: string) {
+    /** Store repositories in a directory of a host. */
+    constructor(directory: string, environment: LocalGitEnvironment) {
         this.directory = directory;
+        this.environment = environment;
+    }
+
+    /** Open storages at their references below a host directory, as the local provider does. */
+    static connector(
+        directory: string,
+        environment: LocalGitEnvironment,
+    ): Connector<GitStorage, GitStorageDeclaration> {
+        return {
+            code: LOCAL_PROVIDER,
+            connect: async (binding) =>
+                Object.assign(
+                    new LocalGitStorage(join(directory, binding.reference), environment),
+                    {
+                        [Symbol.asyncDispose]: async () => {},
+                    },
+                ),
+        };
     }
 
     /** Create an empty bare repository with HEAD at main, or leave an existing one. */
     async create(id: string): Promise<string> {
         // stage the repository in a directory outside the repository names
         const path = this.#path(id);
-        await mkdir(this.directory, { recursive: true });
-        const staging = await mkdtemp(join(this.directory, STAGING_PREFIX));
+        const { files, random } = this.environment;
+        const staging = join(this.directory, `${STAGING_PREFIX}${Uuid.v4(random)}`);
+        await files.mkdir(staging, { recursive: true });
 
         // initialize it there and move it into place in one rename, dropping it where another create finished first
         try {
-            await Git.run(this.directory, [
-                "init",
-                "--bare",
-                "--quiet",
-                `--initial-branch=${INITIAL_BRANCH}`,
-                staging,
-            ]);
-            await rename(staging, path);
+            await Git.run(
+                this.directory,
+                ["init", "--bare", "--quiet", `--initial-branch=${INITIAL_BRANCH}`, staging],
+                this.environment,
+            );
+            await files.rename(staging, path);
         } catch (error) {
             // drop the staging directory, accepting a repository another create finished
-            await rm(staging, { recursive: true, force: true });
-            const code = LocalGitStorage.#systemCode(error);
-            if (code !== "ENOTEMPTY" && code !== "EEXIST") {
+            await files.remove(staging, { recursive: true, force: true });
+            if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
                 throw error;
             }
         }
@@ -93,18 +105,19 @@ export class LocalGitStorage implements GitStorage {
     /** Delete a repository's directory after moving it away in one rename. */
     async delete(id: string): Promise<void> {
         // move the repository away from its name and skip one already gone
-        const trash = join(this.directory, `${DELETION_PREFIX}${crypto.randomUUID()}`);
+        const { files, random } = this.environment;
+        const trash = join(this.directory, `${DELETION_PREFIX}${Uuid.v4(random)}`);
         try {
-            await rename(this.#path(id), trash);
+            await files.rename(this.#path(id), trash);
         } catch (error) {
-            if (LocalGitStorage.#systemCode(error) === "ENOENT") {
+            if (FileSystemError.is(error, "NOT_FOUND")) {
                 return;
             }
             throw error;
         }
 
         // remove it where nothing else opens it
-        await rm(trash, { recursive: true, force: true });
+        await files.remove(trash, { recursive: true, force: true });
     }
 
     /** List the branches and tags with HEAD. */
@@ -112,13 +125,17 @@ export class LocalGitStorage implements GitStorage {
         // list the branches and tags beside HEAD's branch
         const path = this.#path(id);
         const [listed, symbolic] = await Promise.all([
-            Git.run(path, [
-                "for-each-ref",
-                "--format=%(refname) %(objectname) %(objecttype) %(*objectname) %(*objecttype)",
-                "refs/heads",
-                "refs/tags",
-            ]),
-            Git.run(path, ["symbolic-ref", "HEAD"]),
+            Git.run(
+                path,
+                [
+                    "for-each-ref",
+                    "--format=%(refname) %(objectname) %(objecttype) %(*objectname) %(*objecttype)",
+                    "refs/heads",
+                    "refs/tags",
+                ],
+                this.environment,
+            ),
+            Git.run(path, ["symbolic-ref", "HEAD"], this.environment),
         ]);
 
         // read each reference with its object and tagged object
@@ -132,9 +149,12 @@ export class LocalGitStorage implements GitStorage {
         const peeled =
             nested.length === 0
                 ? ""
-                : await Git.run(path, ["cat-file", "--batch-check=%(objectname) %(objecttype)"], {
-                      input: nested.map((name) => `${name}^{commit}\n`).join(""),
-                  });
+                : await Git.run(
+                      path,
+                      ["cat-file", "--batch-check=%(objectname) %(objecttype)"],
+                      this.environment,
+                      { input: nested.map((name) => `${name}^{commit}\n`).join("") },
+                  );
 
         // map each tag of tags to its final commit or to none
         const answers = peeled.split("\n").filter((line) => line !== "");
@@ -212,14 +232,9 @@ export class LocalGitStorage implements GitStorage {
             tagged === undefined ||
             taggedType === undefined
         ) {
-            throw new TypeError(`git for-each-ref printed ${line}`);
+            throw new TypeError(`unexpected git for-each-ref output: ${line}`);
         }
 
         return { name, object, type, tagged, taggedType };
-    }
-
-    /** Read the system error code of a failure, absent for failures without one. */
-    static #systemCode(error: unknown): unknown {
-        return error instanceof Error && "code" in error ? error.code : undefined;
     }
 }

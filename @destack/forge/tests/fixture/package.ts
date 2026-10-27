@@ -1,36 +1,28 @@
-import accountPackage from "@destack/account/package";
-import { onTestFinished } from "vitest";
-import { ForgeFixture } from "../../src/test/index.ts";
-import { AccountFixture, ids } from "@destack/account/test";
-import { cp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type PackageBuildOptions, PackageBuild, Compiler, readOutputs } from "@destack/build";
-import type { LocalStore } from "@destack/build";
+import { CompilerPool, outputsOf, PackageBuild, type PackageBuildOptions } from "@destack/build";
+import { readPackageJson } from "@destack/build/local";
 import type { DependencyResolution } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
-import { type ImageIndex } from "@destack/db/test";
 import { History, Vocabulary } from "@destack/resource";
 import { nth, Commit, Digest, schema, Version } from "@destack/schema";
-import { RequestId } from "@destack/sync";
-import { packageObject } from "../../src/object/index.ts";
+import { PackageArchive } from "../../src/pack/index.ts";
+import { testHost } from "@destack/test/host";
 
-/** The account that publishes the fixture packages and scopes their npm names. */
-export const ACCOUNT_ID = schema
-    .identifier("account")
-    .parse("account-00000000-0000-7000-8000-000000000001");
+/** How long one fixture command may run, in milliseconds: an install or a pack. */
+const RUN_MILLISECONDS = 60_000;
 
 /** The version the fixture sources declare. */
 export const FIXTURE_VERSION = "2026.9.0";
 
-/** The fixture releases, each dependency before its dependents. */
-export const FIXTURE_RELEASES = [
-    ["answer", [FIXTURE_VERSION, "2026.9.1"]],
-    ["greeting", [FIXTURE_VERSION]],
-] as const satisfies readonly (readonly [FixturePackage, readonly string[]])[];
+/** The versions of the answer package the setup builds, in release order. */
+export const ANSWER_VERSIONS = [FIXTURE_VERSION, "2026.9.1"];
 
 /** The dev prerelease of the answer package after its releases, built without a commit. */
 export const PRERELEASE_VERSION = "2026.9.2-dev.1";
+
+/** The workspace's lockfile, which fixture copies link to beside them. */
+const WORKSPACE_LOCKFILE = fileURLToPath(new URL("../../../../bun.lock", import.meta.url));
 
 /** The commit every fixture release is built from. */
 export const COMMIT = "a".repeat(40);
@@ -38,119 +30,78 @@ export const COMMIT = "a".repeat(40);
 /** The fixture packages: real package sources under tests/fixture called `@example/<name>`. */
 export type FixturePackage = "answer" | "greeting";
 
-/** Open a forge publishing as the owner under their account, in a universe of its own. */
-export async function openForge(): Promise<ForgeFixture> {
-    // serve the universe until the test ends, and install the forge publishing under the owner's account
-    const accounts = await openUniverse();
-    onTestFinished(() => accounts[Symbol.asyncDispose]());
-
-    return ForgeFixture.create(accounts, { account: ACCOUNT_ID, user: ids.owner });
-}
-
-/** Serve the account package with the owner's account, from the run's or given images. */
-export async function openUniverse(images?: ImageIndex): Promise<AccountFixture> {
-    // serve the account package
-    const accounts = await AccountFixture.open({
-        dialect: "sqlite",
-        policies: [packageObject.policy],
-        ...(images === undefined ? {} : { images }),
-    });
-
-    // create the owner's account
-    await accounts.user(ids.owner, accountPackage).account.create({
-        scope: ids.owner,
-        id: ACCOUNT_ID,
-        requestId: RequestId.create(Date.now()),
-        handle: "example",
-        name: "Example",
-        kind: "shared",
-    });
-
-    return accounts;
-}
-
-/** A copy of a fixture package's source with a started builder. */
-export class FixtureSource implements AsyncDisposable {
+/** A copy of a fixture package's source, built on the run's compilers into the persistent store. */
+export class FixtureSource {
     /** The fixture package. */
     readonly name: FixturePackage;
-    /** The directory with the replica. */
+    /** The directory with the copy, beside a link to the workspace's lockfile. */
     readonly directory: string;
-    /** The builder retained across the package's versions. */
-    readonly #builder: Compiler;
+    /** The compilers building the copy into the store. */
+    readonly #compilers: CompilerPool;
     /** The outputs and dependencies the last build compiled, and what it published. */
     #compiled:
-        | (Pick<PackageBuildOptions, "outputs" | "dependencies"> & {
-              history: History;
-              store: LocalStore;
-          })
+        | (Pick<PackageBuildOptions, "outputs" | "dependencies"> & { history: History })
         | undefined;
 
-    /** Take a replica and its started builder. */
-    private constructor(name: FixturePackage, directory: string, builder: Compiler) {
+    /** Take a copy and the compilers building it. */
+    private constructor(name: FixturePackage, directory: string, compilers: CompilerPool) {
         this.name = name;
         this.directory = directory;
-        this.#builder = builder;
+        this.#compilers = compilers;
     }
 
-    /** Replicate a fixture package's source into a directory and start its builder. */
-    static async open(name: FixturePackage, parent: string): Promise<FixtureSource> {
-        const directory = join(parent, name);
-        await cp(fileURLToPath(new URL(`./${name}/`, import.meta.url)), directory, {
-            recursive: true,
-        });
+    /** Copy a fixture package's source below a directory, beside the workspace's lockfile. */
+    static async open(
+        name: FixturePackage,
+        parent: string,
+        compilers: CompilerPool,
+    ): Promise<FixtureSource> {
+        // copy the source, and link the workspace's lockfile beside it as the compilers locate workspaces by it
+        const directory = join(parent, name, "source");
+        const { files } = testHost();
+        await files.copy(fileURLToPath(new URL(`./${name}/`, import.meta.url)), directory);
+        await files.symlink(WORKSPACE_LOCKFILE, join(parent, name, "bun.lock"));
 
-        return new FixtureSource(name, directory, await Compiler.start(directory));
+        return new FixtureSource(name, directory, compilers);
     }
 
-    /** Install the dependencies and build each version's published outputs on their builds. */
+    /** Install the releases it depends on from their archives, and build each version on them. */
     async build(
-        npmrc: string,
+        releases: readonly PackageBuild[],
         versions: readonly string[],
-        store: LocalStore,
     ): Promise<PackageBuild[]> {
-        // install the dependencies
-        await writeFile(join(this.directory, ".npmrc"), npmrc);
-        await run(
-            [
-                process.execPath,
-                "install",
-                "--cache-dir",
-                join(this.directory, "..", "cache", this.name),
-            ],
-            this.directory,
-        );
+        // install each release from its npm archive, as an install from the registry unpacks it
+        for (const release of releases) {
+            await install(release, join(this.directory, "node_modules"));
+        }
         const declaration = schema
             .jsonObject()
             .parse(await readJson(join(this.directory, "package.json")));
         const dependencies = await readReleases(this.directory, declaration);
-        const packageName = schema.string().parse(declaration["name"]);
 
         // build one unbundled module per runtime the package ships, as a build worker does
         const outputs = Object.fromEntries(
-            Object.entries(await readOutputs(this.directory)).map(([name, { kind, runtime }]) => [
-                name,
-                { kind, runtime },
-            ]),
+            Object.entries(outputsOf(await readPackageJson(this.directory, testHost().files))).map(
+                ([name, { kind, runtime }]) => [name, { kind, runtime }],
+            ),
         );
 
-        // build each version with the retained builder, planned from the version before
+        // build each version, planned from the version before
         const builds: PackageBuild[] = [];
         let vocabulary: Vocabulary = {};
         for (const version of versions) {
-            await writeFile(
+            await testHost().files.writeTextFile(
                 join(this.directory, "package.json"),
                 JSON.stringify({ ...declaration, version }),
             );
             const latest = builds.at(-1);
             const history =
                 latest === undefined ? undefined : await History.read(latest.reader, vocabulary);
-            const build = await this.#builder.build({
-                directory: this.directory,
+            const build = await this.#build({
                 outputs,
                 dependencies,
-                store,
                 commit: Commit.parse(COMMIT),
-                ...(history === undefined ? {} : { history: { [packageName]: history } }),
+                ...(history === undefined ? {} : { history }),
             });
             vocabulary = Vocabulary.advance(vocabulary, await build.reader.declarations(), version);
             builds.push(build);
@@ -160,7 +111,6 @@ export class FixtureSource implements AsyncDisposable {
         this.#compiled = {
             outputs,
             dependencies,
-            store,
             history: await History.read(latest.reader, vocabulary),
         };
 
@@ -174,47 +124,57 @@ export class FixtureSource implements AsyncDisposable {
         }
 
         // build the last version again
-        const { outputs, dependencies, store, history } = this.#compiled;
+        const { outputs, dependencies, history } = this.#compiled;
         if (prerelease === undefined) {
-            return await this.#builder.build({
-                directory: this.directory,
-                outputs,
-                dependencies,
-                store,
-            });
+            return await this.#build({ outputs, dependencies });
         }
 
         // author the next version, and build its prerelease planned from the last version
         const path = join(this.directory, "package.json");
         const declaration = schema.jsonObject().parse(await readJson(path));
         const version = Version.next(Version.parse(declaration["version"]));
-        await writeFile(path, JSON.stringify({ ...declaration, version }));
+        await testHost().files.writeTextFile(path, JSON.stringify({ ...declaration, version }));
         const name = schema.string().parse(declaration["name"]);
 
-        return await this.#builder.build({
-            directory: this.directory,
+        return await this.#build({
             outputs,
             dependencies,
-            store,
-            history: { [name]: history },
+            history,
             versions: { [name]: prerelease },
         });
     }
 
-    /** Stop the builder. */
-    [Symbol.asyncDispose](): Promise<void> {
-        return this.#builder[Symbol.asyncDispose]();
+    /** Build the copy with a warm compiler of the pool. */
+    #build(request: Omit<PackageBuildOptions, "directory">): Promise<PackageBuild> {
+        const options = { ...request, directory: this.directory };
+
+        return this.#compilers.use(this.directory, (compiler) => compiler.build(options));
     }
+}
+
+/** Unpack a release's npm archive into a node_modules directory, as npm installs a tarball. */
+async function install(release: PackageBuild, modules: string): Promise<void> {
+    // pack the release as the registry serves it, and write the tarball beside the tree
+    const host = testHost();
+    const archive = await PackageArchive.pack(release.reader, COMMIT, host);
+    const destination = join(modules, archive.metadata.name);
+    await host.files.mkdir(destination, { recursive: true });
+    const tarball = join(modules, `${archive.metadata.name.replace("/", "-")}.tgz`);
+    await host.files.writeFile(tarball, await new Response(archive.open()).bytes());
+
+    // extract its package directory, as every npm tarball roots its files in it
+    await run(["tar", "-xzf", tarball, "-C", destination, "--strip-components=1"], modules);
+    await host.files.remove(tarball);
 }
 
 /** Run a command in a directory, failing with its error output unless it succeeds. */
 export async function run(command: readonly string[], directory: string): Promise<string> {
     // run the command, collecting both outputs
-    const child = Bun.spawn([...command], {
-        cwd: directory,
+    const child = testHost().process.spawn(command, {
+        workingDirectory: directory,
         stdout: "pipe",
         stderr: "pipe",
-        timeout: 60_000,
+        signal: AbortSignal.timeout(RUN_MILLISECONDS),
     });
     const [code, stdout, stderr] = await Promise.all([
         child.exited,
@@ -230,7 +190,7 @@ export async function run(command: readonly string[], directory: string): Promis
 
 /** Read a JSON file. */
 export async function readJson(path: string): Promise<unknown> {
-    return JSON.parse(await readFile(path, "utf8"));
+    return JSON.parse(await testHost().files.readTextFile(path));
 }
 
 /** Resolve the Destack releases a source installed from the forge by their build manifests. */
@@ -245,12 +205,12 @@ async function readReleases(
     const releases: Record<string, DependencyResolution> = {};
     for (const name of Object.keys(declared)) {
         const path = join(directory, "node_modules", name, "build", "manifest.json");
-        const bytes = new Uint8Array(await readFile(path));
+        const bytes = await testHost().files.readFile(path);
         const manifest = PackageManifest.parse(JSON.parse(new TextDecoder().decode(bytes)));
         releases[name] = {
             kind: "destack",
             package: PackageManifest.package(manifest),
-            manifest: await Digest.of(bytes),
+            manifest: await Digest.of(bytes, testHost().crypto),
         };
     }
 

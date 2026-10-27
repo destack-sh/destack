@@ -1,70 +1,248 @@
-import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { Authentication, Caller, principal } from "@destack/access";
-import { claim, ResidencyCode } from "@destack/account/object";
-import type { AccountFixture } from "@destack/account/test";
-import { LocalBucket } from "@destack/bucket/bun";
+import { install } from "@destack/stack/declare";
+import { Account, account, type ResidencyCode } from "@destack/account/object";
+import { principal } from "@destack/access";
+import { integration, Issuer } from "@destack/connection/object";
+import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
+import connectionServer, { connectionShape } from "@destack/connection/server";
+import accountPackage from "@destack/account/package";
+import type { TestPerson } from "@destack/account/test";
 import { PackageClient, PackageStore } from "@destack/build/store";
-import { type Select, Snapshot } from "@destack/db";
-import { TestDatabase, reconciliation } from "@destack/db/test";
-import type { EventStore } from "@destack/event";
-import { ClaimLookup, claimTable, CallError } from "@destack/object";
-import { Health, implementPackage, ObjectStore, RemoteStore, Server } from "@destack/object/server";
-import { testEvents, testCallKey } from "@destack/object/test";
+import { Snapshot, type Select } from "@destack/db";
+import type { Environment } from "@destack/environment";
+import {
+    ClaimLookup,
+    claimTable,
+    InstallationMount,
+    OBJECT_DECLARATION,
+    ObjectDescription,
+    PACKAGE_DECLARATION,
+    PACKAGE_EXPORT,
+    PackageMount,
+} from "@destack/object";
+import { createClient } from "@destack/object/client";
+import { describePackage } from "@destack/object/inspect";
+import objectPackage from "@destack/object/package";
+import type { TestObjectStore } from "@destack/object/test";
 import { Package, PackageName, type PackageId } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import { ResourceContext } from "@destack/resource/context";
-import { createClient } from "@destack/object/client";
-import type { Controller } from "@destack/db";
-import { RequestId, ObjectReference, Scope, Subject, Uplink } from "@destack/sync";
-import { Clock } from "@destack/environment";
-import { type Identifier, schema } from "@destack/schema";
-import { LocalGitStorage } from "../local/index.ts";
-import { packageObject, type Release } from "../object/index.ts";
-import forgePackage from "../package.ts";
-import { Forge } from "../server/index.ts";
-import {
-    bearHome,
-    homeDatabase,
-    homeReplicas,
-    provisionVault,
-    readHome,
-    RESIDENCY,
-    type ResidencyHome,
-} from "./home.ts";
+import { MemoryBuild } from "@destack/package/test";
+import { type Digest, Identifier, present, schema } from "@destack/schema";
+import { join } from "node:path";
+import settingPackage from "@destack/setting/package";
+import { describeSetting } from "@destack/setting/inspect";
+import { binding } from "@destack/stack/object";
+import { TestPackage, TestSpace } from "@destack/stack/test";
+import { RequestId, type Subject } from "@destack/sync";
+import { defineVault } from "@destack/vault/declare";
+import { secret, vault } from "@destack/vault/object";
+import vaultPackage from "@destack/vault/package";
+import { vaultProvider } from "@destack/vault/provider";
+import vaultServer, { secretBindable } from "@destack/vault/server";
+import { onTestFinished } from "@destack/test";
+import { testHost } from "@destack/test/host";
+import { LocalGitStorage, localGitProvider } from "../local/index.ts";
+import { issuer, packageObject, type Release } from "../object/index.ts";
+import forgePackage, { FORGE_INSTALLATION } from "../package.ts";
+import forgeServer from "../server.ts";
+import { claimFollow, standingFollow } from "../server/index.ts";
+import { credentialVault, github, packageBucket, repositoryStorage } from "../stack/index.ts";
+import { gitStorage } from "../storage/index.ts";
+import { GITHUB_API } from "../github/index.ts";
+import { APP_ID, GITHUB_HOST, GitHubStandIn, githubPrivateKey, WEBHOOK_SECRET } from "./github.ts";
 
-/** The file of the forge's database in its directory. */
-const DATABASE_FILE = "forge.db";
+/** The node GitHub's stand-in answers on in the world's network. */
+const GITHUB_NODE = "github";
 
-/** How long a fixture bearer token lasts: a minute, longer than any call of a test. */
-const TOKEN_MILLISECONDS = 60_000;
+/** The port GitHub's hosts answer HTTPS at. */
+const HTTPS_PORT = 443;
 
-/** How long a server drains its requests on close: a second, above any test call's length. */
-const DRAIN_MILLISECONDS = 1000;
+/** The host name the kit's forge listens at for package managers on the host. */
+const LOOPBACK = "127.0.0.1";
 
-/** How long a sweep runs at most: five seconds, above a sweep of a test's few builds. */
-const SWEEP_MILLISECONDS = 5000;
+/** The origin the kit's requests name, which the served home answers at any host. */
+const ORIGIN = "http://forge.test";
 
-/** What a forge fixture keeps across a close: its directory and the installation it serves as. */
-export const ForgeState = schema.object({
-    /** The directory with the database, the bucket and the repositories. */
-    directory: schema.string(),
-    /** The forge's installation in the residency's home. */
-    installation: Subject,
-    /** The residency whose home the forge is installed in. */
-    residency: ResidencyCode,
-    /** The residency's home the forge is installed in. */
-    space: schema.identifier("space"),
-    /** The credential vault the forge consumes in its home. */
-    vault: ObjectReference,
-    /** The account the fixture publishes packages under. */
-    account: schema.identifier("account"),
-    /** The user the fixture publishes as. */
-    user: schema.identifier("user"),
+/** The residency whose home the kit's forge serves in. */
+export const RESIDENCY = "eu";
+
+/** The residencies of the kit's universe: the forge's, and another the forge serves none of. */
+const RESIDENCIES = [
+    { code: RESIDENCY, name: "Europe" },
+    { code: "us", name: "United States" },
+];
+
+/** The account the kit's owner publishes packages under, which scopes their npm names. */
+export const ACCOUNT_ID = schema
+    .identifier("account")
+    .parse("account-00000000-0000-7000-8000-000000000001");
+
+/** The handle of the publishing account, the scope of its packages' npm names. */
+const ACCOUNT_HANDLE = "example";
+
+/** The email the publishing account's owner signs in with. */
+const OWNER_EMAIL = "owner@example.test";
+
+/** The email a person without access to the account signs in with. */
+const STRANGER_EMAIL = "stranger@example.test";
+
+/** The tenants the templates sign in and create once, as most tests take one or two. */
+const TEMPLATE_TENANTS = 2;
+
+/** The tunnel the machines the kit enrolls publish through the residency's relay. */
+const MACHINE_ORIGIN = "https://machine.relay.test/";
+
+/** The vault the residency's stack declares for the platform's secrets. */
+const PLATFORM_VAULT = defineVault({ name: "platform", spec: {} });
+
+/** The forge as the machine ships it, beside the vault, with Git storage below its files. */
+export const FORGE: TestPackage = {
+    handle: forgePackage,
+    build: await MemoryBuild.of(
+        Package.of(forgePackage),
+        [
+            {
+                kind: PACKAGE_DECLARATION,
+                kindPackageId: objectPackage.id,
+                name: PACKAGE_EXPORT,
+                description: describePackage(forgePackage),
+            },
+            ...Object.values(forgePackage.objects).map((type) => ({
+                kind: OBJECT_DECLARATION,
+                kindPackageId: objectPackage.id,
+                name: type.name,
+                description: ObjectDescription.of(type),
+            })),
+            {
+                kind: "setting",
+                kindPackageId: settingPackage.id,
+                name: github.name,
+                description: describeSetting(github),
+            },
+        ],
+        testHost().crypto,
+    ),
+    server: forgeServer,
+    connectors: [],
+    servers: [vaultServer],
+    bindables: [secretBindable],
+    providers: [vaultProvider],
+};
+
+/** Connections as the machine ships them, beside the vault keeping their credentials. */
+export const CONNECTION: TestPackage = {
+    handle: connectionPackage,
+    build: await MemoryBuild.of(
+        Package.of(connectionPackage),
+        [
+            {
+                kind: PACKAGE_DECLARATION,
+                kindPackageId: objectPackage.id,
+                name: PACKAGE_EXPORT,
+                description: describePackage(connectionPackage),
+            },
+            ...Object.values(connectionPackage.objects).map((type) => ({
+                kind: OBJECT_DECLARATION,
+                kindPackageId: objectPackage.id,
+                name: type.name,
+                description: ObjectDescription.of(type),
+            })),
+        ],
+        testHost().crypto,
+    ),
+    server: connectionServer,
+    connectors: [],
+    servers: [vaultServer],
+    bindables: [secretBindable],
+    providers: [vaultProvider],
+};
+
+/** The vault of an account's home that its connections keep their credentials in. */
+const CONNECTION_VAULT = defineVault({ name: "credentials", spec: {} });
+
+/** An account's home stack as the platform declares it: its connections and their vault. */
+const ACCOUNT_STACK = {
+    vaults: { credentials: { ...CONNECTION_VAULT.declare(), scope: "enclosing" as const } },
+    installations: {
+        connection: install(connectionPackage, {}, { name: CONNECTION_INSTALLATION }),
+    },
+};
+
+/** Where the fixture GitHub App's setup returns to after an installation. */
+const SETUP_URL = "https://forge.test/github/setup";
+
+/** The packages whose types the home's stack declares. */
+const HOME_TYPES = [vaultPackage, forgePackage, gitStorage] as const;
+
+/** The home's stack, as the residency's declares it: the forge with its resources and issuer. */
+const HOME_STACK = {
+    vaults: { platform: PLATFORM_VAULT.declare(), credentials: credentialVault.declare() },
+    buckets: { packages: packageBucket.declare() },
+    gitStorages: { repositories: repositoryStorage.declare() },
+    issuers: { github: {} },
+    secrets: {
+        "github-webhook": { parent: "platform", name: "github-webhook" },
+        "github-private-key": { parent: "platform", name: "github-private-key" },
+    },
+    installations: {
+        forge: install(
+            forgePackage,
+            {
+                packages: "packages",
+                repositories: "repositories",
+                credentials: "credentials",
+                "github-webhook": "github-webhook",
+                "github-private-key": "github-private-key",
+            },
+            { name: FORGE_INSTALLATION },
+        ),
+    },
+};
+
+/** The residency's home the kit's tests copy: the forge with the vault's tables and Git storage. */
+const HOME_OPTIONS = {
+    residencies: RESIDENCIES,
+    ...TestPackage.options([FORGE]),
+    packages: [...TestPackage.options([FORGE]).packages, vaultPackage],
+    tables: gitStorage.tables,
+    // replicate the connections the forge follows as its installation, beside its names and callers
+    follows: [{ shape: connectionShape, keys: [] }, claimFollow, standingFollow],
+    policies: Object.values(forgePackage.objects).map((object) => object.policy),
+    resources: (directory: string, environment: Environment<"files" | "process" | "host">) => ({
+        providers: [localGitProvider(directory, gitStorage, environment)],
+        connectors: [LocalGitStorage.connector(directory, environment)],
+    }),
+};
+
+/** What the kit's world shares: the forge installation in the residency's home. */
+const ForgeWorld = schema.object({
+    /** The forge's installation. */
+    installation: schema.identifier("installation"),
+    /** The accounts of the tenants the template created, in order. */
+    tenants: schema.array(schema.identifier("account")),
 });
-/** What a forge fixture keeps across a close. */
-export type ForgeState = schema.Infer<typeof ForgeState>;
+
+/** What the kit's world shares. */
+type ForgeWorld = schema.Infer<typeof ForgeWorld>;
+
+/** The template of the residency's home serving the forge and its GitHub App. */
+export const FORGE_TEMPLATE = TestSpace.template(HOME_OPTIONS, {
+    name: "forge",
+    value: ForgeWorld,
+    spaces: [{ residency: RESIDENCY }],
+    write: (home) => TestForge.write(home),
+});
+
+/** An account of one test with its owner, a viewer of its repositories and a stranger to it. */
+export interface Tenant {
+    /** The account. */
+    readonly accountId: Identifier<"account">;
+    /** The account's owner. */
+    readonly owner: TestPerson;
+    /** A person viewing the account, who reads and pulls its repositories. */
+    readonly reader: TestPerson;
+    /** A person without access to the account. */
+    readonly stranger: TestPerson;
+}
 
 /** A package the forge published: its build and release. */
 export interface Published {
@@ -73,261 +251,570 @@ export interface Published {
     /** The package's identity. */
     readonly packageId: PackageId;
     /** The digest of the release's build manifest. */
-    readonly manifest: string;
+    readonly manifest: Digest;
     /** The release as its creation returned it. */
     readonly release: Release;
 }
 
-/** The forge package installed in a residency's home of a universe, served in memory over HTTP. */
-export class ForgeFixture implements AsyncDisposable {
-    /** What the fixture keeps across a close. */
-    readonly state: ForgeState;
-    /** The forge's database with packages, releases and tags. */
-    readonly storage: TestDatabase;
-    /** The universe's account package, which the forge follows and calls. */
-    readonly accounts: AccountFixture;
-    /** The bucket with immutable package files and archives. */
-    readonly bucket: LocalBucket;
-    /** The store of builds and npm archives the forge serves. */
-    readonly store: PackageStore;
-    /** The directory's names the forge resolves packages through. */
-    readonly claims: ClaimLookup;
-    /** The residency home's store the forge extends. */
-    readonly objects: ObjectStore;
-    /** The forge's origin, with no trailing slash. */
-    readonly origin: string;
-    /** The residency's home the forge is installed in. */
-    readonly space: Identifier<"space">;
-    /** Aborted with the controllers' first failure, such as a refused replica, failing settles. */
-    readonly #failure = new AbortController();
-    /** The packages published so far. */
+/** The forge installed in a residency's home, publishing as the owner of an account. */
+export class TestForge {
+    /** The residency's home serving the forge. */
+    readonly home: TestSpace;
+    /** The home as its machine serves it. */
+    readonly served: TestObjectStore;
+    /** The forge's installation in the home. */
+    readonly installation: Identifier<"installation">;
+    /** GitHub, as the world's stand-in answers at its hosts. */
+    readonly github: GitHubStandIn;
+    /** The owner of the publishing account, on the client they last signed in on. */
+    #owner: TestPerson;
+    /** The accounts of the template's tenants, taken in order. */
+    readonly #templated: readonly Identifier<"account">[];
+    /** The tenants the kit took or created, which number their people and handles. */
+    #tenants = 0;
+    /** The packages the kit created, by identity. */
     readonly #created = new Set<string>();
-    /** The controller sweeping the store, which tests run by hand. */
-    readonly #sweep: Controller;
-    /** The time the forge's clock reads during a sweep, absent while it reads the system's. */
-    #sweptAt: number | undefined;
-    /** The server serving the forge. */
-    readonly #server: Server;
-    /** The HTTP server passing requests to the server. */
-    readonly #http: Bun.Server<undefined>;
 
-    /** Serve the forge over its opened database and bucket. */
-    private constructor(
-        state: ForgeState,
-        storage: TestDatabase,
-        accounts: AccountFixture,
-        bucket: LocalBucket,
-        home: ResidencyHome,
-        events: EventStore,
-    ) {
-        // keep the state, the databases and the bucket
-        this.state = state;
-        this.space = state.space;
-        this.storage = storage;
-        this.accounts = accounts;
-        this.bucket = bucket;
-
-        // listen before serving, for the npm endpoints to know their URL
-        this.#http = Bun.serve({
-            hostname: "127.0.0.1",
-            port: 0,
-            fetch: (request) => this.#server.fetch(request),
-        });
-        this.origin = `http://127.0.0.1:${this.#http.port}`;
-
-        // extend the residency home's store with the forge, with no repository connected through an account's connection
-        const { installation } = state;
-        const client = accounts.installation(installation);
-        const uplink = Uplink.of(() => client.store);
-        this.store = new PackageStore(bucket);
-        this.claims = ClaimLookup.of(Snapshot.live(accounts.database).read(claimTable));
-        const forge = new Forge({
-            home: home.id,
-            store: this.store,
-            endpoint: new URL(this.origin),
-            storage: new LocalGitStorage(join(state.directory, "repository")),
-            vault: state.vault,
-            consumer: installation,
-        });
-
-        // follow and call the account package as the installation, beside the home's own replicas
-        const { follows, ...placed } = homeReplicas(home, state.residency, uplink);
-        const definition = forge.definition();
-        this.objects = new ObjectStore({
-            servers: [
-                implementPackage(forgePackage, {
-                    ...definition,
-                    follows: [...(definition.follows ?? []), ...follows],
-                }),
-            ],
-            clock: { ...Clock.system, now: () => this.#sweptAt ?? Date.now() },
-            principal: installation,
-            database: storage.database,
-            callKey: testCallKey,
-            events,
-            origin: { package: Package.of(forgePackage) },
-            claims: {
-                object: claim,
-                home: RemoteStore.of(client.store, Scope.universe.id),
-            },
-            uplink,
-            ...placed,
-        });
-
-        // run every controller but the sweep, which tests run at their time
-        const implementation = this.objects.package(forgePackage);
-        const controllers = implementation.controllers ?? [];
-        const sweep = controllers.find((controller) => controller.name === "forge-sweep");
-        if (sweep === undefined) {
-            throw new TypeError("the forge runs no sweep");
-        }
-        this.#sweep = sweep;
-
-        // serve the forge to the user of a bearer token, and to anonymous callers
-        this.#server = Server.start({
-            clock: this.objects.clock,
-            ...implementation,
-            controllers: controllers.filter((controller) => controller !== sweep),
-            resources: new ResourceContext(),
-            health: new Health("forge"),
-            authenticate: async (request) => ForgeFixture.#authenticate(request),
-            authorizeMachine: async () => {},
-            drainTimeout: DRAIN_MILLISECONDS,
-            report: (error) => this.#failure.abort(error),
-        });
+    /** Keep a served home and the forge it installs. */
+    private constructor(fields: {
+        readonly home: TestSpace;
+        readonly served: TestObjectStore;
+        readonly installation: Identifier<"installation">;
+        readonly github: GitHubStandIn;
+        readonly owner: TestPerson;
+        readonly tenants: readonly Identifier<"account">[];
+    }) {
+        // keep the home, how it is served, the forge's installation, GitHub, the publisher and the tenants
+        this.home = fields.home;
+        this.served = fields.served;
+        this.installation = fields.installation;
+        this.github = fields.github;
+        this.#owner = fields.owner;
+        this.#templated = fields.tenants;
     }
 
-    /** Install the forge in a residency's home, publishing as a user under an account. */
-    static async create(
-        accounts: AccountFixture,
-        options: {
-            /** The user the fixture publishes as. */
-            readonly user: Identifier<"user">;
-            /** The account the fixture publishes packages under, the home's own by default. */
-            readonly account?: Identifier<"account">;
-            /** The residency whose home the forge is installed in, eu by default. */
-            readonly residency?: ResidencyCode;
-            /** The directory the forge keeps its files in, a fresh one by default. */
-            readonly directory?: string;
-        },
-    ): Promise<ForgeFixture> {
-        // install the forge in the residency's home, provisioning its vault
-        const directory = options.directory ?? (await mkdtemp(join(tmpdir(), "destack-forge-")));
-        await mkdir(directory, { recursive: true });
-        const storage = await TestDatabase.at(join(directory, DATABASE_FILE), homeDatabase);
-        const residency = options.residency ?? RESIDENCY;
-        const installation = await accounts.install([], residency);
-        const home = await readHome(accounts, installation.scope);
-        const vault = await provisionVault(storage.database, home.id, installation);
-        const state: ForgeState = {
-            directory,
-            installation,
-            residency,
-            space: home.id,
-            vault,
-            account: options.account ?? schema.identifier("account").parse(home.scope),
-            user: options.user,
-        };
-        const forge = await ForgeFixture.#serve(state, storage, accounts, home);
-
-        // replicate the home's account chain, then give birth to the home below it, as its machine does
-        await forge.settle();
-        await bearHome(forge.objects, home);
-        await forge.settle();
-
-        return forge;
+    /** The owner of the publishing account. */
+    get owner(): TestPerson {
+        return this.#owner;
     }
 
-    /** Serve a copy of a closed forge's state in a fresh directory. */
-    static async open(accounts: AccountFixture, state: ForgeState): Promise<ForgeFixture> {
-        // copy the state's directory
-        const directory = await mkdtemp(join(tmpdir(), "destack-forge-"));
-        await cp(state.directory, directory, { recursive: true });
-        const copied = { ...state, directory };
+    /** Sign the owner in again on a new client, as a person does once their session lapsed. */
+    async signOwnerIn(): Promise<TestPerson> {
+        this.#owner = await this.signIn(OWNER_EMAIL);
 
-        // serve it over the copied database
-        const storage = await TestDatabase.at(join(directory, DATABASE_FILE), homeDatabase);
-        const home = await readHome(accounts, state.space);
-        const forge = await ForgeFixture.#serve(copied, storage, accounts, home);
-        await forge.settle();
-
-        return forge;
+        return this.#owner;
     }
 
-    /** Serve the forge over a state's database and bucket, with the events of its database. */
-    static async #serve(
-        state: ForgeState,
-        storage: TestDatabase,
-        accounts: AccountFixture,
-        home: ResidencyHome,
-    ): Promise<ForgeFixture> {
-        const bucket = await LocalBucket.open(
-            join(state.directory, "bucket"),
-            "space-test",
-            Clock.system,
+    /** The residency's home, which stores every package of its residency. */
+    get space(): Identifier<"space"> {
+        return this.home.id;
+    }
+
+    /** The npm registry's URL the forge names in its documents, below its installation's mount. */
+    get npm(): string {
+        const mounted = InstallationMount.url(
+            this.home.host.machine.origin,
+            this.space,
+            this.installation,
         );
-        const events = await testEvents(storage.database);
 
-        return new ForgeFixture(state, storage, accounts, bucket, home, events);
+        return `${mounted}${PackageMount.path(forgePackage.id)}${forgePackage.adapters.npm.path}`;
     }
 
-    /** Connect to the forge as a user, or anonymously. */
-    client(user?: Identifier<"user">) {
-        return createClient(forgePackage, {
-            url: this.origin,
-            headers: user === undefined ? {} : { authorization: `Bearer ${user}` },
+    /** Write the npm configuration selecting the forge's registry for a scope as the owner. */
+    async npmrc(scope: string): Promise<string> {
+        // select the registry for the scope, authenticated as the owner calling the forge in its home
+        const url = new URL(`${this.npm}/`);
+        const { accessToken } = await this.owner.exchange(forgePackage.id, {
+            partition: this.space,
         });
+
+        return `${scope}:registry=${url.href}\n//${url.host}${url.pathname}:_authToken=${accessToken}\n`;
     }
 
-    /** Connect to the forge as a machine's builds and the account package read its releases. */
-    get registry(): {
+    /** The origin the kit's requests name. */
+    get origin(): string {
+        return ORIGIN;
+    }
+
+    /** The world the home's servers run in. */
+    get environment(): Environment {
+        return this.served.environment;
+    }
+
+    /** Serve a copy of the template's home with the forge installed, in a fork of its world. */
+    static async open(): Promise<TestForge> {
+        // copy the home, with GitHub answering in its world
+        const { space: home, world } = await TestSpace.copy(FORGE_TEMPLATE, HOME_OPTIONS);
+        const standIn = TestForge.#github(home);
+
+        // serve it with the forge
+        const served = await home.serve();
+        const owner = home.universe.person(OWNER_EMAIL);
+        const { installation, tenants } = world;
+
+        return new TestForge({ home, served, installation, github: standIn, owner, tenants });
+    }
+
+    /** Answer as GitHub at its API and Git hosts on the world's network until the test ends. */
+    static #github(home: TestSpace): GitHubStandIn {
+        const standIn = new GitHubStandIn(home.environment);
+        for (const hostname of [GITHUB_API.hostname, GITHUB_HOST]) {
+            const listener = home.simulation.network.server(GITHUB_NODE).http({
+                hostname,
+                port: HTTPS_PORT,
+                fetch: (request) => standIn.fetch(request),
+            });
+            onTestFinished(() => listener.stop(true));
+        }
+
+        return standIn;
+    }
+
+    /** Run the forge's GitHub App: its key and webhook secret, and its setting. */
+    static async #runGitHubApp(home: TestSpace): Promise<void> {
+        // write the App's key and webhook secret into the platform vault as the operator stepped up
+        const configuring = await home.serve();
+        const operator = await home.universe.elevate(await home.universe.operator());
+        const vaults = home.person(configuring, operator).client(vaultPackage);
+        const values = {
+            "github-private-key": githubPrivateKey(),
+            "github-webhook": WEBHOOK_SECRET,
+        };
+        for (const [name, value] of Object.entries(values)) {
+            const row = await Snapshot.live(configuring.database)
+                .read(secret.table)
+                .findFirst({ where: { name } });
+            const { id } = present(row, `the platform secret ${name}`);
+            const version = await vaults.version.create({
+                scope: home.id,
+                parentId: id,
+                requestId: RequestId.create(home.environment),
+                value: { encoding: "text", value },
+            });
+            await vaults.secret.update({
+                scope: home.id,
+                id,
+                requestId: RequestId.create(home.environment),
+                currentVersion: version.number,
+            });
+        }
+
+        // select the App in the forge's setting, then stop serving for the forge to restart with it
+        await home.apply(configuring, HOME_TYPES, {
+            ...HOME_STACK,
+            settings: {
+                github: {
+                    ...github.reference,
+                    value: { kind: "app", appId: APP_ID },
+                    mode: "set",
+                },
+            },
+        });
+        await configuring[Symbol.asyncDispose]();
+    }
+
+    /** Serve a copy of the forge on a loopback port of the host, for package managers. */
+    static async listen(): Promise<TestForge> {
+        // listen first, for the machine to publish the port as where it answers
+        const opened = Promise.withResolvers<TestForge>();
+        const listener = testHost().server.http({
+            hostname: LOOPBACK,
+            port: 0,
+            fetch: async (request) => (await opened.promise).home.gateway.answer(request),
+        });
+        onTestFinished(() => listener.stop(true));
+
+        // copy the home answering there, and serve it with the forge
+        const origin = listener.url.origin;
+        const { space: home, world } = await TestSpace.copy(FORGE_TEMPLATE, {
+            ...HOME_OPTIONS,
+            origin,
+        });
+        const standIn = TestForge.#github(home);
+        const served = await home.serve();
+        const owner = home.universe.person(OWNER_EMAIL);
+        const { installation, tenants } = world;
+        const forge = new TestForge({
+            home,
+            served,
+            installation,
+            github: standIn,
+            owner,
+            tenants,
+        });
+        opened.resolve(forge);
+
+        return forge;
+    }
+
+    /** Write the kit's world: the forge, its GitHub App, the publishing account and the tenants. */
+    static async write(home: TestSpace): Promise<ForgeWorld> {
+        // install the forge with its vaults, bucket, Git storage and secrets, as the residency's stack declares it
+        const { issuers: _issuers, ...declared } = HOME_STACK;
+        const born = await home.serve();
+        await home.apply(born, HOME_TYPES, declared);
+        await home.serveInstalled(born.store, home.id);
+        await born[Symbol.asyncDispose]();
+
+        // declare the GitHub App's issuer once the home serves the forge's types, as the machine's restart does
+        const installing = await home.serve();
+        await home.apply(installing, HOME_TYPES, HOME_STACK);
+        await installing.settle();
+
+        // create the publishing account as its owner, then stop serving
+        const owner = await home.universe.signIn(OWNER_EMAIL);
+        await owner.client(accountPackage).account.create({
+            scope: owner.subject.id,
+            id: ACCOUNT_ID,
+            requestId: RequestId.create(home.environment),
+            handle: ACCOUNT_HANDLE,
+            name: "Example",
+            kind: "shared",
+            residencyId: RESIDENCY,
+        });
+        // sign in and create the tenants most tests take, and the stranger to them
+        const tenants: Identifier<"account">[] = [];
+        for (let index = 1; index <= TEMPLATE_TENANTS; index += 1) {
+            const created = await TestForge.#createTenant(home, `tenant-${index}`, RESIDENCY);
+            tenants.push(created.accountId);
+        }
+        await home.universe.signIn(STRANGER_EMAIL);
+        await home.settle(installing);
+        const installation = await TestForge.#installation(installing);
+        await installing[Symbol.asyncDispose]();
+
+        // run the GitHub App, as the platform does
+        await TestForge.#runGitHubApp(home);
+
+        return { installation, tenants };
+    }
+
+    /** Read the forge's installation in the home from its binding of the package bucket. */
+    static async #installation(served: TestObjectStore): Promise<Identifier<"installation">> {
+        const rows = await Snapshot.live(served.database)
+            .read(binding.table)
+            .findMany({ where: { packageId: forgePackage.id, name: packageBucket.name } });
+
+        return present(rows[0], "the forge's bucket binding").installationId;
+    }
+
+    /** Call the forge as a person with their client's token, or anonymously. */
+    client(person?: TestPerson) {
+        return createClient(forgePackage, this.endpoint(person), this.environment);
+    }
+
+    /** Address the forge's package as a person with their token, or anonymously. */
+    endpoint(person?: TestPerson): {
         readonly url: string;
-        readonly space: string;
         readonly fetch: (request: Request) => Promise<Response>;
     } {
-        return { url: this.origin, space: this.space, fetch: (request) => fetch(request) };
+        // sign a person's requests with their token, and send anonymous ones as they are
+        const server = this.served.server(forgePackage);
+        const signed =
+            person === undefined
+                ? (request: Request) => server.fetch(request)
+                : this.home.person(this.served, person).endpoint(forgePackage).fetch;
+
+        return { url: ORIGIN, fetch: signed };
     }
 
-    /** Publish a build as the fixture's user under its account, creating the package once. */
+    /** Read one of the forge's adapters below its path as a person, or anonymously. */
+    fetch(path: string, init: RequestInit = {}, person?: TestPerson): Promise<Response> {
+        const { url, fetch } = this.endpoint(person);
+
+        return fetch(new Request(`${url}${path}`, init));
+    }
+
+    /** Publish a build as the owner, its units and referrers from a store, creating its package. */
     async publish(
         reader: BuildReader,
         visibility: Select<typeof packageObject.table>["visibility"] = "private",
+        store?: PackageStore,
     ): Promise<Published> {
         // create the package under the build's identity and name once
-        const { account, user } = this.state;
-        const home = this.space;
-        const publisher = this.client(user);
+        const publisher = this.client(this.owner);
         const packageId = PackageManifest.package(reader.manifest).id;
         const { local: name } = PackageName.split(reader.manifest.package.name);
         if (!this.#created.has(packageId)) {
             await publisher.package.create({
-                spaceId: home,
-                accountId: account,
+                spaceId: this.space,
+                accountId: ACCOUNT_ID,
                 id: packageId,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(this.environment),
                 name,
                 visibility,
             });
             this.#created.add(packageId);
         }
 
-        // push the build and release it
-        const manifest = await this.push(reader);
+        // push the build, after its npm units from a store, whose runtime builds the forge derives itself
+        const uploads = this.builds(packageId);
+        const manifest = await PackageStore.digest(reader.manifest, this.environment.crypto);
+        if (store === undefined) {
+            await uploads.push(reader);
+        } else {
+            for (const subject of [...(await store.units(manifest, packageId)), manifest]) {
+                await uploads.push(subject === manifest ? reader : await store.contents(subject));
+            }
+        }
         const release = await publisher.release.create({
-            spaceId: home,
-            requestId: RequestId.create(Date.now()),
+            spaceId: this.space,
+            requestId: RequestId.create(this.environment),
             parentId: packageId,
             manifest,
         });
 
-        return { reader, packageId, manifest, release };
+        return { reader, packageId, manifest: release.manifest, release };
     }
 
-    /** Push a build as the fixture's user, returning its manifest's digest. */
-    push(reader: BuildReader): Promise<string> {
-        return this.builds(this.state.user, PackageManifest.package(reader.manifest).id).push(
-            reader,
+    /** Push a build as a person, the owner by default, returning its manifest's digest. */
+    push(reader: BuildReader, person: TestPerson = this.owner): Promise<Digest> {
+        return this.builds(PackageManifest.package(reader.manifest).id, person).push(reader);
+    }
+
+    /** Connect to the forge's uploads below a package as a person, the owner by default. */
+    builds(packageId: string, person: TestPerson = this.owner): PackageClient {
+        const { url, fetch } = this.endpoint(person);
+
+        return new PackageClient(
+            `${url}${forgePackage.adapters.builds.path}/${packageId}/`,
+            fetch,
+            this.environment.crypto,
         );
+    }
+
+    /** Open the store of builds and npm archives the forge keeps in its bound bucket. */
+    async store(): Promise<PackageStore> {
+        // read the bucket the forge's binding targets, and open it from the home's buckets
+        const rows = await Snapshot.live(this.served.database)
+            .read(binding.table)
+            .findMany({ where: { installationId: this.installation, name: packageBucket.name } });
+        const target = present(rows[0], "the forge's bucket binding").target;
+        const buckets = await this.home.buckets();
+        const bucket = await buckets.open(
+            { bucketId: schema.identifier("bucket").parse(target) },
+            this.space,
+        );
+
+        return new PackageStore(bucket, this.environment);
+    }
+
+    /** Sign a person in at the universe, such as a stranger to the account. */
+    signIn(email: string): Promise<TestPerson> {
+        return this.home.universe.signIn(email);
+    }
+
+    /** Restore the person without access to the account, whom the template signed in. */
+    stranger(): TestPerson {
+        return this.home.universe.person(STRANGER_EMAIL);
+    }
+
+    /** Locate the forge's releases as a machine's registry reads them, as a person or the owner. */
+    registry(person: TestPerson = this.owner): {
+        readonly url: string;
+        readonly space: string;
+        readonly fetch: (request: Request) => Promise<Response>;
+    } {
+        return { url: ORIGIN, space: this.space, fetch: this.endpoint(person).fetch };
+    }
+
+    /** Take the template's next tenant of its residency, else create an account of a new owner. */
+    async tenant(residency: ResidencyCode = RESIDENCY): Promise<Tenant> {
+        // take the template's next tenant, restoring its owner and viewer
+        this.#tenants += 1;
+        const handle = `tenant-${this.#tenants}`;
+        const templated = residency === RESIDENCY ? this.#templated[this.#tenants - 1] : undefined;
+        const { universe } = this.home;
+        if (templated !== undefined) {
+            return {
+                accountId: templated,
+                owner: universe.person(`${handle}@example.test`),
+                reader: universe.person(`${handle}-reader@example.test`),
+                stranger: this.stranger(),
+            };
+        }
+
+        // create one past the template's, once the home has it
+        const created = await TestForge.#createTenant(
+            this.home,
+            `tenant-${this.#tenants + TEMPLATE_TENANTS}`,
+            residency,
+        );
+        await this.settle();
+
+        return { ...created, stranger: this.stranger() };
+    }
+
+    /** Sign an account's owner and viewer in, and create the account as its owner. */
+    static async #createTenant(
+        home: TestSpace,
+        handle: string,
+        residency: ResidencyCode,
+    ): Promise<Omit<Tenant, "stranger">> {
+        // sign the owner and the viewer in, and create the account as its owner
+        const owner = await home.universe.signIn(`${handle}@example.test`);
+        const reader = await home.universe.signIn(`${handle}-reader@example.test`);
+        const created = await owner.client(accountPackage).account.create({
+            scope: owner.subject.id,
+            requestId: RequestId.create(home.environment),
+            handle,
+            name: "Tenant",
+            kind: "shared",
+            residencyId: residency,
+        });
+
+        // let the viewer read and pull the account's repositories
+        await owner.client(objectPackage).relationship.create({
+            scope: owner.subject.id,
+            requestId: RequestId.create(home.environment),
+            object: account.reference(owner.subject.id, created.id),
+            relation: "viewer",
+            subject: reader.subject,
+        });
+
+        return { accountId: created.id, owner, reader };
+    }
+
+    /** Connect a tenant's account to a GitHub App installation as its owner, bound to the forge. */
+    async connect(tenant: Tenant, installation: number): Promise<Identifier<"connection">> {
+        // host the account's home with its connections and their vault in the account
+        const home = await TestSpace.open({
+            world: this.home,
+            machine: this.home.machine,
+            owner: tenant.owner,
+            account: tenant.accountId,
+            id: Account.home(tenant.accountId),
+            ...TestPackage.options([CONNECTION]),
+        });
+        const born = await home.serve();
+        await home.apply(born, [vaultPackage], ACCOUNT_STACK);
+        await home.serveInstalled(born.store, home.id);
+        await born[Symbol.asyncDispose]();
+
+        // serve it again with the connections installed, as the machine's restart does
+        const served = await home.serve();
+        const row = await Snapshot.live(served.database)
+            .read(vault.table)
+            .findFirst({ where: { scope: tenant.accountId } });
+        const credentials = vault.reference(
+            tenant.accountId,
+            present(row, "the account's vault").id,
+        );
+
+        // register the forge's App and create the installation's connection as the owner
+        const scope = tenant.accountId;
+        const owner = home.person(served, tenant.owner, tenant.accountId).client(connectionPackage);
+        const id = await Issuer.declared({ id: this.space }, "github", this.environment.crypto);
+        const app = await owner.integration.create({
+            scope,
+            requestId: RequestId.create(this.environment),
+            issuer: {
+                kind: "installation",
+                package: Package.of(forgePackage),
+                name: FORGE_INSTALLATION,
+                issuer: issuer.reference(this.space, id),
+            },
+            endpoints: {
+                installation: `https://${GITHUB_HOST}/apps/fixture/installations/new`,
+                isIssuerReturned: false,
+            },
+            clientId: APP_ID,
+            authentication: "none",
+            redirectUris: [SETUP_URL],
+        });
+        const created = await owner.connection.create({
+            scope,
+            requestId: RequestId.create(this.environment),
+            protocol: { kind: "installation" },
+            integration: integration.reference(scope, app.id),
+            vault: credentials,
+        });
+
+        // authorize it, complete GitHub's setup redirect, and bind it to the forge
+        const { url } = await owner.connection.authorize({
+            scope,
+            id: created.id,
+            requestId: RequestId.create(this.environment),
+            redirectUri: SETUP_URL,
+        });
+        const state = present(new URL(url).searchParams.get("state"), "the installation's state");
+        await owner.connection.complete({
+            scope,
+            id: created.id,
+            requestId: RequestId.create(this.environment),
+            parameters: { installation_id: String(installation), setup_action: "install", state },
+        });
+        await owner.connection.bindConsumer({
+            scope,
+            id: created.id,
+            requestId: RequestId.create(this.environment),
+            consumer: principal.installation.reference(this.space, this.installation),
+        });
+        await this.settle();
+
+        return created.id;
+    }
+
+    /** Enroll a machine of an account as a person, published through the residency's relay. */
+    async machine(
+        accountId: Identifier<"account">,
+        person: TestPerson,
+    ): Promise<Identifier<"machine">> {
+        const enrolled = await this.home.universe.enroll(person, accountId, MACHINE_ORIGIN);
+        await this.settle();
+
+        return enrolled.id;
+    }
+
+    /** Create a space of an account as a person, once the home replicates it. */
+    async createSpace(
+        accountId: Identifier<"account">,
+        person: TestPerson,
+    ): Promise<Identifier<"space">> {
+        // create the space as the person, then settle its placement
+        const id = Identifier.create("space", this.environment);
+        await person.client(accountPackage).space.create({
+            accountId,
+            id,
+            requestId: RequestId.create(this.environment),
+            name: `space-${id.slice(-12)}`,
+        });
+        await this.settle();
+
+        return id;
+    }
+
+    /** Call the forge as a principal its stores verify, such as a machine or a space. */
+    as(subject: Subject) {
+        return this.served.as(subject).client(forgePackage);
+    }
+
+    /** Open the forge's platform repositories as its bound Git storage keeps them. */
+    async storage(): Promise<LocalGitStorage> {
+        const rows = await Snapshot.live(this.served.database)
+            .read(binding.table)
+            .findMany({
+                where: { installationId: this.installation, name: repositoryStorage.name },
+            });
+        const target = present(rows[0], "the forge's Git storage binding").target;
+
+        return new LocalGitStorage(join(this.home.resources, target), this.home.environment);
+    }
+
+    /** Look up the universe's names, such as the claims of packages' identities. */
+    get claims(): ClaimLookup {
+        return ClaimLookup.of(Snapshot.live(this.home.universe.storage.database).read(claimTable));
+    }
+
+    /** Settle the universe and the home until their replicas and controllers rest. */
+    settle(): Promise<void> {
+        return this.home.settle(this.served);
+    }
+
+    /** Jump the home's world to a time, waking the forge's sweep once it is due. */
+    sweep(to: number): Promise<void> {
+        return this.home.jump(this.served, to);
     }
 
     /** Read the build of a package's release, by version or tag, as an anonymous reader. */
@@ -338,90 +825,6 @@ export class ForgeFixture implements AsyncDisposable {
             release,
         });
 
-        return this.store.contents(resolved.manifest);
-    }
-
-    /** Connect to the forge's uploads below a package as a user. */
-    builds(user: Identifier<"user">, packageId: string): PackageClient {
-        return new PackageClient(
-            `${this.origin}${forgePackage.adapters.builds.path}/${packageId}/`,
-            (request) => {
-                const headers = new Headers(request.headers);
-                headers.set("authorization", `Bearer ${user}`);
-
-                return fetch(new Request(request, { headers }));
-            },
-        );
-    }
-
-    /** Write the npm configuration selecting this registry for a scope with the fixture's user. */
-    npmrc(scope: string): string {
-        const url = new URL(`${this.origin}${forgePackage.adapters.npm.path}/`);
-
-        return `${scope}:registry=${url.href}\n//${url.host}${url.pathname}:_authToken=${this.state.user}\n`;
-    }
-
-    /** Sweep the forge's store through its controller at a time, in UTC epoch milliseconds. */
-    async sweep(now: number): Promise<void> {
-        // read the time on the forge's clock for the sweep alone
-        this.#sweptAt = now;
-        try {
-            await this.#sweep.reconcile(
-                "store",
-                reconciliation(AbortSignal.timeout(SWEEP_MILLISECONDS)),
-            );
-        } finally {
-            this.#sweptAt = undefined;
-        }
-    }
-
-    /** Wait until the forge's replicas reflect the account package as of now. */
-    async settle(): Promise<void> {
-        await this.accounts.settle(this.objects, this.#failure.signal);
-    }
-
-    /** Stop serving, keeping the database and files in the state's directory. */
-    async close(): Promise<ForgeState> {
-        // stop serving, then write the database's log into its file for a copy
-        await this.#http.stop(true);
-        await this.#server.close();
-        await this.bucket[Symbol.asyncDispose]();
-        await this.storage.database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
-        await this.storage.close();
-
-        return this.state;
-    }
-
-    /** Stop serving and remove the directory. */
-    async [Symbol.asyncDispose](): Promise<void> {
-        await this.close();
-        await rm(this.state.directory, { recursive: true, force: true });
-    }
-
-    /** Verify a request's bearer token as the user it carries, for a minute. */
-    static #authenticate(request: Request): Authentication | undefined {
-        // read the user the token carries
-        const token = /^Bearer (.+)$/u.exec(request.headers.get("authorization") ?? "")?.[1];
-        if (token === undefined) {
-            return undefined;
-        }
-        const user = schema.identifier("user").safeParse(token);
-        if (!user.success) {
-            throw new CallError("UNAUTHORIZED", { message: "the bearer token carries no user" });
-        }
-
-        // authenticate as the user
-        const now = Date.now();
-
-        return {
-            caller: Caller.of(principal.user.reference(Scope.universe.id, user.data)),
-            credential: {
-                kind: "fixture",
-                id: "fixture-1",
-                audience: packageObject.policy.definition.packageId,
-                verifiedAt: now,
-                expiresAt: now + TOKEN_MILLISECONDS,
-            },
-        };
+        return (await this.store()).contents(resolved.manifest);
     }
 }

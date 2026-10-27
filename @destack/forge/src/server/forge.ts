@@ -1,29 +1,28 @@
 import { Caller, principal } from "@destack/access";
-import { Directory } from "@destack/account/address";
-import { account, claimShape } from "@destack/account/object";
 import { connectionShape, Runner } from "@destack/connection/server";
 import { PackageStore } from "@destack/build/store";
 import { eq, inArray, sql, type DatabaseConnection, Snapshot, Transaction } from "@destack/db";
+import { Directory } from "@destack/account/address";
+import { account, claimShape, spaceRecordShape } from "@destack/account/object";
 import {
     Claim,
-    ClaimLookup,
     claimTable,
-    Follow,
+    type MethodContext,
     type ObjectType,
     type Fetch,
+    Follow,
     PackageMount,
-    conceal,
     CallError,
     RequestBody,
 } from "@destack/object";
 import type { ObjectStore, ImplementationInput, RequestContext } from "@destack/object/server";
 import { PackageId, PackageName } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
-import { type Identifier, present, schema } from "@destack/schema";
+import { type Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
-import type { ServerContext } from "@destack/object/workload";
+import type { InstalledServerContext } from "@destack/object/workload";
 import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
-import { packageObject, reference, release, repository } from "../object/index.ts";
+import { packageObject, reference, release, repository, unit } from "../object/index.ts";
 import forgePackage from "../package.ts";
 import { github } from "../stack/setting.ts";
 import {
@@ -34,7 +33,7 @@ import {
     repositoryStorage,
 } from "../stack/index.ts";
 import type { GitStorage } from "../storage/index.ts";
-import { GitHubController } from "./github-controller.ts";
+import { ForgeError, type ForgeReason } from "../error/index.ts";
 import { NpmServer } from "./npm-server.ts";
 import { implementPackageObject } from "./package.ts";
 import { implementRelease } from "./release.ts";
@@ -42,13 +41,12 @@ import { implementRepository } from "./repository.ts";
 import { SWEEP_INTERVAL_MILLISECONDS, SweepController } from "./sweep-controller.ts";
 import { implementTag } from "./tag.ts";
 import { implementIssuer } from "./issuer.ts";
-import { Clock } from "@destack/environment";
-
-/** How long an unreleased pushed build survives sweeps: two weeks, Git's gc.pruneExpire. */
-export const UNRELEASED_MILLISECONDS = 14 * 24 * 60 * 60 * 1000;
 
 /** How long the forge follows a read name: an hour, at most 2 renewals and 300 B per name. */
 const CLAIM_TTL = { hours: 1 } as const;
+
+/** How long an unreleased pushed build survives sweeps: two weeks, Git's gc.pruneExpire. */
+export const UNRELEASED_MILLISECONDS = 14 * 24 * 60 * 60 * 1000;
 
 /** The home, stores, URL and GitHub App the forge serves with. */
 export interface ForgeOptions {
@@ -63,23 +61,29 @@ export interface ForgeOptions {
     /** The GitHub App that opens repositories connected through its installations. */
     readonly github?: GitHubApp;
     /** The fetch calling Git remotes. */
-    readonly fetch?: Fetch;
+    readonly fetch: Fetch;
     /** The forge's own vault, which stores the credentials of Git remotes. */
     readonly vault: ObjectReference;
-    /** The forge installation, the one consumer reading those credentials. */
-    readonly consumer: Subject;
+    /** The forge's installation, the consumer its accounts bind their connections to. */
+    readonly installation: Subject;
 }
 
-/** Follow the connection of each live repository from its account's home. */
-const connectionFollow = repository.follow(connectionShape, {
-    where: { connectionId: { isNotNull: true }, deletedAt: { isNull: true } },
-    key: async (row) => ({
-        key: { scope: row.accountId, id: present(row.connectionId, "a connection") },
-    }),
-});
+/** How long the forge follows a calling space's row: an hour, 2 renewals and 1 KB per space. */
+const STANDING_TTL = { hours: 1 } as const;
+
+/** Follow the row of each space calling the forge, which places it inside its account. */
+export const standingFollow = Follow.of(spaceRecordShape, { onDemand: { ttl: STANDING_TTL } });
 
 /** Follow the universe's claims of account handles and package names as the forge reads them. */
 export const claimFollow = Follow.of(claimShape, { onDemand: { ttl: CLAIM_TTL } });
+
+/** The reads a name lookup takes: claims it follows on demand, and the replicated rows. */
+export interface ClaimReader {
+    /** Follow a claim's key on demand, until its rows are here. */
+    readonly acquire: MethodContext["acquire"];
+    /** Read the replicated rows. */
+    readonly read: Snapshot["read"];
+}
 
 /** The forge's repositories and packages as objects. */
 export class Forge {
@@ -108,20 +112,24 @@ export class Forge {
             implementRepository({
                 storage: options.storage,
                 github: hosting,
-                fetch: options.fetch ?? globalThis.fetch,
+                fetch: options.fetch,
                 vault: options.vault,
-                consumer: options.consumer,
             }),
             reference,
-            implementPackageObject(options.home),
-            implementRelease({ store: options.store, home: options.home }),
+            implementPackageObject(),
+            implementRelease({ store: options.store }),
             implementTag(),
-            ...(options.github === undefined ? [] : [implementIssuer(options.github)]),
+            unit,
+            implementIssuer(options.github),
         ];
     }
 
     /** Run a read, reporting a refusal or a missing object as missing with a message. */
-    static async conceal<Result>(message: string, read: () => Promise<Result>): Promise<Result> {
+    static async conceal<Result>(
+        reason: ForgeReason,
+        message: string,
+        read: () => Promise<Result>,
+    ): Promise<Result> {
         try {
             return await read();
         } catch (error) {
@@ -131,12 +139,12 @@ export class Forge {
                 throw error;
             }
 
-            throw conceal(known, message);
+            throw ForgeError.of(reason, message, { cause: known });
         }
     }
 
     /** Serve the forge as its installation: its bound storages, its GitHub App, and its URL. */
-    static of(context: ServerContext): Forge {
+    static of(context: InstalledServerContext): Forge {
         // open the GitHub App the installation's setting selects
         const fetch = (request: Request) => context.fetch(request);
         const app = github.read(context.settings);
@@ -149,36 +157,30 @@ export class Forge {
                       secret: context.resources.get(githubWebhookSecret),
                       api: GITHUB_API,
                       fetch,
-                      clock: Clock.system,
+                      environment: context.environment,
                   });
 
         // serve npm and builds below the forge's package on the installation's URL
         return new Forge({
-            home: schema.identifier("space").parse(context.space),
-            store: new PackageStore(context.resources.get(packageBucket)),
+            home: schema.identifier("space").parse(context.scope),
+            store: new PackageStore(context.resources.get(packageBucket), context.environment),
             endpoint: new URL(`${context.url}${PackageMount.path(forgePackage.id)}`),
             storage: context.resources.get(repositoryStorage),
             ...(hosting === undefined ? {} : { github: hosting }),
             fetch,
             vault: context.resources.get(credentialVault).reference,
-            consumer: principal.installation.reference(context.space, context.installation),
+            installation: principal.installation.reference(context.scope, context.installation),
         });
     }
 
     /** Define the forge's server: its objects, follows, controllers and adapters. */
     definition(): ImplementationInput<typeof forgePackage> {
-        const hosting = this.#github;
-
         return {
             objects: this.handled,
-            follows: [connectionFollow, claimFollow],
-            // sweep the store, and identify GitHub repositories where the universe runs a GitHub App
-            controllers: [
-                (store) => new SweepController(this, store),
-                ...(hosting === undefined
-                    ? []
-                    : [(store: ObjectStore) => new GitHubController(store, hosting)]),
-            ],
+            follows: [this.#connectionFollow(), claimFollow],
+            standing: [standingFollow],
+            // sweep the store
+            controllers: [(store) => new SweepController(this, store)],
             // answer npm reads, builds and the GitHub App's deliveries
             adapters: {
                 npm: (request, _caller, context, store) =>
@@ -189,18 +191,35 @@ export class Forge {
         };
     }
 
+    /** Follow the connection of each live repository from its account's home, as its consumer. */
+    #connectionFollow() {
+        const { installation } = this.#options;
+
+        return repository.follow(connectionShape, {
+            where: { connectionId: { isNotNull: true }, deletedAt: { isNull: true } },
+            key: async (row) => ({
+                key: { scope: row.accountId, id: present(row.connectionId, "a connection") },
+                subject: installation,
+            }),
+        });
+    }
+
     /** Delete the pushed builds and archives no release in a database lists. */
     async sweep(now: number, database: DatabaseConnection): Promise<void> {
         // read the manifests and archives releases reference, by the digests the store lists
         const table = release.table;
         const archive = sql<string>`${table.distribution} ->> 'digest'`;
         const manifests = async (digests: readonly string[]) => {
-            const rows = await database
+            const released = await database
                 .select({ digest: table.manifest })
                 .from(table)
                 .where(inArray(table.manifest, digests));
+            const units = await database
+                .select({ digest: unit.table.manifest })
+                .from(unit.table)
+                .where(inArray(unit.table.manifest, digests));
 
-            return new Set(rows.map((row) => row.digest));
+            return new Set([...released, ...units].map((row) => row.digest));
         };
         const archives = async (digests: readonly string[]) => {
             const rows = await database
@@ -221,6 +240,37 @@ export class Forge {
         );
     }
 
+    /** Find the package claiming a global name in a forge's home, following the claims it needs. */
+    static async package(
+        name: string,
+        reader: ClaimReader,
+        home: Identifier<"space">,
+    ): Promise<ObjectReference> {
+        // resolve the account handle, refusing an unclaimed one
+        const { handle, local } = PackageName.split(name);
+        await Forge.#acquire(reader, Claim.key(account, "handle", [handle]));
+        const accountId = await new Directory(reader).account(handle);
+        if (accountId === undefined) {
+            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+        }
+
+        // find the package claiming the name within the account
+        const keyed = Claim.key(packageObject, "name", [accountId, local]);
+        await Forge.#acquire(reader, keyed);
+        const found = await Claim.owner(reader.read(claimTable), keyed);
+        if (found === undefined) {
+            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+        }
+
+        // refer to the package in the forge's home
+        return { ...packageObject.reference(home, found.objectId), id: found.objectId };
+    }
+
+    /** Follow a claim's key at the universe on demand. */
+    static #acquire(reader: ClaimReader, claim: ReturnType<typeof Claim.key>): Promise<void> {
+        return reader.acquire(claimFollow, { key: { scope: Scope.universe.id, ...claim } });
+    }
+
     /** Find the package of a global name, reporting one the caller may not read as missing. */
     async find(
         name: string,
@@ -228,18 +278,13 @@ export class Forge {
         objects: ObjectStore,
     ): Promise<ObjectReference> {
         // read the package as the caller, concealing a refusal
-        const found = await Forge.named(
-            name,
-            this.#options.home,
-            (claim) =>
-                objects.acquire(
-                    claimFollow,
-                    { key: { scope: Scope.universe.id, ...claim } },
-                    context.signal,
-                ),
-            Snapshot.live(objects.database),
-        );
-        await Forge.conceal("package not found", () =>
+        const view = Snapshot.live(objects.database);
+        const reader: ClaimReader = {
+            acquire: (follow, at) => objects.acquire(follow, at, context.signal),
+            read: (table) => view.read(table),
+        };
+        const found = await Forge.package(name, reader, this.#options.home);
+        await Forge.conceal("PACKAGE_NOT_FOUND", "package not found", () =>
             objects.query(
                 context.access(found.scope),
                 packageObject.call("get", { spaceId: found.scope, id: found.id }),
@@ -254,7 +299,7 @@ export class Forge {
         // refuse a delivery without a GitHub App, and one that is no POST
         const hosting = this.#github;
         if (hosting === undefined) {
-            throw new CallError("NOT_FOUND", { message: "the forge runs no GitHub App" });
+            throw ForgeError.of("GITHUB_WEBHOOK_MISSING", "the forge has no GitHub App");
         } else if (request.method !== "POST") {
             return new Response(null, { status: 405 });
         }
@@ -268,7 +313,6 @@ export class Forge {
     /** Receive a delivery of the forge's GitHub App signed with its webhook secret. */
     async #receive(request: Request, objects: ObjectStore, hosting: GitHubHosting): Promise<void> {
         // read the repositories the delivery changes, none for a ping
-        const now = objects.clock.now();
         const changed = await hosting.receive(request, Runner.of(objects));
         if (changed.length === 0) {
             return;
@@ -277,9 +321,9 @@ export class Forge {
         // refresh them, observing references as they are now
         request.signal.throwIfAborted();
         await objects.mutate(
-            objects.serving(repository),
+            objects.as(repository),
             {
-                id: RequestId.create(now),
+                id: RequestId.create(objects.environment),
                 calls: changed.map((row) => repository.call("refresh", repository.target(row))),
             },
             { component: "github" },
@@ -295,8 +339,6 @@ export class Forge {
         return this.store.fetch(request, new URL("/", this.#options.endpoint), {
             authorize: async (_request, digest) => {
                 await this.#readable(digest, context, objects);
-
-                return {};
             },
             upload: async (upload, scope) => this.#authorizeUpload(upload, scope, context, objects),
         });
@@ -311,16 +353,16 @@ export class Forge {
     ): Promise<void> {
         // require an identified caller uploading below a package
         if (Caller.isAnonymous(context.access())) {
-            throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
+            throw ForgeError.of("CREDENTIAL_MISSING", "missing caller credential");
         }
         const packageId = PackageId.safeParse(scope);
         if (!packageId.success) {
-            throw new CallError("NOT_FOUND", { message: "upload below a package" });
+            throw ForgeError.of("UPLOAD_OUTSIDE_PACKAGE", "uploads must target a package");
         }
 
         // require publish on the package, as a release's creation does
         if (!(await this.#isPublisher(packageId.data, context, objects))) {
-            throw new CallError("NOT_FOUND", { message: "package not found" });
+            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
         }
         await Forge.#requirePushedPackage(request, packageId.data);
     }
@@ -356,26 +398,41 @@ export class Forge {
         return decision.isAllowed;
     }
 
-    /** Require a release of a build whose package the caller reads, yanked ones included. */
-    async #readable(digest: string, context: RequestContext, objects: ObjectStore): Promise<void> {
-        // find a release of the build
+    /** Require a readable release of a build, or one listing it as a unit, yanked ones included. */
+    async #readable(digest: Digest, context: RequestContext, objects: ObjectStore): Promise<void> {
+        // find the releases of the build, and those listing it as a unit
         const table = release.table;
-        const [published] = await objects.database
+        const released = await objects.database
             .select({ scope: table.scope, id: table.id })
             .from(table)
-            .where(eq(table.manifest, digest))
-            .limit(1);
-        if (published === undefined) {
-            throw new CallError("NOT_FOUND", { message: "build not found" });
-        }
+            .where(eq(table.manifest, digest));
+        const listing = await objects.database
+            .select({ scope: unit.table.scope, id: unit.table.parentId })
+            .from(unit.table)
+            .where(eq(unit.table.manifest, digest));
 
-        // read the release as the caller, concealing a refusal
-        await Forge.conceal("build not found", () =>
-            objects.query(
-                context.access(published.scope),
-                release.call("get", { spaceId: published.scope, id: published.id }),
-            ),
-        );
+        // pass at the first release the caller reads, concealing every refusal
+        for (const published of [...released, ...listing]) {
+            const isReadable = await Forge.conceal("BUILD_NOT_FOUND", "build not found", () =>
+                objects.query(
+                    context.access(published.scope),
+                    release.call("get", { spaceId: published.scope, id: published.id }),
+                ),
+            ).then(
+                () => true,
+                (error: unknown) => {
+                    if (!ForgeError.is(error, "BUILD_NOT_FOUND")) {
+                        throw error;
+                    }
+
+                    return false;
+                },
+            );
+            if (isReadable) {
+                return;
+            }
+        }
+        throw ForgeError.of("BUILD_NOT_FOUND", "build not found");
     }
 
     /** Require a pushed manifest to belong to the package it is uploaded below. */
@@ -389,40 +446,15 @@ export class Forge {
         const value = await RequestBody.json(request.clone(), "the pushed manifest");
         const parsed = PackageManifest.safeParse(value);
         if (!parsed.success) {
-            throw new CallError("BAD_REQUEST", { message: "the pushed manifest is invalid" });
+            throw ForgeError.of("MANIFEST_INVALID", "the pushed manifest is invalid");
         }
-        // refuse a manifest of another package
-        else if (PackageManifest.package(parsed.data).id !== packageId) {
-            throw new CallError("BAD_REQUEST", {
-                message: `the pushed manifest belongs to ${PackageManifest.package(parsed.data).id}, not ${packageId}`,
-            });
+        // refuse a Destack manifest of another package, passing an npm unit's for the release that lists it
+        const pushed = parsed.data.package;
+        if ("id" in pushed && pushed.id !== packageId) {
+            throw ForgeError.of(
+                "FOREIGN_MANIFEST",
+                `the pushed manifest belongs to ${pushed.id}, not ${packageId}`,
+            );
         }
-    }
-
-    /** Find the package with a global name `@<account handle>/<name>` through its claims. */
-    static async named(
-        name: string,
-        home: Identifier<"space">,
-        acquire: (claim: Pick<Claim, "index" | "key">) => Promise<void>,
-        view: Pick<Snapshot, "read">,
-    ): Promise<ObjectReference> {
-        // resolve the account handle, refusing an unclaimed one
-        const { handle, local } = PackageName.split(name);
-        await acquire(Claim.key(account, "handle", [handle]));
-        const accountId = await new Directory(view).account(handle);
-        if (accountId === undefined) {
-            throw new CallError("NOT_FOUND", { message: "package not found" });
-        }
-
-        // find the package claiming the name within the account
-        const keyed = Claim.key(packageObject, "name", [accountId, local]);
-        await acquire(keyed);
-        const found = await ClaimLookup.of(view.read(claimTable)).owner(keyed.index, keyed.key);
-        if (found === undefined) {
-            throw new CallError("NOT_FOUND", { message: "package not found" });
-        }
-
-        // refer to the package in the forge's space, which stores every package of its residency
-        return { ...packageObject.reference(home, found.objectId), id: found.objectId };
     }
 }

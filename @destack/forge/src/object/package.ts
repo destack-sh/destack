@@ -6,7 +6,7 @@ import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { PackageId, PackageName } from "@destack/package";
 import { Vocabulary } from "@destack/resource";
-import { CallError } from "@destack/object";
+import { ForgeError } from "../error/index.ts";
 import { validRange } from "semver";
 
 /** The longest package name in an account: npm's 214 minus a 63 character handle, `@` and `/`. */
@@ -29,7 +29,7 @@ export const TagName = Object.assign(tagName, {
     /** Require a tag name that no version range reads as a range. */
     require(name: string): void {
         if (validRange(name) !== null) {
-            throw new CallError("BAD_REQUEST", { message: `invalid distribution tag: ${name}` });
+            throw ForgeError.of("TAG_INVALID", `invalid distribution tag: ${name}`);
         }
     },
 });
@@ -71,7 +71,7 @@ export const packageObject = defineObject(
                 through("account", "read"),
             ),
             discover: resource({ visibility: "public" }),
-            publish: through("account", "manage"),
+            publish: through("account", "publish"),
         },
         constraints: {
             name: {
@@ -104,7 +104,7 @@ export const packageObject = defineObject(
         /** Point a distribution tag at a published version, creating the tag the first time. */
         point: method.mutation({
             permission: "publish",
-            isInternal: true,
+            visibility: "package",
             input: schema.object({
                 /** The distribution tag. */
                 name: TagName,
@@ -112,7 +112,7 @@ export const packageObject = defineObject(
                 version: schema.string(),
             }),
         }),
-        advance: method.update("publish", { isInternal: true, fields: ["vocabulary"] }),
+        advance: method.update("publish", { visibility: "package", fields: ["vocabulary"] }),
         update: method.update("publish", { fields: ["visibility"] }),
     }),
 );

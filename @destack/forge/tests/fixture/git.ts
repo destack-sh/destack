@@ -1,11 +1,13 @@
 import { onTestFinished } from "@destack/test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { testHost } from "@destack/test/host";
+
+/** The host the fixture repositories live on, which runs git. */
+const host = testHost();
 
 /** The environment of fixture git commands: no configuration, a fixed identity and time. */
 const ENVIRONMENT = {
-    ...process.env,
+    ...host.process.variables,
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_CONFIG_GLOBAL: "/dev/null",
     GIT_AUTHOR_NAME: "Ada",
@@ -33,16 +35,23 @@ async function run(
     arguments_: readonly string[],
     input: string,
 ): Promise<string> {
-    const process = Bun.spawn(["git", "-C", directory, ...arguments_], {
-        env: ENVIRONMENT,
-        stdin: new TextEncoder().encode(input),
+    const child = host.process.spawn(["git", "-C", directory, ...arguments_], {
+        variables: ENVIRONMENT,
+        stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
     });
+
+    // write the input and close it
+    const writer = child.stdin.getWriter();
+    await writer.write(new TextEncoder().encode(input));
+    await writer.close();
+
+    // read the output, the errors and the exit code
     const [output, errors, code] = await Promise.all([
-        new Response(process.stdout).text(),
-        new Response(process.stderr).text(),
-        process.exited,
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+        child.exited,
     ]);
     if (code !== 0) {
         throw new Error(`git ${arguments_.join(" ")} failed: ${errors}`);
@@ -53,8 +62,8 @@ async function run(
 
 /** Create a temporary directory removed when the test finishes. */
 export async function temporary(prefix: string): Promise<string> {
-    const directory = await mkdtemp(join(tmpdir(), prefix));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    const directory = await host.files.makeTemporaryDirectory(prefix);
+    onTestFinished(() => host.files.remove(directory, { recursive: true, force: true }));
 
     return directory;
 }
@@ -79,7 +88,7 @@ export class Worktree {
 
     /** Commit one file's text, returning the commit. */
     async commit(file: string, text: string): Promise<string> {
-        await writeFile(join(this.directory, file), text);
+        await host.files.writeTextFile(join(this.directory, file), text);
         await git(this.directory, "add", file);
         await git(this.directory, "commit", "--quiet", "--message", `write ${file}`);
 
@@ -149,12 +158,12 @@ function data(text: string): string {
 
 /** Serve a repository's smart HTTP reference advertisement like git http-backend. */
 export async function advertise(repository: string): Promise<Uint8Array<ArrayBuffer>> {
-    const process = Bun.spawn(
+    const child = host.process.spawn(
         ["git", "upload-pack", "--stateless-rpc", "--advertise-refs", repository],
-        { env: ENVIRONMENT, stdout: "pipe" },
+        { variables: ENVIRONMENT, stdout: "pipe" },
     );
-    const advertised = new Uint8Array(await new Response(process.stdout).arrayBuffer());
-    await process.exited;
+    const advertised = new Uint8Array(await new Response(child.stdout).arrayBuffer());
+    await child.exited;
     const service = new TextEncoder().encode("001e# service=git-upload-pack\n0000");
 
     return new Uint8Array([...service, ...advertised]);

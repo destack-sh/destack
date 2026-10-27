@@ -1,13 +1,15 @@
-import type { Select } from "@destack/db";
-import { BATCH_LIMIT, type MethodContextOf } from "@destack/object";
+import { type Select, Snapshot } from "@destack/db";
+import { BATCH_LIMIT, type MethodContextOf, ObjectWatch } from "@destack/object";
+import { connection } from "@destack/connection";
+import { present } from "@destack/schema";
 import type { Runner } from "@destack/connection/server";
 import type { Lease, LeaseMode } from "@destack/resource";
 import type { Fetch } from "@destack/object";
-import { CallError } from "@destack/object";
+import { ForgeError } from "../error/index.ts";
 
 import { SecretReading } from "@destack/vault";
 import { secret, vault } from "@destack/vault/object";
-import { type Call, ObjectReference, type Subject } from "@destack/sync";
+import { type Call, ObjectReference } from "@destack/sync";
 import type { GitHubHosting } from "../github/index.ts";
 import {
     type GitRemoteCredential,
@@ -44,13 +46,12 @@ export interface RepositoryOptions {
     readonly fetch: Fetch;
     /** The forge's own vault, which stores the credentials of Git remotes. */
     readonly vault: ObjectReference;
-    /** The forge installation, the one consumer reading those credentials. */
-    readonly consumer: Subject;
 }
 
 /** Implement repositories. */
 export function implementRepository(options: RepositoryOptions): typeof repository {
     const hosting = new RepositoryHosting(options);
+    const { github } = options;
 
     return repository.implement({
         methods: {
@@ -109,9 +110,7 @@ export function implementRepository(options: RepositoryOptions): typeof reposito
                     // require the revision a moved origin was prepared at
                     const move = context.prepared;
                     if (move !== null && context.target.revision !== move.revision) {
-                        throw new CallError("CONFLICT", {
-                            message: "repository revision has changed",
-                        });
+                        throw ForgeError.of("REVISION_STALE", "repository revision has changed");
                     }
 
                     // change the repository, and its origin when it moves
@@ -156,6 +155,52 @@ export function implementRepository(options: RepositoryOptions): typeof reposito
                 },
             },
         },
+        // identify each live GitHub repository at GitHub once the forge has its connection's replica
+        ...(github === undefined
+            ? {}
+            : {
+                  controller: {
+                      pending: {
+                          hosting: "github",
+                          providerRepositoryId: { isNull: true },
+                          deletedAt: { isNull: true },
+                      },
+                      // identify an account's waiting repositories again as their connection's replica changes
+                      watches: [
+                          ObjectWatch.of(connection.table, async (row, database) => {
+                              const rows = await Snapshot.live(database)
+                                  .read(repository.table)
+                                  .findMany({
+                                      where: { connectionId: row.id, hosting: "github" },
+                                  });
+
+                              return rows.map((each) => ({ id: each.id }));
+                          }),
+                      ],
+                      reconcile: async (reconciliation): Promise<undefined> => {
+                          for (const row of reconciliation.rows) {
+                              // identify the repository once its connection's replica names an installation
+                              const reader = Snapshot.live(reconciliation.database);
+                              const connectionId = present(
+                                  row.connectionId,
+                                  `the connection of GitHub repository ${row.id}`,
+                              );
+                              const found = await github.installation(
+                                  reader,
+                                  row.accountId,
+                                  connectionId,
+                              );
+                              if (found !== undefined) {
+                                  await reconciliation.mutate([
+                                      repository.call("identify", repository.target(row)),
+                                  ]);
+                              }
+                          }
+
+                          return undefined;
+                      },
+                  },
+              }),
     });
 }
 
@@ -169,28 +214,26 @@ class RepositoryHosting {
     readonly #fetch: Fetch;
     /** The forge's own vault, which stores the credentials of Git remotes. */
     readonly #vault: ObjectReference;
-    /** The forge installation, the one consumer reading those credentials. */
-    readonly #consumer: Subject;
 
     /** Host repositories in a storage, at GitHub and at Git remotes. */
     constructor(options: RepositoryOptions) {
-        // take the storage, GitHub, the fetch, the vault and the forge as its consumer
+        // take the storage, GitHub, the fetch and the vault
         this.github = options.github;
         this.#storage = options.storage;
         this.#fetch = options.fetch;
         this.#vault = options.vault;
-        this.#consumer = options.consumer;
     }
 
     /** Require a credential exactly for a Git remote authenticating by credential. */
     static requireCredential(origin: RepositoryOrigin, credential: unknown): void {
         const isCredential = origin.hosting === "git" && origin.authentication === "credential";
         if (isCredential !== (credential !== undefined)) {
-            throw new CallError("BAD_REQUEST", {
-                message: isCredential
+            throw ForgeError.of(
+                "CREDENTIAL_MISMATCH",
+                isCredential
                     ? "a git remote authenticating by credential needs its credential"
                     : "only a git remote authenticating by credential takes a credential",
-            });
+            );
         }
     }
 
@@ -201,7 +244,6 @@ class RepositoryHosting {
             secret: RepositoryHosting.#secret(id),
             name: id,
             value: { encoding: "text", value: `${credential.user}:${credential.password}` },
-            consumer: this.#consumer,
         });
     }
 
@@ -210,7 +252,6 @@ class RepositoryHosting {
         return vault.call("remove", {
             ...vault.target(this.#vault),
             secret: RepositoryHosting.#secret(id),
-            consumer: this.#consumer,
         });
     }
 
@@ -221,14 +262,20 @@ class RepositoryHosting {
 
     /** Read the columns of a new origin, creating a platform repository in storage. */
     async create(id: string, origin: RepositoryOrigin): Promise<OriginColumns> {
-        // create a platform repository in storage before its record commits
+        // create a platform repository in storage before its record commits, refusing while its storage fails
         if (origin.hosting === "platform") {
+            const remote = await this.#storage.create(id).catch((error: unknown) => {
+                throw ForgeError.of("STORAGE_UNAVAILABLE", "repository storage is unavailable", {
+                    cause: error,
+                });
+            });
+
             return {
                 ...OriginColumns.blank,
                 hosting: "platform",
                 provider: this.#storage.provider,
                 providerRepositoryId: id,
-                remote: await this.#storage.create(id),
+                remote,
             };
         }
         // record a machine by its identifier
@@ -252,9 +299,10 @@ class RepositoryHosting {
 
         // move GitHub and Git repositories only, between GitHub and Git origins
         if (target.hosting !== "github" && target.hosting !== "git") {
-            throw new CallError("BAD_REQUEST", {
-                message: `${target.hosting} repositories do not move`,
-            });
+            throw ForgeError.of(
+                "IMMOVABLE_REPOSITORY",
+                `${target.hosting} repositories cannot move`,
+            );
         }
         const merged = Object.fromEntries(
             ORIGIN_FIELDS.map((name) => [
@@ -264,16 +312,20 @@ class RepositoryHosting {
         );
         const moved = RepositoryOrigin.read(merged);
         if (moved.hosting !== "github" && moved.hosting !== "git") {
-            throw new CallError("BAD_REQUEST", {
-                message: `${target.hosting} repositories do not move to ${moved.hosting} origins`,
-            });
+            throw ForgeError.of(
+                "IMMOVABLE_REPOSITORY",
+                `${target.hosting} repositories cannot move to ${moved.hosting} origins`,
+            );
         }
 
         return { revision: target.revision, columns: { ...OriginColumns.blank, ...moved } };
     }
 
     /** List an origin's references through storage or Git's advertisement. */
-    async list(target: Row, runner: Pick<Runner, "query" | "self" | "read">): Promise<GitListing> {
+    async list(
+        target: Row,
+        runner: Pick<Runner, "query" | "self" | "read" | "now">,
+    ): Promise<GitListing> {
         // list a platform repository in the storage
         if (target.hosting === "platform") {
             return this.#storage.references(this.#storageId(target));
@@ -288,7 +340,7 @@ class RepositoryHosting {
     async lease(
         target: Row,
         mode: LeaseMode,
-        runner: Pick<Runner, "query" | "self" | "read">,
+        runner: Pick<Runner, "query" | "self" | "read" | "now">,
     ): Promise<Lease> {
         // lease a platform repository through the storage
         if (target.hosting === "platform") {
@@ -300,15 +352,14 @@ class RepositoryHosting {
         }
         // leave machine repositories to their machine
         else if (target.hosting === "machine") {
-            throw new CallError("BAD_REQUEST", {
-                message: "machine repositories are refreshed and opened through their machine",
-            });
+            throw ForgeError.of(
+                "MACHINE_REPOSITORY",
+                "machine repositories are refreshed and opened through their machine",
+            );
         }
         // refuse pushing to an anonymous remote, for which the platform has no credential
         else if (target.authentication === "anonymous" && mode === "write") {
-            throw new CallError("BAD_REQUEST", {
-                message: "anonymous remotes take no push credentials",
-            });
+            throw ForgeError.of("ANONYMOUS_PUSH", "anonymous remotes do not take push credentials");
         }
         // pull an anonymous remote unchanged
         else if (target.authentication === "anonymous") {
@@ -341,9 +392,10 @@ class RepositoryHosting {
     /** Read the repositories hosted at GitHub, refused in a universe running no GitHub App. */
     requireGitHub(): GitHubHosting {
         if (this.github === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: "this universe runs no github app for github repositories",
-            });
+            throw ForgeError.of(
+                "GITHUB_APP_MISSING",
+                "this universe has no github app for github repositories",
+            );
         }
 
         return this.github;
@@ -352,25 +404,27 @@ class RepositoryHosting {
     /** Read a remote's stored `user:password` credential as Basic authentication headers. */
     async #basic(
         target: Row,
-        runner: Pick<Runner, "query" | "self" | "read">,
+        runner: Pick<Runner, "query" | "self" | "read" | "now">,
     ): Promise<Readonly<Record<string, string>>> {
         // read the credential's current version through the forge's vault, as its consumer
         const stored = { scope: this.#vault.scope, id: RepositoryHosting.#secret(target.id) };
         const read = secret.call("read", secret.target(stored));
         const { value } = SecretReading.parse(await runner.query(runner.self, read));
         if (value.encoding !== "text") {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `the secret of repository ${target.id} lacks a text value`,
-            });
+            throw ForgeError.of(
+                "SECRET_TEXT_MISSING",
+                `the secret of repository ${target.id} has no text value`,
+            );
         }
         const credential = value.value;
 
         // require a user and a password, as Basic authentication sends them
         const separator = credential.indexOf(":");
         if (separator < 1) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `the secret of repository ${target.id} is no user:password credential`,
-            });
+            throw ForgeError.of(
+                "CREDENTIAL_INVALID",
+                `the secret of repository ${target.id} is not a user:password credential`,
+            );
         }
 
         return GitCredential.basic(credential.slice(0, separator), credential.slice(separator + 1));
@@ -380,13 +434,14 @@ class RepositoryHosting {
     #storageId(columns: Pick<OriginColumns, "provider" | "providerRepositoryId">): string {
         // refuse repositories of another storage
         if (columns.provider !== this.#storage.provider) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `repository is stored by ${columns.provider}, this forge stores ${this.#storage.provider}`,
-            });
+            throw ForgeError.of(
+                "FOREIGN_STORAGE",
+                `repository is stored by ${columns.provider}, but this forge uses ${this.#storage.provider}`,
+            );
         }
         // refuse a platform repository without its storage identifier
         else if (columns.providerRepositoryId === null) {
-            throw new TypeError("platform repository lacks a storage identifier");
+            throw new TypeError("platform repository has no storage identifier");
         }
 
         return columns.providerRepositoryId;

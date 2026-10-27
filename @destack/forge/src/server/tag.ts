@@ -1,6 +1,6 @@
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { Identifier } from "@destack/schema";
-import { CallError } from "@destack/object";
+import { ForgeError } from "../error/index.ts";
 import { release, tag, TagName } from "../object/index.ts";
 
 /** Implement distribution tags. */
@@ -51,9 +51,7 @@ const TagMethod = {
             .read(release)
             .findMany({ where: { parentId: packageId, version, yankedAt: { isNull: true } } });
         if (found === undefined) {
-            throw new CallError("NOT_FOUND", {
-                message: "distribution tag target is unpublished",
-            });
+            throw ForgeError.of("UNPUBLISHED_TARGET", "distribution tag target is not published");
         }
     },
 };

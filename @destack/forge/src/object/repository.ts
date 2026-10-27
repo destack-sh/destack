@@ -4,8 +4,9 @@ import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { Lease, LeaseMode } from "@destack/resource";
 import { schema, present } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { GitListing } from "../storage/storage.ts";
+import type {} from "@destack/package/import-meta";
+import { ForgeError } from "../error/index.ts";
 
 /** Where a repository's authoritative history lives. */
 const HOSTINGS = ["platform", "github", "git", "machine"] as const;
@@ -60,10 +61,10 @@ export const RepositoryOrigin = Object.assign(repositoryOrigin, {
         );
         const parsed = repositoryOrigin.safeParse(given);
         if (!parsed.success) {
-            throw new CallError("BAD_REQUEST", {
-                message: "repository origin is no platform, github, git or machine origin",
-                data: { issues: parsed.error.issues },
-            });
+            throw ForgeError.of(
+                "ORIGIN_INVALID",
+                "repository origin is not a platform, github, git or machine origin",
+            );
         }
 
         return parsed.data;

@@ -1,4 +1,4 @@
-import { Digest, type JsonObject } from "@destack/schema";
+import { Digest, type DigestCrypto, type JsonObject } from "@destack/schema";
 import { type ObjectReference } from "@destack/sync";
 import { isUnchanged } from "@destack/build/store";
 import type { JsonCondition } from "@destack/db";
@@ -6,14 +6,13 @@ import { ListPage, type CallInput } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { PackageName } from "@destack/package";
 import { CallError } from "@destack/object";
+import { ForgeError } from "../error/index.ts";
 import type { RequestContext } from "@destack/object/server";
-import { SpanStatusCode, telemetry } from "@destack/telemetry";
+import { SpanStatusCode, TelemetryScope, trace } from "@destack/telemetry";
 import { release, tag, type Release, type Tag } from "../object/index.ts";
 import forgePackage from "../package.ts";
 import type { Forge } from "./forge.ts";
-
-/** Instruments for npm HTTP requests. */
-const { tracer, logger } = telemetry.scope(import.meta.destack.package);
+import type {} from "@destack/package/import-meta";
 
 /** The rows one page of a list reads, the most a list returns. */
 const PAGE_ROWS = 1000;
@@ -50,7 +49,13 @@ export class NpmServer {
 
     /** Answer an npm read, its path below the npm adapter's. */
     async answer(request: Request, context: RequestContext): Promise<Response> {
-        return await tracer.startActiveSpan("forge.npm", async (span) => {
+        // answer in a span of the object store's telemetry
+        const { telemetry } = this.#objects.environment;
+        const { tracer, logger } = TelemetryScope.of(import.meta.destack.package, telemetry);
+        const parent = telemetry.context.active();
+        const span = tracer.startSpan("forge.npm", {}, parent);
+
+        return await telemetry.context.with(trace.setSpan(parent, span), async () => {
             try {
                 return await this.#serve(request, context);
             } catch (error) {
@@ -69,6 +74,7 @@ export class NpmServer {
                 logger.emit({
                     severityText: "ERROR",
                     body: "Registry request failed",
+                    context: telemetry.context.active(),
                     attributes: {
                         "error.type": error instanceof Error ? error.name : typeof error,
                     },
@@ -106,7 +112,7 @@ export class NpmServer {
             if (!(error instanceof URIError)) {
                 throw error;
             }
-            throw new CallError("BAD_REQUEST", { message: "invalid URL encoding" });
+            throw ForgeError.of("ENCODING_INVALID", "invalid URL encoding");
         }
 
         // read the package and what the path selects below it
@@ -143,7 +149,7 @@ export class NpmServer {
     ): Promise<Response> {
         // select the release of the file name's version, yanked ones too for exact pins
         if (!file.startsWith(`${local}-`)) {
-            throw new CallError("NOT_FOUND", { message: "package archive not found" });
+            throw ForgeError.of("ARCHIVE_NOT_FOUND", "package archive not found");
         }
         const [selected] = await this.#list(
             async (input) =>
@@ -152,7 +158,7 @@ export class NpmServer {
             [{ version: file.slice(local.length + 1) }],
         );
         if (selected === undefined) {
-            throw new CallError("NOT_FOUND", { message: "package version or tag not found" });
+            throw ForgeError.of("VERSION_NOT_FOUND", "package version or tag not found");
         }
 
         // answer an unchanged archive without reading it
@@ -208,7 +214,7 @@ export class NpmServer {
             ),
         ]);
         if (!releases.length) {
-            throw new CallError("NOT_FOUND", { message: "package lacks releases to install" });
+            throw ForgeError.of("RELEASES_MISSING", "package has no releases to install");
         }
 
         // answer one version a tag or an exact version selects, else the whole packument
@@ -219,7 +225,7 @@ export class NpmServer {
                 ? { name, "dist-tags": pointed, versions, time: NpmServer.#time(releases, tags) }
                 : NpmServer.#version(versions, pointed[selected] ?? selected);
 
-        return NpmServer.#respond(request, document);
+        return NpmServer.#respond(request, document, this.#objects.environment.crypto);
     }
 
     /** Describe each published release as npm installs it, by version. */
@@ -248,7 +254,7 @@ export class NpmServer {
     static #version(versions: Record<string, JsonObject>, version: string): JsonObject {
         const document = versions[version];
         if (document === undefined) {
-            throw new CallError("NOT_FOUND", { message: "package version or tag not found" });
+            throw ForgeError.of("VERSION_NOT_FOUND", "package version or tag not found");
         }
 
         return document;
@@ -271,10 +277,14 @@ export class NpmServer {
     }
 
     /** Answer a JSON document tagged by its digest, without a body when unchanged or for a head. */
-    static async #respond(request: Request, document: JsonObject): Promise<Response> {
+    static async #respond(
+        request: Request,
+        document: JsonObject,
+        crypto: DigestCrypto,
+    ): Promise<Response> {
         // tag the document by its digest
         const body = new TextEncoder().encode(JSON.stringify(document));
-        const etag = `"${await Digest.of(body)}"`;
+        const etag = `"${await Digest.of(body, crypto)}"`;
         const headers = new Headers({
             "content-type": "application/json",
             "cache-control": "private, no-cache",

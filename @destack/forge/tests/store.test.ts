@@ -1,56 +1,77 @@
 import objectPackage from "@destack/object/package";
-import accountPackage from "@destack/account/package";
-import { expect, refusal, test } from "@destack/test";
-import { Clock } from "@destack/environment";
+import type { TestPerson } from "@destack/account/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { LocalBucket } from "@destack/bucket/bun";
 import { encodeManifest, PackageStore } from "@destack/build/store";
 import { PackageManifest } from "@destack/package/manifest";
-import { Digest } from "@destack/schema";
-import { RequestId, Scope } from "@destack/sync";
+import { Commit, Digest } from "@destack/schema";
+import { RequestId } from "@destack/sync";
 import { UNRELEASED_MILLISECONDS } from "../src/server/index.ts";
 import { SWEEP_INTERVAL_MILLISECONDS } from "../src/server/sweep-controller.ts";
-import { principal } from "@destack/access";
-import { ids } from "@destack/account/test";
-import { packageObject } from "../src/object/index.ts";
+import { account } from "@destack/account/object";
 import forgePackage from "../src/package.ts";
+import { ACCOUNT_ID, TestForge } from "../src/test/index.ts";
 import { fixtureBuild } from "./fixture/build.ts";
-import { ACCOUNT_ID, openForge } from "./fixture/package.ts";
+import { COMMIT } from "./fixture/package.ts";
+import { MemoryBuild } from "@destack/package/test";
+import { Package } from "@destack/package";
+import { testHost } from "@destack/test/host";
+
+/** The email a person without access to the account signs in with. */
+const STRANGER_EMAIL = "stranger@example.test";
+
+/** The npm release whose unit the closure package depends on. */
+const TINY = { name: "tiny", version: "1.0.0", integrity: "sha512-dGlueQ==" };
+
+/** The package whose build depends on the tiny npm unit. */
+const CLOSURE = Package.parse({
+    id: "package-01996ab0-0000-7000-8000-00000000c105",
+    name: "@example/closure",
+    version: "2026.9.0",
+});
 
 test("serve a release's build by its digest to its package's readers only, yanked or not", async () => {
     // publish a private package, and copy its build by digest into another store as the owner
-    await using forge = await openForge();
+    const forge = await TestForge.open();
     const published = await forge.publish((await fixtureBuild("answer")).reader);
-    await using bucket = await LocalBucket.open(
-        join(forge.state.directory, "copy"),
-        "host-test",
-        Clock.system,
-    );
-    const copied = new PackageStore(bucket);
-    const location = (digest: string) => ({
+    const { environment } = forge.home;
+    const directory = await environment.files.makeTemporaryDirectory("destack-forge-copy-");
+    onTestFinished(() => environment.files.remove(directory, { recursive: true }));
+    await using bucket = await LocalBucket.open(join(directory, "copy"), "host-test", environment);
+    const copied = new PackageStore(bucket, environment);
+    const location = (digest: Digest) => ({
         manifest: digest,
-        url: `${forge.origin}/builds/${digest}/`,
+        url: `${forge.origin}${forgePackage.adapters.builds.path}/${digest}/`,
     });
-    await copied.copy(location(published.manifest), as(ids.owner));
+    await copied.copy(location(published.manifest), as(forge, forge.owner));
 
     // refuse anonymous and other callers and an unknown build, and serve the build once yanked
-    const status = async (digest: string, user?: string) =>
-        (await as(user)(new URL(`${location(digest).url}manifest.json`), {})).status;
+    const stranger = await forge.signIn(STRANGER_EMAIL);
+    const status = async (digest: Digest, person?: TestPerson) => {
+        const response = await as(forge, person)(
+            new URL(`${location(digest).url}manifest.json`),
+            {},
+        );
+        await response.body?.cancel();
+
+        return response.status;
+    };
     const refused = [
         await status(published.manifest),
-        await status(published.manifest, ids.stranger),
-        await status("0".repeat(64), ids.owner),
+        await status(published.manifest, stranger),
+        await status(Digest.parse("0".repeat(64)), forge.owner),
     ];
-    await forge.client(ids.owner).release.yank({
+    await forge.client(forge.owner).release.yank({
         spaceId: forge.space,
         id: published.release.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(forge.environment),
         isYanked: true,
     });
     expect({
         copied: (await copied.contents(published.manifest)).manifest,
         refused,
-        yanked: await status(published.manifest, ids.owner),
+        yanked: await status(published.manifest, forge.owner),
     }).toEqual({
         copied: published.reader.manifest,
         refused: [404, 404, 404],
@@ -60,77 +81,96 @@ test("serve a release's build by its digest to its package's readers only, yanke
 
 test("refuse uploads outside a package, and a manifest push from a caller who may not publish its package", async () => {
     // publish the package as its owner and push its next build's files as a stranger
-    await using forge = await openForge();
+    const forge = await TestForge.open();
     await forge.publish((await fixtureBuild("answer")).reader);
     const build = await fixtureBuild("answer", "2026.9.1");
     const manifest = encodeManifest(PackageManifest.parse(build.manifest));
-    const digest = await Digest.of(manifest);
+    const digest = await Digest.of(manifest, testHost().crypto);
+    const stranger = await forge.signIn(STRANGER_EMAIL);
 
     // refuse the owner's manifest outside its package, and the stranger's below it as a missing package
-    const put = (user: string, path: string) =>
-        as(user)(new URL(`${forge.origin}/builds/${path}manifest.json`), {
+    const builds = `${forge.origin}${forgePackage.adapters.builds.path}`;
+    const put = (person: TestPerson, path: string) =>
+        as(forge, person)(new URL(`${builds}/${path}manifest.json`), {
             method: "PUT",
             body: manifest,
             headers: { "content-type": "application/json" },
         });
-    const outside = await put(ids.owner, `${digest}/`);
-    const pushed = await put(
-        ids.stranger,
-        `${PackageManifest.package(build.manifest).id}/${digest}/`,
-    );
+    const outside = await put(forge.owner, `${digest}/`);
+    const pushed = await put(stranger, `${PackageManifest.package(build.manifest).id}/${digest}/`);
     expect({
         outside: [outside.status, await outside.json()],
         pushed: [pushed.status, await pushed.json()],
-        isStored: await forge.store.contains(digest),
+        isStored: await (await forge.store()).contains(digest),
     }).toEqual({
-        outside: [404, { error: "NOT_FOUND", message: "upload below a package" }],
-        pushed: [404, { error: "NOT_FOUND", message: "package not found" }],
+        outside: [
+            404,
+            {
+                defined: true,
+                code: "NOT_FOUND",
+                status: 404,
+                message: "uploads must target a package",
+                reason: "UPLOAD_OUTSIDE_PACKAGE",
+                domain: "@destack/forge",
+            },
+        ],
+        pushed: [
+            404,
+            {
+                defined: true,
+                code: "NOT_FOUND",
+                status: 404,
+                message: "package not found",
+                reason: "PACKAGE_NOT_FOUND",
+                domain: "@destack/forge",
+            },
+        ],
         isStored: false,
     });
 });
 
-test("authorize a manifest push from the forge's replica of the account, following a role the account service grants", async () => {
+test("authorize a manifest push from the forge's replica of the account, following a publisher relation the account service grants", async () => {
     // publish the package as its owner, and store its next build to push as a stranger
-    await using forge = await openForge();
+    const forge = await TestForge.open();
     await forge.publish((await fixtureBuild("answer")).reader);
     const build = await fixtureBuild("answer", "2026.9.1");
-    const digest = await Digest.of(encodeManifest(PackageManifest.parse(build.manifest)));
+    const digest = await Digest.of(
+        encodeManifest(PackageManifest.parse(build.manifest)),
+        forge.environment.crypto,
+    );
+    const stranger = await forge.signIn(STRANGER_EMAIL);
     const push = async () =>
         refusal(
             forge
-                .builds(ids.stranger, PackageManifest.package(build.reader.manifest).id)
+                .builds(PackageManifest.package(build.reader.manifest).id, stranger)
                 .push(build.reader),
         );
 
-    // refuse the stranger, grant them publishing at the account service and push once the replica follows
+    // refuse the stranger, make them a publisher at the account service and push once the replica follows
     const refused = await push();
-    const owner = forge.accounts.user(ids.owner, accountPackage);
-    const access = forge.accounts.user(ids.owner, objectPackage);
-    const role = await access.role.create({
-        scope: ACCOUNT_ID,
-        requestId: RequestId.create(Date.now()),
-        name: "publisher",
-        description: "Publishes the account's packages",
-        permissions: [packageObject.permission("publish")],
-    });
-    await owner.account.grant({
-        scope: ids.owner,
-        id: ACCOUNT_ID,
-        requestId: RequestId.create(Date.now()),
-        role: role.id,
-        subject: principal.user.reference(Scope.universe.id, ids.stranger),
+    await forge.owner.client(objectPackage).relationship.create({
+        scope: forge.owner.subject.id,
+        requestId: RequestId.create(forge.environment),
+        object: account.reference(forge.owner.subject.id, ACCOUNT_ID),
+        relation: "publisher",
+        subject: stranger.subject,
     });
     await forge.settle();
 
     // refuse the stranger's first file upload, whichever file the concurrent uploads send first
     const uploads = `${forgePackage.adapters.builds.path}/${PackageManifest.package(build.manifest).id}/files`;
-    const files = await build.reader.distributed();
-    const refusals = files.map((file) => [
-        "BAD_GATEWAY",
-        `cannot upload ${uploads}/${file.digest}: HTTP 404`,
+    const digests = (await build.reader.distributed()).map((file) => file.digest);
+    const failed = digests.find(
+        (each) => refused[2] === `cannot upload ${uploads}/${each}: HTTP 404`,
+    );
+    expect([refused, failed === undefined]).toEqual([
+        ["BAD_GATEWAY", "UPLOAD_FAILED", `cannot upload ${uploads}/${failed}: HTTP 404`],
+        false,
     ]);
-    expect(refusals).toContainEqual(refused);
-    expect({ accepted: await push(), isStored: await forge.store.contains(digest) }).toEqual({
+    expect({
+        accepted: await push(),
+        isStored: await (await forge.store()).contains(digest),
+    }).toEqual({
         accepted: "done",
         isStored: true,
     });
@@ -138,10 +178,10 @@ test("authorize a manifest push from the forge's replica of the account, followi
 
 test("sweep a pushed but unreleased build once the window passes, leaving released builds and archives", async () => {
     // publish one build and push the next without releasing it
-    await using forge = await openForge();
+    const forge = await TestForge.open();
     const published = await forge.publish((await fixtureBuild("answer")).reader, "public");
     const unreleased = await forge.push((await fixtureBuild("answer", "2026.9.1")).reader);
-    const store = forge.store;
+    const store = await forge.store();
     const stored = async () => ({
         released: await store.contains(published.manifest),
         archive: (await store.bucket.head(`files/${published.release.distribution.digest}`))?.size,
@@ -149,9 +189,10 @@ test("sweep a pushed but unreleased build once the window passes, leaving releas
     });
 
     // leave the unreleased build within the window, mark it after and drop it an interval later
-    await forge.sweep(Date.now());
+    const { clock } = forge.environment;
+    await forge.sweep(clock.now());
     const within = await stored();
-    const after = Date.now() + UNRELEASED_MILLISECONDS;
+    const after = clock.now() + UNRELEASED_MILLISECONDS + 1000;
     await forge.sweep(after);
     await forge.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
     expect({ within, after: await stored() }).toEqual({
@@ -175,19 +216,20 @@ test("sweep a pushed but unreleased build once the window passes, leaving releas
 
 test("retain the build of a release created after a sweep marked it through the next sweep", async () => {
     // push a build, and mark it in a sweep after the window
-    await using forge = await openForge();
+    const forge = await TestForge.open();
     await forge.publish((await fixtureBuild("answer")).reader);
     const build = await fixtureBuild("answer", "2026.9.1");
     const manifest = await forge.push(build.reader);
-    const after = Date.now() + UNRELEASED_MILLISECONDS + 1000;
+    const after = forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000;
     await forge.sweep(after);
 
-    // release the marked build and sweep an interval later
+    // release the marked build as the owner signed in again, and sweep an interval later
+    await forge.signOwnerIn();
     const released = await forge.publish(build.reader);
     await forge.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
 
     // read and verify every file of the released build after the sweep
-    const store = forge.store;
+    const store = await forge.store();
     const files = await (await store.contents(manifest)).distributed();
     const sizes = await Promise.all(files.map(async (file) => (await store.file(file)).length));
     expect({ released: released.manifest, sizes }).toEqual({
@@ -196,11 +238,92 @@ test("retain the build of a release created after a sweep marked it through the 
     });
 });
 
-/** Fetch as a user's bearer token, or anonymously. */
-function as(user?: string) {
+test("serve a release's npm units and runtime builds by digest to its readers only, and keep them through sweeps", async () => {
+    // keep a build whose Bun output imports an npm unit, beside the unit, with their runtime builds
+    const forge = await TestForge.open();
+    const { environment } = forge.home;
+    const { crypto } = environment;
+    const encoder = new TextEncoder();
+    const output = {
+        runtime: "bun" as const,
+        emit: true,
+        workloads: {},
+        views: {},
+        directory: "bun",
+    };
+    const unit = await MemoryBuild.write(
+        new Map([
+            ["package.json", encoder.encode(JSON.stringify(TINY))],
+            ["bun/index.js", encoder.encode("export const tiny = 1;\n")],
+            ["bun/index.d.ts", encoder.encode("export declare const tiny: number;\n")],
+        ]),
+        { package: TINY, outputs: { bun: { ...output, exports: {}, dependencies: {} } } },
+        crypto,
+    );
+    const unitManifest = await PackageStore.digest(unit.manifest, crypto);
+    const dependency = {
+        kind: "npm" as const,
+        package: { name: TINY.name, version: TINY.version },
+        registry: "https://registry.npmjs.org",
+        integrity: TINY.integrity,
+        manifest: unitManifest,
+    };
+    const build = await MemoryBuild.of(CLOSURE, [], crypto, {
+        commit: Commit.parse(COMMIT),
+        files: new Map([["bun/index.js", encoder.encode('export { tiny } from "tiny";\n')]]),
+        outputs: {
+            bun: {
+                ...output,
+                exports: { ".": { path: "bun/index.js", imports: ["tiny"] } },
+                dependencies: { tiny: dependency },
+            },
+        },
+    });
+    const directory = await environment.files.makeTemporaryDirectory("destack-forge-unit-");
+    onTestFinished(() => environment.files.remove(directory, { recursive: true }));
+    await using local = await LocalBucket.open(join(directory, "local"), "host-test", environment);
+    const published = new PackageStore(local, environment);
+    await published.put(unit);
+    const buildManifest = await published.put(build);
+    const runtime = await published.attachRuntime(buildManifest, "bun");
+
+    // publish the build with its unit and runtime builds, then copy the unit and the runtime build as the owner
+    await forge.publish(build, "private", published);
+    await using bucket = await LocalBucket.open(join(directory, "copy"), "host-test", environment);
+    const copied = new PackageStore(bucket, environment);
+    const builds = `${forge.origin}${forgePackage.adapters.builds.path}`;
+    const owner = as(forge, forge.owner);
+    const referred = await owner(new URL(`${builds}/${buildManifest}/referrers/runtime%2Fbun`), {});
+    const described: unknown = await referred.json();
+    for (const manifest of [unitManifest, runtime]) {
+        await copied.copy({ manifest, url: `${builds}/${manifest}/` }, owner);
+    }
+
+    // refuse the runtime build to a stranger
+    const stranger = await forge.signIn(STRANGER_EMAIL);
+    const refused = await as(forge, stranger)(new URL(`${builds}/${runtime}/manifest.json`), {});
+    await refused.body?.cancel();
+
+    // keep both past the unreleased window, as the release lists them
+    const store = await forge.store();
+    const after = forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000;
+    await forge.sweep(after);
+    await forge.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
+    expect({
+        referred: described,
+        copied: [await copied.contains(unitManifest), await copied.contains(runtime)],
+        refused: refused.status,
+        kept: [await store.contains(unitManifest), await store.contains(runtime)],
+    }).toEqual({
+        referred: { ...(await published.head(runtime)), path: "runtime/bun" },
+        copied: [true, true],
+        refused: 404,
+        kept: [true, true],
+    });
+});
+
+/** Fetch from a forge as a person with their token, or anonymously. */
+function as(forge: TestForge, person?: TestPerson) {
     return (input: URL, options: RequestInit) =>
-        fetch(input, {
-            ...options,
-            headers: user === undefined ? {} : { authorization: `Bearer ${user}` },
-        });
+        forge.endpoint(person).fetch(new Request(input, options));
 }
