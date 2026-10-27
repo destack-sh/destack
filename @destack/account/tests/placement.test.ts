@@ -1023,14 +1023,10 @@ test("move a space off a draining machine, decide again once it is placed, and k
     const kept = await read();
 
     // compare each decision, and the revision a decision without change keeps
-    const unset = (machineId: string) => ({
-        kind: "stay",
-        condition: { status: "true", reason: "Unset", message: `placed local on ${machineId}` },
-    });
     expect([placed, draining, moved.schedule, kept.revision]).toEqual([
-        unset(local.subject.id),
+        stayUnset(local.subject.id),
         { kind: "move", machine: peer.subject.id },
-        unset(peer.subject.id),
+        stayUnset(peer.subject.id),
         moved.revision,
     ]);
 });
@@ -1070,4 +1066,12 @@ test("relate a move's target as the space's one receiver, keep it when asked aga
 /** Describe a placement staying put for a reason, as its unmet condition reads. */
 function stay(reason: string, message: string) {
     return { kind: "stay", condition: { status: "false", reason, message } };
+}
+
+/** Describe a placement staying on a machine its local tenancy leaves it on. */
+function stayUnset(machineId: string) {
+    return {
+        kind: "stay",
+        condition: { status: "true", reason: "Unset", message: `placed local on ${machineId}` },
+    };
 }

@@ -169,6 +169,18 @@ async function machines(
 async function publisher(
     context: MethodContextOf<typeof residency, "publisher">,
 ): Promise<ResultOf<typeof residency, "publisher">> {
+    // find the residency whose space the asking installation runs in, refusing any other caller
+    const { subject } = context.caller;
+    const served =
+        principal.installation.is(subject) && space.identifies(subject.scope)
+            ? await context
+                  .read(residency)
+                  .findFirst({ where: { space: space.identifier(subject.scope) } })
+            : undefined;
+    if (served === undefined) {
+        throw AccountError.of("RESIDENCY_NOT_FOUND", `${subject.id} runs in no residency's space`);
+    }
+
     // find the handle's holder, none for a free handle
     const holder = await Claim.owner(
         context.read(claimTable),
@@ -182,7 +194,7 @@ async function publisher(
     const platform = await UniverseRole.operating(context);
     const isPlatform = holder.objectId === platform || holder.owner === platform;
     if (isPlatform) {
-        return Account.ofHome(Residency.requireSpace(context.target));
+        return Account.ofHome(Residency.requireSpace(served));
     }
 
     return account.identifies(holder.objectId) ? account.identifier(holder.objectId) : null;

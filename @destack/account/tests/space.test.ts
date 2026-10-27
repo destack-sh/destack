@@ -51,7 +51,7 @@ test("place a new space on its account's residency cloud machine, on a machine o
     const shared = await create(fixture, person, "shared", ids.machine);
 
     // store each placement beside the home's, and claim each name for its space
-    const owners: ClaimLookup = {
+    const lookup: ClaimLookup = {
         resolve: async ({ index, keys }) => {
             // ask for each name's owner, keeping the claimed ones
             const owners = new Map<string, ClaimOwner>();
@@ -67,7 +67,7 @@ test("place a new space on its account's residency cloud machine, on a machine o
     };
     expect({
         placements: await placements(fixture, person),
-        claimed: await Claim.lookup(space, owners, "name", ["work"], person.account),
+        claimed: await Claim.lookup(space, lookup, "name", ["work"], person.account),
     }).toEqual({
         placements: [
             {

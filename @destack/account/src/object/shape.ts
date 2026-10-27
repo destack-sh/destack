@@ -12,7 +12,7 @@ import { residency, ResidencyCode } from "./residency.ts";
 import { space } from "./space.ts";
 import { user } from "./user.ts";
 
-/** A space's rows as its machine serves it: row, placement, assignments, machine and residency. */
+/** A space's rows as its machine serves it: row, placement, assignments and machine. */
 export const spaceShape = defineShape({
     name: "space",
     parameters: schema.object({
@@ -21,15 +21,21 @@ export const spaceShape = defineShape({
         /** The machine serving it. */
         machine: schema.identifier("machine"),
     }),
-    objects: [space, placement, assignment, machine, residency],
+    objects: [space, placement, assignment, machine],
     queries: ({ space: id, machine: machineId }) => [
         space.query({ scopes: "every", where: { id } }),
         placement.query({ scopes: "every", where: { id } }),
         assignment.query({ scopes: "every", where: { placementId: id } }),
         machine.query({ scopes: "every", where: { id: machineId } }),
-        // the residencies, showing a home its own, which its residents follow keys on
-        residency.query({ scopes: "every" }),
     ],
+});
+
+/** The residencies, which a residency's home follows its residents by. */
+export const residencyShape = defineShape({
+    name: "residency",
+    parameters: schema.object({}),
+    objects: [residency],
+    queries: () => [residency.query({ scopes: "every" })],
 });
 
 /** The rows of one space alone, which a store reads to decide for that space as a caller. */

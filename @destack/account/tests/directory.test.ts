@@ -7,7 +7,7 @@ import { Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { Directory, DOMAINS, MachineAddress } from "../src/address/index.ts";
-import { Account, endpoint, machine, Placement, placement } from "../src/object/index.ts";
+import { Account, endpoint, machine, placement } from "../src/object/index.ts";
 import { TestAccountStore, ids, STRANGER_EMAIL, OWNER_EMAIL } from "../src/test/index.ts";
 import { claimNames, place } from "./fixture.ts";
 import { Claimant } from "@destack/object";

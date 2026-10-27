@@ -135,9 +135,10 @@ export const residency = defineObject(
             output: schema.array(ServingMachine),
         }),
 
-        /** Find the account selling a handle's packages to the buyers of the residency's space. */
+        /** Find the account selling a handle's packages to the buyers of the asker's residency. */
         publisher: method.query({
             permission: "locate",
+            target: "scope",
             input: schema.object({
                 /** The handle. */
                 handle: AccountHandle,

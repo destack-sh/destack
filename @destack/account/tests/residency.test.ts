@@ -48,6 +48,11 @@ import objectPackage from "@destack/object/package";
 import { Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 
+/** The installation asking for its residency's sellers, in whichever space it runs. */
+const INSTALLATION = schema
+    .identifier("installation")
+    .parse("installation-019f5530-8000-7000-8000-0000000000c1");
+
 /** The account type, as replicas name it. */
 const ACCOUNT_TYPE = {
     packageId: account.policy.definition.packageId,
@@ -405,19 +410,19 @@ test("relate an organization's residents again when one of its accounts lives in
     expect([before, await residents()]).toEqual([["eu"], ["eu", "us"]]);
 });
 
-test("find the account selling a handle's packages to a residency's buyers as its space: the handle's account, the residency space's platform account for the platform's handles, none otherwise", async () => {
-    // store the residencies' spaces, each asking for its residency
+test("find the account selling a handle's packages to the buyers of the asking installation's residency: the handle's account, the residency space's platform account for the platform's handles, none otherwise, refusing a person", async () => {
+    // let an installation in each residency's space ask, and a person
     await using fixture = await TestAccountStore.open();
     const [europe, america] = [
         await fixture.residencySpace("eu"),
         await fixture.residencySpace("us"),
     ];
-    const spaces = { eu: await homeOf(fixture, "eu"), us: await homeOf(fixture, "us") };
+    const installation = (space: Identifier<"space">) =>
+        fixture.as(principal.installation.reference(space, INSTALLATION));
+    const spaces = { eu: installation(europe), us: installation(america) };
     const publisher = (handle: string, code: "eu" | "us") =>
-        spaces[code].client(accountPackage).residency.publisher({
-            ...residency.target({ scope: Scope.universe.id, id: code }),
-            handle,
-        });
+        spaces[code].client(accountPackage).residency.publisher({ handle });
+    const owner = await fixture.signIn(OWNER_EMAIL);
 
     // sell a person's packages through their account, and the platform's through each residency space's account
     expect([
@@ -426,12 +431,14 @@ test("find the account selling a handle's packages to a residency's buyers as it
         await publisher("destack", "us"),
         await publisher("destack-us", "eu"),
         await publisher("unclaimed", "eu"),
+        await refusal(owner.client(accountPackage).residency.publisher({ handle: "acme" })),
     ]).toEqual([
         ids.account,
         Account.ofHome(europe),
         Account.ofHome(america),
         Account.ofHome(europe),
         null,
+        ["NOT_FOUND", "RESIDENCY_NOT_FOUND", `${owner.id} runs in no residency's space`],
     ]);
 });
 
