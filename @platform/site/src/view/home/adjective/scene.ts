@@ -88,66 +88,60 @@ const items: readonly Item[] = [
 ];
 
 /** The conversation in your space, its steps placed on one clock with the log. */
-export const destackedScene = new Scene(
-    items.map((item) => ({ item, row: 0, change: "start" as const })),
-);
+export const destackedScene = Scene.of(items);
 
 /** The conversation through the vendors' connectors: two slips found, the rest out of sight. */
-export const stackedScene = new Scene(
-    (
-        [
-            ask,
-            {
-                kind: "call",
-                server: "gmail",
-                running: "Searching sent mail",
-                title: "Searched sent mail",
-                request: 'search({ query: "in:sent subject:(Destack opens Friday)" })',
-                response: "4 messages · 500 + 500 + 500 + 340 recipients",
-                isFailed: false,
-                isExpanded: false,
-            },
-            {
-                kind: "call",
-                server: "airtable",
-                running: "Reading Signups",
-                title: "Read Signups",
-                request: 'list_records({ table: "Signups", filter: "{Status} = \'invited\'" })',
-                response: "400 records · invited Thu 16:10",
-                isFailed: false,
-                isExpanded: false,
-            },
-            {
-                kind: "reply",
-                text: "The launch email went to the whole waitlist in four batches, including the 400 you invited on Thursday.",
-            },
-            {
-                kind: "call",
-                server: "slack",
-                running: "Reading #launch",
-                title: "Read #launch",
-                request: 'conversations.history({ channel: "launch", oldest: "Thu 17:00" })',
-                response: "2 messages from Florian · no scheduled messages visible",
-                isFailed: false,
-                isExpanded: false,
-            },
-            {
-                kind: "call",
-                server: "notion",
-                running: "Searching Notion",
-                title: "Searched Notion",
-                request: 'search({ query: "pricing" })',
-                response: "Pricing · Destack site · draft · edited Thu 16:40",
-                isFailed: false,
-                isExpanded: false,
-            },
-            {
-                kind: "reply",
-                text: "The pricing page is still a draft in Notion. I can't see the rest of what I changed last night. I keep nothing between chats, and each tool shows where things stand now, not who changed them or why.",
-            },
-        ] as const
-    ).map((item) => ({ item, row: 0, change: "start" as const })),
-);
+export const stackedScene = Scene.of([
+    ask,
+    {
+        kind: "call",
+        server: "gmail",
+        running: "Searching sent mail",
+        title: "Searched sent mail",
+        request: 'search({ query: "in:sent subject:(Destack opens Friday)" })',
+        response: "4 messages · 500 + 500 + 500 + 340 recipients",
+        isFailed: false,
+        isExpanded: false,
+    },
+    {
+        kind: "call",
+        server: "airtable",
+        running: "Reading Signups",
+        title: "Read Signups",
+        request: 'list_records({ table: "Signups", filter: "{Status} = \'invited\'" })',
+        response: "400 records · invited Thu 16:10",
+        isFailed: false,
+        isExpanded: false,
+    },
+    {
+        kind: "reply",
+        text: "The launch email went to the whole waitlist in four batches, including the 400 you invited on Thursday.",
+    },
+    {
+        kind: "call",
+        server: "slack",
+        running: "Reading #launch",
+        title: "Read #launch",
+        request: 'conversations.history({ channel: "launch", oldest: "Thu 17:00" })',
+        response: "2 messages from Florian · no scheduled messages visible",
+        isFailed: false,
+        isExpanded: false,
+    },
+    {
+        kind: "call",
+        server: "notion",
+        running: "Searching Notion",
+        title: "Searched Notion",
+        request: 'search({ query: "pricing" })',
+        response: "Pricing · Destack site · draft · edited Thu 16:40",
+        isFailed: false,
+        isExpanded: false,
+    },
+    {
+        kind: "reply",
+        text: "The pricing page is still a draft in Notion, which is why the link 404s. I can publish it now. I don't have a record of what I changed last night, and these tools don't show which edits came from me. If you paste what you asked for, I'll check each part.",
+    },
+]);
 
 /** The connectors the stacked agent has on, by mark and colour. */
 export const stackedConnectors: readonly Connector[] = [

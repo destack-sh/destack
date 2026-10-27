@@ -3,7 +3,6 @@ import * as style from "@destack/style";
 import { createEffect, createSignal } from "@destack/view";
 import { createReducedMotion } from "@destack/view/motion";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
-import { createTimer } from "@destack/view/primitives/timer";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { screen } from "../../layout/screen.stylex";
@@ -12,9 +11,9 @@ import { Label, LabelRow } from "../entry/label";
 import { Picker } from "../figure/picker";
 import { StackSwitch } from "../entry/switch";
 import { pages, rowOf, SpaceBrowser, type Viewer } from "../verb/space";
-import { AgentChat, assistantOptions, createAssistantTurn } from "./chat";
+import { AgentChat, assistantOptions, createAssistantTurn, createBeat } from "./chat";
 import { artifactOf } from "./artifact";
-import { BEAT, destacked, stacked, stackedConnectors } from "./scene";
+import { destacked, stacked, stackedConnectors } from "./scene";
 import { sources } from "../verb/source";
 import { AirtableSignups } from "../tool/airtable";
 import { type Lineup, lineupAt, toolOf } from "../tool/tool";
@@ -62,17 +61,9 @@ export function Command(properties: { isOpen: boolean }) {
     const isShown = createVisibilityObserver(section, { initialValue: true });
 
     // count beats, held while still or off screen, and start the task again on every switch
-    const [beat, setBeat] = createSignal(0);
-    createTimer(
-        () => setBeat((current) => current + 1),
-        () => (!isReduced() && isShown() ? BEAT : false),
-        "interval",
-    );
-    createEffect(
+    const beat = createBeat(
+        () => !isReduced() && isShown(),
         () => properties.isOpen,
-        () => {
-            setBeat(0);
-        },
     );
 
     // run the task in the state the stack is in, then hold and run again, finished when still
@@ -149,6 +140,7 @@ export function Command(properties: { isOpen: boolean }) {
                         <Picker
                             label="Agent"
                             options={assistantOptions}
+                            sections={undefined}
                             shown={look()}
                             progress={progress()}
                             onChoose={choose}
@@ -164,7 +156,7 @@ export function Command(properties: { isOpen: boolean }) {
                 <AgentChat
                     isOpen={properties.isOpen}
                     moment={moment()}
-                    assistant={look()}
+                    look={{ kind: "assistant", assistant: look() }}
                     connectors={stackedConnectors}
                 />
             </div>

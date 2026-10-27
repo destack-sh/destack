@@ -4,6 +4,8 @@ import * as style from "@destack/style";
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuLabel,
     DropdownMenuRadioGroup,
     DropdownMenuRadioItem,
     DropdownMenuTrigger,
@@ -19,6 +21,9 @@ export type OptionMark = { icon: string; tint: string } | { logo: string };
 /** One option a picker turns through: a product's name and mark. */
 export type Option = { name: string; mark: OptionMark };
 
+/** A heading in a picker's menu and the names of the options under it. */
+export type OptionSection = readonly [label: string, names: readonly string[]];
+
 /**
  * Draw a small picker sized to sit in a figure's label row, like the dial.
  *
@@ -27,6 +32,7 @@ export type Option = { name: string; mark: OptionMark };
 export function Picker(properties: {
     label: string;
     options: readonly Option[];
+    sections: readonly OptionSection[] | undefined;
     shown: string;
     progress: number | undefined;
     onChoose: (name: string) => void;
@@ -60,6 +66,7 @@ export function Picker(properties: {
                 </DropdownMenuTrigger>
                 <OptionMenu
                     options={properties.options}
+                    sections={properties.sections}
                     shown={properties.shown}
                     onChoose={properties.onChoose}
                 />
@@ -87,6 +94,7 @@ export function InlinePicker(properties: {
             </DropdownMenuTrigger>
             <OptionMenu
                 options={properties.options}
+                sections={undefined}
                 shown={properties.shown}
                 onChoose={properties.onChoose}
             />
@@ -125,27 +133,53 @@ export function PickerName(properties: { options: readonly Option[]; shown: stri
 /** Draw the menu of every option, the shown one checked. */
 function OptionMenu(properties: {
     options: readonly Option[];
+    sections: readonly OptionSection[] | undefined;
     shown: string;
     onChoose: (name: string) => void;
 }) {
     return (
         <DropdownMenuContent align="start" xstyle={styles.menu}>
             <DropdownMenuRadioGroup value={properties.shown} onValueChange={properties.onChoose}>
-                <For each={properties.options}>
-                    {(option) => (
-                        <DropdownMenuRadioItem value={option.name} xstyle={styles.item}>
-                            <Mark mark={option.mark} size={12} />
-                            {option.name}
-                        </DropdownMenuRadioItem>
-                    )}
-                </For>
+                {/* list every option, under its section's heading when the picker has sections */}
+                {properties.sections === undefined ? (
+                    <For each={properties.options}>
+                        {(option) => <OptionItem option={option} />}
+                    </For>
+                ) : (
+                    <For each={properties.sections}>
+                        {([label, names]) => (
+                            <DropdownMenuGroup>
+                                <DropdownMenuLabel xstyle={styles.heading}>
+                                    {label}
+                                </DropdownMenuLabel>
+                                <For
+                                    each={properties.options.filter((option) =>
+                                        names.includes(option.name),
+                                    )}
+                                >
+                                    {(option) => <OptionItem option={option} />}
+                                </For>
+                            </DropdownMenuGroup>
+                        )}
+                    </For>
+                )}
             </DropdownMenuRadioGroup>
         </DropdownMenuContent>
     );
 }
 
+/** Draw one option in a picker's menu: its mark and name. */
+function OptionItem(properties: { option: Option }) {
+    return (
+        <DropdownMenuRadioItem value={properties.option.name} xstyle={styles.item}>
+            <Mark mark={properties.option.mark} size={12} />
+            {properties.option.name}
+        </DropdownMenuRadioItem>
+    );
+}
+
 /** Draw an option's mark at a size in pixels. */
-function Mark(properties: { mark: OptionMark; size: number }) {
+export function Mark(properties: { mark: OptionMark; size: number }) {
     return (
         <>
             {"icon" in properties.mark ? (
@@ -323,5 +357,11 @@ const styles = style.create({
     },
     item: {
         gap: "0.5rem",
+    },
+    heading: {
+        fontFamily: font.code,
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
+        textTransform: "uppercase",
     },
 });

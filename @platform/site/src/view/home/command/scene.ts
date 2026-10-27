@@ -75,8 +75,10 @@ export type Moment = {
     step: Step;
     /** The items landed in the conversation, in order. */
     items: readonly Item[];
-    /** Your message while you type it into the composer. */
+    /** Your message as typed so far, while you type it into the composer. */
     typing: string | undefined;
+    /** The reply under way and how many of its words have streamed. */
+    streaming: { item: Item; words: number } | undefined;
     /** The call running now. */
     running: Item | undefined;
     /** The approval you are reading now. */
@@ -95,6 +97,11 @@ export class Scene {
     readonly cues: readonly Cue[];
     /** The beats one run takes, the hold included. */
     readonly length: number;
+
+    /** Return a conversation of items, each its own step on the first row. */
+    static of(items: readonly Item[]): Scene {
+        return new Scene(items.map((item) => ({ item, row: 0, change: "start" })));
+    }
 
     /** Place each step after the one before it. */
     constructor(steps: readonly Step[]) {
@@ -118,12 +125,22 @@ export class Scene {
         const progress = at - cue.start;
         const item = cue.step.item;
 
-        // hold your message in the composer while you type it
+        // type your message into the composer a beat's characters at a time, then send it
         const typed = item.kind === "ask" ? typeBeatsOf(item.text) : 0;
-        const typing = item.kind === "ask" && progress < typed ? item.text : undefined;
+        const typing =
+            item.kind === "ask" && progress < typed
+                ? item.text.slice(0, (progress + 1) * CHARACTERS_PER_BEAT)
+                : undefined;
         const items = reached
             .map((candidate) => candidate.step.item)
             .filter((candidate) => !(candidate === item && typing !== undefined));
+
+        // stream the reply under way a beat's words at a time
+        const words = item.kind === "reply" ? item.text.split(" ").length : 0;
+        const streaming =
+            item.kind === "reply" && (progress + 1) * WORDS_PER_BEAT < words
+                ? { item, words: (progress + 1) * WORDS_PER_BEAT }
+                : undefined;
 
         // run the call under way, read then press the approval, and build the app
         const running = item.kind === "call" && progress < RUN_BEATS ? item : undefined;
@@ -141,7 +158,17 @@ export class Scene {
                 item.kind === "reply" ||
                 building !== undefined);
 
-        return { step: cue.step, items, typing, running, deciding, pressed, building, isWorking };
+        return {
+            step: cue.step,
+            items,
+            typing,
+            streaming,
+            running,
+            deciding,
+            pressed,
+            building,
+            isWorking,
+        };
     }
 }
 
@@ -288,7 +315,7 @@ export const stacked = new Scene([
     {
         item: {
             kind: "reply",
-            text: "Cleared 3. New askers I can't add on my own: nothing wakes me when someone posts in #launch.",
+            text: "Cleared 3. I can't watch #launch between our chats, but a Zapier zap could add new askers to the board as they post. Want me to set one up?",
         },
         row: CHAT_ROW,
         change: "start",

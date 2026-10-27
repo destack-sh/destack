@@ -119,3 +119,37 @@ export const claude = style.defineConsts({
     /** The composer's soft lift. */
     lift: "0 1px 6px rgba(0, 0, 0, 0.04)",
 });
+
+/** A coding agent's terminal colours, light and dark as terminals ship. */
+export const terminal = style.defineConsts({
+    /** The window's background. */
+    canvas: "light-dark(#fbfbfa, #1c1c1b)",
+    /** The text. */
+    ink: "light-dark(#1f1f1e, #e8e6e1)",
+    /** Secondary text. */
+    muted: "light-dark(#76746e, #8f8d86)",
+    /** Rules and frames. */
+    border: "light-dark(#e2e0da, #353533)",
+    /** A tool's opened request and response, and your prompt's band. */
+    field: "light-dark(#f2f1ed, #262624)",
+    /** The typeface every line sets in. */
+    face: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+});
+
+/** A platform's or editor's builder panel colours, light and dark. */
+export const builder = style.defineConsts({
+    /** The panel's background. */
+    canvas: "light-dark(#ffffff, #18181b)",
+    /** The text. */
+    ink: "light-dark(#18181b, #fafafa)",
+    /** Secondary text. */
+    muted: "light-dark(#71717a, #a1a1aa)",
+    /** Rules and frames. */
+    border: "light-dark(#e4e4e7, #2c2c30)",
+    /** A tool's opened request and response, and your message's bubble. */
+    field: "light-dark(#f4f4f5, #232326)",
+    /** The publish and send buttons. */
+    action: "light-dark(#18181b, #fafafa)",
+    /** The publish and send buttons' text. */
+    actionInk: "light-dark(#ffffff, #18181b)",
+});

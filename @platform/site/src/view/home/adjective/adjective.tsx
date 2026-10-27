@@ -2,15 +2,13 @@ import * as style from "@destack/style";
 import { createEffect, createSignal } from "@destack/view";
 import { createReducedMotion } from "@destack/view/motion";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
-import { createTimer } from "@destack/view/primitives/timer";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Label, LabelRow } from "../entry/label";
 import { Picker } from "../figure/picker";
-import { AgentChat, assistantOptions, createAssistantTurn } from "../command/chat";
-import { BEAT } from "../command/scene";
+import { AgentChat, assistantOptions, createAssistantTurn, createBeat } from "../command/chat";
 import { StackSwitch } from "../entry/switch";
 import { type Console, Inspector } from "./inspect";
 import { destackedChatAt, destackedScene, laneAt, stackedConnectors, stackedScene } from "./scene";
@@ -46,17 +44,14 @@ export function Adjective(properties: { isOpen: boolean }) {
     const isShown = createVisibilityObserver(section, { initialValue: true });
 
     // count beats until the reader opens the log, and start again on every switch
-    const [beat, setBeat] = createSignal(0);
     const [isTouched, setIsTouched] = createSignal(false);
-    createTimer(
-        () => setBeat((current) => current + 1),
-        () => (!isReduced() && isShown() && !isTouched() ? BEAT : false),
-        "interval",
+    const beat = createBeat(
+        () => !isReduced() && isShown() && !isTouched(),
+        () => properties.isOpen,
     );
     createEffect(
         () => properties.isOpen,
         () => {
-            setBeat(0);
             setIsTouched(false);
         },
     );
@@ -111,6 +106,7 @@ export function Adjective(properties: { isOpen: boolean }) {
                         <Picker
                             label="Agent"
                             options={assistantOptions}
+                            sections={undefined}
                             shown={look()}
                             progress={progress()}
                             onChoose={choose}
@@ -126,7 +122,7 @@ export function Adjective(properties: { isOpen: boolean }) {
                 <AgentChat
                     isOpen={properties.isOpen}
                     moment={moment()}
-                    assistant={look()}
+                    look={{ kind: "assistant", assistant: look() }}
                     connectors={stackedConnectors}
                 />
             </div>
