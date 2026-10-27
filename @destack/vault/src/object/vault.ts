@@ -33,7 +33,7 @@ export const vault = defineObject(
         /** Put a value as the one live version of a secret of the vault, as its consumer. */
         put: method.mutation({
             permission: "write",
-            visibility: "package",
+            visibility: "installation",
             input: schema.object({
                 /** The secret, created under this identifier on its first put. */
                 secret: schema.identifier("secret"),
@@ -46,7 +46,7 @@ export const vault = defineObject(
         /** Remove a secret of the vault with its versions, releasing them, if it exists. */
         remove: method.mutation({
             permission: "write",
-            visibility: "package",
+            visibility: "installation",
             input: schema.object({
                 /** The secret. */
                 secret: schema.identifier("secret"),
