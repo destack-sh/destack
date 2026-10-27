@@ -14,10 +14,10 @@ import { Favicon, Glyph } from "../figure/glyph";
 import { accentOf } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
 import { sectionOf } from "../verb/apps";
-import { ArtifactFrame, artifactAddressOf, artifactMarkOf } from "../command/artifact";
-import { type Assistant, assistantOptions, assistants } from "../command/chat";
-import type { Option } from "../figure/picker";
+import { ArtifactFrame, artifactAddressOf } from "../command/artifact";
+import type { Assistant } from "../command/chat";
 import type { Job } from "../verb/space";
+import type { Maker } from "./maker";
 import { sources } from "../verb/source";
 import { present } from "@destack/schema";
 import { type Service, serviceCount, serviceLabels, serviceParts } from "./service";
@@ -46,23 +46,8 @@ const wiring: readonly string[] = [
 /** The domain your space serves its apps on, plainly your own. */
 const CUSTOM_DOMAIN = "mydomain.com";
 
-/** The coding agent that leaves your app on your own computer's dev server. */
-const CODING_AGENT = "Claude Code";
-
 /** The address a dev server serves your app at, Vite's default port. */
 const DEV_SERVER = "localhost:5173";
-
-/** The agents an app is made with: the assistants, then the coding agent. */
-export const makers = [...assistants, CODING_AGENT] as const;
-
-/** The agent an app is made with. */
-export type Maker = (typeof makers)[number];
-
-/** Each maker as the picker offers it, by its mark and colour. */
-export const makerOptions: readonly Option[] = [
-    ...assistantOptions,
-    { name: CODING_AGENT, mark: { icon: "claude", tint: "#c96442" } },
-];
 
 /** Your apps on the rail once owned, the launch tracker first. */
 const apps: readonly (readonly [
@@ -236,20 +221,25 @@ export function XRay(properties: {
     const isStacked = () => !properties.isOpenAt(0);
     const isHosted = () => properties.isOpenAt(serviceCount + 1);
 
-    // read the assistant whose artifact the app is, or none when it runs on a dev server
-    const assistant = (): Assistant | undefined =>
-        properties.maker === CODING_AGENT ? undefined : properties.maker;
+    // read the assistant whose artifact the app is, or none when it runs elsewhere
+    const assistant = (): Assistant | undefined => {
+        const place = properties.maker.place;
+
+        return place.kind === "artifact" ? place.assistant : undefined;
+    };
 
     // address the app where its maker left it until the space hosts it on your domain
     const address = () => {
-        const made = assistant();
+        const place = properties.maker.place;
         if (isHosted()) {
             return { host: CUSTOM_DOMAIN, path: pathOf(app()) };
-        } else if (made === undefined) {
-            return { host: DEV_SERVER, path: "/" };
+        } else if (place.kind === "artifact") {
+            return artifactAddressOf(place.assistant);
+        } else if (place.kind === "platform") {
+            return { host: place.host, path: "/" };
         }
 
-        return artifactAddressOf(made);
+        return { host: DEV_SERVER, path: "/" };
     };
 
     return (
@@ -283,7 +273,7 @@ export function XRay(properties: {
                                 page === row() && browserStyles.tabOn,
                             )}
                         >
-                            <MakerMark assistant={assistant()} />
+                            <MakerMark maker={properties.maker} />
                             <span
                                 {...style.attrs(
                                     browserStyles.tabTitle,
@@ -637,7 +627,7 @@ function wiringAt(index: number): string {
     return kind;
 }
 
-/** Draw the app where it was made: in its assistant's artifact page, or bare on a dev server. */
+/** Draw the app where it was made: in its assistant's artifact page, or bare elsewhere. */
 function MadeFrame(properties: {
     assistant: Assistant | undefined;
     title: string;
@@ -656,24 +646,14 @@ function MadeFrame(properties: {
     );
 }
 
-/** Return the maker a picker option names, refusing any other name. */
-export function makerOf(name: string): Maker {
-    const maker = makers.find((candidate) => candidate === name);
-    if (maker === undefined) {
-        throw new RangeError(`no maker named ${name}`);
-    }
-
-    return maker;
-}
-
-/** Draw the tab mark of where the app was made: its assistant's, or a dev server's computer. */
-function MakerMark(properties: { assistant: Assistant | undefined }) {
+/** Draw the tab mark of where the app was made: your computer, or its maker's mark. */
+function MakerMark(properties: { maker: Maker }) {
     return (
         <>
-            {properties.assistant === undefined ? (
+            {properties.maker.place.kind === "localhost" ? (
                 <Favicon icon="computer" tint={palette.ink} />
             ) : (
-                <Favicon {...artifactMarkOf(properties.assistant)} />
+                <VendorMark mark={properties.maker.mark} isTag={false} />
             )}
         </>
     );

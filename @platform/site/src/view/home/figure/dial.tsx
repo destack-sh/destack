@@ -7,7 +7,7 @@ import { typeScale, tracking } from "../../layout/type.stylex";
 export const teams = [1, 5, 25, 100] as const;
 
 /** The monthly active users a bill can be read for. */
-export const audiences = [100, 1_000, 10_000, 100_000] as const;
+export const audiences = [10, 100, 1_000, 10_000] as const;
 
 /** Return a count of users as the dial shows it, in thousands from a thousand up. */
 export function audienceOf(users: number): string {

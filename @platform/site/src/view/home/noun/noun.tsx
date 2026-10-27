@@ -2,18 +2,20 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
-import { createSignal } from "@destack/view";
+import { createMemo, createSignal } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 import { createTimer } from "@destack/view/primitives/timer";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { Fade } from "../figure/fade";
-import { Label, LabelRow } from "../entry/label";
+import { Label, LabelRow, LabelTabs } from "../entry/label";
 import { audienceOf, audiences, Dial } from "../figure/dial";
 import { Bill } from "../figure/bill";
 import { accentOf } from "../figure/item";
-import { type Maker, makerOf, makerOptions, XRay } from "./xray";
+import { lookOf, type Maker, makerOf, makers, makerSections } from "./maker";
+import { XRay } from "./xray";
+import { AgentChat, createBeat } from "../command/chat";
+import { destackedScene, stackedSceneOf } from "./scene";
 import {
     categoryOf,
     entriesWith,
@@ -80,11 +82,20 @@ export function Noun(properties: { isOpen: boolean }) {
     );
 
     // hold the agent the app was made with, Claude until the reader picks another
-    const [maker, setMaker] = createSignal<Maker>("Claude");
+    const [maker, setMaker] = createSignal<Maker>(makerOf("Claude"));
     const chooseMaker = (name: string) => {
         setIsTouched(true);
         setMaker(makerOf(name));
     };
+
+    // show the vendors or your agent's chat beside the app, the chat running while it shows
+    const [tab, setTab] = createSignal(0);
+    const beat = createBeat(
+        () => tab() === 1 && !isReduced() && isShown(),
+        () => [properties.isOpen, maker()],
+    );
+    const scene = createMemo(() => (properties.isOpen ? destackedScene : stackedSceneOf(maker())));
+    const moment = () => scene().at(isReduced() ? undefined : beat() % scene().length);
 
     // rent each category's chosen service, or the one its row has turned to
     const [picked, setPicked] = createSignal<Readonly<Partial<Record<ServiceCategory, string>>>>(
@@ -140,7 +151,7 @@ export function Noun(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
-                stacked="one artifact, nine services short of an app"
+                stacked="one prototype, nine services short of an app"
                 destacked="one app, one engine"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
@@ -151,8 +162,9 @@ export function Noun(properties: { isOpen: boolean }) {
                         isOpenAt(0) ? undefined : (
                             <Picker
                                 label="Made with"
-                                options={makerOptions}
-                                shown={maker()}
+                                options={makers}
+                                sections={makerSections}
+                                shown={maker().name}
                                 progress={undefined}
                                 onChoose={chooseMaker}
                             />
@@ -161,8 +173,8 @@ export function Noun(properties: { isOpen: boolean }) {
                 >
                     <Label>
                         {isOpenAt(0)
-                            ? "Your custom app, in production"
-                            : "Your custom app, stuck where your agent made it"}
+                            ? "Your app, in production"
+                            : "Your app, stuck where it was made"}
                     </Label>
                 </LabelRow>
                 <div {...style.attrs(styles.window)}>
@@ -178,44 +190,62 @@ export function Noun(properties: { isOpen: boolean }) {
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
                 <LabelRow
                     end={
-                        <Dial
-                            label="Users"
-                            options={audiences}
-                            value={users()}
-                            format={audienceOf}
-                            onChange={(next) => {
-                                setIsTouched(true);
-                                setUsers(next);
-                            }}
-                        />
+                        tab() === 0 ? (
+                            <Dial
+                                label="Users"
+                                options={audiences}
+                                value={users()}
+                                format={audienceOf}
+                                onChange={(next) => {
+                                    setIsTouched(true);
+                                    setUsers(next);
+                                }}
+                            />
+                        ) : undefined
                     }
                 >
-                    <Fade isOpen={rentedCount() === 0}>
-                        <Label>{keyOf(rentedCount())}</Label>
-                    </Fade>
+                    <LabelTabs
+                        tabs={[keyOf(rentedCount()), "Your agent"]}
+                        shown={tab()}
+                        onShow={setTab}
+                    />
                 </LabelRow>
-                <Bill
-                    isWindow
-                    scale={{ people: 1, users: users() }}
-                    scales={audiences.map((audience) => ({ people: 1, users: audience }))}
-                    lines={entriesWith(lineup()).map((entry, index) => {
-                        const mark = present(rented()[index], "rented service").mark;
+                {tab() === 1 ? (
+                    <AgentChat
+                        isOpen={properties.isOpen}
+                        moment={moment()}
+                        look={lookOf(maker())}
+                        connectors={[]}
+                    />
+                ) : (
+                    <Bill
+                        isWindow
+                        scale={{ people: 1, users: users() }}
+                        scales={audiences.map((audience) => ({ people: 1, users: audience }))}
+                        lines={entriesWith(lineup()).map((entry, index) => {
+                            const mark = present(rented()[index], "rented service").mark;
 
-                        return {
-                            entry,
-                            workload: workloadOf(entry.stacked.name),
-                            tint: accentOf(
-                                entry.stacked.name,
-                                "tint" in mark ? mark.tint : color.mutedForeground,
-                            ),
-                        };
-                    })}
-                    isOpenAt={isOpenAt}
-                    lighting={{ lit: lit(), onLight: setLit, onChoose: setLit, chosen: undefined }}
-                    onToggle={toggle}
-                    optionsOf={optionsOf}
-                    onChoose={choose}
-                />
+                            return {
+                                entry,
+                                workload: workloadOf(entry.stacked.name),
+                                tint: accentOf(
+                                    entry.stacked.name,
+                                    "tint" in mark ? mark.tint : color.mutedForeground,
+                                ),
+                            };
+                        })}
+                        isOpenAt={isOpenAt}
+                        lighting={{
+                            lit: lit(),
+                            onLight: setLit,
+                            onChoose: setLit,
+                            chosen: undefined,
+                        }}
+                        onToggle={toggle}
+                        optionsOf={optionsOf}
+                        onChoose={choose}
+                    />
+                )}
             </div>
         </section>
     );

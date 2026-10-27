@@ -8,8 +8,10 @@ import { createVisibilityObserver } from "@destack/view/primitives/intersection-
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { Fade } from "../figure/fade";
-import { Label, LabelRow } from "../entry/label";
+import { Label, LabelRow, LabelTabs } from "../entry/label";
+import { AgentChat, assistantOptions, createAssistantTurn, createBeat } from "../command/chat";
+import { Picker } from "../figure/picker";
+import { destackedScene, stackedConnectors, stackedScene } from "./scene";
 import { Dial, teams } from "../figure/dial";
 import { Bill } from "../figure/bill";
 import { accentOf, type Item, marksOf } from "../figure/item";
@@ -129,6 +131,20 @@ export function Verb(properties: {
 
     // switch the browser and every holding at once, so the switch morphs as one
     const isOpenAt: Stagger = () => properties.isOpen;
+
+    // show the bill or your agent's chat beside the space, the chat running while it shows
+    const [tab, setTab] = createSignal(0);
+    const beat = createBeat(
+        () => tab() === 1 && !isReduced() && isShown(),
+        () => properties.isOpen,
+    );
+    const scene = () => (properties.isOpen ? destackedScene : stackedScene);
+    const moment = () => scene().at(isReduced() ? undefined : beat() % scene().length);
+    const {
+        look,
+        progress,
+        choose: chooseAssistant,
+    } = createAssistantTurn(beat, () => scene().length, isReduced);
 
     // hold who is looking, whether the reader chose them, and the page the window turns to on its own
     const [viewer, setViewer] = createSignal<Viewer>("Me");
@@ -280,36 +296,58 @@ export function Verb(properties: {
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
                 <LabelRow
                     end={
-                        <Dial
-                            label="People"
-                            options={teams}
-                            value={people()}
-                            format={String}
-                            onChange={(next) => {
-                                setIsTouched(true);
-                                setPeople(next);
-                            }}
-                        />
+                        tab() === 0 ? (
+                            <Dial
+                                label="People"
+                                options={teams}
+                                value={people()}
+                                format={String}
+                                onChange={(next) => {
+                                    setIsTouched(true);
+                                    setPeople(next);
+                                }}
+                            />
+                        ) : (
+                            <Picker
+                                label="Agent"
+                                options={assistantOptions}
+                                sections={undefined}
+                                shown={look()}
+                                progress={progress()}
+                                onChoose={chooseAssistant}
+                            />
+                        )
                     }
                 >
-                    <Fade isOpen={isOpenAt(0)}>
-                        <Label>{isOpenAt(0) ? "Paid by usage" : "Paid per seat"}</Label>
-                    </Fade>
+                    <LabelTabs
+                        tabs={[isOpenAt(0) ? "Paid by usage" : "Paid per seat", "Your agent"]}
+                        shown={tab()}
+                        onShow={setTab}
+                    />
                 </LabelRow>
-                <Bill
-                    isWindow
-                    scale={{ people: people(), users: BASE_USERS }}
-                    scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
-                    lines={holdingsWith(source(), lineup()).map((entry, index) => ({
-                        entry,
-                        workload: workloadAt(index + 1, entry.stacked.name),
-                        tint: accentOf(entry.stacked.name, tintOf(entry.stacked)),
-                    }))}
-                    lighting={lighting}
-                    isOpenAt={isOpenAt}
-                    optionsOf={optionsOf}
-                    onChoose={pick}
-                />
+                {tab() === 1 ? (
+                    <AgentChat
+                        isOpen={properties.isOpen}
+                        moment={moment()}
+                        look={{ kind: "assistant", assistant: look() }}
+                        connectors={stackedConnectors}
+                    />
+                ) : (
+                    <Bill
+                        isWindow
+                        scale={{ people: people(), users: BASE_USERS }}
+                        scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
+                        lines={holdingsWith(source(), lineup()).map((entry, index) => ({
+                            entry,
+                            workload: workloadAt(index + 1, entry.stacked.name),
+                            tint: accentOf(entry.stacked.name, tintOf(entry.stacked)),
+                        }))}
+                        lighting={lighting}
+                        isOpenAt={isOpenAt}
+                        optionsOf={optionsOf}
+                        onChoose={pick}
+                    />
+                )}
             </div>
         </section>
     );
