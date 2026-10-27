@@ -293,7 +293,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         // store the served ephemeral types in memory, as a host does, failing the test on a lost write
         const ephemeral = await EphemeralStorage.open(
             implementations.flatMap((each) => Object.values(each.package.objects)),
-            EphemeralStorage.channel(storage.database),
+            storage.database.tracker,
             (tables) => connectBunSqlite(":memory:", tables, { environment }),
             {
                 report: (error) => {

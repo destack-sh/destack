@@ -1,4 +1,3 @@
-import { channelHub } from "@destack/db";
 import { ObjectError } from "../error/error.ts";
 import {
     DATABASE_PATH,
@@ -95,8 +94,6 @@ export class DurableObjectRunner {
     readonly #runner: Omit<RunnerOptions, "ephemeral">;
     /** The object's databases. */
     readonly #databases: DurableObjectDatabaseHost;
-    /** The channel the object's instances replicate their ephemeral writes over, one per object. */
-    readonly #channels = channelHub<unknown>();
     /** The running workload, absent before a start and after a stop. */
     #running: Promise<WorkloadRunner | undefined>;
 
@@ -211,8 +208,6 @@ export class DurableObjectRunner {
 
                         return this.#databases.connect(tables, { namespace: EPHEMERAL_NAMESPACE });
                     },
-                    // replicate between the object's instances, such as the one a deploy replaces
-                    channel: () => this.#channels(),
                 },
                 connectors: { [DURABLE_OBJECT_PROVIDER]: durableObjectConnector(this.#databases) },
             },

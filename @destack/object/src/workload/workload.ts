@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import type { Channel, DatabaseConnection, Table } from "@destack/db";
+import type { DatabaseConnection, Table } from "@destack/db";
 import type { Identifier, JsonValue } from "@destack/schema";
 import type { Publisher, Uplink } from "@destack/sync";
 import {
@@ -46,8 +46,6 @@ export interface EphemeralHost {
     readonly open: (
         tables: readonly Table[],
     ) => Promise<DatabaseConnection & { readonly close: () => Promise<void> }>;
-    /** Open the channel replicating ephemeral writes between the installation's instances. */
-    readonly channel: (durable: DatabaseConnection) => Channel<unknown>;
 }
 
 /** The context of a starting workload. */

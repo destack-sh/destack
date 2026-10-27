@@ -455,16 +455,15 @@ async function serveBoards(world: Environment) {
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
 
-    // serve them from two instances sharing presence over their database's channel
+    // serve them from two instances sharing presence over their database's tracker
     const instance = async () => {
         const durable = await storage.connect(storage.database.tables);
         const ephemeral = present(
             await EphemeralStorage.open(
                 [presence, board, profile],
-                EphemeralStorage.channel(durable),
+                durable.tracker,
                 (tables) => sqlite.connectBunSqlite(":memory:", tables, { environment: world }),
                 {
-                    heartbeat: 1000,
                     linger: 50,
                     report: (error) => {
                         throw error;

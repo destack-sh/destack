@@ -65,9 +65,6 @@ const LogsExport = schema
 /** The ephemeral host of runners with workloads that have no ephemeral objects. */
 const refusingEphemeral: EphemeralHost = {
     open: () => Promise.reject(new Error("the fixture runner stores no ephemeral objects")),
-    channel: () => {
-        throw new Error("the fixture runner replicates no ephemeral objects");
-    },
 };
 
 /** The runner's package. */
@@ -161,7 +158,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
     // start a workload with packages that answer with the path and the caller, reading its installation's settings
     let settings: unknown;
     const publisher: Uplink = {
-        confirm: async () => {},
+        request: async () => {},
         stream: () => {
             throw new Error("the fixture publisher streams no replicas");
         },
@@ -307,7 +304,7 @@ test("forward a webhook delivery below the webhook path to the workload, refusin
             ),
             resources: {},
             publisher: () => ({
-                confirm: async () => {},
+                request: async () => {},
                 stream: () => {
                     throw new Error("the fixture publisher streams no replicas");
                 },
@@ -400,7 +397,7 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
             ),
             resources: {},
             publisher: () => ({
-                confirm: async () => {},
+                request: async () => {},
                 stream: () => {
                     throw new Error("the fixture publisher streams no replicas");
                 },
@@ -479,7 +476,7 @@ test("hand a routed request to the workload's package at the route path, under t
                 ),
                 resources: {},
                 publisher: () => ({
-                    confirm: async () => {},
+                    request: async () => {},
                     stream: () => {
                         throw new Error("the fixture publisher streams no replicas");
                     },
