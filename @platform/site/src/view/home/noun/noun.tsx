@@ -48,12 +48,7 @@ const noun: Form = {
     sense: {
         definition: "an absurdly integrated universal software engine",
         highlight: ["universal software engine"],
-        sentence: (
-            <>
-                Make high-quality custom software easily, with one standardised pipeline that{" "}
-                <em>your</em> agents love.
-            </>
-        ),
+        sentence: "Make custom apps with one standardised pipeline that your agents love.",
         gloss: "Unreal Engine, for everyday software",
     },
 };
@@ -151,8 +146,8 @@ export function Noun(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
-                stacked="one prototype, nine services short of an app"
-                destacked="one app, one engine"
+                stacked="one live app, nine services"
+                destacked="one live app, one engine"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>

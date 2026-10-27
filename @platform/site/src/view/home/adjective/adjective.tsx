@@ -21,9 +21,8 @@ const destackable: Form = {
     sense: {
         definition: "open, transparent, and hackable",
         highlight: ["transparent", "hackable"],
-        sentence:
-            "One obvious way to build, change, and monitor software, with nothing hidden from you or your agents.",
-        gloss: "like a spreadsheet: every formula visible, every cell editable",
+        sentence: "See everything your apps and agents do, and control all of it.",
+        gloss: "like Wikipedia: every edit visible, every page editable",
     },
 };
 

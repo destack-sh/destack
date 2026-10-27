@@ -204,7 +204,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
                 open={isOpen()}
                 onOpenChange={setIsOpen}
                 title="Search Destack"
-                description="Search pages, sections and commands"
+                description="Search pages, sections, and commands"
                 search={query()}
                 onSearchChange={setQuery}
                 shouldFilter={false}

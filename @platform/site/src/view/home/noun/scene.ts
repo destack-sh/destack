@@ -113,8 +113,8 @@ function madeOf(maker: Maker): readonly Item[] {
 function madeReplyOf(maker: Maker): string {
     // tell where the signups live for now
     return maker.place.kind === "artifact"
-        ? "Here's a launch tracker with a signup form, your milestones and a draft of the reminder email. Signups only live in this artifact for now, so they reset when it reloads."
-        : "Here's the launch tracker, with a signup form, your milestones and the reminder email.";
+        ? "Here's a launch tracker with a signup form, your milestones, and a draft of the reminder email. Signups only live in this artifact for now, so they reset when it reloads."
+        : "Here's the launch tracker, with a signup form, your milestones, and the reminder email.";
 }
 
 /** What each platform's agent says going live takes, by the platform's name. */

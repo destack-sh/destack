@@ -37,7 +37,7 @@ const rate: Form = {
     sense: {
         definition: "a boring price for everything",
         highlight: ["boring price"],
-        sentence: "Compute, storage and requests are billed as your apps run. Egress is free.",
+        sentence: "Compute, storage, and requests are billed as your apps run. Egress is free.",
     },
 };
 

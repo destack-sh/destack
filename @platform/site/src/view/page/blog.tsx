@@ -21,7 +21,7 @@ export function Blog() {
         <>
             <Metadata
                 title="Blog"
-                description="Updates around Destack."
+                description="Notes from building Destack."
                 alternates={{
                     canonical: "/blog/",
                     types: { "application/atom+xml": "/blog/feed.xml" },
@@ -44,7 +44,7 @@ export function Blog() {
             >
                 <DirectoryContent
                     title="Blog"
-                    description="Updates around Destack."
+                    description="Notes from building Destack."
                     directory={directory}
                 />
             </Reader>

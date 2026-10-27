@@ -161,7 +161,7 @@ const layers: readonly Layer[] = [
         detail: { today: "Their cloud", destack: "Bun, Workers" },
         note: {
             today: "prices set by their margins",
-            destack: "your laptop, your server or our cloud",
+            destack: "your laptop, your server, or our cloud",
         },
         item: {
             today: ({ vendors }) => `${vendors} clouds`,

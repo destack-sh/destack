@@ -59,9 +59,8 @@ const verb: Form = {
     sense: {
         definition: "to reconquer your software",
         highlight: ["reconquer"],
-        sentence:
-            "The apps you use, the apps you make, the agents you run — all in one stack you own.",
-        gloss: "to standardise how software is made, shipped, and refined",
+        sentence: "Own the apps you use, the apps you make, and the agents you run, in one stack.",
+        gloss: "to standardise how software is made, shipped, and changed",
     },
 };
 

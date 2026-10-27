@@ -16,7 +16,7 @@ const participle: Form = {
         definition: "making all your software work as one",
         highlight: ["work as one"],
         sentence: "Move in one app at a time: just ask your agent.",
-        gloss: "working together like Apple devices, across all your software",
+        gloss: "like finally having your own place",
     },
 };
 
@@ -32,7 +32,7 @@ export function Participle(properties: {
             <Entry form={participle} />
             <Tally
                 number={6}
-                stacked="your tools, each on its own"
+                stacked="your tools, fragmented"
                 destacked="your tools, in one space"
                 isOpen={properties.isOpen}
                 picks={properties.picks}

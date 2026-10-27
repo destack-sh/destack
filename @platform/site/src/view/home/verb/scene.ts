@@ -22,7 +22,7 @@ export const stackedScene = Scene.of([
     },
     {
         kind: "reply",
-        text: "I created a Press base in your Launch workspace with Outlet, Contact, Status and Date fields. I can't invite Maya through the API, so share it from Airtable's Share button. On your plan she'll count as a paid seat. Linking entries to the Trello board would need an automation, for example a Zapier zap.",
+        text: "I created a Press base in your Launch workspace with Outlet, Contact, Status, and Date fields. I can't invite Maya through the API, so share it from Airtable's Share button. On your plan she'll count as a paid seat. Linking entries to the Trello board would need an automation, for example a Zapier zap.",
     },
 ]);
 
