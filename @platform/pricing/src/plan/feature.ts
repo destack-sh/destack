@@ -73,6 +73,7 @@ export const retention = defineFeature({
     name: "retention",
     description: "Days events stay before they expire.",
     kind: "static",
+    resource: "retention",
     value: schema.number().int().positive(),
 });
 
