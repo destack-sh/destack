@@ -1,5 +1,5 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Change, defineTable, eq, integer, lease, text } from "../index.ts";
+import { Change, defineTable, eq, integer, lock, text } from "../index.ts";
 import { reconciliation, TestDatabase } from "../test/index.ts";
 import { testSimulation } from "@destack/test/world";
 import { canonicalize, nth, found } from "@destack/schema";
@@ -78,7 +78,7 @@ test("reconcile listed keys, the keys of changes, keys due again, and refused ke
 
     const recorded = new SimulatedTelemetry(world);
     using telemetry = new TestTelemetry(recorded);
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: { ...world, telemetry: recorded },
         isMigrated: true,
     });
@@ -157,7 +157,7 @@ test("report a key failing transiently only once its retries last past the windo
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -230,7 +230,7 @@ test("leave a refused key quiet until its next change, reporting it once, and re
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -308,7 +308,7 @@ test("fail the loop, its run and its idle waiters, once a controller throws a fa
     // reconcile one key in a world, its controller throwing a TypeError
     await using simulation = testSimulation();
     const environment = simulation.environment("controller");
-    const storage = await TestDatabase.create([job], { environment, isMigrated: true });
+    const storage = await TestDatabase.create([job, lock], { environment, isMigrated: true });
     onTestFinished(() => storage.close());
     const defect = new TypeError("undefined is not an object");
     const controller: Controller = {
@@ -346,7 +346,7 @@ test("end a run whose loop fails, only after its running reconciliations ended",
     // reconcile a key held at a gate, its controller watching the log
     await using simulation = testSimulation();
     const environment = simulation.environment("controller");
-    const storage = await TestDatabase.create([job], { environment, isMigrated: true });
+    const storage = await TestDatabase.create([job, lock], { environment, isMigrated: true });
     onTestFinished(() => storage.close());
     const events: string[] = [];
     const started = Promise.withResolvers<void>();
@@ -386,7 +386,7 @@ test("retry a stale or moving key until it succeeds, reporting nothing", async (
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -445,7 +445,7 @@ test("report a key function that fails on a change and reconcile every listed ke
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -502,7 +502,7 @@ test("list a controller of an unlogged table again after a commit to its table a
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([claim, ticket], {
+    const storage = await TestDatabase.create([claim, ticket, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -559,7 +559,7 @@ test("list again after compaction only the controllers following the compacted t
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -635,7 +635,7 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -694,46 +694,45 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
     expect(most).toBe(2);
 });
 
-test("lease each key to one instance of several sharing a database, handing it over once its holder stops", async () => {
-    // run in a world of its own
+test("lock each key to one instance of several sharing a database, handing it over once its holder stops", async () => {
+    // run two instances of the loop over two connections to one database
     const world = testSimulation().environment("test");
-
-    const storage = await TestDatabase.create([job, lease], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
+    const other = await storage.connect([job, lock]);
+    onTestFinished(() => other.close());
     await storage.database.transaction((transaction) =>
         transaction.insert(job).values({ id: "shared", scope: "space", runs: 1 }).execute(),
     );
 
-    // run the loop on two instances
+    // record which instance reconciles the shared key
     const reconciled: string[] = [];
-    const controller: Controller = {
+    const controllerOf = (instance: string): Controller => ({
         name: "job",
         watches: [job],
         keys: () => [],
         list: async () => ["shared"],
-        reconcile: async (_key, { epoch }) => {
-            reconciled.push(`${epoch}`);
+        reconcile: async (_key, { signal }) => {
+            reconciled.push(instance);
+            await until(signal);
 
             return undefined;
         },
-    };
+    });
     const clock = new SimulatedClock(Date.UTC(2026, 9, 24));
     const first = new AbortController();
     const second = new AbortController();
     const running = [
-        new ControlLoop(storage.database, [controller], {
+        new ControlLoop(storage.database, [controllerOf("first")], {
             clock,
             report: ignore,
-            lease: { holder: "first", duration: 200 },
         }).run(first.signal),
-        new ControlLoop(storage.database, [controller], {
-            clock,
-            report: ignore,
-            lease: { holder: "second", duration: 200 },
-        }).run(second.signal),
+        new ControlLoop(other, [controllerOf("second")], { clock, report: ignore }).run(
+            second.signal,
+        ),
     ];
     onTestFinished(async () => {
         first.abort();
@@ -741,16 +740,14 @@ test("lease each key to one instance of several sharing a database, handing it o
         await Promise.all(running);
     });
 
-    // reconcile the key once on the lease holder
+    // reconcile the key on one instance alone, then hand it to the other once the holder stops
     await expect.poll(() => reconciled.length).toBe(1);
-
-    // stop the holder, then let the other instance take the released key afresh
-    const leases = await storage.database.select({ holder: lease.holder }).from(lease);
-    const isFirst = nth(leases, 0).holder === "first";
-    (isFirst ? first : second).abort();
-    await nth(running, isFirst ? 0 : 1);
-    clock.advance(200);
-    await expect.poll(() => reconciled, { timeout: 2000 }).toEqual(["1", "1"]);
+    const holder = nth(reconciled, 0);
+    (holder === "first" ? first : second).abort();
+    await nth(running, holder === "first" ? 0 : 1);
+    await expect
+        .poll(() => reconciled, { timeout: 2000 })
+        .toEqual([holder, holder === "first" ? "second" : "first"]);
 });
 
 test("follow each listed key until its list drops it or the loop stops", async () => {
@@ -758,7 +755,7 @@ test("follow each listed key until its list drops it or the loop stops", async (
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -827,7 +824,7 @@ test("settle idle once each follow synced while reporting a follow failing befor
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -888,7 +885,7 @@ test("list a following controller again only for a commit of a row its list read
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -964,7 +961,7 @@ test("fail the loop once a follow ends unasked", async () => {
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1006,7 +1003,7 @@ test("retry a failing follow at once when its revision changes, else only after 
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1072,7 +1069,7 @@ test("start a failing follow at once once its list drops it and lists it again, 
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1126,7 +1123,7 @@ test("refuse a follower whose list never reads its watched tables through its vi
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1156,7 +1153,7 @@ test("follow a key again once its list names it after it failed and was dropped"
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1212,7 +1209,7 @@ test("set the host's alarm at the earliest due or skipped key, clear it once not
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1272,7 +1269,7 @@ test("settle idle only after reconciling the keys of every watched change commit
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1316,7 +1313,7 @@ test("keep the follow cursor before a change the follow is still keying, and mov
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1379,7 +1376,7 @@ test("spend no statement on commits to tables no controller watches", async () =
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job, note], {
+    const storage = await TestDatabase.create([job, note, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1421,7 +1418,7 @@ test("settle idle once the log moved past a quiet watched table, also after comp
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job, note], {
+    const storage = await TestDatabase.create([job, note, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1464,7 +1461,7 @@ test("settle idle only after the key of a watched change committed while the ala
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1531,7 +1528,7 @@ test("reconcile a key named due while the worker's alarm is set, before it sleep
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1583,7 +1580,7 @@ test("settle an alarm at its deadline while a follow runs, leave the alarm due, 
     await using simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1705,7 +1702,10 @@ test("hold every reconciliation until the loop may act, then reconcile the keys 
     // run in a world of its own, over a listed claim
     await using simulation = testSimulation();
     const world = simulation.environment("test");
-    const storage = await TestDatabase.create([claim], { environment: world, isMigrated: true });
+    const storage = await TestDatabase.create([claim, lock], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const reconciled: string[] = [];
     const claims: Controller = {

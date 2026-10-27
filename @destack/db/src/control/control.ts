@@ -1,17 +1,18 @@
 import type { DatabaseConnection } from "../database/index.ts";
 import { DatabaseError } from "../error/index.ts";
-import { Lease, type LeaseOutcome } from "../limit/index.ts";
+import { Lock } from "../limit/index.ts";
+import type { Tracker } from "../tracker/index.ts";
 import { type Change, ReadSet, Snapshot } from "../log/index.ts";
 import { TABLE, type Table } from "../table/index.ts";
-import { found, nth } from "@destack/schema";
+import { found, nth, Uuid } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { Failure } from "@destack/error";
 import { RetryPolicy, until, yieldToEventLoop, Clock } from "@destack/environment";
 import type { Alarm } from "./alarm.ts";
 
-/** The default lease duration: 15 s, Kubernetes leader election's lease duration. */
-export const LEASE_MILLISECONDS = 15_000;
+/** The tracker topic a loop announces releasing its locks on. */
+const RELEASED_TOPIC = "control/released";
 
 /** The retry of a failed reconciliation, doubling from a second up to 5 minutes. */
 const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
@@ -78,10 +79,8 @@ interface Backoff {
 
 /** One running reconciliation of a key. */
 export interface Reconciliation {
-    /** Abort once the loop stops, the lease is lost or the key leaves the list. */
+    /** Abort once the loop stops or the key leaves the list. */
     readonly signal: AbortSignal;
-    /** The lease's takeover count, when instances share the loop. */
-    readonly epoch?: number;
     /** Wait for the key to change again while it reconciles, as its controller's keys select it. */
     readonly changed: () => Promise<void>;
 }
@@ -166,8 +165,14 @@ export class ControlLoop {
     readonly #reconciling = new Set<Promise<void>>();
     /** The running keys not settled yet, a follow settling once synced. */
     readonly #unsettled = new Set<symbol>();
-    /** The lease holder and duration, when instances share the loop. */
-    readonly #lease?: { readonly holder: string; readonly duration: number };
+    /** The tracker whose instance locks each key, when other connections share the database. */
+    readonly #tracker?: Tracker;
+    /** The lock of each controller, when other connections share the database. */
+    readonly #locks = new Map<Controller, Lock>();
+    /** Whether the loop leads each controller, settled once its lock is taken or refused. */
+    readonly #leading = new Map<Controller, Promise<boolean>>();
+    /** The keys waiting for another holder's lock, run again once it releases or stops. */
+    readonly #waiting = new Map<Controller, Set<string>>();
     /** The host's wake-up for the earliest due key. */
     readonly #alarm?: Alarm;
     /** The clock keys come due at. */
@@ -210,8 +215,6 @@ export class ControlLoop {
             readonly report: (controller: Controller, key: string, error: unknown) => void;
             /** How a transiently failed key retries. */
             readonly retry?: Partial<RetryPolicy>;
-            /** Lease each key to this instance. */
-            readonly lease?: { readonly holder: string; readonly duration?: number };
             /** Set a wake-up for the earliest due key, so an evicted instance runs it. */
             readonly alarm?: Alarm;
             /** The clock keys come due at. */
@@ -246,11 +249,16 @@ export class ControlLoop {
         if (options.alarm !== undefined) {
             this.#alarm = options.alarm;
         }
-        if (options.lease !== undefined) {
-            this.#lease = {
-                holder: options.lease.holder,
-                duration: options.lease.duration ?? LEASE_MILLISECONDS,
-            };
+
+        // lock each controller as this loop when instances share the database
+        if (database.isShared) {
+            const { tracker } = database;
+            const holder = Uuid.v4(database.state.environment.random);
+            this.#tracker = tracker;
+            for (const controller of controllers) {
+                const name = ControlLoop.#lockName(controller);
+                this.#locks.set(controller, new Lock(database, name, tracker.instance, holder));
+            }
         }
         this.#watched = [
             ...new Set(controllers.flatMap((controller) => controller.watches ?? [])),
@@ -270,6 +278,13 @@ export class ControlLoop {
             loop.catch((error: unknown) => {
                 this.#failing.abort(error);
             });
+
+        // run the waiting keys again once another holder releases its locks or stops
+        const tracker = this.#tracker;
+        const unwatch = [
+            tracker?.watchStopped(() => this.#requeueWaiting()),
+            tracker?.listen(RELEASED_TOPIC, () => this.#requeueWaiting()),
+        ];
         try {
             // wait for every loop to end, its running reconciliations included
             await Promise.all(
@@ -286,19 +301,23 @@ export class ControlLoop {
                 throw this.#failing.signal.reason;
             }
         }
-        // release this instance's leases and settle the idle waiters
+        // release this instance's locks and settle the idle waiters
         finally {
             this.#isStopped = true;
+            for (const stop of unwatch) {
+                stop?.();
+            }
             for (const waiter of this.#idle.splice(0)) {
                 this.#settleIdle(waiter);
             }
-            if (this.#lease !== undefined) {
-                for (const controller of this.controllers) {
-                    await Lease.release(this.database, {
-                        holder: this.#lease.holder,
-                        name: ControlLoop.#leaseName(controller),
-                    });
+            // leave a closing database's locks to its stopping instance, which frees them
+            if (tracker !== undefined && !this.database.state.isClosing) {
+                for (const [controller, leading] of this.#leading) {
+                    if (await leading) {
+                        await found(this.#locks, controller).release();
+                    }
                 }
+                tracker.broadcast(RELEASED_TOPIC, null);
             }
         }
     }
@@ -616,7 +635,7 @@ export class ControlLoop {
             const now = this.#clock.now();
             const { runnable, due, skipped } = this.#take(now);
 
-            // start it once the loop may act, holding no lease or slot meanwhile
+            // start it once the loop may act, holding no lock or slot meanwhile
             if (runnable !== undefined) {
                 await this.#awaitReady(signal);
                 if (signal.aborted) {
@@ -739,12 +758,12 @@ export class ControlLoop {
 
     /** Reconcile one key until settled, or follow it until stopped, retrying failures. */
     async #reconcile(work: Work, stopped: AbortSignal, synced: () => void): Promise<void> {
-        // reconcile under the lease and requeue when asked
+        // reconcile under the lock and requeue when asked
         const { controller, key } = work;
         const failures = found(this.#failures, controller);
 
         try {
-            const delay = await this.#leased(work, stopped, async (reconciliation) => {
+            const delay = await this.#locked(work, stopped, async (reconciliation) => {
                 // follow until stopped, reporting once caught up
                 if (controller.mode === "follow") {
                     await controller.reconcile(key, { ...reconciliation, synced });
@@ -851,8 +870,8 @@ export class ControlLoop {
         return now - first >= this.#transientFor && attempts >= TRANSIENT_REPORT_ATTEMPTS;
     }
 
-    /** Reconcile a key under this instance's lease, stopped by the loop or a lost lease. */
-    async #leased(
+    /** Reconcile a key while the loop leads its controller. */
+    async #locked(
         work: Work,
         stopped: AbortSignal,
         reconcile: (reconciliation: Reconciliation) => Promise<number | undefined>,
@@ -868,68 +887,35 @@ export class ControlLoop {
             return promise;
         };
 
-        // reconcile without a lease
-        const options = this.#lease;
-        if (options === undefined) {
+        // reconcile without a lock
+        const tracker = this.#tracker;
+        if (tracker === undefined) {
             return reconcile({ signal: stopped, changed });
         }
 
-        // take the lease or wait for it to lapse
-        const { holder, duration } = options;
-        const acquire = () =>
-            Lease.acquire(this.database, {
-                name: ControlLoop.#leaseName(work.controller),
-                key: work.key,
-                holder,
-                duration,
-                now: this.#clock.now(),
-            });
-        const acquired = await acquire();
-        if (acquired.kind === "busy") {
-            return Math.max(0, acquired.lapsesAt - this.#clock.now());
+        // mark the key waiting first, so a release while it takes the lock runs it again
+        const { controller, key } = work;
+        const waiting = this.#waiting.get(controller) ?? new Set();
+        this.#waiting.set(controller, waiting.add(key));
+
+        // lead the controller, its keys sharing one take of its lock
+        let leading = this.#leading.get(controller);
+        if (leading === undefined) {
+            leading = found(this.#locks, controller).take((instance) => tracker.isLive(instance));
+            this.#leading.set(controller, leading);
         }
 
-        // renew the lease at a third of its duration on the clock
-        const lost = new AbortController();
-        const reconciled = new AbortController();
-        void this.#renew(acquire, work.key, duration / 3, lost, reconciled.signal);
-        try {
-            const signal = AbortSignal.any([stopped, lost.signal]);
-
-            return await reconcile({ epoch: acquired.epoch, signal, changed });
-        } finally {
-            reconciled.abort();
-        }
-    }
-
-    /** Renew an acquired lease each interval of the clock until reconciled, or abort it as lost. */
-    async #renew(
-        acquire: () => Promise<LeaseOutcome>,
-        key: string,
-        interval: number,
-        lost: AbortController,
-        reconciled: AbortSignal,
-    ): Promise<void> {
-        while (
-            await this.#clock.sleep(interval, reconciled).then(
-                () => true,
-                () => false,
-            )
-        ) {
-            // lose the lease once another takes it or renewing fails
-            try {
-                const renewed = await acquire();
-                if (renewed.kind === "busy") {
-                    lost.abort(new Error(`lease of ${key} lost`));
-
-                    return;
-                }
-            } catch (error) {
-                lost.abort(error);
-
-                return;
+        // wait for another holder's release, taking the lock afresh then
+        if (!(await leading)) {
+            if (this.#leading.get(controller) === leading) {
+                this.#leading.delete(controller);
             }
+
+            return undefined;
         }
+        waiting.delete(key);
+
+        return reconcile({ signal: stopped, changed });
     }
 
     /** Schedule the host's wake-up at the earliest due time, once per change. */
@@ -976,8 +962,18 @@ export class ControlLoop {
         }
     }
 
-    /** Read the lease name of a controller's keys. */
-    static #leaseName(controller: Controller): string {
+    /** Run every waiting key again. */
+    #requeueWaiting(): void {
+        for (const [controller, keys] of this.#waiting) {
+            for (const key of keys) {
+                this.enqueue(controller, key);
+            }
+            keys.clear();
+        }
+    }
+
+    /** Read the lock name of a controller. */
+    static #lockName(controller: Controller): string {
         return `controller:${controller.name}`;
     }
 }

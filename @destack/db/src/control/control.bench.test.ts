@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test, type TestContext } from "@destack/test";
-import { defineTable, eq, integer, text } from "../index.ts";
+import { defineTable, eq, integer, lock, text } from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
 import { ControlLoop, type Controller, type FollowController } from "./control.ts";
 import { testHost } from "@destack/test/host";
@@ -31,7 +31,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
     annotate,
 }) => {
     const { clock } = HOST;
-    const storage = await TestDatabase.create([job], {
+    const storage = await TestDatabase.create([job, lock], {
         environment: HOST,
         dialect: "sqlite",
         isMigrated: true,

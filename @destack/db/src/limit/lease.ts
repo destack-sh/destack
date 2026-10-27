@@ -3,6 +3,9 @@ import { DatabaseError } from "../error/index.ts";
 import { and, eq, gt, lte, or, sql } from "../sql/index.ts";
 import { defineTable, integer, text } from "../table/index.ts";
 
+/** The default lease duration: 15 s, Kubernetes leader election's lease duration. */
+export const LEASE_MILLISECONDS = 15_000;
+
 /** The share of a lease's time left above which its holder reuses it, renewing a third in. */
 const REUSE_REMAINING = 2 / 3;
 
