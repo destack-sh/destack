@@ -41,7 +41,7 @@ import {
     spaceTable,
 } from "../test/fixture.ts";
 import { AccessFixture } from "../test/access.ts";
-import { openDatabase, openFixture, userSubject } from "../test/database.ts";
+import { homePositions, openDatabase, openFixture, userSubject } from "../test/database.ts";
 import { Identifier, type JsonObject, nth } from "@destack/schema";
 
 /** The seeds of the generated worlds the replica decides like their home. */
@@ -59,7 +59,7 @@ const CHAIN = [SPACE, "account-0", Scope.universe.id];
 /** The outside scopes of a target's chain: none. */
 const OWN = { via: [], between: [] } as const;
 
-test("replicate a space's chain up to the universe, with the policies each scope hands down, and follow a grant", async () => {
+test("replicate a space's chain up to the universe in one replica, with the policies each scope hands down, and follow a grant", async () => {
     // insert an account and its space, both of alice, in the home database
     const home = await openDatabase();
     const app = await openFixture();
@@ -98,16 +98,20 @@ test("replicate a space's chain up to the universe, with the policies each scope
             ]),
     );
 
-    // follow each scope's access rows and handed down policies from the home database
+    // follow every scope's access rows and handed down policies from the home database in one replica
     const feed = new Feed(home.database, [...accessTables, policyTable], {});
     const chain = ["personal", "account-1", "universe"];
-    for (const scope of chain) {
-        await follow(
-            app.database,
-            chainOf(app.authorizer, authorizer, scope, "personal", chain, [policy.typeReference]),
-            feed,
-        );
-    }
+    const followed = chainOf(
+        app.authorizer,
+        authorizer,
+        "personal",
+        "personal",
+        chain,
+        [policy.typeReference],
+        OWN,
+        chain,
+    );
+    await follow(app.database, followed, feed);
 
     // replicate the account's access row for row, and only the policies the account and the universe hand down
     expect([
@@ -132,13 +136,7 @@ test("replicate a space's chain up to the universe, with the policies each scope
             authorization,
         ),
     );
-    for (const scope of chain) {
-        await follow(
-            app.database,
-            chainOf(app.authorizer, authorizer, scope, "personal", chain, [policy.typeReference]),
-            feed,
-        );
-    }
+    await follow(app.database, followed, feed);
     expect(await replicated(app.database)).toEqual(await replicated(home.database));
 });
 
@@ -147,7 +145,12 @@ test("replicate at the universe the relationships of the chain's objects alone, 
     const authorizer = new Authorizer(policies, homeMappings);
     const scoped = authorizer.replicateChain(
         { name: `${CHAIN_PUBLICATION}:personal`, scope: Scope.universe.id, target: "personal" },
-        { scopes: ["personal", "account-1", "universe"], local: [], types: [], ...OWN },
+        {
+            scopes: ["personal", "account-1", "universe"],
+            local: [],
+            replicated: [{ scope: Scope.universe.id, types: [] }],
+            ...OWN,
+        },
     );
     const outside = authorizer.replicateChain(
         {
@@ -155,7 +158,13 @@ test("replicate at the universe the relationships of the chain's objects alone, 
             scope: Scope.universe.id,
             target: "placement",
         },
-        { scopes: [], local: [], types: [], via: ["account-1"], between: [] },
+        {
+            scopes: [],
+            local: [],
+            replicated: [{ scope: Scope.universe.id, types: [] }],
+            via: ["account-1"],
+            between: [],
+        },
     );
 
     // read the chain objects' universe relationships, and the target's grants on its chain
@@ -234,19 +243,19 @@ test("replicate the chains of the accounts a follower outside them replicates in
     await follow(app.database, via(["account-1", "account-2"]), feed);
     const head = await home.database.log.position();
     const scopes = ["account-1", "account-2", "universe"];
-    const origins = await Replica.origins(app.database, CHAIN_PUBLICATION, scopes);
-    expect([
-        await replicated(app.database),
-        [...origins.keys()].toSorted(),
-        [...origins.values()].map((origin) => origin.position),
-    ]).toEqual([await replicated(home.database), scopes, [head, head, head]]);
+    expect([await replicated(app.database), await homePositions(app.database, scopes)]).toEqual([
+        await replicated(home.database),
+        { "account-1": head, "account-2": head, universe: head },
+    ]);
 
     // reshape the replica once the follower replicates only the first account, dropping the second's rows
     await follow(app.database, via(["account-1"]), feed);
     const stored = await replicated(home.database);
     expect([
         await replicated(app.database),
-        [...(await Replica.origins(app.database, CHAIN_PUBLICATION, scopes)).keys()].toSorted(),
+        Object.entries(await homePositions(app.database, scopes)).flatMap(([scope, position]) =>
+            position === undefined ? [] : [scope],
+        ),
     ]).toEqual([
         {
             scopes: stored.scopes.filter(isOutsideSecond),
@@ -271,7 +280,12 @@ test("replicate a scope object's row from wherever it lives, and only from a sou
     const chained = (authorizer: Authorizer, type: ObjectTypeReference) =>
         authorizer.replicateChain(
             { name: CHAIN_PUBLICATION, scope: "account-1", target: "personal" },
-            { scopes: ["personal", "account-1", "universe"], local: [], types: [type], ...OWN },
+            {
+                scopes: ["personal", "account-1", "universe"],
+                local: [],
+                replicated: [{ scope: "account-1", types: [type] }],
+                ...OWN,
+            },
         );
     const chain = chained(storing, account.typeReference);
 
@@ -296,7 +310,9 @@ test("read one table of several types once in a chain replica, in the scopes of 
         {
             scopes: [],
             local: [],
-            types: [node.typeReference, cell.typeReference],
+            replicated: [
+                { scope: Scope.universe.id, types: [node.typeReference, cell.typeReference] },
+            ],
             via: ["personal", "account-1"],
             between: [],
         },
@@ -322,22 +338,28 @@ interface Followed {
     readonly subscription: Subscription;
 }
 
-/** Build one scope's chain replica for a target at the follower and the source. */
+/** Build a chain replica of some scopes for a target at the follower and the source. */
 function chainOf(
     follower: Authorizer,
     source: Authorizer,
     scope: string,
     target: string,
     scopes: readonly string[],
-    types: ChainParameters["types"] = [],
+    types: ChainParameters["replicated"][number]["types"] = [],
     outside: Pick<ChainParameters, "via" | "between"> = OWN,
+    replicating: readonly string[] = [scope],
 ): Followed {
     const request = {
         name: `${CHAIN_PUBLICATION}:${target}${outside.via.length === 0 ? "" : ":via"}`,
         scope,
         target,
     };
-    const parameters = { scopes, local: [], types, ...outside };
+    const parameters = {
+        scopes,
+        local: [],
+        replicated: replicating.map((each) => ({ scope: each, types })),
+        ...outside,
+    };
 
     return {
         replica: follower.replicateChain(request, parameters),
@@ -349,7 +371,10 @@ function chainOf(
             parameters: {
                 scopes: [...scopes],
                 local: [],
-                types: types.map((type) => ({ ...type })),
+                replicated: parameters.replicated.map((each) => ({
+                    scope: each.scope,
+                    types: each.types.map((type) => ({ ...type })),
+                })),
                 via: [...outside.via],
                 between: [...outside.between],
             },
@@ -390,6 +415,7 @@ async function follow(database: DatabaseConnection, followed: Followed, feed: Fe
         }
     }
     await Array.fromAsync(replica.apply(database, pages, options));
+    database.tracker.track(Replica.owner(replica.name, replica.scope));
 }
 
 /** Read a database's relationships in key order. */

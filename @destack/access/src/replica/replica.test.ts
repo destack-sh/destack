@@ -1,4 +1,3 @@
-import { TEST_START } from "@destack/test/world";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Snapshot, asc, eq, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
@@ -27,7 +26,7 @@ import {
     space,
     spaceTable,
 } from "../test/fixture.ts";
-import { openDatabase, openFixture } from "../test/database.ts";
+import { homePositions, openDatabase, openFixture } from "../test/database.ts";
 
 /** The owner of the account and the space. */
 const alice = AccessContext.of(Caller.of(principal.user.reference("universe", "alice")), 1000);
@@ -56,7 +55,7 @@ function chainOf(
     const parameters = {
         scopes: [...scopes],
         local: [...local],
-        types: [],
+        replicated: [{ scope, types: [] }],
         via: [],
         between: [],
     };
@@ -155,24 +154,23 @@ test("relay an account's access through the space's database into an app's, and 
         ).map((row) => row.id);
     expect(await readable(carol)).toEqual(["a", "b", "c"]);
 
-    // revoke the binding in the account's database and refuse deciding on unconfirmed replicas
+    // revoke the binding in the account's database, and refuse deciding on a replica no follow hears
     await owner((authorization) => Relationship.revoke(object, binding.id, authorization));
     const revoked = await global.database.log.position();
-    const impatient = new Authorizer(policies, mappings, { lag: 50 });
-    const late = { ...carol, now: TEST_START + 60 };
-    expect(await refusal(impatient.resolve(Snapshot.live(app.database), "personal", late))).toEqual(
-        [
-            "SERVICE_UNAVAILABLE",
-            "STALE",
-            "the home of personal has not confirmed access for over 50 ms",
-        ],
-    );
+    const personal = chainOf(notes, "personal").replica;
+    app.database.tracker.release(Replica.owner(personal.name, personal.scope));
+    expect(await refusal(notes.resolve(Snapshot.live(app.database), "personal", carol))).toEqual([
+        "SERVICE_UNAVAILABLE",
+        "STALE",
+        "no follow heard the home of personal within 30000 ms",
+    ]);
 
     // relay the revocation: carol reads nothing, and the app's replica reflects the universe's position
     await relay();
     expect(await readable(carol)).toEqual([]);
-    const origins = await Replica.origins(app.database, CHAIN_PUBLICATION, [Scope.universe.id]);
-    expect(origins.get(Scope.universe.id)?.position).toEqual(revoked);
+    expect(await homePositions(app.database, [Scope.universe.id])).toEqual({
+        [Scope.universe.id]: revoked,
+    });
 
     // refuse writing the account's access in the app's replica
     expect(
@@ -309,6 +307,7 @@ async function replicate(
         }
     }
 
-    // apply them in order
+    // apply them in order, hearing the source as a follow does
     await Array.fromAsync(replica.apply(database, pages, {}));
+    database.tracker.track(Replica.owner(replica.name, replica.scope));
 }

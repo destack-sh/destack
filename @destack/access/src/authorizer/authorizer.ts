@@ -93,10 +93,20 @@ export interface ChainStep {
 export const ChainParameters = schema.object({
     /** The target's chain, whose objects' universe relationships a chain replica reads. */
     scopes: schema.array(schema.string().min(1)).readonly(),
-    /** The object types the target homes and decides, left out of its own scope's replica. */
+    /** The object types the target homes and decides, left out of its own scope's rows. */
     local: schema.array(ObjectTypeReference).readonly(),
-    /** The object types whose rows the scope hands down, or stores for a follower outside. */
-    types: schema.array(ObjectTypeReference).readonly(),
+    /** The scopes the replica reads, each with the object types it hands down. */
+    replicated: schema
+        .array(
+            schema.object({
+                /** The replicated scope. */
+                scope: schema.string().min(1),
+                /** The object types whose rows the scope hands down or stores. */
+                types: schema.array(ObjectTypeReference).readonly(),
+            }),
+        )
+        .min(1)
+        .readonly(),
     /** The scopes outside the target's chain a follower replicates via the universe. */
     via: schema.array(schema.string().min(1)).readonly(),
     /** The scopes between the outside ones and the universe, as the follower knows them. */
@@ -940,10 +950,23 @@ export class Authorizer {
         }
     }
 
-    /** Build a chain replica: one scope's access and handed-down rows, for a target or outside. */
+    /** Build the one replica of a target's chain over each replicated scope. */
     replicateChain(
         request: Pick<Subscription, "name" | "scope" | "target">,
         parameters: ChainParameters,
+    ): Replica {
+        const arms = parameters.replicated.map(({ scope, types }) =>
+            this.#chainScope({ ...request, scope }, parameters, types),
+        );
+
+        return Replica.union(request.name, request.scope, arms);
+    }
+
+    /** Build the rows a chain replica reads of one scope: its access rows and handed-down rows. */
+    #chainScope(
+        request: Pick<Subscription, "name" | "scope" | "target">,
+        parameters: ChainParameters,
+        types: readonly ObjectTypeReference[],
     ): Replica {
         // read the replicated scope, and the outside scopes and those between for a follower
         const { name, scope, target } = request;
@@ -966,7 +989,7 @@ export class Authorizer {
         where.set(accessRelationship, isHomed ? { AND: [followed, homed] } : followed);
 
         // read the role permissions on the types the target decides: its own, those handed down, scopes, and those their arrows reach
-        const decided = this.#reaching([...local, ...parameters.types, ...this.#scopeTypes()]);
+        const decided = this.#reaching([...local, ...types, ...this.#scopeTypes()]);
         where.set(accessRolePermission, {
             OR: decided.map(({ packageId, type }) => ({ packageId, type })),
         });
@@ -978,7 +1001,7 @@ export class Authorizer {
         const access = [...decisionTables, ...(isGranting ? [accessGrant] : [])];
 
         // take the stored types the scope hands down or stores for a follower outside
-        const stored = parameters.types.filter((type) => {
+        const stored = types.filter((type) => {
             const mapping = this.mapping(type);
 
             return mapping !== undefined && (this.#tables?.has(mapping.table) ?? true);

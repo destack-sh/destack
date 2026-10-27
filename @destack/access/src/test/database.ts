@@ -1,6 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import { TestDatabase } from "@destack/db/test";
-import { Scope, type Subject } from "@destack/sync";
+import { Replica, Scope, type Subject } from "@destack/sync";
+import type { DatabaseConnection, LogPosition } from "@destack/db";
 import { fixtureDatabase, item, mappings, node, policies, rows } from "./fixture.ts";
 import {
     ACCESS_PACKAGE_ID,
@@ -99,4 +100,24 @@ export function sessionCredential(id: string, now: number): Credential {
         verifiedAt: now,
         expiresAt: now + CREDENTIAL_MILLISECONDS,
     };
+}
+
+/** Read the home position of the replica including each scope, absent for a scope none includes. */
+export async function homePositions(
+    database: DatabaseConnection,
+    scopes: readonly string[],
+): Promise<Record<string, LogPosition | undefined>> {
+    const positions = await Promise.all(
+        scopes.map(async (scope) => {
+            const [replica] = await Replica.including(database, scope);
+            const origin =
+                replica === undefined
+                    ? undefined
+                    : await Replica.origin(database, replica.name, replica.scope);
+
+            return [scope, origin] as const;
+        }),
+    );
+
+    return Object.fromEntries(positions);
 }

@@ -130,7 +130,10 @@ export class Access {
                     // wait for its approvals otherwise
                     else {
                         const counts = new Set([...(waiting.get(key) ?? []), approvals]);
-                        waiting.set(key, [...counts].toSorted((left, right) => left - right));
+                        waiting.set(
+                            key,
+                            [...counts].toSorted((left, right) => left - right),
+                        );
                     }
                 }
             }
@@ -193,7 +196,7 @@ export class Access {
         // read the subject sets of the caller with their containing scopes, beside the chain's roles
         const [, represented, chained] = await Promise.all([
             snapshot.position === undefined
-                ? Access.#requireConfirmed(snapshot.database, chain, authorizer.lag, context.now)
+                ? Access.#requireConfirmed(snapshot.database, chain, authorizer.lag)
                 : undefined,
             Access.#represented(snapshot, context, scopes, authorizer).then((sets) =>
                 Access.expand(snapshot, sets, context, authorizer, scopes),
@@ -280,12 +283,7 @@ export class Access {
                 ids.map((id) => [id]),
             ),
             snapshot.position === undefined
-                ? Access.#requireConfirmed(
-                      snapshot.database,
-                      ids,
-                      this.#authorizer.lag,
-                      this.context.now,
-                  )
+                ? Access.#requireConfirmed(snapshot.database, ids, this.#authorizer.lag)
                 : undefined,
         ]);
         const defined = new Set(defining.map((row) => row.scope));
@@ -702,46 +700,38 @@ export class Access {
         return isMapped ? object : undefined;
     }
 
-    /** Refuse replicas of a chain's access with a home silent for longer than the lag. */
+    /** Refuse replicas of a chain's access with a home no follow heard within the lag. */
     static async #requireConfirmed(
         database: DatabaseConnection,
         chain: readonly string[],
         lag: number,
-        now: number,
     ): Promise<void> {
-        const stale = await Access.unconfirmed(database, chain, lag, now);
+        const stale = await Access.unconfirmed(database, chain);
         if (stale !== undefined) {
-            throw AccessError.of(
-                "STALE",
-                `the home of ${stale} has not confirmed access for over ${lag} ms`,
-            );
+            throw AccessError.of("STALE", `no follow heard the home of ${stale} within ${lag} ms`);
         }
     }
 
-    /** Read the nearest scope of a chain whose home is silent past the lag, absent for none. */
+    /** Find the first scope of a chain whose access replica's home no follow hears. */
     static async unconfirmed(
         database: DatabaseConnection,
         chain: readonly string[],
-        lag: number,
-        now: number,
     ): Promise<string | undefined> {
-        const origins = await Replica.origins(database, CHAIN_PUBLICATION, chain);
-
-        return chain.find((scope) => {
-            const origin = origins.get(scope);
-
-            return origin !== undefined && now - origin.confirmedAt > lag;
-        });
+        return await Replica.unconfirmed(database, CHAIN_PUBLICATION, chain);
     }
 
     /** List the approvers of a call's change other than its subject and its actors, each once. */
-    static #independent(context: Pick<AccessContext, "subject" | "actors" | "approvers">): Subject[] {
+    static #independent(
+        context: Pick<AccessContext, "subject" | "actors" | "approvers">,
+    ): Subject[] {
         const parties = [context.subject, ...context.actors];
         const independent = (context.approvers ?? []).filter(
             (approver) => !parties.some((party) => Subject.same(party, approver)),
         );
 
-        return [...new Map(independent.map((approver) => [Subject.key(approver), approver])).values()];
+        return [
+            ...new Map(independent.map((approver) => [Subject.key(approver), approver])).values(),
+        ];
     }
 
     /** Read roles by scope or identifier, with their permissions and relationships. */
