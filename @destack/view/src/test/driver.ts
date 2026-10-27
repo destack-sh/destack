@@ -1,6 +1,7 @@
 import { testBrowser } from "./browser.ts";
 import { onTestFinished } from "@destack/test";
-import type { Driver } from "@destack/test";
+import type { Counters, Driver } from "@destack/test";
+import type { Clock } from "@destack/environment";
 import type { Given, SetStep } from "@destack/package/declare";
 import type { Globals } from "../scenario/interaction.ts";
 import type { JsonObject, JsonValue } from "@destack/schema";
@@ -43,12 +44,15 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
 
     /** The element holding the rendered examples. */
     readonly container: HTMLElement;
+    /** The clock the test browser runs on. */
+    readonly clock: Clock;
     /** The rendered examples, by name. */
     readonly #examples: ReadonlyMap<string, Rendered>;
 
     /** Hold the examples rendered into a container. */
     constructor(container: HTMLElement, examples: ReadonlyMap<string, Rendered>) {
         this.container = container;
+        this.clock = testBrowser().clock;
         this.#examples = examples;
     }
 
@@ -114,6 +118,11 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
                 break;
         }
         flush();
+    }
+
+    /** Count the elements the rendered examples show, as a render's size. */
+    count(): Counters {
+        return { elements: this.container.querySelectorAll("*").length };
     }
 
     /** Read one observation. */
