@@ -3,70 +3,83 @@ import { and, type DatabaseConnection, eq, type Select } from "@destack/db";
 import { defineObject, field, Claim, type ClaimLookup } from "@destack/object";
 import { DeclarationName } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
-import { REDIRECT_STATUSES, RouteDefinition } from "../declare/route.ts";
-import { installation } from "./installation.ts";
-import { hostname, space } from "@destack/account/object";
+import { installation } from "@destack/object";
+import { HostnamePattern, space } from "@destack/account/object";
 import type { ObjectReference } from "@destack/sync";
 
-/** A path on a hostname of the space's account, unique across the universe. */
-export const route = defineObject({
-    name: "route",
-    plural: "routes",
-    scope: space,
-    declarable: { schema: RouteDefinition },
-    // NOTE #Incomplete: provision each route's hostname at Cloudflare for SaaS and report it served in the edge's route reconciler (D4)
-    controlled: true,
-    fields: {
-        /** The hostname of the space's account the route serves. */
-        hostname: field.string(schema.identifier("hostname")),
-        /** The absolute URL path. */
-        path: field.string(),
-        /** Whether the path matches exactly or as a prefix. */
-        match: field.enum(["exact", "prefix"]),
-        // the installation destinations
-        /** The serving installation. */
-        installation: field.reference(installation, { delete: "restrict" }).optional(),
-        /** The view the installed package declares. */
-        view: field.string(DeclarationName).optional(),
-        /** The adapter the installed package declares. */
-        adapter: field.string(DeclarationName).optional(),
+/** The HTTP statuses a route redirects with. */
+export const REDIRECT_STATUSES = [301, 302, 303, 307, 308] as const;
 
-        // the redirect destination
-        /** The absolute HTTP destination. */
-        redirect: field.string().optional(),
-        /** The HTTP redirect status. */
-        redirectStatus: field.integer().optional(),
-    },
-    indexes: {
-        path: { on: ["hostname", "path", "match"], across: () => universe },
-    },
-    constraints: {
-        path: { kind: "check", condition: { path: { startsWith: "/" } } },
-        destination: {
-            kind: "check",
-            condition: {
-                OR: [
-                    {
-                        installationId: { isNotNull: true },
-                        redirect: { isNull: true },
-                        redirectStatus: { isNull: true },
-                        OR: [
-                            { view: { isNull: true }, adapter: { isNotNull: true } },
-                            { view: { isNotNull: true }, adapter: { isNull: true } },
-                        ],
-                    },
-                    {
-                        installationId: { isNull: true },
-                        view: { isNull: true },
-                        adapter: { isNull: true },
-                        redirect: { isNotNull: true },
-                        redirectStatus: { in: [...REDIRECT_STATUSES] },
-                    },
-                ],
+/** A path on a hostname of the space's account, unique across the universe. */
+export const route = defineObject(
+    {
+        name: "route",
+        plural: "routes",
+        scope: space,
+        controlled: true,
+        fields: {
+            /** The hostname of the space's account the route serves, such as `example.com`. */
+            hostname: field.string(HostnamePattern),
+            /** The absolute URL path without a query or fragment. */
+            path: field.string(schema.string().regex(/^\/[^\s?#]*$/u)),
+            /** Whether the path matches exactly or as a prefix. */
+            match: field.enum(["exact", "prefix"]),
+            // the installation destinations
+            /** The serving installation. */
+            installation: field.reference(installation, { delete: "restrict" }).optional(),
+            /** The view the installed package declares. */
+            view: field.string(DeclarationName).optional(),
+            /** The adapter the installed package declares. */
+            adapter: field.string(DeclarationName).optional(),
+
+            // the redirect destination
+            /** The absolute HTTP destination. */
+            redirect: field.string(schema.string().regex(/^https?:\/\/[^\s]+$/u)).optional(),
+            /** The HTTP redirect status. */
+            redirectStatus: field.integer().optional(),
+        },
+        indexes: {
+            path: { on: ["hostname", "path", "match"], across: () => universe },
+        },
+        constraints: {
+            path: { kind: "check", condition: { path: { startsWith: "/" } } },
+            destination: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        {
+                            installationId: { isNotNull: true },
+                            redirect: { isNull: true },
+                            redirectStatus: { isNull: true },
+                            OR: [
+                                { view: { isNull: true }, adapter: { isNotNull: true } },
+                                { view: { isNotNull: true }, adapter: { isNull: true } },
+                            ],
+                        },
+                        {
+                            installationId: { isNull: true },
+                            view: { isNull: true },
+                            adapter: { isNull: true },
+                            redirect: { isNotNull: true },
+                            redirectStatus: { in: [...REDIRECT_STATUSES] },
+                        },
+                    ],
+                },
             },
         },
+        permissions: ["read", "write"],
     },
-});
+    (method) => ({
+        create: method.create("write", { visibility: "package" }),
+        get: method.get("read"),
+        list: method.list("read"),
+        update: method.update("write", {
+            visibility: "package",
+            fields: ["installationId", "view", "adapter", "redirect", "redirectStatus"],
+        }),
+        delete: method.delete("write", { visibility: "package" }),
+    }),
+);
 
 /** A persisted route record. */
 export type Route = Select<typeof route.table>;
@@ -93,31 +106,15 @@ export const Route = {
         host: string,
         path: string,
     ): Promise<(ObjectReference & { readonly id: Identifier<"route"> }) | undefined> {
-        // try each hostname the host matches, most specific first
-        // NOTE #Performance: a request costs a claim lookup per candidate until the edge keeps routes by hostname in Workers KV (D4)
-        for (const name of Route.hostnames(host)) {
-            const served = await Claim.lookup(hostname, claims, "name", [name]);
-            if (served === undefined) {
-                continue;
-            }
+        // find the most specific route of the host's hostnames and the path's prefixes in one lookup
+        const candidates = Route.hostnames(host).flatMap((name) =>
+            Route.paths(path).map(([candidate, match]) => [name, candidate, match]),
+        );
+        const found = await Claim.first(route, claims, "path", candidates);
 
-            // try the exact path, then each prefix, longest first
-            for (const [candidate, match] of Route.paths(path)) {
-                const found = await Claim.lookup(route, claims, "path", [
-                    served.id,
-                    candidate,
-                    match,
-                ]);
-                if (found !== undefined) {
-                    return {
-                        ...route.reference(found.scope, found.id),
-                        id: route.identifier(found.id),
-                    };
-                }
-            }
-        }
-
-        return undefined;
+        return found === undefined
+            ? undefined
+            : { ...route.reference(found.scope, found.id), id: route.identifier(found.id) };
     },
 
     /** List the hostnames a host matches, most specific first. */
@@ -142,7 +139,7 @@ export const Route = {
         return [[path, "exact"], ...parents.map((parent) => [parent, "prefix"] as const)];
     },
 
-    /** Read a route's destination from the columns the table's check keeps together. */
+    /** Read a route's destination from the columns the table's check groups together. */
     destination(row: Route): RouteDestination {
         const { installationId, view, adapter, redirect, redirectStatus } = row;
 

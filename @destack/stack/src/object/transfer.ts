@@ -13,7 +13,7 @@ export const Fence = schema.object({
     position: LogPosition,
     /** The digest of the rows of the space and the scopes below it at the position. */
     digest: Digest,
-    /** The space and the scopes below it, which the fence keeps from changing. */
+    /** The space and the scopes below it, which the fence stops from changing. */
     scopes: schema.array(schema.string().min(1)),
 });
 /** Where a source stood once fenced. */
@@ -107,7 +107,7 @@ export const transfer = defineObject(
         cancel: method.mutation({ permission: "cancel", prepared: Placement }),
 
         /** Record as the target a transfer's success once it took the space over. */
-        complete: method.mutation({ permission: "finish", isInternal: true }),
+        complete: method.mutation({ permission: "finish", visibility: "package" }),
     }),
 ).implement({
     methods: {

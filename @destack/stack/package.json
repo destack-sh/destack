@@ -35,7 +35,6 @@
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
-        "@destack/fs": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
@@ -47,15 +46,27 @@
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/view": "workspace:*",
-        "@destack/workflow": "workspace:*",
-        "jose": "6.2.12"
+        "@destack/workflow": "workspace:*"
+    },
+    "peerDependencies": {
+        "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/test": {
+            "optional": true
+        },
+        "@destack/universe": {
+            "optional": true
+        }
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*",
         "@template/stack": "workspace:*",
         "@types/node": "26.6.1",
         "miniflare": "4.20260730.0",
-        "uuid": "14.0.2"
+        "rolldown": "1.2.9"
     }
 }

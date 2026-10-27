@@ -131,7 +131,7 @@ export const CodeIndex = Object.assign(schema.array(graph.Document), {
     /** Read the code index attached to a build, empty for a release pulled without one. */
     async read(
         packages: Pick<PackageStore, "referrer" | "file">,
-        manifest: string,
+        manifest: Digest,
     ): Promise<readonly graph.Document[]> {
         // read no documents of a build without a code index
         const attached = await packages.referrer(manifest, CODE_INDEX_PATH);
@@ -158,16 +158,16 @@ export class GraphIndex {
 
     /** The build reading the index. */
     readonly build: Identifier<"build">;
-    /** The space keeping the build. */
+    /** The space of the build. */
     readonly space: Identifier<"space">;
     /** The digest of the build's manifest, which keys the index. */
-    readonly manifest: string;
+    readonly manifest: Digest;
     /** When the build finished, which its rows are made at. */
     readonly finishedAt: number;
 
-    /** Keep a build's place in its manifest's index. */
+    /** Record a build's place in its manifest's index. */
     constructor(fields: Pick<GraphIndex, "build" | "space" | "manifest" | "finishedAt">) {
-        // keep the build, its space, its manifest and its finish
+        // store the build, its space, its manifest and its finish
         this.build = fields.build;
         this.space = fields.space;
         this.manifest = fields.manifest;
@@ -196,7 +196,7 @@ export class GraphIndex {
         }
     }
 
-    /** Read the succeeded build an index scope names, refusing one without its files. */
+    /** Read the succeeded build of an index scope, refusing one without its files. */
     static async of(database: DatabaseConnection, scope: string): Promise<GraphIndex> {
         // read the build's space, manifest and finish
         const id = schema.identifier("build").parse(scope);
@@ -255,7 +255,7 @@ export class GraphIndex {
         // derive the code symbols of the code index
         const symbols = code.flatMap((file) => indexCode(file, packageId, record));
 
-        // keep the catalogs it ships: its own and its unpublished dependencies'
+        // read the catalogs it ships: its own and its unpublished dependencies'
         const catalogs = (await Catalog.read(reader)).map((shipped) => ({
             ...record,
             id: `${shipped.package}/${shipped.locale}`,
@@ -270,7 +270,7 @@ export class GraphIndex {
 
     /** Select an index table's stored rows as the build's: in its scope, made when it finished. */
     select(table: Table, from: string): string {
-        // replace the scope and the times, keeping every other column
+        // replace the scope and the times, and leave every other column
         const replaced: Readonly<Record<string, string>> = {
             scope: `'${this.build}'`,
             created_at: String(this.finishedAt),
@@ -292,7 +292,7 @@ type IndexRecord = Pick<Insert<typeof module.table>, "scope" | "createdAt" | "up
 /** Derive one module file's module object and its declaration objects. */
 function indexModule(
     file: graph.Module,
-    digest: string,
+    digest: Digest,
     packageId: string,
     record: IndexRecord,
 ): { module: Insert<typeof module.table>; declarations: Insert<typeof declaration.table>[] } {
@@ -302,7 +302,7 @@ function indexModule(
     const outgoing = (from: string): Relationship[] =>
         (relationships.get(from) ?? []).map(({ kind, to }) => ({ kind, to }));
 
-    // keep the declarations at the module's symbols or the module, exported where their symbol is
+    // add the declarations at the module's symbols or the module, exported where their symbol is
     const exported = new Set(file.exports.map((entry) => entry.symbol));
     const declarations = file.declarations.map((each) => ({
         ...record,
@@ -323,7 +323,7 @@ function indexModule(
     const stray = file.edges.find((edge) => !sources.has(edge.from));
     if (stray !== undefined) {
         throw new TypeError(
-            `module ${moniker} has an edge from ${stray.from}, which it does not declare`,
+            `module ${moniker} has an edge from ${stray.from}, but does not declare it`,
         );
     }
 

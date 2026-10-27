@@ -1,3 +1,4 @@
+import { PackageDirectory } from "../declare/index.ts";
 import {
     and,
     desc,
@@ -16,12 +17,12 @@ import { PackageId } from "@destack/package";
 import type { ResultsOf } from "@destack/object";
 import type { Call } from "@destack/sync";
 import { Commit, Digest, type Identifier, present, schema, Version } from "@destack/schema";
-import { CallError } from "@destack/object";
-import { PackageDirectory } from "../declare/installation.ts";
 import { machine, space } from "@destack/account/object";
 import { ObjectReference, Subject } from "@destack/sync";
 import { Failure } from "@destack/error";
-import { installationRevision } from "./installation.ts";
+import { installationRevision } from "./rollout.ts";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../error/index.ts";
 
 /** Where a build stands: waiting for its runner, running, or finished one of three ways. */
 export const BUILD_STATES = ["pending", "running", "succeeded", "failed", "cancelled"] as const;
@@ -64,7 +65,7 @@ export const BuildSource = schema.discriminatedUnion("kind", [
         package: PackageId,
         /** The released version. */
         version: Version,
-        /** The digest of the release's manifest, which pins its exact build. */
+        /** The digest of the release's manifest, which identifies its exact build. */
         manifest: Digest,
     }),
 ]);
@@ -106,7 +107,7 @@ export const BuildProgress = schema.discriminatedUnion("phase", [
     schema.object({
         /** Storing the compiled build. */
         phase: schema.literal("storing"),
-        /** The files the build stores, each leased for writing unless the space keeps it. */
+        /** The files the build stores, each leased for writing unless the space has it already. */
         files: schema.array(BuildFile),
     }),
 ]);
@@ -132,12 +133,12 @@ export const BuildEnd = schema.discriminatedUnion("kind", [
     FailedBuild,
 ]);
 
-/** How a build ended as its space keeps it. */
+/** How a build ended, as its space records it. */
 export const BuildOutcome = schema.discriminatedUnion("kind", [
     schema.object({
-        /** A build whose manifest the space keeps. */
+        /** A build whose manifest the space stores. */
         kind: schema.literal("stored"),
-        /** The digest of the kept manifest. */
+        /** The digest of the stored manifest. */
         digest: Digest,
     }),
     FailedBuild,
@@ -164,6 +165,8 @@ export const build = defineObject(
             phase: field.enum(BUILD_PHASES).optional(),
             /** The commit a clean checkout was at when built. */
             commit: field.string(Commit).optional(),
+            /** The repository, directory and commit of a commit build, absent for a release. */
+            checkout: field.string().optional(),
             /** The digest of the stored build's manifest, once succeeded. */
             manifest: field.string(Digest).optional(),
             /** Why the build failed, once failed. */
@@ -193,6 +196,17 @@ export const build = defineObject(
         constraints: {
             state: { kind: "index", on: ["state"] },
             live: { kind: "index", on: ["scope", "expiredAt", "state"] },
+            // build each checkout of a space once while its build lives
+            liveCheckout: {
+                kind: "index",
+                on: ["scope", "checkout"],
+                unique: true,
+                where: {
+                    checkout: { isNotNull: true },
+                    state: { ne: "cancelled" },
+                    expiredAt: { isNull: true },
+                },
+            },
             phase: {
                 kind: "check",
                 condition: {
@@ -273,7 +287,7 @@ export const build = defineObject(
             ],
         }),
         cancel: method.update("cancel", { fields: [] }),
-        update: method.update("record", { isInternal: true }),
+        update: method.update("record", { visibility: "package" }),
         start: method.mutation({ permission: "run", output: schema.object({}) }),
         /** Push the succeeded build's files to the forge of its package's account. */
         push: method.mutation({
@@ -298,7 +312,7 @@ export const build = defineObject(
 
 /** A build's state with the manifest and failure the table's checks require of it. */
 export type BuildState =
-    | { readonly state: "succeeded"; readonly manifest: string; readonly failure: null }
+    | { readonly state: "succeeded"; readonly manifest: Digest; readonly failure: null }
     | { readonly state: "failed"; readonly manifest: null; readonly failure: Failure }
     | {
           readonly state: "pending" | "running" | "cancelled";
@@ -309,10 +323,10 @@ export type BuildState =
 /** One recorded build: a succeeded build has its manifest, a failed build its failure. */
 export type Build = Omit<Select<typeof build.table>, keyof BuildState> & BuildState;
 
-/** What build retention keeps and drops. */
+/** What build retention retains and drops. */
 export interface BuildRetention {
-    /** The manifests of the builds kept, releases among them. */
-    readonly retained: ReadonlySet<string>;
+    /** The manifests of the retained builds, releases among them. */
+    readonly retained: ReadonlySet<Digest>;
     /** The unexpired builds retention drops. */
     readonly expired: readonly {
         readonly id: Identifier<"build">;
@@ -328,15 +342,15 @@ export const Build = {
     ): Omit<Row, keyof BuildState> & BuildState {
         const { state, manifest, failure } = row;
 
-        // keep a succeeded build's manifest
+        // accept a succeeded build with its manifest
         if (state === "succeeded" && manifest !== null && failure === null) {
             return { ...row, state, manifest, failure };
         }
-        // keep a failed build's failure
+        // accept a failed build with its failure
         else if (state === "failed" && manifest === null && failure !== null) {
             return { ...row, state, manifest, failure };
         }
-        // keep an unfinished or cancelled build without either
+        // accept an unfinished or cancelled build without either
         else if (
             state !== "succeeded" &&
             state !== "failed" &&
@@ -361,7 +375,7 @@ export const Build = {
     /** Read a build's manifest. */
     manifest(
         entry: Pick<Select<typeof build.table>, "id" | "expiredAt" | keyof BuildState>,
-    ): string {
+    ): Digest {
         // read a succeeded build's manifest until retention removes its files
         const narrowed = Build.of(entry);
         if (narrowed.state === "succeeded" && narrowed.expiredAt === null) {
@@ -369,7 +383,7 @@ export const Build = {
         }
         // refuse an expired build
         else if (narrowed.state === "succeeded") {
-            throw new CallError("CONFLICT", { message: `build ${narrowed.id} expired` });
+            throw StackError.of("BUILD_EXPIRED", `build ${narrowed.id} expired`);
         }
         // refuse a failed build with its failure
         else if (narrowed.state === "failed") {
@@ -377,9 +391,7 @@ export const Build = {
         }
         // refuse a build without a manifest
         else {
-            throw new CallError("CONFLICT", {
-                message: `build ${narrowed.id} is ${narrowed.state}`,
-            });
+            throw StackError.of("BUILD_NOT_READY", `build ${narrowed.id} is ${narrowed.state}`);
         }
     },
 
@@ -389,23 +401,22 @@ export const Build = {
         spaceId: Identifier<"space">,
         source: Extract<BuildSource, { readonly kind: "commit" }>,
     ): Promise<Build | undefined> {
-        // read the space's live builds and take the one of the commit's package directory
-        const live = await snapshot.read(build.table).findMany({
+        // read the space's live build of the checkout
+        const found = await snapshot.read(build.table).findFirst({
             where: {
                 scope: spaceId,
+                checkout: Build.checkout(source),
                 state: { ne: "cancelled" },
                 expiredAt: { isNull: true },
             },
         });
-        const found = live.find(
-            (entry) =>
-                entry.source.kind === "commit" &&
-                entry.source.repository === source.repository &&
-                entry.source.commit === source.commit &&
-                entry.source.directory === source.directory,
-        );
 
         return found === undefined ? undefined : Build.of(found);
+    },
+
+    /** Key a commit build's checkout: its repository, directory and commit. */
+    checkout(source: Extract<BuildSource, { readonly kind: "commit" }>): string {
+        return JSON.stringify([source.repository, source.directory, source.commit]);
     },
 
     /** Require a space's build with its manifest, as a revision evaluates it. */
@@ -413,13 +424,13 @@ export const Build = {
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
         buildId: Identifier<"build">,
-    ): Promise<Select<typeof build.table> & { readonly manifest: string }> {
+    ): Promise<Select<typeof build.table> & { readonly manifest: Digest }> {
         // require the space's build, refusing one without its files
         const [found] = await snapshot
             .read(build.table)
             .findMany({ where: { scope: spaceId, id: buildId } });
         if (found === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no build ${buildId}` });
+            throw StackError.of("BUILD_NOT_FOUND", `build ${buildId} not found`);
         }
 
         return { ...found, manifest: Build.manifest(found) };
@@ -433,9 +444,9 @@ export const Build = {
         release: {
             readonly package: PackageId;
             readonly version: string;
-            readonly manifest: string;
+            readonly manifest: Digest;
         },
-    ): Promise<{ readonly id: Identifier<"build">; readonly manifest: string }> {
+    ): Promise<{ readonly id: Identifier<"build">; readonly manifest: Digest }> {
         // take the space's live build of the release's manifest
         const [found] = await reader.read(build.table).findMany({
             where: { scope: spaceId, manifest: release.manifest, expiredAt: { isNull: true } },
@@ -451,7 +462,7 @@ export const Build = {
         return Build.require(reader, spaceId, id);
     },
 
-    /** Read what retention keeps. */
+    /** Read what retention retains. */
     async retention(
         database: DatabaseConnection,
         retention: (space: string) => Promise<number>,
@@ -461,7 +472,7 @@ export const Build = {
             .selectDistinct({ build: installationRevision.table.buildId })
             .from(installationRevision.table);
         const appliedBuilds = new Set(revisions.map((revision) => revision.build));
-        const retained = new Set<string>();
+        const retained = new Set<Digest>();
 
         // group the unexpired builds by space and package source, newest first
         const builds = await database
@@ -478,7 +489,7 @@ export const Build = {
             JSON.stringify([row.scope, sourcePackage(row.source)]),
         );
 
-        // keep each group's latest builds by its space's retention, read once per space
+        // retain each group's latest builds by its space's retention, read once per space
         const expired: { readonly id: Identifier<"build">; readonly scope: Identifier<"space"> }[] =
             [];
         const retentions = new Map<string, Promise<number>>();

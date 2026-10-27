@@ -3,7 +3,7 @@ import { client, space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { type ObjectOf, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { installation } from "./installation.ts";
+import { installation } from "@destack/object";
 
 /** The kinds of live links to a space: a browser tab, a desktop view, a machine or a workload. */
 export const SOCKET_KINDS = ["tab", "view", "machine", "workload"] as const;
@@ -42,5 +42,5 @@ export const socket = defineObject({
     },
 });
 
-/** A live socket as its memory table keeps it. */
+/** A live socket as its memory table stores it. */
 export type Socket = Select<typeof socket.table>;

@@ -3,6 +3,7 @@ import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { ResourceId } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
+import { StackError } from "../error/index.ts";
 
 /** A copy of a resource's content at a point in time in its machine's content store. */
 export const snapshot = defineObject(
@@ -11,7 +12,7 @@ export const snapshot = defineObject(
         plural: "snapshots",
         scope: "universe",
         fields: {
-            /** The space keeping the resource. */
+            /** The space of the resource. */
             space: field.reference(principal.space),
             /** The resource whose content the snapshot copies. */
             resourceId: field.string(ResourceId),
@@ -43,14 +44,14 @@ export const snapshot = defineObject(
     },
     (method) => ({
         create: method.create("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["spaceId", "resourceId", "recipient"],
         }),
         update: method.update("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["digest", "takenAt", "blobs"],
         }),
-        delete: method.delete("record", { isInternal: true }),
+        delete: method.delete("record", { visibility: "package" }),
     }),
 );
 
@@ -61,11 +62,11 @@ export const restore = defineObject(
         plural: "restores",
         scope: "universe",
         fields: {
-            /** The space keeping the resource. */
+            /** The space of the resource. */
             space: field.reference(principal.space),
             /** The resource whose content the restore receives. */
             resourceId: field.string(ResourceId),
-            /** The machine whose content store keeps the snapshot. */
+            /** The machine whose content store has the snapshot. */
             source: field.reference(principal.machine),
             /** The epoch the source served the space at when the restore was requested. */
             sourceEpoch: field.integer(),
@@ -73,7 +74,7 @@ export const restore = defineObject(
             // the resource the controller restored
             /** The digest of the restored replica in the source's content store. */
             digest: field.string(Digest).optional(),
-            /** The provider keeping the restored resource here. */
+            /** The provider that stores the restored resource here. */
             provider: field.string().optional(),
             /** The provider's reference of the restored resource. */
             reference: field.string().optional(),
@@ -132,11 +133,11 @@ export const restore = defineObject(
     },
     (method) => ({
         create: method.create("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["spaceId", "resourceId", "sourceId", "sourceEpoch", "fencedAt"],
         }),
         update: method.update("record", {
-            isInternal: true,
+            visibility: "package",
             fields: [
                 "digest",
                 "provider",
@@ -156,11 +157,11 @@ export type Snapshot = Select<typeof snapshot.table>;
 /** A resource restore. */
 export type Restore = Select<typeof restore.table>;
 
-/** The resource a restore restored: the snapshot it read and where the provider keeps it here. */
+/** The resource a restore restored: the snapshot it read and where the provider stores it here. */
 export interface RestoredResource {
     /** The digest of the restored snapshot. */
-    readonly digest: string;
-    /** The provider keeping the restored resource here. */
+    readonly digest: Digest;
+    /** The provider that stores the restored resource here. */
     readonly provider: string;
     /** The provider's reference of the restored resource. */
     readonly reference: string;
@@ -176,7 +177,7 @@ export const Restore = {
     restored(row: Restore): RestoredResource {
         const { digest, provider, reference, location, spec } = row;
         if (digest === null || provider === null || reference === null || spec === null) {
-            throw new TypeError(`restore ${row.id} is not restored`);
+            throw StackError.of("RESTORE_PENDING", `restore ${row.id} has not finished`);
         }
 
         return { digest, provider, reference, location, spec };

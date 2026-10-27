@@ -1,6 +1,6 @@
 export * from "./database.ts";
 export * from "./https.ts";
-export * from "./installation.ts";
+export * from "./rollout.ts";
 export * from "./socket.ts";
 export * from "./key.ts";
 export * from "./stack.ts";

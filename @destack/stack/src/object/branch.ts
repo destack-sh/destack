@@ -1,13 +1,14 @@
 import { none, principal, relation, through, union } from "@destack/access";
 import { LogPosition, type Table } from "@destack/db";
 import { Branch, BranchType, defineObject, field, type MethodContext } from "@destack/object";
-import { Approval, approval, changeRequest } from "@destack/workflow";
-import { CallError } from "@destack/object";
+import { approval, ApprovalQuorum, changeRequest } from "@destack/workflow";
 import { type Identifier, schema } from "@destack/schema";
 import { Call, ObjectTypeReference } from "@destack/sync";
 import { SettingValue } from "@destack/setting/object";
 import { branchApprovals } from "../setting/index.ts";
 import { space } from "@destack/account/object";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../error/index.ts";
 
 /** The longest branch title, a sentence's worth. */
 const MAX_TITLE_LENGTH = 200;
@@ -69,7 +70,7 @@ export const branch = defineObject(
         discard: method.mutation({ permission: "discard" }),
 
         /** Rebuild an open branch's rows once the main line changed a table they read. */
-        rebuild: method.mutation({ permission: "rebuild", isInternal: true }),
+        rebuild: method.mutation({ permission: "rebuild", visibility: "package" }),
     }),
 ).implement({
     methods: {
@@ -103,9 +104,7 @@ export const branch = defineObject(
                 const opened = new Branch(branchType, context, target.id);
                 const expansion = context.expansion;
                 if (expansion !== undefined && (await opened.count()) !== expansion.length) {
-                    throw new CallError("CONFLICT", {
-                        message: "branch has calls the merge did not run",
-                    });
+                    throw StackError.of("UNMERGED_CALLS", "branch has calls the merge did not run");
                 }
 
                 // drop the rows the merge wrote for real and close the branch
@@ -122,7 +121,7 @@ export const branch = defineObject(
             return call.update({ state: "discarded" });
         },
         rebuild: async (call) => {
-            // keep a closed branch, which its controller found stale while open
+            // leave a closed branch, which its controller found stale while open
             const target = call.target;
             if (target.state !== "open") {
                 return target;
@@ -164,7 +163,7 @@ export const branchEntry = defineObject(
     },
     (method) => ({
         create: method.create("record", {
-            isInternal: true,
+            visibility: "package",
             fields: [
                 "position",
                 "type",
@@ -201,11 +200,11 @@ export const branchChange = defineObject(
     },
     (method) => ({
         create: method.create("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["table", "key", "after", "before"],
         }),
-        update: method.update("record", { isInternal: true, fields: ["after", "before"] }),
-        delete: method.delete("record", { isInternal: true }),
+        update: method.update("record", { visibility: "package", fields: ["after", "before"] }),
+        delete: method.delete("record", { visibility: "package" }),
     }),
 );
 
@@ -247,11 +246,12 @@ async function requireReviewed(
                 parentId: each.id,
             },
         });
-        if (Approval.decision(decided, Math.max(required, each.count)) === "approved") {
+        if (new ApprovalQuorum(Math.max(required, each.count)).decide(decided) === "approved") {
             return;
         }
     }
-    throw new CallError("CONFLICT", {
-        message: `branch ${branchId} merges only through an approved change request`,
-    });
+    throw StackError.of(
+        "CHANGE_REQUEST_REQUIRED",
+        `branch ${branchId} can only merge through an approved change request`,
+    );
 }

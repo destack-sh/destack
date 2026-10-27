@@ -16,7 +16,7 @@ const METADATA_NAME = /^[!#$%&'*+.^_`|~0-9a-z-]+$/u;
 /** A customer-provided AES-256 key encrypting a file, as base64. */
 export const CustomerKey = schema.sensitive(schema.base64().length(CUSTOMER_KEY_LENGTH));
 
-/** A file key a presigned URL keeps intact: no `.` or `..` segments, which URL paths drop. */
+/** A file key a presigned URL leaves intact: no `.` or `..` segments, which URL paths drop. */
 export const FileKey = schema
     .string()
     .min(1)
@@ -86,7 +86,7 @@ export const FilePage = schema.object({
     cursor: schema.string().nullable(),
 });
 
-/** The file methods' inputs, beside the bucket they target. */
+/** The file methods' inputs, in addition to the bucket they target. */
 export const FileInput = {
     /** List a page of files. */
     files: schema.object({

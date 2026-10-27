@@ -1,24 +1,23 @@
 import { DatabaseKind, type Select, type Snapshot } from "@destack/db";
+import { MAIN_DATABASE } from "../declare/index.ts";
 import { defineObject, OBJECT_DECLARATION, Observation } from "@destack/object";
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
-import { Digest, type Identifier, present } from "@destack/schema";
+import { Digest, type DigestCrypto, type Identifier, present } from "@destack/schema";
 import { RESOURCE_DECLARATION } from "@destack/resource";
 import { binding } from "./binding.ts";
 import { Build, build } from "./build.ts";
 import {
-    type Installation,
-    installation,
-    installationRevision,
     type InstallationRevision,
-} from "./installation.ts";
+    installationRevision,
+    Rollout,
+    rollout,
+    type NamedInstallation,
+} from "./rollout.ts";
 import type { graph } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 
-/** The name of every space's main database, which keeps every installation's objects. */
-export const MAIN_DATABASE = "main";
-
-/** The provider keeping a space's main database in the space's own storage. */
+/** The provider that stores a space's main database in the space's own storage. */
 export const SPACE_PROVIDER = "space";
 
 /** A space's database resource. */
@@ -59,12 +58,13 @@ export const Database = {
     async installed(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
-        open: (manifest: string) => Promise<Pick<BuildReader, "declarations">>,
+        open: (manifest: Digest) => Promise<Pick<BuildReader, "declarations">>,
+        crypto: DigestCrypto,
     ): Promise<
         {
-            readonly installation: Installation;
+            readonly rollout: Rollout & { readonly installation: NamedInstallation };
             readonly revisionId: InstallationRevision["id"];
-            readonly manifest: string;
+            readonly manifest: Digest;
             readonly declarations: graph.Declaration[];
         }[]
     > {
@@ -76,10 +76,11 @@ export const Database = {
             return [];
         }
 
-        // read the installations, their bindings, and their revisions' builds
-        const installations = await snapshot
-            .read(installation.table)
-            .findMany({ where: { scope: spaceId } });
+        // read the rollouts with their installations, their bindings, and their revisions' builds
+        const installations = await Rollout.read(
+            snapshot,
+            await snapshot.read(rollout.table).findMany({ where: { scope: spaceId } }),
+        );
         const bindings = await snapshot.read(binding.table).findMany({ where: { scope: spaceId } });
         const revisionIds = installations.flatMap((entry) =>
             [entry.revisionId, entry.appliedRevisionId].filter((id) => id !== null),
@@ -127,34 +128,37 @@ export const Database = {
                         each.target === main.id,
                 );
                 const isBound =
-                    Observation.isCurrent(entry, "bound") &&
-                    entry.conditions["bound"]?.status === "true";
+                    Observation.isCurrent(entry, "Bound") &&
+                    entry.conditions["Bound"]?.status === "true";
                 const isApplied =
                     latest !== undefined &&
                     isBound &&
                     (!latest.some((each) => each.kind === OBJECT_DECLARATION) ||
-                        (tables !== undefined && applied.has(await Digest.json(tables.state))));
+                        (tables !== undefined &&
+                            applied.has(await Digest.json(tables.state, crypto))));
                 const revisionId = isApplied ? entry.revisionId : entry.appliedRevisionId;
 
-                return revisionId === null ? [] : [{ installation: entry, revisionId }];
+                return revisionId === null ? [] : [{ rollout: entry, revisionId }];
             }),
         );
 
-        // keep each one whose own resources are each bound, as servers open them at start and read secrets on use
+        // select each one whose own resources are all bound, since servers open them at start and read secrets on use
         const bound = new Set(
             bindings.map((entry) => `${entry.installationId}:${entry.packageId}:${entry.name}`),
         );
 
-        return served.flat().flatMap(({ installation: entry, revisionId }) => {
+        return served.flat().flatMap(({ rollout: entry, revisionId }) => {
             const { manifest, declarations } = present(
                 declared.get(revisionId),
                 `revision ${revisionId}`,
             );
             const hasBindings = declarations
                 .filter((each) => each.kind === RESOURCE_DECLARATION)
-                .every((each) => bound.has(`${entry.id}:${entry.packageId}:${each.name}`));
+                .every((each) =>
+                    bound.has(`${entry.id}:${entry.installation.packageId}:${each.name}`),
+                );
 
-            return hasBindings ? [{ installation: entry, revisionId, manifest, declarations }] : [];
+            return hasBindings ? [{ rollout: entry, revisionId, manifest, declarations }] : [];
         });
     },
 };

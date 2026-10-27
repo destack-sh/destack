@@ -1,8 +1,8 @@
 import { principal } from "@destack/access";
-import { and, eq, type DatabaseConnection, type Select } from "@destack/db";
+import { and, eq, ne, type DatabaseConnection, type Select } from "@destack/db";
 import { type ObjectOf, defineObject, field, StatusCondition } from "@destack/object";
 import { schema, type Identifier, type Version } from "@destack/schema";
-import type { ServerRuntime } from "@destack/package/runtime";
+import { type DeploymentRuntime, PROCESS_RUNTIME } from "./deployment.ts";
 import { deployment } from "./deployment.ts";
 import { space } from "@destack/account/object";
 
@@ -49,7 +49,7 @@ export const instance = defineObject(
             deploymentStatus: { kind: "index", on: ["deploymentId", "status"] },
             machineStatus: { kind: "index", on: ["machineId", "status"] },
 
-            // check the times each status keeps
+            // check the times of each status
             times: {
                 kind: "check",
                 condition: {
@@ -81,11 +81,11 @@ export const instance = defineObject(
         },
     },
     (method) => ({
-        create: method.create("record", { isInternal: true }),
-        update: method.update("record", { isInternal: true }),
-        delete: method.delete("record", { isInternal: true }),
+        create: method.create("record", { visibility: "package" }),
+        update: method.update("record", { visibility: "package" }),
+        delete: method.delete("record", { visibility: "package" }),
         /** Record an instance stopped, as its machine's instance controller decides. */
-        stop: method.mutation({ permission: "record", isInternal: true }),
+        stop: method.mutation({ permission: "record", visibility: "package" }),
     }),
 );
 
@@ -100,7 +100,7 @@ export interface Endpoint {
     /** The package-local name of the workload it runs. */
     readonly workload: string;
     /** The server runtime it runs on. */
-    readonly runtime: ServerRuntime;
+    readonly runtime: DeploymentRuntime;
     /** The package release the deployment runs. */
     readonly release: Version;
     /** The oldest caller release it serves, every earlier one when absent. */
@@ -112,7 +112,7 @@ export type Instance = Select<typeof instance.table>;
 
 /** Instance queries. */
 export const Instance = {
-    /** List the running instances serving an installation, with their deployments' details. */
+    /** List the running instances a runtime serves of an installation, with deployment details. */
     async endpoints(
         database: DatabaseConnection,
         installationId: Identifier<"installation">,
@@ -133,6 +133,7 @@ export const Instance = {
                 and(
                     eq(deployment.table.installationId, installationId),
                     eq(instance.table.status, "running"),
+                    ne(deployment.table.runtime, PROCESS_RUNTIME),
                 ),
             );
 

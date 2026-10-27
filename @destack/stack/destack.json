@@ -2,6 +2,7 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614e-739c-9b50-70e5119010b1",
     "language": "typescript",
+    "entrypoints": ["src/bun/runner.ts", "src/cloudflare/graph.ts", "src/cloudflare/workload.ts"],
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./inspect": {
@@ -45,7 +46,7 @@
     },
     "stamps": {
         "defineStack": {
-            "module": 1
+            "module": 2
         }
     }
 }

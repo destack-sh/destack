@@ -1,12 +1,22 @@
 import { principal } from "@destack/access";
 import { type Select, type Condition, type RowImage } from "@destack/db";
+import { SERVER_RUNTIMES } from "@destack/package/runtime";
 import { type ObjectOf, ConditionMap, defineObject, field } from "@destack/object";
 import { DirectoryGrant, PackageId } from "@destack/package";
-import { SERVER_RUNTIMES } from "@destack/package/runtime";
 import { WorkloadDescription } from "@destack/package/manifest";
 import { schema, Version } from "@destack/schema";
-import { installation, installationRevision } from "./installation.ts";
+import { installation } from "@destack/object";
+import { installationRevision } from "./rollout.ts";
 import { space } from "@destack/account/object";
+
+/** The runtime of a deployment the machine serves in its own process: a shipped server's. */
+export const PROCESS_RUNTIME = "process";
+
+/** The runtimes a deployment runs on: a server runtime, or the machine's own process. */
+export const DEPLOYMENT_RUNTIMES = [...SERVER_RUNTIMES, PROCESS_RUNTIME] as const;
+
+/** A runtime a deployment runs on. */
+export type DeploymentRuntime = (typeof DEPLOYMENT_RUNTIMES)[number];
 
 /** One rollout of a workload of an installation revision from one build output. */
 export const deployment = defineObject(
@@ -30,7 +40,7 @@ export const deployment = defineObject(
             /** The package-local workload name. */
             workload: field.string(),
             /** The runtime of the selected build output. */
-            runtime: field.enum(SERVER_RUNTIMES),
+            runtime: field.enum(DEPLOYMENT_RUNTIMES),
             /** The package release the build runs. */
             release: field.string(Version),
             /** The oldest caller release the package serves. */
@@ -54,7 +64,7 @@ export const deployment = defineObject(
         },
         permissions: ["list", "read", "record"],
         constraints: {
-            // key deployments by space and keep one active per workload
+            // key deployments by space and allow one active per workload
             scopeId: { kind: "unique", on: ["scope", "id"] },
             workload: {
                 kind: "index",
@@ -93,9 +103,9 @@ export const deployment = defineObject(
     },
     (method) => ({
         list: method.list("list"),
-        create: method.create("record", { isInternal: true }),
-        update: method.update("record", { isInternal: true }),
-        delete: method.delete("record", { isInternal: true }),
+        create: method.create("record", { visibility: "package" }),
+        update: method.update("record", { visibility: "package" }),
+        delete: method.delete("record", { visibility: "package" }),
     }),
 );
 
@@ -114,8 +124,8 @@ export const Deployment = {
         return { status: { in: ["active", "draining", "stopping"] } };
     },
 
-    /** Match the deployments whose workloads serve. */
-    serving(): Condition<RowImage<typeof deployment.table>> {
+    /** Match the deployments available to serve requests. */
+    available(): Condition<RowImage<typeof deployment.table>> {
         return { status: { in: ["active", "draining"] } };
     },
 };

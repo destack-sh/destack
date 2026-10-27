@@ -1,6 +1,5 @@
-import { BuildReference, InstallationSelection } from "../declare/installation.ts";
 import { Digest, schema } from "@destack/schema";
-import { StackDefinition } from "../declare/stack.ts";
+import { BuildReference, InstallationSelection, StackDefinition } from "../declare/index.ts";
 
 /** A stack's evaluation: the export, its arguments, and the stack definition they evaluated to. */
 export const StackEvaluation = schema.object({

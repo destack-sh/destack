@@ -2,11 +2,11 @@ import { type Select, type Snapshot } from "@destack/db";
 import { type ObjectOf, defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
-import { StackBinding } from "../declare/binding.ts";
 import { Deployment, deployment } from "./deployment.ts";
-import { installation } from "./installation.ts";
+import { installation } from "@destack/object";
 import { space } from "@destack/account/object";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../error/index.ts";
 
 /** The fields of a package declaration and its bound object, shared by bindings and captures. */
 const boundFields = {
@@ -16,7 +16,7 @@ const boundFields = {
     name: field.string(),
     /** The bound object's id here, or the installation's name in the target space. */
     target: field.string(),
-    /** The other space keeping the target installation, null for this space. */
+    /** The other space of the target installation, null for this space. */
     targetSpaceId: field.string(schema.identifier("space")).optional(),
     /** The state the declaration requires of the target. */
     state: field.json(schema.jsonObject()),
@@ -28,7 +28,6 @@ export const binding = defineObject(
         name: "binding",
         plural: "bindings",
         scope: space,
-        declarable: { schema: StackBinding },
         fields: {
             /** The installation whose package declares the need. */
             installation: field.reference(
@@ -73,11 +72,11 @@ export const binding = defineObject(
         },
     },
     (method) => ({
-        create: method.create("record", { isInternal: true }),
-        update: method.update("record", { isInternal: true, fields: ["state"] }),
-        delete: method.delete("record", { isInternal: true }),
-        /** Delete a binding with the resource its installation owns. */
-        release: method.delete("record", { isInternal: true }),
+        create: method.create("record", { visibility: "package" }),
+        update: method.update("record", { visibility: "package", fields: ["state"] }),
+        delete: method.delete("record", { visibility: "package" }),
+        /** Delete a binding with the owned resource of its installation. */
+        release: method.delete("record", { visibility: "package" }),
     }),
 );
 
@@ -116,8 +115,8 @@ export const capture = defineObject(
         },
     },
     (method) => ({
-        create: method.create("record", { isInternal: true }),
-        delete: method.delete("record", { isInternal: true }),
+        create: method.create("record", { visibility: "package" }),
+        delete: method.delete("record", { visibility: "package" }),
     }),
 );
 
@@ -150,9 +149,10 @@ export const Binding = {
         // refuse a version a live deployment runs with
         const captured = await liveCapture(reader, parsed.data, target.id, target.version);
         if (captured !== undefined) {
-            throw new CallError("CONFLICT", {
-                message: `${target.type} version ${target.version} is captured by ${captured}`,
-            });
+            throw StackError.of(
+                "VERSION_CAPTURED",
+                `${target.type} version ${target.version} is captured by ${captured}`,
+            );
         }
     },
 
@@ -173,17 +173,16 @@ export const Binding = {
             .read(binding.table)
             .findMany({ where: { scope, target: target.id } });
         if (bound !== undefined) {
-            throw new CallError("CONFLICT", {
-                message: `${target.id} is in use: bound by ${bound.installationId}`,
-            });
+            throw StackError.of(
+                "BOUND",
+                `${target.id} is in use: bound by ${bound.installationId}`,
+            );
         }
 
         // refuse a target a live deployment runs with
         const captured = await liveCapture(reader, scope, target.id, undefined);
         if (captured !== undefined) {
-            throw new CallError("CONFLICT", {
-                message: `${target.id} is in use: captured by ${captured}`,
-            });
+            throw StackError.of("CAPTURED", `${target.id} is in use: captured by ${captured}`);
         }
     },
 };
@@ -198,7 +197,7 @@ async function liveCapture(
     id: string,
     version: number | undefined,
 ): Promise<Identifier<"deployment"> | undefined> {
-    // read the captures of the target, and keep one of a live deployment
+    // read the captures of the target, and take one of a live deployment
     const captures = await reader.read(capture.table).findMany({
         where: {
             scope,

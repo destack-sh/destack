@@ -1,6 +1,6 @@
 # @destack/stack
 
-`defineStack` declares a space's resources and package installations, applied as revisions with a plan and an approval.
+`defineStack` declares a space's resources and package installations, each followed by a `rollout` applying revisions with a plan and an approval.
 
 ```ts
 // a stack, as Pulumi and CloudFormation declare one
@@ -9,7 +9,7 @@ export const personal = defineStack({
     installations: { pages: install(pages, { files: "files" }) },
 });
 // a release by npm dist-tag, recorded at its resolved version as a lockfile does
-await client.installation.submit({
+await client.rollout.submit({
     spaceId,
     id,
     requestId,
@@ -17,12 +17,13 @@ await client.installation.submit({
     build,
 });
 // terraform apply of a saved plan
-await client.installation.approve({ spaceId, id, requestId, plan: await Plan.digest(waiting) });
-await client.installation.rollBack({ spaceId, id, requestId }); // the release applied before
+const digest = await Plan.digest(waiting, crypto);
+await client.rollout.approve({ spaceId, id, requestId, plan: digest });
+await client.rollout.rollBack({ spaceId, id, requestId }); // the release applied before
 // a token of the installation, asked by an assertion its key signs (RFC 7523), as Kubernetes' TokenRequest
-await asserted.installation.token({ spaceId, id, requestId, audience });
-// the revision the space serves each installation at, the status its host records as Kubernetes' Pod.status
-await Installation.serve(store, spaceId, revisions); // Installation.servedRevision
+await asserted.installation.token({ scope: spaceId, id, requestId, audience });
+// the revision the space serves each rollout at, the status its host records as Kubernetes' Pod.status
+await Rollout.serve(store, spaceId, revisions); // rollout.servedRevision
 ```
 
 ## Declarations
@@ -60,7 +61,7 @@ await client.build.create({
     requestId,
     source: { kind: "commit", repository, commit, directory: "." },
 });
-await client.installation.submit({
+await client.rollout.submit({
     spaceId,
     id,
     requestId,
@@ -110,10 +111,10 @@ const { store, packages } = serveSpace({
 
 ## Views
 
-`installation.open` reads the view an installation's revision declares, and `readBuilds` reads every installation's build through the space's build contents.
+`rollout.open` reads the view an installation's applied revision declares, and `readBuilds` reads every installation's build through the space's build contents.
 
 ```ts
-const opened = await stack.installation.open({ spaceId, id, view: "home", path: "/" }); // its build, permissions and home
+const opened = await stack.rollout.open({ spaceId, id, view: "home", path: "/" }); // its build, permissions and home
 const builds = await readBuilds(spaceId, url, fetch); // [{ installation, reader }], each build by its manifest
 const views = ViewDescription.list(builds[0].reader.manifest); // the views a build mounts
 ```
@@ -170,14 +171,13 @@ RUNTIME_SUPPORT.workerd.hasFilesystem; // false
 
 ## Settings
 
-The `tenancy` setting runs a space `shared`, `dedicated` or on the account's `own` machine, and the `Scheduler` moves the space there; `buildRetention` keeps the latest builds of each source.
+`buildRetention` keeps the latest builds of each source.
 
 ```ts
-import { buildRetention, defineStack, tenancy } from "@destack/stack/declare";
+import { buildRetention, defineStack } from "@destack/stack/declare";
 
 export const shop = defineStack({
     settings: {
-        tenancy: { setting: tenancy, value: "dedicated", mode: "set" },
         builds: { setting: buildRetention, value: 20, mode: "set" },
     },
 });
@@ -191,13 +191,14 @@ export const shop = defineStack({
 import { ids, StackFixture } from "@destack/stack/test";
 
 const fixture = await StackFixture.open();
-const host = fixture.host(store, ids.space); // a controller recording Installation.servedRevision, as a host would
+const host = fixture.host(store, ids.space); // a controller recording rollout.servedRevision, as a host would
 const owner = (await fixture.serve())(ids.owner);
-await owner.installation.create({
+// install a package: its installation and the rollout following its selection, in one call
+await owner.rollout.create({
     spaceId: ids.space,
     requestId,
     packageId,
-    role: "application",
+    kind: "package",
     selection,
     name: "pages",
 });

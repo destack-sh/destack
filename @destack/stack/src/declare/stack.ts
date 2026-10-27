@@ -1,17 +1,24 @@
-import { DeclarationReference } from "@destack/package/declare";
 import { ModuleMetadata, type Package } from "@destack/package";
-import { type JsonObject, JsonValue, schema } from "@destack/schema";
 import { InstallationDefinition } from "./installation.ts";
-import { ResourceDefinition } from "@destack/resource";
-import type { relationship, role, StackInputOf } from "@destack/object";
-import { RouteDefinition } from "./route.ts";
-import { type Setting } from "@destack/setting";
-import type { StackSetting } from "@destack/setting/declare";
+import { StackDefinition } from "./definition.ts";
+import { type JsonObject, JsonValue, type schema } from "@destack/schema";
+import { StackError } from "../error/index.ts";
+import {
+    ObjectType,
+    type PackageHandle,
+    type relationship,
+    type role,
+    type StackInputOf,
+} from "@destack/object";
+import type { setting } from "@destack/setting/object";
+import type { bucket, database, route } from "../object/index.ts";
 
-/** The collections a stack declares, extended by module augmentation in object packages. */
-export interface StackDefinition {
-    /** Resources created or adopted by the stack. */
-    readonly resources?: Readonly<Record<string, schema.Input<typeof ResourceDefinition>>>;
+/** The collections of the stack package's own object types that `defineStack` takes. */
+export interface StackInput {
+    /** The databases the stack provisions. */
+    readonly databases?: Readonly<Record<string, StackInputOf<typeof database>>>;
+    /** The buckets the stack provisions. */
+    readonly buckets?: Readonly<Record<string, StackInputOf<typeof bucket>>>;
     /** Independently configured package installations. */
     readonly installations?: Readonly<Record<string, schema.Input<typeof InstallationDefinition>>>;
     /** Roles defined in the space. */
@@ -19,43 +26,74 @@ export interface StackDefinition {
     /** Roles bound and relations granted to members, groups and workloads. */
     readonly relationships?: Readonly<Record<string, StackInputOf<typeof relationship>>>;
     /** Routes under domains the space's account administers. */
-    readonly routes?: Readonly<Record<string, schema.Input<typeof RouteDefinition>>>;
+    readonly routes?: Readonly<Record<string, StackInputOf<typeof route>>>;
     /** The setting values the stack places in its space. */
-    readonly settings?: Readonly<
-        Record<
-            string,
-            Omit<StackSetting, "setting"> & { readonly setting: Setting | DeclarationReference }
-        >
-    >;
+    readonly settings?: Readonly<Record<string, StackInputOf<typeof setting>>>;
+    /** The existing records the stack takes over, by address and identifier. */
+    readonly adopted?: Readonly<Record<string, string>>;
+    /** The addresses of the records the stack leaves in place, unmanaged. */
+    readonly released?: readonly string[];
 }
 
-/** The collections of a stack definition the stack package reads itself. */
-const StackCollections = schema.looseObject({
-    /** Resources created or adopted by the stack. */
-    resources: schema.record(schema.string(), ResourceDefinition).default({}),
-    /** Independently configured package installations. */
-    installations: schema.record(schema.string(), InstallationDefinition).default({}),
-    /** The setting values the stack places, by key. */
-    settings: schema.jsonObject().default({}),
-});
+/** The keys of the collections and ownership entries the stack package reads in every document. */
+const STACK_KEYS: ReadonlySet<string> = new Set([
+    "databases",
+    "buckets",
+    "installations",
+    "roles",
+    "relationships",
+    "routes",
+    "settings",
+    "adopted",
+    "released",
+]);
 
-/** A stack definition as JSON, keyed by collection and validated by each object when applied. */
-export const StackDefinition = Object.assign(schema.jsonObject(), {
-    /** Read the collections the stack package applies itself. */
-    collections(definition: Readonly<Record<string, unknown>>) {
-        return StackCollections.parse(definition);
-    },
+/** What a stack declares records of: a package's object types, or one object type. */
+export type StackTypes = readonly (PackageHandle | ObjectType)[];
 
-    /** Describe the setting values a space carries as the settings a stack places. */
-    placed(settings: Readonly<Record<string, JsonValue>>): Record<string, JsonObject> {
-        return Object.fromEntries(
-            Object.entries(settings).map(([key, value]) => [
-                key,
-                { setting: DeclarationReference.ofKey(key), mode: "set", value },
-            ]),
+/** A stack document: the stack package's collections and one per object type it declares. */
+export type StackDocument<Types extends StackTypes = readonly []> = StackInput & {
+    readonly [Object in ObjectsOf<Types[number]> as Object["plural"]]?: Readonly<
+        Record<string, StackInputOf<Object>>
+    >;
+};
+
+/** Stack documents of named object types. */
+export const StackDocument = {
+    /** Serialise a document to JSON, refusing a collection no named type declares. */
+    of<const Types extends StackTypes>(types: Types, document: StackDocument<Types>): JsonObject {
+        // read the plurals of the named types
+        const plurals = new Set(
+            types.flatMap((named) =>
+                ObjectType.is(named)
+                    ? [named.plural]
+                    : Object.values(named.objects)
+                          .filter((object) => ObjectType.is(object))
+                          .map((object) => object.plural),
+            ),
         );
+
+        // refuse another collection
+        const unknown = Object.keys(document).find(
+            (key) => !STACK_KEYS.has(key) && !plurals.has(key),
+        );
+        if (unknown !== undefined) {
+            throw StackError.of(
+                "DEFINITION_INVALID",
+                `the stack declares ${unknown}, which no named type has`,
+            );
+        }
+
+        return StackDefinition.parse(JsonValue.of(document));
     },
-});
+};
+
+/** The object types of a package or an object type itself. */
+type ObjectsOf<Named> = Named extends ObjectType
+    ? Named
+    : Named extends { readonly objects: infer Objects }
+      ? Extract<Objects[keyof Objects], ObjectType>
+      : never;
 
 /** A stack's declarations with the package declaring them. */
 export interface StackDeclaration {
@@ -65,13 +103,14 @@ export interface StackDeclaration {
     readonly definition: JsonObject;
 }
 
-/** Define a stack's declarations, serialising each declared value to its JSON form. */
-export function defineStack(
-    definition: StackDefinition,
+/** Define a stack's declarations of the given object types, as JSON. */
+export function defineStack<const Types extends StackTypes>(
+    types: Types,
+    definition: StackDocument<Types>,
     module?: ModuleMetadata,
 ): StackDeclaration {
     return {
         package: ModuleMetadata.require(module, "defineStack").package,
-        definition: StackDefinition.parse(JsonValue.of(definition)),
+        definition: StackDocument.of(types, definition),
     };
 }

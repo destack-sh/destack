@@ -1,15 +1,8 @@
-import { StackReference, InstallationName } from "@destack/object";
-import {
-    ComputeDefinition,
-    DeclarationName,
-    DirectoryGrant,
-    Package,
-    PackageId,
-} from "@destack/package";
+import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { Digest, schema, Version } from "@destack/schema";
-import { RESOURCE_TARGET, SECRET_TARGET, StackBinding } from "./binding.ts";
-import type { PackageHandle } from "@destack/object";
+import { SECRET_TARGET, StackBinding } from "./binding.ts";
+import { InstallationName, type PackageHandle } from "@destack/object";
 import { StackError } from "../error/index.ts";
 
 /** A package directory within a repository or checkout, or its root. */
@@ -21,6 +14,12 @@ const Release = schema.object({
     kind: schema.literal("release"),
     /** The released package version. */
     version: Version,
+});
+
+/** A published release by version, pinned to its manifest where the selector pinned it. */
+const PinnedRelease = Release.extend({
+    /** The digest of the release manifest, absent to resolve the version at the registry. */
+    manifest: Digest.exactOptional(),
 });
 
 /** The release a distribution tag points at. */
@@ -36,7 +35,7 @@ export type ReleaseReference = schema.Infer<typeof Release> | schema.Infer<typeo
 
 /** The release, repository reference or checkout an installation follows. */
 export const InstallationSelection = schema.discriminatedUnion("kind", [
-    Release,
+    PinnedRelease,
     Tag,
     schema.object({
         /** Follow committed repository history. */
@@ -66,10 +65,7 @@ export type RepositorySelection = Extract<InstallationSelection, { readonly kind
 
 /** The build a submission selects. */
 export const BuildReference = schema.discriminatedUnion("kind", [
-    Release.extend({
-        /** The digest of the release manifest, where the submitter pinned it. */
-        manifest: Digest.exactOptional(),
-    }),
+    PinnedRelease,
     Tag,
     schema.object({
         /** A succeeded build of the space. */
@@ -81,27 +77,33 @@ export const BuildReference = schema.discriminatedUnion("kind", [
 /** The build a submission selects. */
 export type BuildReference = schema.Infer<typeof BuildReference>;
 
-/** Select an installation by configuration key or persistent identifier in the space. */
-export const InstallationReference = StackReference.of("installation");
+/** The bindings of a package's declarations, by package ID and declaration name. */
+export const InstallationBindings = schema.record(
+    PackageId,
+    schema.record(DeclarationName, StackBinding),
+);
+/** The bindings of a package's declarations, by package ID and declaration name. */
+export type InstallationBindings = schema.Infer<typeof InstallationBindings>;
 
-/** A package installation declared in a configuration. */
+/** An application installation as a stack declares it: its create input. */
 export const InstallationDefinition = schema.object({
-    /** The package release selected by this configuration. */
-    package: Package.extend({
-        /** The digest of the release manifest, absent to resolve the version at the forge. */
-        manifest: Digest.exactOptional(),
-    }),
+    /** The installation's kind: a package's, since a stack declares no stacks. */
+    kind: schema.literal("package"),
+    /** The installed package. */
+    packageId: PackageId,
+    /** The release the installation follows, pinned to its manifest where the stack pinned it. */
+    selection: PinnedRelease,
     /** Whether this installation should serve requests. */
     status: schema.enum(["enabled", "suspended"]),
     /** Space-local URL name, independent of the stable installation key. */
     name: InstallationName,
     /** The bindings of the package's declarations, by package ID and declaration name. */
-    bindings: schema.record(PackageId, schema.record(DeclarationName, StackBinding)),
+    bindings: InstallationBindings,
     /** Workload compute settings checked against package and machine policy. */
     compute: schema.record(DeclarationName, ComputeDefinition),
     /** The package's optional capabilities the installation allows. */
     capabilities: schema.array(DeclarationName),
-    /** The directories granted to the package's `fs` capability, each with its access. */
+    /** The directories granted to the package's `files` capability, each with its access. */
     directories: schema.array(DirectoryGrant),
     /** User-defined labels. */
     tags: schema.record(schema.string().min(1), schema.string()),
@@ -127,7 +129,7 @@ export interface InstallOptions {
     readonly compute?: InstallationDefinition["compute"];
     /** The optional capabilities allowed, none by default. */
     readonly capabilities?: readonly DeclarationName[];
-    /** The directories granted to the package's `fs` capability, none by default. */
+    /** The directories granted to the package's `files` capability, none by default. */
     readonly directories?: readonly DirectoryGrant[];
     /** User-defined labels. */
     readonly tags?: InstallationDefinition["tags"];
@@ -156,14 +158,14 @@ export function install<
         // bind a resource declaration to a resource of the stack with the state it requires, by its key alone
         if (resource !== undefined) {
             if (typeof selection !== "string") {
-                throw new StackError(
-                    "INVALID_DEFINITION",
-                    `${handle.name} declares ${name} as a resource, bound by its key alone`,
+                throw StackError.of(
+                    "DEFINITION_INVALID",
+                    `${handle.name} declares ${name} as a resource, so bind it by key only`,
                 );
             }
             const packageBindings = (bound[resource.package.id] ??= {});
             packageBindings[resource.name] = {
-                target: { type: RESOURCE_TARGET, name: selection },
+                target: { type: resource.kind, name: selection },
                 state: resource.state(),
             };
         }
@@ -182,15 +184,14 @@ export function install<
         }
         // refuse a name the package declares nothing under
         else {
-            throw new StackError(
-                "INVALID_DEFINITION",
-                `${handle.name} declares no ${name} to bind`,
-            );
+            throw StackError.of("DEFINITION_INVALID", `${handle.name} declares no ${name} to bind`);
         }
     }
 
     return InstallationDefinition.parse({
-        package: { id: handle.id, name: handle.name, version: handle.version },
+        kind: "package",
+        packageId: handle.id,
+        selection: { kind: "release", version: handle.version },
         status: options.status ?? "enabled",
         name: options.name ?? handle.name.slice(handle.name.lastIndexOf("/") + 1),
         bindings: bound,
