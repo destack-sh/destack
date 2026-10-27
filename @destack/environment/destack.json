@@ -11,7 +11,7 @@
             "runtimes": ["bun"]
         },
         "./browser": {
-            "runtimes": ["browser"]
+            "runtimes": ["browser", "bun", "workerd"]
         },
         "./browser/simulation": {
             "runtimes": ["bun"]
