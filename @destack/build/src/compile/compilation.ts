@@ -26,6 +26,7 @@ import {
     isRuntimeModule,
     type OutputDescription,
     runtimeConditions,
+    runtimeTarget,
 } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
 import type { ModuleDescription } from "@destack/package/code";
@@ -340,6 +341,8 @@ export class OutputCompilation implements Compilation {
             logLevel: "silent",
             define: { "process.env.NODE_ENV": JSON.stringify("production") },
             resolve: { conditions },
+            // lower stylesheets to the baseline browsers too, from the same target
+            css: project.runtime === "browser" ? { transformer: "lightningcss" } : {},
             ssr: {
                 noExternal: true,
                 target: project.runtime === "workerd" ? "webworker" : "node",
@@ -359,7 +362,7 @@ export class OutputCompilation implements Compilation {
                 emptyOutDir: false,
                 ssr: project.runtime !== "browser",
                 // emit current syntax for the server runtimes Destack ships, and baseline syntax for browsers
-                target: project.runtime === "browser" ? "baseline-widely-available" : "esnext",
+                target: runtimeTarget(project.runtime),
                 // minify the server runtimes' modules, which machines load, and the browser's as asked
                 minify: options.minify ?? project.runtime !== "browser",
                 sourcemap: true,
