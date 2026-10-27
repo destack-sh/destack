@@ -12,5 +12,6 @@ export * from "./tree/index.ts";
 export * from "./search/index.ts";
 export * from "./error/index.ts";
 export * from "./channel/index.ts";
+export * from "./tracker/index.ts";
 export * from "./provider/index.ts";
 export { DatabaseState, TableState, declareState } from "./migration/state.ts";

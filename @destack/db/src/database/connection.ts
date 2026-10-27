@@ -31,6 +31,7 @@ import { type Announcer, CommitWatch } from "../log/watch.ts";
 import { LOG_TABLES, LOG_TOPIC } from "../log/schema.ts";
 import { ReadCache } from "../log/cache.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
+import { Tracker } from "../tracker/tracker.ts";
 import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
 import { elementValue, jsonElements } from "../query/statement.ts";
@@ -39,6 +40,9 @@ import { Relations } from "../query/relation.ts";
 import { ModelQueryBuilder, type Queries } from "../query/find.ts";
 import type { Model } from "../query/model.ts";
 import type { Row } from "../table/row.ts";
+
+/** The channel a database's connections track their live instances and owners on. */
+const TRACKER_CHANNEL = "tracker";
 
 /** The weight each read cache of a database stores, in rows: 2 MB of 0.5 KB rows, 4 MB for both. */
 const CACHED_ROWS = 4096;
@@ -101,6 +105,16 @@ export class DatabaseConnection<
         }
 
         return open(name);
+    }
+
+    /** Whether other connections write the database beside this one, sharing its channel. */
+    get isShared(): boolean {
+        return this.state.openChannel !== undefined;
+    }
+
+    /** The tracker of the database's live instances and owners. */
+    get tracker(): Tracker {
+        return this.state.tracker();
     }
 
     /** Decide whether the database stores a table's rows as a replica, as its declaration lists. */
@@ -554,6 +568,8 @@ export class ConnectionState {
     readonly #pending = new Set<Promise<void>>();
     /** The shutdown. */
     #closing?: Promise<void>;
+    /** The tracker of the database's live instances and owners, opened on first use. */
+    #tracker?: Tracker;
 
     /** The clock the log stamps changes at, the environment's. */
     get clock(): Clock {
@@ -566,7 +582,10 @@ export class ConnectionState {
         const { openChannel, tables } = options;
         this.locality = options.locality;
         this.environment = options.environment;
-        this.durations = new OperationDuration(options.environment.telemetry);
+        this.durations = new OperationDuration(options.environment.telemetry, [
+            ...tables.map((table) => table[TABLE].sqlName),
+            ...LOG_TABLES,
+        ]);
         this.replicated = options.replicated;
         this.openChannel = openChannel;
         this.namespace = options.namespace;
@@ -658,10 +677,23 @@ export class ConnectionState {
         return running;
     }
 
+    /** Whether the connection is closing or closed, refusing new work. */
+    get isClosing(): boolean {
+        return this.#closing !== undefined;
+    }
+
+    /** Open the tracker of the database's live instances once. */
+    tracker(): Tracker {
+        this.#tracker ??= new Tracker(this.environment, this.openChannel?.(TRACKER_CHANNEL));
+
+        return this.#tracker;
+    }
+
     /** Stop submissions, drain work, and close the client once. */
     close(operation: () => Promise<void>): Promise<void> {
         this.#closing ??= this.clock.trackHost(
             Promise.all(this.#pending)
+                .then(() => this.#tracker?.close())
                 .then(() => this.commits.stop())
                 .then(operation),
         );
