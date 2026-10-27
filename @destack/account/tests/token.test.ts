@@ -390,9 +390,15 @@ test("follow a space's chain at the universe as the space, through the tokens it
     // follow the account's scope in the space's chain replica as the space, by its granted tokens
     const chain = fixture.store.source.chainPublication.subscription({
         name: ObjectSink.chainName(spaceId),
-        scope: accountId,
+        scope: spaceId,
         target: spaceId,
-        parameters: { scopes: [spaceId, accountId], local: [], types: [], via: [], between: [] },
+        parameters: {
+            scopes: [spaceId, accountId],
+            local: [],
+            replicated: [{ scope: accountId, types: [] }],
+            via: [],
+            between: [],
+        },
     });
     const controller = new AbortController();
     const followed = fixture

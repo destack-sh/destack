@@ -66,7 +66,13 @@ function chain(space: string, accountId: string) {
         scope: accountId,
         target: space,
         publication: CHAIN_PUBLICATION,
-        parameters: { scopes: [], local: [], types: [], via: [accountId], between: [] },
+        parameters: {
+            scopes: [],
+            local: [],
+            replicated: [{ scope: accountId, types: [] }],
+            via: [accountId],
+            between: [],
+        },
     };
 }
 

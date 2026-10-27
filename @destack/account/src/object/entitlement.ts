@@ -11,7 +11,7 @@ import {
 import { type Package, PackageId } from "@destack/package";
 import type { FeatureReference } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
-import { Replica, Scope } from "@destack/sync";
+import { Scope } from "@destack/sync";
 import { Account, account } from "./account.ts";
 import { space, Space, type SpaceResource } from "./space.ts";
 import { Tenancy } from "./placement.ts";
@@ -196,12 +196,9 @@ export const Entitlement = {
         database: DatabaseConnection,
         accountId: Identifier<"account">,
     ): Promise<readonly Entitlement[] | undefined> {
-        // wait for the replica's first complete snapshot of the account's entitlements, wherever it lives
-        const [replica] = await entitlementShape.replicas(database, { account: accountId });
-        if (
-            replica === undefined ||
-            !(await Replica.isSynced(database, replica.name, replica.scope))
-        ) {
+        // wait for the replica's first complete snapshot of the account's entitlements from the universe
+        const key = { scope: Scope.universe.id, account: accountId };
+        if (!(await entitlementShape.isSynced(database, key))) {
             return undefined;
         }
 

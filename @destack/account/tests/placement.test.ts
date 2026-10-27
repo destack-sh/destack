@@ -36,7 +36,14 @@ import accountPackage from "../src/package.ts";
 import { TestAccountStore, ISSUER, ids, type TestPerson, OWNER_EMAIL } from "../src/test/index.ts";
 import type { TestCaller } from "@destack/object/test";
 import { claimNames, firstPage, place } from "./fixture.ts";
-import { Claim, Claimant, type ClaimLookup, type ClaimOwner, relationship } from "@destack/object";
+import {
+    Claim,
+    Claimant,
+    type ClaimLookup,
+    type ClaimOwner,
+    relationship,
+    Shape,
+} from "@destack/object";
 
 /** The machines a residency's spaces spread over. */
 /** The origin of the residency's relay, which publishes the tunnels it accepts. */
@@ -138,7 +145,11 @@ async function machines(copier: TestCaller): Promise<unknown[][]> {
     const pages = await copier
         .client(accountPackage)
         .store.stream(
-            directoryShape.subscription({ scope: Scope.universe.id }, copier.subject.id),
+            Shape.subscription(
+                Scope.universe.id,
+                [{ shape: directoryShape, keys: [{}] }],
+                copier.subject.id,
+            ),
             { signal: controller.signal },
         );
     const page = await firstPage(pages);
@@ -221,11 +232,14 @@ function claims(caller: TestCaller): ClaimLookup {
 async function assignments(caller: TestCaller): Promise<unknown[]> {
     const controller = new AbortController();
     const pages = await caller.client(accountPackage).store.stream(
-        machineShape.subscription(
-            {
-                scope: Scope.universe.id,
-                machine: schema.identifier("machine").parse(caller.subject.id),
-            },
+        Shape.subscription(
+            Scope.universe.id,
+            [
+                {
+                    shape: machineShape,
+                    keys: [{ machine: schema.identifier("machine").parse(caller.subject.id) }],
+                },
+            ],
             caller.subject.id,
         ),
         { signal: controller.signal },
@@ -322,10 +336,15 @@ test("store the account's row in the chain replica of a space storing accounts",
                 parameters: {
                     scopes: [],
                     local: [],
-                    types: [
+                    replicated: [
                         {
-                            packageId: account.policy.definition.packageId,
-                            type: account.policy.definition.name,
+                            scope: accountId,
+                            types: [
+                                {
+                                    packageId: account.policy.definition.packageId,
+                                    type: account.policy.definition.name,
+                                },
+                            ],
                         },
                     ],
                     via: [],
@@ -374,10 +393,15 @@ test("follow a machine's chain as a space of its account, and refuse a space of 
                     parameters: {
                         scopes: [],
                         local: [],
-                        types: [
+                        replicated: [
                             {
-                                packageId: machine.policy.definition.packageId,
-                                type: machine.policy.definition.name,
+                                scope: accountId,
+                                types: [
+                                    {
+                                        packageId: machine.policy.definition.packageId,
+                                        type: machine.policy.definition.name,
+                                    },
+                                ],
                             },
                         ],
                         via: [],
@@ -422,10 +446,15 @@ test("follow a machine's chain via the universe as a machine of its account, and
                 parameters: {
                     scopes: [],
                     local: [],
-                    types: [
+                    replicated: [
                         {
-                            packageId: machine.policy.definition.packageId,
-                            type: machine.policy.definition.name,
+                            scope: Scope.universe.id,
+                            types: [
+                                {
+                                    packageId: machine.policy.definition.packageId,
+                                    type: machine.policy.definition.name,
+                                },
+                            ],
                         },
                     ],
                     via: [identity.machineId],

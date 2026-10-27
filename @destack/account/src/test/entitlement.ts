@@ -1,8 +1,16 @@
 import { and, type DatabaseConnection, eq } from "@destack/db";
 import { PackageId } from "@destack/package";
-import type { FeatureReference } from "@destack/object";
-import { Identifier } from "@destack/schema";
-import { type Publisher, replica, replicaPosition, Scope, type Subscription } from "@destack/sync";
+import { type FeatureReference, QueriesParameters, Shape } from "@destack/object";
+import { Identifier, schema } from "@destack/schema";
+import {
+    type Publisher,
+    Replica,
+    replica,
+    replicaPosition,
+    replicaSubscription,
+    Scope,
+    type Subscription,
+} from "@destack/sync";
 import { type Environment, until } from "@destack/environment";
 import {
     entitlement,
@@ -18,7 +26,7 @@ export const ENTITLED_PACKAGE = PackageId.parse("package-019f5530-8000-7000-8000
 export const TestEntitlement = {
     /** A publisher that sends nothing until stopped. */
     publisher: {
-        confirm: async () => {},
+        request: async () => {},
         stream: async function* (_subscription: Subscription, signal: AbortSignal) {
             await until(signal);
             yield* [];
@@ -33,29 +41,44 @@ export const TestEntitlement = {
         terms: Pick<Entitlement, "kind"> & Partial<Pick<Entitlement, "value" | "limit" | "state">>,
         environment: Environment,
     ): Promise<void> {
-        // mark the account's replica complete once
+        // mark the replica of the universe's entitlements complete, following the account's key beside the earlier ones
         const now = environment.clock.now();
-        const key = {
-            name: entitlementShape.replicaName({
-                scope: Scope.universe.id,
-                account: accountId,
-            }),
-            scope: Scope.universe.id,
+        const scope = Scope.universe.id;
+        const name = Shape.replicaName(scope);
+        const followed = Shape.subscription(
+            scope,
+            [{ shape: entitlementShape, keys: [{ account: accountId }] }],
+            scope,
+        );
+        const recorded = await Replica.subscription(database, name, scope);
+        const queries = {
+            ...QueriesParameters.parse(recorded?.parameters ?? {}).queries,
+            ...QueriesParameters.parse(followed.parameters).queries,
         };
-        await database.transaction(
-            async (transaction) =>
-                await transaction
-                    .insert(replica)
-                    .values({ ...key, tables: [] })
-                    .onConflictDoNothing(),
+        const columns = Replica.subscriptionColumns(
+            { ...followed, parameters: { queries: schema.json().parse(queries) } },
+            "caller",
         );
-        await database.transaction(
-            async (transaction) =>
-                await transaction
-                    .insert(replicaPosition)
-                    .values({ ...key, log: "test", epoch: "test", sequence: 1, confirmedAt: now })
-                    .onConflictDoNothing(),
-        );
+        await database.transaction(async (transaction) => {
+            await transaction
+                .insert(replica)
+                .values({ name, scope, tables: [], living: {} })
+                .onConflictDoNothing();
+            await transaction
+                .insert(replicaSubscription)
+                .values({ name, scope, ...columns })
+                .onConflictDoUpdate({
+                    target: [replicaSubscription.name, replicaSubscription.scope],
+                    set: columns,
+                });
+            await transaction
+                .insert(replicaPosition)
+                .values({ name, scope, log: "test", epoch: "test", sequence: 1 })
+                .onConflictDoNothing();
+        });
+
+        // hear the replica's source, as its follow would
+        database.tracker.track(Replica.owner(name, scope));
 
         // replace the entitlement, a resource's under a test feature of its name
         const feature =

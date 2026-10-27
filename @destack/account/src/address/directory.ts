@@ -136,10 +136,10 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
                 const objects = await connect(await whenPlaced(signal));
                 yield* await objects.store.stream(followed, { signal });
             },
-            // confirm only after a stream, once the space is placed
-            confirm: async (subscription, watermark) => {
+            // request only after a stream, once the space is placed
+            request: async (subscription) => {
                 const objects = await connect(await located());
-                await objects.store.confirm({ subscription, watermark });
+                await objects.store.request({ subscription });
             },
         };
     }

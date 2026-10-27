@@ -1,3 +1,4 @@
+import { Shape } from "@destack/object";
 import accountPackage from "../src/package.ts";
 import { TABLE } from "@destack/db";
 import { schema } from "@destack/schema";
@@ -31,8 +32,9 @@ test("replicate every account of a residency to its cloud machine as it is creat
     const stream = await machine
         .client(accountPackage)
         .store.stream(
-            residentsShape.subscription(
-                { scope: Scope.universe.id, residency: "eu" },
+            Shape.subscription(
+                Scope.universe.id,
+                [{ shape: residentsShape, keys: [{ residency: "eu" }] }],
                 machine.subject.id,
             ),
             { signal },
