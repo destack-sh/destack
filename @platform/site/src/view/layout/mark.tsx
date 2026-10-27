@@ -9,7 +9,7 @@ const ringReach = { across: 15.2, down: 4.2 };
 /** The ring's inclination, in degrees. */
 const ringTilt = -22;
 /** The share of the tile the planet and its ring fill. */
-const planetScale = 0.8;
+const planetScale = 0.9;
 
 /** The ring's ellipse and inclination, shared by every rendering of the mark. */
 const ring = {
