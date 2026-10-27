@@ -64,6 +64,18 @@ export type Cell = {
     caption: string | undefined;
 };
 
+/** The row under a ledger's blocks that adds them up. */
+export type LedgerTotal = {
+    /** What the total adds up, set as the mono label. */
+    label: string;
+    /** Who bills the total, set as the name. */
+    name: string;
+    /** How the total is billed, shown when pointed at. */
+    plan: string;
+    /** The total's figure, its saving against renting every line as the caption. */
+    cell: Cell;
+};
+
 /** One row of a ledger: what it is, its marks, its colour, and its figures. */
 export type LedgerRow = {
     /** The job the row does, set as the mono label. */
@@ -90,6 +102,7 @@ export function Ledger(properties: {
     columns: readonly Column[];
     widths: readonly number[];
     rows: readonly LedgerRow[];
+    total: LedgerTotal;
     isWhole: boolean;
     lit: number | undefined;
     isPressable: boolean;
@@ -208,6 +221,23 @@ export function Ledger(properties: {
                             )}
                         </For>
                     </ol>
+
+                    {/* the total under the blocks, adding them up */}
+                    <div title={properties.total.plan} {...style.attrs(styles.row, styles.total)}>
+                        <span {...style.attrs(styles.totalClaim)}>
+                            <span aria-hidden="true" {...style.attrs(styles.marks)} />
+                            <span {...style.attrs(styles.names)}>
+                                <span {...style.attrs(styles.label)}>{properties.total.label}</span>
+                                <span {...style.attrs(styles.nameLine)}>
+                                    <b {...style.attrs(styles.name)}>{properties.total.name}</b>
+                                </span>
+                            </span>
+                        </span>
+                        <For each={properties.columns.slice(0, -1)}>
+                            {() => <span {...style.attrs(styles.cell)} />}
+                        </For>
+                        <Figure cell={properties.total.cell} />
+                    </div>
                 </div>
             </div>
         </div>
@@ -329,7 +359,7 @@ const styles = style.create({
         display: "grid",
         fontFamily: font.code,
         fontSize: typeScale.body,
-        gridTemplateRows: "auto minmax(0, 1fr)",
+        gridTemplateRows: "auto minmax(0, 1fr) auto",
         minHeight: 0,
         overflowX: "auto",
         overflowY: "hidden",
@@ -524,6 +554,24 @@ const styles = style.create({
     corner: {
         backgroundColor: ledgerVariables.surface,
         insetInlineStart: 0,
+        position: "sticky",
+        zIndex: 1,
+    },
+    total: {
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: stroke.border,
+        minHeight: "2.75rem",
+    },
+    totalClaim: {
+        alignItems: "center",
+        backgroundColor: ledgerVariables.surface,
+        display: "flex",
+        fontFamily: font.text,
+        gap: "0.625rem",
+        insetInlineStart: 0,
+        minWidth: 0,
+        paddingInlineStart: ROW_INSET,
         position: "sticky",
         zIndex: 1,
     },

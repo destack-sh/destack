@@ -68,6 +68,7 @@ export function Tally(properties: {
                 </LabelRow>
                 <Bill
                     isWindow
+                    plan="go"
                     lines={tallyOf(properties.picks)}
                     scale={{ people: people(), users: BASE_USERS }}
                     scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}

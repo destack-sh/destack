@@ -220,6 +220,7 @@ export function Noun(properties: { isOpen: boolean }) {
                 ) : (
                     <Bill
                         isWindow
+                        plan="plus"
                         scale={{ people: 1, users: users() }}
                         scales={audiences.map((audience) => ({ people: 1, users: audience }))}
                         lines={entriesWith(lineup()).map((entry, index) => {

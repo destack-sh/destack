@@ -6,11 +6,11 @@ const MB = 1_000_000;
 /** The bytes in a gigabyte. */
 const GB = 1_000_000_000;
 
-/** The CI minutes a first developer runs a month: 20 runs a day of 10 minutes over 22 workdays. */
-const CI_MINUTES = 4_400;
+/** The CI minutes a first developer runs a month: 8 pushes a day of 6 minutes over 22 workdays. */
+const CI_MINUTES = 1_056;
 
-/** The CI minutes each further developer adds a month: 7 runs a day of 10 minutes, 22 days. */
-const CI_MINUTES_PER_DEVELOPER = 1_540;
+/** The CI minutes each further developer adds a month: 5 pushes a day of 6 minutes, 22 days. */
+const CI_MINUTES_PER_DEVELOPER = 660;
 
 /** The memory a CI run holds in GB, its GB-hours above a 4 vCPU, 8 GB machine's hourly price. */
 const CI_MEMORY = 2;
@@ -21,8 +21,11 @@ const BUILD_MINUTES = 330;
 /** GitHub Team's price for a seat a month in US dollars, as listed for its first 12 months. */
 const SEAT_GITHUB = 4;
 
-/** The Linux Actions minutes GitHub Team includes a month. */
+/** The Linux Actions minutes GitHub Team includes a month for private repositories. */
 const ACTIONS_INCLUDED = 3_000;
+
+/** The Linux Actions minutes GitHub Free includes a month for private repositories. */
+const ACTIONS_FREE = 2_000;
 
 /** GitHub's price for a Linux 2-core runner minute in US dollars, as of January 2026. */
 const ACTIONS_RATE = 0.006;
@@ -105,11 +108,32 @@ const FILE_READS_PER_WRITE = 10;
 /** Auth0 B2C Essentials' price for a monthly active user, its $35 for 500 MAU tier spread out. */
 const AUTH0_MAU = 0.07;
 
-/** Clerk Pro's price for each monthly active user past its first 10,000. */
+/** Clerk Pro's price for each retained user past its first 50,000, its first overage tier. */
 const CLERK_MAU = 0.02;
 
-/** The monthly active users Clerk Pro includes. */
-const CLERK_INCLUDED = 10_000;
+/** The retained users Clerk Pro includes each month. */
+const CLERK_INCLUDED = 50_000;
+
+/** Doppler Developer's price for each user past the three it includes free, in US dollars. */
+const DOPPLER_SEAT = 8;
+
+/** The users Doppler Developer includes free. */
+const DOPPLER_FREE_USERS = 3;
+
+/** Temporal Cloud's pay-as-you-go price for a million actions at its first tier, in US dollars. */
+const TEMPORAL_MILLION_ACTIONS = 50;
+
+/** Vercel Pro's price for a developer seat a month, in US dollars. */
+const VERCEL_SEAT = 20;
+
+/** The usage Vercel Pro's fee includes a month, in US dollars. */
+const VERCEL_CREDIT = 20;
+
+/** The emails Resend's free plan sends a month. */
+const RESEND_FREE = 3_000;
+
+/** The emails Resend's free plan sends a day, which a reminder to every user has to fit. */
+const RESEND_FREE_DAILY = 100;
 
 /** Neon Launch's price for a compute unit hour, 1 vCPU and 4 GB, in US dollars. */
 const NEON_COMPUTE_HOUR = 0.106;
@@ -144,8 +168,8 @@ const ERROR_SIZE = 0.01 * MB;
 /** The months an error tracker keeps events: Sentry Team's 90 days. */
 const ERROR_RETENTION = 3;
 
-/** Datadog's price for a host a month in US dollars: Infrastructure Pro and APM, annual. */
-const DATADOG_HOST = 46;
+/** Datadog's price for a host a month in US dollars: Infrastructure Pro and APM, on demand. */
+const DATADOG_HOST = 54;
 
 /** Datadog's price for 1,000 sessions in US dollars: RUM Measure and Session Replay, annual. */
 const DATADOG_SESSIONS = 2.65;
@@ -170,6 +194,21 @@ const NETLIFY_REQUEST_CREDITS = 2;
 
 /** The minutes of CI GitLab Premium includes a month. */
 const GITLAB_MINUTES = 10_000;
+
+/** The minutes of CI GitLab Free includes a month, for up to 5 users. */
+const GITLAB_FREE_MINUTES = 400;
+
+/** The users GitLab Free allows in a private group. */
+const GITLAB_FREE_USERS = 5;
+
+/** GitLab Premium's price for a seat a month in US dollars, billed annually as its only term. */
+const GITLAB_SEAT = 29;
+
+/** Render Pro's flat price for a workspace a month in US dollars, which replaced its seat fees. */
+const RENDER_WORKSPACE = 25;
+
+/** Render's price for a Standard instance a month in US dollars: 2 GB and 1 CPU. */
+const RENDER_STANDARD = 25;
 
 /** The build minutes Bitbucket Standard includes a month. */
 const BITBUCKET_MINUTES = 2_500;
@@ -229,9 +268,9 @@ function amountOf(monthly: number): string {
     return Number.isInteger(monthly) ? String(monthly) : monthly.toFixed(2);
 }
 
-/** The list prices on 2026-10-17 of each tool's least plan with private spaces and guests. */
+/** The list prices of each tool's least plan that does its job for the team, by date checked. */
 export const prices: Readonly<Record<string, Price>> = {
-    // per seat, billed annually
+    // per seat, billed annually, checked on 2026-10-17
     Notion: seat(20, "Business, annual"),
     Linear: seat(16, "Business, annual"),
     Slack: seat(7.25, "Pro, annual"),
@@ -255,12 +294,11 @@ export const prices: Readonly<Record<string, Price>> = {
     Figma: seat(16, "Professional, annual"),
     Granola: seat(14, "Business, monthly"),
 
-    // per seat, with one price however billed
+    // per seat, with one price however billed, checked on 2026-10-17
     Confluence: seat(5.78, "Standard"),
     Jira: seat(8.48, "Standard"),
-    Doppler: seat(21, "Team"),
 
-    // flat, billed annually where offered
+    // flat, billed annually where offered, checked on 2026-10-17
     n8n: flat(20, "Starter, annual, in euros"),
     Typeform: flat(56, "Plus, annual"),
     Discord: flat(0, "Free"),
@@ -268,7 +306,7 @@ export const prices: Readonly<Record<string, Price>> = {
     tldraw: flat(0, "Free"),
     WhatsApp: flat(0, "Free"),
 
-    // one person's plan, or the team plan from a second person on, billed annually
+    // one person's plan, or the team plan from a second person on, checked on 2026-10-17
     Framer: metered(
         "Pro site + editors, annual",
         "$30/site/mo + $20/editor/mo",
@@ -295,44 +333,72 @@ export const prices: Readonly<Record<string, Price>> = {
         ({ people }) => (people === 1 ? 19.99 : 69),
     ),
 
-    // metered, by each vendor's published meters
-    GitHub: metered("Team + Actions", "$4/seat/mo + Actions", ({ people }) => {
-        const minutes = ciMinutesAt(people);
+    // an app's services, checked on 2026-10-27: each cheapest plan for production, unbranded
+    GitHub: metered(
+        "Free alone, or Team for a team's protected branches, + Actions",
+        "free, or $4/seat/mo + Actions",
+        ({ people }) => {
+            // count Team's seats for a team, and the CI minutes past the plan's included ones
+            const minutes = ciMinutesAt(people);
+            const seats = people === 1 ? 0 : SEAT_GITHUB * people;
+            const included = people === 1 ? ACTIONS_FREE : ACTIONS_INCLUDED;
 
-        return SEAT_GITHUB * people + Math.max(0, minutes - ACTIONS_INCLUDED) * ACTIONS_RATE;
-    }),
-    WorkOS: metered("AuthKit + custom domain", "$99/mo + $2,500/1M users", ({ users }) => {
-        const extra = Math.ceil(Math.max(0, users - 1_000_000) / 1_000_000);
-
-        return CUSTOM_DOMAIN_WORKOS + extra * 2_500;
-    }),
-    Supabase: metered("Pro + Small compute", "$30/mo + usage", ({ users }) => {
-        const database = (users * workloadOf("Supabase").perUser.database) / GB;
-
-        return 30 + Math.max(0, users - 100_000) * 0.003_25 + Math.max(0, database - 8) * 0.125;
-    }),
-    Resend: metered("Pro or Scale", "from $20/mo", ({ users }) =>
-        resendAt(users * EMAILS_PER_USER),
+            return seats + Math.max(0, minutes - included) * ACTIONS_RATE;
+        },
     ),
-    Temporal: metered("Essentials", "from $100/mo", ({ users }) =>
-        temporalAt(users * ACTIONS_PER_USER * STEPS_PER_ACTION),
+    Doppler: metered(
+        "Developer, free for 3 users",
+        "free for 3 users, then $8/user/mo",
+        ({ people }) => DOPPLER_SEAT * Math.max(0, people - DOPPLER_FREE_USERS),
     ),
-    PostHog: metered("Analytics + replay", "per usage, free to 1M events", ({ users }) => {
-        const events = tieredAt(users * EVENTS_PER_USER, POSTHOG_EVENTS);
-        const recordings = tieredAt(users * RECORDINGS_PER_USER, POSTHOG_RECORDINGS);
+    WorkOS: metered(
+        "AuthKit, free to 1M users, + custom domain",
+        "$99/mo + $2,500/1M users",
+        ({ users }) => {
+            const extra = Math.ceil(Math.max(0, users - 1_000_000) / 1_000_000);
 
-        return events + recordings;
-    }),
+            return CUSTOM_DOMAIN_WORKOS + extra * 2_500;
+        },
+    ),
+    Supabase: metered(
+        "Pro, Micro compute included, as Free pauses",
+        "$25/mo + usage",
+        ({ users }) => {
+            const database = (users * workloadOf("Supabase").perUser.database) / GB;
+
+            return 25 + Math.max(0, users - 100_000) * 0.003_25 + Math.max(0, database - 8) * 0.125;
+        },
+    ),
+    Resend: metered("Free to 100 a day, then Pro or Scale", "free, or from $20/mo", ({ users }) =>
+        resendAt(users),
+    ),
+    Temporal: metered(
+        "Pay as you go, workers hosted by you",
+        "$50/1M actions",
+        ({ users }) =>
+            (users * ACTIONS_PER_USER * STEPS_PER_ACTION * TEMPORAL_MILLION_ACTIONS) / MILLION,
+    ),
+    PostHog: metered(
+        "Pay as you go, for 3 months of replays",
+        "free to 1M events, 5K replays",
+        ({ users }) => {
+            const events = tieredAt(users * EVENTS_PER_USER, POSTHOG_EVENTS);
+            const recordings = tieredAt(users * RECORDINGS_PER_USER, POSTHOG_RECORDINGS);
+
+            return events + recordings;
+        },
+    ),
     Vercel: metered(
-        "Pro + CDN",
+        "Pro, as Hobby is non-commercial, + CDN past its $20 credit",
         "$20/seat/mo + usage",
-        ({ people, users }) => 20 * people + cdnAt(users * REQUESTS_PER_USER),
+        ({ people, users }) =>
+            VERCEL_SEAT * people + Math.max(0, cdnAt(users * REQUESTS_PER_USER) - VERCEL_CREDIT),
     ),
 
-    // the alternatives fig. 2 turns through, priced the same way
+    // the alternatives fig. 1 offers per row, checked on 2026-10-27 the same way
     Clerk: metered(
-        "Pro",
-        "$25/mo + $0.02/MAU past 10K",
+        "Pro, as Hobby shows Clerk's branding",
+        "$25/mo + $0.02/user past 50K",
         ({ users }) => 25 + Math.max(0, users - CLERK_INCLUDED) * CLERK_MAU,
     ),
     Auth0: metered("B2C Essentials", "from $35/mo for 500 MAU", ({ users }) =>
@@ -348,35 +414,38 @@ export const prices: Readonly<Record<string, Price>> = {
         mailgunAt(users * EMAILS_PER_USER),
     ),
     Upstash: metered(
-        "Workflow, pay as you go",
+        "Workflow, free to 1,000 steps a day, then pay as you go",
         "$1/100K steps",
         ({ users }) =>
             Math.max(0, users * ACTIONS_PER_USER * STEPS_PER_ACTION - UPSTASH_FREE_STEPS) / 100_000,
     ),
     Datadog: metered(
-        "Infrastructure Pro + APM + RUM",
+        "Infrastructure Pro + APM + RUM, on demand",
         "$46/host/mo + $2.65/1K sessions",
         ({ users }) =>
             DATADOG_HOST * hostsAt(users) +
             ((users * RECORDINGS_PER_USER) / 1000) * DATADOG_SESSIONS,
     ),
     Sentry: metered(
-        "Team, annual",
-        "$26/mo + usage",
-        ({ users }) => 26 + Math.max(0, users * ERRORS_PER_USER - 50_000) * 0.000_29,
+        "Team, for 90 days and more than one user",
+        "$29/mo + usage",
+        ({ users }) => 29 + Math.max(0, users * ERRORS_PER_USER - 50_000) * 0.000_29,
     ),
     Netlify: metered("Pro + credits", "$20/mo + $10/1,500 credits", ({ people, users }) =>
         netlifyAt(people, users),
     ),
     Render: metered(
-        "Professional + Standard",
-        "$19/seat/mo + $25/instance",
-        ({ people, users }) => 19 * people + 25 * hostsAt(users),
+        "Pro + Standard instances",
+        "$25/mo + $25/instance",
+        ({ users }) => RENDER_WORKSPACE + RENDER_STANDARD * hostsAt(users),
     ),
     GitLab: metered(
-        "Premium + compute",
-        "$29/seat/mo + minutes",
-        ({ people }) => 29 * people + minutePacksAt(ciMinutesAt(people) - GITLAB_MINUTES),
+        "Free for 5 users, or Premium, + compute minutes",
+        "free, or $29/seat/mo + minutes",
+        ({ people }) =>
+            people <= GITLAB_FREE_USERS
+                ? minutePacksAt(ciMinutesAt(people) - GITLAB_FREE_MINUTES)
+                : GITLAB_SEAT * people + minutePacksAt(ciMinutesAt(people) - GITLAB_MINUTES),
     ),
     Bitbucket: metered(
         "Standard + build minutes",
@@ -780,8 +849,14 @@ function minutePacksAt(minutes: number): number {
     return Math.ceil(Math.max(0, minutes) / 1000) * 10;
 }
 
-/** Return what Resend charges for a month's emails: Pro, then Scale, then overage. */
-function resendAt(emails: number): number {
+/** Return what Resend charges a month: free while a send to every user fits a day, then by plan. */
+function resendAt(users: number): number {
+    // send free while the month and a day's reminder to every user fit the free plan
+    const emails = users * EMAILS_PER_USER;
+    if (emails <= RESEND_FREE && users <= RESEND_FREE_DAILY) {
+        return 0;
+    }
+
     // pick the smallest plan that covers the emails, or the largest with overage
     const plans: readonly (readonly [emails: number, monthly: number])[] = [
         [50_000, 20],
@@ -795,14 +870,6 @@ function resendAt(emails: number): number {
     const plan = plans.find(([included]) => emails <= included);
 
     return plan === undefined ? 1_150 + (emails - 2_500_000) * 0.000_46 : plan[1];
-}
-
-/** Return what Temporal Cloud Essentials charges a month: $100 for 1M actions, then by use. */
-function temporalAt(actions: number): number {
-    const middle = Math.min(Math.max(0, actions - 1_000_000), 4_000_000);
-    const rest = Math.max(0, actions - 5_000_000);
-
-    return 100 + middle * 0.000_05 + rest * 0.000_025;
 }
 
 /** Return what Vercel's flat rate CDN charges for a month's requests: free to 1M, then by tier. */

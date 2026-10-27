@@ -19,11 +19,11 @@ export type ServiceCategory =
 /** A service an app rents: its name, which is also its plan's, what it is for, and its mark. */
 export type Service = { name: string; category: ServiceCategory; mark: OptionMark };
 
-/** Every service fig. 2 rents, grouped by category, the most common one first. */
+/** Every service fig. 1 rents, grouped by category, a small production app's usual pick first. */
 export const vendors: readonly Service[] = [
     // identity
-    { name: "WorkOS", category: "identity", mark: { logo: "workos.png" } },
     { name: "Clerk", category: "identity", mark: { icon: "clerk", tint: "#6c47ff" } },
+    { name: "WorkOS", category: "identity", mark: { logo: "workos.png" } },
     { name: "Auth0", category: "identity", mark: { icon: "auth0", tint: "#eb5424" } },
 
     // secrets
@@ -41,8 +41,8 @@ export const vendors: readonly Service[] = [
     { name: "Mailgun", category: "messaging", mark: { icon: "mailgun", tint: "#f06b66" } },
 
     // jobs
-    { name: "Temporal", category: "jobs", mark: { logo: "temporal.png" } },
     { name: "Upstash", category: "jobs", mark: { icon: "upstash", tint: "#00c98d" } },
+    { name: "Temporal", category: "jobs", mark: { logo: "temporal.png" } },
 
     // analytics
     { name: "PostHog", category: "analytics", mark: { logo: "posthog.svg" } },
