@@ -21,6 +21,9 @@ import {
 /** The sans the assistants' chrome and your messages set in. */
 const SANS = 'ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif';
 
+/** The connector logos the composer shows before its count, as many as fit a narrow chat. */
+const SHOWN_CONNECTORS = 3;
+
 /** The assistants the chat takes the look of, in turn. */
 export const assistants = ["Claude", "ChatGPT", "Gemini", "Grok"] as const;
 
@@ -332,8 +335,8 @@ function Connectors(properties: { isOpen: boolean; connectors: readonly Connecto
                         />
                     </span>
                 ) : (
-                    properties.connectors.map(([icon, tint], index) => (
-                        <span {...style.attrs(styles.logo, index >= 3 && styles.logoExtra)}>
+                    properties.connectors.slice(0, SHOWN_CONNECTORS).map(([icon, tint]) => (
+                        <span {...style.attrs(styles.logo)}>
                             <Favicon icon={icon} tint={tint} size={13} />
                         </span>
                     ))
@@ -1218,6 +1221,7 @@ const styles = style.create({
     },
     composer: {
         alignItems: "center",
+        minWidth: 0,
         color: chat.muted,
         gap: "0.625rem",
         paddingBlock: "0.75rem",
@@ -1277,9 +1281,6 @@ const styles = style.create({
     logos: {
         display: "inline-flex",
         gap: "0.25rem",
-    },
-    logoExtra: {
-        display: { default: "inline-flex", [media.maxSm]: "none" },
     },
     logo: {
         alignItems: "center",
