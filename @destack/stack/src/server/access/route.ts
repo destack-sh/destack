@@ -1,76 +1,34 @@
-import { hostname, space } from "@destack/account/object";
-import { type Transaction } from "@destack/db";
-import { type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
-import { installation, route } from "../../object/index.ts";
+import { hostname } from "@destack/account/object";
+import { type MethodContext } from "@destack/object";
+import { route } from "../../object/index.ts";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../../error/index.ts";
 
-/** Implement the routes a stack declares in its space. */
-export function implementRoute() {
-    return declaredRoute;
+/** Implement the routes of a space, refused on a machine the account's hostnames do not reach. */
+export function implementRoute(isServingHostnames: boolean) {
+    return route.implement({
+        methods: {
+            create: async (call, next) => {
+                // refuse a route no request would reach, then a hostname outside the account
+                if (!isServingHostnames) {
+                    throw StackError.of(
+                        "HOSTNAME_NOT_SERVED",
+                        `requests for ${call.input.hostname} do not reach this space's machine`,
+                    );
+                }
+                await requireHostname(call, call.input.hostname);
+
+                return next();
+            },
+        },
+    });
 }
 
-/** Routes a stack declares in its space. */
-const declaredRoute = route.implement({
-    declaration: {
-        after: [installation],
-        resolve: async (_name, declared, stack) => {
-            // require a hostname of the space's account
-            const served = await requireHostname(
-                stack.transaction,
-                schema.identifier("space").parse(stack.scope),
-                declared.hostname,
-            );
-
-            // redirect
-            const destination = declared.destination;
-            const matched = { hostname: served, path: declared.path, match: declared.match };
-            if ("redirect" in destination) {
-                return {
-                    ...matched,
-                    installationId: null,
-                    view: null,
-                    adapter: null,
-                    redirect: destination.redirect,
-                    redirectStatus: destination.status,
-                };
-            }
-
-            // serve a view or an adapter of an installation of the space
-            return {
-                ...matched,
-                installationId: schema
-                    .identifier("installation")
-                    .parse(await stack.resolveRecord(installation, destination.installation)),
-                view: "view" in destination ? destination.view : null,
-                adapter: "adapter" in destination ? destination.adapter : null,
-                redirect: null,
-                redirectStatus: null,
-            };
-        },
-        values: (_name, resolved) => resolved,
-    },
-});
-
-/** Find a hostname of the space's account by name. */
-async function requireHostname(
-    transaction: Transaction,
-    spaceId: Identifier<"space">,
-    name: string,
-): Promise<Identifier<"hostname">> {
-    // read the hostname's account and the space's
-    const [owned] = await transaction.read(hostname.table).findMany({ where: { name } });
-    const served = await transaction.read(space.table).findFirst({ where: { id: spaceId } });
-
-    // refuse an unknown hostname
+/** Require a hostname of the space's account by name, the only hostnames its store follows. */
+async function requireHostname(call: MethodContext, name: string): Promise<void> {
+    // refuse a hostname the space's account lacks
+    const [owned] = await call.read(hostname).findMany({ where: { name } });
     if (owned === undefined) {
-        throw new CallError("NOT_FOUND", { message: `no hostname ${name}` });
+        throw StackError.of("HOSTNAME_NOT_FOUND", `hostname ${name} not found`);
     }
-    // refuse a hostname of another account
-    else if (owned.scope !== present(served, `space ${spaceId}`).scope) {
-        throw new CallError("FORBIDDEN", {
-            message: `hostname ${name} belongs to another account`,
-        });
-    }
-
-    return owned.id;
 }

@@ -1,3 +1,4 @@
+import { declaredStack, type RepositorySelection } from "../../declare/index.ts";
 import {
     and,
     type DatabaseConnection,
@@ -7,18 +8,20 @@ import {
     Snapshot,
     type Table,
 } from "@destack/db";
-import { CallError, type ObjectReconciliation } from "@destack/object";
-import { type Identifier, present } from "@destack/schema";
-import type { RepositorySelection } from "../../declare/installation.ts";
+import type { ObjectReconciliation } from "@destack/object";
+import { type Commit, type Identifier, present } from "@destack/schema";
+import { DatabaseError } from "@destack/db";
+import { StackError } from "../../error/index.ts";
 import { ACTIVE_BUILD_STATES, build, Build } from "../../object/build.ts";
-import { Installation, installation, installationRevision } from "../../object/installation.ts";
+import { installationRevision, Rollout, rollout } from "../../object/rollout.ts";
 import type { StackEvaluation } from "../../object/stack.ts";
 import type { BuildStore, CommitSource, Registry } from "./build.ts";
-import { declaredStack } from "./stack.ts";
+import { SelectedRepository } from "./selection.ts";
+import { space } from "@destack/account/object";
 
 /** The forge a machine follows: the repositories its spaces' installations select. */
 export interface Forge {
-    /** Read the account owning a repository, absent for one no account owns. */
+    /** Read the account of a repository, absent for a repository without an account. */
     readonly owner: (id: string) => Promise<Identifier<"account"> | undefined>;
     /** The table of the references the space replicates. */
     readonly references: Table;
@@ -32,7 +35,7 @@ export interface Forge {
         database: DatabaseConnection,
         repository: string,
         name: string,
-    ) => Promise<string | undefined>;
+    ) => Promise<Commit | undefined>;
 }
 
 /** What following a repository selection builds and evaluates with. */
@@ -42,18 +45,27 @@ export interface RepositoryFollowOptions {
     /** The machine's store of every build. */
     readonly builds: BuildStore;
     /** The registry of the releases a stack's build depends on. */
-    readonly registry: Pick<Registry, "locate">;
+    readonly registry: Pick<Registry, "locate" | "referrer">;
 }
 
 /** Build the commit an installation's repository reference resolves to, then submit it. */
 export async function followRepository(
-    row: Installation & { readonly selection: RepositorySelection },
+    row: Rollout & { readonly selection: RepositorySelection },
     reconciliation: ObjectReconciliation,
     options: RepositoryFollowOptions,
 ): Promise<void> {
-    // cancel the directory's unfinished builds at commits no selection follows, and wait while the reference resolves to none
+    // refuse a repository of another account before reading or building it
     const { selection } = row;
     const { database } = reconciliation;
+    const owner = await SelectedRepository.owner(options.forge, selection);
+    const [served] = await Snapshot.live(database)
+        .read(space.table)
+        .findMany({ where: { id: row.scope } });
+    if (served?.scope !== owner) {
+        throw SelectedRepository.missing(selection.repository);
+    }
+
+    // cancel the directory's unfinished builds at commits no selection follows, and wait while the reference resolves to none
     await cancelSuperseded(row.scope, selection, reconciliation, options.forge);
     const commit = await options.forge.commit(database, selection.repository, selection.reference);
     if (commit === undefined) {
@@ -74,16 +86,16 @@ export async function followRepository(
 
     // submit the succeeded build, a stack's with its evaluation
     await reconciliation.mutate([
-        installation.call("submit", {
-            ...installation.target(row),
+        rollout.call("submit", {
+            ...rollout.target(row),
             selection,
             build: { kind: "build", build: built.id },
-            ...(row.role === "stack" ? { evaluation: await evaluate(row, built, options) } : {}),
+            ...(row.kind === "stack" ? { evaluation: await evaluate(row, built, options) } : {}),
         }),
     ]);
 }
 
-/** Cancel the store principal's unfinished builds of a repository directory at other commits. */
+/** Cancel the controller's unfinished builds of a repository directory at other commits. */
 async function cancelSuperseded(
     scope: Identifier<"space">,
     selected: RepositorySelection,
@@ -94,7 +106,7 @@ async function cancelSuperseded(
     const { database } = reconciliation;
     const isSame = (source: { readonly repository: string; readonly directory: string }) =>
         source.repository === selected.repository && source.directory === selected.directory;
-    const selecting = await Installation.selecting(database, scope, isSame);
+    const selecting = await Rollout.selecting(database, scope, isSame);
     const followed = new Set(
         await Promise.all(
             selecting.map(({ selection }) =>
@@ -111,7 +123,7 @@ async function cancelSuperseded(
             and(
                 build.inScope(scope),
                 inArray(build.table.state, [...ACTIVE_BUILD_STATES]),
-                eq(build.table.createdById, reconciliation.store.principal.id),
+                eq(build.table.createdById, reconciliation.caller.subject.id),
             ),
         );
     const superseded = active.filter(
@@ -126,7 +138,8 @@ async function cancelSuperseded(
         try {
             await reconciliation.mutate([build.call("cancel", build.target(each))]);
         } catch (error) {
-            if (CallError.of(error)?.code !== "CONFLICT") {
+            // leave a build that ended meanwhile
+            if (!StackError.is(error, "BUILD_STATE_CONFLICT")) {
                 throw error;
             }
         }
@@ -139,7 +152,7 @@ async function createBuild(
     source: CommitSource,
     reconciliation: ObjectReconciliation,
 ): Promise<Build> {
-    // keep the live build of the source
+    // reuse the live build of the source
     const live = await Build.find(Snapshot.live(reconciliation.database), scope, source);
     if (live !== undefined) {
         return live;
@@ -153,8 +166,8 @@ async function createBuild(
 
         return Build.of(present(created, "the created build"));
     } catch (error) {
-        // adopt the live build of the same source, which the creation refuses to repeat
-        if (CallError.of(error)?.code !== "CONFLICT") {
+        // adopt the live build of the same checkout, which the creation refuses to repeat
+        if (!StackError.is(error, "BUILD_DUPLICATE") && !DatabaseError.is(error, "DUPLICATE")) {
             throw error;
         }
         return present(
@@ -166,7 +179,7 @@ async function createBuild(
 
 /** Report whether an installation follows a revision of a build. */
 async function isFollowing(
-    row: Installation,
+    row: Rollout,
     buildId: Identifier<"build">,
     database: DatabaseConnection,
 ): Promise<boolean> {
@@ -186,7 +199,7 @@ async function isFollowing(
 
 /** Evaluate a stack installation's export of a succeeded build with its arguments. */
 async function evaluate(
-    row: Installation,
+    row: Rollout,
     built: Build,
     options: RepositoryFollowOptions,
 ): Promise<StackEvaluation> {

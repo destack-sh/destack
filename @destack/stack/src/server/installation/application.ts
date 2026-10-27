@@ -1,15 +1,25 @@
 import { account, Entitlement, Space, space } from "@destack/account/object";
-import { and, type DatabaseConnection, DatabaseKind, DatabaseState, eq } from "@destack/db";
+import { MAIN_DATABASE } from "../../declare/index.ts";
+import { AccessContext, Caller, principal } from "@destack/access";
+import {
+    and,
+    type DatabaseConnection,
+    DatabaseKind,
+    DatabaseState,
+    eq,
+    Snapshot,
+} from "@destack/db";
 import { ObjectStore } from "@destack/object/server";
 import accountPackage from "@destack/account/package";
 import {
-    ObjectTypePool,
-    type MethodContextOf,
-    ObjectDescription,
-    type ObjectReconciliation,
+    installation,
     InstallationBindingSpec,
     type InstallationBindingState,
     InstallationKind,
+    type MethodContextOf,
+    ObjectDescription,
+    type ObjectReconciliation,
+    ObjectTypePool,
     PackageDescription,
 } from "@destack/object";
 import {
@@ -18,6 +28,7 @@ import {
     DeclarationName,
     type DirectoryGrant,
     type PackageId,
+    type PackageRelease,
 } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { ServerRuntime } from "@destack/package/runtime";
@@ -29,26 +40,35 @@ import {
     type Step,
     Upgrade,
 } from "@destack/resource";
-import { canonicalize, present, schema, Version } from "@destack/schema";
-import { ObjectTypeReference } from "@destack/sync";
+import {
+    canonicalize,
+    type Digest,
+    type Identifier,
+    present,
+    schema,
+    Version,
+} from "@destack/schema";
+import { ObjectTypeReference, RequestId, Scope } from "@destack/sync";
 import { StackError } from "../../error/index.ts";
 import {
     binding,
     Binding,
+    Build,
     capture,
     Deployment,
     deployment,
-    Installation,
-    installation,
     InstallationRevision,
     installationRevision,
     instance,
-    MAIN_DATABASE,
+    Rollout,
+    rollout,
+    type NamedInstallation,
 } from "../../object/index.ts";
 import type { Binder, ResourceNeed } from "../resource/binding.ts";
 import { BuildStore, type Registry } from "./build.ts";
 import { Approval } from "./approval.ts";
 import { HOOK_WORKLOAD } from "../../workload/hook.ts";
+import { type DeploymentRuntime, PROCESS_RUNTIME } from "../../object/index.ts";
 
 /** The condition of an installation whose bound targets are each ready. */
 const BOUND = { status: "true", reason: "Bound", message: "every bound target is ready" } as const;
@@ -70,10 +90,12 @@ export interface ApplicationOptions {
     readonly isEnforcingEntitlements: boolean;
     /** The space's database, with the replicas of its account's entitlements. */
     readonly database: DatabaseConnection;
+    /** The release the machine serves in process of each package it ships, by package. */
+    readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
 }
 
-/** What a revision rolls out. */
-interface RolloutPlan {
+/** What a revision deploys: its build, workloads, replaced deployments and needs. */
+interface DeploymentPlan {
     /** The revision's build. */
     readonly build: BuildReader;
     /** The workloads the machine runs. */
@@ -88,11 +110,11 @@ interface RolloutPlan {
     readonly description: PackageDescription | undefined;
 }
 
-/** The releases a rollout's deployments run and call. */
+/** The releases a deployment plan runs and calls. */
 interface Releases {
     /** The release the build serves and the oldest caller release its package serves. */
     readonly served: Awaited<ReturnType<typeof servedRelease>>;
-    /** The callee release each installation need pins. */
+    /** The callee release of each installation need. */
     readonly pins: ReadonlyMap<string, InstallationBindingState>;
 }
 
@@ -102,8 +124,8 @@ interface BuildWorkload {
     readonly output: string;
     /** The package-local workload name. */
     readonly name: string;
-    /** The output's server runtime. */
-    readonly runtime: ServerRuntime;
+    /** The output's runtime, or the machine's process for a shipped server. */
+    readonly runtime: DeploymentRuntime;
     /** The workload's description, with the sandbox it runs with. */
     readonly description: (typeof deployment.table.$inferSelect)["description"];
     /** The directories its `fs` capability runs with, none without the capability. */
@@ -112,18 +134,25 @@ interface BuildWorkload {
     readonly enabled: readonly string[];
 }
 
+/** The workload of a shipped server, which the machine's process serves in its store. */
+const PROCESS_WORKLOAD = "server";
+
+/** The ready reasons of an application refusing to deploy a build, apart from those it waits on. */
+export const REFUSAL_REASONS = [
+    "NoRuntime",
+    "NoHooks",
+    "UndeclaredCapability",
+    "UnentitledCapability",
+    "UninstalledDependency",
+    "DeclaredDatabase",
+    "MissingBinding",
+    "NoUpgrade",
+] as const;
+
 /** Why an application refuses to deploy a build, as its ready condition reports it. */
 interface Refusal {
     /** The ready condition's reason. */
-    readonly reason:
-        | "NoRuntime"
-        | "NoHooks"
-        | "UndeclaredCapability"
-        | "UnentitledCapability"
-        | "UninstalledDependency"
-        | "DeclaredDatabase"
-        | "MissingBinding"
-        | "NoUpgrade";
+    readonly reason: (typeof REFUSAL_REASONS)[number];
     /** What the person fixes. */
     readonly message: string;
 }
@@ -131,16 +160,20 @@ interface Refusal {
 /** An application installation one deploy call deploys, drains and relates. */
 export class Application {
     /** The deploy call. */
-    readonly #context: MethodContextOf<typeof installation, "deploy">;
+    readonly #context: MethodContextOf<typeof rollout, "deploy">;
+    /** The rollout deploying, with its installation's fields. */
+    readonly #target: Rollout & { readonly installation: NamedInstallation };
     /** What the machine deploys with. */
     readonly #options: ApplicationOptions;
 
     /** Create an application of the installation a deploy call deploys. */
     constructor(
-        context: MethodContextOf<typeof installation, "deploy">,
+        context: MethodContextOf<typeof rollout, "deploy">,
+        target: Rollout & { readonly installation: NamedInstallation },
         options: ApplicationOptions,
     ) {
         this.#context = context;
+        this.#target = target;
         this.#options = options;
     }
 
@@ -148,7 +181,7 @@ export class Application {
     async deploy(): Promise<void> {
         // read the revision it follows and its live deployments
         const call = this.#context;
-        const target = this.#context.target;
+        const target = this.#target;
         const revision =
             target.revisionId === null
                 ? undefined
@@ -164,7 +197,7 @@ export class Application {
 
         // drain every deployment of a deleted or suspended application or of one following no revision
         const isDeleted = target.deletedAt !== null;
-        if (isDeleted || target.status !== "enabled" || revision === undefined) {
+        if (isDeleted || target.installation.status !== "enabled" || revision === undefined) {
             const active = live.filter((entry) => entry.status === "active");
             await call.mutate(
                 call.self,
@@ -174,7 +207,7 @@ export class Application {
             // remove a deleted application once none of its deployments runs and nothing it consumed relates it
             if (isDeleted && live.length === 0) {
                 await this.#relate();
-                await call.mutate(call.self, [installation.call("finalize", { id: target.id })]);
+                await call.mutate(call.self, [rollout.call("finalize", { id: target.id })]);
 
                 return;
             }
@@ -192,17 +225,12 @@ export class Application {
     async #relate(): Promise<void> {
         // relate it as consumer of what its live deployments captured
         const call = this.#context;
-        const target = this.#context.target;
-        const digest = await this.#options.binder.relate(
-            call,
-            target.scope,
-            target.id,
-            target.consumption,
-        );
+        const target = this.#target;
+        const digest = await this.#options.binder.relate(call, target, target.consumption);
 
         // record what it related once that changed
         if (digest !== target.consumption) {
-            await call.observe(installation, target, {
+            await call.observe(rollout, target, {
                 conditions: {},
                 fields: { consumption: digest },
             });
@@ -212,14 +240,25 @@ export class Application {
     /** Deploy each new workload output of a revision's build and drain the replaced deployments. */
     async #deploy(revision: InstallationRevision, live: readonly Deployment[]): Promise<void> {
         // read the workloads the machine runs
-        const target = this.#context.target;
+        const target = this.#target;
         const build = await this.#open(revision);
         const description = await PackageDescription.of(build);
-        const { workloads, stranded } = this.#selectWorkloads(build, description);
+        const built = await Build.require(
+            { read: (table) => this.#context.read(table) },
+            revision.scope,
+            revision.buildId,
+        );
+
+        // serve a shipped server's release in the machine's process, else select its build's workloads
+        const isShipped =
+            this.#options.bundled.get(target.installation.packageId)?.manifest === built.manifest;
+        const { workloads, stranded } = isShipped
+            ? { workloads: [this.#processWorkload(description)], stranded: [] }
+            : this.#selectWorkloads(build, description);
 
         // refuse an unrunnable workload, an undeclared or unentitled capability or directory, or a database
         const refusal =
-            this.#describeRefusal(build, stranded, description) ??
+            this.#describeRefusal(built.manifest, build, stranded, description) ??
             (await this.#describeUnentitled(description)) ??
             (await this.#describeUninstalled(revision, description)) ??
             (await this.#describeDatabases(build));
@@ -229,18 +268,20 @@ export class Application {
             return;
         }
 
-        // hold for a broken upgrade chain or an approval of the upgrade from the applied release
+        // stop for a broken upgrade chain or an approval of the upgrade from the applied release
         if (await this.#holdForUpgrade(revision, build)) {
             return;
         }
 
-        // keep the active deployments that run a chosen output of the revision with the bindings and grants as they are
+        // split the workloads into fresh and replaced ones, and upsert only the access when nothing changes
         const { fresh, replaced } = await this.#partition(revision, workloads, live);
         if (
             target.appliedRevisionId === revision.id &&
             fresh.length === 0 &&
             replaced.length === 0
         ) {
+            await Rollout.upsertAccess(this.#context, target, description);
+
             return;
         }
 
@@ -254,36 +295,42 @@ export class Application {
         }
 
         // attach, drain the replaced deployments and activate the fresh ones
-        await this.#rollOut(revision, { build, workloads, fresh, replaced, needs, description });
+        await this.#deployPlan(revision, { build, workloads, fresh, replaced, needs, description });
     }
 
     /** Attach the application's needs, wait for its space, grant, drain and activate. */
-    async #rollOut(revision: InstallationRevision, rollout: RolloutPlan): Promise<void> {
+    async #deployPlan(revision: InstallationRevision, plan: DeploymentPlan): Promise<void> {
         // wait for a provider of each kind no provider here serves yet
         const call = this.#context;
-        const target = this.#context.target;
-        const { build, workloads, fresh, replaced, needs, description } = rollout;
+        const target = this.#target;
+        const { build, workloads, fresh, replaced, needs, description } = plan;
         const unprovided = this.#options.binder.unprovided(needs);
         if (unprovided.length > 0) {
             const message = `waiting for a provider of ${unprovided.join(", ")} resources`;
-            await call.observe(installation, target, {
+            await call.observe(rollout, target, {
                 conditions: {
-                    bound: { status: "false", reason: "WaitingForResources", message },
-                    ready: { status: "false", reason: "WaitingForResources", message },
+                    Bound: { status: "false", reason: "WaitingForResources", message },
+                    Ready: { status: "false", reason: "WaitingForResources", message },
                 },
             });
 
             return;
         }
 
-        // attach what the installation owns and wait for targets not ready to capture
+        // give the package's code the permissions it requests on its own types, then attach the resources it needs
+        const owning = Rollout.inherent(target, description, {
+            subject: call.self.subject,
+            now: call.now,
+            authorizer: call.authorizer,
+        });
+        await call.mutate(owning.caller, owning.calls);
         await this.#options.binder.attach(call, target, needs);
         if (!(await this.#options.binder.ready(call, target, needs))) {
             const message = "bound targets wait for their resources";
-            await call.observe(installation, target, {
+            await call.observe(rollout, target, {
                 conditions: {
-                    bound: { status: "false", reason: "WaitingForResources", message },
-                    ready: { status: "false", reason: "WaitingForResources", message },
+                    Bound: { status: "false", reason: "WaitingForResources", message },
+                    Ready: { status: "false", reason: "WaitingForResources", message },
                 },
             });
 
@@ -293,10 +340,10 @@ export class Application {
         // wait for the space to serve the revision once its targets are bound, and the packages whose types its grants name
         const unserved = await this.#describeUnserved(revision, description);
         if (unserved !== undefined) {
-            await call.observe(installation, target, {
+            await call.observe(rollout, target, {
                 conditions: {
-                    bound: BOUND,
-                    ready: { status: "false", reason: "WaitingForSpace", message: unserved },
+                    Bound: BOUND,
+                    Ready: { status: "false", reason: "WaitingForSpace", message: unserved },
                 },
             });
 
@@ -304,7 +351,7 @@ export class Application {
         }
 
         // grant the installation exactly what its package and its enabled capabilities request
-        await Installation.upsertAccess(call, target, description);
+        await Rollout.upsertAccess(call, target, description);
 
         // drain the replaced deployments down to one active deployment per workload
         await call.mutate(
@@ -322,17 +369,17 @@ export class Application {
         }
 
         // observe the revision applied
-        await call.observe(installation, target, {
+        await call.observe(rollout, target, {
             conditions: {
-                bound: BOUND,
-                ready: {
+                Bound: BOUND,
+                Ready: {
                     status: "true",
                     reason: "Deployed",
                     message: `${workloads.length} workloads deployed`,
                 },
             },
             fields: {
-                ...Installation.applied(target, revision.id),
+                ...Rollout.applied(target, revision.id),
                 plan: null,
                 approvedPlan: null,
             },
@@ -341,6 +388,7 @@ export class Application {
 
     /** Describe why a build cannot deploy. */
     #describeRefusal(
+        manifest: Digest,
         build: BuildReader,
         stranded: readonly string[],
         description: PackageDescription | undefined,
@@ -353,15 +401,20 @@ export class Application {
             return { reason: "NoRuntime", message };
         }
 
-        // refuse a package routing hooks whose build serves none, as one not declaring stack builds
+        // refuse a package routing hooks that nothing serves: its build's hook workload, or the machine in process
         const isHooked = Object.values(description?.objects ?? {}).some(
             (routed) => Object.keys(routed.hooks).length > 0,
         );
-        const isServed = Object.values(build.manifest.outputs).some((output) =>
-            Object.hasOwn(output.workloads, HOOK_WORKLOAD),
-        );
+        const isHosted =
+            this.#options.bundled.get(PackageManifest.package(build.manifest).id)?.manifest ===
+            manifest;
+        const isServed =
+            isHosted ||
+            Object.values(build.manifest.outputs).some((output) =>
+                Object.hasOwn(output.workloads, HOOK_WORKLOAD),
+            );
         if (isHooked && !isServed) {
-            const message = `${build.manifest.package.name} routes hooks, but its build serves none: declare @destack/stack`;
+            const message = `${build.manifest.package.name} routes hooks, but nothing serves them: declare @destack/stack`;
 
             return { reason: "NoHooks", message };
         }
@@ -385,7 +438,7 @@ export class Application {
 
         // list the features the enabled capabilities need
         const call = this.#context;
-        const enabled = Installation.enabled(call.target, description);
+        const enabled = Rollout.enabled(this.#target.installation, description);
         const needed = enabled.flatMap((name) =>
             (description?.capabilities[name]?.features ?? []).map((feature) => ({ name, feature })),
         );
@@ -401,7 +454,7 @@ export class Application {
         for (const { name, feature } of needed) {
             const database = this.#options.database;
             const condition = await Entitlement.check(database, accountId, { feature });
-            if (condition.status === "false" || condition.reason === "Pending") {
+            if (condition.status !== "true") {
                 return {
                     reason: "UnentitledCapability",
                     message: `capability ${name} needs ${feature.name}: ${condition.message}`,
@@ -412,19 +465,21 @@ export class Application {
         return undefined;
     }
 
-    /** Describe a package the application needs that the space has not installed. */
+    /** Describe a package the application needs that no scope on the space's chain installed. */
     async #describeUninstalled(
         revision: InstallationRevision,
         description: PackageDescription | undefined,
     ): Promise<Refusal | undefined> {
-        // read the packages the space has installed
-        const call = this.#context;
-        const { target } = call;
-        const rows = await call.read(installation).findMany({ where: { scope: target.scope } });
-        const installed = new Set(rows.map((row) => row.packageId));
+        // read the packages installed on the space's chain
+        const target = this.#target;
+        const installed = new Set(
+            (await chainInstallations(this.#context, this.#target.scope)).map(
+                (row) => row.packageId,
+            ),
+        );
 
         // refuse the first needed package missing, naming the capability needing it
-        const missing = Installation.needed(target, revision, description).find(
+        const missing = Rollout.needed(target.installation, revision, description).find(
             (entry) => !installed.has(entry.package.id),
         );
         if (missing === undefined) {
@@ -436,7 +491,7 @@ export class Application {
             reason: "UninstalledDependency",
             message:
                 missing.capability === undefined
-                    ? `${target.name} needs ${name} installed`
+                    ? `${target.installation.name} needs ${name} installed`
                     : `capability ${missing.capability} needs ${name} installed`,
         };
     }
@@ -448,31 +503,13 @@ export class Application {
     ): Promise<string | undefined> {
         // wait for the revision itself
         const call = this.#context;
-        const { target } = call;
+        const target = this.#target;
         if (target.servedRevisionId !== revision.id) {
             return `waiting for the space to serve revision ${revision.id}`;
         }
 
-        // wait for each package the application needs, and for the types its space grant names
-        const rows = await call.read(installation).findMany({ where: { scope: target.scope } });
-        const waiting = Installation.needed(target, revision, description)
-            .filter(
-                (entry) =>
-                    !rows.some(
-                        (row) =>
-                            row.packageId === entry.package.id && row.servedRevisionId !== null,
-                    ),
-            )
-            .map((entry) => entry.package.name);
-        const granted = Installation.permissions(target, description, "installation").space ?? [];
-        const unknown = granted
-            .filter((permission) => call.authorizer.find(permission) === undefined)
-            .map((permission) => `${permission.packageId}/${permission.type}`);
-        const unserved = [...new Set([...waiting, ...unknown])];
-
-        return unserved.length === 0
-            ? undefined
-            : `waiting for the space to serve ${unserved.join(", ")}`;
+        // wait for each package the application needs, and for the types in its space grant
+        return describeUngranted(call, target, revision, description);
     }
 
     /** Describe the databases a build declares, which the space's main database refuses. */
@@ -489,9 +526,9 @@ export class Application {
             return undefined;
         }
 
-        // refuse them, as the space's main database keeps every installation's tables
+        // refuse them, since the space's main database stores every installation's tables
         const names = databases.map((declaration) => declaration.name).join(", ");
-        const message = `${this.#context.target.packageId} declares the databases ${names}: the space's main database keeps every installation's tables`;
+        const message = `${this.#target.installation.packageId} declares the databases ${names}: the space's main database keeps every installation's tables`;
 
         return { reason: "DeclaredDatabase", message };
     }
@@ -499,14 +536,16 @@ export class Application {
     /** Observe the application refusing to deploy, with the reason and message why. */
     async #refuse(refusal: Refusal): Promise<void> {
         const ready = { status: "false" as const, ...refusal };
-        await this.#context.observe(installation, this.#context.target, { conditions: { ready } });
+        await this.#context.observe(rollout, this.#context.target, {
+            conditions: { Ready: ready },
+        });
     }
 
-    /** Hold the deploy for a refused or unapproved upgrade, observing why, and report a hold. */
+    /** Stop the deploy for a refused or unapproved upgrade, observing why, and report the stop. */
     async #holdForUpgrade(revision: InstallationRevision, build: BuildReader): Promise<boolean> {
         // pass a first deploy and a redeploy of the applied revision
         const call = this.#context;
-        const target = this.#context.target;
+        const target = this.#target;
         if (target.appliedRevisionId === null || target.appliedRevisionId === revision.id) {
             return false;
         }
@@ -528,9 +567,9 @@ export class Application {
         }
 
         // observe the upgrade waiting for approval
-        const waiting = await Approval.waiting(call, target, upgrade.plan);
+        const waiting = await Approval.waiting(call, target, upgrade.plan, call.environment.crypto);
         if (waiting !== undefined) {
-            await call.observe(installation, target, waiting);
+            await call.observe(rollout, target, waiting);
         }
 
         return waiting !== undefined;
@@ -542,7 +581,7 @@ export class Application {
         workloads: readonly BuildWorkload[],
         live: readonly Deployment[],
     ): Promise<{ readonly fresh: BuildWorkload[]; readonly replaced: Deployment[] }> {
-        // keep the chosen active deployments
+        // choose the active deployments to reuse
         const active = live.filter((entry) => entry.status === "active");
         const isRebound = await this.#isRebound(active);
         const chosen = isRebound
@@ -565,8 +604,8 @@ export class Application {
         // read the installation's bindings
         const bound = await this.#context.read(binding).findMany({
             where: {
-                scope: this.#context.target.scope,
-                installationId: this.#context.target.id,
+                scope: this.#target.scope,
+                installationId: this.#target.id,
             },
         });
 
@@ -599,8 +638,8 @@ export class Application {
         const call = this.#context;
         const [activated] = await call.mutate(call.self, [
             deployment.call("create", {
-                installationId: this.#context.target.id,
-                packageId: this.#context.target.packageId,
+                installationId: this.#target.id,
+                packageId: this.#target.installation.packageId,
                 revisionId: revision.id,
                 output: workload.output,
                 workload: workload.name,
@@ -624,7 +663,7 @@ export class Application {
 
         // read the bindings and the active deployments' captures
         const call = this.#context;
-        const target = this.#context.target;
+        const target = this.#target;
         const bindings = await call.read(binding).findMany({
             where: {
                 scope: target.scope,
@@ -662,7 +701,7 @@ export class Application {
         });
     }
 
-    /** Open the build a revision evaluated, which the build store keeps. */
+    /** Open the build a revision evaluated from the build store. */
     #open(revision: Pick<InstallationRevision, "id">): Promise<BuildReader> {
         return InstallationRevision.reader(
             this.#context,
@@ -680,7 +719,7 @@ export class Application {
         | { readonly kind: "refused"; readonly refusal: Refusal }
     > {
         // skip rollbacks
-        const target = this.#context.target;
+        const target = this.#target;
         const from = (await this.#open(applied)).manifest.package.version;
         if (Version.compare(next.manifest.package.version, from) <= 0) {
             return { kind: "planned", plan: { steps: [] } };
@@ -695,17 +734,18 @@ export class Application {
             const upgrade = reference && (await reader.read(reference.file, Upgrade));
             // refuse a gap in the chain
             if (upgrade === undefined || Version.compare(upgrade.from, from) < 0) {
-                const message = `${target.name} has no upgrade from ${from} to ${release}`;
+                const message = `${target.installation.name} has no upgrade from ${from} to ${release}`;
 
                 return { kind: "refused", refusal: { reason: "NoUpgrade", message } };
             }
             // refuse an upgrade from a release that is not earlier
             else if (Version.compare(upgrade.from, release) >= 0) {
-                const message = `${target.name} ${release} upgrades from ${upgrade.from}, which is not earlier`;
+                const message = `${target.installation.name} ${release} upgrades from ${upgrade.from}, which is not earlier`;
 
                 return { kind: "refused", refusal: { reason: "NoUpgrade", message } };
             }
-            const prefix = Address.join("installation", target.name, "release", release);
+            const { name } = target.installation;
+            const prefix = Address.join("installation", name, "release", release);
             steps.unshift(
                 ...upgrade.steps.map((step) => ({
                     ...step,
@@ -713,11 +753,31 @@ export class Application {
                 })),
             );
             const { builds, registry } = this.#options;
-            const earlier = await registry.find(target.packageId, upgrade.from);
-            reader = await builds.pull(registry, target.packageId, earlier);
+            const earlier = await registry.find(target.installation.packageId, upgrade.from);
+            reader = await builds.pull(registry, target.installation.packageId, earlier);
         }
 
         return { kind: "planned", plan: { steps } };
+    }
+
+    /** Describe the workload of a shipped server, which the machine serves in its process. */
+    #processWorkload(description: PackageDescription | undefined): BuildWorkload {
+        return {
+            output: PROCESS_RUNTIME,
+            name: PROCESS_WORKLOAD,
+            runtime: PROCESS_RUNTIME,
+            description: {
+                entrypoint: ".",
+                packages: [],
+                triggers: [],
+                resources: [],
+                secrets: [],
+                compute: {},
+                sandbox: {},
+            },
+            directories: [],
+            enabled: Rollout.enabled(this.#target.installation, description),
+        };
     }
 
     /** Select each workload of a build from the server output of the machine's first runtime. */
@@ -729,9 +789,9 @@ export class Application {
         readonly stranded: string[];
     } {
         // list the workloads of the emitted server outputs, each sandbox joined with what the enabled capabilities unlock
-        const target = this.#context.target;
-        const enabled = Installation.enabled(target, description);
-        const unlocked = Installation.sandbox(target, description);
+        const target = this.#target;
+        const enabled = Rollout.enabled(target.installation, description);
+        const unlocked = Rollout.sandbox(target.installation, description);
         const host = Sandbox.select(
             unlocked,
             HOST_SANDBOX.filter((name) => unlocked[name] !== undefined),
@@ -746,7 +806,8 @@ export class Application {
                           name,
                           runtime: ServerRuntime.parse(described.runtime),
                           description: { ...workload, sandbox },
-                          directories: sandbox.fs === undefined ? [] : target.directories,
+                          directories:
+                              sandbox.files === undefined ? [] : target.installation.directories,
                           enabled,
                       };
                   })
@@ -758,7 +819,7 @@ export class Application {
         const workloads: BuildWorkload[] = [];
         const stranded: string[] = [];
         for (const [name, outputs] of Map.groupBy(offered, (entry) => entry.name)) {
-            const rank = (entry: BuildWorkload) => runtimes.indexOf(entry.runtime);
+            const rank = (entry: (typeof offered)[number]) => runtimes.indexOf(entry.runtime);
             const [picked] = outputs
                 .filter((entry) => rank(entry) >= 0)
                 .toSorted((left, right) => rank(left) - rank(right));
@@ -781,10 +842,10 @@ export class Application {
         description: PackageDescription | undefined,
     ): string | undefined {
         // refuse allowing a capability the package does not declare
-        const target = this.#context.target;
-        const release = `${target.name} ${build.manifest.package.version}`;
+        const target = this.#target;
+        const release = `${target.installation.name} ${build.manifest.package.version}`;
         const declared = Object.keys(description?.capabilities ?? {});
-        const undeclared = Installation.capabilities(target).filter(
+        const undeclared = Rollout.capabilities(target.installation).filter(
             (name) => !declared.includes(name),
         );
         if (undeclared.length > 0) {
@@ -792,18 +853,18 @@ export class Application {
         }
 
         // read the directory access of the workloads' sandboxes joined with what the enabled capabilities unlock
-        const unlocked = Installation.sandbox(target, description);
+        const unlocked = Rollout.sandbox(target.installation, description);
         const access = Object.values(build.manifest.outputs).flatMap((output) =>
             Object.values(output.workloads).flatMap((workload) => {
-                const fs = Sandbox.merge(workload.sandbox, unlocked).fs;
+                const { files } = Sandbox.merge(workload.sandbox, unlocked);
 
-                return fs === undefined ? [] : [fs.access];
+                return files === undefined ? [] : [files.access];
             }),
         );
-        const written = target.directories.filter((grant) => grant.access === "write");
+        const written = target.installation.directories.filter((grant) => grant.access === "write");
         // refuse granting directories without fs
-        if (target.directories.length > 0 && access.length === 0) {
-            return `${release} enables no fs ability to grant directories ${joinPaths(target.directories)}`;
+        if (target.installation.directories.length > 0 && access.length === 0) {
+            return `${release} enables no fs ability to grant directories ${joinPaths(target.installation.directories)}`;
         }
         // refuse writing directories fs declares for reading
         else if (written.length > 0 && !access.includes("write")) {
@@ -821,7 +882,7 @@ export class Application {
         description: PackageDescription | undefined,
     ): Promise<ResourceNeed[]> {
         // list the package's own resources and secrets the workloads use
-        const packageId = this.#context.target.packageId;
+        const packageId = this.#target.installation.packageId;
         const declarations = await build.declarations();
         const used = new Set(
             workloads.flatMap((workload) =>
@@ -839,9 +900,9 @@ export class Application {
         // require a description of every used declaration
         const missing = [...used].filter((name) => !needs.some((entry) => entry.name === name));
         if (missing.length > 0) {
-            throw new StackError(
-                "INVALID_DEFINITION",
-                `the build of ${packageId} describes no declarations ${missing.join(", ")} its machine binds`,
+            throw StackError.of(
+                "DEFINITION_INVALID",
+                `the build of ${packageId} is missing declarations ${missing.join(", ")} that its machine binds`,
             );
         }
 
@@ -850,9 +911,12 @@ export class Application {
 
     /** Pool the types the space serves and account's, which installed types refer to. */
     #pool(): ObjectTypePool {
-        return ObjectTypePool.of(
-            ObjectStore.known(this.#context.objects, Object.values(accountPackage.objects)),
-        );
+        return ObjectTypePool.of(this.#pooled());
+    }
+
+    /** List the types the space serves and account's, which installed types refer to. */
+    #pooled() {
+        return ObjectStore.known(this.#context.objects, Object.values(accountPackage.objects));
     }
 
     /** Describe the main database an installation needs: its own objects' tables. */
@@ -868,19 +932,23 @@ export class Application {
             return [];
         }
 
-        // read the types the builds of the packages it needs declare that the space serves none of yet
+        // read the types the builds of the packages it needs declare, pulling none of a package the pool knows
         const known = new Set(
             this.#context.objects.map((type) => ObjectTypeReference.key(type.typeReference)),
         );
+        const pooled = new Set(this.#pooled().map((type) => type.package.id));
         const needed = new Set(
-            Installation.needed(this.#context.target, revision, description).map(
+            Rollout.needed(this.#target.installation, revision, description).map(
                 (entry) => entry.package.id,
             ),
         );
         const { builds, registry } = this.#options;
         const depended = await Promise.all(
             revision.dependencies
-                .filter((dependency) => needed.has(dependency.package.id))
+                .filter(
+                    (dependency) =>
+                        needed.has(dependency.package.id) && !pooled.has(dependency.package.id),
+                )
                 .map(async (dependency) => {
                     const { id } = dependency.package;
                     const reader = await builds.pull(registry, id, dependency.manifest);
@@ -914,10 +982,56 @@ export class Application {
     }
 }
 
-/** Deploy an application of a served space through its deploy method. */
+/** Describe what an installation's grant waits for: a package it needs, or a type it lists. */
+export async function describeUngranted(
+    call: Pick<MethodContextOf<typeof rollout, "deploy">, "read" | "authorizer">,
+    target: Rollout & { readonly installation: NamedInstallation },
+    revision: InstallationRevision,
+    description: PackageDescription | undefined,
+): Promise<string | undefined> {
+    // wait for each package the installation needs served on the space's chain
+    const rows = await chainInstallations(call, target.scope);
+    const rollouts = await call.read(rollout).findMany({ where: { scope: target.scope } });
+    const isServed = (row: (typeof rows)[number]) =>
+        row.origin === "base" ||
+        rollouts.some((each) => each.id === row.id && each.servedRevisionId !== null);
+    const waiting = Rollout.needed(target.installation, revision, description)
+        .filter((entry) => !rows.some((row) => row.packageId === entry.package.id && isServed(row)))
+        .map((entry) => entry.package.name);
+
+    // and for each type of another package in its space grant that the space does not serve yet
+    const granted =
+        Rollout.permissions(target.installation, description, "installation").space ?? [];
+    const unknown = granted
+        .filter((permission) => permission.packageId !== target.installation.packageId)
+        .filter((permission) => call.authorizer.find(permission) === undefined)
+        .map((permission) => `${permission.packageId}/${permission.type}`);
+    const unserved = [...new Set([...waiting, ...unknown])];
+
+    return unserved.length === 0
+        ? undefined
+        : `waiting for the space to serve ${unserved.join(", ")}`;
+}
+
+/** Read the installations on a space's chain: its own, its ancestors' and the universe's. */
+async function chainInstallations(
+    call: Pick<MethodContextOf<typeof rollout, "deploy">, "read">,
+    scope: Identifier<"space">,
+) {
+    // read the space's ancestors, then the installations of each scope on its chain
+    const [link] = await Scope.read(call, [scope]);
+    const { ancestors } = present(link, `the scope of space ${scope}`);
+
+    return call
+        .read(installation)
+        .findMany({ where: { scope: { in: [scope, ...ancestors, Scope.universe.id] } } });
+}
+
+/** Deploy an application of a served space, then relate it at the residency its space homes. */
 export async function reconcileApplication(
-    target: Installation,
+    target: Rollout & { readonly installation: NamedInstallation },
     reconciliation: ObjectReconciliation,
+    builds: Pick<BuildStore, "packages">,
 ): Promise<undefined> {
     // deploy the application of a served space
     const [served] = await reconciliation.database
@@ -927,18 +1041,40 @@ export async function reconcileApplication(
     if (served === undefined) {
         return undefined;
     }
-    await reconciliation.mutate([installation.call("deploy", installation.target(target))]);
+    await reconciliation.mutate([rollout.call("deploy", rollout.target(target))]);
+
+    // read what the committed deploy left: the rollout following its revision, or none once removed
+    const snapshot = Snapshot.live(reconciliation.database);
+    const rows = await snapshot.read(rollout.table).findMany({ where: { id: target.id } });
+    const [deployed] = await Rollout.read(snapshot, rows);
+    const build =
+        deployed?.revisionId === null || deployed === undefined
+            ? undefined
+            : await InstallationRevision.reader(snapshot, deployed.revisionId, builds.packages);
+    const description = build === undefined ? undefined : await PackageDescription.of(build);
+    const set = Rollout.permissions((deployed ?? target).installation, description, "installation");
+
+    // relate it at the universe as its space, through the uplink, converging on each pass
+    const calls = await Rollout.relate(snapshot, deployed ?? target, set);
+    if (calls.length > 0) {
+        const delegator = principal.space.reference(Scope.universe.id, target.scope);
+        const lending = Caller.acting(delegator, reconciliation.caller.subject);
+        await reconciliation.store.mutate(AccessContext.of(lending, reconciliation.now), {
+            id: RequestId.create(reconciliation.store.environment),
+            calls,
+        });
+    }
 
     return undefined;
 }
 
 /** Remove a drained application's deployments with their instances and captures. */
 export async function finalizeApplication(
-    context: MethodContextOf<typeof installation, "finalize">,
+    context: MethodContextOf<typeof rollout, "finalize">,
+    target: Rollout & { readonly installation: NamedInstallation },
     options: Pick<ApplicationOptions, "binder">,
 ): Promise<void> {
-    // release the resources it owns to their retention
-    const target = context.target;
+    // release its owned resources to their retention
     await options.binder.attach(context, target, []);
 
     // delete its retired deployments with their instances and captures
@@ -956,8 +1092,8 @@ export async function finalizeApplication(
         ...retired.map((row) => deployment.call("delete", { id: row.id })),
     ]);
 
-    // drop its grant
-    await Installation.upsertAccess(context, target, undefined);
+    // drop its grant and its own types' permissions
+    await Rollout.upsertAccess(context, target, undefined);
 }
 
 /** Report whether an active deployment runs a chosen output of the revision. */
@@ -994,7 +1130,7 @@ async function servedRelease(build: BuildReader): Promise<{ release: Version; si
     return since === undefined ? { release } : { release, since };
 }
 
-/** Read the callee release each installation need pins. */
+/** Read the callee release of each installation need. */
 async function pinnedReleases(
     build: BuildReader,
     needs: readonly ResourceNeed[],
@@ -1013,13 +1149,13 @@ async function pinnedReleases(
             : dependencies.find((entry) => "id" in entry.package && entry.package.id === callee)
                   ?.package.version;
 
-    // pin each installation need to the release of its package the build compiled against
+    // map each installation need to the release of its package the build compiled against
     const pins = new Map<string, InstallationBindingState>();
     for (const { need, callee } of callees) {
         const release = compiled(callee);
         if (release === undefined) {
-            throw new StackError(
-                "INVALID_DEFINITION",
+            throw StackError.of(
+                "DEFINITION_INVALID",
                 `the build binds installation ${need.name} of ${callee} without depending on it`,
             );
         }

@@ -1,27 +1,28 @@
-import type { Resource } from "../resource/resource.ts";
 import { space } from "@destack/account/object";
 import type { Snapshot } from "@destack/db";
 import {
     MethodContext,
     type ObservationReport,
     type ResourceType,
-    type ResourceRow,
+    type Resource,
 } from "@destack/object";
 import { Address, Plan } from "@destack/resource";
 import { principal } from "@destack/access";
 import { ObjectReference } from "@destack/sync";
+import type { Crypto } from "@destack/environment";
 import { canonicalize, present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
-import { binding, type Installation, installation } from "../../object/index.ts";
+import { binding, rollout, type Rollout } from "../../object/index.ts";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../../error/index.ts";
 
 /** One waiting plan and the object accepting it. */
 type PendingPlan =
     | {
-          /** An installation's own plan. */
-          readonly kind: "installation";
-          /** The installation accepting its own plan. */
-          readonly object: typeof installation;
-          /** The installation. */
+          /** A rollout's own plan. */
+          readonly kind: "rollout";
+          /** The rollout accepting its own plan. */
+          readonly object: typeof rollout;
+          /** The rollout. */
           readonly id: string;
           /** The plan as its controller planned it. */
           readonly plan: Plan;
@@ -39,7 +40,7 @@ type PendingPlan =
           readonly plan: Plan;
       };
 
-/** The plans an installation and what it manages, owns or binds wait on, approved together. */
+/** The plans an installation and its managed, owned or bound resources wait on. */
 export class Approval {
     /** The waiting plans in the order the installations were read. */
     readonly waiting: readonly PendingPlan[];
@@ -53,13 +54,13 @@ export class Approval {
     static async of(
         view: Pick<Snapshot, "read">,
         resources: readonly ResourceType<typeof space>[],
-        target: Installation,
+        target: Rollout,
     ): Promise<Approval> {
         // walk the installation and those it manages and take each resource's plan once
         const waiting: PendingPlan[] = [];
         const seen = new Set<string>();
         const walked = new Set<string>();
-        const queue: Installation[] = [target];
+        const queue: Rollout[] = [target];
         for (const entry of queue) {
             // refuse a manager cycle, which the managed installations' tree forbids
             if (walked.has(entry.id)) {
@@ -68,19 +69,19 @@ export class Approval {
             walked.add(entry.id);
 
             // take its own waiting plan
-            if (entry.plan !== null && entry.conditions["ready"]?.reason === "AwaitingApproval") {
+            if (entry.plan !== null && entry.conditions["Ready"]?.reason === "AwaitingApproval") {
                 waiting.push({
-                    kind: "installation",
-                    object: installation,
+                    kind: "rollout",
+                    object: rollout,
                     id: entry.id,
                     plan: entry.plan,
                 });
             }
 
-            // take the waiting plans of the resources it manages, owns or binds
+            // take the waiting plans of its managed, owned or bound resources
             for (const { object, row } of await readResources(view, resources, entry)) {
                 const plan = row.plan;
-                const isWaiting = row.conditions["ready"]?.reason === "AwaitingApproval";
+                const isWaiting = row.conditions["Ready"]?.reason === "AwaitingApproval";
                 if (isWaiting && plan !== null && !seen.has(row.id)) {
                     seen.add(row.id);
                     const address = Address.join(object.name, row.name);
@@ -88,9 +89,9 @@ export class Approval {
                 }
             }
 
-            // queue the installations it manages
+            // queue the rollouts it manages
             queue.push(
-                ...(await view.read(installation.table).findMany({
+                ...(await view.read(rollout.table).findMany({
                     where: {
                         scope: entry.scope,
                         managerInstallationId: entry.id,
@@ -118,18 +119,19 @@ export class Approval {
     /** Accept each waiting plan on its object as the space, where the object lives. */
     async approve(
         reviewed: string,
-        context: Pick<MethodContext, "mutate" | "self">,
+        context: Pick<MethodContext, "mutate" | "self" | "environment">,
     ): Promise<Plan> {
         // require the plan waiting now
         const plan = this.plan();
-        await Approval.require(plan.steps.length === 0 ? null : plan, reviewed);
+        const { crypto } = context.environment;
+        await Approval.require(plan.steps.length === 0 ? null : plan, reviewed, crypto);
 
         // accept each part as its controller planned it, as the space
         const approvals = await Promise.all(
             this.waiting.map(async (entry) =>
                 entry.object.call("approvePlan", {
                     id: entry.id,
-                    plan: await Plan.digest(entry.plan),
+                    plan: await Plan.digest(entry.plan, crypto),
                 }),
             ),
         );
@@ -139,18 +141,23 @@ export class Approval {
     }
 
     /** Require a plan waiting for approval as an approver reviewed it, answering its digest. */
-    static async require(plan: Plan | null, reviewed: string): Promise<string> {
+    static async require(
+        plan: Plan | null,
+        reviewed: string,
+        crypto: Pick<Crypto, "digest">,
+    ): Promise<string> {
         // refuse approving without a waiting plan
         if (plan === null) {
-            throw new CallError("CONFLICT", { message: "no plan waits for approval" });
+            throw StackError.of("PLAN_WAITING_MISSING", "no plan is waiting for approval");
         }
 
         // refuse a plan other than the reviewed one
-        const digest = await Plan.digest(plan);
+        const digest = await Plan.digest(plan, crypto);
         if (digest !== reviewed) {
-            throw new CallError("CONFLICT", {
-                message: `plan ${digest} waits for approval, not ${reviewed}`,
-            });
+            throw StackError.of(
+                "PLAN_MISMATCH",
+                `plan ${digest} is waiting for approval, not ${reviewed}`,
+            );
         }
 
         return digest;
@@ -159,19 +166,20 @@ export class Approval {
     /** Describe an installation's own plan waiting for approval. */
     static async waiting(
         snapshot: Pick<Snapshot, "read">,
-        target: Installation,
+        target: Rollout,
         plan: Plan,
+        crypto: Pick<Crypto, "digest">,
     ): Promise<ObservationReport | undefined> {
         // pass a plan below the space's threshold, approved as it stands, or resuming the approved plan it is part of
         const scoped = present(
             await snapshot.read(space.table).findFirst({ where: { id: target.scope } }),
             `space ${target.scope}`,
         );
-        const digest = await Plan.digest(plan);
+        const digest = await Plan.digest(plan, crypto);
         if (
             !Plan.isAtLeast(plan, scoped.approval) ||
             target.approvedPlan === digest ||
-            (await Approval.#isResumed(target, plan))
+            (await Approval.#isResumed(target, plan, crypto))
         ) {
             return undefined;
         }
@@ -180,16 +188,20 @@ export class Approval {
         const message = `approve plan ${digest} with ${plan.steps.length} steps`;
 
         return {
-            conditions: { ready: { status: "false", reason: "AwaitingApproval", message } },
+            conditions: { Ready: { status: "false", reason: "AwaitingApproval", message } },
             fields: { plan },
         };
     }
 
-    /** Decide whether a plan resumes an approved plan the installation kept, each step approved. */
-    static async #isResumed(target: Installation, plan: Plan): Promise<boolean> {
-        // require the kept plan to be the approved one
+    /** Decide whether a plan resumes an approved plan of the installation, each step approved. */
+    static async #isResumed(
+        target: Rollout,
+        plan: Plan,
+        crypto: Pick<Crypto, "digest">,
+    ): Promise<boolean> {
+        // require the stored plan to be the approved one
         const kept = target.plan;
-        if (kept === null || target.approvedPlan !== (await Plan.digest(kept))) {
+        if (kept === null || target.approvedPlan !== (await Plan.digest(kept, crypto))) {
             return false;
         }
 
@@ -200,12 +212,12 @@ export class Approval {
     }
 }
 
-/** Read the resources of every kind an installation manages, owns or binds. */
+/** Read the managed, owned or bound resources of every kind of an installation. */
 async function readResources(
     view: Pick<Snapshot, "read">,
     resources: readonly ResourceType<typeof space>[],
-    target: Installation,
-): Promise<{ readonly object: ResourceType<typeof space>; readonly row: ResourceRow }[]> {
+    target: Rollout,
+): Promise<{ readonly object: ResourceType<typeof space>; readonly row: Resource }[]> {
     // read the targets of its bindings
     const bound = await view.read(binding.table).findMany({
         where: {
@@ -215,8 +227,8 @@ async function readResources(
     });
     const targets = bound.map((entry) => entry.target);
 
-    // read each kind's resources it manages, owns or binds in name order
-    const found: Resource[] = [];
+    // read each kind's managed, owned or bound resources in name order
+    const found: { readonly object: ResourceType<typeof space>; readonly row: Resource }[] = [];
     const owner = ObjectReference.columns(
         "owner",
         principal.installation.reference(target.scope, target.id),

@@ -1,13 +1,14 @@
 import { space } from "@destack/account/object";
-import type { MethodContext } from "@destack/object";
+import { type InstallationSelection } from "../../declare/index.ts";
+import type { Snapshot } from "@destack/db";
 import { type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
-import type { InstallationSelection } from "../../declare/installation.ts";
 import type { Forge } from "./follow.ts";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../../error/index.ts";
 
-/** The repository an installation selects in the account that owns the space. */
+/** The repository an installation selects in the account of the space. */
 export const SelectedRepository = {
-    /** Read the account owning a selection's repository, null for none. */
+    /** Read the account of a selection's repository, null for none. */
     async owner(
         forge: Pick<Forge, "owner"> | null,
         selection: InstallationSelection | undefined,
@@ -17,11 +18,12 @@ export const SelectedRepository = {
             return null;
         }
 
-        // read the account owning the repository
+        // read the account of the repository
         if (forge === null) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: "this machine follows no repositories",
-            });
+            throw StackError.of(
+                "REPOSITORIES_MISSING",
+                "this machine does not follow any repositories",
+            );
         }
         const owner = await forge.owner(selection.repository);
         if (owner === undefined) {
@@ -31,9 +33,9 @@ export const SelectedRepository = {
         return owner;
     },
 
-    /** Refuse a selection of a repository the space's account does not own. */
+    /** Refuse a selection of a repository outside the space's account. */
     async require(
-        context: Pick<MethodContext, "read">,
+        snapshot: Pick<Snapshot, "read">,
         spaceId: string,
         selection: InstallationSelection | undefined,
         owner: Identifier<"account"> | null,
@@ -44,18 +46,16 @@ export const SelectedRepository = {
         }
 
         // require the space's account
-        const selected = await context
-            .read(space)
+        const selected = await snapshot
+            .read(space.table)
             .findFirst({ where: { id: schema.identifier("space").parse(spaceId) } });
         if (selected?.scope !== owner) {
             throw SelectedRepository.missing(selection.repository);
         }
     },
 
-    /** Refuse a repository the space's account does not own, whoever else owns it. */
+    /** Refuse a repository outside the space's account, whatever other account has it. */
     missing(id: string): Error {
-        return new CallError("NOT_FOUND", {
-            message: `the space's account has no repository ${id}`,
-        });
+        return StackError.of("REPOSITORY_NOT_FOUND", `the space's account has no repository ${id}`);
     },
 };

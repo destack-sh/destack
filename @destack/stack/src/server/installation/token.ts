@@ -14,25 +14,28 @@ import {
     TOKEN_LIFETIME_MILLISECONDS,
     type TokenIssuer,
 } from "@destack/access/token";
-import { CallError } from "@destack/object";
-import { installation } from "../../object/installation.ts";
+import { installation } from "@destack/object";
+import { rollout } from "../../object/rollout.ts";
 import { installationKey } from "../../object/key.ts";
 import { proof } from "@destack/object";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../../error/index.ts";
 
 /** The keys installations sign their assertions with, and the tokens they are granted for them. */
 export const InstallationAssertion = {
     /** Verify the assertions a store's installations sign for a package, spending each once. */
     verifier(
-        objects: Pick<ObjectStore, "database" | "principal" | "serving" | "mutate">,
+        objects: Pick<ObjectStore, "database" | "principal" | "as" | "mutate" | "environment">,
         audience: PackageId,
     ): AssertionVerifier {
         return new AssertionVerifier({
             endpoint: PackageId.resource(audience),
             audience,
             keys: (id, _issuer, now) => InstallationAssertion.key(objects.database, id, now),
-            spend: async (digest, expiresAt, now) => {
-                await objects.mutate(objects.serving(proof), {
-                    id: RequestId.create(now),
+            crypto: objects.environment.crypto,
+            spend: async (digest, expiresAt) => {
+                await objects.mutate(objects.as(proof), {
+                    id: RequestId.create(objects.environment),
                     calls: [
                         proof.call("create", {
                             ...proof.in(objects.principal.id),
@@ -64,7 +67,7 @@ export const InstallationAssertion = {
         id: string,
         now: number,
     ): Promise<AssertionKey | undefined> {
-        // find the key of an enabled installation that is not being deleted
+        // find the key of an enabled installation whose rollout, if any, is not being deleted
         const keyId = schema.identifier("installation-key").safeParse(id);
         const [found] = !keyId.success
             ? []
@@ -75,11 +78,12 @@ export const InstallationAssertion = {
                       installation.table,
                       eq(installation.table.id, installationKey.table.parentId),
                   )
+                  .leftJoin(rollout.table, eq(rollout.table.id, installation.table.id))
                   .where(
                       and(
                           eq(installationKey.table.id, keyId.data),
                           eq(installation.table.status, "enabled"),
-                          isNull(installation.table.deletedAt),
+                          isNull(rollout.table.deletedAt),
                       ),
                   );
 
@@ -114,13 +118,14 @@ export const InstallationAssertion = {
             ? await context.read(installationKey).findFirst({ where: { id: keyId.data } })
             : undefined;
         if (credential?.kind !== INSTALLATION_KEY || key?.parentId !== target.id) {
-            throw new CallError("UNAUTHORIZED", {
-                message: "an installation token is granted for the installation's own assertion",
-            });
+            throw StackError.of(
+                "FOREIGN_ASSERTION",
+                "an installation token requires the installation's own assertion",
+            );
         }
 
-        // record the key's use
-        await context.mutate(context.self, [
+        // record the key's use as the installation it proved
+        await context.mutate(context.caller, [
             installationKey.call("use", installationKey.target(key)),
         ]);
 
@@ -140,6 +145,7 @@ export const InstallationAssertion = {
                 },
             },
             now,
+            context.environment,
         );
     },
 };
