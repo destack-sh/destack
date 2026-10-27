@@ -1,4 +1,5 @@
 import { Space, space, placement } from "@destack/account/object";
+import { MAIN_DATABASE } from "../../declare/index.ts";
 import {
     and,
     Change,
@@ -7,40 +8,41 @@ import {
     type Database,
     type DatabaseConnection,
     type Table,
+    type TableState,
     Condition,
     Transaction,
 } from "@destack/db";
-import { DesiredState, type ResourceType, type ResourceRow } from "@destack/object";
+import { DesiredState, type Resource, type ResourceType } from "@destack/object";
 import { DRAINING, type ObjectStore } from "@destack/object/server";
 import type { ResourceState } from "@destack/package/declare";
-import { nth, Digest, present } from "@destack/schema";
+import { Digest, type DigestCrypto, nth, present } from "@destack/schema";
 import type { ResourceKind } from "@destack/resource";
-import type { Controller } from "@destack/db";
-import { binding, capture, Deployment, deployment, MAIN_DATABASE } from "../../object/index.ts";
+import type { ReconcileController } from "@destack/db";
+import { binding, capture, database, Deployment, deployment } from "../../object/index.ts";
 import { RequestId } from "@destack/sync";
 
 /** Write each resource's specification from its space and consumers where the resource lives. */
-export class ConsumerController implements Controller {
+export class ConsumerController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "consumer";
     /** The tables of the consumers, the spaces and their placements, and every kind's resources. */
     readonly watches: readonly Table[];
     /** The object store writing the resources and stopping deployments as its principal. */
-    readonly #store: Pick<ObjectStore, "database" | "serving" | "mutate" | "clock">;
-    /** The objects of every kind whose resources the spaces use, kept here or replicated. */
+    readonly #store: Pick<ObjectStore, "database" | "as" | "mutate" | "clock" | "environment">;
+    /** The objects of every kind whose resources the spaces use, stored here or replicated. */
     readonly #objects: readonly ResourceType<typeof space>[];
-    /** The main database declaring the platform's tables every space's main database keeps. */
+    /** The main database declaring the platform's tables in every space's main database. */
     readonly #main: Database;
-    /** The state of the platform's tables by its digest, read on first use. */
-    #platform: Promise<ReadonlyMap<Digest, ResourceState>> | undefined;
+    /** The state of the platform's tables by its digest, per set of replicated tables left out. */
+    readonly #platform = new Map<string, Promise<ReadonlyMap<Digest, ResourceState>>>();
 
     /** Reconcile the resources of some kinds in the spaces a machine serves. */
     constructor(
-        store: Pick<ObjectStore, "database" | "serving" | "mutate" | "clock">,
+        store: Pick<ObjectStore, "database" | "as" | "mutate" | "clock" | "environment">,
         objects: readonly ResourceType<typeof space>[],
         main: Database,
     ) {
-        // keep the store, the kinds' objects and the platform's main database
+        // store the object store, the kinds' objects and the platform's main database
         this.#store = store;
         this.#objects = objects;
         this.#main = main;
@@ -58,7 +60,7 @@ export class ConsumerController implements Controller {
 
     /** List the resources a change of a consumer, a space, its placement or a resource touches. */
     async keys(change: Change): Promise<readonly string[]> {
-        const { database } = this.#store;
+        const connection = this.#store.database;
 
         // select the resource a changed binding or capture targets
         if (Change.of(change, binding.table) || Change.of(change, capture.table)) {
@@ -68,7 +70,7 @@ export class ConsumerController implements Controller {
         }
         // select the resources a changed deployment captured
         else if (Change.of(change, deployment.table)) {
-            const captured = await database
+            const captured = await connection
                 .selectDistinct({ target: capture.table.target })
                 .from(capture.table)
                 .where(eq(capture.table.deploymentId, Change.image(change).id));
@@ -77,7 +79,7 @@ export class ConsumerController implements Controller {
         }
         // select the resources of a space whose approval threshold or placement changed
         else if (Change.of(change, space.table) || Change.of(change, placement.table)) {
-            return this.#resourcesIn(database, [
+            return this.#resourcesIn(connection, [
                 Change.image<typeof space.table | typeof placement.table>(change).id,
             ]);
         }
@@ -91,14 +93,14 @@ export class ConsumerController implements Controller {
 
     /** List the resources of the spaces the machine serves. */
     async list(): Promise<readonly string[]> {
-        const { database } = this.#store;
-        const served = await database
+        const connection = this.#store.database;
+        const served = await connection
             .select({ id: space.table.id })
             .from(space.table)
             .where(Space.served());
 
         return this.#resourcesIn(
-            database,
+            connection,
             served.map((entry) => entry.id),
         );
     }
@@ -106,19 +108,19 @@ export class ConsumerController implements Controller {
     /** Write a resource's desired states and approval threshold. */
     async reconcile(key: string): Promise<undefined> {
         // read the resource and the served space it lives in, none for a resource of an account
-        const { database } = this.#store;
+        const connection = this.#store.database;
         const object = this.#objects.find((each) => each.identifies(key));
         const [row] =
             object === undefined
                 ? []
-                : await database
+                : await connection
                       .select()
                       .from(object.table)
                       .where(object.withIds([key]));
         const [served] =
             row === undefined || !space.identifies(row.scope)
                 ? []
-                : await database
+                : await connection
                       .select({ approval: space.table.approval })
                       .from(space.table)
                       .where(and(eq(space.table.id, row.scope), Space.served()));
@@ -126,10 +128,12 @@ export class ConsumerController implements Controller {
             return undefined;
         }
 
-        // read the states its consumers need by digest
-        const now = this.#store.clock.now();
-        const platform = row.name === MAIN_DATABASE ? await this.#platformState() : new Map();
-        const { active, draining } = await desiredStates(database, object, row, platform);
+        // read the states its consumers need by digest, the platform's for the main database
+        const platform =
+            object === database && row.name === MAIN_DATABASE
+                ? await this.#platformState(await this.#bound(row.id))
+                : new Map();
+        const { active, draining } = await desiredStates(connection, object, row, platform);
         const input = {
             id: row.id,
             states: [...active.keys()],
@@ -137,20 +141,23 @@ export class ConsumerController implements Controller {
             approval: served.approval,
         };
 
-        // keep the states and write their digests and its space's approval threshold once they changed
+        // record the states, and write their digests and its space's approval threshold once they changed
         const isChanged =
             input.states.join() !== row.states.join() ||
             input.drainingStates.join() !== row.drainingStates.join() ||
             input.approval !== row.approval;
         if (isChanged) {
-            await Transaction.run(database, async (transaction) => {
+            await Transaction.run(connection, async (transaction) => {
                 await DesiredState.upsert(transaction, row.scope, [
                     ...active.values(),
                     ...draining.values(),
                 ]);
                 await this.#store.mutate(
-                    this.#store.serving(object),
-                    { id: RequestId.create(now), calls: [object.call("specify", input)] },
+                    this.#store.as(object),
+                    {
+                        id: RequestId.create(this.#store.environment),
+                        calls: [object.call("specify", input)],
+                    },
                     { scope: row.scope, component: this.name, transaction },
                 );
             });
@@ -158,28 +165,57 @@ export class ConsumerController implements Controller {
 
         // stop the draining deployments that captured a draining resource
         if (row.conditions[DRAINING]?.status === "true") {
-            await this.#stopDraining(row, now);
+            await this.#stopDraining(row);
         }
 
         return undefined;
     }
 
-    /** Read the state of the platform's tables by its digest once. */
-    #platformState(): Promise<ReadonlyMap<Digest, ResourceState>> {
-        this.#platform ??= (async () => {
-            const state = this.#main.state();
+    /** Read the packages bound to a database, which are the owners of their tables there. */
+    async #bound(id: string): Promise<ReadonlySet<string>> {
+        const rows = await this.#store.database
+            .selectDistinct({ packageId: binding.table.packageId })
+            .from(binding.table)
+            .where(eq(binding.table.target, id));
 
-            return new Map([[await Digest.json(state), state]]);
-        })();
+        return new Set(rows.map((row) => row.packageId));
+    }
 
-        return this.#platform;
+    /** Read the platform's tables' state, without the replicated tables of a bound package. */
+    #platformState(owning: ReadonlySet<string>): Promise<ReadonlyMap<Digest, ResourceState>> {
+        // find the replicated tables of a bound package, which its own state describes
+        const main = this.#main;
+        const { tables } = main.state();
+        const isOwned = (state: TableState) =>
+            main.replicated.has(state.table.name) && owning.has(state.package.id);
+        const key = tables.sqlite
+            .filter(isOwned)
+            .map((state) => state.table.name)
+            .join(" ");
+
+        // describe the other tables once per set left out
+        let read = this.#platform.get(key);
+        if (read === undefined) {
+            const isKept = (state: TableState) => !isOwned(state);
+            const state = {
+                tables: {
+                    sqlite: tables.sqlite.filter(isKept),
+                    postgresql: tables.postgresql.filter(isKept),
+                },
+            };
+            read = Digest.json(state, this.#store.environment.crypto).then(
+                (digest) => new Map([[digest, state]]),
+            );
+            this.#platform.set(key, read);
+        }
+
+        return read;
     }
 
     /** Stop the draining deployments that captured a resource. */
-    async #stopDraining(row: Pick<ResourceRow, "id" | "scope">, now: number): Promise<void> {
+    async #stopDraining(row: Pick<Resource, "id" | "scope">): Promise<void> {
         // find the draining deployments capturing the resource
-        const { database } = this.#store;
-        const draining = await database
+        const draining = await this.#store.database
             .selectDistinct({ deployment: deployment.table })
             .from(capture.table)
             .innerJoin(deployment.table, eq(deployment.table.id, capture.table.deploymentId))
@@ -191,9 +227,9 @@ export class ConsumerController implements Controller {
                 ),
             );
         await this.#store.mutate(
-            this.#store.serving(deployment),
+            this.#store.as(deployment),
             {
-                id: RequestId.create(now),
+                id: RequestId.create(this.#store.environment),
                 calls: draining.map((entry) =>
                     deployment.call("update", {
                         ...deployment.target(entry.deployment),
@@ -205,7 +241,7 @@ export class ConsumerController implements Controller {
         );
     }
 
-    /** Keep the targets that are resources of a served kind. */
+    /** Filter the targets to the resources of a served kind. */
     #targets(targets: readonly string[]): string[] {
         return targets.filter((target) =>
             this.#objects.some((object) => object.identifies(target)),
@@ -213,10 +249,13 @@ export class ConsumerController implements Controller {
     }
 
     /** List the resources of every kind in some spaces. */
-    async #resourcesIn(database: DatabaseConnection, spaces: readonly string[]): Promise<string[]> {
+    async #resourcesIn(
+        connection: DatabaseConnection,
+        spaces: readonly string[],
+    ): Promise<string[]> {
         const resources: string[] = [];
         for (const object of this.#objects) {
-            const rows = await database
+            const rows = await connection
                 .select({ id: object.table.id })
                 .from(object.table)
                 .where(inArray(object.table.scope, [...spaces]));
@@ -229,9 +268,9 @@ export class ConsumerController implements Controller {
 
 /** Read the distinct desired states of a resource, active and draining, by digest in order. */
 async function desiredStates(
-    database: DatabaseConnection,
+    connection: DatabaseConnection,
     object: ResourceType<typeof space>,
-    row: ResourceRow,
+    row: Resource,
     platform: ReadonlyMap<Digest, ResourceState>,
 ): Promise<{
     readonly active: ReadonlyMap<Digest, ResourceState>;
@@ -244,11 +283,11 @@ async function desiredStates(
     }
 
     // read the bindings' states and the states the serving deployments run with
-    const bound = await database
+    const bound = await connection
         .select({ state: binding.table.state })
         .from(binding.table)
         .where(and(eq(binding.table.scope, row.scope), eq(binding.table.target, row.id)));
-    const captured = await database
+    const captured = await connection
         .select({ state: capture.table.state, status: deployment.table.status })
         .from(capture.table)
         .innerJoin(deployment.table, eq(deployment.table.id, capture.table.deploymentId))
@@ -256,20 +295,24 @@ async function desiredStates(
             and(
                 eq(capture.table.scope, row.scope),
                 eq(capture.table.target, row.id),
-                Condition.render(Deployment.serving(), deployment.table),
+                Condition.render(Deployment.available(), deployment.table),
             ),
         );
 
-    // check each stored state once, beside the platform's
+    // check each stored state once, along with the platform's
     const active = sorted(
         new Map([
             ...platform,
-            ...(await checked(kind, [
-                ...bound.map((entry) => entry.state),
-                ...captured
-                    .filter((entry) => entry.status === "active")
-                    .map((entry) => entry.state),
-            ])),
+            ...(await checked(
+                kind,
+                [
+                    ...bound.map((entry) => entry.state),
+                    ...captured
+                        .filter((entry) => entry.status === "active")
+                        .map((entry) => entry.state),
+                ],
+                connection.state.environment.crypto,
+            )),
         ]),
     );
 
@@ -277,6 +320,7 @@ async function desiredStates(
     const draining = await checked(
         kind,
         captured.filter((entry) => entry.status === "draining").map((entry) => entry.state),
+        connection.state.environment.crypto,
     );
 
     return {
@@ -289,9 +333,10 @@ async function desiredStates(
 async function checked(
     kind: ResourceKind,
     stored: readonly ResourceState[],
+    crypto: DigestCrypto,
 ): Promise<Map<Digest, ResourceState>> {
     // key the stored states by digest, then refuse a distinct one its kind does not accept
-    const digests = await Promise.all(stored.map((state) => Digest.json(state)));
+    const digests = await Promise.all(stored.map((state) => Digest.json(state, crypto)));
     const byDigest = new Map(digests.map((digest, index) => [digest, nth(stored, index)]));
     kind.states([...byDigest.values()]);
 

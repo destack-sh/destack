@@ -5,11 +5,11 @@ import type { EphemeralHost, Workload } from "@destack/object/workload";
 import { connectBunSqlite } from "@destack/db/bun";
 import { EphemeralStorage } from "@destack/object/server";
 import { spaceRunner } from "../client/index.ts";
-import { Clock } from "@destack/environment";
+import { BunEnvironment } from "@destack/environment/bun";
 
-/** Keep a Bun instance's ephemeral objects in a memory database. */
+/** Store a Bun instance's ephemeral objects in a memory database. */
 export const bunEphemeral: EphemeralHost = {
-    open: (tables) => connectBunSqlite(":memory:", tables),
+    open: (tables) => connectBunSqlite(":memory:", tables, { environment: BunEnvironment.system }),
     channel: (durable) => EphemeralStorage.channel(durable),
 };
 
@@ -19,16 +19,18 @@ export async function hostWorkload(
     resources: Readonly<Record<string, ResourceDeclaration<unknown>>>,
 ): Promise<void> {
     // serve the workload with the stack client of its installation, on the socket its machine gives
-    const socket = present(process.argv.at(2), "the socket the machine passes after the runner");
+    const environment = BunEnvironment.system;
+    const { process: host } = environment;
+    const socket = present(host.arguments[0], "the socket the machine passes the runner");
     await runWorkload(
-        { ...spaceRunner(workload, resources, Clock.system), ephemeral: bunEphemeral },
+        { ...spaceRunner(workload, resources, environment), ephemeral: bunEphemeral, environment },
         console[Symbol.asyncIterator](),
         async (ready) => {
-            process.stdout.write(`${JSON.stringify(ready)}\n`);
+            await host.stdout.write(`${JSON.stringify(ready)}\n`);
         },
         socket,
     );
 
     // exit once the workload drains
-    process.exit(0);
+    host.exit(0);
 }

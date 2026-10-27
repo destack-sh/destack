@@ -3,7 +3,6 @@ import { Caller } from "@destack/access";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { Space } from "@destack/account/object";
-import { CallError } from "@destack/object";
 import {
     BucketCustomMetadata,
     BucketHttpMetadata,
@@ -18,6 +17,8 @@ import {
     type BucketReference,
     customerKeyHeaders,
 } from "@destack/bucket/s3";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../../error/index.ts";
 
 /** Implement buckets: their files' metadata, and presigned leases on their bodies. */
 export function implementBucket(host: BucketHost) {
@@ -141,6 +142,7 @@ function openLease(
         reference(context),
         { mode: input.mode, key: input.key, headers },
         context.now,
+        context.environment.crypto,
     );
 }
 
@@ -197,6 +199,7 @@ function uploadPart(
             query: { partNumber: String(input.partNumber), uploadId: input.uploadId },
         },
         context.now,
+        context.environment.crypto,
     );
 }
 
@@ -249,7 +252,7 @@ function requireWriter(context: BucketContext): void {
     const { subject } = context.caller;
     const isItself = subject !== undefined && Subject.same(subject, Caller.principal(context.self));
     if (BucketSpec.parse(target.spec).write === "package" && !isItself) {
-        throw new CallError("FORBIDDEN", { message: `the space alone writes ${target.id}` });
+        throw StackError.of("SPACE_ONLY", `only the space can write ${target.id}`);
     }
 }
 
@@ -295,9 +298,10 @@ function httpMetadata(metadata: FileMetadata["httpMetadata"]): BucketFile["httpM
 /** Refuse custom metadata beyond S3's limit, counting names and values in UTF-8 bytes. */
 function requireMetadata(metadata: Readonly<Record<string, string>>): void {
     if (BucketCustomMetadata.bytes(metadata) > MAX_CUSTOM_METADATA_BYTES) {
-        throw new CallError("BAD_REQUEST", {
-            message: `custom metadata is at most ${MAX_CUSTOM_METADATA_BYTES} bytes`,
-        });
+        throw StackError.of(
+            "METADATA_TOO_LARGE",
+            `custom metadata cannot exceed ${MAX_CUSTOM_METADATA_BYTES} bytes`,
+        );
     }
 }
 

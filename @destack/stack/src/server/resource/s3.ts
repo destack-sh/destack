@@ -3,18 +3,18 @@ import { schema } from "@destack/schema";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { bucket } from "../../object/index.ts";
 import { S3Server } from "@destack/bucket/s3";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
 /** Serve a machine's buckets over S3. */
 export function serveS3(
     host: CatalogueBucketHost,
     database: DatabaseConnection,
-    clock: Clock,
+    environment: Pick<Environment, "clock" | "crypto" | "random">,
 ): S3Server {
     return new S3Server({
         region: host.region,
-        clock,
-        // read the credentials of the space an access key names
+        environment,
+        // read the credentials of the space an access key identifies
         credentials: async (accessKeyId) => {
             const space = schema.identifier("space").safeParse(accessKeyId);
 

@@ -14,7 +14,7 @@ export function serveHooks(
     packages: readonly PackageHandle[],
 ): (context: WorkloadContext) => WorkloadImplementation {
     return (context) => {
-        // reach the space's stack as the installation
+        // call the space's stack as the installation
         const server = present(context.server, "the server context of the installation with hooks");
         const stack = server.at(stackPackage.name);
 

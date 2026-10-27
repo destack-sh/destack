@@ -1,5 +1,6 @@
-import { TABLE, type Table } from "@destack/db";
-import { settingTables } from "@destack/setting/stack";
+import type { Table } from "@destack/db";
+import { type Follow, type PackageHandle, tablesOf } from "@destack/object";
+import settingPackage from "@destack/setting/package";
 import {
     account,
     assignment,
@@ -34,22 +35,28 @@ export const spaceReplicated: readonly Table[] = [
     residency.table,
 ];
 
-/** The tables of a space's database: the stack's, its settings, approvals and change requests. */
-export const stackTables: readonly Table[] = [
-    ...new Set([
-        ...[
-            ...Object.values(stackPackage.objects).filter((object) => object.storage === "durable"),
-            ...Object.values(objectPackage.objects).filter(
-                (object) => object.storage === "durable",
-            ),
-            ...Object.values(workflowPackage.objects),
-            database,
-            bucket,
-            dependency,
-            https,
-        ].flatMap((object) => object.tables),
-        ...settingTables,
-    ]),
-].filter(
-    (table) => !spaceReplicated.some((replica) => replica[TABLE].sqlName === table[TABLE].sqlName),
-);
+/** The resource types the stack provisions in a space in addition to its package's objects. */
+const PROVISIONED = { database, bucket, dependency, https };
+
+/** List a space database's tables: object, stack, settings, workflows and its host's own. */
+export function spaceTables(host: {
+    /** The packages the host serves in addition to the platform's. */
+    readonly packages?: readonly Pick<PackageHandle, "objects" | "tables">[];
+    /** The shapes the host follows in addition to the space's own. */
+    readonly follows?: readonly Follow[];
+    /** The host's own tables. */
+    readonly tables?: readonly Table[];
+}): { readonly tables: readonly Table[]; readonly replicated?: readonly Table[] } {
+    return tablesOf({
+        packages: [
+            objectPackage,
+            stackPackage,
+            settingPackage,
+            workflowPackage,
+            { objects: PROVISIONED, tables: [] },
+            ...(host.packages ?? []),
+        ],
+        follows: host.follows ?? [],
+        tables: host.tables ?? [],
+    });
+}

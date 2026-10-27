@@ -12,14 +12,17 @@ import {
     type ObjectType,
     Provisioned,
     type ResourceType,
-    type ResourceRow,
-    CallError,
+    type Resource,
     HttpsKind,
     INSTALLATION_PROVIDER,
     InstallationBindingSpec,
     InstallationKind,
 } from "@destack/object";
-import { ResourceController, type ImplementationInput } from "@destack/object/server";
+import {
+    ResourceController,
+    type ImplementationInput,
+    type ObjectStore,
+} from "@destack/object/server";
 import {
     CONNECTION_PROVIDER,
     type ResourceKind,
@@ -30,7 +33,14 @@ import {
 import type { ResourceState } from "@destack/package/declare";
 import { StackError } from "../../error/index.ts";
 import type { Controller } from "@destack/db";
-import { dependency, https } from "../../object/index.ts";
+import {
+    type Binding,
+    dependency,
+    https,
+    type Rollout,
+    type NamedInstallation,
+} from "../../object/index.ts";
+import type {} from "@destack/package/import-meta";
 
 /** A provider of a space's resources. */
 export type SpaceProvider = Provider<
@@ -42,6 +52,16 @@ export type SpaceProvider = Provider<
     Controller
 >;
 
+/** A provider whose resources in-process installations open through the space's store. */
+export type ServedProvider<Client = unknown> = Pick<SpaceProvider, "kind" | "code"> & {
+    /** Connect an in-process installation to a binding's resource. */
+    readonly connect: (
+        store: Promise<ObjectStore>,
+        row: Rollout & { readonly installation: NamedInstallation },
+        bound: Binding,
+    ) => Promise<Client>;
+};
+
 /** The provider of installations' dependencies, connecting over HTTP at their addresses. */
 export const installationProvider = {
     kind: InstallationKind,
@@ -52,8 +72,8 @@ export const installationProvider = {
             // connect to the binding's address
             const { address } = InstallationBindingSpec.parse(resource.spec);
             if (address === undefined) {
-                throw new StackError(
-                    "INVALID_DEFINITION",
+                throw StackError.of(
+                    "DEFINITION_INVALID",
                     `dependency ${resource.id} has no address: bind it in the stack`,
                 );
             }
@@ -80,14 +100,6 @@ export type SnapshotProvider = SpaceProvider & {
 export type RestoreProvider = SnapshotProvider & {
     readonly provision: NonNullable<SpaceProvider["provision"]>;
 };
-
-/** A resource of a space: its row and its kind's object type. */
-export interface Resource {
-    /** The kind's object type. */
-    readonly object: ResourceType<typeof space>;
-    /** The resource's row. */
-    readonly row: ResourceRow;
-}
 
 /** A machine's providers by resource kind, in preference order. */
 export class ProviderIndex {
@@ -144,7 +156,7 @@ export class ProviderIndex {
             byKind.set(provider.kind.name, [...grouped, provider]);
         }
 
-        // keep the machine, its providers and the other packages' objects
+        // store the machine, its providers and the other packages' objects
         this.machine = machine;
         this.byKind = byKind;
         this.packaged = packaged;
@@ -170,33 +182,55 @@ export class ProviderIndex {
         );
     }
 
+    /** Resolve a resource's reference to where a workload here opens it, through its provider. */
+    resolve(resource: {
+        readonly kind: string;
+        readonly provider: string;
+        readonly reference: string;
+    }): string {
+        // resolve a local provider's reference, passing a remote one through as it is
+        const provider = this.byKind
+            .get(resource.kind)
+            ?.find((each) => each.code === resource.provider);
+
+        return provider?.resolve === undefined
+            ? resource.reference
+            : provider.resolve(resource.reference);
+    }
+
     /** Read the kind whose resources an object type is, refusing an object of no kind. */
     kind(object: ObjectType): ResourceKind {
         return present(object.provisioned, `the kind of ${object.name}`).kind;
     }
 
-    /** Find the provider under a code keeping an object's resources. */
+    /** Find the provider under a code that stores an object's resources. */
     snapshotting(object: ObjectType, code: string | null): SnapshotProvider {
         const provider = this.of(object).find((entry) => entry.code === code);
         if (provider?.snapshot === undefined) {
-            throw new TypeError(`provider ${code} of ${object.name} snapshots nothing`);
+            throw StackError.of(
+                "SNAPSHOT_UNSUPPORTED",
+                `provider ${code} of ${object.name} does not support snapshots`,
+            );
         }
 
         return { ...provider, snapshot: provider.snapshot };
     }
 
     /** Select a provider here restoring an object's resources. */
-    restoring(object: ObjectType, row: ResourceRow): RestoreProvider {
+    restoring(object: ObjectType, row: Resource): RestoreProvider {
         const provider = this.select(object, { ...row, provider: null });
         if (provider?.provision === undefined || provider.snapshot === undefined) {
-            throw new TypeError(`no provider of ${object.name} here restores it`);
+            throw StackError.of(
+                "RESTORE_UNSUPPORTED",
+                `no provider of ${object.name} here can restore it`,
+            );
         }
 
         return { ...provider, provision: provider.provision, snapshot: provider.snapshot };
     }
 
     /** Select the provider a resource requests, or the first of its kind. */
-    select(object: ObjectType, row: ResourceRow): SpaceProvider | undefined {
+    select(object: ObjectType, row: Resource): SpaceProvider | undefined {
         return ResourceController.select(this.of(object), row);
     }
 
@@ -226,7 +260,9 @@ export class ProviderIndex {
         reader: Pick<Snapshot, "read">,
         scope: Identifier<"space">,
         id: string,
-    ): Promise<Resource | undefined> {
+    ): Promise<
+        { readonly object: ResourceType<typeof space>; readonly row: Resource } | undefined
+    > {
         // pick the kind its identifier has
         const object = this.objects().find((each) => each.identifies(id));
         if (object === undefined) {
@@ -247,15 +283,16 @@ export class ProviderIndex {
 /** Read the desired states a resource applied, refusing a resource that has not applied them. */
 export async function appliedStates(
     database: DatabaseConnection,
-    row: ResourceRow,
+    row: Resource,
 ): Promise<ResourceState[]> {
     // require its applied states to be its desired ones, blocking a transfer while a plan waits for approval
     const desired = [...row.states, ...row.drainingStates];
     const isApplied = canonicalize(row.appliedStates) === canonicalize(desired);
     if (!isApplied || row.plan !== null) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: `resource ${row.id} has not applied its desired states: approve or reject its plan first`,
-        });
+        throw StackError.of(
+            "PLAN_UNAPPLIED",
+            `resource ${row.id} has not applied its desired states: approve or reject its plan first`,
+        );
     }
 
     return DesiredState.read(Snapshot.live(database), row.scope, desired);

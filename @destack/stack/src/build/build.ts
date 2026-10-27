@@ -1,3 +1,4 @@
+import { SECRET_DECLARATION } from "../declare/index.ts";
 import {
     Sandbox,
     ComputeDefinition,
@@ -18,7 +19,6 @@ import { WORKLOAD_EXPORT } from "@destack/object/cloudflare";
 import { PackageDescription } from "@destack/object";
 import { StackError } from "../error/index.ts";
 import { HOOK_WORKLOAD } from "../workload/hook.ts";
-import { SECRET_DECLARATION } from "../declare/binding.ts";
 import { RESOURCE_DECLARATION } from "@destack/resource";
 
 /** The prefix of the generated modules running each workload. */
@@ -86,9 +86,9 @@ function runnable(compilation: Compilation): Runnable[] {
     // run each declared workload, refusing one under the hooks workload's name
     const declared = declarations.filter((declaration) => declaration.kind === "workload");
     if (declared.some((workload) => workload.name === HOOK_WORKLOAD)) {
-        throw new StackError(
-            "INVALID_DEFINITION",
-            `workload ${HOOK_WORKLOAD} is the name of the workload serving a package's hooks`,
+        throw StackError.of(
+            "DEFINITION_INVALID",
+            `workload name ${HOOK_WORKLOAD} is reserved for a package's hook workload`,
         );
     }
     const workloads = declared.map((workload) => ({
@@ -192,7 +192,7 @@ function describe(
         // refuse a declaration its package declares twice
         const key = `${owner.id}:${declaration.kind}:${declaration.name}`;
         if (seen.has(key)) {
-            throw new StackError("INVALID_DEFINITION", `duplicate declaration: ${key}`);
+            throw StackError.of("DEFINITION_INVALID", `duplicate declaration: ${key}`);
         }
         seen.add(key);
         selections[kind].push(DeclarationReference.of({ package: owner, name: declaration.name }));
