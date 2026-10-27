@@ -27,7 +27,7 @@ const WIPE_FRAMES = 40;
 const WIPE_GAP = 60;
 
 /** The site's accent, which the wipe's line, handle and labels wear. */
-const ACCENT = "#ee7533";
+const ACCENT = "#ff792e";
 
 /** The wipe's line, handle and labels, in CSS pixels. */
 const SLIDER = {
