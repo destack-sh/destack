@@ -1,5 +1,5 @@
 import { CONTAINED, principal } from "@destack/access";
-import { Scope, type Subject, RequestId } from "@destack/sync";
+import { Scope, type Subject } from "@destack/sync";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { schema } from "@destack/schema";
 import { type AssertionKey, AssertionVerifier, PartitionId } from "@destack/access/token";
@@ -13,8 +13,6 @@ import accountPackage from "../package.ts";
 import { OAuthError } from "../authentication/token.ts";
 import { AccessToken, type TokenGrant } from "./token.ts";
 import { PackageResource } from "./resource.ts";
-import { proof } from "@destack/object";
-import type { ObjectStore } from "@destack/object/server";
 import type { Crypto, Environment } from "@destack/environment";
 
 /** The grant type of a key-signed assertion exchanged for an access token (RFC 7523 2.1). */
@@ -37,8 +35,6 @@ const BearerRequest = schema.looseObject({
 export interface BearerOptions {
     /** The account database with the machines' keys and the placements. */
     readonly database: DatabaseConnection;
-    /** The account objects, which store the spent proofs. */
-    readonly objects: Pick<ObjectStore, "mutate" | "as" | "environment">;
     /** The token endpoint's URL, every assertion's audience. */
     readonly endpoint: string;
     /** The clock assertions are verified at, and the WebCrypto verifying them. */
@@ -55,14 +51,7 @@ export function bearerGrant(options: BearerOptions): TokenGrant {
         keys: (thumbprint, issuer, now) =>
             assertionKey(database, thumbprint, issuer, now, options.environment.crypto),
         crypto: options.environment.crypto,
-        spend: async (digest, expiresAt) => {
-            await options.objects.mutate(options.objects.as(proof), {
-                id: RequestId.create(options.objects.environment),
-                calls: [
-                    proof.call("create", { ...proof.in(Scope.universe.id), id: digest, expiresAt }),
-                ],
-            });
-        },
+        database,
     });
 
     return async ({ body }) => {
