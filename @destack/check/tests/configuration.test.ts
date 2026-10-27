@@ -13,6 +13,16 @@ import {
 } from "../src/check/configuration.ts";
 import { readExpectations, applyExpectations } from "../src/check/expectation.ts";
 
+/** The language libraries every package compiles against. */
+const LANGUAGE = [
+    "ES2024",
+    "ESNext.Array",
+    "ESNext.TypedArrays",
+    "ES2025.Collection",
+    "ES2025.RegExp",
+    "ESNext.Disposable",
+];
+
 /** Open a world for one test, whose files it removes once disposed. */
 function world(): Simulation {
     return testSimulation();
@@ -59,7 +69,7 @@ test("compile a browser package with views against DOM, the view JSX runtime and
     expect(await typescriptConfiguration(directory, files)).toEqual({
         compilerOptions: {
             ...TYPESCRIPT_OPTIONS,
-            lib: ["ESNext", "DOM", "DOM.Iterable"],
+            lib: [...LANGUAGE, "DOM", "DOM.Iterable"],
             jsx: "preserve",
             jsxImportSource: "@destack/view",
             types: ["@destack/view/client"],
@@ -78,7 +88,7 @@ test("compile a Bun-only package against Bun's types without DOM", async () => {
         { "src/index.ts": "export {};\n" },
     );
     const { compilerOptions } = await typescriptConfiguration(directory, files);
-    expect(compilerOptions).toEqual({ ...TYPESCRIPT_OPTIONS, lib: ["ESNext"], types: ["bun"] });
+    expect(compilerOptions).toEqual({ ...TYPESCRIPT_OPTIONS, lib: [...LANGUAGE], types: ["bun"] });
 });
 
 test("compile a Bun package with Solid's terminal renderer against DOM and the renderer's JSX runtime", async () => {
@@ -97,7 +107,7 @@ test("compile a Bun package with Solid's terminal renderer against DOM and the r
     const { compilerOptions } = await typescriptConfiguration(directory, files);
     expect(compilerOptions).toEqual({
         ...TYPESCRIPT_OPTIONS,
-        lib: ["ESNext", "DOM", "DOM.Iterable"],
+        lib: [...LANGUAGE, "DOM", "DOM.Iterable"],
         types: ["bun"],
         jsx: "preserve",
         jsxImportSource: "@opentui/solid",

@@ -2,7 +2,7 @@ import type { FileSystem } from "@destack/environment";
 import { isDeepStrictEqual } from "node:util";
 import { dirname, relative, resolve, sep } from "node:path";
 import { Definition, type PackageDefinition } from "@destack/package";
-import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
+import { DOM_LIBRARIES, TYPESCRIPT_LIBRARIES, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import * as lint from "../lint/plugin.ts";
 import type { Plugin } from "../lint/plugin.ts";
 import type { LintSettings } from "../lint/package.ts";
@@ -336,7 +336,7 @@ export async function typescriptConfiguration(directory: string, files: FileSyst
     return {
         compilerOptions: {
             ...TYPESCRIPT_OPTIONS,
-            lib: isDom ? ["ESNext", "DOM", "DOM.Iterable"] : ["ESNext"],
+            lib: [...TYPESCRIPT_LIBRARIES, ...(isDom ? DOM_LIBRARIES : [])],
             ...(types.length > 0 ? { types } : {}),
             ...jsx,
         },
