@@ -1,13 +1,12 @@
 import { Icon } from "@destack/icon";
 import arrowRight from "@destack/icon/phosphor/arrow-right";
-import house from "@destack/icon/phosphor/house";
+import arrowUpRight from "@destack/icon/phosphor/arrow-up-right";
 import list from "@destack/icon/phosphor/list";
-import user from "@destack/icon/phosphor/user";
 import xIcon from "@destack/icon/phosphor/x";
 import { media } from "@destack/style/media.stylex";
 import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import { Button } from "@destack/ui/button";
+import { buttonVariants } from "@destack/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@destack/ui/sheet";
 import { createEffect, createMemo, createSignal } from "@destack/view";
@@ -23,6 +22,8 @@ import { Mark } from "./mark";
 import { lattice } from "./lattice.stylex";
 import {
     type Destination,
+    discord,
+    github,
     home,
     isLive,
     menu,
@@ -97,29 +98,19 @@ export function TopBar() {
                                 ))}
                             </nav>
 
-                            {/* keep search, appearance, your home space, sign in and the install together at the row's end */}
-                            {/* TODO #Incomplete: open your home space and the Destack account sign in once accounts are live */}
+                            {/* keep search, the repository and community, appearance, sign in and the install at the row's end */}
+                            {/* TODO #Incomplete: sign in with the Destack account, then open your space, once accounts are live */}
                             <div {...style.attrs(styles.tools)}>
                                 <CommandPalette appearance={appearance} />
+                                <SocialLink destination={github} />
+                                <SocialLink destination={discord} />
                                 <AppearanceToggle appearance={appearance} />
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    disabled
-                                    aria-label="Your home space, soon"
-                                    xstyle={[styles.idle, styles.home]}
+                                <span
+                                    title="Soon"
+                                    {...style.attrs(styles.link, styles.pending, styles.signIn)}
                                 >
-                                    <Icon icon={house} xstyle={styles.tool} />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    disabled
-                                    aria-label="Sign in, soon"
-                                    xstyle={[styles.idle, styles.account]}
-                                >
-                                    <Icon icon={user} xstyle={styles.tool} />
-                                </Button>
+                                    Sign in
+                                </span>
                                 <Popover>
                                     <PopoverTrigger size="sm" xstyle={styles.get}>
                                         Get Destack
@@ -195,6 +186,19 @@ export function TopBar() {
                             ),
                         )}
 
+                        {/* the repository and community here on phones, where the bar has no room for them */}
+                        {[github, discord].map((destination) => (
+                            <a
+                                href={destination.href}
+                                rel="external noopener noreferrer"
+                                target="_blank"
+                                {...style.attrs(styles.menuLink)}
+                            >
+                                {destination.label}
+                                <Icon icon={arrowUpRight} />
+                            </a>
+                        ))}
+
                         {/* sign in here on phones, where the bar gives its cell to the menu */}
                         <span
                             aria-disabled="true"
@@ -207,6 +211,22 @@ export function TopBar() {
                 </SheetContent>
             </Sheet>
         </header>
+    );
+}
+
+/** Draw a place off the site as an icon button in the bar, on desktop only. */
+function SocialLink(properties: { destination: Destination }) {
+    return (
+        <a
+            href={properties.destination.href}
+            aria-label={properties.destination.label}
+            title={properties.destination.label}
+            rel="external noopener noreferrer"
+            target="_blank"
+            {...style.attrs(buttonVariants({ variant: "ghost", size: "icon" }), styles.social)}
+        >
+            <Icon icon={properties.destination.icon} xstyle={styles.tool} />
+        </a>
     );
 }
 
@@ -333,14 +353,13 @@ const styles = style.create({
     install: {
         width: "auto",
     },
-    home: {
+    social: {
+        color: color.foreground,
         display: { default: "inline-flex", [media.maxMd]: "none" },
     },
-    idle: {
-        opacity: { default: 1, ":disabled": 1 },
-    },
-    account: {
-        display: { default: "inline-flex", [media.maxMd]: "none" },
+    signIn: {
+        display: { default: "inline", [media.maxMd]: "none" },
+        marginInlineStart: "0.5rem",
     },
     menuButton: {
         alignItems: "center",

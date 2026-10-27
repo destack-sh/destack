@@ -40,7 +40,23 @@ export const home: Destination = { href: "/", label: "Home", keybinding: "alt+h"
 /** The live destinations of the menu. */
 export const primaryDestinations: readonly Destination[] = menu.filter(isLive);
 
-/** The Destack community destinations. */
+/** Destack's repository on GitHub. */
+export const github: Destination = {
+    href: "https://github.com/destack-sh/destack",
+    label: "GitHub",
+    keybinding: "alt+g",
+    icon: githubLogo,
+};
+
+/** The Destack community on Discord. */
+export const discord: Destination = {
+    href: "https://discord.gg/xUFQ45TWYd",
+    label: "Discord",
+    keybinding: "alt+c",
+    icon: discordLogo,
+};
+
+/** Destack's places off the site: X, LinkedIn, the repository and the community. */
 export const socialDestinations: readonly Destination[] = [
     { href: "https://x.com/destacksh", label: "X", keybinding: "alt+x", icon: xLogo },
     {
@@ -49,18 +65,8 @@ export const socialDestinations: readonly Destination[] = [
         keybinding: "alt+l",
         icon: linkedinLogo,
     },
-    {
-        href: "https://github.com/destack-sh/destack",
-        label: "GitHub",
-        keybinding: "alt+g",
-        icon: githubLogo,
-    },
-    {
-        href: "https://discord.gg/xUFQ45TWYd",
-        label: "Discord",
-        keybinding: "alt+c",
-        icon: discordLogo,
-    },
+    github,
+    discord,
 ];
 
 /** Every site destination with a key combination. */
