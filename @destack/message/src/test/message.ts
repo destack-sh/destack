@@ -34,7 +34,7 @@ import {
     messageConditions,
     MessageKey,
 } from "../object/index.ts";
-import messagePackage, { outboundMail } from "../package.ts";
+import messagePackage, { DELIVER_CAPABILITY, outboundMail } from "../package.ts";
 import type { Outcome } from "../provider/index.ts";
 import messageServer from "../server.ts";
 import { documentsPackage, documentsServer } from "./document.ts";
@@ -284,7 +284,9 @@ export class TestMessage {
     static async #write(hosted: TestSpace): Promise<MessageWorld> {
         // install message and documents, then stop serving, as the machine does once installations change
         const installing = await hosted.serve();
-        const installation = await hosted.install(installing, MESSAGE.build);
+        const installation = await hosted.install(installing, MESSAGE.build, {
+            capabilities: [DELIVER_CAPABILITY],
+        });
         await hosted.install(installing, DOCUMENTS.build);
         await installing[Symbol.asyncDispose]();
 

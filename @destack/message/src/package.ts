@@ -4,6 +4,9 @@ import { defineMail } from "./email/kind.ts";
 import { MessageError } from "./error/error.ts";
 import { endpoint, mail, message, messageAttempt, task } from "./object/index.ts";
 
+/** The capability through which the package reaches the hosts messages go to. */
+export const DELIVER_CAPABILITY = "deliver";
+
 /** The mail the package sends through, which its host binds to its provider. */
 export const outboundMail = defineMail("outbound");
 
@@ -23,8 +26,19 @@ export default definePackage({
                 endpoint.permission("manage"),
                 endpoint.permission("control"),
             ],
-            // read and forget the browsers a person receives pushes at, acting for their space
-            universe: [user.permission("recipient"), client.permission("unsubscribe")],
+        },
+    },
+    capabilities: {
+        // reach the hosts messages go to, and the browsers people receive pushes at
+        [DELIVER_CAPABILITY]: {
+            reason: "Deliver messages to the webhooks, push services and mail providers they go to",
+            optional: true,
+            sandbox: { network: { connect: ["*"] } },
+            permissions: {
+                installation: {
+                    universe: [user.permission("recipient"), client.permission("unsubscribe")],
+                },
+            },
         },
     },
     errors: MessageError,
