@@ -12,26 +12,43 @@ import type {} from "@destack/package/import-meta";
 /** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
 const MILLISECONDS_PER_SECOND = 1000;
 
+/** The statement verbs the database runs, as OpenTelemetry's `db.operation.name` reports them. */
+const OPERATIONS = ["SELECT", "INSERT", "UPDATE", "DELETE", "PRAGMA", "CREATE", "DROP"];
+
 /** The histogram of each statement's duration in seconds, by OpenTelemetry's conventions. */
 export class OperationDuration {
     /** The histogram on the connection's telemetry. */
     readonly #histogram;
+    /** The SQL names of the tables a statement may report as its collection. */
+    readonly #collections: ReadonlySet<string>;
 
-    /** Declare the histogram on a telemetry. */
-    constructor(telemetry: Environment["telemetry"]) {
+    /** Declare the histogram on a telemetry, over the database's tables. */
+    constructor(telemetry: Environment["telemetry"], collections: readonly string[]) {
+        this.#collections = new Set(collections);
         this.#histogram = TelemetryScope.of(
             import.meta.destack.package,
             telemetry,
         ).metric.histogram("db.client.operation.duration", {
             unit: "s",
-            attributes: { "db.system.name": ["sqlite", "postgresql"] },
+            attributes: {
+                "db.system.name": ["sqlite", "postgresql"],
+                "db.operation.name": OPERATIONS,
+                "db.collection.name": collections,
+            },
         });
     }
 
     /** Record a statement's duration in milliseconds on a dialect. */
-    record(milliseconds: number, dialect: Dialect): void {
+    record(milliseconds: number, dialect: Dialect, statement: DriverStatement | undefined): void {
+        // report the operation and the first table, when the database declares them
+        const verb = statement?.operation;
+        const operation = verb !== undefined && OPERATIONS.includes(verb) ? verb : undefined;
+        const table = statement?.tables[0];
+        const collection = table !== undefined && this.#collections.has(table) ? table : undefined;
         this.#histogram.record(milliseconds / MILLISECONDS_PER_SECOND, {
             "db.system.name": dialect,
+            ...(operation === undefined ? {} : { "db.operation.name": operation }),
+            ...(collection === undefined ? {} : { "db.collection.name": collection }),
         });
     }
 }
@@ -67,7 +84,7 @@ export class DatabaseDriver {
     }
 
     /** Submit work through the transaction or connection. */
-    run<Value>(operation: () => PromiseLike<Value>): Promise<Value> {
+    run<Value>(operation: () => PromiseLike<Value>, statement?: DriverStatement): Promise<Value> {
         // count the statement, and the operation the connection submits outside a transaction
         this.state.statements += 1;
         if (this.transaction === undefined) {
@@ -82,19 +99,24 @@ export class DatabaseDriver {
             } catch (error) {
                 throw classifyError(error, this.state.declared);
             } finally {
-                this.state.durations.record(this.state.clock.now() - started, this.dialect);
+                this.state.durations.record(
+                    this.state.clock.now() - started,
+                    this.dialect,
+                    statement,
+                );
             }
         };
 
         return this.transaction ? this.transaction.run(reported) : this.state.run(reported);
     }
 
-    /** Submit a write of the listed tables. */
+    /** Submit a statement writing its tables. */
     write<Value>(
         operation: (session: Session) => Promise<Value>,
-        tables: readonly string[],
+        statement: DriverStatement,
     ): Promise<Value> {
         // cascade the written tables, every table for unknown ones
+        const { tables } = statement;
         const written =
             tables.length === 0 ? new Set(this.state.cascades.keys()) : this.#cascade(tables);
 
@@ -107,7 +129,12 @@ export class DatabaseDriver {
             logging = "unknown";
         }
 
-        return this.commit(() => this.#identified(operation, logging, logged), written, UNSCRIPTED);
+        return this.commit(
+            () => this.#identified(operation, logging, logged),
+            written,
+            UNSCRIPTED,
+            statement,
+        );
     }
 
     /** Submit work that commits by itself and writes some tables, some of them by scripts. */
@@ -115,11 +142,12 @@ export class DatabaseDriver {
         operation: () => Promise<Value>,
         tables: ReadonlySet<string>,
         scripted: ReadonlySet<string>,
+        statement?: DriverStatement,
     ): Promise<Value> {
         // record the tables in the enclosing transaction
         const transaction = this.transaction;
         if (transaction !== undefined) {
-            const result = await this.run(operation);
+            const result = await this.run(operation, statement);
             for (const table of tables) {
                 transaction.written.add(table);
             }
@@ -131,7 +159,7 @@ export class DatabaseDriver {
         }
 
         // commit
-        const result = await this.run(operation);
+        const result = await this.run(operation, statement);
 
         // announce a commit that wrote tables
         if (tables.size > 0) {
@@ -170,13 +198,13 @@ export class DatabaseDriver {
         const run = (session: Session) =>
             failing(statement, session.run(statement.text, statement.parameters), this.state);
         if (statement.isRead) {
-            await this.run(() => run(this.session));
+            await this.run(() => run(this.session), statement);
 
             return;
         }
 
         // run a write of its tables
-        await this.write(run, statement.tables);
+        await this.write(run, statement);
     }
 
     /** Run a statement returning rows, as a read or as a write of the tables it references. */
@@ -187,11 +215,8 @@ export class DatabaseDriver {
         this.transaction?.assertActive();
 
         return statement.isRead
-            ? this.run(() => failing(statement, query(this.session), this.state))
-            : this.write(
-                  (session) => failing(statement, query(session), this.state),
-                  statement.tables,
-              );
+            ? this.run(() => failing(statement, query(this.session), this.state), statement)
+            : this.write((session) => failing(statement, query(session), this.state), statement);
     }
 
     /** Decide whether a read may be cached: a live read of versioned tables only. */

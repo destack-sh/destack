@@ -1,3 +1,4 @@
+import { nth } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 import { ColumnCipher, SEALED_DIALECT } from "../database/cipher.ts";
 import { Column, type DriverValue } from "../table/column.ts";
@@ -39,6 +40,8 @@ export interface StatementTemplate {
     readonly tables: readonly string[];
     /** Whether the statement only reads: it selects, with no writing verb. */
     readonly isRead: boolean;
+    /** The statement's leading verb, as OpenTelemetry's `db.operation.name` reports it. */
+    readonly operation: string;
 }
 
 /** A statement's text and the driver values of its parameters. */
@@ -51,6 +54,8 @@ export interface DriverStatement {
     readonly tables: readonly string[];
     /** Whether the statement only reads: it selects, with no writing verb. */
     readonly isRead: boolean;
+    /** The statement's leading verb, as OpenTelemetry's `db.operation.name` reports it. */
+    readonly operation: string;
 }
 
 /** Render a fragment for a dialect: quoted identifiers, namespaced relations, bound values. */
@@ -75,14 +80,15 @@ export function render(
     });
     const tables = [...named];
     const isRead = isReading(text);
+    const operation = nth(text.trimStart().split(/\s/u, 1), 0).toUpperCase();
     if (commons.size === 0) {
-        return { text, parameters, tables, isRead };
+        return { text, parameters, tables, isRead, operation };
     }
     const defined = [...commons].map(
         ([name, query]) => `${quote(name)} AS NOT MATERIALIZED (${query})`,
     );
 
-    return { text: `WITH ${defined.join(", ")} ${text}`, parameters, tables, isRead };
+    return { text: `WITH ${defined.join(", ")} ${text}`, parameters, tables, isRead, operation };
 }
 
 /** Render a fragment or value as standalone SQL: literal values, unqualified columns. */
@@ -126,7 +132,13 @@ export function fill(
         return value;
     });
 
-    return { text: rendered.text, parameters, tables: rendered.tables, isRead: rendered.isRead };
+    return {
+        text: rendered.text,
+        parameters,
+        tables: rendered.tables,
+        isRead: rendered.isRead,
+        operation: rendered.operation,
+    };
 }
 
 /** Where a render writes values: bound parameters, or literals for a declaration when absent. */

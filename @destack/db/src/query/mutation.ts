@@ -192,7 +192,7 @@ export class MutationQuery<
                 // read the returned rows and decode them through the returned fields
                 const rows = await driver.write(
                     (session) => session.values(statement.text, statement.parameters),
-                    statement.tables,
+                    statement,
                 );
                 const projection = new Projection(unqualified(returned));
                 const decoded = projection.decode(
