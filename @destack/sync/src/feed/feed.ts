@@ -10,7 +10,7 @@ import {
     DatabaseError,
     describeLog,
     Change,
-    type LogPosition,
+    LogPosition,
     type Row,
 } from "@destack/db";
 import { SyncError } from "../error/error.ts";
@@ -20,13 +20,19 @@ import type { AggregateGroup } from "../query/aggregate.ts";
 import { Node } from "../query/node.ts";
 import { EVERYONE, type Audience, Watch } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
-import { Stream } from "./stream.ts";
+import { Stream, type StreamRequest } from "./stream.ts";
+import {
+    type RequestKey,
+    Subscription,
+    type SubscriptionRequest,
+    subscriptionTable,
+} from "../replica/publication.ts";
 import type { Upstream } from "../dataflow/upstream.ts";
 import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { PAGE_SIZE } from "../dataflow/selection.ts";
 import { Run, type RunCost } from "../dataflow/run.ts";
 import { Memo, View, type Cache, type Window } from "../dataflow/view.ts";
-import { Clock } from "@destack/environment";
+import { Clock, until } from "@destack/environment";
 
 /** The default count of recent changes a feed stores in memory. */
 const FEED_CHANGES = 10_000;
@@ -43,6 +49,9 @@ const MEMO_SEQUENCES = 8;
 /** The default wait before a caught-up stream repeats its position, in milliseconds. */
 const HEARTBEAT_MILLISECONDS = 10_000;
 
+/** The route of a table's changes in any scope, beside the routes of each scope. */
+const EVERY_SCOPE = "*";
+
 /** The rows of one capture page across tables: 500 rows of about 500 B make a page near 250 KB. */
 const CAPTURE_ROWS = 500;
 
@@ -54,6 +63,12 @@ export class Feed implements Cache {
     readonly tables: readonly Table[];
     /** The subscriber limit. */
     readonly #limit: number;
+    /** The requests streams follow, each with its handlers, by its key's name. */
+    readonly #requests = new Map<string, FollowedRequest>();
+    /** Stops the request watch once no stream follows a request. */
+    #requesting: AbortController | undefined;
+    /** The request watch, settling once stopped. */
+    #requested: Promise<void> | undefined;
     /** The most rows and groups one evaluation knows. */
     readonly capacity: number;
     /** The most rows one page of a snapshot or a catch-up reads. */
@@ -78,6 +93,10 @@ export class Feed implements Cache {
     #sequence: number;
     /** The subscribers waiting for the feed to pass a sequence. */
     readonly #waiting: Set<() => void>;
+    /** The last sequence that changed each table in each scope, and in any scope, by route. */
+    readonly #touched: Map<string, number>;
+    /** The subscribers waiting for a change of a table in a scope, or in any scope, by route. */
+    readonly #routes: Map<string, Set<() => void>>;
     /** The subscriber count. */
     #subscribers: number;
     /** Stop reading after the last subscriber. */
@@ -118,6 +137,8 @@ export class Feed implements Cache {
         this.#start = Number.POSITIVE_INFINITY;
         this.#sequence = -1;
         this.#waiting = new Set<() => void>();
+        this.#touched = new Map<string, number>();
+        this.#routes = new Map<string, Set<() => void>>();
         this.#subscribers = 0;
         this.#evaluations = new Map<string, Evaluation>();
 
@@ -199,7 +220,7 @@ export class Feed implements Cache {
             capacity: this.capacity,
             evaluations: [...this.#shares].map(([evaluation, share]) => ({
                 streams: share.streams,
-                dataflow: evaluation.inspect(),
+                dataflows: evaluation.inspect(),
             })),
         };
     }
@@ -218,7 +239,7 @@ export class Feed implements Cache {
     ): AsyncGenerator<Page> {
         // resolve the queries
         const audience = options.audience ?? EVERYONE;
-        const stream = new Stream(this, queries, audience, options.every);
+        const stream = new Stream(this, queries, audience, options.every, options.request);
         const previous =
             options.previous === undefined
                 ? undefined
@@ -443,8 +464,12 @@ export class Feed implements Cache {
         watches: readonly Watch[],
         sequence: number,
     ): Promise<{ readonly changes: readonly Change[]; readonly sequence: number } | undefined> {
+        // answer no changes from the routes when none of the watched tables and scopes changed
+        if (sequence >= this.#start && !this.#isTouched(watches, sequence)) {
+            return { changes: [], sequence: Math.max(sequence, this.#sequence) };
+        }
         // read stored changes from memory
-        if (sequence >= this.#start) {
+        else if (sequence >= this.#start) {
             return {
                 changes: this.#changes
                     .slice(this.#after(sequence))
@@ -558,12 +583,7 @@ export class Feed implements Cache {
         // join a shared evaluation at the same position, or share this one
         const shared = this.#evaluations.get(key);
         const current = shared?.position;
-        if (
-            shared !== undefined &&
-            current?.log === position.log &&
-            current.epoch === position.epoch &&
-            current.sequence === position.sequence
-        ) {
+        if (shared !== undefined && current !== undefined && LogPosition.same(current, position)) {
             found(this.#shares, shared).streams += 1;
 
             return shared;
@@ -596,18 +616,87 @@ export class Feed implements Cache {
         return this.#shares.has(evaluation);
     }
 
-    /** Wait until the feed passes a sequence, a read fails, or the signal aborts. */
-    async next(sequence: number, signal: AbortSignal): Promise<void> {
+    /** Hand a recorded request's row now and after each change, until aborted. */
+    async followRequest(
+        key: RequestKey,
+        apply: (row: SubscriptionRequest | undefined) => void,
+        signal: AbortSignal,
+    ): Promise<void> {
+        // register before reading, so the watch hands every later change
+        const name = Subscription.key(key);
+        const followed = this.#requests.get(name) ?? { key, handlers: new Set() };
+        this.#requests.set(name, followed);
+        followed.handlers.add(apply);
+        try {
+            // read the row now, then hand changes until aborted, watching anew once a watch ends
+            this.#requested ??= this.#watchRequests();
+            const [row] = await Subscription.requests(this.database, [key]);
+            apply(row);
+            while (!signal.aborted) {
+                this.#requested ??= this.#watchRequests();
+                await Promise.race([until(signal), this.#requested]);
+            }
+        } finally {
+            // stop the watch once its last follower leaves
+            followed.handlers.delete(apply);
+            if (followed.handlers.size === 0) {
+                this.#requests.delete(name);
+            }
+            if (this.#requests.size === 0) {
+                this.#requesting?.abort();
+            }
+        }
+    }
+
+    /** Hand each followed request's row after each commit to the subscription table. */
+    async #watchRequests(): Promise<void> {
+        // take over as the request watch
+        const requesting = new AbortController();
+        this.#requesting = requesting;
+        const table = subscriptionTable[TABLE].sqlName;
+        try {
+            await this.database.log.until(async (committed) => {
+                // read every followed request at once and hand each row to its followers
+                if (committed.has(table) && this.#requests.size > 0) {
+                    const keys = [...this.#requests.values()].map((followed) => followed.key);
+                    const rows = await Subscription.requests(this.database, keys);
+                    const byKey = new Map(rows.map((row) => [Subscription.key(row), row]));
+                    for (const [name, { handlers }] of this.#requests) {
+                        for (const apply of handlers) {
+                            apply(byKey.get(name));
+                        }
+                    }
+                }
+
+                return this.#requests.size === 0;
+            }, requesting.signal);
+        } finally {
+            // forget this watch unless a later one replaced it
+            if (this.#requesting === requesting) {
+                this.#requested = undefined;
+                this.#requesting = undefined;
+            }
+        }
+    }
+
+    /** Wait until the feed passes a sequence or a watched change past it, fails, or aborts. */
+    async next(sequence: number, signal: AbortSignal, watches?: readonly Watch[]): Promise<void> {
+        // register under the watched routes, or for every page without watches
+        const routes = watches === undefined ? undefined : Feed.#routesOf(watches);
         await new Promise<void>((resolve) => {
-            // wake once past, failed or aborted
+            // wake once past or past a watched change, failed or aborted
+            const isPassed = () =>
+                routes === undefined
+                    ? this.#sequence > sequence
+                    : this.#isTouched(watches ?? [], sequence);
             const wake = () => {
-                if (this.#sequence > sequence || this.#failure !== undefined || signal.aborted) {
-                    this.#waiting.delete(wake);
+                if (isPassed() || this.#failure !== undefined || signal.aborted) {
+                    this.#unregister(wake, routes);
                     signal.removeEventListener("abort", wake);
                     resolve();
                 }
             };
-            this.#waiting.add(wake);
+            this.#register(wake, routes);
             signal.addEventListener("abort", wake, { once: true });
             wake();
         });
@@ -616,6 +705,56 @@ export class Feed implements Cache {
         if (this.#failure !== undefined) {
             throw this.#failure;
         }
+    }
+
+    /** Register a waiter under some routes, or for every page. */
+    #register(wake: () => void, routes: readonly string[] | undefined): void {
+        if (routes === undefined) {
+            this.#waiting.add(wake);
+        } else {
+            for (const route of routes) {
+                const waiting = this.#routes.get(route) ?? new Set<() => void>();
+                waiting.add(wake);
+                this.#routes.set(route, waiting);
+            }
+        }
+    }
+
+    /** Take a waiter off its routes, or off every page. */
+    #unregister(wake: () => void, routes: readonly string[] | undefined): void {
+        if (routes === undefined) {
+            this.#waiting.delete(wake);
+        } else {
+            for (const route of routes) {
+                const waiting = this.#routes.get(route);
+                waiting?.delete(wake);
+                if (waiting?.size === 0) {
+                    this.#routes.delete(route);
+                }
+            }
+        }
+    }
+
+    /** Decide whether a watched table changed in a watched scope past a sequence. */
+    #isTouched(watches: readonly Watch[], sequence: number): boolean {
+        return (
+            (sequence < this.#start && this.#sequence > sequence) ||
+            Feed.#routesOf(watches).some((route) => (this.#touched.get(route) ?? -1) > sequence)
+        );
+    }
+
+    /** List the routes some watches wait on: each table in each scope, or in any scope. */
+    static #routesOf(watches: readonly Watch[]): string[] {
+        return watches.flatMap(({ table, scopes }) =>
+            scopes === "every"
+                ? [Feed.#route(table, EVERY_SCOPE)]
+                : scopes.map((scope) => Feed.#route(table, scope)),
+        );
+    }
+
+    /** Build the route of a table in a scope, or in any scope. */
+    static #route(table: Table, scope: string): string {
+        return `${table[TABLE].sqlName}\n${scope}`;
     }
 
     /** Find the index of the first stored change after a sequence. */
@@ -666,6 +805,7 @@ export class Feed implements Cache {
             this.#changes = [];
             this.#start = Number.POSITIVE_INFINITY;
             this.#sequence = -1;
+            this.#touched.clear();
             this.rows.clear();
             this.windows.clear();
             this.row.clear();
@@ -697,17 +837,44 @@ export class Feed implements Cache {
             }
             this.#changes.push(...page.changes);
             this.#sequence = page.sequence;
+            const routed = this.#touch(page.changes);
             if (this.#changes.length > this.#memory) {
+                // drop the oldest changes, and the routes no later wait can tell apart from the start
                 const dropped = this.#changes.splice(0, this.#changes.length - this.#memory);
                 this.#start = nth(dropped, -1).sequence;
+                for (const [route, touched] of this.#touched) {
+                    if (touched <= this.#start) {
+                        this.#touched.delete(route);
+                    }
+                }
             }
-            this.#wake();
+            this.#wake(routed);
         }
     }
 
-    /** Wake every waiting subscriber. */
-    #wake(): void {
-        for (const wake of this.#waiting) {
+    /** Record each change's table and scope as touched, answering the waiters on their routes. */
+    #touch(changes: readonly Change[]): Set<() => void> {
+        const routed = new Set<() => void>();
+        for (const change of changes) {
+            for (const route of [
+                Feed.#route(change.table, change.scope),
+                Feed.#route(change.table, EVERY_SCOPE),
+            ]) {
+                this.#touched.set(route, change.sequence);
+                for (const wake of this.#routes.get(route) ?? []) {
+                    routed.add(wake);
+                }
+            }
+        }
+
+        return routed;
+    }
+
+    /** Wake the subscribers waiting for every page and those a page's changes route to. */
+    #wake(routed?: ReadonlySet<() => void>): void {
+        const routes =
+            routed ?? new Set([...this.#routes.values()].flatMap((waiting) => [...waiting]));
+        for (const wake of [...this.#waiting, ...routes]) {
             wake();
         }
     }
@@ -728,6 +895,8 @@ export interface FeedOptions {
     readonly every?: number;
     /** The signal ending the stream after its next completed page. */
     readonly drain?: AbortSignal;
+    /** The subscriber's request the stream follows at its source, none by default. */
+    readonly request?: StreamRequest;
     /** Receive the stream once it starts, to ask it to confirm positions. */
     readonly opened?: (stream: Stream) => void;
     /** Receive the stream once it ends, however it ends. */
@@ -750,8 +919,8 @@ export interface FeedInspection {
     readonly evaluations: readonly {
         /** The streams sharing the evaluation. */
         readonly streams: number;
-        /** The evaluation's dataflow. */
-        readonly dataflow: DataflowInspection;
+        /** The dataflow of each of the evaluation's queries. */
+        readonly dataflows: readonly DataflowInspection[];
     }[];
 }
 
@@ -836,4 +1005,12 @@ class Handoff<Value> {
 /** Count subscribers in words, as one subscriber or several subscribers. */
 function subscribersOf(count: number): string {
     return count === 1 ? "1 subscriber" : `${count} subscribers`;
+}
+
+/** A request streams follow: its key and their handlers of its row. */
+interface FollowedRequest {
+    /** The request's key. */
+    readonly key: RequestKey;
+    /** The handlers of its row, one per following stream. */
+    readonly handlers: Set<(row: SubscriptionRequest | undefined) => void>;
 }

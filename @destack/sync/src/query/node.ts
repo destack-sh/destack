@@ -408,6 +408,11 @@ export class Node {
         return expression === undefined ? [name] : [...Expression.columns(expression)];
     }
 
+    /** List the tables a query reads: its rows', its includes' and its followed relations'. */
+    static tables(query: Query): Table[] {
+        return new Node("", query, query.scopes).nodes().map((node) => node.table);
+    }
+
     /** List this node and every node below it. */
     nodes(): Node[] {
         return [this, ...this.children.flatMap((child) => child.nodes())];

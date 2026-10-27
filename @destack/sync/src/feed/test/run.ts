@@ -46,6 +46,8 @@ export interface Run {
     readonly reconnect: number;
     /** The queries the subscriber moves to halfway, when given. */
     readonly reshape?: Readonly<Record<string, Query>>;
+    /** Whether the subscriber moves to them on its open stream, else by reconnecting. */
+    readonly isReshapedInPlace?: boolean;
     /** Whether the pages pass through a replica into a second database. */
     readonly isReplicated?: boolean;
     /** The tasks and comments inserted before following. */
@@ -135,7 +137,11 @@ async function matchExactly(run: Run): Promise<void> {
         // reshape halfway and reconnect on the cadence
         if (run.reshape !== undefined && burst === Math.floor(run.bursts / 2)) {
             queries = run.reshape;
-            await follower.reconnect(queries);
+            if (run.isReshapedInPlace === true) {
+                follower.reshape(queries);
+            } else {
+                await follower.reconnect(queries);
+            }
         } else if (burst % run.reconnect === run.reconnect - 1) {
             await follower.reconnect();
         }

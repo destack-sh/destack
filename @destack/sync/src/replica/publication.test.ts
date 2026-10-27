@@ -2,7 +2,9 @@ import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import type { Call } from "../call/call.ts";
 import type { Page } from "../query/index.ts";
-import { Uplink } from "./publication.ts";
+import { Simulation } from "@destack/environment/simulation";
+import { openReplica } from "../test/fixture.ts";
+import { Subscription, Uplink } from "./publication.ts";
 
 /** The package of the notes the scenarios send. */
 const PACKAGE_ID = schema
@@ -27,7 +29,7 @@ test("stream through a client's replica procedures as the follower, and send a f
 
         return {
             stream: async () => (async function* (): AsyncIterable<Page> {})(),
-            confirm: async () => ({}),
+            request: async () => ({}),
             receive: async () => ({ results: [{ id: "a" }] }),
             call: async (input: { readonly scope: string }) => ({ answered: input.scope }),
         };
@@ -64,5 +66,31 @@ test("stream through a client's replica procedures as the follower, and send a f
         ["follower", "installation-a", "space-a"],
         [{ id: "a" }],
         { answered: "inbox" },
+    ]);
+});
+
+test("record a follower's requests at its source, keeping its latest ask with its latest parameters", async () => {
+    // record a request, an ask, then parameters alone
+    const database = await openReplica({ simulation: new Simulation({ seed: 1, start: 1000 }) });
+    const subscription = {
+        name: "notes",
+        publication: "queries",
+        scope: "inbox",
+        target: "inbox",
+        parameters: { queries: {} },
+    };
+    const asked = { scope: "inbox", log: "log", epoch: "epoch", sequence: 4 };
+    const caller = "user alice";
+    await Subscription.request(database, subscription, caller);
+    const key = { name: "notes", scope: "inbox", target: "inbox", caller };
+    const [first] = await Subscription.requests(database, [key]);
+    await Subscription.request(database, { ...subscription, confirming: asked }, caller);
+    const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
+    await Subscription.request(database, reshaped, caller);
+
+    // keep the ask past later requests without one, with the latest parameters
+    expect([first, ...(await Subscription.requests(database, [key]))]).toEqual([
+        { ...key, parameters: subscription.parameters, confirming: null },
+        { ...key, parameters: reshaped.parameters, confirming: asked },
     ]);
 });

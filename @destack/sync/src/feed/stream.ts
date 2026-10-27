@@ -1,19 +1,32 @@
 import { DatabaseError, type LogPosition, TABLE, type Table } from "@destack/db";
 import type { Page, ResultChange, RowChange } from "../query/page.ts";
-import { canonicalize } from "@destack/schema";
+import { canonicalize, type JsonObject } from "@destack/schema";
 import type { Query } from "../query/query.ts";
+import { Node } from "../query/node.ts";
 import type { Audience } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import type { Feed } from "./feed.ts";
 import { View } from "../dataflow/view.ts";
 import type { Clock } from "@destack/environment";
+import { SyncError } from "../error/error.ts";
+import type { RequestKey, SubscriptionRequest } from "../replica/publication.ts";
 
 /** One subscriber's queries over a feed, alone behind the head and shared at the head. */
 export class Stream {
     /** The feed the stream reads. */
     readonly #feed: Feed;
     /** The queries the stream follows. */
-    readonly #queries: Readonly<Record<string, Query>>;
+    #queries: Readonly<Record<string, Query>>;
+    /** The queries a subscriber asked the stream to move to, absent once it moved. */
+    #requested: Reshape | undefined;
+    /** The subscriber's request the stream follows, absent without one. */
+    readonly #request: StreamRequest | undefined;
+    /** The parameters the stream reflects, absent for a stream without a request. */
+    #parameters: JsonObject | undefined;
+    /** Aborts once the caller's session lapses. */
+    readonly #lapsed = new AbortController();
+    /** Disarms the session's lapse once the stream ends. */
+    readonly #disarm = new AbortController();
     /** Who the stream serves. */
     readonly #audience: Audience;
     /** The followed evaluation: a separate one, or a shared one. */
@@ -35,14 +48,26 @@ export class Stream {
         queries: Readonly<Record<string, Query>>,
         audience: Audience,
         every?: number,
+        request?: StreamRequest,
     ) {
         // evaluate the queries alone
         this.#feed = feed;
+        this.#request = request;
+        this.#parameters = request?.parameters;
         this.#every = every;
         this.#queries = queries;
         this.#audience = audience;
         this.#evaluation = new Evaluation(feed, queries, audience);
         this.#heard = feed.beats;
+    }
+
+    /** Move the stream to other queries at its next position, waking its wait. */
+    reshape(queries: Readonly<Record<string, Query>>, parameters?: JsonObject): void {
+        // record the queries, then wake the wait
+        this.#requested = { queries, ...(parameters === undefined ? {} : { parameters }) };
+        const asked = this.#asked;
+        this.#asked = new AbortController();
+        asked.abort();
     }
 
     /** Ask the stream to publish a position at or past a position. */
@@ -66,17 +91,40 @@ export class Stream {
         }
     }
 
-    /** Report whether the stream arrived at an asked position it has not published one past. */
-    #isAsked(published: number, position: LogPosition): boolean {
+    /** Key the tables some queries read, in order. */
+    static #tables(queries: Readonly<Record<string, Query>>): string {
+        const tables = Object.values(queries).flatMap((query) =>
+            Node.tables(query).map((table) => table[TABLE].sqlName),
+        );
+
+        return [...new Set(tables)].toSorted().join("\n");
+    }
+
+    /** Report whether the stream arrived at an asked position its follower lacks. */
+    #isAsked(recorded: number, position: LogPosition): boolean {
         const confirming = this.#confirming;
 
         return (
             confirming !== undefined &&
             confirming.log === position.log &&
             confirming.epoch === position.epoch &&
-            confirming.sequence > published &&
+            confirming.sequence > recorded &&
             position.sequence >= confirming.sequence
         );
+    }
+
+    /** Read the sequence asked past what the follower recorded, absent for none. */
+    #ahead(recorded: number): number | undefined {
+        const confirming = this.#confirming;
+        const current = this.#published;
+
+        return confirming !== undefined &&
+            current !== undefined &&
+            confirming.log === current.log &&
+            confirming.epoch === current.epoch &&
+            confirming.sequence > recorded
+            ? confirming.sequence
+            : undefined;
     }
 
     /** Stream the queries from a position until aborted, or to a completed page once drained. */
@@ -86,6 +134,22 @@ export class Stream {
         previous?: Evaluation,
         drain?: AbortSignal,
     ): AsyncGenerator<Page> {
+        // follow the subscriber's request, ending at a completed page once its session lapses
+        drain = AbortSignal.any([...(drain === undefined ? [] : [drain]), this.#lapsed.signal]);
+        const following = new AbortController();
+        const requesting = this.#followRequest(AbortSignal.any([signal, following.signal]));
+        const lapsesAt = this.#request?.lapsesAt;
+        if (lapsesAt !== undefined) {
+            const { clock } = this.#feed;
+            clock.sleep(lapsesAt - clock.now(), this.#disarm.signal).then(
+                () =>
+                    this.#lapsed.abort(
+                        SyncError.of("CREDENTIAL_LAPSED", "the caller's session lapsed"),
+                    ),
+                () => {},
+            );
+        }
+
         // publish the log's current epoch
         const { log, epoch: started } = await this.#feed.database.log.position();
         let epoch = started;
@@ -111,15 +175,22 @@ export class Stream {
                     }
 
                     // publish what follows
-                    const following = this.#follow({ log, epoch, sequence }, signal, drain);
+                    const published = this.#follow({ log, epoch, sequence }, signal, drain);
                     yield* this.#every === undefined
-                        ? following
+                        ? published
                         : Stream.coalesce(
-                              following,
+                              published,
                               this.#every,
                               this.#feed.tables,
                               this.#feed.clock,
                           );
+
+                    // end the request once its credential lapsed, after the completed page it drained to
+                    const lapse = this.#lapsed.signal;
+                    if (lapse.aborted && !signal.aborted) {
+                        throw lapse.reason;
+                    }
+
                     return;
                 } catch (error) {
                     // start over after a lost position or epoch
@@ -141,6 +212,63 @@ export class Stream {
             }
         } finally {
             this.#feed.leave(this.#evaluation);
+            following.abort();
+            this.#disarm.abort();
+            await requesting;
+        }
+    }
+
+    /** Follow the subscriber's request: its asks, its credential's lapse and its parameters. */
+    async #followRequest(signal: AbortSignal): Promise<void> {
+        // follow nothing without a request
+        const request = this.#request;
+        if (request === undefined) {
+            return;
+        }
+
+        // apply the request's row now and after each change, in order
+        let applying = Promise.resolve();
+        await request.feed
+            .followRequest(
+                request.key,
+                (row) => {
+                    applying = applying.then(() => this.#applyRequest(request, row));
+                },
+                signal,
+            )
+            .then(() => applying)
+            .catch((error: unknown) => {
+                // end the stream with a failure to follow the request
+                if (!signal.aborted) {
+                    this.#lapsed.abort(error);
+                }
+            });
+    }
+
+    /** Apply a request's ask, its credential's lapse, and its changed parameters. */
+    async #applyRequest(
+        request: StreamRequest,
+        row: SubscriptionRequest | undefined,
+    ): Promise<void> {
+        if (row === undefined) {
+            return;
+        }
+
+        // ask for the confirmation the subscriber waits for
+        if (row.confirming !== null) {
+            this.confirm(row.confirming);
+        }
+
+        // move in place to the queries of changed parameters over the same tables
+        if (canonicalize(row.parameters) !== canonicalize(this.#parameters ?? null)) {
+            this.#parameters = row.parameters;
+            const queries = await request.queries(row.parameters);
+            if (
+                Stream.#tables(queries) ===
+                Stream.#tables(this.#requested?.queries ?? this.#queries)
+            ) {
+                this.reshape(queries, row.parameters);
+            }
         }
     }
 
@@ -154,8 +282,21 @@ export class Stream {
         const { log, epoch } = start;
         let position = start;
         let published = start.sequence;
+        // track the last position the follower records, unset to answer a standing ask once
+        let recorded = Number.NEGATIVE_INFINITY;
         const waking = drain === undefined ? signal : AbortSignal.any([signal, drain]);
         while (!waking.aborted) {
+            // move to the queries a subscriber asked for, alone, at the current position
+            const requested = this.#requested;
+            if (requested !== undefined) {
+                this.#requested = undefined;
+                yield* this.#reshapeAt(requested, position, signal);
+                this.#queries = requested.queries;
+                published = position.sequence;
+                recorded = position.sequence;
+                this.#heard = this.#feed.beats;
+            }
+
             // join the shared evaluation
             this.#evaluation = this.#feed.join(this.#evaluation, position);
             const decided = this.#evaluation.after(position);
@@ -173,35 +314,64 @@ export class Stream {
                 await Evaluation.nextTask(this.#feed.clock);
                 for (const page of pages) {
                     published = page.position.sequence;
+                    if (page.reset || page.changes.length > 0) {
+                        recorded = published;
+                    }
                     this.#heard = this.#feed.beats;
                     yield page;
                 }
 
-                // wait for a commit or an ask, else publish the position at the feed's next beat
+                // wait for a commit, an ask or a reshape, else publish the position at the next beat
                 const asked = { log, epoch, sequence };
-                if (sequence === position.sequence && !this.#isAsked(published, asked)) {
+                const ahead = this.#ahead(recorded);
+                const isAskPassed = ahead !== undefined && this.#feed.sequence >= ahead;
+                if (
+                    sequence === position.sequence &&
+                    this.#requested === undefined &&
+                    !this.#isAsked(recorded, asked) &&
+                    !isAskPassed
+                ) {
                     const beat = this.#feed.beating;
                     if (this.#feed.beats === this.#heard) {
                         const woken = AbortSignal.any([waking, beat, this.#asked.signal]);
-                        await this.#evaluation.wait(sequence, woken);
+                        await (ahead === undefined
+                            ? this.#evaluation.wait(sequence, woken)
+                            : this.#feed.next(ahead - 1, woken));
                     }
 
                     // publish the current position once the feed beat since the stream published
                     const isBeat = beat.aborted || this.#feed.beats !== this.#heard;
                     if (isBeat && !waking.aborted) {
                         const current = { log, epoch, sequence };
+                        const isConfirmation = this.#isAsked(recorded, current);
                         published = sequence;
+                        if (isConfirmation) {
+                            recorded = sequence;
+                        }
                         this.#heard = this.#feed.beats;
-                        yield { reset: false, complete: true, changes: [], position: current };
+                        yield {
+                            reset: false,
+                            complete: true,
+                            changes: [],
+                            position: current,
+                            ...(isConfirmation ? { isConfirmation } : {}),
+                        };
                     }
                 }
                 position = { log, epoch, sequence };
 
                 // confirm the position once past the sequence the subscriber asked to confirm
-                if (this.#isAsked(published, position)) {
+                if (this.#isAsked(recorded, position)) {
                     published = sequence;
+                    recorded = sequence;
                     this.#heard = this.#feed.beats;
-                    yield { reset: false, complete: true, changes: [], position };
+                    yield {
+                        reset: false,
+                        complete: true,
+                        changes: [],
+                        position,
+                        isConfirmation: true,
+                    };
                 }
             }
         }
@@ -210,6 +380,32 @@ export class Stream {
         if (!signal.aborted && published < position.sequence) {
             yield { reset: false, complete: true, changes: [], position };
         }
+    }
+
+    /** Move the evaluation to other queries at a position, sending the difference. */
+    async *#reshapeAt(
+        requested: Reshape,
+        position: LogPosition,
+        signal: AbortSignal,
+    ): AsyncGenerator<Page> {
+        // take a separate evaluation, rebuilt at the position when it was shared
+        if (this.#feed.isJoined(this.#evaluation)) {
+            this.#alone();
+            const rebuilt = this.#evaluation.walk(this.#view(position), "rebuild");
+            while ((await rebuilt.next()).done !== true && !signal.aborted) {
+                // rebuild without sending
+            }
+        }
+
+        // send what entered and left at the position
+        const page = await this.#evaluation.reshape(requested.queries);
+        const { parameters } = requested;
+        yield { ...page, complete: true, ...(parameters === undefined ? {} : { parameters }) };
+    }
+
+    /** Show the feed's database as of a position. */
+    #view(position: LogPosition): View {
+        return new View(this.#feed.database, position, this.#feed);
     }
 
     /** Send a snapshot at the latest position and what followed, returning the last sequence. */
@@ -453,4 +649,26 @@ export class Stream {
             (reason: unknown) => ({ status: "rejected", reason }),
         );
     }
+}
+
+/** A subscriber's request a stream follows at its source. */
+export interface StreamRequest {
+    /** The feed of the database recording the request. */
+    readonly feed: Feed;
+    /** The request's key at the source. */
+    readonly key: RequestKey;
+    /** When the caller's session ends the stream, absent in process, in UTC epoch milliseconds. */
+    readonly lapsesAt?: number;
+    /** The parameters the stream starts with. */
+    readonly parameters: JsonObject;
+    /** Compile the queries of a request's parameters. */
+    readonly queries: (parameters: JsonObject) => Promise<Readonly<Record<string, Query>>>;
+}
+
+/** The queries a stream moves to, with the parameters they reflect. */
+interface Reshape {
+    /** The queries. */
+    readonly queries: Readonly<Record<string, Query>>;
+    /** The parameters, absent for a move of the source's own. */
+    readonly parameters?: JsonObject;
 }

@@ -64,6 +64,12 @@ export const Page = schema.object({
     scopes: schema.array(schema.string().min(1)).exactOptional(),
     /** The subjects the source decides the rows for, when it sends them. */
     subjects: schema.array(Subject).exactOptional(),
+    /** The parameters the stream reflects from this page on, sent once they change. */
+    parameters: schema.jsonObject().exactOptional(),
+    /** Whether the page answers the subscriber's ask to confirm a position, which it records. */
+    isConfirmation: schema.literal(true).exactOptional(),
+    /** The home position a relaying source's rows reflect at its head. */
+    origin: LogPosition.exactOptional(),
 });
 /** A page of query rows and aggregates. */
 export type Page = schema.Infer<typeof Page>;

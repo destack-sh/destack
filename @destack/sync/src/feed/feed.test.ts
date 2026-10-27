@@ -133,7 +133,13 @@ test("publish a caught-up stream's position past a commit outside its queries on
     clock.advance(60_000);
     expect({ isQuiet, confirmed, beat: await beat }).toEqual({
         isQuiet: true,
-        confirmed: { reset: false, complete: true, changes: [], position: archived },
+        confirmed: {
+            reset: false,
+            complete: true,
+            changes: [],
+            position: archived,
+            isConfirmation: true,
+        },
         beat: { reset: false, complete: true, changes: [], position: later },
     });
     await pages.return(undefined);

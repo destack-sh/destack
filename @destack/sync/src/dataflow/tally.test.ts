@@ -42,7 +42,7 @@ test("measure a group of many distinct values as its extreme, and read its value
     };
     const pages = feed.subscribe({ query }, undefined, AbortSignal.timeout(5000));
     await until(pages, (page) => page.complete);
-    const dataflow = () => feed.inspect().evaluations[0]?.dataflow;
+    const dataflow = () => feed.inspect().evaluations[0]?.dataflows[0];
 
     // delete a task, listing each run's changes and operations until its page has the new extreme
     const remove = async (rank: number) => {

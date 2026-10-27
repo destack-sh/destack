@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import {
     Key,
     TABLE,
@@ -203,6 +204,12 @@ export class Follower {
         const previous = queries === undefined ? undefined : this.#queries;
         this.#queries = queries ?? this.#queries;
         this.start(previous);
+    }
+
+    /** Move the open stream to other queries. */
+    reshape(queries: Readonly<Record<string, Query>>): void {
+        this.#queries = queries;
+        present(this.#stream, "the follower's stream").reshape(queries);
     }
 
     /** Stop following. */
