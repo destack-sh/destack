@@ -23,8 +23,8 @@ export class Stream {
     readonly #request: StreamRequest | undefined;
     /** The parameters the stream reflects, absent for a stream without a request. */
     #parameters: JsonObject | undefined;
-    /** Aborts once the caller's session lapses. */
-    readonly #lapsed = new AbortController();
+    /** Aborts once the stream must end: its caller's session lapsed or its request failed. */
+    readonly #ended = new AbortController();
     /** Disarms the session's lapse once the stream ends. */
     readonly #disarm = new AbortController();
     /** Who the stream serves. */
@@ -135,7 +135,7 @@ export class Stream {
         drain?: AbortSignal,
     ): AsyncGenerator<Page> {
         // follow the subscriber's request, ending at a completed page once its session lapses
-        drain = AbortSignal.any([...(drain === undefined ? [] : [drain]), this.#lapsed.signal]);
+        drain = AbortSignal.any([...(drain === undefined ? [] : [drain]), this.#ended.signal]);
         const following = new AbortController();
         const requesting = this.#followRequest(AbortSignal.any([signal, following.signal]));
         const lapsesAt = this.#request?.lapsesAt;
@@ -143,7 +143,7 @@ export class Stream {
             const { clock } = this.#feed;
             clock.sleep(lapsesAt - clock.now(), this.#disarm.signal).then(
                 () =>
-                    this.#lapsed.abort(
+                    this.#ended.abort(
                         SyncError.of("CREDENTIAL_LAPSED", "the caller's session lapsed"),
                     ),
                 () => {},
@@ -185,10 +185,10 @@ export class Stream {
                               this.#feed.clock,
                           );
 
-                    // end the request once its credential lapsed, after the completed page it drained to
-                    const lapse = this.#lapsed.signal;
-                    if (lapse.aborted && !signal.aborted) {
-                        throw lapse.reason;
+                    // end the stream once it must, after the completed page it drained to
+                    const ended = this.#ended.signal;
+                    if (ended.aborted && !signal.aborted) {
+                        throw ended.reason;
                     }
 
                     return;
@@ -232,7 +232,11 @@ export class Stream {
             .followRequest(
                 request.key,
                 (row) => {
-                    applying = applying.then(() => this.#applyRequest(request, row));
+                    applying = applying
+                        .then(() => this.#applyRequest(request, row))
+                        .catch((error: unknown) => {
+                            this.#ended.abort(error);
+                        });
                 },
                 signal,
             )
@@ -240,7 +244,7 @@ export class Stream {
             .catch((error: unknown) => {
                 // end the stream with a failure to follow the request
                 if (!signal.aborted) {
-                    this.#lapsed.abort(error);
+                    this.#ended.abort(error);
                 }
             });
     }

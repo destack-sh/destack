@@ -629,12 +629,11 @@ export class Feed implements Cache {
         followed.handlers.add(apply);
         try {
             // read the row now, then hand changes until aborted, watching anew once a watch ends
-            this.#requested ??= this.#watchRequests();
+            this.#watch();
             const [row] = await Subscription.requests(this.database, [key]);
             apply(row);
             while (!signal.aborted) {
-                this.#requested ??= this.#watchRequests();
-                await Promise.race([until(signal), this.#requested]);
+                await Promise.race([until(signal), this.#watch()]);
             }
         } finally {
             // stop the watch once its last follower leaves
@@ -646,6 +645,18 @@ export class Feed implements Cache {
                 this.#requesting?.abort();
             }
         }
+    }
+
+    /** Start the request watch unless one runs, its failure reaching the followers racing it. */
+    #watch(): Promise<void> {
+        // mark a new watch's failure handled, as followers race the watch in turns
+        if (this.#requested === undefined) {
+            const watching = this.#watchRequests();
+            watching.catch(() => {});
+            this.#requested = watching;
+        }
+
+        return this.#requested;
     }
 
     /** Hand each followed request's row after each commit to the subscription table. */
