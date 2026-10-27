@@ -946,15 +946,22 @@ export class Compiler {
         compilation: Compilation,
     ): RelationTarget[] {
         const relation = this.#authorizer.relation(mapping.policy, expression.relation);
+        const declared = mapping.policy.definition.relations[expression.relation]?.subjects ?? [];
 
-        return relation.subjects.map((subject) => {
+        return relation.subjects.flatMap((subject) => {
+            // leave a contributed type stored elsewhere, whose rows relate nothing here
+            const stored = this.#authorizer.mapping(subject);
+            if (stored === undefined && !declared.includes(subject)) {
+                return [];
+            }
+
             // alias the related type's table, and match the rows the caller has the permission on
             const target = this.#authorizer.requireMapping(subject);
             const parent = alias(target.table, `access_parent_${compilation.aliases.next++}`);
             const permission = target.policy.permission(expression.permission);
             const predicate = this.#permitted(permission, target, parent, compilation);
 
-            return { subject, target, parent, predicate };
+            return [{ subject, target, parent, predicate }];
         });
     }
 
@@ -1013,8 +1020,11 @@ export class Compiler {
             )`,
         );
 
-        // read the current relationships of the row through the relation
+        // relate nothing without a related type stored here, else read the row's current relationships through the relation
         const definition = mapping.policy.definition;
+        if (arrows.length === 0) {
+            return sql`false`;
+        }
 
         return sql`EXISTS (
             SELECT 1 FROM ${from(relationship)}
