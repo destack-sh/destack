@@ -36,7 +36,13 @@ import {
 } from "@destack/account/object";
 import { AccessContext, Caller, InstallationId, principal } from "@destack/access";
 import { Snapshot } from "@destack/db";
-import { CallKey, type FeatureReference, ObjectType, PackageMount } from "@destack/object";
+import {
+    CallKey,
+    type FeatureReference,
+    ObjectType,
+    PackageMount,
+    type ProcedureRouter,
+} from "@destack/object";
 import objectPackage from "@destack/object/package";
 import type { Example } from "@destack/package/declare";
 import { Identifier, present, schema } from "@destack/schema";
@@ -687,7 +693,7 @@ export class TestUniverse implements AsyncDisposable {
                 }
                 const { type, handle } = served;
                 const procedure: unknown = Reflect.get(
-                    Reflect.get(person.client(handle), type.name),
+                    Reflect.get(person.client<ProcedureRouter>(handle), type.name),
                     method,
                 );
                 if (typeof procedure !== "function") {

@@ -173,8 +173,8 @@ export class TestMachine implements AsyncDisposable {
                 async *stream(subscription, signal) {
                     yield* await store.stream(subscription, { signal });
                 },
-                confirm: async (subscription, watermark) => {
-                    await store.confirm({ subscription, watermark });
+                request: async (subscription) => {
+                    await store.request({ subscription });
                 },
             }),
             database: storage.database,
