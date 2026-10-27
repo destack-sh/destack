@@ -18,7 +18,7 @@
         "noUncheckedSideEffectImports": true,
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
-        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "lib": ["ES2024", "ESNext.Array", "ESNext.TypedArrays", "ES2025.Collection", "ES2025.RegExp", "ESNext.Disposable", "DOM", "DOM.Iterable"],
         "types": ["@destack/build/browser", "vite/client"],
         "jsx": "preserve",
         "jsxImportSource": "@destack/view"
