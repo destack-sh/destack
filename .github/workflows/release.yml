@@ -38,7 +38,7 @@ jobs:
             check: ${{ steps.release.outputs.check }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
                   fetch-depth: 0
@@ -74,7 +74,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -125,7 +125,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -187,7 +187,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -242,7 +242,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -304,7 +304,7 @@ jobs:
             GH_TOKEN: ${{ github.token }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
                   fetch-depth: 0
@@ -343,7 +343,7 @@ jobs:
                 working-directory: "@platform/release"
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up platform tools
@@ -378,7 +378,7 @@ jobs:
                 working-directory: "@platform/release"
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up platform tools
@@ -410,7 +410,7 @@ jobs:
             cancel-in-progress: false
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -443,7 +443,7 @@ jobs:
             contents: read
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
@@ -469,7 +469,7 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
               with:
                   persist-credentials: false
             - name: Set up Bun
