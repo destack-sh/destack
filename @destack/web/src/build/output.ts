@@ -2,12 +2,13 @@ import type { FileSystem } from "@destack/environment";
 import { join, relative, resolve, sep } from "node:path";
 import { createBuilder, type InlineConfig } from "vite";
 import {
-    HostModules,
     type ExpandedOutput,
+    HostModules,
     type OutputKind,
     type Pass,
     type Plugin,
     runtimeConditions,
+    runtimeTarget,
 } from "@destack/package/build";
 import type { OutputExport, PackageOutput } from "@destack/package/manifest";
 import type { Runtime } from "@destack/package/runtime";
@@ -236,6 +237,8 @@ function builderConfiguration(build: WebBuild): InlineConfig {
         logLevel: "silent",
         define: { "process.env.NODE_ENV": JSON.stringify("production") },
         base: application.base ?? "/",
+        // lower stylesheets to the baseline browsers, from the build's target
+        css: { transformer: "lightningcss" },
         ssr: {
             noExternal: true,
             target: runtime === "workerd" ? "webworker" : "node",
@@ -304,6 +307,7 @@ function environmentPlugins(
                     client: {
                         build: {
                             outDir: join(temporary, "client"),
+                            target: runtimeTarget("browser"),
                             minify,
                             rolldownOptions: {
                                 resolve: { conditionNames: runtimeConditions("browser") },

@@ -3,16 +3,13 @@ import type { Clock, Environment, FileSystem } from "@destack/environment";
 import { createServer, type ServerOptions, type ViteDevServer } from "vite";
 import { loadTransforms, PackageSource } from "@destack/build/local";
 import type { Plugin } from "@destack/package/build";
-import { runtimeConditions } from "@destack/package/build";
+import { cssTargets, runtimeConditions, runtimeTarget } from "@destack/package/build";
 import { PackageLocator } from "@destack/package/locator";
 import { modulePlugin } from "@destack/package/vite";
 import { SolidApplication, VIEW_PACKAGE } from "@destack/view/build";
 import { entryPlugin } from "./entry.ts";
 import { writeMetadata } from "./metadata/index.ts";
 import { requireSite, type WebOptions } from "./output.ts";
-
-/** The browsers development serves syntax for. */
-const BROWSER_TARGETS = ["chrome111", "edge111", "firefox114", "safari16.4"];
 
 /** A local application server on Vite, serving workspace packages from source. */
 export class DevelopmentServer implements AsyncDisposable {
@@ -205,7 +202,9 @@ async function serve(
             entryPlugin(),
         ],
         resolve: { conditions: runtimeConditions("browser", "development") },
-        oxc: { target: BROWSER_TARGETS },
+        // serve the syntax and stylesheets of the baseline browsers, as builds emit them
+        oxc: { target: runtimeTarget("browser") },
+        css: { transformer: "lightningcss", lightningcss: { targets: cssTargets() } },
         ssr: {
             noExternal: true,
             resolve: { conditions: runtimeConditions(runtime, "development") },
