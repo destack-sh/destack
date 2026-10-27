@@ -54,9 +54,7 @@ export class SimulatedClock implements Clock {
 
     /** Read the clock's time. */
     now(): number {
-        return this.#resumedAt === undefined
-            ? this.#time
-            : this.#time + Clock.system.now() - this.#resumedAt;
+        return this.#at(Clock.system.now());
     }
 
     /** Wait some milliseconds from now, rounded up to whole ones, until the clock passes them. */
@@ -244,8 +242,24 @@ export class SimulatedClock implements Clock {
 
     /** Move the clock to a later time, releasing the waits it passes, earliest first. */
     set(time: number): void {
+        this.#move(time, Clock.system.now());
+    }
+
+    /** Move the clock forward some milliseconds, releasing the waits it passes. */
+    advance(milliseconds: number): void {
+        const system = Clock.system.now();
+        this.#move(this.#at(system) + milliseconds, system);
+    }
+
+    /** Read the clock at a reading of the system's clock. */
+    #at(system: number): number {
+        return this.#resumedAt === undefined ? this.#time : this.#time + system - this.#resumedAt;
+    }
+
+    /** Move the clock to a later time at one reading of the system's clock. */
+    #move(time: number, system: number): void {
         // refuse moving back, and a time between whole milliseconds
-        const now = this.now();
+        const now = this.#at(system);
         if (time < now) {
             throw new RangeError(`a simulated clock at ${now} cannot go back to ${time}`);
         } else if (!Number.isInteger(time)) {
@@ -255,14 +269,9 @@ export class SimulatedClock implements Clock {
         // move the reading, keeping a flowing clock flowing
         this.#time = time;
         if (this.#resumedAt !== undefined) {
-            this.#resumedAt = Clock.system.now();
+            this.#resumedAt = system;
         }
         this.#wake();
-    }
-
-    /** Move the clock forward some milliseconds, releasing the waits it passes. */
-    advance(milliseconds: number): void {
-        this.set(this.now() + milliseconds);
     }
 
     /** Run a function once some milliseconds of the clock passed, answering the timer's handle. */
