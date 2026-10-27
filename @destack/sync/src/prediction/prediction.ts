@@ -486,16 +486,44 @@ export class Prediction {
         );
     }
 
-    /** Record the log position of an executed mutation. */
+    /** Record the log position of an executed mutation, settling it once a replica reflects it. */
     async acknowledge(
         database: DatabaseConnection,
         id: string,
         position: LogPosition,
     ): Promise<void> {
-        await database
-            .update(mutation)
-            .set({ log: position.log, epoch: position.epoch, sequence: position.sequence })
-            .where(eq(mutation.id, id));
+        await database.transaction(async (transaction) => {
+            // record the position for a replica's later page to settle
+            await transaction
+                .update(mutation)
+                .set({ log: position.log, epoch: position.epoch, sequence: position.sequence })
+                .where(eq(mutation.id, id));
+
+            // find a replica of the predicted tables whose confirming page arrived first
+            const [predicted] = await transaction
+                .select({ tables: layer.tables })
+                .from(layer)
+                .where(eq(layer.key, id));
+            const tables =
+                predicted === undefined ? [] : LayerTables.parse(JSON.parse(predicted.tables));
+            const reflections = await Replica.reflections(transaction);
+            const reflecting = reflections.find(
+                (reflection) =>
+                    reflection.position.log === position.log &&
+                    reflection.position.epoch === position.epoch &&
+                    reflection.position.sequence >= position.sequence &&
+                    reflection.tables.some((table) => tables.includes(table)),
+            );
+
+            // settle at its position
+            if (reflecting !== undefined) {
+                await transaction.log.asReplica(() => this.revert(transaction));
+                await this.replay(transaction, {
+                    position: reflecting.position,
+                    isSnapshot: false,
+                });
+            }
+        });
     }
 
     /** Record the server's rejection of a mutation. */
@@ -525,9 +553,9 @@ export class Prediction {
 
         // push again what an epoch no replica here follows executed, which the server's journal answers
         if (isSnapshot) {
-            const followed = await Replica.epochs(transaction);
-            const isFollowed = followed.map(({ log, epoch }) =>
-                and(eq(mutation.log, log), eq(mutation.epoch, epoch)),
+            const reflections = await Replica.reflections(transaction);
+            const isFollowed = reflections.map(({ position: home }) =>
+                and(eq(mutation.log, home.log), eq(mutation.epoch, home.epoch)),
             );
             await transaction
                 .update(mutation)

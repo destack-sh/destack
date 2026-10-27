@@ -45,6 +45,7 @@ import type { AggregateGroup } from "../query/aggregate.ts";
 import type { Page } from "../query/page.ts";
 import { Scope } from "../scope/scope.ts";
 import { Simulation } from "@destack/environment/simulation";
+import { until } from "@destack/environment";
 
 /** The source log of the replica scenarios. */
 const LOG = "01996ab0-0000-7000-8000-0000000000aa";
@@ -332,19 +333,21 @@ test("replicate several scopes in one replica recorded elsewhere, storing each s
     controller.abort();
     await following;
 
-    // store both scopes' notes, and find the one record as the replica of each scope with its row in the replica
-    const origins = await Replica.origins(local, "notes", [...scopes, "drafts", "universe"]);
+    // store both scopes' notes, and find the one silent record as the replica of each scope with its row in the replica
+    const silent = await Promise.all(
+        [...scopes, "drafts", "universe"].map((scope) =>
+            Replica.unconfirmed(local, "notes", [scope]),
+        ),
+    );
+    const merged = nth(await Replica.including(local, "inbox"), 0);
+    local.tracker.track(Replica.owner(merged.name, merged.scope));
+    const live = await Replica.unconfirmed(local, "notes", scopes);
     expect([
         arrived,
         (await local.select({ id: note.id }).from(note).orderBy(asc(note.id))).map((row) => row.id),
-        [...origins.keys()].toSorted(),
-        [...origins.values()].map((origin) => origin.position),
-    ]).toEqual([
-        [true, true],
-        ["a", "b"],
-        ["archive", "inbox", "universe"],
-        [head, head, head],
-    ]);
+        silent,
+        live,
+    ]).toEqual([[true, true], ["a", "b"], ["inbox", "archive", undefined, "universe"], undefined]);
 });
 
 test("promote a replica of scope rows so the transaction promoting it finds them copied by no replica", async () => {
@@ -517,7 +520,7 @@ test("follow and wait for each commit of one row in a fixed count of statements,
     controller.abort();
     await following;
 
-    // spend eight statements on each commit, the wait's own read included
+    // spend eight statements on each commit, the wait's own read and the position included
     expect(new Set(costs)).toEqual(new Set([8]));
 });
 
@@ -1637,9 +1640,111 @@ test("resume a subscription from the replica's position, reshape one of other pa
     ]);
 });
 
-test("read when the home last confirmed a replica's rows, absent before its first page, renewed by each later page", async () => {
+test("keep a replica live on its database's tracker while its source is heard within the lag, and end a silent stream to resume", async () => {
     const simulation = new Simulation({ seed: 1, start: 1000 });
     const { clock } = simulation;
+    const local = await openReplica({ simulation });
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    const epoch = "01996ab0-0000-7000-8000-000000000001";
+    const page = (sequence: number): Page => ({
+        reset: sequence === 4,
+        complete: true,
+        changes: [],
+        position: { log: LOG, epoch, sequence },
+    });
+
+    // follow a source that sends a snapshot, then a beat once asked, then nothing, and nothing on resuming
+    const beat = Promise.withResolvers<void>();
+    const controller = new AbortController();
+    let streams = 0;
+    const following = notes.follow(
+        local,
+        async function* (_from, signal) {
+            streams += 1;
+            if (streams === 1) {
+                yield page(4);
+                await beat.promise;
+                yield page(5);
+            }
+            await until(signal);
+        },
+        controller.signal,
+        { synced: () => {}, lag: 30_000 },
+    );
+    const isLive = () => Replica.isLive(local, "notes", "inbox");
+
+    // hear the snapshot, stay live through a beat inside the lag, then go silent past the lag
+    await simulation.run({ until: () => isLive() });
+    const heard = isLive();
+    clock.advance(20_000);
+    beat.resolve();
+    await simulation.run({ to: clock.now() });
+    clock.advance(20_000);
+    await simulation.run({ to: clock.now() });
+    const beaten = isLive();
+    clock.advance(20_000);
+    await simulation.run({ to: clock.now() });
+    const silent = isLive();
+    controller.abort();
+    await following;
+    expect({ heard, beaten, silent, streams, stopped: isLive() }).toEqual({
+        heard: true,
+        beaten: true,
+        silent: false,
+        streams: 2,
+        stopped: false,
+    });
+});
+test("keep a replica live across its follows while its source was heard within the lag, past a follow's stop", async () => {
+    const simulation = new Simulation({ seed: 1, start: 1000 });
+    const { clock } = simulation;
+    const local = await openReplica({ simulation });
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    const epoch = "01996ab0-0000-7000-8000-000000000001";
+    const isLive = () => Replica.isLive(local, "notes", "inbox");
+
+    // follow a source that sends one page, then stop the follow
+    const followOnce = async (sequence: number) => {
+        const controller = new AbortController();
+        const following = notes.follow(
+            local,
+            async function* (_from, signal) {
+                yield {
+                    reset: sequence === 4,
+                    complete: true,
+                    changes: [],
+                    position: { log: LOG, epoch, sequence },
+                };
+                await until(signal);
+            },
+            controller.signal,
+            { synced: () => {}, lag: 30_000 },
+        );
+        await simulation.run({ until: () => isLive() });
+        controller.abort();
+        await following;
+    };
+
+    // stay live past the first follow's stop and through the next follow, then release the lag after the last page
+    await followOnce(4);
+    const stopped = isLive();
+    clock.advance(20_000);
+    await simulation.run({ to: clock.now() });
+    await followOnce(5);
+    clock.advance(20_000);
+    await simulation.run({ to: clock.now() });
+    const continued = isLive();
+    clock.advance(10_000);
+    await simulation.run({ to: clock.now() });
+    expect({ stopped, continued, lapsed: isLive() }).toEqual({
+        stopped: true,
+        continued: true,
+        lapsed: false,
+    });
+});
+
+test("move past bare pages in memory without a statement, and record the position a confirmation answers in one transaction", async () => {
+    const simulation = new Simulation({ seed: 1, start: 1000 });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const subscription = {
@@ -1649,33 +1754,48 @@ test("read when the home last confirmed a replica's rows, absent before its firs
         target: "inbox",
         parameters: { queries: { open: { object: "note" } } },
     };
-    const page = (sequence: number): Page => ({
-        reset: sequence === 4,
+    const epoch = "01996ab0-0000-7000-8000-000000000001";
+    const page = (sequence: number, extra: Partial<Page> = {}): Page => ({
+        reset: false,
         complete: true,
         changes: [],
-        position: { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence },
+        position: { log: LOG, epoch, sequence },
+        ...extra,
     });
-    const apply = (sequence: number) =>
-        Array.fromAsync(
-            notes.apply(local, [page(sequence)], { subscription, audience: "contained" }),
-        );
-    const confirmed = () => Replica.confirmedAt(local, subscription);
 
-    // confirm at the snapshot's time, then renew with a later page
-    await notes.register(local);
-    const registered = await confirmed();
-    await apply(4);
-    const atSnapshot = await confirmed();
-    clock.advance(30_000);
-    await apply(5);
-    expect({ registered, atSnapshot, renewed: await confirmed() }).toEqual({
-        registered: undefined,
-        atSnapshot: 1000,
-        renewed: 31_000,
-    });
+    // snapshot, then take a beat at the same position, one past a commit outside the queries, and a confirmation
+    const costs: number[] = [];
+    const bare: (number | undefined)[] = [];
+    let mark: number | undefined;
+    const measure = () => {
+        if (mark !== undefined) {
+            costs.push(local.driver.state.statements - mark);
+        }
+    };
+    const pages = async function* () {
+        yield page(4, { reset: true });
+        for (const next of [page(4), page(7), page(9, { isConfirmation: true })]) {
+            // close the previous page's window, then read where the replica resumes before the confirmation
+            measure();
+            if (next.isConfirmation === true) {
+                bare.push((await notes.resume(local, subscription)).after?.sequence);
+            }
+            mark = local.driver.state.statements;
+            yield next;
+        }
+    };
+    await Array.fromAsync(notes.apply(local, pages(), { subscription, audience: "contained" }));
+    measure();
+
+    // expect bare pages to cost nothing and leave the snapshot's position, and the confirmation to log its own in a transaction
+    expect({
+        costs,
+        bare,
+        confirmed: (await notes.resume(local, subscription)).after?.sequence,
+    }).toEqual({ costs: [0, 0, 4], bare: [4], confirmed: 9 });
 });
 
-test("read a replica's confirmation for the request it completed a run of, and for a reshaped request only once a run of it completes", async () => {
+test("report a replica current for the request it completed a run of, and for a reshaped request only once a run of it completes", async () => {
     const simulation = new Simulation({ seed: 1, start: START });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
@@ -1690,8 +1810,8 @@ test("read a replica's confirmation for the request it completed a run of, and f
     const position = { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
     const snapshot: Page = { reset: true, complete: true, changes: [], position };
     const current = async () => [
-        (await Replica.confirmedAt(local, subscription)) !== undefined,
-        (await Replica.confirmedAt(local, reshaped)) !== undefined,
+        await Replica.isCurrent(local, subscription),
+        await Replica.isCurrent(local, reshaped),
     ];
 
     // report neither before the first run, then only the completed request
