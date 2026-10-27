@@ -1,4 +1,4 @@
-import { Uuid } from "@destack/schema";
+import { present, Uuid } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { LONGEST_DELAY, Random } from "../src/index.ts";
 import {
@@ -745,6 +745,49 @@ test("answer a drive started inside a run's condition once its work settles, bet
     expect(checks).toEqual([0, 1, 2, 3]);
 });
 
+test("answer a settle started inside a run's condition at the run's time, between the run's timers", async () => {
+    // tick a counter each second, and run until a condition that settles work reads it
+    await using simulation = new Simulation({ seed: 1, start: START });
+    let ticks = 0;
+    simulation.clock.setInterval(() => {
+        ticks += 1;
+    }, 1000);
+    const checks: number[] = [];
+    await simulation.run({
+        until: async () => {
+            const read = await simulation.settle(Promise.resolve(ticks));
+            checks.push(read);
+
+            return read === 3;
+        },
+    });
+
+    // check once after each timer the run moved to
+    expect(checks).toEqual([0, 1, 2, 3]);
+});
+
+test("refuse a settle inside a run's condition waiting on a later time, as a settle outside a run does", async () => {
+    // run until a condition that settles a sleep a second out
+    await using simulation = new Simulation({ seed: 1, start: START, stallTimeout: 50 });
+    const refused = await simulation
+        .run({
+            until: async () => {
+                await simulation.settle(simulation.clock.sleep(1000));
+
+                return true;
+            },
+        })
+        .then(
+            () => "ran",
+            (error: Error) => error.message,
+        );
+
+    // fail the run with the settle's refusal, instead of waiting on the loop the condition blocks
+    expect(refused).toBe(
+        "the promise waits on a later time, its next timer in 1000 ms: advance or jump the simulation",
+    );
+});
+
 test("move time for driven work past the end of a drive started inside it, until every driven work settles", async () => {
     // drive work whose first step drives a short wait before the outer drive begins, then waits longer
     await using simulation = new Simulation({ seed: 1, start: START });
@@ -1022,16 +1065,18 @@ test("give up an aborted request, lose a response cut on its way back, and keep 
 test("fail a streamed response's body once its request aborts, cancelling the listener's stream, as fetch does", async () => {
     // serve a stream that sends one chunk and never ends, noting its cancellation
     await using simulation = new Simulation({ seed: 1, start: START });
-    let cancelled: unknown;
+    let cancelled: Error | undefined;
     simulation.network.server("server").http({
         hostname: "stream.test",
         port: 443,
         fetch: () =>
             new Response(
                 new ReadableStream({
-                    start: (controller) => controller.enqueue(new TextEncoder().encode("first")),
+                    start: (controller) => {
+                        controller.enqueue(new TextEncoder().encode("first"));
+                    },
                     cancel: (reason) => {
-                        cancelled = reason;
+                        cancelled = reason instanceof Error ? reason : undefined;
                     },
                 }),
             ),
@@ -1043,7 +1088,7 @@ test("fail a streamed response's body once its request aborts, cancelling the li
     const response = await simulation.drive(
         network.fetch(new Request("https://stream.test/", { signal: controller.signal })),
     );
-    const reader = response.body!.getReader();
+    const reader = present(response.body, "the streamed body").getReader();
     const first = new TextDecoder().decode((await reader.read()).value);
     controller.abort(new DOMException("stopped", "AbortError"));
     const rest = await reader.read().then(
@@ -1051,7 +1096,7 @@ test("fail a streamed response's body once its request aborts, cancelling the li
         (error: Error) => [error.name, error.message],
     );
 
-    expect({ first, rest, cancelled: (cancelled as Error | undefined)?.name }).toEqual({
+    expect({ first, rest, cancelled: cancelled?.name }).toEqual({
         first: "first",
         rest: ["AbortError", "stopped"],
         cancelled: "AbortError",
@@ -1168,7 +1213,9 @@ test("settle work and the timers due now without moving the clock, refuse work w
         (async () => {
             await simulation.clock.sleep(0);
             await simulation.clock.trackHost(
-                new Promise<void>((resolve) => setTimeout(resolve, 5)),
+                new Promise<void>((resolve) => {
+                    setTimeout(resolve, 5);
+                }),
             );
             await simulation.clock.sleep(0);
 

@@ -221,6 +221,8 @@ export class Simulation {
     readonly #crashListeners = new Set<(node: string) => void>();
     /** The runs and driven work waiting on the loop, each answered once met. */
     readonly #waits: SimulationWait[] = [];
+    /** The conditions the loop reads now, inside which a settle runs at the current time. */
+    #reading = 0;
     /** The loop moving time now, which later runs and drives join, absent while it stands still. */
     #moving: Promise<void> | undefined;
     /** Whether the trace records events. */
@@ -370,13 +372,15 @@ export class Simulation {
 
     /** Await a promise at the current time, or plainly inside a run that moves time. */
     async settle<Value>(promise: Promise<Value>): Promise<Value> {
-        // await the promise inside a run or drive, which alone moves time
-        if (this.#waits.length > 0) {
+        // await the promise inside a run or drive, which alone moves time, unless a condition the loop reads settles it
+        if (this.#waits.length > 0 && this.#reading === 0) {
             return await promise;
         }
 
-        // let a finishing loop stop
-        await this.#moving;
+        // let a finishing loop stop, unless the loop waits on the condition settling the promise
+        if (this.#reading === 0) {
+            await this.#moving;
+        }
 
         // run the promise's turns and the timers due now, never moving time
         const outcome = { isSettled: false };
@@ -511,13 +515,35 @@ export class Simulation {
         }
     }
 
+    /** Read a wait's condition, counting it as read while it runs, and return what it throws. */
+    async #read(
+        until: () => boolean | Promise<boolean>,
+    ): Promise<{ readonly isMet: boolean; readonly error?: unknown }> {
+        this.#reading += 1;
+        try {
+            return { isMet: await until() };
+        } catch (error) {
+            return { isMet: false, error };
+        } finally {
+            this.#reading -= 1;
+        }
+    }
+
+    /** Take an answered wait off the loop's pending waits. */
+    #take(wait: SimulationWait): void {
+        const index = this.#waits.indexOf(wait);
+        if (index >= 0) {
+            this.#waits.splice(index, 1);
+        }
+    }
+
     /** Answer the waits met once the work settled, reporting whether any was. */
     async #answer(next: number | undefined): Promise<boolean> {
-        // check each wait, keeping the ones still unmet
-        const waits = this.#waits.splice(0);
+        // check each wait, which stays pending while its condition runs, so a settle inside it awaits plainly
+        const waits = [...this.#waits];
         const now = this.clock.now();
         let isAnswered = false;
-        for (const wait of waits) {
+        for (const wait of waits.filter((each) => this.#waits.includes(each))) {
             // read whether the wait's time passed with no timer left before it
             const isAtDeadline =
                 wait.deadline !== undefined &&
@@ -526,29 +552,24 @@ export class Simulation {
 
             // read the condition, keeping what it throws for this wait alone
             const { until } = wait;
-            const condition =
-                until === undefined
-                    ? { isMet: false }
-                    : await Promise.resolve()
-                          .then(until)
-                          .then(
-                              (isMet) => ({ isMet }),
-                              (error: unknown) => ({ isMet: false, error }),
-                          );
+            const condition = until === undefined ? { isMet: false } : await this.#read(until);
 
             // fail the wait whose condition threw
             if ("error" in condition) {
+                this.#take(wait);
                 wait.reject(condition.error);
                 isAnswered = true;
             }
             // answer a met condition
             else if (condition.isMet) {
+                this.#take(wait);
                 wait.resolve();
                 isAnswered = true;
             }
             // refuse a condition its deadline passed
             else if (wait.until !== undefined && isAtDeadline) {
                 const waiting = this.clock.flights().join("\n");
+                this.#take(wait);
                 wait.reject(
                     new Error(
                         `the simulation reached its deadline before its condition held, its next timer at ${next ?? "none"}:\n${waiting}`,
@@ -557,12 +578,9 @@ export class Simulation {
             }
             // answer a time once it passed
             else if (wait.until === undefined && isAtDeadline) {
+                this.#take(wait);
                 wait.resolve();
                 isAnswered = true;
-            }
-            // wait for the condition or the deadline
-            else {
-                this.#waits.push(wait);
             }
         }
 
