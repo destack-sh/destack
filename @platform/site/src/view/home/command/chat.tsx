@@ -2,7 +2,7 @@ import { font, motion } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { createEffect, createSignal, For, type JSX, Show } from "@destack/view";
+import { createEffect, createMemo, createSignal, For, type JSX, Show } from "@destack/view";
 import { createTimer } from "@destack/view/primitives/timer";
 
 import { browserStyles } from "../figure/browser";
@@ -109,14 +109,12 @@ export function AgentChat(properties: {
     const isSurface = (kind: "terminal" | "builder") => properties.look.kind === kind;
     const surface = () => (properties.look.kind === "assistant" ? undefined : properties.look);
 
-    // settle the conversation into the new look's type each time the look changes
+    // settle the conversation into the new look's type each time the look's name changes
+    const name = createMemo(() => nameOf(properties.look));
     const [settles, setSettles] = createSignal(0);
-    createEffect(
-        () => nameOf(properties.look),
-        () => {
-            setSettles((count) => count + 1);
-        },
-    );
+    createEffect(name, () => {
+        setSettles((count) => count + 1);
+    });
 
     // send once a message is typed, stop while the assistant works, and rest otherwise
     const send = (): Send =>
