@@ -21,7 +21,7 @@ import {
 } from "@destack/object/workload";
 import { Failure } from "@destack/error";
 import { present, schema } from "@destack/schema";
-import { Replica, RequestId, Scope } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { issuer, origin, residency } from "../declare/setting.ts";
 import { RelayError } from "../error/index.ts";
 import relayPackage from "../package.ts";
@@ -113,14 +113,14 @@ async function serveRoot(
         environment: context.environment,
         synced: async () => {
             // wait until the directory's and the residents' replicas synced
-            const names = [
-                DIRECTORY_FOLLOW.shape.replicaName({ scope: Scope.universe.id }),
-                residents.shape.replicaName({ scope: Scope.universe.id, residency: residencyId }),
-            ];
             const isSynced = async () => {
-                const synced = await Promise.all(
-                    names.map((name) => Replica.isSynced(store.database, name, Scope.universe.id)),
-                );
+                const synced = await Promise.all([
+                    DIRECTORY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id }),
+                    residents.shape.isSynced(store.database, {
+                        scope: Scope.universe.id,
+                        residency: residencyId,
+                    }),
+                ]);
 
                 return synced.every(Boolean);
             };
@@ -164,8 +164,8 @@ async function servePartition(
         ),
         identities: async () => {
             // wait until the replica of the universe's identities synced
-            const name = IDENTITY_FOLLOW.shape.replicaName({ scope: Scope.universe.id });
-            const isSynced = () => Replica.isSynced(store.database, name, Scope.universe.id);
+            const isSynced = () =>
+                IDENTITY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id });
             await store.database.log.until(isSynced, context.signal);
         },
         standing: async () => {

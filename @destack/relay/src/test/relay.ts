@@ -2,7 +2,7 @@ import { AccessContext, Caller } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { machine, Residency } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Environment, type Listener } from "@destack/environment";
 import { Egress, PackageMount } from "@destack/object";
@@ -23,7 +23,14 @@ import { Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { MemoryBuild } from "@destack/package/test";
 import { Identifier, present, schema, Uuid } from "@destack/schema";
-import { Replica, Scope, type Subject, type Uplink } from "@destack/sync";
+import {
+    Replica,
+    Scope,
+    type Subject,
+    Subscription,
+    subscriptionTable,
+    type Uplink,
+} from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
 import type { TestMachine, TestUniverse } from "@destack/universe/test";
 import relayPackage from "../package.ts";
@@ -144,9 +151,9 @@ export class TestRelay implements AsyncDisposable {
                 const followed = { ...subscription, target: Scope.universe.id };
                 yield* await accounts.stream(followed, { signal });
             },
-            confirm: async (subscription, watermark) => {
+            request: async (subscription) => {
                 const followed = { ...subscription, target: Scope.universe.id };
-                await accounts.confirm({ subscription: followed, watermark });
+                await accounts.request({ subscription: followed });
             },
             receive: async (mutation, signer) => {
                 // run the relay's changes at the universe as their signer, as the home's machine sends them
@@ -171,9 +178,6 @@ export class TestRelay implements AsyncDisposable {
                 memories.set(partition, opened);
 
                 return opened;
-            },
-            channel: () => {
-                throw new TypeError("a test relay runs one instance per partition");
             },
         });
 
@@ -385,7 +389,19 @@ export class TestRelay implements AsyncDisposable {
 
     /** Report whether the root's replicas reached the universe's log as of now. */
     async isSettled(): Promise<boolean> {
-        const position = await this.#universe.storage.database.log.position();
+        // ask every stream of the universe's scope to confirm the head, as a waiter does
+        const universe = this.#universe.storage.database;
+        const position = await universe.log.position();
+        const watermark = { scope: Scope.universe.id, ...position };
+        const requests = await universe
+            .select({ caller: subscriptionTable.caller })
+            .from(subscriptionTable)
+            .where(eq(subscriptionTable.scope, Scope.universe.id));
+        for (const caller of new Set(requests.map((request) => request.caller))) {
+            await Subscription.confirm(universe, caller, watermark);
+        }
+
+        // read whether the root's replicas recorded it
         const root = await present(this.#memories.get(undefined), "the root's memory");
 
         return Replica.isAt(root, Scope.universe.id, position);
