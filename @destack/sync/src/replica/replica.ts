@@ -588,9 +588,9 @@ export class Replica {
     }
 
     /** The tables holding replicas' records and the keys they include, by name. */
-    static get recordTables(): readonly string[] {
-        return [...replicaRecordTables, replicaKey].map((table) => table[TABLE].sqlName);
-    }
+    static readonly recordTables: readonly string[] = [...replicaRecordTables, replicaKey].map(
+        (table) => table[TABLE].sqlName,
+    );
 
     /** Wait until a scope's replicas and the required ones reflect its home up to a position. */
     static async wait(
