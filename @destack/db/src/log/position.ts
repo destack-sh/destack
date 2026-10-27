@@ -100,6 +100,15 @@ export const LogPosition = Object.assign(logPositionSchema, {
             ? position.sequence > other.sequence
             : position.epoch > other.epoch;
     },
+
+    /** Report whether two positions name the same place in the same log. */
+    same(position: LogPosition, other: LogPosition): boolean {
+        return (
+            position.log === other.log &&
+            position.epoch === other.epoch &&
+            position.sequence === other.sequence
+        );
+    },
 });
 
 /** The log's head as selection fields: log, epoch, latest sequence and horizon, read once each. */
