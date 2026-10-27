@@ -229,6 +229,10 @@ export function scopeRoute(object: ObjectType): ScopeRoute {
     const scopes: readonly unknown[] = [object.scope].flat();
     if (object.scope === Scope.universe.id) {
         return { prefix: "" };
+    }
+    // refuse one policy as the scope, whose route its type's plural would name but a policy lacks
+    else if (!Array.isArray(object.scope) && single === undefined) {
+        throw new TypeError(`object ${object.name}: list a policy scope, or scope it by its type`);
     } else if (single === undefined || others.length > 0 || scopes.includes(Scope.universe.id)) {
         return { prefix: "", field: "scope" };
     }

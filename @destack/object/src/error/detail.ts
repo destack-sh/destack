@@ -42,6 +42,20 @@ export const GrantRefusal = schema.object({
 /** A grant's refusal of a permission on an object. */
 export type GrantRefusal = schema.Infer<typeof GrantRefusal>;
 
+/** A call waiting for approvals: the permission, the object, and the approvals it needs. */
+export const ApprovalRefusal = schema.object({
+    /** The permission the call needs. */
+    permission: PermissionReference,
+    /** The object the permission applies to. */
+    object: ObjectReference,
+    /** The approvals a change applying the call needs: its delegator's one, or a role's count. */
+    approvals: schema.number().int().positive(),
+    /** The principals to ask: the grant's delegator, or none for a role's count of any holders. */
+    approvers: schema.array(ObjectReference),
+});
+/** A call waiting for approvals. */
+export type ApprovalRefusal = schema.Infer<typeof ApprovalRefusal>;
+
 /** The issues a schema finds in an input or output, each with its message and path. */
 export const Issues = Object.assign(
     schema.object({

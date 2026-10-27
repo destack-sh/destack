@@ -12,6 +12,7 @@ import {
     type ChainOptions,
     type TableMapping,
     Caller,
+    Grant,
     CONTAINED,
     principal,
     Manager,
@@ -89,7 +90,7 @@ import {
     type PushResult,
     type StoreProcedures,
 } from "../replica/replica.ts";
-import { Branch, type BranchEntry, type BranchType } from "../branch/index.ts";
+import { Branch, type BranchEntry, type BranchType, branchType } from "../branch/index.ts";
 import { MethodContext, type ResultsOf, type Run } from "../method/context.ts";
 import { CallSite } from "../method/site.ts";
 import { Limits } from "../method/limits.ts";
@@ -229,8 +230,8 @@ type Prepared =
 
 /** A resolved call with the author it runs as and the calls its expansion ran before it. */
 type Expansion = ReturnType<typeof ObjectType.resolve> & {
-    /** The principal the call records as its caller, the caller's when absent. */
-    readonly as?: Subject;
+    /** The principal and actors the call records as its caller, the caller's when absent. */
+    readonly as?: Pick<Caller, "subject" | "actors">;
     /** The calls the method's expansion ran before it. */
     readonly expansion?: readonly BranchEntry[];
 };
@@ -317,8 +318,8 @@ type CallOptions = {
     readonly writerId?: string;
     /** The request a durable mutation replays under. */
     readonly requestId?: string;
-    /** The principal the call records as its caller, the authorization's when absent. */
-    readonly as?: Subject;
+    /** The principal and actors the call records as its caller, the authorization's when absent. */
+    readonly as?: Pick<Caller, "subject" | "actors">;
     /** The calls the method's expansion ran before it. */
     readonly expansion?: readonly BranchEntry[];
     /** The request the call belongs to. */
@@ -446,8 +447,6 @@ interface StoreComposition {
     readonly isAccessAudited?: boolean;
     /** The environment calls run and controllers reconcile in: its clock and randomness. */
     readonly environment: Environment;
-    /** The scope's branch types, among the objects, whose branches reads can see. */
-    readonly branch?: BranchType;
     /** The providers reconciling the served kinds' resources, if the store reconciles any. */
     readonly provisioned?: ResourceControllerOptions;
 }
@@ -612,7 +611,9 @@ export class ObjectStore {
             import.meta.destack.package,
             options.environment.telemetry,
         );
-        this.branch = options.branch;
+        this.branch = this.objects.some((type) => type.same(branchType.object))
+            ? branchType
+            : undefined;
         this.#report = options.report ?? ((error) => ObjectStore.#rethrow(error));
         this.#provisioned = ObjectStore.#control(this.objects, options.provisioned);
         this.providers = options.provisioned?.providers ?? [];
@@ -1998,10 +1999,10 @@ export class ObjectStore {
                 } catch (error) {
                     throw await this.#conceal(authorization, caller, built.context.target, error);
                 }
-                for (const { author, ...entry } of listed) {
+                for (const { author, actors, ...entry } of listed) {
                     expanded.push({
                         ...this.#resolve(this.#place(entry, scope), true, CallSite.of(caller)),
-                        as: author,
+                        as: { subject: author, actors },
                     });
                 }
                 expanded.push({ ...call, expansion: listed });
@@ -2444,7 +2445,7 @@ export class ObjectStore {
     ): Promise<Authorization> {
         // reuse the scope and caller's authorization while nothing it was resolved from changed
         const { now, authorizations } = options;
-        const key = `${scope} ${Caller.key(caller)}`;
+        const key = `${scope} ${AccessContext.key(caller)}`;
         let authorization = authorizations.get(key);
         if (authorization?.isCurrent !== true) {
             authorization = await this.authorize(
@@ -2844,6 +2845,10 @@ export class ObjectStore {
             view: snapshot ?? transaction,
         };
         const { now } = authorization.access.context;
+        const acting =
+            options.as === undefined
+                ? { ...caller, now }
+                : AccessContext.of(await Grant.chain(transaction.view(), options.as, now), now);
         const context: MethodContext = new MethodContext({
             object,
             name,
@@ -2854,10 +2859,7 @@ export class ObjectStore {
             id: targetId,
             target: undefined,
             prepared: undefined,
-            caller:
-                options.as === undefined
-                    ? { ...caller, now }
-                    : AccessContext.of(Caller.of(options.as), now),
+            caller: acting,
             ...(options.expansion === undefined ? {} : { expansion: options.expansion }),
             ...(options.requestId === undefined ? {} : { requestId: options.requestId }),
             location: execution,
@@ -3593,7 +3595,7 @@ export class ObjectStore {
     ): { readonly composed: ComposedOptions; readonly served: readonly StorePackage[] } {
         // require the machine running any provisioned resources, and one uplink
         const { servers, sandboxes = [], uplink, machine, publisher, server, ...rest } = given;
-        const { policies = [], branch } = rest;
+        const { policies = [] } = rest;
         const implementations = servers.map((each) =>
             ObjectStore.#packageOf(each, each.installation ?? server),
         );
@@ -3638,9 +3640,6 @@ export class ObjectStore {
                     given.database.replicates(type.table),
             );
         const routed = [...routes.values()].map((route) => route.type);
-        if (branch !== undefined && !routed.some((object) => object.same(branch.object))) {
-            throw new TypeError(`no server handles ${branch.object.name}, the branch object`);
-        }
         const follows = served.flatMap((each) => ObjectStore.#follows(each.definition));
         const external = served.flatMap((each) =>
             each.definition.external === undefined ? [] : [each.definition.external],

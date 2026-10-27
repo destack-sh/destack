@@ -174,6 +174,8 @@ const badges: Record<string, StackInputOf<typeof badge>> = {
 };
 ```
 
+## Declaration handlers
+
 A declaration handler names the document collection users declare in, and reads a declared record with fields another row keeps.
 
 ```ts
@@ -197,6 +199,17 @@ const served = stackServer.at(nth(contexts, 0)); // { origin: "base", installati
 
 // a declared or installed one, written by a handler in its call's transaction
 const id = await Installation.install(context, spaceId, { origin: "installed", packageId, name });
+```
+
+## Branches and approvals
+
+A `branch` is a line of calls over a space's main line, and a `changeRequest` makes a call once approved, as roles gate permissions on approvals.
+
+```ts
+await client.branch.push({ scope, requestId, id, calls: [note.call("create", input)] }); // its rows over the main line
+await client.branch.merge({ scope, requestId, id }); // replays the calls as their authors, refused for missing approvals
+await client.changeRequest.create({ scope, requestId, parent, call: merge, approvers: [alice] });
+await client.approval.approve({ ...approval.target(asked), requestId }); // applies the call once enough others approve
 ```
 
 ## Controllers

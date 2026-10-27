@@ -32,6 +32,7 @@ import * as textExports from "../text/index.ts";
 import * as stackExports from "../stack/index.ts";
 import * as installationExports from "../installation/index.ts";
 import * as branchExports from "../branch/index.ts";
+import * as approvalExports from "../approval/index.ts";
 import * as claimExports from "../claim/index.ts";
 import * as hookExports from "../hook/index.ts";
 import * as declareExports from "../declare/index.ts";
@@ -114,6 +115,7 @@ export class ExportIndex {
                 ...textExports,
                 ...stackExports,
                 ...branchExports,
+                ...approvalExports,
                 ...claimExports,
                 ...hookExports,
                 ...declareExports,

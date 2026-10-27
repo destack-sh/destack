@@ -327,12 +327,18 @@ export class Authorization extends access.Authorization {
         }
         await this.#requireGranted(context, id, permission, governing, select);
 
-        // refuse a reader, and hide the object from others
+        // hide the object from others than its readers
         const isReadable =
             object.reading !== undefined &&
             (await this.#permits(context, id, object.reading, execution));
         const denial = ObjectError.of("PERMISSION_DENIED", `permission denied: ${permission.name}`);
-        throw isReadable ? denial : conceal(denial, `${object.name} ${id} not found`);
+        if (!isReadable) {
+            throw conceal(denial, `${object.name} ${id} not found`);
+        }
+
+        // refuse a reader waiting for approvals, else deny it
+        const allows = async (each: Access) => (await select(each)).length > 0;
+        throw (await this.approvalRefusal(permission, target, governing, allows)) ?? denial;
     }
 
     /** Select a call's target where an access has a permission on it. */
@@ -345,6 +351,56 @@ export class Authorization extends access.Authorization {
     ): Promise<readonly Row[]> {
         // read the object through the call's transaction, its writes included, and decide in memory
         return this.#decide(context, id, permission, evaluated, execution);
+    }
+
+    /** Describe the approvals a denied call waits for as its refusal, absent when none lifts it. */
+    async approvalRefusal(
+        permission: Permission,
+        target: ObjectReference,
+        governing: Access,
+        allows: (approved: Access) => Promise<boolean>,
+    ): Promise<Error | undefined> {
+        // wait for the delegator of a grant giving the permission once approved
+        const { scope, id } = target;
+        const isOnApproval =
+            governing.context.grants.length > 0 &&
+            access.GrantPermission.allowsOnApproval(
+                permission,
+                { scope, id },
+                governing.permissions,
+            );
+        if (isOnApproval) {
+            const { subject } = governing.context;
+            const alone = await this.authorizer.resolve(this.snapshot, governing.scope, {
+                ...governing.context,
+                actors: [],
+                grants: [],
+            });
+            if (await allows(alone)) {
+                return ObjectError.of(
+                    "APPROVAL_REQUIRED",
+                    `${permission.name} on ${target.type} ${id} needs the approval of the grant's delegator`,
+                    { data: { permission, object: target, approvals: 1, approvers: [subject] } },
+                );
+            }
+        }
+
+        // wait for the approvals a role gives the permission at
+        const approvals = await this.authorizer.requiredApprovals(
+            this.snapshot,
+            permission,
+            governing,
+            allows,
+        );
+        const counted = approvals === 1 ? "1 approval" : `${approvals} approvals`;
+
+        return approvals === undefined
+            ? undefined
+            : ObjectError.of(
+                  "APPROVAL_REQUIRED",
+                  `${permission.name} on ${target.type} ${id} needs ${counted}`,
+                  { data: { permission, object: target, approvals, approvers: [] } },
+              );
     }
 
     /** Refuse a target the caller's subject may access but its grant does not cover. */
@@ -364,21 +420,17 @@ export class Authorization extends access.Authorization {
         }
         const subject = { ...governing.context, actors: [], grants: [] };
 
-        // ask for approval where the grant gives the permission once approved, else refuse the grant
+        // refuse a grant giving less than its subject has, unless it gives the permission once approved
         const governingScope = this.authorizer.governingScope(object.reference(scope, id));
         const alone = await this.authorizer.resolve(this.snapshot, governingScope, subject);
         const isSubjects = (await select(alone)).length > 0;
         const permissions = governing.permissions;
-        if (
-            isSubjects &&
-            access.GrantPermission.allowsOnApproval(permission, { scope, id }, permissions)
-        ) {
-            throw ObjectError.of(
-                "APPROVAL_REQUIRED",
-                `grant ${grant.id} gives ${permission.name} on ${object.name} ${id} only after approval`,
-                { data: { permission, object: object.reference(scope, id), grant: grant.id } },
-            );
-        } else if (isSubjects) {
+        const isOnApproval = access.GrantPermission.allowsOnApproval(
+            permission,
+            { scope, id },
+            permissions,
+        );
+        if (isSubjects && !isOnApproval) {
             throw ObjectError.of(
                 "GRANT_INSUFFICIENT",
                 `grant ${grant.id} does not give ${permission.name} on ${object.name} ${id}`,

@@ -153,7 +153,9 @@ export class MethodContext<
         this.input = fields.input;
         this.id = fields.id;
         this.target = fields.target;
-        this.caller = fields.caller;
+        // drop the approvers of an applied change, which approved this call and not the calls it makes
+        const { approvers: _approvers, ...caller } = fields.caller;
+        this.caller = caller;
         this.prepared = fields.prepared;
         this.objects = fields.objects;
         this.replicas = fields.replicas;
@@ -526,15 +528,12 @@ export class MethodContext<
                 await transaction.write({ table, before: main ?? null, after });
             }
 
-            // run each call apart as its author's remote call, skipping a refusal for good
-            for (const { author, ...entry } of calls) {
+            // run each call apart as its author's remote call through its actors, skipping a refusal for good
+            for (const { author, actors, ...entry } of calls) {
+                const chain = { subject: author, actors };
+                const caller = await Grant.chain(transaction.view(), chain, this.now);
                 await MethodContext.#attempt(transaction, () =>
-                    this.#run(
-                        AccessContext.of(Caller.of(author), this.now),
-                        entry,
-                        true,
-                        CallSite.client,
-                    ),
+                    this.#run(AccessContext.of(caller, this.now), entry, true, CallSite.client),
                 );
             }
         });

@@ -1,7 +1,14 @@
 import { defineErrorFamily, type FamilyError, type ReasonOf } from "@destack/error";
 import { ValidationError, type SchemaIssue } from "@orpc/contract";
 import { describeIssues } from "./call.ts";
-import { GrantRefusal, Issues, PartitionRoute, RetryAfter, ScopeMove } from "./detail.ts";
+import {
+    ApprovalRefusal,
+    GrantRefusal,
+    Issues,
+    PartitionRoute,
+    RetryAfter,
+    ScopeMove,
+} from "./detail.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The object package's failures, each reason with the call error code it answers. */
@@ -18,6 +25,8 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     EXTERNAL_STORES_SPLIT: { code: "BAD_REQUEST" },
     CLAIM_FOREIGN: { code: "BAD_REQUEST" },
     HOME_UNREACHABLE: { code: "BAD_REQUEST" },
+    QUORUM_UNREACHABLE: { code: "BAD_REQUEST" },
+    SELF_APPROVAL: { code: "BAD_REQUEST" },
     TRASH_INCLUDED: { code: "BAD_REQUEST" },
     CALL_INVALID: { code: "BAD_REQUEST" },
     CONVERSION_INVALID: { code: "BAD_REQUEST" },
@@ -26,6 +35,8 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     PAGE_LIMIT_INVALID: { code: "BAD_REQUEST" },
     TEXT_EDIT_INVALID: { code: "BAD_REQUEST" },
     VERSION_INVALID: { code: "BAD_REQUEST" },
+    APPROVERS_INVALID: { code: "BAD_REQUEST" },
+    APPROVERS_MISSING: { code: "BAD_REQUEST" },
     DESIRED_STATE_MISSING: { code: "BAD_REQUEST" },
     FIELD_MISSING: { code: "BAD_REQUEST" },
     KEY_MISSING: { code: "BAD_REQUEST" },
@@ -73,10 +84,11 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
 
     // forbidden
     ADAPTER_REFUSES_CALLER: { code: "FORBIDDEN" },
-    APPROVAL_REQUIRED: { code: "FORBIDDEN", data: GrantRefusal },
+    APPROVAL_REQUIRED: { code: "FORBIDDEN", data: ApprovalRefusal },
     CALLER_KIND_REFUSED: { code: "FORBIDDEN" },
     CHECK_REFUSED: { code: "FORBIDDEN" },
     CREATOR_KIND_REFUSED: { code: "FORBIDDEN" },
+    DECIDER_REFUSED: { code: "FORBIDDEN" },
     EVENTS_REFUSED: { code: "FORBIDDEN" },
     EXPLAIN_REFUSED: { code: "FORBIDDEN" },
     FIELD_NOT_WRITABLE: { code: "FORBIDDEN" },
@@ -117,6 +129,8 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     // conflict
     ALREADY_DELETED: { code: "CONFLICT" },
     BRANCH_NOT_OPEN: { code: "CONFLICT" },
+    UNMERGED_CALLS: { code: "CONFLICT" },
+    APPROVALS_CHANGED: { code: "CONFLICT" },
     CALL_CONTENTS_DIFFER: { code: "CONFLICT" },
     DUPLICATE: { code: "CONFLICT" },
     ID_TAKEN: { code: "CONFLICT" },

@@ -6,7 +6,7 @@ import {
     type Overlay,
     type Snapshot,
 } from "@destack/db";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, Subject } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { schema, Uuid } from "@destack/schema";
 import * as sync from "@destack/sync";
@@ -23,6 +23,7 @@ const STORED_ENTRY = sync.Call.extend({
     authorType: schema.string(),
     authorScope: schema.string(),
     authorId: schema.string(),
+    actors: schema.array(Subject),
 }).loose();
 
 /** The fields of a branch that its rows depend on. */
@@ -73,6 +74,7 @@ export class Branch {
                 input: entry.input,
                 release: entry.release,
                 author: ObjectReference.at("author", entry),
+                actors: entry.actors,
             }));
     }
 
@@ -105,9 +107,10 @@ export class Branch {
     async append(context: MethodContext, calls: readonly sync.Call[]): Promise<BranchEntry[]> {
         // number the calls after the last one
         const last = (await this.entries()).length;
-        const author = context.caller.subject;
+        const { subject: author, actors } = context.caller;
         for (const [index, entry] of calls.entries()) {
-            await context.mutate(context.caller, [
+            // record the call as the branch's code, the caller and its actors recorded as its author
+            await context.mutate(context.self, [
                 this.types.entry.call("create", {
                     id: `${this.types.entry.identity}-${Uuid.v7(context.environment)}`,
                     parentId: this.id,
@@ -117,11 +120,12 @@ export class Branch {
                     input: entry.input,
                     release: entry.release,
                     ...ObjectReference.columns("author", author),
+                    actors: [...actors],
                 }),
             ]);
         }
 
-        return calls.map((entry) => ({ ...entry, author }));
+        return calls.map((entry) => ({ ...entry, author, actors: [...actors] }));
     }
 
     /** Replay calls over rows and store the rows they change. */
@@ -157,7 +161,7 @@ export class Branch {
             const existing = byName.get(Branch.#named(entry));
             byName.delete(Branch.#named(entry));
             if (existing !== undefined) {
-                await context.mutate(context.caller, [
+                await context.mutate(context.self, [
                     this.types.change.call("update", {
                         id: existing.id,
                         after: entry.after,
@@ -165,7 +169,7 @@ export class Branch {
                     }),
                 ]);
             } else {
-                await context.mutate(context.caller, [
+                await context.mutate(context.self, [
                     this.types.change.call("create", {
                         id: `${this.types.change.identity}-${Uuid.v7(context.environment)}`,
                         parentId: this.id,
@@ -178,7 +182,7 @@ export class Branch {
             }
         }
         for (const entry of byName.values()) {
-            await context.mutate(context.caller, [
+            await context.mutate(context.self, [
                 this.types.change.call("delete", { id: entry.id }),
             ]);
         }
@@ -252,6 +256,7 @@ export class Branch {
                       {
                           ...resolved.object.call(resolved.name, resolved.input),
                           author: entry.author,
+                          actors: entry.actors,
                       },
                   ]
                 : [];

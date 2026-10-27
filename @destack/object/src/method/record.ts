@@ -1285,10 +1285,14 @@ export const RecordMethod = {
             refusal === "open" ||
             (reading !== undefined &&
                 (await authorizer.checkRows(snapshot, reading, access, [row])).permitted.has(0));
-
-        // refuse a reader, and hide the object from others
         const denial = ObjectError.of("PERMISSION_DENIED", `permission denied: ${permission.name}`);
-        throw isReadable ? denial : conceal(denial, `${context.object.name} not found`);
+        if (!isReadable) {
+            throw conceal(denial, `${context.object.name} not found`);
+        }
+
+        // refuse a reader waiting for the approvals a grant or a role asks, else deny it
+        const target = context.object.reference(context.scope, schema.string().parse(row["id"]));
+        throw (await authorization.approvalRefusal(permission, target, access, allows)) ?? denial;
     },
 
     /** Delete an object, or request deletion when a trash or controller finishes it. */
