@@ -62,6 +62,11 @@ export class InstallationBinding<
         this.handle = handle;
     }
 
+    /** Report whether a declaration is an installation binding, typed by its default router. */
+    static override is(declaration: unknown): declaration is InstallationBinding {
+        return declaration instanceof InstallationBinding;
+    }
+
     /** The HTTP connector. */
     override get connectors(): {
         readonly http: Connector<Client<Router, BindingContext>>;

@@ -6,6 +6,7 @@ export {
     QueriesParameters,
     ObjectQuery,
     storeProcedures,
+    STORE_PATHS,
     PushResult,
     type StoreProcedures,
 } from "./replica.ts";

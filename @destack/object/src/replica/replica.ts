@@ -1,4 +1,4 @@
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { Package } from "@destack/package";
 import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
 import { eventIterator } from "../procedure/index.ts";
@@ -291,6 +291,13 @@ export const storeProcedures = {
             }),
         ),
 };
+
+/** The paths of the store procedures, the object APIs any caller reaches without a binding. */
+export const STORE_PATHS: ReadonlySet<string> = new Set(
+    Object.values(storeProcedures).map((procedure) =>
+        present(procedure["~orpc"].route.path, "the path of a store procedure"),
+    ),
+);
 
 /** The procedures a client replica or a database replicating the served one uses. */
 export type StoreProcedures = typeof storeProcedures;
