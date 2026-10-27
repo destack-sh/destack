@@ -165,7 +165,10 @@ export function Ledger(properties: {
                             )}
                         >
                             {properties.isWindow && (
-                                <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                                <span
+                                    aria-hidden="true"
+                                    {...style.attrs(browserStyles.lights, styles.lights)}
+                                />
                             )}
                             <b {...style.attrs(styles.total)}>
                                 <Digits text={properties.total.amount} />
@@ -561,8 +564,12 @@ const styles = style.create({
         alignItems: "center",
         backgroundColor: color.muted,
         display: "flex",
-        gap: "0.75rem",
+        gap: { default: "0.75rem", [media.maxMd]: "0.5rem" },
         paddingInlineStart: "0.875rem",
+    },
+    lights: {
+        // drop the lights where the corner is too narrow for them and the total
+        display: { default: null, [media.maxMd]: "none" },
     },
     headWindow: {
         backgroundColor: color.muted,
