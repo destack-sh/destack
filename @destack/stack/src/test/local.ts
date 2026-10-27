@@ -1,3 +1,4 @@
+import { startSilentTelemetry } from "@destack/telemetry/test";
 import type { Authentication } from "@destack/access";
 import type { Identifier } from "@destack/schema";
 import { Egress, InstallationMount, CallError, VERSION_HEADER } from "@destack/object";
@@ -59,7 +60,7 @@ export class LocalRuntime implements Runtime {
 
     /** Stop an instance after any start in progress, draining its workload. */
     async stop(instanceId: Identifier<"instance">): Promise<void> {
-        await (await this.#registry.stop(instanceId))?.runner.close();
+        await this.#registry.stop(instanceId, (running) => running.runner.close());
     }
 
     /** Report whether an instance's workload runs. */
@@ -118,7 +119,7 @@ export class LocalRuntime implements Runtime {
             .list()
             .find((entry) => entry.spec.installationId === installationId);
         if (running === undefined) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
+            throw CallError.http("SERVICE_UNAVAILABLE", {
                 message: `installation ${installationId} runs no instance here`,
             });
         }
@@ -128,10 +129,13 @@ export class LocalRuntime implements Runtime {
         headers.set("authorization", `Bearer ${running.secret}`);
         headers.set(VERSION_HEADER, running.spec.build.manifest.package.version);
 
-        // call through the egress of the instance's space
+        // call through the egress of the instance's space, on the network its workload runs on
         const egress = this.#egress(running.spec.scope);
+        const { network } = this.#runner(running.spec).environment;
 
-        return fetch(`${Egress.url(egress, address)}${path}`, { ...init, headers });
+        return network.fetch(
+            new Request(`${Egress.url(egress, address)}${path}`, { ...init, headers }),
+        );
     }
 
     /** Start an instance's workload from its start message, identifying its secret. */
@@ -142,6 +146,7 @@ export class LocalRuntime implements Runtime {
             url: InstallationMount.url(RUNNER_ORIGIN, spec.scope, spec.installationId),
             sampling: 1,
             identity: await this.#identity(spec.scope),
+            random: this.#runner(spec).environment.random,
         });
         identify(start.secret);
 
@@ -150,7 +155,7 @@ export class LocalRuntime implements Runtime {
             { ...this.#runner(spec), ephemeral: bunEphemeral },
             start,
             spec.build,
-            async () => ({ shutdown: async () => {} }),
+            startSilentTelemetry,
             (error) => this.#report(error),
         );
 

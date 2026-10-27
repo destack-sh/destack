@@ -14,7 +14,7 @@ export class TestRuntime implements Runtime {
 
     /** Run instances as a server runtime, bun by default. */
     constructor(name: ServerRuntime = "bun", earlier: readonly string[] = []) {
-        // keep the runtime's name and the instances left running
+        // store the runtime's name and the instances left running
         this.name = name;
         this.#earlier = new Set(earlier);
     }

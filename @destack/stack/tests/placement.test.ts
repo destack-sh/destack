@@ -1,190 +1,157 @@
-import { accessRelationship, principal } from "@destack/access";
-import { space } from "@destack/account/object";
-import { databaseProvider, eq, TABLE } from "@destack/db";
+import { MAIN_DATABASE } from "@destack/stack/declare";
+import { eq } from "@destack/db";
 import { Package } from "@destack/package";
+import { PackageStore } from "@destack/build/store";
 import { MemoryBuild } from "@destack/package/test";
-import { Identifier, present, schema } from "@destack/schema";
-import { RequestId, replica, Scope } from "@destack/sync";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
-import {
-    build,
-    database,
-    installation,
-    installationRevision,
-    MAIN_DATABASE,
-} from "../src/object/index.ts";
-import { PlacementController, serveSpace } from "../src/server/index.ts";
+import { Identifier, nth, present, schema } from "@destack/schema";
+import { defineSetting } from "@destack/setting/declare";
+import { describeSetting } from "@destack/setting/inspect";
+import settingPackage from "@destack/setting/package";
+import { RequestId } from "@destack/sync";
+import { expect, test } from "@destack/test";
+import { testSimulation } from "@destack/object/test";
+import { build, database, rollout, installationRevision } from "../src/object/index.ts";
 import stackPackage from "../src/package.ts";
-import {
-    replicateAccount,
-    ids,
-    openUniverse,
-    placeSpace,
-    spaceDatabase,
-    StackFixture,
-    TestSpaceDatabaseHost,
-} from "../src/test/index.ts";
+import { ids, spaceDatabase, TestSpace } from "../src/test/index.ts";
 
 /** The stack package the spaces install. */
 const stacked = Package.parse({ id: ids.stackPackage, name: "@test/stack", version: "2026.9.0" });
 
+/** The color a space's stack sets, which its package declares. */
+const color = defineSetting({
+    name: "color",
+    title: "Color",
+    description: "The space's color.",
+    schema: schema.string(),
+    default: "blue",
+    scope: "space",
+    overrides: [],
+    apply: "immediate",
+});
+
 test("give birth to placed spaces from their replicated rows with main in their own storage, refuse a stack declaring main, and resume a stack left unsubmitted", async () => {
-    // publish a stack without main and one declaring it
-    const fixture = await StackFixture.empty();
-    await replicateAccount(fixture.database);
-    await replicateChain(fixture);
-    const main = {
-        declaration: spaceDatabase.toJSON(),
-        placement: { provider: "postgresql" },
-        retention: "forever",
-        tags: {},
-    };
-    const stackBuild = await MemoryBuild.of(stacked, [
-        {
-            kind: "stack",
-            kindPackageId: stackPackage.id,
-            name: "home",
-            description: { resources: {}, installations: {} },
-        },
-        {
-            kind: "stack",
-            kindPackageId: stackPackage.id,
+    // publish a stack without main and one declaring it, built in a world of its own
+    const { crypto } = testSimulation().environment("test");
+    const main = spaceDatabase.declare({ placement: { provider: "postgresql" } });
+    const stackBuild = await MemoryBuild.of(
+        stacked,
+        [
+            {
+                kind: "stack",
+                kindPackageId: stackPackage.id,
+                name: "home",
+                description: { installations: {} },
+            },
+            {
+                kind: "stack",
+                kindPackageId: stackPackage.id,
+                name: "placed",
+                description: { databases: { main }, installations: {} },
+            },
+        ],
+        crypto,
+    );
+    const manifest = await PackageStore.digest(stackBuild.manifest, crypto);
+    const carrying = (name: string) => ({ package: stacked, manifest, export: name, settings: {} });
+
+    // create a space carrying each stack at the universe, born on the residency's machine
+    const home = await TestSpace.open({ stack: carrying("home"), releases: [stackBuild] });
+    const refused = await TestSpace.refusals(
+        TestSpace.open({
+            world: home,
+            owner: home.owner,
+            account: ids.account,
+            id: Identifier.create("space", home.environment),
             name: "placed",
-            description: { resources: { main }, installations: {} },
-        },
-    ]);
-    const manifest = await fixture.registry.push(stackBuild);
+            stack: carrying("placed"),
+            releases: [stackBuild],
+        }),
+    );
 
-    // place two spaces carrying their stacks, with the rows the machine replicates
-    const home = schema.identifier("space").parse(Identifier.create("space"));
-    const placed = schema.identifier("space").parse(Identifier.create("space"));
-    const now = Date.now();
-    const row = (id: Identifier<"space">, name: string) => ({
-        id,
-        scope: ids.account,
-        name,
-        stack: { package: stacked, manifest, export: name, settings: {} },
-        createdAt: now,
-        updatedAt: now,
-    });
-    const opened = await openUniverse();
-    await fixture.database.insert(space.table).values([row(home, "home"), row(placed, "placed")]);
-    for (const spaceId of [home, placed]) {
-        await placeSpace(fixture.database, spaceId);
-    }
+    // forget the home's submission as a crash before it would, and give birth to it again
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(rollout.table)
+                .set({ revisionId: null, spaceStack: null })
+                .where(eq(rollout.table.scope, home.id)),
+    );
+    const born = await home.serve();
+    await born[Symbol.asyncDispose]();
 
-    // serve the machine giving birth to the spaces
-    const directory = await mkdtemp(join(tmpdir(), "destack-placement-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
-    const host = new TestSpaceDatabaseHost(pathToFileURL(`${directory}/`));
-    const place = async (spaceId: Identifier<"space">) => {
-        // receive the space through its own store, as each space's workload does
-        const options = await fixture.options({
-            ...opened,
-            principal: principal.space.reference(Scope.universe.id, spaceId),
-            providers: [databaseProvider(host, database)],
-        });
-        const { store } = serveSpace(options);
-        const controller = new PlacementController(store, ids.cloud, options);
-
-        return controller.reconcile(spaceId);
-    };
-
-    // give birth to the spaces, refusing the stack declaring main, then forget the home's submission as a crash before it would
-    await place(home);
-    const refused = await refusal(place(placed));
-    await fixture.database
-        .update(installation.table)
-        .set({ revisionId: null, spaceStack: null })
-        .where(eq(installation.table.scope, home));
-    await place(home);
-
-    // read each space's main placement and its stack installation
-    const mains = await fixture.database
-        .select({ scope: database.table.scope, placement: database.table.placement })
+    // read the home's main placement and its stack installation
+    const mains = await home.database
+        .select({ placement: database.table.placement })
         .from(database.table)
         .where(eq(database.table.name, MAIN_DATABASE));
-    const stacks = await fixture.database
-        .select({ scope: installation.table.scope, revisionId: installation.table.revisionId })
-        .from(installation.table)
-        .where(eq(installation.table.role, "stack"));
-
+    const stacks = await home.database
+        .select({ scope: rollout.table.scope, revisionId: rollout.table.revisionId })
+        .from(rollout.table)
+        .where(eq(rollout.table.kind, "stack"));
     expect({
         mains: mains.map((entry) => entry.placement),
         stacks: stacks.map((entry) => [entry.scope, entry.revisionId !== null]),
         refused,
     }).toEqual({
-        // keep main in each space's own storage
-        mains: [{ provider: "space" }, { provider: "space" }],
-        // install the home's stack once, submitting it again after the crash, and refuse the other's
-        stacks: [[home, true]],
-        refused: ["INVALID_DEFINITION", "stack placed declares main, the database every space has"],
+        // store main in the space's own storage
+        mains: [{ provider: "space" }],
+        // install the home's stack once, submitting it again after the crash
+        stacks: [[home.id, true]],
+        // refuse the stack declaring main
+        refused: [
+            [
+                "BAD_REQUEST",
+                "DEFINITION_INVALID",
+                "stack placed declares main, but every space already has it",
+            ],
+        ],
     });
 });
 
-test("keep a person's own apply of a placed space's stack, and submit the space's stack again once it changes, once only", async () => {
-    // publish two builds of the stack
-    const fixture = await StackFixture.empty();
-    await replicateAccount(fixture.database);
-    await replicateChain(fixture);
-    const declaring = (title: string) =>
-        MemoryBuild.of(stacked, [
-            {
-                kind: "stack",
-                kindPackageId: stackPackage.id,
-                name: "home",
-                description: { resources: {}, installations: {}, title },
-            },
-        ]);
-    const first = await fixture.registry.push(await declaring("first"));
-    const second = await fixture.registry.push(await declaring("second"));
-
-    // place a home carrying the first build
-    const home = schema.identifier("space").parse(Identifier.create("space"));
-    const now = Date.now();
+test("retain a person's own apply of a placed space's stack, and submit the space's stack again once it changes, once only", async () => {
+    // publish two builds of the stack declaring its color, the second exporting one more, and create a space carrying the first
+    const { crypto } = testSimulation().environment("test");
+    const declaring = (names: readonly string[]) =>
+        MemoryBuild.of(
+            stacked,
+            [
+                {
+                    kind: "setting",
+                    kindPackageId: settingPackage.id,
+                    name: color.name,
+                    // declare it as the stack package's own
+                    description: { ...describeSetting(color), package: stacked },
+                },
+                ...names.map((name) => ({
+                    kind: "stack",
+                    kindPackageId: stackPackage.id,
+                    name,
+                    description: { installations: {} },
+                })),
+            ],
+            crypto,
+        );
+    const builds = [await declaring(["home"]), await declaring(["home", "studio"])];
+    const first = await PackageStore.digest(nth(builds, 0).manifest, crypto);
+    const second = await PackageStore.digest(nth(builds, 1).manifest, crypto);
     const carried = { package: stacked, manifest: first, export: "home", settings: {} };
-    await fixture.database.insert(space.table).values({
-        id: home,
-        scope: ids.account,
-        name: "home",
-        stack: carried,
-        createdAt: now,
-        updatedAt: now,
-    });
-    await placeSpace(fixture.database, home);
+    const fixture = await TestSpace.open({ stack: carried, releases: builds });
 
-    // serve the machine giving birth to the home through its own store
-    const opened = await openUniverse();
-    const directory = await mkdtemp(join(tmpdir(), "destack-placement-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
-    const host = new TestSpaceDatabaseHost(pathToFileURL(`${directory}/`));
-    const options = await fixture.options({
-        ...opened,
-        principal: principal.space.reference(Scope.universe.id, home),
-        providers: [databaseProvider(host, database)],
-    });
-    const { store } = serveSpace(options);
-    const controller = new PlacementController(store, ids.cloud, options);
+    // serve the space, its machine's placement submitting its stack
+    const served = await fixture.serve();
 
-    // give birth to the home
-    await controller.reconcile(home);
-
-    // read the home's stack installation and the revision it follows
+    // read the space's stack installation and the revision it follows
     const stack = async () => {
         const [row] = await fixture.database
-            .select({ installed: installation.table, revision: installationRevision.table })
-            .from(installation.table)
+            .select({ installed: rollout.table, revision: installationRevision.table })
+            .from(rollout.table)
             .innerJoin(
                 installationRevision.table,
-                eq(installationRevision.table.id, installation.table.revisionId),
+                eq(installationRevision.table.id, rollout.table.revisionId),
             )
-            .where(eq(installation.table.scope, home));
+            .where(eq(rollout.table.scope, fixture.id));
 
-        return present(row, "the home's stack");
+        return present(row, "the space's stack");
     };
 
     // read the manifest of a pulled release build, or mark a compiled one
@@ -198,81 +165,70 @@ test("keep a person's own apply of a placed space's stack, and submit the space'
         return found.source.kind === "release" ? found.manifest : "build";
     };
 
-    // read the build and settings the home's stack follows after each reconcile
-    const color = `${ids.stackPackage}/color`;
+    // read the build and settings the space's stack follows once the space settles
+    const colorKey = `${ids.stackPackage}/${color.name}`;
     const followed = async () => {
-        await controller.reconcile(home);
+        await fixture.settle(served);
         const { revision } = await stack();
 
         return {
             manifest: await pulledManifest(revision.buildId),
             settings: present(revision.definition, "the definition")["settings"],
-            listed: await controller.list(),
         };
     };
 
-    // apply the second build as the person does, without the space's stack
+    // apply the second build as the space's owner does, without the space's stack
     const apply = async () => {
         const { installed, revision } = await stack();
-        const evaluation = { export: "home", parameters: {} };
-        const definition = present(revision.definition, "the definition");
-        await store.mutate(store.serving(installation), {
-            id: RequestId.create(Date.now()),
-            calls: [
-                installation.call("submit", {
-                    ...installation.target(installed),
-                    selection: { kind: "release", version: stacked.version },
-                    build: { kind: "release", version: stacked.version, manifest: second },
-                    evaluation: { ...evaluation, definition },
-                }),
-            ],
+        const owner = served.as(fixture.owner.subject).client(stackPackage);
+        await owner.rollout.submit({
+            spaceId: fixture.id,
+            id: installed.id,
+            requestId: RequestId.create(fixture.machine.environment),
+            selection: { kind: "release", version: stacked.version },
+            build: { kind: "release", version: stacked.version, manifest: second },
+            evaluation: {
+                export: "home",
+                parameters: {},
+                definition: present(revision.definition, "the definition"),
+            },
         });
     };
-    const move = (moved: typeof carried) =>
-        fixture.database.update(space.table).set({ stack: moved }).where(eq(space.table.id, home));
+
+    // move the space's stack to a setting value as the platform does
+    const move = () =>
+        fixture.universe.upgrade(
+            { accountId: ids.account, id: fixture.id },
+            { ...carried, settings: { [colorKey]: "teal" } },
+        );
 
     // follow the first build, apply the second, then move the space's stack to a setting value
     const steps = [await followed()];
     await apply();
     steps.push(await followed());
-    await move({ ...carried, settings: { [color]: "teal" } });
-    const listed = await controller.list();
+    await move();
     steps.push(await followed());
     steps.push(await followed());
     const revisions = await fixture.database
         .select({ id: installationRevision.table.id })
-        .from(installationRevision.table);
+        .from(installationRevision.table)
+        .where(eq(installationRevision.table.scope, fixture.id));
 
     const placed = {
-        [color]: {
-            setting: { packageId: ids.stackPackage, name: "color" },
-            mode: "set",
-            value: "teal",
-        },
+        [colorKey]: { packageId: ids.stackPackage, name: color.name, mode: "set", value: "teal" },
     };
-    expect({ steps, listed, revisions: revisions.length }).toEqual({
+    expect({ steps, revisions: revisions.length }).toEqual({
         steps: [
             // follow the space's first build
-            { manifest: first, settings: {}, listed: [] },
-            // keep the person's apply of the second build
-            { manifest: second, settings: {}, listed: [] },
+            { manifest: first, settings: {} },
+            // retain the owner's apply of the second build
+            { manifest: second, settings: {} },
             // submit the space's stack again once it places a setting value
-            { manifest: first, settings: placed, listed: [] },
-            // keep the revision of an unchanged stack
-            { manifest: first, settings: placed, listed: [] },
+            { manifest: first, settings: placed },
+            // retain the revision of an unchanged stack
+            { manifest: first, settings: placed },
         ],
-        // list the home while its stack changed since its last submission
-        listed: [home],
         // record one revision per submission
         revisions: 3,
     });
 });
-
-/** Record the account's access as a replica, as the machine's chain replica keeps it. */
-async function replicateChain(fixture: StackFixture): Promise<void> {
-    await fixture.database.insert(replica).values({
-        name: `chain:${ids.account}`,
-        scope: ids.account,
-        tables: [accessRelationship[TABLE].sqlName],
-    });
-}

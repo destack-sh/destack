@@ -1,158 +1,126 @@
-import { STACKS } from "@destack/account/test";
-import { expect, onTestFinished, test } from "@destack/test";
-import {
-    AccessContext,
-    Authentication,
-    CHAIN_PUBLICATION,
-    Authorization,
-    Authorizer,
-    Caller,
-    principal,
-} from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
-import { Account, account, user, space } from "@destack/account/object";
-import { type DatabaseConnection, TABLE } from "@destack/db";
-import { ResourceContext } from "@destack/resource/context";
-import { present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
-import { Health, Server, ObjectSink } from "@destack/object/server";
-import {
-    type ObjectTypeReference,
-    type Page,
-    replica,
-    replicaPosition,
-    Subject,
-} from "@destack/sync";
-import { createClient } from "@destack/object/client";
+import accountPackage from "@destack/account/package";
+import { CHAIN_PUBLICATION, principal } from "@destack/access";
+import { user } from "@destack/account/object";
+import { TABLE } from "@destack/db";
+import { ObjectSink } from "@destack/object/server";
+import { Identifier, schema } from "@destack/schema";
+import { type ObjectTypeReference, type Page, RequestId, type Subject } from "@destack/sync";
+import { expect, refusal, test } from "@destack/test";
 import stackPackage from "../src/package.ts";
-import * as accountObject from "@destack/account/object";
-import { installation } from "../src/object/index.ts";
-import { serveSpace } from "../src/server/index.ts";
-import { ids, StackFixture } from "../src/test/index.ts";
-import { Clock } from "@destack/environment";
-
-/** The space's notes installation. */
-const notes = principal.installation.reference(ids.space, ids.notes);
-
-/** An installation of another space. */
-const other = principal.installation.reference(
-    "space-01996ab0-0000-7000-8000-000000000009",
-    "installation-01996ab0-0000-7000-8000-000000000006",
-);
-
-/** The person writing through the replicas. */
-const alice = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-000000000008");
+import { ids, TestSpace } from "../src/test/index.ts";
 
 test("relay the access deciding a space's objects to each of its installations alone", async () => {
-    // keep and serve the space below its account
-    const { snapshot } = await serveInstallation();
+    // serve the space below its account with an installation, next to another space of the account
+    const { snapshot, notes, other } = await serveInstallation();
 
-    // relay the space's own access and the account's replica to the installation
-    expect(located(await snapshot(notes, ids.space))).toEqual([
-        ["destack__access__relationship", ids.space],
+    // relay the space's row, its base roles and bindings, and the permissions on the build and space
+    const base = ["object", "setting", "stack", "workflow"].map((name) => `base:@destack/${name}`);
+    expect(described(await snapshot(notes, ids.space))).toEqual([
+        ...base.map((name) => ["destack__access__relationship", `${name} space`]),
+        ...["cancel", "create", "push", "read", "record"].map((name) => [
+            "destack__access__role_permission",
+            `base:@destack/stack build.${name}`,
+        ]),
+        // include every unreserved permission of the space type the stack serves
+        ...[
+            "analyze",
+            "comment",
+            "control",
+            "create",
+            "delete",
+            "list",
+            "manage",
+            "member",
+            "observe",
+            "read",
+            "rotate",
+            "unmask",
+            "update",
+            "write",
+        ].map((name) => ["destack__access__role_permission", `base:@destack/stack space.${name}`]),
+        ...base.map((name) => ["destack__access__role", name]),
         ["destack__sync__scope", ids.space],
     ]);
     expect(located(await snapshot(notes, ids.account))).toEqual([
+        ["destack__access__relationship", ids.account],
         ["destack__sync__replica_position", ids.account],
         ["destack__sync__scope", ids.account],
     ]);
 
     // refuse another space's installation and a scope outside the space's chain
-    await expect(snapshot(other, ids.space)).rejects.toEqual(
-        new CallError("FORBIDDEN", {
-            defined: true,
-            message: `only ${ids.space} and its contents can follow the replicas held for it`,
-        }),
-    );
-    await expect(snapshot(notes, "account-elsewhere")).rejects.toEqual(
-        new CallError("NOT_FOUND", {
-            defined: true,
-            message: `account-elsewhere does not contain ${ids.space}`,
-        }),
-    );
+    expect(await refusal(snapshot(other, ids.space))).toEqual([
+        "FORBIDDEN",
+        "FOLLOWER_OUTSIDE_TARGET",
+        `only ${ids.space} and its contents can follow its replicas`,
+    ]);
+    expect(await refusal(snapshot(notes, "account-elsewhere"))).toEqual([
+        "NOT_FOUND",
+        "SCOPE_NOT_CONTAINED",
+        `account-elsewhere does not contain ${ids.space}`,
+    ]);
 });
 
 test("relay the user enclosing a space to the space's installation, concealing its guarded fields", async () => {
-    // keep and serve the space below an account of alice's user scope with her replicated user row
-    const { database, snapshot } = await serveInstallation();
-    const now = Date.now();
-    const key = { name: ObjectSink.chainName(ids.space), scope: alice };
-    await database.insert(replica).values({ ...key, tables: [] });
-    await database.insert(replicaPosition).values({
-        ...key,
-        log: "log-global",
-        epoch: "epoch-global",
-        sequence: 812,
-        confirmedAt: now,
-    });
-    await database.insert(user.table).values({
-        id: alice,
-        scope: "universe",
-        name: "alice",
-        email: "alice@example.com",
-        timeZone: "Europe/Vienna",
-        locale: "de-AT",
-        homeId: Account.home(Account.personal(alice)),
-        createdAt: now,
-        updatedAt: now,
-    });
+    // serve the space below an account of its owner's user scope, the owner's user row replicated
+    const { fixture, snapshot, notes } = await serveInstallation();
+    const owner = fixture.owner.id;
 
     // relay her user row to the installation inside her scope
-    const changes = await snapshot(notes, alice, user.typeReference);
+    const changes = await snapshot(notes, owner, user.typeReference);
     expect(
         changes.flatMap((change) =>
             change.table === user.table[TABLE].sqlName
                 ? [[change.row["id"], change.concealed]]
                 : [],
         ),
-    ).toEqual([
-        [alice, ["email", "emailVerified", "login", "timeZone", "twoFactorEnabled", "suspendedAt"]],
-    ]);
+    ).toEqual([[owner, ["email", "emailVerified", "login", "timeZone", "suspendedAt"]]]);
 });
 
-/** Keep a space with one installation below alice's account's replicas, served to installations. */
+/** Serve a space with one installation below its account, next to another space of the account. */
 async function serveInstallation() {
-    // keep the space with one installation in the machine's database below the replicated scopes of alice and her account
-    const machine = await StackFixture.empty();
-    const { database } = machine;
-    await createSpace(database);
-
-    // serve the space as the request's installation at once, its replicas written by the fixture
-    const options = await machine.options();
-    const [served] = serveSpace(options).packages;
-    const { ready: _ready, ...implementation } = present(served, "the stack package");
-    const server = Server.start({
-        clock: Clock.system,
-        ...implementation,
-        resources: new ResourceContext(),
-        health: new Health("space"),
-        authenticate: async (request) => authenticate(request),
-        authorizeMachine: async () => {},
-        drainTimeout: 1000,
+    // install notes in the space as its owner, and create the account's other space at the universe
+    const fixture = await TestSpace.open();
+    const served = await fixture.serve();
+    const owner = served.as(fixture.owner.subject).client(stackPackage);
+    const installed = await owner.rollout.create({
+        spaceId: ids.space,
+        requestId: RequestId.create(fixture.machine.environment),
+        packageId: ids.package,
+        kind: "package",
+        selection: { kind: "release", version: "2026.9.0" },
+        name: "notes",
     });
-    onTestFinished(() => server.close());
-    const client = (as: Subject) =>
-        createClient(stackPackage, {
-            url: "http://space.test",
-            headers: { "x-installation": Subject.key(as) },
-            fetch: (request) => server.fetch(request),
-        });
+    const otherSpace = Identifier.create("space", fixture.environment);
+    await fixture.owner.client(accountPackage).space.create({
+        accountId: ids.account,
+        id: otherSpace,
+        requestId: RequestId.create(fixture.machine.environment),
+        name: "other",
+    });
+    const notes = principal.installation.reference(ids.space, installed.id);
+    const other = principal.installation.reference(
+        otherSpace,
+        Identifier.create("installation", fixture.environment),
+    );
 
     // read the snapshot of one scope's chain replica, with a type it hands down, as an installation with each row's scope
     const snapshot = async (as: Subject, scope: string, type?: ObjectTypeReference) => {
-        const pages = await client(as).store.stream({
-            name: ObjectSink.chainName(ids.space),
-            scope,
-            target: ids.space,
-            publication: CHAIN_PUBLICATION,
-            parameters: {
-                scopes: [ids.space],
-                local: [],
-                types: type === undefined ? [] : [{ ...type }],
-                via: [],
-                between: [],
-            },
-        });
+        const pages = await served
+            .as(as)
+            .client(stackPackage)
+            .store.stream({
+                name: ObjectSink.chainName(ids.space),
+                scope,
+                target: ids.space,
+                publication: CHAIN_PUBLICATION,
+                parameters: {
+                    scopes: [ids.space],
+                    local: [],
+                    types: type === undefined ? [] : [{ ...type }],
+                    via: [],
+                    between: [],
+                },
+            });
         const changes: Page["changes"][number][] = [];
         for await (const page of pages) {
             changes.push(...page.changes);
@@ -164,75 +132,35 @@ async function serveInstallation() {
         return changes;
     };
 
-    return { database, snapshot };
+    return { fixture, snapshot, notes, other };
 }
 
-/** Record the space with the notes installation below alice and her account's replicated scopes. */
-async function createSpace(database: DatabaseConnection): Promise<void> {
-    // replicate the scopes of alice and her account with the space's chain replica
-    const now = Date.now();
-    const access = new AccessFixture(database);
-    await access.replicateScope(user.reference("universe", alice));
-    await access.replicateScope(account.reference(alice, ids.account));
-    const key = { name: ObjectSink.chainName(ids.space), scope: ids.account };
-    await database.insert(replica).values({ ...key, tables: [] });
-    await database.insert(replicaPosition).values({
-        ...key,
-        log: "log-global",
-        epoch: "epoch-global",
-        sequence: 812,
-        confirmedAt: now,
-    });
-
-    // record the space owned by owner
-    await database.insert(space.table).values({
-        id: ids.space,
-        scope: ids.account,
-        name: "personal",
-        stack: STACKS.space,
-        createdAt: now,
-        updatedAt: now,
-    });
-    const owner = principal.user.reference("universe", ids.owner);
-    await Authorization.run(
-        new Authorizer([accountObject.space.policy], [accountObject.space.mapping]),
-        database,
-        () => AccessContext.of(Caller.of(owner), now),
-        (authorization) =>
-            authorization.create(accountObject.space.reference(ids.account, ids.space), {
-                owner,
-            }),
+/** Describe each relayed access row by its table and its role, permission or binding. */
+function described(changes: Page["changes"]): [string, string][] {
+    // name each role by its identifier
+    const roles = new Map(
+        changes
+            .filter((change) => change.table === "destack__access__role")
+            .map((change) => [change.row["id"], schema.string().parse(change.row["name"])]),
     );
+    const roleOf = (row: Page["changes"][number]["row"]) => roles.get(row["roleId"]) ?? "";
 
-    // install notes
-    await database.insert(installation.table).values({
-        id: ids.notes,
-        scope: ids.space,
-        packageId: ids.package,
-        role: "application",
-        name: "notes",
-        selection: { kind: "release", version: "2026.9.0" },
-        createdAt: now,
-        updatedAt: now,
-    });
-}
+    // label each row
+    return changes
+        .map((change): [string, string] => {
+            const { row } = change;
+            const label =
+                change.table === "destack__access__role"
+                    ? (roles.get(row["id"]) ?? "")
+                    : change.table === "destack__access__role_permission"
+                      ? `${roleOf(row)} ${schema.string().parse(row["type"])}.${schema.string().parse(row["name"])}`
+                      : change.table === "destack__access__relationship"
+                        ? `${roleOf(row)} ${schema.string().parse(row["objectType"])}`
+                        : schema.string().parse(row["scope"]);
 
-/** Authenticate a request as the installation its x-installation header names. */
-function authenticate(request: Request): Authentication {
-    const subject = Subject.read(
-        present(request.headers.get("x-installation"), "the x-installation header"),
-    );
-
-    return {
-        caller: Caller.of(subject),
-        credential: {
-            kind: "fixture",
-            id: "fixture-1",
-            audience: stackPackage.id,
-            verifiedAt: Date.now(),
-            expiresAt: Date.now() + 60_000,
-        },
-    };
+            return [change.table, label];
+        })
+        .toSorted((left, right) => left.join().localeCompare(right.join()));
 }
 
 /** List each change's table and scope in order. */

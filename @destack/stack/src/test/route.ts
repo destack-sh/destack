@@ -1,219 +1,294 @@
-import { account, hostname, space } from "@destack/account/object";
-import { Scope } from "@destack/sync";
-import { type DatabaseConnection, type Dialect, Snapshot } from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
-import { Manager } from "@destack/access";
-import { type ClaimHome, Stack } from "@destack/object/server";
-import { nth, Identifier, type JsonObject } from "@destack/schema";
-import { installation } from "../object/index.ts";
-import { type ObjectType, Claim, Claimant, ClaimLookup, claimTable } from "@destack/object";
-import { STACKS, TestDirectory } from "@destack/account/test";
-import type { ObjectStore } from "@destack/object/server";
-import { serveSpace } from "../server/index.ts";
-import { StackFixture } from "./fixture.ts";
-import { accountDatabase } from "@destack/account/stack";
-import type {} from "@destack/package/import-meta";
-import { Clock } from "@destack/environment";
+import accountPackage from "@destack/account/package";
+import { TestDns } from "@destack/account/test";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { Simulation } from "@destack/environment/simulation";
+import { ClaimLookup, claimTable } from "@destack/object";
+import type { StackInput } from "../declare/stack.ts";
+import type { TestObjectStore } from "@destack/object/test";
+import { found, type Identifier, nth, present, schema } from "@destack/schema";
+import { RequestId } from "@destack/sync";
+import { fixtureBuild } from "./build.ts";
+import { type FixtureOptions, ids, TestSpace, type HostedSpace } from "./fixture.ts";
 
-/** The package declaring the fixture's stacks and installations. */
-const PACKAGE_ID = import.meta.destack.package.id;
+/** The resolver the universe reads DNS over HTTPS from, Cloudflare's. */
+const RESOLVER = "cloudflare-dns.com";
 
-/** Two spaces of an account and one of another. */
+/** The port HTTPS serves at. */
+const HTTPS_PORT = 443;
+
+/** The DNS response code of an answered lookup (RFC 1035 4.1.1). */
+const NO_ERROR = 0;
+
+/** The resource record type of TXT records (RFC 1035 3.2.2). */
+const TXT = 16;
+
+/** The domain each account verifies before serving hostnames below it, by account position. */
+const DOMAINS = ["example.com", "example.net"] as const;
+
+/** The account of the third space. */
+const OTHER_ACCOUNT = schema
+    .identifier("account")
+    .parse("account-01996ab0-0000-7000-8000-0000000000c1");
+
+/** The spaces the world hosts: two of the fixture's account and one of the other account. */
+const SPACES: readonly HostedSpace[] = [
+    { id: ids.space, account: ids.account, name: "space" },
+    {
+        id: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000c2"),
+        account: ids.account,
+        name: "second",
+    },
+    {
+        id: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000c3"),
+        account: OTHER_ACCOUNT,
+        name: "rival",
+    },
+];
+
+/** What the route world's copies share: each space's installation and each account's hostname. */
+const RouteWorld = schema.object({
+    /** The installation serving notes in each space. */
+    installations: schema.array(
+        schema.object({
+            spaceId: schema.identifier("space"),
+            id: schema.identifier("installation"),
+        }),
+    ),
+    /** The hostname the owner created for each account. */
+    hostnames: schema.array(
+        schema.object({
+            accountId: schema.identifier("account"),
+            id: schema.identifier("hostname"),
+            name: schema.string(),
+        }),
+    ),
+});
+
+/** What the route world's copies share. */
+type RouteWorld = schema.Infer<typeof RouteWorld>;
+
+/** The template of the route world, which the run writes once and every route test copies. */
+export const ROUTE_TEMPLATE = TestSpace.template(
+    {},
+    {
+        name: "route",
+        value: RouteWorld,
+        spaces: SPACES,
+        write: (_, __, spaces) => RouteFixture.write(spaces),
+    },
+);
+
+/** Two spaces of an account and one of another, each with an installation serving notes. */
 export class RouteFixture implements AsyncDisposable {
-    /** The account owning the first two spaces. */
-    readonly accountId = Identifier.create("account");
-    /** The account owning the third space. */
-    readonly otherId = Identifier.create("account");
+    /** The account of the first two spaces. */
+    readonly accountId = ids.account;
+    /** The account of the third space. */
+    readonly otherId = OTHER_ACCOUNT;
     /** The two spaces of the account and the space of the other account. */
-    readonly spaceIds = [
-        Identifier.create("space"),
-        Identifier.create("space"),
-        Identifier.create("space"),
-    ] as const;
-    /** The machine's replicated hostname of each account, by account. */
+    readonly spaceIds: readonly [Identifier<"space">, Identifier<"space">, Identifier<"space">];
+    /** The hostname the owner created for each account, by account. */
     readonly hostnames = new Map<
         string,
         { readonly id: Identifier<"hostname">; readonly name: string }
     >();
     /** The installation of each space, by space. */
-    readonly installations = new Map<string, Identifier<"installation">>();
-    /** The stack installation declaring each space's routes, by space. */
-    readonly #stacks = new Map<string, string>();
-    /** The machine keeping the spaces. */
-    readonly #spaces: StackFixture;
-    /** The machine's object store applying the declared records. */
-    readonly #served: ObjectStore;
-    /** The installations and routes the stacks declare as the machine serves them. */
-    readonly #declared: readonly ObjectType[];
-    /** The universe's test database. */
-    readonly #universe: TestDatabase;
-    /** The universe's claims, served over its database. */
-    readonly claims: ClaimHome;
-    /** The lookup of the universe's names over its database. */
+    readonly installations: ReadonlyMap<string, Identifier<"installation">>;
+    /** The lookup of the universe's names, which keys every route. */
     readonly lookup: ClaimLookup;
+    /** The world the spaces run in, which the fixture's calls move through. */
+    readonly simulation: Simulation;
+    /** Each space with its served store, by space. */
+    readonly #spaces: ReadonlyMap<
+        string,
+        { readonly space: TestSpace; readonly served: TestObjectStore }
+    >;
 
-    /** Keep the opened databases. */
+    /** Store the hosted spaces and their installations. */
     private constructor(
-        spaces: StackFixture,
-        served: ObjectStore,
-        universe: TestDatabase,
-        claims: ClaimHome,
+        simulation: Simulation,
+        spaces: readonly { readonly space: TestSpace; readonly served: TestObjectStore }[],
+        installations: ReadonlyMap<string, Identifier<"installation">>,
     ) {
-        // keep the databases, the machine's store and the installations and routes it declares
-        this.#spaces = spaces;
-        this.#served = served;
-        this.#declared = served.objects.filter(
-            (type) => type.name === "installation" || type.name === "route",
-        );
-        this.#universe = universe;
-        this.claims = claims;
-        this.lookup = ClaimLookup.of(Snapshot.live(universe.database).read(claimTable));
+        // store the world, the spaces, their installations, and the universe's names
+        this.simulation = simulation;
+        this.spaceIds = [nth(spaces, 0).space.id, nth(spaces, 1).space.id, nth(spaces, 2).space.id];
+        this.#spaces = new Map(spaces.map((entry) => [entry.space.id, entry]));
+        this.installations = installations;
+        const { database } = nth(spaces, 0).space.universe.storage;
+        this.lookup = ClaimLookup.of(Snapshot.live(database).read(claimTable));
     }
 
-    /** The spaces database. */
-    get spaces(): DatabaseConnection {
-        return this.#spaces.database;
+    /** Open the route world's spaces from its template, each served with its notes. */
+    static async open(options: FixtureOptions = {}): Promise<RouteFixture> {
+        // copy the world into a fork of it, then serve each space
+        const { spaces, world } = await TestSpace.copy(ROUTE_TEMPLATE);
+        const { simulation } = present(spaces.get(ids.space), "the fixture's space");
+
+        return await simulation.settle(RouteFixture.#serve(simulation, spaces, world, options));
     }
 
-    /** The universe's database with the claims. */
-    get universe(): DatabaseConnection {
-        return this.#universe.database;
-    }
+    /** Serve each copied space, with the installations and hostnames the world wrote. */
+    static async #serve(
+        simulation: Simulation,
+        spaces: ReadonlyMap<Identifier<"space">, TestSpace>,
+        world: RouteWorld,
+        options: FixtureOptions,
+    ): Promise<RouteFixture> {
+        // serve each space
+        const served = [];
+        for (const space of spaces.values()) {
+            served.push({ space, served: await space.serve(options) });
+        }
 
-    /** Open both databases on a dialect and record the spaces and their installations. */
-    static async open(dialect: Dialect): Promise<RouteFixture> {
-        // open both databases and declare installations and routes as the machine serves them
-        const spaces = await StackFixture.empty({ dialect });
-        const served = serveSpace(await spaces.options()).store;
-        const universe = await TestDatabase.create(dialect, accountDatabase, { isMigrated: true });
-        const claims = await TestDirectory.claims(universe.database, Clock.system);
-        const fixture = new RouteFixture(spaces, served, universe, claims);
-
-        // record the accounts with their hostnames, and the spaces with their installations
-        const now = Date.now();
-        const record = { createdAt: now, updatedAt: now };
-        const ownerId = Identifier.create("user");
-        await fixture.#recordAccounts(ownerId, record);
-        await fixture.#recordSpaces(ownerId, record);
+        // read each space's installation and each account's hostname
+        const installations = new Map(world.installations.map((each) => [each.spaceId, each.id]));
+        const fixture = new RouteFixture(simulation, served, installations);
+        for (const { accountId, id, name } of world.hostnames) {
+            fixture.hostnames.set(accountId, { id, name });
+        }
 
         return fixture;
     }
 
-    /** Record each account's scope under its owner and a hostname of it. */
-    async #recordAccounts(
-        ownerId: Identifier<"user">,
-        record: { readonly createdAt: number; readonly updatedAt: number },
-    ): Promise<void> {
-        for (const [index, accountId] of [this.accountId, this.otherId].entries()) {
-            await this.spaces.insert(Scope.table).values({
-                scope: accountId,
-                parent: ownerId,
-                partition: Scope.universe.id,
-                packageId: account.policy.definition.packageId,
-                type: account.name,
-                ancestors: [ownerId],
-            });
-            await this.spaces.insert(account.table).values({
-                ...record,
-                id: accountId,
-                scope: Scope.universe.id,
-                handle: `acme-${index}`,
-                name: `Acme ${index}`,
-                kind: "shared",
-                residencyId: "eu",
-            });
-            this.hostnames.set(
-                accountId,
-                await this.serve(accountId, `notes-${index}.example.com`),
-            );
-        }
-    }
-
-    /** Record each space with its scope chain and an installation. */
-    async #recordSpaces(
-        ownerId: Identifier<"user">,
-        record: { readonly createdAt: number; readonly updatedAt: number },
-    ): Promise<void> {
-        const accounts = [this.accountId, this.accountId, this.otherId];
-        for (const [index, spaceId] of this.spaceIds.entries()) {
-            const accountId = nth(accounts, index);
-            const installationId = Identifier.create("installation");
-            await this.spaces.insert(space.table).values({
-                ...record,
-                id: spaceId,
-                scope: accountId,
-                name: `space-${index}`,
-                stack: STACKS.space,
-            });
-            await this.spaces.insert(Scope.table).values({
-                scope: spaceId,
-                parent: accountId,
-                partition: spaceId,
-                packageId: space.policy.definition.packageId,
-                type: space.name,
-                ancestors: [accountId, ownerId],
-            });
-            await this.spaces.insert(installation.table).values({
-                ...record,
-                id: installationId,
-                scope: spaceId,
-                packageId: PACKAGE_ID,
-                role: "application",
-                name: "notes",
-                selection: { kind: "release", version: "2026.9.0" },
-            });
-            this.installations.set(spaceId, installationId);
-        }
-    }
-
-    /** Apply a stack's route declarations to a space. */
-    apply(spaceId: Identifier<"space">, routes: JsonObject) {
-        return Stack.apply({
-            database: this.spaces,
-            objects: this.#declared,
-            manager: Manager.schema
-                .omit({ name: true })
-                .parse({ installationId: this.stack(spaceId), packageId: PACKAGE_ID }),
-            as: this.#served.principal,
-            scope: spaceId,
-            now: Date.now(),
-            document: { routes },
-            claims: this.claims,
-            policies: [space.policy],
-            store: this.#served,
+    /** Write the route world: notes in each space, and a hostname per verified domain. */
+    static async write(spaces: ReadonlyMap<Identifier<"space">, TestSpace>): Promise<RouteWorld> {
+        // answer the published TXT records at the world's resolver
+        const { simulation } = present(spaces.get(ids.space), "the fixture's space");
+        const dns = new TestDns();
+        simulation.network.server(RESOLVER).http({
+            hostname: RESOLVER,
+            port: HTTPS_PORT,
+            fetch: async (request) => RouteFixture.#answer(dns, request),
         });
+
+        // serve each space with notes installed
+        const served = [];
+        const installations = new Map<Identifier<"space">, Identifier<"installation">>();
+        for (const space of spaces.values()) {
+            const store = await space.serve();
+            const build = await fixtureBuild(ids.package, "2026.9.0", space.environment.crypto);
+            installations.set(space.id, await space.install(store, build));
+            served.push({ space, served: store });
+        }
+        const fixture = new RouteFixture(simulation, served, installations);
+
+        // verify a domain of each account and serve a hostname below it
+        const hostnames = [];
+        for (const [index, accountId] of [ids.account, OTHER_ACCOUNT].entries()) {
+            const domain = nth(DOMAINS, index);
+            await fixture.#verify(dns, accountId, domain);
+            const hostname = await fixture.#hostname(accountId, `notes-${index}.${domain}`);
+            hostnames.push({ accountId, ...hostname });
+        }
+
+        // close the served stores, the template closing the spaces
+        for (const each of served) {
+            await each.served[Symbol.asyncDispose]();
+        }
+
+        return {
+            installations: [...installations].map(([spaceId, id]) => ({ spaceId, id })),
+            hostnames,
+        };
     }
 
-    /** Serve a hostname of an account as the universe does. */
-    async serve(
+    /** The database of one of the spaces. */
+    database(spaceId: string): DatabaseConnection {
+        return found(this.#spaces, spaceId).space.database;
+    }
+
+    /** Apply a stack's route declarations to a space, approved as its owner. */
+    async apply(
+        spaceId: Identifier<"space">,
+        routes: NonNullable<StackInput["routes"]>,
+    ): Promise<void> {
+        const { space, served } = found(this.#spaces, spaceId);
+        await this.simulation.settle(space.apply(served, [], { routes }));
+    }
+
+    /** Submit a stack's route declarations to a space, answering how its stack stands. */
+    submit(
+        spaceId: Identifier<"space">,
+        routes: NonNullable<StackInput["routes"]>,
+    ): Promise<readonly [string | undefined, string | undefined]> {
+        const { space, served } = found(this.#spaces, spaceId);
+
+        return this.simulation.settle(space.submit(served, [], { routes }));
+    }
+
+    /** Create a hostname of an account as its owner, settled into each space replicating it. */
+    serve(
         accountId: Identifier<"account">,
         name: string,
     ): Promise<{ readonly id: Identifier<"hostname">; readonly name: string }> {
-        // keep the row in the machine's replicas
-        const id = Identifier.create("hostname");
-        const now = Date.now();
-        const row = { id, name, scope: accountId, createdAt: now, updatedAt: now };
-        await this.spaces.insert(hostname.table).values(row);
-
-        // claim its name in the universe
-        const object = { objectId: id, owner: accountId };
-        const claimant = await Claimant.of(hostname, object, row, Snapshot.live(this.universe));
-        await Claim.replace(this.universe, claimant);
-
-        return { id, name };
+        return this.simulation.settle(this.#hostname(accountId, name));
     }
 
-    /** Read the one stack installation of a space, creating it on first use. */
-    stack(spaceId: string): string {
-        const known = this.#stacks.get(spaceId) ?? Identifier.create("installation");
-        this.#stacks.set(spaceId, known);
+    /** Create a hostname at the universe, and settle the spaces replicating it. */
+    async #hostname(
+        accountId: Identifier<"account">,
+        name: string,
+    ): Promise<{ readonly id: Identifier<"hostname">; readonly name: string }> {
+        // create the hostname at the universe as the account's owner
+        const { space } = found(this.#spaces, this.spaceIds[0]);
+        const created = await space.owner.client(accountPackage).hostname.create({
+            accountId,
+            requestId: RequestId.create(space.universe.environment),
+            name,
+        });
 
-        return known;
+        // settle each space following its account's hostnames
+        for (const entry of this.#spaces.values()) {
+            await entry.space.settle(entry.served);
+        }
+
+        return { id: created.id, name };
     }
 
-    /** Close both databases. */
+    /** Claim a domain for an account as its owner and verify it by its published TXT record. */
+    async #verify(dns: TestDns, accountId: Identifier<"account">, name: string): Promise<void> {
+        // let the account's plan allow custom domains, as its residency's home entitles it
+        const { space } = found(this.#spaces, this.spaceIds[0]);
+        await space.universe.entitle(accountId, "domain", { kind: "static", value: true });
+
+        // claim the domain, then publish its challenge record
+        const accounts = space.owner.client(accountPackage);
+        const claimed = await accounts.domain.create({
+            scope: accountId,
+            requestId: RequestId.create(space.universe.environment),
+            name,
+        });
+        dns.publish({ scope: accountId, name });
+
+        // verify it once the resolver answers the record
+        await accounts.domain.verify({
+            scope: accountId,
+            id: claimed.id,
+            requestId: RequestId.create(space.universe.environment),
+        });
+    }
+
+    /** Answer a DNS over HTTPS lookup of TXT records in JSON from the published records. */
+    static async #answer(dns: TestDns, request: Request): Promise<Response> {
+        const name = new URL(request.url).searchParams.get("name") ?? "";
+        const records = await dns.txt(name);
+
+        return Response.json({
+            Status: NO_ERROR,
+            Answer: records.map((data) => ({ name, type: TXT, data: JSON.stringify(data) })),
+        });
+    }
+
+    /** Close the spaces in their world. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await this.#spaces[Symbol.asyncDispose]();
-        await this.#universe.close();
+        await this.simulation.settle(this.#close());
+    }
+
+    /** Close each space's store, then the space. */
+    async #close(): Promise<void> {
+        for (const { space, served } of this.#spaces.values()) {
+            await served[Symbol.asyncDispose]();
+            await space[Symbol.asyncDispose]();
+        }
     }
 }

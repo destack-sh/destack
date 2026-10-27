@@ -2,7 +2,7 @@ import { PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceId } from "@destack/resource";
 import { schema } from "@destack/schema";
-import { testKeys } from "@destack/object/test";
+import { testKeys, testSimulation } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { InstanceRegistry, InstanceSpec } from "./runtime.ts";
 
@@ -19,7 +19,7 @@ const notes = {
 /** Another package, whose resources the instance does not bind. */
 const other = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000e8");
 
-/** An instance as the registry keeps it, with its spec and the secret its requests prove. */
+/** An instance as the registry stores it, with its spec and the secret its requests prove. */
 interface Running {
     /** The instance's spec, as far as the registry reads it. */
     readonly spec: Pick<InstanceSpec, "instanceId">;
@@ -61,7 +61,7 @@ test("start an instance once for concurrent starts, identifying its secret while
     ]);
 });
 
-test("drop a failed start's secret, and forget a stopped instance and its secret", async () => {
+test("drop a failed start's secret, and retain a stopping instance's secret until it drains", async () => {
     // fail a start after identifying its secret
     const registry = new InstanceRegistry<Running>();
     const failed = await registry
@@ -75,18 +75,21 @@ test("drop a failed start's secret, and forget a stopped instance and its secret
         );
     const afterFailure = registry.identify("failed");
 
-    // start, stop and look the instance up again
+    // start, then stop it, looking it up while it drains and after
     await registry.start(spec, async (identify) => {
         identify("second");
 
         return { spec, secret: "second" };
     });
-    const stopped = await registry.stop(spec.instanceId);
+    const draining: unknown[] = [];
+    await registry.stop(spec.instanceId, async (running) => {
+        draining.push(running, registry.isRunning(spec.instanceId), registry.identify("second"));
+    });
 
-    expect([failed, afterFailure, stopped, registry.identify("second")]).toEqual([
+    expect([failed, afterFailure, draining, registry.identify("second")]).toEqual([
         "the launch failed",
         undefined,
-        { spec, secret: "second" },
+        [{ spec, secret: "second" }, false, spec],
         undefined,
     ]);
 });
@@ -97,7 +100,7 @@ test("forget only the instance still recorded, leaving one a later start replace
     const first = { spec, secret: "first" };
     const second = { spec, secret: "second" };
     await registry.start(spec, async () => first);
-    await registry.stop(spec.instanceId);
+    await registry.stop(spec.instanceId, async () => {});
     await registry.start(spec, async () => second);
 
     expect([registry.forget(first), registry.list(), registry.forget(second)]).toEqual([
@@ -108,8 +111,9 @@ test("forget only the instance still recorded, leaving one a later start replace
 });
 
 test("bind a workload's own provisioned resources by name, refusing another package's", async () => {
-    // describe an instance binding a database and an installation its package calls
-    const build = await MemoryBuild.write(new Map(), { package: notes });
+    // describe an instance binding a database and an installation its package calls, in a world of its own
+    const world = testSimulation().environment("test");
+    const build = await MemoryBuild.write(new Map(), { package: notes }, world.crypto);
     const scope = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000f4");
     const database = {
         id: ResourceId.parse("resource-01996ab0-0000-7000-8000-0000000000e5"),
@@ -135,6 +139,7 @@ test("bind a workload's own provisioned resources by name, refusing another pack
         installationId: schema
             .identifier("installation")
             .parse("installation-01996ab0-0000-7000-8000-0000000000f1"),
+        origin: "installed",
         name: "notes",
         deploymentId: schema
             .identifier("deployment")
@@ -155,7 +160,8 @@ test("bind a workload's own provisioned resources by name, refusing another pack
         egress: EGRESS,
         url: "https://notes--home.test",
         sampling: 1,
-        identity: await testKeys(),
+        identity: await testKeys(world),
+        random: world.random,
     };
 
     // start it, then refuse a spec binding a resource of another package
@@ -182,6 +188,10 @@ test("bind a workload's own provisioned resources by name, refusing another pack
                 scope,
             },
         },
-        ["PRECONDITION_FAILED", `resource ${database.id} binds no resource of ${notes.id}`],
+        [
+            "PRECONDITION_FAILED",
+            "FOREIGN_RESOURCE",
+            `resource ${database.id} does not bind a resource of ${notes.id}`,
+        ],
     ]);
 });

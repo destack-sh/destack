@@ -1,26 +1,21 @@
-import { STACKS } from "@destack/account/test";
-import { PackageHandle } from "@destack/object";
-import { Health, implementPackage, ObjectStore, Server } from "@destack/object/server";
-import { testEvents, serversOf, subjectContext, testCallKey } from "@destack/object/test";
-import { onTestFinished, refusal, test } from "@destack/test";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { AccessContext, Authorization, Authorizer, Caller, principal } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
-import { account, space } from "@destack/account/object";
+import { testHost } from "@destack/test/host";
+import { AccessContext, Caller, principal } from "@destack/access";
+import { eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
+import { testSimulation } from "@destack/object/test";
 import { ObjectClient } from "@destack/object/client";
 import { graph, PackageId } from "@destack/package";
-import { BuildReader, PackageManifest } from "@destack/package/manifest";
+import { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import { ResourceContext } from "@destack/resource/context";
-import { Digest, found, present, schema } from "@destack/schema";
+import { Digest, found, schema } from "@destack/schema";
+import { Scope, type Subject } from "@destack/sync";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { join } from "node:path";
 import { BunGraphStorage } from "../src/bun/index.ts";
-import { build, CodeIndex, declaration, module, symbol } from "../src/object/index.ts";
-import { stackTables } from "../src/stack/index.ts";
-import { ids } from "../src/test/index.ts";
-import { Clock } from "@destack/environment";
+import { build, declaration, module, symbol } from "../src/object/index.ts";
+import stackPackage from "../src/package.ts";
+import { spaceTables } from "../src/stack/index.ts";
+import { TestSpace } from "../src/test/index.ts";
 
 /** The notebook's package identifier. */
 const NOTEBOOK_ID = "package-01996ab0-0000-7000-8000-00000000000a";
@@ -34,127 +29,38 @@ const packages = {
     schema: "package-01a0c80b-614e-739b-bf41-8570d1151a11",
 };
 
-/** The build the test reads. */
-const buildId = schema.identifier("build").parse("build-01996ab0-0000-7000-8000-000000000003");
+/** A person with no role in the space. */
+const STRANGER = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-000000000006");
 
-/** A second build of the same commit, which shares the first one's index. */
-const rebuiltId = schema.identifier("build").parse("build-01996ab0-0000-7000-8000-000000000004");
+/** A build no store has. */
+const UNKNOWN_BUILD = schema
+    .identifier("build")
+    .parse("build-01996ab0-0000-7000-8000-000000000003");
 
-/** The repository the build compiles. */
-const repositoryId = schema
-    .identifier("repository")
-    .parse("repository-01996ab0-0000-7000-8000-000000000005");
-
-test("serve a build's modules, declarations and code symbols from its index to the build's readers, through the object store and a client", async ({
-    expect,
-}) => {
-    // keep an owned space, its row replicated beside the space's tables
-    const storage = await TestDatabase.create("sqlite", [...stackTables, space.table], {
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    const now = Date.now();
-    const owner = principal.user.reference("universe", ids.owner);
-    await new AccessFixture(database).replicateScope(account.reference("universe", ids.account));
-    await database.insert(space.table).values({
-        id: ids.space,
-        scope: ids.account,
-        name: "personal",
-        stack: STACKS.space,
-        createdAt: now,
-        updatedAt: now,
-    });
-    const authorizer = new Authorizer([space.policy, build.policy], [space.mapping, build.mapping]);
-    await Authorization.run(
-        authorizer,
-        database,
-        () => AccessContext.of(Caller.of(owner), now),
-        (authorization) => authorization.create(space.reference(ids.account, ids.space), { owner }),
-    );
-
-    // write the notebook's build with its graph: an entry, an object and a service with two procedures
-    const directory = await mkdtemp(join(tmpdir(), "destack-graph-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+test("serve a build's modules, declarations and code symbols from its index to the build's readers, through the object store and a client", async () => {
+    // record the notebook's build with its code index twice as the space's builds of one manifest
+    const fixture = await TestSpace.open();
+    const { simulation } = fixture;
+    const { clock } = simulation;
+    clock.resume();
+    const served = await fixture.serve();
     const stored = await writeNotebook();
-    const manifest = await Digest.of(
-        new TextEncoder().encode(JSON.stringify(PackageManifest.parse(stored.manifest))),
-    );
-    const code = notebookCode();
-    const codeBytes = new TextEncoder().encode(JSON.stringify(code));
-    const codeFile = {
-        bytes: codeBytes,
-        digest: await Digest.of(codeBytes),
-        size: codeBytes.byteLength,
-    };
+    const { build: buildId } = await fixture.recordBuild(stored, notebookCode());
+    clock.advance(1);
+    const { build: rebuiltId } = await fixture.recordBuild(stored, notebookCode());
+    const [rebuild] = await fixture.database
+        .select({ finishedAt: build.table.finishedAt })
+        .from(build.table)
+        .where(eq(build.table.id, rebuiltId));
 
-    // record it as two of the space's succeeded builds of one commit, the second finished later
-    const record = async (id: typeof buildId, finishedAt: number) => {
-        await database.insert(build.table).values({
-            id,
-            scope: ids.space,
-            source: {
-                kind: "commit",
-                repository: repositoryId,
-                commit: "a".repeat(40),
-                directory: ".",
-            },
-            outputs: ["bun"],
-            state: "succeeded",
-            manifest,
-            startedAt: now,
-            finishedAt,
-            createdAt: now,
-            updatedAt: now,
-        });
-        await Authorization.run(
-            authorizer,
-            database,
-            () => AccessContext.of(Caller.of(owner), now),
-            (authorization) => authorization.create(build.reference(ids.space, id), {}),
-        );
-    };
-    await record(buildId, now);
-    await record(rebuiltId, now + 1);
-
-    // read the build's graph through the object store as its owner and refuse a stranger
-    await using graphs = new BunGraphStorage(
-        database,
-        {
-            contains: async () => true,
-            contents: async (read) => {
-                expect(read).toEqual(manifest);
-
-                return stored;
-            },
-            referrer: async (read, path) => {
-                expect([read, path]).toEqual([manifest, "code.json"]);
-
-                return CodeIndex.file({ digest: codeFile.digest, size: codeFile.size });
-            },
-            file: async () => codeFile.bytes,
-        },
-        join(directory, "graph"),
-    );
-    const store = new ObjectStore({
-        chain: async () => undefined,
-        clock: Clock.system,
-        principal: principal.space.reference("universe", ids.space),
-        servers: serversOf([module, declaration, symbol], { external: graphs }),
-        database,
-        callKey: testCallKey,
-        events: await testEvents(database),
-        origin: { package: symbol.package },
-    });
-    const context = (user: string) =>
-        subjectContext(principal.user.reference("universe", user), buildId);
+    // read the build's graph through the space's store as its owner and refuse a stranger
+    const reader = (user: Subject) => AccessContext.of(Caller.of(user), clock.now());
+    const owner = reader(fixture.owner.subject);
     const moniker = (path: string) => `${NOTEBOOK_ID}/${path}`;
     const at = moniker("src/object.ts");
+    const { store } = served;
     const declared = async (id: string) => {
-        const row = await store.query(
-            context(ids.owner).access(),
-            declaration.call("get", { buildId, id }),
-        );
+        const row = await store.query(owner, declaration.call("get", { buildId, id }));
 
         return [
             row.id,
@@ -166,10 +72,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
         ];
     };
     const coded = async (id: string) => {
-        const row = await store.query(
-            context(ids.owner).access(),
-            symbol.call("get", { buildId, id }),
-        );
+        const row = await store.query(owner, symbol.call("get", { buildId, id }));
 
         return [
             row.id,
@@ -180,15 +83,16 @@ test("serve a build's modules, declarations and code symbols from its index to t
             relations(row.relationships),
         ];
     };
-    const modules = await store.query(
-        context(ids.owner).access(),
-        module.call("list", { buildId }),
-    );
+    const modules = await store.query(owner, module.call("list", { buildId }));
 
     // read the rebuild's notebook variable, in its own scope and finish, from the one index
     const rebuilt = await store.query(
-        context(ids.owner).access(),
+        owner,
         symbol.call("get", { buildId: rebuiltId, id: `${at}#notebook` }),
+    );
+    const stranger = reader(principal.user.reference(Scope.universe.id, STRANGER));
+    const refused = await refusal(
+        store.query(stranger, symbol.call("get", { buildId, id: `${at}#notebook` })),
     );
 
     // list every module with its dependencies and the notebook's object declaration at its variable
@@ -197,7 +101,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
         await declared(`${at}#notebook:object:notebook`),
         await coded(`${at}#notebook`),
         [rebuilt.scope, rebuilt.createdAt],
-        await readdir(join(directory, "graph")),
+        refused,
     ]).toEqual([
         [
             [moniker("src/index.ts"), "src/index.ts", ["depends src/object.ts"]],
@@ -213,69 +117,25 @@ test("serve a build's modules, declarations and code symbols from its index to t
             NOTEBOOK_SIGNATURE,
             [`calls ${packages.object}`],
         ],
-        [rebuiltId, now + 1],
-        [`${manifest}.sqlite`],
+        [rebuiltId, rebuild?.finishedAt],
+        ["NOT_FOUND", "NOT_FOUND", `symbol ${at}#notebook not found`],
     ]);
-    const refused = await refusal(
-        store.query(
-            context("stranger").access(),
-            symbol.call("get", { buildId, id: `${at}#notebook` }),
-        ),
-    );
-    expect(refused).toEqual(["NOT_FOUND", `no scope ${buildId}`]);
 
-    // serve the graph objects to a client
-    const indexed = PackageHandle.of(symbol.package, { objects: { module, declaration } });
-    const served = Server.start({
-        clock: Clock.system,
-        ...new ObjectStore({
-            servers: [
-                implementPackage(indexed, { objects: [module, declaration], external: graphs }),
-            ],
-            chain: async () => undefined,
-            clock: Clock.system,
-            origin: { package: indexed },
-            principal: principal.space.reference("universe", ids.space),
-            database,
-            callKey: testCallKey,
-            events: await testEvents(database),
-        }).package(indexed),
-        scope: buildId,
-        resources: new ResourceContext(),
-        health: new Health("graph"),
-        drainTimeout: 1000,
-        authorizeMachine: async () => {},
-        authenticate: async (request) => {
-            const user = present(request.headers.get("authorization"), "the authorization header");
-            const subject = principal.user.reference("universe", user);
-
-            return {
-                caller: Caller.of(subject),
-                credential: {
-                    kind: "session",
-                    id: user,
-                    audience: indexed.id,
-                    scope: buildId,
-                    verifiedAt: now,
-                    expiresAt: now + 60_000,
-                },
-            };
-        },
+    // read the service's procedures in the owner's client's live query
+    const browser = simulation.environment("reader");
+    const local = await TestDatabase.create(ObjectClient.tables({ module, declaration }), {
+        environment: browser,
+        dialect: "sqlite",
     });
-    onTestFinished(() => served.close());
-    const local = await TestDatabase.create("sqlite", ObjectClient.tables({ module, declaration }));
     onTestFinished(() => local.close());
+    const endpoint = served.as(fixture.owner.subject).endpoint(stackPackage);
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment: browser,
         database: local.database,
         objects: { module, declaration },
         scope: buildId,
-        caller: owner,
-        endpoint: {
-            url: "https://graph.test",
-            headers: { authorization: ids.owner },
-            fetch: (request: Request) => served.fetch(request),
-        },
+        caller: fixture.owner.subject,
+        endpoint,
         reconnect: (holder) => {
             throw new TypeError(`no build moves, yet one moved to ${holder}`);
         },
@@ -288,28 +148,30 @@ test("serve a build's modules, declarations and code symbols from its index to t
         await running;
         await client.close();
     });
-
-    // read the service's procedures in the client's live query
     const service = `${moniker("src/service.ts")}#notebooksService`;
     const procedures = client.query.declaration
         .findMany({ where: { kind: "procedure" }, orderBy: { id: "asc" } })
         .subscribe();
     await procedures.ready;
-    expect((await procedures.read()).map((row) => [row.enclosing, row.name])).toEqual([
-        [service, "notebook.get"],
-        [service, "notebook.list"],
+    expect([(await procedures.read()).map((row) => [row.enclosing, row.name]), failures]).toEqual([
+        [
+            [service, "notebook.get"],
+            [service, "notebook.list"],
+        ],
+        [],
     ]);
-    expect(failures).toEqual([]);
 });
 
-test("sweep the indexes retention drops while an open of an unknown build fails", async ({
-    expect,
-}) => {
-    // keep an empty space database and a graph directory
-    const storage = await TestDatabase.create("sqlite", stackTables, { isMigrated: true });
+test("sweep the indexes retention drops while an open of an unknown build fails", async () => {
+    // add an empty space database and a graph directory in the test's world
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(spaceTables({}).tables, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    const directory = await mkdtemp(join(tmpdir(), "destack-graph-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    const directory = await world.files.makeTemporaryDirectory("destack-graph-");
+    onTestFinished(() => world.files.remove(directory, { recursive: true }));
     await using graphs = new BunGraphStorage(
         storage.database,
         {
@@ -319,14 +181,15 @@ test("sweep the indexes retention drops while an open of an unknown build fails"
             file: () => Promise.reject(new TypeError("the test stores no builds")),
         },
         join(directory, "graph"),
+        world.files,
     );
 
     // sweep while the open fails and refuse the open alone
-    const opening = graphs.open(buildId);
+    const opening = graphs.open(UNKNOWN_BUILD);
     const swept = graphs.sweep();
     expect(await Promise.allSettled([swept, opening])).toEqual([
         { status: "fulfilled", value: undefined },
-        { status: "rejected", reason: new TypeError(`build ${buildId} is missing`) },
+        { status: "rejected", reason: new TypeError(`build ${UNKNOWN_BUILD} is missing`) },
     ]);
 });
 
@@ -359,7 +222,7 @@ function notebookCode(): graph.Document[] {
     return [
         {
             path: "src/object.ts",
-            digest: "0".repeat(64),
+            digest: Digest.parse("0".repeat(64)),
             symbols: [
                 {
                     moniker: notebook,
@@ -400,14 +263,14 @@ async function writeNotebook(): Promise<BuildReader> {
     const procedure = (name: string) =>
         graph.Declaration.member(served, { kind: "procedure", name, description: {} });
 
-    // write each module's source beside its graph file
+    // write each module's source next to its graph file
     const sources = new Map(
         ["src/index.ts", "src/object.ts", "src/service.ts"].map((path) => [
             path,
             new TextEncoder().encode(`// ${path}\n`),
         ]),
     );
-    const digest = (path: string) => Digest.of(found(sources, path));
+    const digest = (path: string) => Digest.of(found(sources, path), testHost().crypto);
     const written: graph.Module[] = [
         {
             path: "src/index.ts",
@@ -460,12 +323,16 @@ async function writeNotebook(): Promise<BuildReader> {
         },
     ];
 
-    return MemoryBuild.write(sources, {
-        package: {
-            id: PackageId.parse(NOTEBOOK_ID),
-            name: "@example/notebook",
-            version: "2026.10.0",
+    return MemoryBuild.write(
+        sources,
+        {
+            package: {
+                id: PackageId.parse(NOTEBOOK_ID),
+                name: "@example/notebook",
+                version: "2026.10.0",
+            },
+            graph: written,
         },
-        graph: written,
-    });
+        testHost().crypto,
+    );
 }

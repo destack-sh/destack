@@ -1,21 +1,21 @@
 import { space, account } from "@destack/account/object";
-import { mkdtemp, rm } from "node:fs/promises";
 import { Scope, Subject } from "@destack/sync";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import {
+    AccessContext,
     accessRelationship,
     accessRole,
     accessRolePermission,
     Authentication,
+    Authorization,
     Caller,
     principal,
     Relationship,
 } from "@destack/access";
 import { accountDatabase } from "@destack/account/stack";
 import { STACKS, TestDirectory } from "@destack/account/test";
-import { CallEvent, call, journal, CallError } from "@destack/object";
-import { Health, Journal, Server, type ClaimHome, ObjectStore } from "@destack/object/server";
+import { CallEvent, call, journal, CallError, Installation, installation } from "@destack/object";
+import { Health, Journal, Server, type ClaimPrimary, ObjectStore } from "@destack/object/server";
+import type { BaseServerContext } from "@destack/object/workload";
 import { testEvents, serversOf, testCallKey } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
 import { LocalBucket } from "@destack/bucket/bun";
@@ -27,22 +27,20 @@ import {
     S3Signature,
     LEASE_LIFETIME_SECONDS,
 } from "@destack/bucket/s3";
-import { and, defineDatabase, eq, type DatabaseConnection, type Dialect } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { and, defineDatabase, eq, type DatabaseConnection, Transaction } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, type Identifier } from "@destack/schema";
+import { Identifier } from "@destack/schema";
 import { createClient } from "@destack/object/client";
 import { bucket } from "../object/index.ts";
-import { v7 } from "uuid";
 import { implementBucket } from "../server/resource/bucket.ts";
 import type { Lease } from "@destack/resource";
-import type {} from "@destack/package/import-meta";
-import { Clock } from "@destack/environment";
+import type { Clock, Environment } from "@destack/environment";
 
-/** A database keeping buckets beside its journal and calls, replicating the spaces they live in. */
+/** A database with buckets, a journal and calls, replicating the spaces they live in. */
 export const bucketDatabase = defineDatabase({
     name: "bucket",
-    tables: [...bucket.tables, journal, ...call.tables],
+    tables: [...bucket.tables, journal, ...call.tables, ...installation.tables],
     replicated: [space.table],
 });
 
@@ -55,7 +53,7 @@ const S3_ENDPOINT = new URL("https://s3.test");
 /** The S3 name of the fixture's bucket. */
 const BUCKET_NAME = "files";
 
-/** The signing region of the fixture's S3 server, as S3 names it. */
+/** The signing region of the fixture's S3 server, in S3's terms. */
 const REGION = "auto";
 
 /** The access key presigning transfers. */
@@ -77,15 +75,15 @@ export const PRESIGNED =
 /** A space with a local bucket served over S3, a member role on it and a presigning store. */
 export class BucketFixture implements AsyncDisposable {
     /** The account of the space with members for the role to bind. */
-    readonly accountId = schema.identifier("account").parse(`account-${v7()}`);
+    readonly accountId: Identifier<"account">;
     /** The space of the bucket. */
-    readonly spaceId = schema.identifier("space").parse(`space-${v7()}`);
+    readonly spaceId: Identifier<"space">;
     /** The bucket resource. */
-    readonly bucketId = schema.identifier("bucket").parse(`bucket-${v7()}`);
+    readonly bucketId: Identifier<"bucket">;
     /** The member calling the bucket's methods. */
-    readonly userId = schema.identifier("user").parse(`user-${v7()}`);
+    readonly userId: Identifier<"user">;
     /** The role granting the bucket permissions in the space. */
-    readonly roleId = schema.identifier("role").parse(`role-${v7()}`);
+    readonly roleId: Identifier<"role">;
     /** The migrated spaces database. */
     readonly database: DatabaseConnection;
     /** The bucket's files. */
@@ -104,17 +102,30 @@ export class BucketFixture implements AsyncDisposable {
     readonly #events: EventStore;
     /** Release the database and bucket directory. */
     readonly #close: () => Promise<void>;
+    /** The store serving the bucket as the space's base stack installation. */
+    readonly #store: ObjectStore;
+    /** The world the bucket's servers and records run in. */
+    readonly environment: Environment;
 
     /** Retain the provisioned state. */
     private constructor(
         database: DatabaseConnection,
         files: LocalBucket,
-        claims: ClaimHome,
+        claims: ClaimPrimary,
         events: EventStore,
         close: () => Promise<void>,
+        environment: Environment,
+        ids: { readonly accountId: Identifier<"account">; readonly spaceId: Identifier<"space"> },
+        base: BaseServerContext,
     ) {
-        // retain the storage, the call events and the member's identity
+        // retain the storage, the call events, the world and the member's identity
         this.database = database;
+        this.environment = environment;
+        this.accountId = ids.accountId;
+        this.spaceId = ids.spaceId;
+        this.bucketId = Identifier.create("bucket", environment);
+        this.userId = Identifier.create("user", environment);
+        this.roleId = Identifier.create("role", environment);
         this.#events = events;
         this.files = files;
         this.#close = close;
@@ -123,22 +134,23 @@ export class BucketFixture implements AsyncDisposable {
         // serve the bucket over S3 under the presigning credentials
         this.s3 = new S3Server({
             region: REGION,
-            clock: Clock.system,
+            environment: this.environment,
             credentials: async (accessKeyId) =>
                 accessKeyId === this.credentials.accessKeyId ? this.credentials : undefined,
             open: async (name) => (name === BUCKET_NAME ? this.files : undefined),
         });
 
         // serve the bucket's files under the member's bearer identity
-        const objects = this.#serveObjects(database, claims);
+        const objects = this.#serveObjects(database, claims, base);
+        this.#store = objects;
         this.server = Server.start({
-            clock: Clock.system,
+            environment: this.environment,
             ...objects.package(stackPackage),
             resources: new ResourceContext(),
             health: new Health("files"),
             authenticate: async (request) => {
                 if (request.headers.get("authorization") !== `Bearer ${this.userId}`) {
-                    throw new CallError("UNAUTHORIZED", {
+                    throw CallError.http("UNAUTHORIZED", {
                         message: "invalid bearer credential",
                     });
                 }
@@ -155,14 +167,24 @@ export class BucketFixture implements AsyncDisposable {
                 headers: { authorization: `Bearer ${this.userId}` },
                 fetch: (request) => this.server.fetch(request),
             },
+            environment,
         );
     }
 
+    /** The clock the bucket's servers and records run on, its world's. */
+    get clock(): Clock {
+        return this.environment.clock;
+    }
+
     /** Serve the bucket object over the spaces database and the universe's claims. */
-    #serveObjects(database: DatabaseConnection, claims: ClaimHome): ObjectStore {
+    #serveObjects(
+        database: DatabaseConnection,
+        claims: ClaimPrimary,
+        base: BaseServerContext,
+    ): ObjectStore {
         return new ObjectStore({
             chain: async () => undefined,
-            clock: Clock.system,
+            environment: this.environment,
             principal: principal.space.reference(Scope.universe.id, this.spaceId),
             servers: serversOf([
                 implementBucket({
@@ -184,7 +206,7 @@ export class BucketFixture implements AsyncDisposable {
                         };
                     },
                 }),
-            ]),
+            ]).map((server) => server.at(base)),
             policies: [space],
             claims,
             database,
@@ -223,8 +245,8 @@ export class BucketFixture implements AsyncDisposable {
                 kind: "fixture",
                 id: "fixture-1",
                 audience: stackPackage.id,
-                verifiedAt: Date.now(),
-                expiresAt: Date.now() + 60_000,
+                verifiedAt: this.clock.now(),
+                expiresAt: this.clock.now() + 60_000,
             },
         };
     }
@@ -239,7 +261,7 @@ export class BucketFixture implements AsyncDisposable {
         );
         const calls = page.events.map((event) => Journal.recorded(CallEvent.parse(event.data)));
 
-        // keep the fixture's own callers, ordered by their time-ordered identifiers
+        // filter to the fixture's own callers, ordered by their time-ordered identifiers
         return calls
             .filter(({ execution }) => {
                 const { subject } = execution.context.caller;
@@ -268,12 +290,12 @@ export class BucketFixture implements AsyncDisposable {
     ): Promise<string> {
         // presign the request with the fixture's credentials
         const request = new Request(url, { method, headers });
-        const signature = new S3Signature({ region: REGION });
+        const signature = new S3Signature({ region: REGION, crypto: this.environment.crypto });
         const presigned = await signature.presign(
             request,
             this.credentials,
             LEASE_LIFETIME_SECONDS,
-            Date.now(),
+            this.clock.now(),
         );
 
         // read the signature from the query
@@ -288,7 +310,9 @@ export class BucketFixture implements AsyncDisposable {
     /** Open the fixture's bucket, the only one it serves. */
     async #open(reference: BucketReference): Promise<LocalBucket> {
         if (reference.scope !== this.spaceId || reference.bucketId !== this.bucketId) {
-            throw new CallError("NOT_FOUND", { message: `no bucket ${reference.bucketId}` });
+            throw CallError.http("NOT_FOUND", {
+                message: `bucket ${reference.bucketId} not found`,
+            });
         }
 
         return this.files;
@@ -296,101 +320,121 @@ export class BucketFixture implements AsyncDisposable {
 
     /** Grant the role a bucket permission in the space. */
     async grant(name: string): Promise<void> {
-        await this.database.insert(accessRolePermission).values({
-            id: schema.identifier("role-permission").parse(`role-permission-${v7()}`),
-            roleId: this.roleId,
-            scope: this.spaceId,
-            packageId: bucket.policy.definition.packageId,
-            type: bucket.name,
-            name,
-        });
+        await this.database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRolePermission).values({
+                    id: Identifier.create("role-permission", this.environment),
+                    roleId: this.roleId,
+                    scope: this.spaceId,
+                    packageId: bucket.policy.definition.packageId,
+                    type: bucket.name,
+                    name,
+                }),
+        );
     }
 
     /** Withdraw a bucket permission from the role. */
     async withdraw(name: string): Promise<void> {
-        await this.database
-            .delete(accessRolePermission)
-            .where(
-                and(
-                    eq(accessRolePermission.roleId, this.roleId),
-                    eq(accessRolePermission.type, bucket.name),
-                    eq(accessRolePermission.name, name),
-                ),
-            );
+        await this.database.transaction(
+            async (transaction) =>
+                await transaction
+                    .delete(accessRolePermission)
+                    .where(
+                        and(
+                            eq(accessRolePermission.roleId, this.roleId),
+                            eq(accessRolePermission.type, bucket.name),
+                            eq(accessRolePermission.name, name),
+                        ),
+                    ),
+        );
     }
 
     /** Bind the role to a subject in the space. */
     async bind(subject: Subject): Promise<void> {
-        await this.database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: `relationship-${v7()}`,
-                    object: space.reference(this.accountId, this.spaceId),
-                    role: this.roleId,
-                    subject,
-                    createdAt: Date.now(),
-                    expiresAt: null,
-                },
-                this.spaceId,
-            ),
+        await this.database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRelationship).values(
+                    Relationship.encode({
+                        id: Identifier.create("relationship", this.environment),
+                        object: space.reference(this.accountId, this.spaceId),
+                        role: this.roleId,
+                        subject,
+                        createdAt: this.clock.now(),
+                        expiresAt: null,
+                    }),
+                ),
         );
     }
 
     /** Relate an installation of the package to the bucket as a consumer, as consumption does. */
     async install() {
         // relate a new installation to the bucket as a consumer
-        const now = Date.now();
-        const installationId = schema.identifier("installation").parse(`installation-${v7()}`);
-        await this.database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: `relationship-${v7()}`,
-                    object: bucket.reference(this.spaceId, this.bucketId),
-                    relation: "consumer",
-                    subject: principal.installation.reference(this.spaceId, installationId),
-                    createdAt: now,
-                    expiresAt: null,
-                },
-                this.spaceId,
-            ),
+        const now = this.clock.now();
+        const installationId = Identifier.create("installation", this.environment);
+        await this.database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRelationship).values(
+                    Relationship.encode({
+                        id: Identifier.create("relationship", this.environment),
+                        object: bucket.reference(this.spaceId, this.bucketId),
+                        relation: "consumer",
+                        subject: principal.installation.reference(this.spaceId, installationId),
+                        createdAt: now,
+                        expiresAt: null,
+                    }),
+                ),
         );
 
         return installationId;
     }
 
-    /** Open the migrated bucket database of each dialect for a file's scenarios. */
-    static async databases(): Promise<Map<Dialect, TestDatabase>> {
-        const opened = new Map<Dialect, TestDatabase>();
-        for (const dialect of TEST_DIALECTS) {
-            opened.set(
-                dialect,
-                await TestDatabase.create(dialect, bucketDatabase, {
-                    isMigrated: true,
-                }),
-            );
-        }
-
-        return opened;
+    /** Open the migrated bucket database for a file's scenarios in their world. */
+    static async database(environment: Environment): Promise<TestDatabase> {
+        return await TestDatabase.create(bucketDatabase, {
+            environment: environment,
+            isMigrated: true,
+        });
     }
 
-    /** Provision a new space, its bucket and a member role with every bucket permission. */
-    static async open(database: DatabaseConnection): Promise<BucketFixture> {
-        // open the bucket's directory, and the universe's database keeping its name claims
-        const directory = await mkdtemp(join(tmpdir(), "destack-bucket-files-"));
-        const files = await LocalBucket.open(directory, "space-test", Clock.system);
-        const universe = await TestDatabase.create("sqlite", accountDatabase, { isMigrated: true });
-        const claims = await TestDirectory.claims(universe.database, Clock.system);
-        const events = await testEvents(database);
+    /** Provision a space, its bucket and a member role with every bucket permission, in a world. */
+    static async open(
+        database: DatabaseConnection,
+        environment: Environment<"files">,
+    ): Promise<BucketFixture> {
+        // open the bucket's directory, and the universe's database with its name claims
+        const directory = await environment.files.makeTemporaryDirectory("destack-bucket-files-");
+        const files = await LocalBucket.open(directory, "space-test", environment);
+        const universe = await TestDatabase.create(accountDatabase, {
+            environment,
+            isMigrated: true,
+        });
+        const claims = await TestDirectory.claims(universe.database, environment);
+        const events = await testEvents(database, environment);
         const release = async () => {
             await files[Symbol.asyncDispose]();
             await universe.close();
-            await rm(directory, { recursive: true });
+            await environment.files.remove(directory, { recursive: true });
         };
 
-        // serve the files, releasing the bucket when it fails to start
+        // serve the files as the space's base stack installation, releasing the bucket when it fails to start
+        const ids = {
+            accountId: Identifier.create("account", environment),
+            spaceId: Identifier.create("space", environment),
+        };
+        const scope = space.reference(ids.accountId, ids.spaceId);
+        const base = await Installation.base(scope, stackPackage, environment.crypto);
         let fixture: BucketFixture;
         try {
-            fixture = new BucketFixture(database, files, claims, events, release);
+            fixture = new BucketFixture(
+                database,
+                files,
+                claims,
+                events,
+                release,
+                environment,
+                ids,
+                base,
+            );
         } catch (error) {
             await release();
             throw error;
@@ -410,18 +454,21 @@ export class BucketFixture implements AsyncDisposable {
     /** Record the space, its bucket and the member's role as the space controller would. */
     async #provision(): Promise<void> {
         // record the space and its bucket
-        const now = Date.now();
-        await this.#record(this.spaceId, this.bucketId, "bucket-fixture");
+        const now = this.clock.now();
+        await this.#record(this.spaceId, this.bucketId, "bucket-fixture", "home");
 
         // grant every bucket permission to the account's members through a role in the space
-        await this.database.insert(accessRole).values({
-            id: this.roleId,
-            scope: this.spaceId,
-            name: "bucket-owner",
-            description: "use the fixture bucket",
-            createdAt: now,
-            updatedAt: now,
-        });
+        await this.database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRole).values({
+                    id: this.roleId,
+                    scope: this.spaceId,
+                    name: "bucket-owner",
+                    description: "use the fixture bucket",
+                    createdAt: now,
+                    updatedAt: now,
+                }),
+        );
         await this.bind({
             ...account.reference(this.userId, this.accountId),
             relation: "editor",
@@ -434,11 +481,30 @@ export class BucketFixture implements AsyncDisposable {
     /** Record another space of the account with its own bucket and no role, and select it. */
     async neighbour() {
         // record the space and its bucket under new identifiers
-        const spaceId = schema.identifier("space").parse(`space-${v7()}`);
-        const bucketId = schema.identifier("bucket").parse(`bucket-${v7()}`);
-        await this.#record(spaceId, bucketId, "neighbour");
+        const spaceId = Identifier.create("space", this.environment);
+        const bucketId = Identifier.create("bucket", this.environment);
+        await this.#record(spaceId, bucketId, "neighbour", "replica");
 
         return { spaceId, id: bucketId };
+    }
+
+    /** Receive a space at its home with its base installations, as its placement does. */
+    async #receive(spaceId: Identifier<"space">, now: number): Promise<void> {
+        await Transaction.run(this.database, async (transaction) => {
+            const authorization = new Authorization(
+                this.#store.authorizer,
+                transaction,
+                () => AccessContext.of(Caller.of(this.#store.principal), now),
+                this.environment,
+            );
+            await Installation.receive(
+                authorization,
+                space.reference(this.accountId, spaceId),
+                [this.accountId],
+                [stackPackage],
+                this.#store,
+            );
+        });
     }
 
     /** Record a space of the account below its scope, with one bucket resource. */
@@ -446,33 +512,54 @@ export class BucketFixture implements AsyncDisposable {
         spaceId: Identifier<"space">,
         bucketId: Identifier<"bucket">,
         name: string,
+        place: "home" | "replica",
     ): Promise<void> {
         // record the space below the account
-        const now = Date.now();
+        const now = this.clock.now();
         const record = { createdAt: now, updatedAt: now };
-        await this.database
-            .insert(space.table)
-            .values({ ...record, id: spaceId, scope: this.accountId, name, stack: STACKS.space });
-        await this.database.insert(Scope.table).values({
-            scope: spaceId,
-            parent: this.accountId,
-            partition: spaceId,
-            packageId: space.policy.definition.packageId,
-            type: space.name,
-            ancestors: [this.accountId],
-        });
+        await this.database.transaction(
+            async (transaction) =>
+                await transaction.insert(space.table).values({
+                    ...record,
+                    id: spaceId,
+                    scope: this.accountId,
+                    name,
+                    stack: STACKS.space,
+                }),
+        );
+        // receive a homed scope with its base installations, as its placement does
+        if (place === "home") {
+            await this.#receive(spaceId, now);
+        }
+        // insert another space's scope row as its replica does
+        else {
+            await this.database.transaction(
+                async (transaction) =>
+                    await transaction.insert(Scope.table).values({
+                        scope: spaceId,
+                        parent: this.accountId,
+                        partition: spaceId,
+                        packageId: space.policy.definition.packageId,
+                        type: space.name,
+                        ancestors: [this.accountId],
+                    }),
+            );
+        }
 
         // record its bucket
-        await this.database.insert(bucket.table).values({
-            ...record,
-            id: bucketId,
-            scope: spaceId,
-            name: "files",
-            definitionPackageId: bucket.policy.definition.packageId,
-            definitionVersion: PACKAGE.version,
-            definitionName: "files",
-            spec: {},
-        });
+        await this.database.transaction(
+            async (transaction) =>
+                await transaction.insert(bucket.table).values({
+                    ...record,
+                    id: bucketId,
+                    scope: spaceId,
+                    name: "files",
+                    definitionPackageId: bucket.policy.definition.packageId,
+                    definitionVersion: PACKAGE.version,
+                    definitionName: "files",
+                    spec: {},
+                }),
+        );
     }
 
     /** Drain the server, then release the bucket and database. */

@@ -1,13 +1,15 @@
+import type { Crypto } from "@destack/environment";
+import { StackDefinition } from "../declare/index.ts";
 import { StackError } from "../error/index.ts";
-import { StackDefinition } from "../declare/stack.ts";
-import { type JsonObject, schema } from "@destack/schema";
+import { type Digest, type JsonObject, schema } from "@destack/schema";
 import { Package, PackageId } from "@destack/package";
-import { type BuildReader, PackageOutput } from "@destack/package/manifest";
+import { type BuildReader, type OutputExport, PackageOutput } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { Upgrade } from "@destack/resource";
 import type { Registry } from "../server/index.ts";
+import type { ReleaseRegistry } from "@destack/account/server";
 import { PackageStore } from "@destack/build/store";
-import { MemoryBucket } from "@destack/bucket/test";
+import { PackageManifest } from "@destack/package/manifest";
 
 /** The releases the fixture's distribution tags point at, as the forge resolves `<name>@<tag>`. */
 export const TAGS: Readonly<Record<string, string>> = { latest: "2026.10.0" };
@@ -50,15 +52,34 @@ export const UPGRADES: Readonly<Record<string, Upgrade>> = {
     },
 };
 
-/** Complete a fixture build's outputs with a directory of their own name, exporting nothing. */
+/** Complete fixture build outputs with their directory, exporting each workload's entrypoint. */
 export function fixtureOutputs(
     outputs: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
 ): Readonly<Record<string, PackageOutput>> {
     return Object.fromEntries(
-        Object.entries(outputs).map(([name, output]) => [
-            name,
-            PackageOutput.parse({ directory: name, exports: {}, dependencies: {}, ...output }),
-        ]),
+        Object.entries(outputs).map(([name, output]) => {
+            // export each workload's entrypoint as a module importing no dependency, as a build does
+            const parsed = PackageOutput.parse({
+                directory: name,
+                exports: {},
+                dependencies: {},
+                ...output,
+            });
+            const exported = Object.values(parsed.workloads).map(
+                (declared): [string, OutputExport] => [
+                    declared.entrypoint,
+                    { path: `${name}/index.js`, imports: [] },
+                ],
+            );
+
+            return [
+                name,
+                PackageOutput.parse({
+                    ...parsed,
+                    exports: { ...Object.fromEntries(exported), ...parsed.exports },
+                }),
+            ];
+        }),
     );
 }
 
@@ -66,41 +87,110 @@ export function fixtureOutputs(
 const REGISTRY_MOUNT = new URL("http://registry.test/builds/");
 
 /** The registry the fixture's releases come from. */
-export class TestRegistry implements Registry {
+export class TestRegistry implements Registry, ReleaseRegistry {
     /** The stored fixture builds. */
-    readonly #store = new PackageStore(new MemoryBucket());
+    readonly #store: PackageStore;
+    /** The manifests of the pushed releases, by package and version. */
+    readonly #pushed = new Map<string, Digest>();
 
-    /** Store a package's fixture build at a version or at the release a tag points at. */
-    async find(packageId: PackageId, release: string): Promise<string> {
+    /** Serve the releases from a store: one in memory, or the run's build store. */
+    constructor(store: PackageStore) {
+        this.#store = store;
+    }
+
+    /** Find a pushed release, else store a fixture build at a version or at a tag's release. */
+    async find(packageId: PackageId, release: string): Promise<Digest> {
         const version = TAGS[release] ?? release;
 
-        return this.#store.put(await fixtureBuild(packageId, version));
+        return (
+            this.#pushed.get(`${packageId}@${version}`) ??
+            this.#publish(await fixtureBuild(packageId, version, this.#store.environment.crypto))
+        );
     }
 
-    /** Push a build into the registry, answering its manifest's digest. */
-    async push(build: BuildReader): Promise<string> {
-        return this.#store.put(build);
+    /** Open a release's build, as the universe opens the stacks it applies. */
+    async open(packageId: PackageId, release: string): Promise<BuildReader> {
+        return this.#store.contents(await this.find(packageId, release));
     }
 
-    /** Report whether the registry keeps a build by its manifest's digest. */
-    contains(manifest: string): Promise<boolean> {
+    /** Release a build with its npm units, answering its manifest's digest. */
+    async release(build: BuildReader, units: readonly BuildReader[] = []): Promise<Digest> {
+        // store the units, then the build, and record its manifest under its release
+        for (const unit of units) {
+            await this.#publish(unit);
+        }
+        const manifest = await this.#publish(build);
+        const released = PackageManifest.package(build.manifest);
+        this.#pushed.set(`${released.id}@${released.version}`, manifest);
+
+        return manifest;
+    }
+
+    /** Receive a stored build with its npm units and their referrers, as its forge does. */
+    async push(store: PackageStore, manifest: Digest): Promise<Digest> {
+        // copy each npm unit, then the build, each before the referrers attached to it
+        const build = await store.contents(manifest);
+        const packageId = PackageManifest.package(build.manifest).id;
+        for (const subject of [...(await store.units(manifest, packageId)), manifest]) {
+            await this.#store.put(await store.contents(subject));
+            for (const { subject: referred, file } of await store.attached(subject)) {
+                await this.#store.put(await store.contents(file.digest));
+                await this.#store.attachBuild(referred, file.digest, file.path);
+            }
+        }
+
+        // record the build under its release
+        const released = PackageManifest.package(build.manifest);
+        this.#pushed.set(`${released.id}@${released.version}`, manifest);
+
+        return manifest;
+    }
+
+    /** Store a build with the runtime build of each emitted server output. */
+    async #publish(build: BuildReader): Promise<Digest> {
+        const manifest = await this.#store.put(build);
+        for (const output of Object.values(build.manifest.outputs)) {
+            if (output.emit && output.runtime !== "browser") {
+                await this.#store.attachRuntime(manifest, output.runtime);
+            }
+        }
+
+        return manifest;
+    }
+
+    /** The manifests of the pushed releases. */
+    get manifests(): readonly Digest[] {
+        return [...this.#pushed.values()];
+    }
+
+    /** Report whether the registry has a build by its manifest's digest. */
+    contains(manifest: Digest): Promise<boolean> {
         return this.#store.contains(manifest);
     }
 
+    /** Read the build a stored fixture build has attached at a path. */
+    async referrer(_packageId: PackageId, manifest: Digest, path: string) {
+        return (await this.#store.referrer(manifest, path))?.digest;
+    }
+
     /** Locate a stored fixture build by its manifest's digest, read through the store's fetch. */
-    async locate(_packageId: PackageId, manifest: string) {
+    async locate(_packageId: PackageId, manifest: Digest) {
         return {
             location: { manifest, url: new URL(`${manifest}/`, REGISTRY_MOUNT).href },
             fetch: (input: URL, request: RequestInit) =>
                 this.#store.fetch(new Request(input.href, request), REGISTRY_MOUNT, {
-                    authorize: async () => ({}),
+                    authorize: async () => {},
                 }),
         };
     }
 }
 
 /** Write a package's fixture build at a version. */
-export async function fixtureBuild(packageId: PackageId, version: string): Promise<BuildReader> {
+export async function fixtureBuild(
+    packageId: PackageId,
+    version: string,
+    crypto: Crypto,
+): Promise<BuildReader> {
     // build the version with its upgrade
     const upgrade = UPGRADES[version];
     const built = await MemoryBuild.of(
@@ -114,6 +204,7 @@ export async function fixtureBuild(packageId: PackageId, version: string): Promi
                 description: ARCHIVE,
             },
         ],
+        crypto,
         {
             ...(upgrade === undefined
                 ? {}
@@ -178,7 +269,7 @@ export function evaluateStack(
     // require the named export
     const exported = module[name];
     if (exported === undefined) {
-        throw new StackError("INVALID_DEFINITION", `stack does not export ${name}`);
+        throw StackError.of("DEFINITION_INVALID", `stack does not export ${name}`);
     }
 
     // call parameterised definitions with the installation's arguments
