@@ -1,13 +1,13 @@
 import type { Environment } from "@destack/environment";
 import type { Call } from "@destack/sync";
-import { type ClientOf, createClient } from "@destack/object/client";
+import { type ClientOf, createClient, DynamicObjectClient } from "@destack/object/client";
 import { Egress, PackageMount } from "@destack/object";
 import type { InstalledServerContext } from "@destack/object/workload";
 import { Account, account } from "@destack/account/object";
 import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 import { Snapshot } from "@destack/db";
 import type { MethodContext, ResultsOf } from "@destack/object";
-import { Identifier, type JsonValue, present, schema } from "@destack/schema";
+import { Identifier, type JsonObject, type JsonValue, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Replica, type Subject } from "@destack/sync";
 import { Credential, Token } from "../credential/credential.ts";
 import { ConnectionError, OAuthRefusal } from "../error/error.ts";
@@ -241,20 +241,21 @@ export class TokenSource {
             );
         }
 
-        // call the issuing installation through the egress, under its package's issuer routes
+        // call the issuing installation's object APIs through the egress, as any installation may
         const at = this.options.at(Egress.address(issued.name, issued.issuer.scope));
         const type = Issuer.type(issued.package);
-        const client = createClient(
-            { router: { issuer: type.procedures } },
-            {
+        const client = new DynamicObjectClient({
+            objects: [type],
+            scope: issued.issuer.scope,
+            endpoint: {
                 url: `${at.url}${PackageMount.path(issued.package.id)}`,
                 fetch: (request) => at.fetch(request),
             },
-            this.options.environment,
-        );
+            environment: this.options.environment,
+        });
         const target = { spaceId: issued.issuer.scope, id: issued.issuer.id };
-        const call = (method: string, input: object) =>
-            present(client.issuer[method], `the issuer's ${method}`)({ ...target, ...input });
+        const call = (method: string, input: JsonObject) =>
+            client.call(type.name, method, { ...target, ...input });
 
         // read the issuer's answers as another package's, through the template's schemas
         return {
