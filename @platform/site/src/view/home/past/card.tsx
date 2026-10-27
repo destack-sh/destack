@@ -83,42 +83,44 @@ export function Card(properties: {
 
 /** Render an entity's icon on a tile in its own colour, your agent as its avatar, or a lock. */
 function Tile(properties: { entity: Entity; isLocked?: boolean }) {
-    // show your agent as its avatar, filling the tile
-    if (isAgent(properties.entity.icon) && properties.isLocked !== true) {
-        return (
-            <span {...style.attrs(styles.chip, styles.avatarChip)}>
-                <AgentAvatar size="fill" />
-            </span>
-        );
-    }
-
     return (
-        <span
-            style={
-                properties.isLocked === true
-                    ? undefined
-                    : {
-                          "background-color": properties.entity.tint,
-                          color:
-                              properties.entity.glyph ??
-                              (isBrand(properties.entity) ? palette.tileGlyph : palette.cream),
-                      }
-            }
-            class={
-                style.attrs(
-                    styles.chip,
-                    isBrand(properties.entity) && styles.brandChip,
-                    properties.isLocked === true && styles.lockedChip,
-                ).class
-            }
-        >
-            <span
-                style={{
-                    "mask-image": `url(/diagram/${iconPathOf(properties.entity, properties.isLocked === true)}.svg)`,
-                }}
-                {...style.attrs(styles.icon)}
-            />
-        </span>
+        <>
+            {/* show your agent as its avatar, filling the tile */}
+            {isAgent(properties.entity.icon) && properties.isLocked !== true ? (
+                <span {...style.attrs(styles.chip, styles.avatarChip)}>
+                    <AgentAvatar size="fill" />
+                </span>
+            ) : (
+                <span
+                    style={
+                        properties.isLocked === true
+                            ? undefined
+                            : {
+                                  "background-color": properties.entity.tint,
+                                  color:
+                                      properties.entity.glyph ??
+                                      (isBrand(properties.entity)
+                                          ? palette.tileGlyph
+                                          : palette.cream),
+                              }
+                    }
+                    class={
+                        style.attrs(
+                            styles.chip,
+                            isBrand(properties.entity) && styles.brandChip,
+                            properties.isLocked === true && styles.lockedChip,
+                        ).class
+                    }
+                >
+                    <span
+                        style={{
+                            "mask-image": `url(/diagram/${iconPathOf(properties.entity, properties.isLocked === true)}.svg)`,
+                        }}
+                        {...style.attrs(styles.icon)}
+                    />
+                </span>
+            )}
+        </>
     );
 }
 

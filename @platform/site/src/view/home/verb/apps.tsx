@@ -261,13 +261,11 @@ function Paned(properties: { children: JSX.Element }) {
 }
 
 /** Draw a page's header, its title and actions, with its view controls as chips beneath. */
-function Toolbar(properties: { title: string; actions: JSX.Element; children?: JSX.Element }) {
+function Toolbar(properties: { title: string; actions: JSX.Element; children: JSX.Element }) {
     return (
         <>
             <AppHeader title={properties.title}>{properties.actions}</AppHeader>
-            {properties.children === undefined ? undefined : (
-                <div {...style.attrs(appStyles.properties)}>{properties.children}</div>
-            )}
+            <div {...style.attrs(appStyles.properties)}>{properties.children}</div>
         </>
     );
 }
@@ -331,18 +329,11 @@ function Launch(properties: { isRemixed: boolean }) {
 
     return (
         <Paned>
-            <Toolbar
-                title="Destack launch"
-                actions={
-                    <>
-                        <Present />
-                        <span {...style.attrs(appStyles.action, styles.wide)}>
-                            Agent edited just now
-                        </span>
-                        <span {...style.attrs(appStyles.primary)}>Share</span>
-                    </>
-                }
-            />
+            <AppHeader title="Destack launch">
+                <Present />
+                <span {...style.attrs(appStyles.action, styles.wide)}>Agent edited just now</span>
+                <span {...style.attrs(appStyles.primary)}>Share</span>
+            </AppHeader>
             <article {...style.attrs(styles.document)}>
                 <div {...style.attrs(appStyles.properties)}>
                     <span {...style.attrs(appStyles.property)}>
@@ -1197,6 +1188,9 @@ function Tracker(properties: { isRemixed: boolean }) {
                 <span data-xray="Jobs" {...style.attrs(appStyles.property)}>
                     Reminder · Fri 09:00
                 </span>
+                <span data-xray="Observability" {...style.attrs(appStyles.property)}>
+                    0 errors today
+                </span>
             </Toolbar>
             <Table data-xray="Database">
                 <TableHeader>
@@ -1254,10 +1248,9 @@ function Tracker(properties: { isRemixed: boolean }) {
 function Changelog(properties: { isRemixed: boolean }) {
     return (
         <Paned>
-            <Toolbar
-                title="Changelog"
-                actions={<span {...style.attrs(appStyles.primary)}>New release</span>}
-            />
+            <AppHeader title="Changelog">
+                <span {...style.attrs(appStyles.primary)}>New release</span>
+            </AppHeader>
             <Table data-xray="Database">
                 <TableHeader>
                     <TableRow>
