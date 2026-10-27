@@ -3,7 +3,7 @@ import type { Clock, Environment, FileSystem } from "@destack/environment";
 import { createServer, type ServerOptions, type ViteDevServer } from "vite";
 import { loadTransforms, PackageSource } from "@destack/build/local";
 import type { Plugin } from "@destack/package/build";
-import { cssTargets, runtimeConditions, runtimeTarget } from "@destack/package/build";
+import { runtimeConditions, runtimeCss, runtimeTarget } from "@destack/package/build";
 import { PackageLocator } from "@destack/package/locator";
 import { modulePlugin } from "@destack/package/vite";
 import { SolidApplication, VIEW_PACKAGE } from "@destack/view/build";
@@ -204,7 +204,7 @@ async function serve(
         resolve: { conditions: runtimeConditions("browser", "development") },
         // serve the syntax and stylesheets of the baseline browsers, as builds emit them
         oxc: { target: runtimeTarget("browser") },
-        css: { transformer: "lightningcss", lightningcss: { targets: cssTargets() } },
+        css: runtimeCss("browser"),
         ssr: {
             noExternal: true,
             resolve: { conditions: runtimeConditions(runtime, "development") },

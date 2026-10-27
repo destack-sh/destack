@@ -8,6 +8,7 @@ import {
     type Pass,
     type Plugin,
     runtimeConditions,
+    runtimeCss,
     runtimeTarget,
 } from "@destack/package/build";
 import type { OutputExport, PackageOutput } from "@destack/package/manifest";
@@ -237,8 +238,8 @@ function builderConfiguration(build: WebBuild): InlineConfig {
         logLevel: "silent",
         define: { "process.env.NODE_ENV": JSON.stringify("production") },
         base: application.base ?? "/",
-        // lower stylesheets to the baseline browsers, from the build's target
-        css: { transformer: "lightningcss" },
+        // lower stylesheets to the baseline browsers
+        css: runtimeCss("browser"),
         ssr: {
             noExternal: true,
             target: runtime === "workerd" ? "webworker" : "node",
