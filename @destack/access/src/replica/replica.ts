@@ -6,6 +6,7 @@ import { accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import { accessInvitation } from "../invitation/table.ts";
 import { accessGrant } from "../grant/table.ts";
+import { nonce } from "../token/nonce.ts";
 
 /** The name of the publication replicating a scope's chain. */
 export const CHAIN_PUBLICATION = "chain";
@@ -23,6 +24,7 @@ export const accessTables: readonly Table[] = [
     ...decisionTables,
     accessInvitation,
     accessGrant,
+    nonce,
     ...replicaTables,
 ];
 

@@ -1,7 +1,8 @@
 import { TEST_START, testSimulation } from "@destack/test/world";
-import type { Crypto } from "@destack/environment";
-import { Failure } from "@destack/error";
-import { expect, refusal, test } from "@destack/test";
+import type { Crypto, Environment } from "@destack/environment";
+import type { DatabaseConnection } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Caller, KEY_ASSURANCE } from "../context/index.ts";
 import { principal } from "../declare/index.ts";
 import { PackageId } from "@destack/package";
@@ -10,6 +11,7 @@ import { Scope } from "@destack/sync";
 import { Jwt, PublicKey } from "@destack/identity";
 import { Assertion, AssertionVerifier, type AssertionKey } from "./assertion.ts";
 import { MACHINE_KEY } from "./token.ts";
+import { nonce } from "./nonce.ts";
 
 /** The package serving the token endpoint. */
 const audience = PackageId.parse("package-019f7480-0000-7000-8000-000000000031");
@@ -37,7 +39,7 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
         endpoint,
         audience,
         keys: async (id) => (id === key.id ? key : undefined),
-        spend: spending(),
+        database: await spending(world),
     });
     const now = TEST_START;
     const signed = await Assertion.sign(pair.privateKey, key, endpoint, now, world);
@@ -111,7 +113,7 @@ test("authenticate an installation within its space", async () => {
         endpoint,
         audience,
         keys: async () => key,
-        spend: spending(),
+        database: await spending(world),
     });
     const now = TEST_START;
     const installation = await verifier.verify(
@@ -143,7 +145,7 @@ test("authenticate a space and its installation by the space's key, refusing a s
         endpoint,
         audience,
         keys: async (id, issuer) => (id === key.id && issuer === spaceId ? key : undefined),
-        spend: spending(),
+        database: await spending(world),
     });
 
     // assert an installation of the space, the space itself, and a machine
@@ -181,20 +183,10 @@ test("authenticate a space and its installation by the space's key, refusing a s
     });
 });
 
-/** Spend digests once in memory, refusing a digest spent before as the proof store does. */
-function spending(): (digest: string) => Promise<void> {
-    const spent = new Set<string>();
+/** Open a database spending assertions, closed when the test finishes. */
+async function spending(world: Environment): Promise<DatabaseConnection> {
+    const storage = await TestDatabase.create([nonce], { environment: world, isMigrated: true });
+    onTestFinished(() => storage.close());
 
-    return async (digest) => {
-        // refuse a digest spent before, and record this one
-        if (spent.has(digest)) {
-            throw Failure.error({
-                code: "CONFLICT",
-                reason: "DUPLICATE",
-                domain: "@destack/object",
-                message: "proof was used before",
-            });
-        }
-        spent.add(digest);
-    };
+    return storage.database;
 }

@@ -1,4 +1,5 @@
 import type { Crypto, Environment } from "@destack/environment";
+import type { DatabaseConnection } from "@destack/db";
 import { IdentityError, Jws, Jwt, PublicKey } from "@destack/identity";
 import type { PackageId } from "@destack/package";
 import { Digest, schema, Uuid } from "@destack/schema";
@@ -10,9 +11,9 @@ import {
     KEY_ASSURANCE,
 } from "../context/index.ts";
 import { principal } from "../declare/index.ts";
-import { Failure } from "@destack/error";
 import { AccessError } from "../error/index.ts";
 import { Bearer } from "./bearer.ts";
+import { Nonce } from "./nonce.ts";
 import { INSTALLATION_KEY, MACHINE_KEY, SPACE_KEY } from "./token.ts";
 
 /** The JWT type of a key-signed assertion, after RFC 7523bis's explicit typing. */
@@ -129,11 +130,7 @@ export class AssertionVerifier {
         // spend it once under its key, refusing one spent before, and answer the key's principal
         const expiresAt = exp * 1000;
         const digest = await Digest.of(JSON.stringify([key.id, jti]), this.options.crypto);
-        await this.options.spend(digest, expiresAt, now).catch((error: unknown) => {
-            throw Failure.of(error).code === "CONFLICT"
-                ? AccessError.of("ASSERTION_REUSED", "assertion was already used", { cause: error })
-                : error;
-        });
+        await new Nonce(digest, expiresAt).spend(this.options.database, now);
 
         return asserted(key, sub, this.options.audience, now, expiresAt);
     }
@@ -147,8 +144,8 @@ export interface AssertionVerifierOptions {
     readonly audience: PackageId;
     /** Read an issuer's standing key an assertion's header refers to, absent for none. */
     readonly keys: (id: string, issuer: string, now: number) => Promise<AssertionKey | undefined>;
-    /** Spend an assertion's digest once until it expires, refusing a repeat as a conflict. */
-    readonly spend: (digest: Digest, expiresAt: number, now: number) => Promise<void>;
+    /** The database spending each assertion's digest once until it expires. */
+    readonly database: DatabaseConnection;
     /** The WebCrypto operations it verifies with. */
     readonly crypto: Crypto;
 }
