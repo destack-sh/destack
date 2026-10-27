@@ -1,10 +1,10 @@
 import { PROCESS_RUNTIME } from "../object/index.ts";
 import { principal } from "@destack/access";
-import { hostname } from "@destack/account/object";
+import { hostname, machine } from "@destack/account/object";
 import type { PackageId, PackageRelease } from "@destack/package";
 import { type Identifier, present, schema } from "@destack/schema";
-import { Snapshot, type Database, type DatabaseConnection } from "@destack/db";
-import { type Publisher, type Subject, Scope, type Uplink } from "@destack/sync";
+import { eq, Snapshot, type Database, type DatabaseConnection } from "@destack/db";
+import { type Publisher, RequestId, type Subject, Scope, type Uplink } from "@destack/sync";
 import { type CallKey, installation } from "@destack/object";
 import type { ObjectPackage } from "@destack/object/server";
 import type accountPackage from "@destack/account/package";
@@ -311,6 +311,14 @@ export function serveSpace(options: SpaceOptions): {
         environment: options.environment,
         events: options.events,
         ephemeral: options.sockets.storage,
+        // keep a socket of each principal's stream, recording a machine leaving with its last one
+        connect: (subject) =>
+            linkSocket(
+                options.sockets,
+                schema.identifier("space").parse(options.principal.id),
+                subject,
+                () => store,
+            ),
         origin: { package: stackPackage, machineId: options.machine },
         uplink: options.publisher,
         // root the chain above the space by its placement, as primary or move target
@@ -486,13 +494,13 @@ function spaceFollows(
 ): readonly Follow[] {
     // follow the space's row as the machine wherever it is served, which it needs before acting as the space
     const served = schema.identifier("space").parse(options.principal.id);
-    const machine = principal.machine.reference(Scope.universe.id, options.machine);
+    const host = principal.machine.reference(Scope.universe.id, options.machine);
     const follows: Follow[] = [
         Follow.of(spaceShape, {
             keys: [
                 {
                     key: { scope: Scope.universe.id, space: served, machine: options.machine },
-                    subject: machine,
+                    subject: host,
                 },
             ],
         }),
@@ -574,7 +582,48 @@ function homePublisher(
         async *stream(subscription, signal) {
             yield* (await homed()).stream(subscription, signal);
         },
-        confirm: async (subscription, watermark) =>
-            (await homed()).confirm(subscription, watermark),
+        request: async (subscription) => (await homed()).request(subscription),
     };
+}
+
+/** Open a principal's socket to a space, recording a machine's leave at its last close. */
+async function linkSocket(
+    sockets: SocketRegistry,
+    spaceId: Identifier<"space">,
+    subject: Subject,
+    store: () => ObjectStore,
+): Promise<() => Promise<void>> {
+    const lease = await sockets.link(spaceId, subject);
+
+    return async () => {
+        await lease.close();
+        if (principal.machine.is(subject) && !(await sockets.isConnected(subject))) {
+            await leaveMachine(store(), subject);
+        }
+    };
+}
+
+/** Record a machine leaving its home, where this store serves the machine's row. */
+async function leaveMachine(store: ObjectStore, subject: Subject): Promise<void> {
+    // leave a machine whose row lives elsewhere, or replicated here
+    if (store.readServer(machine) === undefined || store.replicates(machine)) {
+        return;
+    }
+    const [row] = await store.database
+        .select({ scope: machine.table.scope, id: machine.table.id })
+        .from(machine.table)
+        .where(eq(machine.table.id, schema.identifier("machine").parse(subject.id)));
+    if (row === undefined) {
+        return;
+    }
+
+    // record the leave as the store
+    await store.mutate(
+        store.as(machine),
+        {
+            id: RequestId.create(store.environment),
+            calls: [machine.call("leave", machine.target(row))],
+        },
+        { component: "presence" },
+    );
 }

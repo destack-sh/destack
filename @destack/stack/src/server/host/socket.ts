@@ -1,4 +1,5 @@
-import { type Channel, type DatabaseConnection, eq, type Table } from "@destack/db";
+import { and, type DatabaseConnection, eq, type Table, type Tracker } from "@destack/db";
+import { principal } from "@destack/access";
 import type { ObjectType } from "@destack/object";
 import { EphemeralStorage } from "@destack/object/server";
 import { type Identifier, present } from "@destack/schema";
@@ -48,8 +49,8 @@ export class SocketRegistry implements AsyncDisposable {
     static async open(options: {
         /** The ephemeral object types the spaces serve with the sockets, such as presence. */
         readonly objects: readonly ObjectType[];
-        /** The channel to the machine's other instances. */
-        readonly channel: Channel<unknown>;
+        /** The tracker of the machine's live instances. */
+        readonly tracker: Tracker;
         /** Open a memory database with tables. */
         readonly memory: (
             tables: readonly Table[],
@@ -61,7 +62,7 @@ export class SocketRegistry implements AsyncDisposable {
     }): Promise<SocketRegistry> {
         const storage = await EphemeralStorage.open(
             [...Object.values(stackPackage.objects), ...options.objects],
-            options.channel,
+            options.tracker,
             (tables) => options.memory(tables),
             { report: (error) => options.report(error) },
         );
@@ -130,6 +131,46 @@ export class SocketRegistry implements AsyncDisposable {
                 }
             },
         };
+    }
+
+    /** Open a principal's socket to a space for one of its streams. */
+    async link(spaceId: Identifier<"space">, subject: Subject): Promise<SocketLease> {
+        return await this.connect(spaceId, {
+            kind: SocketRegistry.#kindOf(subject),
+            principal: subject,
+        });
+    }
+
+    /** Read the kind of link a principal opens. */
+    static #kindOf(subject: Subject): SocketKind {
+        // link a machine as itself
+        if (principal.machine.is(subject)) {
+            return "machine";
+        }
+        // link an installation as a workload
+        else if (principal.installation.is(subject)) {
+            return "workload";
+        }
+        // link anyone else as a browser tab
+        else {
+            return "tab";
+        }
+    }
+
+    /** Report whether a principal has a socket open on any instance. */
+    async isConnected(subject: Subject): Promise<boolean> {
+        const [open] = await this.storage.database
+            .select({ id: socket.table.id })
+            .from(socket.table)
+            .where(
+                and(
+                    eq(socket.table.principalType, subject.type),
+                    eq(socket.table.principalId, subject.id),
+                ),
+            )
+            .limit(1);
+
+        return open !== undefined;
     }
 
     /** Stop replicating and close the memory database. */

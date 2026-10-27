@@ -1,3 +1,4 @@
+import { Shape } from "@destack/object";
 import { principal } from "@destack/access";
 import { Snapshot } from "@destack/db";
 import { spaceShape } from "@destack/account/object";
@@ -15,21 +16,21 @@ test("follow the served space's own rows as its machine serves them", async () =
     const { store } = serveSpace(options);
 
     // list the replicas of the space's own shape in its database
+    const expected = Shape.subscription(
+        Scope.universe.id,
+        [{ shape: spaceShape, keys: [{ space: ids.space, machine: options.machine }] }],
+        ids.space,
+        principal.machine.reference(Scope.universe.id, options.machine),
+    );
     const listed = await present(store.subscriber, "the space's subscriber").subscriptions(
         Snapshot.live(store.database),
     );
     const own = listed
         .map((entry) => entry.subscription)
-        .filter((each) => each.name.startsWith(`${spaceShape.name}:`));
+        .filter((each) => each.name === expected.name);
 
     // follow the space's row, placement, assignments and serving machine at the universe
-    expect(own).toEqual([
-        spaceShape.subscription(
-            { scope: Scope.universe.id, space: ids.space, machine: options.machine },
-            ids.space,
-            principal.machine.reference(Scope.universe.id, options.machine),
-        ),
-    ]);
+    expect(own).toEqual([expected]);
 });
 
 test("serve a person calling the space with the token their client exchanges for it, and refuse a stranger's", async () => {
