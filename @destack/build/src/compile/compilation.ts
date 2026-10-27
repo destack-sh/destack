@@ -26,6 +26,7 @@ import {
     isRuntimeModule,
     type OutputDescription,
     runtimeConditions,
+    runtimeCss,
     runtimeTarget,
 } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
@@ -341,8 +342,8 @@ export class OutputCompilation implements Compilation {
             logLevel: "silent",
             define: { "process.env.NODE_ENV": JSON.stringify("production") },
             resolve: { conditions },
-            // lower stylesheets to the baseline browsers too, from the same target
-            css: project.runtime === "browser" ? { transformer: "lightningcss" } : {},
+            // lower stylesheets to the baseline browsers too
+            css: runtimeCss(project.runtime),
             ssr: {
                 noExternal: true,
                 target: project.runtime === "workerd" ? "webworker" : "node",
