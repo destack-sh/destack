@@ -43,7 +43,7 @@ import objectPackage from "@destack/object/package";
 import { type graph, type PackageId, type PackageRelease, Sandbox } from "@destack/package";
 import { type Digest, type Identifier, present, schema } from "@destack/schema";
 import { type Publisher, Scope, Subject, type Subscription, Uplink } from "@destack/sync";
-import { SPACE_PACKAGES, type SpaceOptions } from "../server.ts";
+import { SPACE_KERNEL, type SpaceOptions } from "../server.ts";
 import {
     binding,
     type Binding,
@@ -357,7 +357,7 @@ export class SpaceHost {
 
         // derive the base installation of each package the space is born with
         const bases = await Promise.all(
-            SPACE_PACKAGES.map(
+            SPACE_KERNEL.map(
                 async (handle) =>
                     [
                         handle.id,

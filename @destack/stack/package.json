@@ -45,8 +45,7 @@
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@destack/view": "workspace:*",
-        "@destack/workflow": "workspace:*"
+        "@destack/view": "workspace:*"
     },
     "peerDependencies": {
         "@destack/test": "workspace:*",

@@ -52,7 +52,6 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     BUILD_NOT_READY: { code: "CONFLICT" },
     BUILD_STATE_CONFLICT: { code: "CONFLICT" },
     CAPTURED: { code: "CONFLICT" },
-    CHANGE_REQUEST_REQUIRED: { code: "CONFLICT" },
     INSTALLATIONS_CYCLIC: { code: "CONFLICT" },
     BUILD_DUPLICATE: { code: "CONFLICT" },
     RELEASE_NOT_PULLED: { code: "CONFLICT" },
@@ -67,7 +66,6 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     SERVED_BY_TARGET: { code: "CONFLICT" },
     SERVED_ELSEWHERE: { code: "CONFLICT" },
     TRANSFER_ENDED: { code: "CONFLICT" },
-    UNMERGED_CALLS: { code: "CONFLICT" },
     VERSION_CAPTURED: { code: "CONFLICT" },
 
     // precondition failed

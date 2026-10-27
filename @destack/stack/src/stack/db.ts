@@ -17,7 +17,6 @@ import { bucket } from "../object/bucket.ts";
 import { dependency } from "../object/dependency.ts";
 import { database } from "../object/database.ts";
 import { https } from "../object/https.ts";
-import workflowPackage from "@destack/workflow/package";
 import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
 
@@ -38,7 +37,7 @@ export const spaceReplicated: readonly Table[] = [
 /** The resource types the stack provisions in a space in addition to its package's objects. */
 const PROVISIONED = { database, bucket, dependency, https };
 
-/** List a space database's tables: object, stack, settings, workflows and its host's own. */
+/** List a space database's tables: object, stack, settings and its host's own. */
 export function spaceTables(host: {
     /** The packages the host serves in addition to the platform's. */
     readonly packages?: readonly Pick<PackageHandle, "objects" | "tables">[];
@@ -52,7 +51,6 @@ export function spaceTables(host: {
             objectPackage,
             stackPackage,
             settingPackage,
-            workflowPackage,
             { objects: PROVISIONED, tables: [] },
             ...(host.packages ?? []),
         ],

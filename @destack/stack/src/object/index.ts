@@ -11,7 +11,6 @@ export * from "./deployment.ts";
 export * from "./instance.ts";
 export * from "./transfer.ts";
 export * from "./snapshot.ts";
-export * from "./branch.ts";
 export * from "./route.ts";
 export * from "./bucket.ts";
 export * from "./file.ts";

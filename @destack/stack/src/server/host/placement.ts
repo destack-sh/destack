@@ -13,7 +13,7 @@ import {
 } from "@destack/db";
 import { Installation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { SPACE_PACKAGES } from "../server.ts";
+import { SPACE_KERNEL } from "../server.ts";
 import { Digest, type Identifier, type JsonObject, present } from "@destack/schema";
 import type { ReconcileController } from "@destack/db";
 import { Scope, RequestId } from "@destack/sync";
@@ -220,13 +220,7 @@ export class PlacementController implements ReconcileController {
                 this.#store.environment,
             );
             const scope = space.reference(replicated.scope, spaceId);
-            await Installation.receive(
-                authorization,
-                scope,
-                ancestors,
-                SPACE_PACKAGES,
-                this.#store,
-            );
+            await Installation.receive(authorization, scope, ancestors, SPACE_KERNEL, this.#store);
         });
     }
 

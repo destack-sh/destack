@@ -3,9 +3,6 @@ import { defineAdapter, definePackage, installation, role } from "@destack/objec
 import { catalog, declaration, module, symbol } from "./object/graph.ts";
 import {
     binding,
-    branch,
-    branchEntry,
-    branchChange,
     build,
     capture,
     deployment,
@@ -43,9 +40,6 @@ export default definePackage({
         build,
         route,
         socket,
-        branch,
-        branchEntry,
-        branchChange,
         module,
         declaration,
         symbol,

@@ -69,7 +69,7 @@ import { connectBunSqlite } from "@destack/db/bun";
 import { graph, Package, PackageId, type PackageRelease } from "@destack/package";
 import settingPackage from "@destack/setting/package";
 import { describeSetting } from "@destack/setting/inspect";
-import { branchApprovals, buildRetention } from "../setting/index.ts";
+import { buildRetention } from "../setting/index.ts";
 import {
     canonicalize,
     Digest,
@@ -95,7 +95,7 @@ import {
     SpaceHost,
     type SpaceMachine,
     type SpaceOptions,
-    SPACE_PACKAGES,
+    SPACE_KERNEL,
     type ServedProvider,
     type SpaceProvider,
 } from "../server/index.ts";
@@ -898,7 +898,7 @@ export class TestSpace implements AsyncDisposable {
         );
         const stack = await MemoryBuild.of(
             Package.of(stackPackage),
-            [branchApprovals, buildRetention].map((declared) => ({
+            [buildRetention].map((declared) => ({
                 kind: "setting",
                 kindPackageId: settingPackage.id,
                 name: declared.name,
@@ -1630,7 +1630,7 @@ export class TestSpace implements AsyncDisposable {
 
         // receive the space's and the test's own base installations on each start, with roles from the types they serve
         const born = [
-            ...SPACE_PACKAGES,
+            ...SPACE_KERNEL,
             ...own
                 .filter((server) => server.installation?.origin === "base")
                 .map((server) => server.package),

@@ -119,25 +119,6 @@ const builds = await readBuilds(spaceId, url, fetch); // [{ installation, reader
 const views = ViewDescription.list(builds[0].reader.manifest); // the views a build mounts
 ```
 
-## Change requests
-
-A space that requires approvals of its branches, through the `branch.approvals` setting, merges a branch only through a `changeRequest` holding its merge, which the change request makes once enough approvers approve, as a protected branch merges only approved pull requests.
-
-```ts
-await store.mutate(owner, {
-    id,
-    calls: [
-        changeRequest.call("create", {
-            spaceId,
-            parent: { packageId: branch.package.id, type: branch.name, id: branchId },
-            call: branch.call("merge", { spaceId, id: branchId }),
-            approvers: [reviewer],
-        }),
-    ],
-});
-await store.mutate(reviewer, { id, calls: [approval.call("approve", approval.target(asked))] });
-```
-
 ## Transfers
 
 `transfer.create` moves a space to another machine, and each side of the move ends it with one verb, as QEMU's migration does.

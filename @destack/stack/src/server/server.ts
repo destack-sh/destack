@@ -38,7 +38,6 @@ import {
     type ImplementationInput,
 } from "@destack/object/server";
 import { type PackageHandler } from "@destack/object/server";
-import workflowServer from "@destack/workflow/server";
 import { bucketProvider, type CatalogueBucketHost } from "@destack/bucket/provider";
 import { implementBucket } from "./resource/bucket.ts";
 import type { Runtime } from "../runtime/index.ts";
@@ -46,8 +45,7 @@ import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import type { BaseServerContext } from "@destack/object/workload";
 import settingPackage from "@destack/setting/package";
-import workflowPackage from "@destack/workflow/package";
-import { branchType, Rollout, rollout } from "../object/index.ts";
+import { Rollout, rollout } from "../object/index.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
 import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
@@ -248,8 +246,8 @@ function primaryControllers(
     ];
 }
 
-/** The packages every space is born with, each served as its base installation. */
-export const SPACE_PACKAGES = [stackPackage, objectPackage, settingPackage, workflowPackage];
+/** The packages every space is born with as base installations: the installer and what it uses. */
+export const SPACE_KERNEL = [stackPackage, objectPackage, settingPackage];
 
 /** Serve a space's stack and other packages over its one database, the stack first. */
 export function serveSpace(options: SpaceOptions): {
@@ -300,7 +298,6 @@ export function serveSpace(options: SpaceOptions): {
                 ? [
                       ...born,
                       installedSettingsServer(options).at(base(settingPackage)),
-                      workflowServer.at(base(workflowPackage)),
                       ...others.map((each) => each.server),
                   ]
                 : born,
@@ -335,7 +332,6 @@ export function serveSpace(options: SpaceOptions): {
         // send to the universe by the uplink, and to other scopes at their homes by the machine's route
         publisher: (scope) => homePublisher(options, scope),
         machine: options.machine,
-        branch: branchType,
         sandboxes: options.sandboxes,
     });
 

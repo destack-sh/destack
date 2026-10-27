@@ -14,7 +14,7 @@ test("relay the access deciding a space's objects to each of its installations a
     const { snapshot, notes, other } = await serveInstallation();
 
     // relay the space's row, its base roles and bindings, and the permissions on the build and space
-    const base = ["object", "setting", "stack", "workflow"].map((name) => `base:@destack/${name}`);
+    const base = ["object", "setting", "stack"].map((name) => `base:@destack/${name}`);
     expect(described(await snapshot(notes, ids.space))).toEqual([
         ...base.map((name) => ["destack__access__relationship", `${name} space`]),
         ...["cancel", "create", "push", "read", "record"].map((name) => [
