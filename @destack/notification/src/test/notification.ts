@@ -31,9 +31,10 @@ import { ids, TestPackage, TestSpace } from "@destack/stack/test";
 import { type Call, RequestId, type Subject } from "@destack/sync";
 import { testHost } from "@destack/test/host";
 import germanCatalog from "../../locale/de.json" with { type: "json" };
-import { PUSH_CAPABILITY } from "../message/recipient.ts";
+import { DELIVER_CAPABILITY, PUSH_CAPABILITY } from "../message/recipient.ts";
 import { Inbox } from "../notification/inbox.ts";
 import { activity, Notification, notification, summary } from "../object/index.ts";
+import messagePackage from "@destack/message/package";
 import notificationPackage from "../package.ts";
 import { NotificationServer } from "../server/server.ts";
 import { focus, preferences, summarySchedule } from "../setting/setting.ts";
@@ -344,9 +345,19 @@ export class TestNotification implements AsyncDisposable {
         return null;
     }
 
-    /** Give the notifications their push capability, and every other package none. */
+    /** Let the notifications deliver and push, and the messages deliver. */
     static #install(installed: TestPackage) {
-        return { capabilities: installed.handle === notificationPackage ? [PUSH_CAPABILITY] : [] };
+        // give each package the capabilities its deliveries need
+        let capabilities: string[] = [];
+        if (installed.handle === notificationPackage) {
+            capabilities = [DELIVER_CAPABILITY, PUSH_CAPABILITY];
+        }
+        // let the messages reach their hosts
+        else if (installed.handle === messagePackage) {
+            capabilities = [DELIVER_CAPABILITY];
+        }
+
+        return { capabilities };
     }
 
     /** Address a person by name. */
@@ -395,7 +406,7 @@ export class TestNotification implements AsyncDisposable {
         const home = HOME_TYPES.has(called.type.type) ? await this.home(person) : undefined;
         const served = home?.served ?? this.served;
         const caller = home?.caller ?? this.#callers[person];
-        const { type, handle } = present(served.type(called.type.type), "the called type");
+        const { type, handle } = present(served.type(called.type), "the called type");
         const client: unknown = Reflect.get(caller.client(handle), type.name);
         const procedure: unknown = Reflect.get(Object(client), called.method);
         if (typeof procedure !== "function") {
@@ -442,7 +453,7 @@ export class TestNotification implements AsyncDisposable {
         profile: { readonly timeZone?: string; readonly locale?: LocaleTag },
     ): Promise<void> {
         const signedIn = this.people[person];
-        await this.space.simulation.drive(
+        await this.space.simulation.settle(
             signedIn.client(accountPackage).user.update({
                 id: signedIn.id,
                 requestId: RequestId.create(this.environment),
@@ -458,7 +469,7 @@ export class TestNotification implements AsyncDisposable {
         value: schema.Infer<Value>,
     ): Promise<void> {
         const signedIn = this.people[person];
-        await this.space.simulation.drive(
+        await this.space.simulation.settle(
             signedIn.client(settingPackage).setting.create({
                 scope: signedIn.id,
                 packageId: declared.reference.packageId,
@@ -479,7 +490,7 @@ export class TestNotification implements AsyncDisposable {
     /** Sign another desktop client of a person in at their account, answering the client. */
     async desktop(person: Person): Promise<Identifier<"client">> {
         const signedIn = this.people[person];
-        const created = await this.space.simulation.drive(
+        const created = await this.space.simulation.settle(
             signedIn.client(accountPackage).client.create({
                 userId: signedIn.id,
                 requestId: RequestId.create(this.environment),
@@ -504,7 +515,7 @@ export class TestNotification implements AsyncDisposable {
         const signedIn = this.people[person];
         const clients = signedIn.client(accountPackage).client;
         const browser = await subscribeBrowser(this.environment);
-        const created = await this.space.simulation.drive(
+        const created = await this.space.simulation.settle(
             clients.create({
                 userId: signedIn.id,
                 requestId: RequestId.create(this.environment),
@@ -513,7 +524,7 @@ export class TestNotification implements AsyncDisposable {
             }),
         );
         const url = `${PUSH_ORIGIN}${path}`;
-        await this.space.simulation.drive(
+        await this.space.simulation.settle(
             clients.subscribe({
                 userId: signedIn.id,
                 id: created.id,
@@ -528,7 +539,7 @@ export class TestNotification implements AsyncDisposable {
     /** Revoke one of a person's clients at their account, as they sign it out. */
     async revoke(person: Person, id: Identifier<"client">): Promise<void> {
         const signedIn = this.people[person];
-        await this.space.simulation.drive(
+        await this.space.simulation.settle(
             signedIn.client(accountPackage).client.revoke({
                 userId: signedIn.id,
                 id,

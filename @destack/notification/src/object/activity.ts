@@ -99,7 +99,7 @@ export const activity = defineObject(
         notify: method.mutation({
             permission: "post",
             target: "scope",
-            isInternal: true,
+            visibility: "installation",
             input: schema.object({
                 /** The object it is about. */
                 parent: ParentReference,
@@ -120,8 +120,8 @@ export const activity = defineObject(
             }),
             output: schema.object({}),
         }),
-        post: method.create("post", { isInternal: true }),
-        occur: method.update("post", { isInternal: true }),
+        post: method.create("post", { visibility: "package" }),
+        occur: method.update("post", { visibility: "package" }),
         act: method.mutation({
             permission: "read",
             input: schema.object({

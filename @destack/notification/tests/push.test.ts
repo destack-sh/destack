@@ -1,4 +1,4 @@
-import { nth, schema } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
@@ -49,10 +49,8 @@ test("push a mention to each of a recipient's phones, and forget the subscriptio
     }).toEqual({
         pushed: [phone.url, old.url],
         messages: [
-            ...[
-                [old.id, "failed", "RECIPIENT_GONE"],
-                [phone.id, "sent", null],
-            ].toSorted((left, right) => String(left[0]).localeCompare(String(right[0]))),
-        ],
+            [old.id, "failed", "RECIPIENT_GONE"],
+            [phone.id, "sent", null],
+        ].toSorted((left, right) => String(left[0]).localeCompare(String(right[0]))),
     });
 });

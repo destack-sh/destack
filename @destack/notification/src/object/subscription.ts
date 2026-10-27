@@ -36,7 +36,7 @@ export const subscription = defineObject(
         /** Subscribe the caller to the parent, once. */
         create: method.create("own", { fields: [] }),
         /** Find a principal's subscription to the parent, or subscribe it. */
-        findOrCreate: method.create("subscribe", { isInternal: true }),
+        findOrCreate: method.create("subscribe", { visibility: "installation" }),
         list: method.list("own"),
         delete: method.delete("own"),
     }),

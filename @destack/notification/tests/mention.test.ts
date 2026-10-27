@@ -1,4 +1,4 @@
-import { nth, present, schema } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { notification } from "../src/index.ts";
 import { decrypt } from "@destack/message/test";

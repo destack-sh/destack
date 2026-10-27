@@ -146,7 +146,7 @@ test("follow the spaces of an account once the person owns it, and their activit
 
     // let the account's owner make alice an owner of the account too, its home served beside the space
     await fixture.serve(Account.home(fixture.space.account));
-    await fixture.space.simulation.drive(
+    await fixture.space.simulation.settle(
         fixture.space.owner.client(objectPackage).relationship.create({
             scope: fixture.space.owner.id,
             requestId: RequestId.create(fixture.environment),
@@ -159,7 +159,26 @@ test("follow the spaces of an account once the person owns it, and their activit
 
     // follow the space and her personal account's spaces as its guest, then the account's spaces and their activities as their owner
     const recipientId = fixture.subject("alice").id;
-    const spaces = (accountId: string) => [
+    const activities = (spaceId: string) => [
+        "activity",
+        spaceId,
+        { queries: { "0:activity": { object: "activity", where: { recipientId } } } },
+    ];
+    const personal = Account.personal(recipientId);
+    expect({ guest, owner }).toEqual({
+        guest: sorted([accountSpaces(personal), activities(fixture.scope.spaceId)]),
+        owner: sorted([
+            accountSpaces(personal),
+            accountSpaces(fixture.space.account),
+            activities(Account.home(fixture.space.account)),
+            activities(fixture.scope.spaceId),
+        ]),
+    });
+});
+
+/** Follow the spaces of an account, as the account-space query lists them. */
+function accountSpaces(accountId: string): unknown[] {
+    return [
         "account-space",
         Scope.universe.id,
         {
@@ -168,22 +187,7 @@ test("follow the spaces of an account once the person owns it, and their activit
             },
         },
     ];
-    const activities = (spaceId: string) => [
-        "activity",
-        spaceId,
-        { queries: { "0:activity": { object: "activity", where: { recipientId } } } },
-    ];
-    const personal = Account.personal(recipientId);
-    expect({ guest, owner }).toEqual({
-        guest: sorted([spaces(personal), activities(fixture.scope.spaceId)]),
-        owner: sorted([
-            spaces(personal),
-            spaces(fixture.space.account),
-            activities(Account.home(fixture.space.account)),
-            activities(fixture.scope.spaceId),
-        ]),
-    });
-});
+}
 
 /** Sort follows by their JSON, as the home lists them in no fixed order. */
 function sorted(follows: readonly unknown[]): unknown[] {

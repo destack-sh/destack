@@ -45,17 +45,20 @@ export const notification = defineObject(
     },
     (method) => ({
         /** Create the notification of an activity replica. */
-        create: method.create("plan", { isInternal: true, fields: ["plannedAt", "deliveryAt"] }),
+        create: method.create("plan", {
+            visibility: "package",
+            fields: ["plannedAt", "deliveryAt"],
+        }),
         /** Plan its delivery and the summary it waits for, as its controllers do. */
         update: method.update("plan", {
-            isInternal: true,
+            visibility: "package",
             fields: ["plannedAt", "deliveryAt", "delivered", "summaryAt"],
         }),
         /** Deliver its last occurrence to each destination due now, deferring the others. */
-        deliver: method.mutation({ permission: "plan", isInternal: true }),
+        deliver: method.mutation({ permission: "plan", visibility: "package" }),
         /** Move every notification waiting for one summary to another, or out of any. */
         reschedule: method.updateMany("plan", {
-            isInternal: true,
+            visibility: "package",
             fields: ["summaryAt"],
             match: ["summaryAt"],
         }),

@@ -9,6 +9,9 @@ import type { Subject } from "@destack/sync";
 /** The capability of pushing notifications to people's browsers, which an installation may lack. */
 export const PUSH_CAPABILITY = "push";
 
+/** The capability of delivering a person's notifications from their home. */
+export const DELIVER_CAPABILITY = "deliver";
+
 /** A destination a person receives notifications at: a desktop, a browser or an email address. */
 export type RecipientDestination = Exclude<Destination, { readonly channel: "webhook" }>;
 

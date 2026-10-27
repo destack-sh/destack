@@ -25,10 +25,10 @@ export const summary = defineObject(
     },
     (method) => ({
         /** Find the summary scheduled at a time, or schedule it. */
-        findOrCreate: method.create("plan", { isInternal: true, fields: ["at"] }),
+        findOrCreate: method.create("plan", { visibility: "package", fields: ["at"] }),
         create: false,
         /** Send it to each summary destination of the notifications waiting for it. */
-        send: method.mutation({ permission: "plan", isInternal: true }),
+        send: method.mutation({ permission: "plan", visibility: "package" }),
         update: false,
         delete: false,
     }),

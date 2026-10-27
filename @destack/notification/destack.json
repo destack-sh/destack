@@ -30,11 +30,6 @@
                     "kind": "notification",
                     "function": "./inspect#describeNotification",
                     "vocabulary": "./inspect#notificationVocabulary"
-                },
-                {
-                    "kind": "setting",
-                    "package": "@destack/setting",
-                    "value": "./inspect#notificationPreference"
                 }
             ]
         }

@@ -1,4 +1,4 @@
-import { PUSH_CAPABILITY } from "./message/recipient.ts";
+import { DELIVER_CAPABILITY, PUSH_CAPABILITY } from "./message/recipient.ts";
 import { user } from "@destack/account/object";
 import { message, messageAttempt } from "@destack/message";
 import { build, catalog, declaration } from "@destack/stack/object";
@@ -35,11 +35,15 @@ export default definePackage({
                 declaration.permission("read"),
                 catalog.permission("read"),
             ],
-            // read where people receive notifications
-            universe: [user.permission("recipient")],
         },
     },
     capabilities: {
+        // deliver a person's notifications from their home
+        [DELIVER_CAPABILITY]: {
+            reason: "Deliver your notifications by email, push and on your desktops",
+            optional: true,
+            permissions: { installation: { universe: [user.permission("recipient")] } },
+        },
         // push to people's browsers
         [PUSH_CAPABILITY]: {
             reason: "Send notifications to your browsers and devices as pushes",

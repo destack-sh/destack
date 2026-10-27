@@ -8,7 +8,7 @@ test("answer a review request from its notification, which breaks through a focu
     await using fixture = await TestNotification.open();
 
     // give bob a phone and a focus for the next two hours, and let him subscribe to a document he edits
-    const phone = await fixture.browser("bob", "/bob");
+    await fixture.browser("bob", "/bob");
     const end = fixture.clock.now() + 120 * 60_000;
     await fixture.set("bob", focus, {
         schedules: [],

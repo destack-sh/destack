@@ -97,7 +97,7 @@ export const announcement = defineObject(
         announce: method.mutation({
             permission: "post",
             target: "scope",
-            isInternal: true,
+            visibility: "installation",
             input: schema.object({
                 /** The object it is about. */
                 parent: ParentReference,
@@ -118,9 +118,9 @@ export const announcement = defineObject(
             }),
             output: schema.object({}),
         }),
-        post: method.create("post", { isInternal: true }),
-        replace: method.update("post", { isInternal: true }),
-        expand: method.mutation({ permission: "expand", isInternal: true }),
+        post: method.create("post", { visibility: "package" }),
+        replace: method.update("post", { visibility: "package" }),
+        expand: method.mutation({ permission: "expand", visibility: "package" }),
     }),
 );
 
