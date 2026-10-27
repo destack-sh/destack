@@ -52,6 +52,35 @@ const WORKERD_NODE_MODULES: ReadonlySet<string> = new Set([
     "zlib",
 ]);
 
+/** The browsers Destack builds for: Baseline widely available on 2026-10-27, engines of 2024-04. */
+export const BROWSER_TARGETS: readonly string[] = [
+    "chrome124",
+    "edge124",
+    "firefox125",
+    "safari17.4",
+];
+
+/** Select the syntax a runtime compiles to: the baseline browsers', or current syntax elsewhere. */
+export function runtimeTarget(runtime: Runtime): string[] {
+    return runtime === "browser" ? [...BROWSER_TARGETS] : ["esnext"];
+}
+
+/** Encode the baseline browsers as Lightning CSS targets, each version as major and minor bytes. */
+export function cssTargets(): Record<string, number> {
+    return Object.fromEntries(
+        BROWSER_TARGETS.map((target) => {
+            // split a target such as "safari17.4" into its browser and version
+            const match = /^([a-z]+)(\d+)(?:\.(\d+))?$/u.exec(target);
+            if (match === null) {
+                throw new TypeError(`unknown browser target: ${target}`);
+            }
+            const [, browser = "", major = "0", minor = "0"] = match;
+
+            return [browser, (Number(major) << 16) | (Number(minor) << 8)];
+        }),
+    );
+}
+
 /** Select standard package conditions for a runtime and build mode. */
 export function runtimeConditions(
     runtime: Runtime,

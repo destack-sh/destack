@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { isRuntimeModule } from "./runtime.ts";
+import { cssTargets, isRuntimeModule, runtimeTarget } from "./runtime.ts";
 
 test("supply every host module on Bun, workerd's nodejs_compat modules and stubs on workerd, and none in browsers", () => {
     const specifiers = [
@@ -22,5 +22,20 @@ test("supply every host module on Bun, workerd's nodejs_compat modules and stubs
         bun: specifiers,
         workerd: ["node:crypto", "crypto", "node:stream/web", "node:fs", "node:tty", "node:sqlite"],
         browser: [],
+    });
+});
+
+test("compile browser modules to the baseline browsers and server modules to current syntax, stylesheets too", () => {
+    expect({
+        browser: runtimeTarget("browser"),
+        bun: runtimeTarget("bun"),
+        workerd: runtimeTarget("workerd"),
+        css: cssTargets(),
+    }).toEqual({
+        browser: ["chrome124", "edge124", "firefox125", "safari17.4"],
+        bun: ["esnext"],
+        workerd: ["esnext"],
+        // each version as Lightning CSS packs it: the major in the third byte, the minor in the second
+        css: { chrome: 124 << 16, edge: 124 << 16, firefox: 125 << 16, safari: (17 << 16) | (4 << 8) },
     });
 });
