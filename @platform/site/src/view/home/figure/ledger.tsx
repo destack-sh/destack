@@ -1,4 +1,4 @@
-import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, motion, shadow, stroke, weight } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -64,16 +64,14 @@ export type Cell = {
     caption: string | undefined;
 };
 
-/** The row under a ledger's blocks that adds them up. */
+/** What a ledger's lines come to a month, set in its window's title bar. */
 export type LedgerTotal = {
-    /** What the total adds up, set as the mono label. */
-    label: string;
-    /** Who bills the total, set as the name. */
-    name: string;
+    /** The amount a month, such as "$99.00/mo". */
+    amount: string;
+    /** The saving against renting every line, or none while every line is rented. */
+    saving: string | undefined;
     /** How the total is billed, shown when pointed at. */
     plan: string;
-    /** The total's figure, its saving against renting every line as the caption. */
-    cell: Cell;
 };
 
 /** One row of a ledger: what it is, its marks, its colour, and its figures. */
@@ -143,13 +141,6 @@ export function Ledger(properties: {
     return (
         <div data-component="Ledger" {...style.attrs(styles.ledger)}>
             <div {...style.attrs(styles.frame, properties.isWindow && styles.window)}>
-                {/* window strip, level with a browser's tabs */}
-                {properties.isWindow && (
-                    <div aria-hidden="true" {...style.attrs(styles.strip)}>
-                        <span {...style.attrs(browserStyles.lights)} />
-                    </div>
-                )}
-
                 {/* table, scrolling its figures under the names where they overflow */}
                 <div
                     ref={scroller}
@@ -158,19 +149,40 @@ export function Ledger(properties: {
                         styles.columns(tracks(LABEL_TRACKING), tracks(NARROW_LABEL_TRACKING)),
                     )}
                 >
-                    {/* column heads, each caption over its unit */}
+                    {/* the title bar: the window's lights and the total, then each caption over its unit */}
                     <div
-                        aria-hidden="true"
                         {...style.attrs(
                             styles.row,
                             styles.head,
                             properties.isWindow && styles.headWindow,
                         )}
                     >
-                        <span {...style.attrs(styles.corner)} />
+                        <span
+                            title={properties.total.plan}
+                            {...style.attrs(
+                                styles.corner,
+                                properties.isWindow && styles.cornerWindow,
+                            )}
+                        >
+                            {properties.isWindow && (
+                                <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                            )}
+                            <b {...style.attrs(styles.total)}>
+                                <Digits text={properties.total.amount} />
+                            </b>
+                            {properties.total.saving === undefined ? undefined : (
+                                <span {...style.attrs(styles.saving)}>
+                                    <Digits text={properties.total.saving} />
+                                </span>
+                            )}
+                        </span>
                         <For each={properties.columns}>
                             {(column) => (
-                                <span title={column.note} {...style.attrs(styles.cell)}>
+                                <span
+                                    aria-hidden="true"
+                                    title={column.note}
+                                    {...style.attrs(styles.cell)}
+                                >
                                     <span {...style.attrs(styles.label)}>{column.caption}</span>
                                     <span {...style.attrs(styles.label)}>{column.unit}</span>
                                 </span>
@@ -221,23 +233,6 @@ export function Ledger(properties: {
                             )}
                         </For>
                     </ol>
-
-                    {/* the total under the blocks, adding them up */}
-                    <div title={properties.total.plan} {...style.attrs(styles.row, styles.total)}>
-                        <span {...style.attrs(styles.totalClaim)}>
-                            <span aria-hidden="true" {...style.attrs(styles.marks)} />
-                            <span {...style.attrs(styles.names)}>
-                                <span {...style.attrs(styles.label)}>{properties.total.label}</span>
-                                <span {...style.attrs(styles.nameLine)}>
-                                    <b {...style.attrs(styles.name)}>{properties.total.name}</b>
-                                </span>
-                            </span>
-                        </span>
-                        <For each={properties.columns.slice(0, -1)}>
-                            {() => <span {...style.attrs(styles.cell)} />}
-                        </For>
-                        <Figure cell={properties.total.cell} />
-                    </div>
                 </div>
             </div>
         </div>
@@ -359,7 +354,7 @@ const styles = style.create({
         display: "grid",
         fontFamily: font.code,
         fontSize: typeScale.body,
-        gridTemplateRows: "auto minmax(0, 1fr) auto",
+        gridTemplateRows: "auto minmax(0, 1fr)",
         minHeight: 0,
         overflowX: "auto",
         overflowY: "hidden",
@@ -373,16 +368,8 @@ const styles = style.create({
         borderStyle: "solid",
         borderWidth: stroke.border,
         boxShadow: shadow.raised,
-        gridTemplateRows: "auto minmax(0, 1fr)",
+        gridTemplateRows: "minmax(0, 1fr)",
         overflow: "hidden",
-    },
-    strip: {
-        alignItems: "center",
-        backgroundColor: color.muted,
-        boxSizing: "border-box",
-        display: "flex",
-        height: chrome.strip,
-        paddingInline: "0.875rem",
     },
     row: {
         alignItems: "center",
@@ -558,24 +545,27 @@ const styles = style.create({
         zIndex: 1,
     },
     total: {
-        borderTopColor: color.border,
-        borderTopStyle: "solid",
-        borderTopWidth: stroke.border,
-        minHeight: "2.75rem",
-    },
-    totalClaim: {
-        alignItems: "center",
-        backgroundColor: ledgerVariables.surface,
-        display: "flex",
+        color: color.foreground,
         fontFamily: font.text,
-        gap: "0.625rem",
-        insetInlineStart: 0,
-        minWidth: 0,
-        paddingInlineStart: ROW_INSET,
-        position: "sticky",
-        zIndex: 1,
+        fontSize: typeScale.small,
+        fontWeight: weight.semibold,
+        whiteSpace: "nowrap",
+    },
+    saving: {
+        color: color.primary,
+        fontSize: typeScale.label,
+        fontWeight: weight.semibold,
+        whiteSpace: "nowrap",
+    },
+    cornerWindow: {
+        alignItems: "center",
+        backgroundColor: color.muted,
+        display: "flex",
+        gap: "0.75rem",
+        paddingInlineStart: "0.875rem",
     },
     headWindow: {
+        backgroundColor: color.muted,
         borderBottomColor: color.border,
         borderBottomStyle: "solid",
         borderBottomWidth: stroke.border,

@@ -84,18 +84,11 @@ export function Bill(properties: {
 
     // size each column to its widest figure at every dial setting in both states, so nothing shifts
     const widths = createMemo(() => {
-        const plan = planOf(properties.plan);
-        const lengths = properties.scales.flatMap((scale) => [
-            ...properties.lines.flatMap((line) =>
+        const lengths = properties.scales.flatMap((scale) =>
+            properties.lines.flatMap((line) =>
                 [false, true].map((isInSpace) => cellsOf(line, scale, isInSpace).map(lengthOf)),
             ),
-            ...[false, true].map((isInSpace) => [
-                0,
-                0,
-                0,
-                lengthOf(totalOf(properties.lines, scale, () => isInSpace, plan).cell),
-            ]),
-        ]);
+        );
 
         return columns.map((_, column) =>
             Math.max(...lengths.map((row) => present(row[column], "cell length"))),
@@ -211,21 +204,11 @@ function totalOf(
     const rent = sumOf(rents);
 
     return {
-        label: isAnyOwned && sumOf(used) < plan.fee ? `Total, $${plan.fee} minimum` : "Total",
-        name: !isAnyOwned
-            ? "Rented"
-            : rented.length === 0
-              ? `Destack ${plan.name}`
-              : `Destack ${plan.name} + rented`,
+        amount: `$${decimalOf(cost)}/mo`,
+        saving: isAnyOwned && rent > 0 ? changeOf(cost, rent) : undefined,
         plan: isAnyOwned
-            ? `${plan.name}: $${plan.fee} a month, counted as usage, then usage past it`
+            ? `Destack ${plan.name}: $${plan.fee} a month, counted as usage, then usage past it${rented.length > 0 ? ", plus the lines still rented" : ""}`
             : "Every line's plan, added up",
-        cell: {
-            value: decimalOf(cost),
-            isQuiet: false,
-            isFloor: false,
-            caption: isAnyOwned && rent > 0 ? changeOf(cost, rent) : undefined,
-        },
     };
 }
 
