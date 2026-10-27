@@ -67,7 +67,7 @@ export function runtimeTarget(runtime: Runtime): string[] {
     return runtime === "browser" ? [...BROWSER_TARGETS] : ["esnext"];
 }
 
-/** Select how a runtime's stylesheets compile: lowered for the baseline browsers, else as written. */
+/** Select how a runtime's stylesheets compile. */
 export function runtimeCss(runtime: Runtime): CSSOptions {
     // keep light-dark() native, as the theme switches appearance at runtime where lowering cannot follow
     return runtime === "browser"
@@ -140,6 +140,19 @@ export const TYPE_CHECKS = {
     erasableSyntaxOnly: true,
     verbatimModuleSyntax: true,
 } as const;
+
+/** The language libraries every package compiles against. */
+export const TYPESCRIPT_LIBRARIES = [
+    "ES2024",
+    "ESNext.Array",
+    "ESNext.TypedArrays",
+    "ES2025.Collection",
+    "ES2025.RegExp",
+    "ESNext.Disposable",
+] as const;
+
+/** The web libraries code compiled for a browser or a document adds to the language libraries. */
+export const DOM_LIBRARIES = ["DOM", "DOM.Iterable"] as const;
 
 /** The compiler options every package compiles under, its type checks included. */
 export const TYPESCRIPT_OPTIONS = {
