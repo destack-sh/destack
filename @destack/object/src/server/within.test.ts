@@ -188,7 +188,7 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
     const replicating: ObjectStore = await serve(world, space.database, {
         receive: refuseChanges,
         call: refuseQueries,
-        confirm: async () => {},
+        request: async () => {},
         stream: (asked, signal) =>
             served.source.replicate(
                 asked,
@@ -350,7 +350,7 @@ test("replicate the badges a space is shown from the scopes of teams without rep
             uplink: {
                 receive: refuseChanges,
                 call: refuseQueries,
-                confirm: async () => {},
+                request: async () => {},
                 stream: (asked, signal) =>
                     served.source.replicate(
                         asked,
@@ -441,7 +441,7 @@ test("replicate each person once the space may read them at the change's positio
         uplink: {
             receive: refuseChanges,
             call: refuseQueries,
-            confirm: async () => {},
+            request: async () => {},
             stream: (asked, signal) =>
                 served.source.replicate(
                     asked,

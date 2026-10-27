@@ -708,7 +708,7 @@ test("restart a caller's access stream only on access changes concerning the cal
         scope: spaceId,
         homes: [],
     });
-    await store.confirm({ subscription, watermark });
+    await store.request({ subscription: { ...subscription, confirming: watermark } });
     const isPast = () =>
         pages.some(
             (page) =>

@@ -1,7 +1,7 @@
 import { CHAIN_PUBLICATION, type ChainOptions } from "@destack/access";
 import { Scope, type ObjectTypeReference } from "@destack/sync";
 import { Key, LogPosition, Snapshot, TABLE, type Table } from "@destack/db";
-import { Digest, schema } from "@destack/schema";
+import { canonicalize, Digest, schema } from "@destack/schema";
 import * as sync from "@destack/sync";
 import type { FollowController, Delta } from "@destack/db";
 import { until } from "@destack/environment";
@@ -11,8 +11,8 @@ import type { ObjectStore, Subscriber } from "./store.ts";
 export class ObjectSink {
     /** The store whose database stores the replicas. */
     readonly store: ObjectStore;
-    /** The latest position each followed replica waits for upstream to confirm, by replica key. */
-    readonly #pending = new Map<string, LogPosition>();
+    /** The latest watermark each followed replica waits for upstream to confirm, by replica key. */
+    readonly #pending = new Map<string, sync.Watermark>();
     /** The replicas the store's subscriber asks for as last listed, by replica key. */
     readonly #listed = new Map<string, ReplicaEntry>();
     /** The latest listing of the replicas, each one run after the one before. */
@@ -84,25 +84,22 @@ export class ObjectSink {
             ),
         );
 
-        // record the latest ask of each for a stream it opens next, then ask its publisher
-        const position = {
-            log: watermark.log,
-            epoch: watermark.epoch,
-            sequence: watermark.sequence,
-        };
+        // record the latest ask of each for a stream it opens next, then request it at its publisher
         for (const { subscription } of asked) {
             const key = ObjectSink.#key(subscription);
             const known = this.#pending.get(key);
             const isNewer =
                 known === undefined ||
-                known.log !== position.log ||
-                LogPosition.isAfter(position, known);
+                known.log !== watermark.log ||
+                LogPosition.isAfter(watermark, known);
             if (isNewer) {
-                this.#pending.set(key, position);
+                this.#pending.set(key, watermark);
             }
         }
         await Promise.all(
-            asked.map(({ subscription, publisher }) => publisher.confirm(subscription, watermark)),
+            asked.map(({ subscription, publisher }) =>
+                publisher.request({ ...subscription, confirming: watermark }),
+            ),
         );
     }
 
@@ -239,12 +236,13 @@ export class ObjectSink {
         synced: () => void,
     ): Promise<void> {
         try {
-            const { subscription, publisher } = replica;
-            const { audience } = this.store.source.publication(subscription);
-            await replica.replica.follow(
+            const { publisher, requested } = replica;
+            const { audience } = this.store.source.publication(requested.subscription);
+            const following = replica.replica.follow(
                 this.store.database,
                 (from, stream) => {
-                    // resume with the position a wait asked for
+                    // resume the subscription requested now, with the position a wait asked for
+                    const { subscription } = requested;
                     const confirming = this.#pending.get(ObjectSink.#key(subscription));
 
                     return publisher.stream(
@@ -257,12 +255,39 @@ export class ObjectSink {
                     );
                 },
                 revised,
-                { subscription, audience, synced },
+                {
+                    get subscription() {
+                        return requested.subscription;
+                    },
+                    audience,
+                    synced,
+                    lag: this.store.authorizer.lag,
+                },
             );
+            await Promise.all([following, ObjectSink.#forward(requested, publisher, revised)]);
         } catch (error) {
             // fail a refused follow unless the loop revised its request meanwhile
             if (!revised.aborted) {
                 throw error;
+            }
+        }
+    }
+
+    /** Send a follow's request to its publisher each time its parameters move. */
+    static async #forward(
+        requested: Request,
+        publisher: sync.Publisher,
+        signal: AbortSignal,
+    ): Promise<void> {
+        let waking = requested.waking;
+        while (!signal.aborted) {
+            // wait for the subscription to move, taking the next move's signal before requesting
+            await until(AbortSignal.any([signal, waking.signal]));
+            waking = requested.waking;
+
+            // request the moved subscription, failing the follow on a refusal
+            if (!signal.aborted) {
+                await publisher.request(requested.subscription);
             }
         }
     }
@@ -358,22 +383,30 @@ export class ObjectSink {
             replicated = options.kind === "home" ? ancestors : chain;
         }
 
-        // replicate each scope's access rows and handed down types for the target, in one replica
-        return replicated.map((scope) =>
+        // replicate each scope's access rows and handed down types for the target, in one replica of the nearest
+        const [nearest] = replicated;
+        if (nearest === undefined) {
+            throw new TypeError(`the chain of ${target} replicates no scope`);
+        }
+
+        return [
             this.store.source.chainPublication.subscription({
                 name: ObjectSink.chainName(target),
-                scope,
+                scope: nearest,
                 target,
                 parameters: {
                     scopes: chain,
                     local: [...this.store.authorizer.local],
                     // leave out the inherited rows of a scope the store serves beside its own, which it originates
-                    types: isScoped ? this.#handedDownTypes(scope) : [],
+                    replicated: replicated.map((scope) => ({
+                        scope,
+                        types: isScoped ? this.#handedDownTypes(scope) : [],
+                    })),
                     via: [],
                     between: [],
                 },
             }),
-        );
+        ];
     }
 
     /** Read a scope's known chain, absent at the universe, without a chain or while pending. */
@@ -424,7 +457,12 @@ export class ObjectSink {
                 name: ObjectSink.viaName(target),
                 scope: Scope.universe.id,
                 target,
-                parameters: { scopes: [], local: [], types: this.#outsideTypes(), ...outside },
+                parameters: {
+                    scopes: [],
+                    local: [],
+                    replicated: [{ scope: Scope.universe.id, types: this.#outsideTypes() }],
+                    ...outside,
+                },
             }),
         ];
     }
@@ -499,9 +537,28 @@ export class ObjectSink {
         listed: Map<string, ReplicaEntry>,
         replicas: ReadonlyMap<string, ReplicaIntent & { digest: string }>,
     ): void {
-        // abort and forget each listed replica whose digest changed or left
         for (const [key, replica] of listed) {
-            if (replicas.get(key)?.digest !== replica.digest) {
+            // keep an unchanged replica
+            const next = replicas.get(key);
+            if (next?.digest === replica.digest) {
+                continue;
+            }
+
+            // move a follow of other parameters over the same tables at its source, waking its request
+            if (
+                next !== undefined &&
+                replica.action === "follow" &&
+                next.action === "follow" &&
+                ObjectSink.#isReshape(replica, next)
+            ) {
+                const { requested } = replica;
+                requested.subscription = next.subscription;
+                listed.set(key, { ...next, revised: replica.revised, requested });
+                requested.waking.abort();
+                requested.waking = new AbortController();
+            }
+            // abort and forget any other changed or left replica
+            else {
                 replica.revised.abort();
                 listed.delete(key);
             }
@@ -510,9 +567,37 @@ export class ObjectSink {
         // list the new replicas
         for (const [key, replica] of replicas) {
             if (!listed.has(key)) {
-                listed.set(key, { ...replica, revised: new AbortController() });
+                listed.set(key, {
+                    ...replica,
+                    revised: new AbortController(),
+                    requested: {
+                        subscription: replica.subscription,
+                        waking: new AbortController(),
+                    },
+                });
             }
         }
+    }
+
+    /** Decide whether a follow changes only its parameters, over the same tables. */
+    static #isReshape(
+        replica: Extract<ReplicaIntent, { readonly action: "follow" }>,
+        next: Extract<ReplicaIntent, { readonly action: "follow" }>,
+    ): boolean {
+        // compare the subscriptions beside their parameters, and the tables
+        const { parameters: _parameters, ...identity } = replica.subscription;
+        const { parameters: _next, ...nextIdentity } = next.subscription;
+
+        return (
+            canonicalize(identity) === canonicalize(nextIdentity) &&
+            canonicalize(ObjectSink.#tables(replica.replica)) ===
+                canonicalize(ObjectSink.#tables(next.replica))
+        );
+    }
+
+    /** List a replica's tables by SQL name. */
+    static #tables(replica: sync.Replica): string[] {
+        return replica.tables.map((table) => table[TABLE].sqlName);
     }
 }
 
@@ -541,6 +626,16 @@ type ReplicaIntent =
 type ReplicaEntry = ReplicaIntent & {
     /** The digest of the action and subscription. */
     readonly digest: string;
-    /** Aborts once a listing changes the action or the subscription. */
+    /** Aborts once a listing changes the action, or the subscription beyond its parameters. */
     readonly revised: AbortController;
+    /** The subscription a follow requests now, which a reshape moves in place. */
+    readonly requested: Request;
 };
+
+/** The subscription a follow requests now, and the signal waking its request once it moves. */
+interface Request {
+    /** The subscription. */
+    subscription: sync.Subscription;
+    /** Aborts once the subscription moves. */
+    waking: AbortController;
+}

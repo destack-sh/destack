@@ -539,7 +539,7 @@ test("enter a scope at once past a watermark of a scope outside its chain", asyn
     expect(entered).toBe("entered");
 });
 
-test("refuse to confirm a position of a scope with no home or replica in the store", async () => {
+test("refuse a request to confirm a position of a scope with no home or replica in the store", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -554,7 +554,10 @@ test("refuse to confirm a position of a scope with no home or replica in the sto
         parameters: {},
     };
     const refused = await refusal(
-        served.home.source.confirm(subscription, { scope: "space-nowhere", ...head }),
+        served.home.source.request(
+            { ...subscription, confirming: { scope: "space-nowhere", ...head } },
+            undefined,
+        ),
     );
 
     // refuse the unknown scope

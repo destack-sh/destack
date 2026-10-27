@@ -10,6 +10,7 @@ import {
     eq,
     Key,
     lease,
+    lock,
     ReadSet,
     Snapshot,
     TABLE,
@@ -36,18 +37,10 @@ import { canonicalize, Identifier, nth, present, schema, Uuid } from "@destack/s
 import { followKey } from "../src/replica/key.ts";
 
 import { CallError } from "@destack/object";
-import {
-    RequestId,
-    Scope,
-    Feed,
-    Replica,
-    type Page,
-    type Subscription,
-    type Watermark,
-} from "@destack/sync";
+import { RequestId, Scope, Feed, Replica, type Page, type Subscription } from "@destack/sync";
 import { until, yieldToEventLoop } from "@destack/environment";
 import * as sync from "@destack/sync";
-import { defineObject, defineShape, field, Follow } from "../src/index.ts";
+import { defineObject, defineShape, field, Follow, Shape } from "../src/index.ts";
 import { ObjectSink, ObjectStore } from "../src/server/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { spacePrincipal } from "./fixture/space.ts";
@@ -288,24 +281,18 @@ test("decide calls over a relayed replica of access as the holder does, through 
         controller.abort();
         await Promise.allSettled(following);
     });
+    // follow the space's chain in one replica, which at the universe has the grants delegated in
     const head = await home.database.log.position();
-    for (const scope of [spaceId, accountId, Scope.universe.id]) {
-        // follow each scope's chain, which at the universe has the grants delegated in
-        const keys = (await follower.list(Snapshot.live(store.database))).filter(
-            (entry) => readScope(entry) === scope,
+    const keys = await follower.list(Snapshot.live(store.database));
+    for (const key of keys) {
+        following.push(
+            follower.reconcile(key, reconciliation(controller.signal)).then(() => undefined),
         );
-        for (const key of keys) {
-            following.push(
-                follower.reconcile(key, reconciliation(controller.signal)).then(() => undefined),
-            );
-        }
+    }
+    for (const scope of [spaceId, accountId, Scope.universe.id]) {
         await Replica.wait(installed.database, scope, head, controller.signal);
     }
-    expect((await follower.list(Snapshot.live(store.database))).map(readScope)).toEqual([
-        spaceId,
-        accountId,
-        Scope.universe.id,
-    ]);
+    expect(keys.map(readScope)).toEqual([spaceId]);
 
     // create through tokens whose grants give the space, another one or everything, and list as alice
     const create = async (user: Identifier<"user">, title: string, restricted?: string) => {
@@ -401,7 +388,7 @@ test("record the reads of a replica listing, so only a change of a followed sour
             receive: refuseChanges,
             call: refuseQueries,
             stream: async function* () {},
-            confirm: async () => {},
+            request: async () => {},
         },
         callKey: testCallKey,
         events: await testEvents(machine.database, world),
@@ -494,7 +481,7 @@ test("read a row follow's keys again only for the source rows a change touched, 
             receive: refuseChanges,
             call: refuseQueries,
             stream: async function* () {},
-            confirm: async () => {},
+            request: async () => {},
         },
         callKey: testCallKey,
         events: await testEvents(machine.database, world),
@@ -608,7 +595,7 @@ test("serve a store whose follows ask for nothing before its replica controller 
             receive: refuseChanges,
             call: refuseQueries,
             stream: async function* () {},
-            confirm: async () => {},
+            request: async () => {},
         },
         callKey: testCallKey,
         events: await testEvents(machine.database, world),
@@ -694,7 +681,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
             );
 
             return {
-                confirm: published.confirm,
+                request: published.request,
                 stream: async function* (subscription, signal) {
                     const { signal: closed } = closing(scope);
                     yield* published.stream(subscription, AbortSignal.any([signal, closed]));
@@ -749,7 +736,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
     expect(failures).toEqual([refused]);
 });
 
-test("finish a wait through the replicas a store still follows once its sink drops another replica of the scope", async () => {
+test("finish a wait through a store's replica of a scope once it stops following one of the shapes it follows there", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -792,18 +779,18 @@ test("finish a wait through the replicas a store still follows once its sink dro
             }),
     );
 
-    // publish the feed, confirming positions to every replica except the documents one
+    // publish the feed, confirming positions to every replica except the other space's
     const feed = new Feed(home.database, [...accessTables, space.table, ...document.tables]);
     const published = FeedPublisher.of(
         feed,
         (subscription) => store.source.buildReplica(subscription).queries,
     );
-    const documents = documentShape.replicaName({ scope: otherSpaceId });
+    const documents = Shape.replicaName(otherSpaceId);
     const publisher: sync.Publisher = {
         stream: published.stream,
-        confirm: async (subscription, watermark) => {
+        request: async (subscription) => {
             if (subscription.name !== documents) {
-                await published.confirm(subscription, watermark);
+                await published.request(subscription);
             }
         },
     };
@@ -859,13 +846,13 @@ test("finish a wait through the replicas a store still follows once its sink dro
     );
     const head = await home.database.log.position();
 
-    // wait for the head at the other space, held back by its unconfirmed documents replica
+    // wait for the head at the other space, held back by its unconfirmed replica
     const waiting = store.wait(
         { scope: otherSpaceId, ...head },
         world.clock.timeout(REPLICA_MILLISECONDS),
     );
 
-    // stop asking for the other space's documents, which drops their replica
+    // stop asking for the other space's documents, which reshapes its replica to the activity alone
     await machine.database.transaction(
         async (transaction) =>
             await transaction
@@ -874,7 +861,7 @@ test("finish a wait through the replicas a store still follows once its sink dro
                 .where(eq(document.table.id, requesting)),
     );
 
-    // reach the head through the activity replica the store still follows
+    // reach the head through the replica, which follows the activity alone
     expect({
         isReached: await waiting,
         followed: (await store.sink.followed()).map(({ subscription }) => [
@@ -885,9 +872,7 @@ test("finish a wait through the replicas a store still follows once its sink dro
         isReached: true,
         followed: [
             [ObjectSink.chainName(spaceId), spaceId],
-            [ObjectSink.chainName(spaceId), accountId],
-            [ObjectSink.chainName(spaceId), Scope.universe.id],
-            [ACTIVITY.replicaName({ scope: otherSpaceId }), otherSpaceId],
+            [Shape.replicaName(otherSpaceId), otherSpaceId],
         ],
     });
 });
@@ -1006,9 +991,9 @@ test("serve a woken store and let its controllers act only once its home confirm
             database: installed.database,
             uplink: {
                 ...published,
-                // block the universe chain's pages until released
+                // block the chain's pages until released
                 async *stream(subscription, signal) {
-                    if (subscription.scope === Scope.universe.id) {
+                    if (subscription.name === ObjectSink.chainName(spaceId)) {
                         await pages;
                     }
                     yield* published.stream(subscription, signal);
@@ -1035,27 +1020,26 @@ test("serve a woken store and let its controllers act only once its home confirm
 
     // follow the chain once, then stop as an evicted worker does and let a minute pass
     const first = new AbortController();
-    const started = clock.now();
     const followed = await open(Promise.resolve());
     const firstFollow = follow(followed, first.signal);
     const isComplete = async () => {
         const gates = await followed.sink.gates();
         const current = await Promise.all(
-            gates.map(({ subscription }) =>
-                Replica.confirmedAt(installed.database, subscription).then(
-                    (at) => at !== undefined && at >= started,
-                ),
+            gates.map(
+                async ({ subscription }) =>
+                    Replica.isLive(installed.database, subscription.name, subscription.scope) &&
+                    (await Replica.isCurrent(installed.database, subscription)),
             ),
         );
 
         return gates.length > 0 && current.every(Boolean);
     };
-    await installed.database.log.until(isComplete, world.clock.timeout(5000));
+    await expect.poll(isComplete, { timeout: 5000 }).toBe(true);
     first.abort();
     await firstFollow;
     clock.advance(60_000);
 
-    // wake a store over the same database, blocking the universe's pages while the others arrive
+    // wake a store over the same database, blocking the chain's pages
     const pages = Promise.withResolvers<void>();
     const woken = await open(pages.promise);
     const handle = definePackage({ objects: { document } });
@@ -1073,22 +1057,8 @@ test("serve a woken store and let its controllers act only once its home confirm
         isConfirmed = true;
     });
     const following = follow(woken, waking.signal);
-    const now = clock.now();
-    const isOthersFresh = async () => {
-        const gates = (await woken.sink.gates()).filter(
-            ({ subscription }) => subscription.scope !== Scope.universe.id,
-        );
-        const fresh = await Promise.all(
-            gates.map(({ subscription }) =>
-                Replica.confirmedAt(installed.database, subscription).then(
-                    (at) => at !== undefined && at >= now,
-                ),
-            ),
-        );
-
-        return gates.length > 0 && fresh.every(Boolean);
-    };
-    await installed.database.log.until(isOthersFresh, world.clock.timeout(5000));
+    const isListed = async () => (await woken.sink.gates()).length > 0;
+    await installed.database.log.until(isListed, world.clock.timeout(5000));
     for (let turn = 0; turn < READY_TURNS; turn++) {
         await yieldToEventLoop();
     }
@@ -1111,7 +1081,7 @@ test("follow replicates as a server without methods, journal or call key", async
 
     // store an account and its space at home, and a database with access replicas
     const home = await TestDatabase.create(accessTables, { environment: world, isMigrated: true });
-    const follower = await TestDatabase.create(accessTables, {
+    const follower = await TestDatabase.create([...accessTables, lock], {
         environment: world,
         isMigrated: true,
     });
@@ -1241,7 +1211,7 @@ test("replicate the chains of an installation's two served spaces in one replica
             uplink: {
                 receive: refuseChanges,
                 call: refuseQueries,
-                confirm: (asked, watermark) => source.source.confirm(asked, watermark),
+                request: (asked) => source.source.request(asked),
                 stream: (asked, signal) =>
                     source.source.replicate(asked, asked.after, follower, signal),
             },
@@ -1342,12 +1312,12 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     const subject = principal.installation.reference(spaceId, followingId);
     const request = source.source.chainPublication.subscription({
         name: ObjectSink.chainName(spaceId),
-        scope: accountId,
+        scope: spaceId,
         target: spaceId,
         parameters: {
             scopes: [spaceId, accountId, Scope.universe.id],
             local: [],
-            types: [],
+            replicated: [{ scope: accountId, types: [] }],
             via: [],
             between: [],
         },
@@ -1374,26 +1344,34 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     const page = present(await first(), "the chain's first page");
 
     // refuse claiming a chain beyond the scopes containing the follower's
-    const claiming = source.source.chainPublication.subscription({
-        name: ObjectSink.chainName(spaceId),
-        scope: accountId,
-        target: spaceId,
-        parameters: {
-            scopes: [spaceId, FOREIGN_ACCOUNT],
-            local: [],
-            types: [],
-            via: [],
-            between: [],
-        },
-    });
-    const claimed = await refusal(
-        source.source
-            .relayed(claiming, subjectContext(subject, spaceId, { environment: world }))
-            .next(),
-    );
+    const claim = (scopes: readonly string[], replicated: readonly string[]) =>
+        refusal(
+            source.source
+                .relayed(
+                    source.source.chainPublication.subscription({
+                        name: ObjectSink.chainName(spaceId),
+                        scope: spaceId,
+                        target: spaceId,
+                        parameters: {
+                            scopes,
+                            local: [],
+                            replicated: replicated.map((scope) => ({ scope, types: [] })),
+                            via: [],
+                            between: [],
+                        },
+                    }),
+                    subjectContext(subject, spaceId, { environment: world }),
+                )
+                .next(),
+        );
+    const claimed = await claim([spaceId, FOREIGN_ACCOUNT], [accountId]);
+
+    // refuse replicating a scope outside the scopes containing the follower's
+    const reached = await claim([spaceId, accountId], [FOREIGN_ACCOUNT]);
     expect({
         refused,
         claimed,
+        reached,
         scopes: new Set(
             page.changes
                 .filter((change) => change.table === Scope.table[TABLE].sqlName)
@@ -1402,6 +1380,11 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     }).toEqual({
         refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
         claimed: [
+            "NOT_FOUND",
+            "SCOPE_NOT_CONTAINED",
+            `${FOREIGN_ACCOUNT} does not contain ${spaceId}`,
+        ],
+        reached: [
             "NOT_FOUND",
             "SCOPE_NOT_CONTAINED",
             `${FOREIGN_ACCOUNT} does not contain ${spaceId}`,
@@ -1452,7 +1435,13 @@ test("replicate a partition's chain via its installation's space, whose source h
         name: ObjectSink.viaName(partition),
         scope: Scope.universe.id,
         target: partition,
-        parameters: { scopes: [], local: [], types: [], via: [spaceId], between: [accountId] },
+        parameters: {
+            scopes: [],
+            local: [],
+            replicated: [{ scope: Scope.universe.id, types: [] }],
+            via: [spaceId],
+            between: [accountId],
+        },
     });
     const first = async (): Promise<Page | undefined> => {
         const pages = source.source.relayed(
@@ -1483,7 +1472,7 @@ test("replicate a partition's chain via its installation's space, whose source h
         parameters: {
             scopes: [FOREIGN_ACCOUNT],
             local: [],
-            types: [],
+            replicated: [{ scope: Scope.universe.id, types: [] }],
             via: [spaceId],
             between: [accountId],
         },
@@ -1546,6 +1535,7 @@ test("request no via chain for the rows a subject's follow brought, which their 
                 name,
                 scope: spaceId,
                 tables: [space.table[TABLE].sqlName],
+                living: {},
             }),
     );
     await database.transaction(
@@ -1586,7 +1576,7 @@ test("request no via chain for the rows a subject's follow brought, which their 
             receive: refuseChanges,
             call: refuseQueries,
             stream: async function* () {},
-            confirm: async () => {},
+            request: async () => {},
         },
         callKey: testCallKey,
         events: await testEvents(database, world),
@@ -1643,7 +1633,7 @@ test("wait before serving for the store's chain replicas, never for its followed
         policies: [space],
         database,
         publisher: () => ({
-            confirm: async () => {},
+            request: async () => {},
             stream: async function* () {
                 yield* [];
                 throw CallError.http("FORBIDDEN", { message: "permission denied: follow" });
@@ -1661,12 +1651,12 @@ test("wait before serving for the store's chain replicas, never for its followed
         expiresAt: world.clock.now() + 60_000,
     });
 
-    // gate on the chain alone, listing the store's declared documents and the other three without gating
+    // gate on the chain alone, listing the store's universe follows, the documents with the acquired accounts, and alice's two without gating
     const listed = await present(store.subscriber, "the store's subscriber").subscriptions(
         Snapshot.live(database),
     );
     const gates = (await store.sink.gates()).map(({ subscription }) => subscription.name);
-    expect([listed.length, gates]).toEqual([5, [ObjectSink.chainName(followingSpaceId)]]);
+    expect([listed.length, gates]).toEqual([4, [ObjectSink.chainName(followingSpaceId)]]);
 });
 
 test("serve a store once its chain is confirmed while the source of a followed shape never answers", async () => {
@@ -1741,7 +1731,7 @@ test("serve a store once its chain is confirmed while the source of a followed s
     stopping.abort();
     await following;
     expect([...followed].toSorted()).toEqual(
-        [chain, DOCUMENTS.replicaName({ scope: Scope.universe.id })].toSorted(),
+        [chain, Shape.replicaName(Scope.universe.id)].toSorted(),
     );
 });
 
@@ -1819,7 +1809,7 @@ test("replicate a scoped table an installation's database declares beside its fo
     const uplink: sync.Uplink = {
         receive: refuseChanges,
         call: refuseQueries,
-        confirm: (asked, watermark) => source.source.confirm(asked, watermark),
+        request: (asked) => source.source.request(asked),
         stream: (asked, signal) => source.source.replicate(asked, asked.after, follower, signal),
     };
     const following = await testServerContext(comment.package, followingSpaceId, world);
@@ -1877,12 +1867,8 @@ test("replicate a scoped table an installation's database declares beside its fo
     });
 });
 
-/** The store's replicas, its chain with the grants into its space, as names and scopes. */
-const LOCAL_REPLICAS = JSON.stringify(
-    [spaceId, accountId, Scope.universe.id]
-        .map((scope) => [ObjectSink.chainName(spaceId), scope])
-        .toSorted((left, right) => left.join().localeCompare(right.join())),
-);
+/** The store's replica of its chain with the grants into its space, as a name and scope. */
+const LOCAL_REPLICAS = JSON.stringify([[ObjectSink.chainName(spaceId), spaceId]]);
 
 /** List a database's replicas as their names and scopes, to compare with the store's. */
 async function localReplicas(database: DatabaseConnection): Promise<string> {
@@ -1975,7 +1961,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
             uplink: {
                 receive: refuseChanges,
                 call: refuseQueries,
-                confirm: (asked, watermark) => source.source.confirm(asked, watermark),
+                request: (asked) => source.source.request(asked),
                 stream: (asked, signal) =>
                     source.source.replicate(asked, asked.after, follower, signal),
             },
@@ -2000,7 +1986,6 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
     }).toEqual({
         requests: [
             [ObjectSink.chainName(followingSpaceId), followingSpaceId, followingSpaceId],
-            [ObjectSink.chainName(followingSpaceId), Scope.universe.id, followingSpaceId],
             [ObjectSink.viaName(followingSpaceId), Scope.universe.id, followingSpaceId],
         ],
         via: [accountId],
@@ -2066,8 +2051,7 @@ test("replicate the chain of an account another replica brought first, once the 
     const chain = ObjectSink.viaName(followingSpaceId);
     const followed = Promise.withResolvers<unknown>();
     const publisher = {
-        confirm: (asked: Subscription, watermark: Watermark) =>
-            source.source.confirm(asked, watermark),
+        request: (asked: Subscription) => source.source.request(asked),
         receive: refuseChanges,
         call: refuseQueries,
         stream: async function* (asked: Subscription, signal: AbortSignal) {
@@ -2103,7 +2087,11 @@ test("replicate the chain of an account another replica brought first, once the 
         },
     );
     const residents = {
-        ...ACCOUNTS.subscription({ scope: Scope.universe.id }, followingSpaceId),
+        ...Shape.subscription(
+            Scope.universe.id,
+            [{ shape: ACCOUNTS, keys: [{}] }],
+            followingSpaceId,
+        ),
         name: "residents",
     };
     const early = new AbortController();

@@ -14,7 +14,7 @@ import {
     Relationship,
 } from "@destack/access";
 import { Scope, ObjectReference, Subject, SyncError } from "@destack/sync";
-import type { JsonValue } from "@destack/schema";
+import type { JsonObject, JsonValue } from "@destack/schema";
 import {
     type Condition,
     type DatabaseConnection,
@@ -49,6 +49,9 @@ import type { ObjectStore } from "./store.ts";
 
 import type {} from "@destack/package/import-meta";
 
+/** How long a caller's session authorizes a stream: an hour, as Firebase's ID tokens last. */
+const SESSION_MILLISECONDS = 60 * 60_000;
+
 /** The largest broadcast event, in bytes: 16 KiB, far above the tens of bytes a cursor takes. */
 const BROADCAST_BYTES = 16 * 1024;
 
@@ -67,8 +70,6 @@ interface ScopeEvents {
 export class ObjectSource {
     /** The store whose objects the replicas copy. */
     readonly store: ObjectStore;
-    /** The streams served now, with the subscription and caller each serves. */
-    readonly #streams = new Set<SourceStream>();
 
     /** The publication of a scope's durable objects: named queries, or every type of its level. */
     readonly queriesPublication = sync.definePublication({
@@ -172,19 +173,46 @@ export class ObjectSource {
         subscription: sync.Subscription,
         context: RequestContext,
     ): AsyncGenerator<sync.Page> {
-        // allow the caller by the publication's audience
+        // allow the caller by the publication's audience, serving its request until it closes or lapses
         const publication = this.publication(subscription);
         const follower = await this.#authorizeFollower(publication, subscription, context);
-        let isPaged = false;
-        for await (const page of this.#relay(publication, subscription, follower, context)) {
-            isPaged = true;
-            yield page;
+        // refuse a session whose credential lapsed already, for the follower to resume with a fresh one
+        const credential = context.authentication?.credential;
+        if (credential !== undefined && credential.expiresAt <= this.store.clock.now()) {
+            throw SyncError.of("CREDENTIAL_LAPSED", "the caller's credential lapsed");
         }
 
-        // refuse a stream its caller's credential lapsed before any page, for the follower to resume anew
-        const lapse: unknown = context.signal.reason;
-        if (!isPaged && SyncError.is(lapse, "CREDENTIAL_LAPSED")) {
-            throw lapse;
+        // record the caller's request for its session, and keep the caller's live link open while it streams
+        const caller = ObjectSource.#caller(context);
+        const requested =
+            caller === undefined
+                ? undefined
+                : await this.#record(
+                      subscription,
+                      caller,
+                      this.store.clock.now() + SESSION_MILLISECONDS,
+                  );
+        const subject = context.authentication?.caller.subject;
+        const leave = subject === undefined ? undefined : await this.store.connect?.(subject);
+        let isPaged = false;
+        try {
+            for await (const page of this.#relay(
+                publication,
+                subscription,
+                follower,
+                context,
+                requested,
+            )) {
+                isPaged = true;
+                yield page;
+            }
+        } catch (error) {
+            // end a stream its caller's session lapsed after pages, refusing one before any for the follower to resume anew
+            if (!isPaged || !SyncError.is(error, "CREDENTIAL_LAPSED")) {
+                throw error;
+            }
+        } finally {
+            await leave?.();
         }
     }
 
@@ -194,27 +222,31 @@ export class ObjectSource {
         subscription: sync.Subscription,
         follower: ReplicaFollower,
         context: RequestContext,
+        requested: Recorded | undefined,
     ): AsyncGenerator<sync.Page> {
         // follow a scope's durable objects
         if (publication === this.queriesPublication) {
-            yield* this.#durable(subscription, follower, context);
+            yield* this.#durable(subscription, follower, context, requested);
         }
         // follow a scope's ephemeral objects
         else if (publication === this.ephemeralPublication) {
-            yield* this.#ephemeral(subscription, follower, context);
+            yield* this.#ephemeral(subscription, follower, context, requested);
         }
         // follow a scope's external objects
         else if (publication === this.externalPublication) {
-            yield* this.#external(subscription, follower, context);
+            yield* this.#external(subscription, follower, context, requested);
         }
         // follow the access rows of a scope's chain
         else if (publication === this.accessPublication) {
-            yield* this.#access(subscription, follower, context);
+            yield* this.#access(subscription, follower, context, requested);
         }
         // relay any other replica to the follower it is for
         else {
             const { after, ...request } = subscription;
-            yield* this.replicate(request, after, follower, context.request.signal, context.signal);
+            yield* this.#replicate(request, after, follower, context.request.signal, {
+                requested,
+                drain: context.closing,
+            });
         }
     }
 
@@ -544,41 +576,38 @@ export class ObjectSource {
         subscription: sync.Subscription,
         follower: ReplicaFollower,
         context: RequestContext,
+        requested: Recorded | undefined,
     ): AsyncGenerator<sync.Page> {
         // open the audience
         const { scope, after, previous } = subscription;
-        const { queries } = QueriesParameters.parse(subscription.parameters);
         const reader = this.#reader(follower, scope);
         const audience = await ObjectAudience.of(this.store, scope, reader);
 
-        // follow the replica's queries, with the replicas the reader sees below the scope
-        const { chain } = audience;
-        const caller = Caller.principal(reader);
-        const compile = (named: QueriesParameters["queries"]) =>
-            ObjectType.queries(this.store.durable, this.#served(named), chain);
-        const earlier =
-            previous === undefined ? undefined : QueriesParameters.parse(previous).queries;
-        const options = this.#feedOptions(
-            subscription,
-            audience,
-            context,
-            earlier && compile(earlier),
-        );
-        const follow = (feed: sync.Feed) =>
-            this.#replicating(
-                feed,
-                scope,
-                caller,
-                audience,
-                (current) => ObjectType.queries(this.store.durable, this.#served(queries), current),
-                after,
-                options,
-                context.request.signal,
+        // compile a request's queries over the scope's chain now
+        const compile = (parameters: JsonObject) =>
+            ObjectType.queries(
+                this.store.durable,
+                this.#served(QueriesParameters.parse(parameters).queries),
+                audience.chain,
             );
+        const follow = (feed: sync.Feed) =>
+            this.#replicating(feed, {
+                subscription,
+                caller: Caller.principal(reader),
+                audience,
+                compile,
+                after,
+                previous,
+                requested,
+                drain: context.closing,
+                signal: context.request.signal,
+            });
 
         // audit watching each audited object type
         const tables = new Set(
-            Object.values(compile(queries)).flatMap((query) => ObjectSource.#tablesOf(query)),
+            Object.values(compile(subscription.parameters)).flatMap((query) =>
+                sync.Node.tables(query),
+            ),
         );
         const audited = this.store.objects.filter(
             (object) =>
@@ -600,77 +629,108 @@ export class ObjectSource {
         yield* pages();
     }
 
-    /** Follow queries over their scopes' chain and the replicas a caller sees below them. */
+    /** Follow queries over their scope's chain and the replicas a caller sees below it. */
     async *#replicating(
         feed: sync.Feed,
-        scope: string,
-        caller: Subject | undefined,
-        audience: ObjectAudience,
-        compile: (chain: readonly string[]) => Record<string, sync.Query>,
-        after: LogPosition | undefined,
-        options: sync.FeedOptions,
-        signal: AbortSignal,
+        followed: {
+            readonly subscription: sync.Subscription;
+            readonly caller: Subject | undefined;
+            readonly audience: ObjectAudience;
+            readonly compile: (parameters: JsonObject) => Record<string, sync.Query>;
+            readonly after: LogPosition | undefined;
+            readonly previous: JsonObject | undefined;
+            readonly requested: Recorded | undefined;
+            readonly drain: AbortSignal;
+            readonly signal: AbortSignal;
+        },
     ): AsyncGenerator<sync.Page> {
-        // read the replicas stored now, following them until the stream ends or drains
+        // read the replicas the reader holds now, and compile parameters over them
+        const { subscription, caller, audience, compile, signal } = followed;
         const { database } = this.store;
+        const { scope } = subscription;
+        const { generation } = database.state.commits;
         let held = await sync.Replica.tables(database, scope, caller);
-        let reflected = options.previous && ObjectSource.#withReplicas(options.previous, held);
-        let position = after;
-        while (!signal.aborted && options.drain?.aborted !== true) {
-            // compile the queries over the scope's chain now and the replicas held now
-            const { chain } = audience;
-            const current = canonicalize(held);
-            const compiled = ObjectSource.#withReplicas(compile(chain), held);
-            const rekept = new AbortController();
-            const following = AbortSignal.any([signal, rekept.signal]);
+        let parameters = subscription.parameters;
+        const queries = (requested: JsonObject) =>
+            ObjectSource.#withReplicas(compile(requested), held);
 
-            // follow again once the replicas change, or once the scope's chain grows or moves
-            const names = [sync.replica, sync.replicaSubscription].map(
-                (table) => table[TABLE].sqlName,
-            );
-            const scopes = Scope.table[TABLE].sqlName;
-            const changed = database.log.until(async (tables) => {
-                // follow again over replicas the reader holds anew
-                if (
-                    names.some((name) => tables.has(name)) &&
-                    canonicalize(await sync.Replica.tables(database, scope, caller)) !== current
-                ) {
-                    return true;
-                }
-                // follow again over a chain a scope change grew or moved
-                else if (tables.has(scopes)) {
-                    await audience.refresh();
+        // reshape the stream once the replicas the reader holds change, or the scope's chain grows or moves
+        let stream: sync.Stream | undefined;
+        const names = new Set(
+            [sync.replica, sync.replicaSubscription].map((table) => table[TABLE].sqlName),
+        );
+        const scopes = Scope.table[TABLE].sqlName;
+        const watching = new AbortController();
+        const failed = new AbortController();
+        const watched = database.log
+            .until(
+                async (tables) => {
+                    // reshape over the replicas the reader holds anew
+                    const current = canonicalize(held);
+                    const chain = canonicalize(audience.chain);
+                    if ([...tables].some((table) => names.has(table))) {
+                        held = await sync.Replica.tables(database, scope, caller);
+                    }
+                    if (tables.has(scopes)) {
+                        await audience.refresh();
+                    }
+                    const isChanged =
+                        canonicalize(held) !== current || canonicalize(audience.chain) !== chain;
+                    if (isChanged) {
+                        stream?.reshape(queries(parameters));
+                    }
 
-                    return canonicalize(audience.chain) !== canonicalize(chain);
-                }
-                // keep following otherwise
-                else {
                     return false;
+                },
+                AbortSignal.any([signal, watching.signal]),
+                generation,
+            )
+            .catch((error: unknown) => {
+                if (!watching.signal.aborted && !signal.aborted) {
+                    failed.abort(error);
                 }
-            }, following);
-            changed.then(
-                (isChanged) => isChanged && rekept.abort(),
-                () => rekept.abort(),
-            );
-
-            // follow the queries from the last complete position
-            const read = [...new Set([...chain, ...held.map((replica) => replica.scope)])];
-            const { previous: _previous, ...rest } = options;
-            const subscribed = feed.subscribe(compiled, position, following, {
-                ...rest,
-                ...(reflected === undefined ? {} : { previous: reflected }),
             });
-            for await (const page of ObjectSource.#marking(subscribed, { scopes: read })) {
-                yield page;
-                position = page.complete ? page.position : position;
-            }
-            rekept.abort();
-            await changed;
 
-            // follow again over the replicas stored now
-            reflected = compiled;
-            held = await sync.Replica.tables(database, scope, caller);
+        // follow the queries, moving to a request's changed parameters in place, until the watch fails
+        const { previous } = followed;
+        const request: sync.StreamRequest | undefined =
+            followed.requested === undefined
+                ? undefined
+                : {
+                      ...followed.requested,
+                      feed: this.store.feed,
+                      parameters,
+                      queries: async (requested) => {
+                          parameters = requested;
+
+                          return queries(requested);
+                      },
+                  };
+        const streaming = AbortSignal.any([signal, failed.signal]);
+        const subscribed = feed.subscribe(queries(parameters), followed.after, streaming, {
+            audience,
+            drain: followed.drain,
+            ...(request === undefined ? {} : { request }),
+            ...(previous === undefined ? {} : { previous: queries(previous) }),
+            ...(subscription.refresh === undefined
+                ? {}
+                : { every: Duration.milliseconds(subscription.refresh.every) }),
+            opened: (opened) => {
+                stream = opened;
+            },
+        });
+        try {
+            for await (const page of subscribed) {
+                const read = [...new Set([...audience.chain, ...held.map((each) => each.scope)])];
+                yield ObjectSource.#marked({ ...page, scopes: read });
+            }
+        } finally {
+            watching.abort();
+            await watched;
         }
+
+        // end the stream with the watch's failure
+        failed.signal.throwIfAborted();
     }
 
     /** Follow a scope's ephemeral objects for a writer. */
@@ -678,6 +738,7 @@ export class ObjectSource {
         subscription: sync.Subscription,
         follower: ReplicaFollower,
         context: RequestContext,
+        requested: Recorded | undefined,
     ): AsyncGenerator<sync.Page> {
         // track the writer's rows
         const { scope, after, previous } = subscription;
@@ -685,10 +746,14 @@ export class ObjectSource {
         const store = this.store.requireEphemeral();
         const release = store.track(EphemeralStorage.writerKey(context.access(scope), writerId));
         const compiled = ObjectType.queries(store.objects, queries, [scope]);
+        const compile = (parameters: JsonObject) =>
+            ObjectType.queries(store.objects, EphemeralParameters.parse(parameters).queries, [
+                scope,
+            ]);
 
         // collect the scope's events for the whole follow, kept across its restarts
         const events: ScopeEvents = { received: [], arrival: Promise.withResolvers<void>() };
-        const stop = store.tracker.listen(scope, (event) => {
+        const stop = store.tracker.listen(ObjectSource.#eventTopic(scope), ({ event }) => {
             events.received.push(event);
             events.arrival.resolve();
         });
@@ -703,12 +768,11 @@ export class ObjectSource {
                 context,
                 "ephemeral",
                 (audience, signal, isFirst) => {
-                    const options = this.#feedOptions(
-                        subscription,
-                        audience,
-                        context,
-                        isFirst ? reflected : undefined,
-                    );
+                    const options = this.#feedOptions(subscription, audience, context, {
+                        requested,
+                        compile,
+                        previous: isFirst ? reflected : undefined,
+                    });
                     const pages = store.feed.subscribe(
                         compiled,
                         isFirst ? after : undefined,
@@ -730,6 +794,7 @@ export class ObjectSource {
         subscription: sync.Subscription,
         follower: ReplicaFollower,
         context: RequestContext,
+        requested: Recorded | undefined,
     ): AsyncGenerator<sync.Page> {
         // open the scope's files
         const { scope, after, previous } = subscription;
@@ -744,18 +809,21 @@ export class ObjectSource {
             {},
         );
         const compiled = ObjectType.queries(external.objects, queries, [scope]);
+        const compile = (parameters: JsonObject) =>
+            ObjectType.queries(external.objects, QueriesParameters.parse(parameters).queries, [
+                scope,
+            ]);
         const earlier =
             previous === undefined ? undefined : QueriesParameters.parse(previous).queries;
         const reflected = earlier && ObjectType.queries(external.objects, earlier, [scope]);
 
         // follow until access changes, or to a completed page once the caller lapses
         yield* this.#decided(scope, follower, context, "external", (audience, signal, isFirst) => {
-            const options = this.#feedOptions(
-                subscription,
-                audience,
-                context,
-                isFirst ? reflected : undefined,
-            );
+            const options = this.#feedOptions(subscription, audience, context, {
+                requested,
+                compile,
+                previous: isFirst ? reflected : undefined,
+            });
 
             return feed.subscribe(compiled, isFirst ? after : undefined, signal, options);
         });
@@ -766,6 +834,7 @@ export class ObjectSource {
         subscription: sync.Subscription,
         follower: ReplicaFollower,
         context: RequestContext,
+        requested: Recorded | undefined,
     ): AsyncGenerator<sync.Page> {
         // follow until access changes
         const { scope, after } = subscription;
@@ -783,7 +852,11 @@ export class ObjectSource {
                     where: Relationship.heldBy(subjects),
                 },
             };
-            const options = this.#feedOptions(subscription, sync.EVERYONE, context, undefined);
+            const options = this.#feedOptions(subscription, sync.EVERYONE, context, {
+                requested,
+                compile: () => queries,
+                previous: undefined,
+            });
             const pages = this.store.feed.subscribe(
                 queries,
                 isFirst ? after : undefined,
@@ -791,7 +864,10 @@ export class ObjectSource {
                 options,
             );
 
-            return ObjectSource.#marking(pages, { scopes: [...chain], subjects: [...subjects] });
+            return ObjectSource.#marking(pages, {
+                scopes: [...chain],
+                subjects: [...subjects],
+            });
         });
     }
 
@@ -808,7 +884,7 @@ export class ObjectSource {
         ) => AsyncGenerator<sync.Page>,
     ): AsyncGenerator<sync.Page> {
         let isFirst = true;
-        while (!context.signal.aborted) {
+        while (!context.closing.aborted) {
             // open the audience and watch access rows until the request closes or access changes
             const revised = new AbortController();
             const signal = AbortSignal.any([context.request.signal, revised.signal]);
@@ -900,7 +976,7 @@ export class ObjectSource {
         }
 
         // send it to the scope's streams
-        store.tracker.broadcast(scope, { ...reference, event });
+        store.tracker.broadcast(ObjectSource.#eventTopic(scope), { ...reference, event });
     }
 
     /** The publications this store serves and follows, by name. */
@@ -935,66 +1011,61 @@ export class ObjectSource {
         return publication;
     }
 
-    /** Confirm a subscription's streams past a watermark, through upstream for a replica here. */
-    async confirm(subscription: sync.Subscription, watermark: sync.Watermark): Promise<void> {
-        const history = await this.store.history(watermark);
-
-        // confirm a watermark of the store's log on the subscription's streams
-        if (history.kind === "local") {
-            const key = ObjectSource.streamKey(subscription);
-            for (const served of this.#streams) {
-                if (served.key === key) {
-                    served.stream.confirm(watermark);
-                }
+    /** Record a caller's request here, asking upstream for a replicated scope's ask. */
+    async request(subscription: sync.Subscription, caller = this.#inProcess): Promise<void> {
+        // ask upstream for a watermark of a scope this store's replicas include, refusing one it has no history of
+        const { confirming } = subscription;
+        if (confirming !== undefined) {
+            const history = await this.store.history(confirming);
+            if (history.kind === "replicated") {
+                await this.store.sink.request(confirming, [
+                    ...history.including,
+                    ...history.followed,
+                ]);
+            } else if (history.kind === "stale") {
+                throw DatabaseError.of(
+                    "EPOCH_STALE",
+                    `${confirming.scope} no longer has the watermark's history`,
+                );
+            } else if (history.kind === "unknown") {
+                throw ObjectError.of(
+                    "HOME_OR_REPLICA_MISSING",
+                    `${confirming.scope} has no home or replica here`,
+                );
             }
         }
-        // confirm upstream for a scope this store's replicas include
-        else if (history.kind === "replicated") {
-            await this.store.sink.request(watermark, [...history.including, ...history.followed]);
-        }
-        // refuse a history this store no longer has
-        else if (history.kind === "stale") {
-            throw DatabaseError.of(
-                "EPOCH_STALE",
-                `${watermark.scope} no longer has the watermark's history`,
-            );
-        }
-        // refuse a scope with no home or replica here
-        else {
-            throw ObjectError.of(
-                "HOME_OR_REPLICA_MISSING",
-                `${watermark.scope} has no home or replica here`,
-            );
-        }
+
+        // record the request, which the stream serving it follows on whichever instance it runs
+        await sync.Subscription.request(this.store.database, subscription, caller);
     }
 
-    /** Confirm a follower's subscription past a watermark, as its publication allows. */
-    async confirmRequest(
-        subscription: sync.Subscription,
-        watermark: sync.Watermark,
-        context: RequestContext,
-    ): Promise<void> {
-        await this.#authorizeFollower(this.publication(subscription), subscription, context);
-        await this.confirm(subscription, watermark);
+    /** Record an authenticated caller's request of its own stream. */
+    async requestFrom(subscription: sync.Subscription, context: RequestContext): Promise<void> {
+        // require a known publication and an authenticated caller, whose key the request carries
+        this.publication(subscription);
+        const caller = ObjectSource.#caller(context);
+        if (caller === undefined) {
+            throw ObjectError.of("CREDENTIAL_MISSING", "missing caller credential");
+        }
+        await this.request(subscription, caller);
     }
 
-    /** Confirm a caller's streams of a scope at or past a position of this store's log. */
-    confirmCaller(
-        scope: string,
+    /** Ask a caller's streams of a scope to confirm a watermark of this store's log. */
+    async confirmCaller(
         authentication: Authentication | undefined,
-        position: LogPosition,
-    ): void {
-        // confirm nothing for an anonymous caller, else each of its streams of the scope
+        watermark: sync.Watermark,
+    ): Promise<void> {
         const subject = authentication?.caller.subject;
-        if (subject === undefined) {
-            return;
+        if (subject !== undefined) {
+            await sync.Subscription.confirm(this.store.database, Subject.key(subject), watermark);
         }
-        const caller = Subject.key(subject);
-        for (const served of this.#streams) {
-            if (served.scope === scope && served.caller === caller) {
-                served.stream.confirm(position);
-            }
-        }
+    }
+
+    /** Read the key of an authenticated caller, absent for an anonymous one. */
+    static #caller(context: RequestContext): string | undefined {
+        const subject = context.authentication?.caller.subject;
+
+        return subject === undefined ? undefined : Subject.key(subject);
     }
 
     /** Stream a replica's pages to a database in this process, never back to their source. */
@@ -1009,20 +1080,39 @@ export class ObjectSource {
             await replica.requireAcyclic(this.store.database, origin);
         }
 
-        // stream the replica, with the stream for its follower's confirmations
-        yield* this.store.feed.subscribe(replica.queries, after, signal, {
-            opened: (stream) => this.#track(stream, subscription, undefined),
-            closed: (stream) => this.#untrack(stream),
-        });
+        // stream the replica, following its follower's request
+        const requested = await this.#record(subscription, this.#inProcess);
+        const request = this.#streamRequest(
+            requested,
+            subscription.parameters,
+            (parameters) => this.buildReplica({ ...subscription, parameters }).queries,
+        );
+        yield* this.store.feed.subscribe(
+            replica.queries,
+            after,
+            signal,
+            request === undefined ? {} : { request },
+        );
     }
 
-    /** Stream a replica's pages to a database below. */
+    /** Stream a replica's pages to a database below in this process. */
     async *replicate(
         request: sync.Subscription,
         after: LogPosition | undefined,
         follower: ReplicaFollower,
         signal: AbortSignal,
-        drain?: AbortSignal,
+    ): AsyncGenerator<sync.Page> {
+        const requested = await this.#record(request, this.#inProcess);
+        yield* this.#replicate(request, after, follower, signal, { requested });
+    }
+
+    /** Stream a replica's pages to a database below, serving its follower's request. */
+    async *#replicate(
+        request: sync.Subscription,
+        after: LogPosition | undefined,
+        follower: ReplicaFollower,
+        signal: AbortSignal,
+        serving: { readonly requested: Recorded | undefined; readonly drain?: AbortSignal },
     ): AsyncGenerator<sync.Page> {
         // require the replicated scope to contain the follower's for a chain
         const publication = this.publication(request);
@@ -1046,13 +1136,47 @@ export class ObjectSource {
             previous === undefined
                 ? undefined
                 : publication.replica({ ...request, parameters: previous }).queries;
-        yield* this.store.feed.subscribe(replica.queries, after, signal, {
+        const streamRequest = this.#streamRequest(
+            serving.requested,
+            request.parameters,
+            (parameters) => publication.replica({ ...request, parameters }).queries,
+        );
+        const pages = this.store.feed.subscribe(replica.queries, after, signal, {
             audience,
-            opened: (stream) => this.#track(stream, request, undefined),
-            closed: (stream) => this.#untrack(stream),
+            ...(serving.drain === undefined ? {} : { drain: serving.drain }),
+            ...(streamRequest === undefined ? {} : { request: streamRequest }),
             ...(reflected === undefined ? {} : { previous: reflected }),
-            ...(drain === undefined ? {} : { drain }),
         });
+
+        // send a relayed replica's home position with each completed page at this database's head
+        const isRelayed =
+            (await sync.Replica.origin(this.store.database, request.name, request.scope)) !==
+            undefined;
+        yield* isRelayed ? this.#originating(pages, request) : pages;
+    }
+
+    /** Send a relayed replica's home position with each completed page at this database's head. */
+    async *#originating(
+        pages: AsyncIterable<sync.Page>,
+        request: Pick<sync.Subscription, "name" | "scope">,
+    ): AsyncGenerator<sync.Page> {
+        for await (const page of pages) {
+            // forward a heartbeat only while this replica's own source is heard, which keeps the follower fresh
+            const isBeat =
+                page.complete && page.changes.length === 0 && page.isConfirmation !== true;
+            if (isBeat) {
+                if (sync.Replica.isLive(this.store.database, request.name, request.scope)) {
+                    yield page;
+                }
+            }
+            // attach the home position to a completed page a follower records, when it is the head
+            else {
+                const origin = page.complete
+                    ? await sync.Replica.originAt(this.store.database, request, page.position)
+                    : undefined;
+                yield origin === undefined ? page : { ...page, origin };
+            }
+        }
     }
 
     /** Require a chain replica's scope and claimed chain to contain the follower's scope. */
@@ -1065,8 +1189,11 @@ export class ObjectSource {
                 ? await this.#viaScopes(request.scope, via, chain?.between ?? [])
                 : await this.#containing(request, follower);
 
-        // require a chain's scopes to be the follower's scopes
-        const claimed = chain?.scopes ?? [];
+        // require a chain's scopes and the scopes it replicates to be the follower's scopes
+        const claimed = [
+            ...(chain?.scopes ?? []),
+            ...(chain?.replicated ?? []).map((replicated) => replicated.scope),
+        ];
         const foreign = claimed.find((scope) => !scopes.has(scope));
         if (foreign !== undefined) {
             throw ObjectError.of(
@@ -1335,64 +1462,64 @@ export class ObjectSource {
         return broadcasts;
     }
 
-    /** Build a caller's replica feed options, ending at a completed page once it lapses. */
+    /** Build a caller's replica feed options, following its request. */
     #feedOptions(
         subscription: sync.Subscription,
         audience: sync.Audience,
         context: RequestContext,
-        previous: Readonly<Record<string, sync.Query>> | undefined,
+        serving: {
+            readonly requested: Recorded | undefined;
+            readonly compile: (parameters: JsonObject) => Record<string, sync.Query>;
+            readonly previous: Readonly<Record<string, sync.Query>> | undefined;
+        },
     ): sync.FeedOptions {
+        // follow the request, draining with the request's close
         const { refresh } = subscription;
+        const { requested, compile, previous } = serving;
+        const request = this.#streamRequest(requested, subscription.parameters, compile);
 
         return {
             audience,
-            drain: context.signal,
-            opened: (stream) => this.#track(stream, subscription, context.authentication),
-            closed: (stream) => this.#untrack(stream),
+            drain: context.closing,
+            ...(request === undefined ? {} : { request }),
             ...(previous === undefined ? {} : { previous }),
             ...(refresh === undefined ? {} : { every: Duration.milliseconds(refresh.every) }),
         };
     }
 
-    /** Track a stream of a subscription and caller until it ends. */
-    #track(
-        stream: sync.Stream,
-        subscription: Pick<sync.Subscription, "name" | "scope" | "target" | "confirming">,
-        authentication: Authentication | undefined,
-    ): void {
-        // list the stream under its subscription's key and scope, and its caller's key
-        const subject = authentication?.caller.subject;
-        const served: SourceStream = {
-            stream,
-            key: ObjectSource.streamKey(subscription),
-            scope: subscription.scope,
-            caller: subject === undefined ? undefined : Subject.key(subject),
-        };
-        this.#streams.add(served);
-
-        // ask the new stream for the position its follower waits for
-        if (subscription.confirming !== undefined) {
-            stream.confirm(subscription.confirming);
-        }
+    /** Build the request a stream follows, absent without one. */
+    #streamRequest(
+        requested: Recorded | undefined,
+        parameters: JsonObject,
+        compile: (parameters: JsonObject) => Record<string, sync.Query>,
+    ): sync.StreamRequest | undefined {
+        return requested === undefined
+            ? undefined
+            : {
+                  ...requested,
+                  feed: this.store.feed,
+                  parameters,
+                  queries: async (asked) => compile(asked),
+              };
     }
 
-    /** Stop tracking a stream that ended. */
-    #untrack(stream: sync.Stream): void {
-        for (const served of this.#streams) {
-            if (served.stream === stream) {
-                this.#streams.delete(served);
-            }
-        }
+    /** Record a caller's request here, with when its session lapses. */
+    async #record(
+        subscription: sync.Subscription,
+        caller: string,
+        lapsesAt?: number,
+    ): Promise<Recorded> {
+        // record the request, keyed by the caller
+        await sync.Subscription.request(this.store.database, subscription, caller);
+        const { name, scope, target } = subscription;
+        const key = { name, scope, target, caller };
+
+        return lapsesAt === undefined ? { key } : { key, lapsesAt };
     }
 
-    /** Key a subscription's streams by its replica and target. */
-    static streamKey(subscription: Pick<sync.Subscription, "name" | "scope" | "target">): string {
-        return `${subscription.name} ${subscription.scope} ${subscription.target}`;
-    }
-
-    /** List the tables a query reads: its rows', its includes' and its followed relations'. */
-    static #tablesOf(query: sync.Query): Table[] {
-        return new sync.Node("", query, query.scopes).nodes().map((node) => node.table);
+    /** The caller of in-process followers: this store's own principal. */
+    get #inProcess(): string {
+        return Subject.key(this.store.principal);
     }
 
     /** Mark each page with its scopes and subjects, and each completed one with its event. */
@@ -1403,6 +1530,11 @@ export class ObjectSource {
         for await (const page of pages) {
             yield ObjectSource.#marked({ ...page, ...marks });
         }
+    }
+
+    /** Read the tracker topic of a scope's object events. */
+    static #eventTopic(scope: string): string {
+        return `event/${scope}`;
     }
 
     /** Mark a completed page with its position as event identifier, for resumed streams. */
@@ -1439,17 +1571,8 @@ export class ObjectSource {
     }
 }
 
-/** A stream a source serves, with its subscription's key and scope, and its caller. */
-interface SourceStream {
-    /** The stream. */
-    readonly stream: sync.Stream;
-    /** The key of its subscription: replica name, scope and target. */
-    readonly key: string;
-    /** The scope its subscription replicates. */
-    readonly scope: string;
-    /** The key of the caller whose request it serves, absent in process. */
-    readonly caller: string | undefined;
-}
+/** A follower's request as this source records it. */
+type Recorded = Pick<sync.StreamRequest, "key" | "lapsesAt">;
 
 /** Who a relayed replica is decided for: a principal where its rows live, or the caller. */
 export type ReplicaFollower =

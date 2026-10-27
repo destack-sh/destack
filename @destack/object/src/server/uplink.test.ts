@@ -8,7 +8,7 @@ import { AccessFixture } from "@destack/access/test";
 import { type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
 import { RequestId, Replica, Scope } from "@destack/sync";
 import { present, schema } from "@destack/schema";
-import { defineObject, defineShape, field, Follow } from "../index.ts";
+import { defineObject, defineShape, field, Follow, Shape } from "../index.ts";
 import { serversOf, testEvents } from "../test/index.ts";
 import { ObjectStore } from "./index.ts";
 import { tablesOf } from "../stack/db.ts";
@@ -178,9 +178,7 @@ async function serveHome(world: Environment) {
     const controller = new AbortController();
     const key = present(
         (await follower.list(Snapshot.live(store.database))).find(
-            (entry) =>
-                entry ===
-                `${PEOPLE.shape.replicaName({ scope: Scope.universe.id })} ${Scope.universe.id}`,
+            (entry) => entry === `${Shape.replicaName(Scope.universe.id)} ${Scope.universe.id}`,
         ),
         "the universe's replica key",
     );

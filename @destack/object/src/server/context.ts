@@ -38,6 +38,8 @@ export class RequestContext {
     readonly requestId: string;
     /** Abort when the request closes, its caller lapses or the server drains. */
     readonly signal: AbortSignal;
+    /** Abort when the request closes or the server drains, its caller's lapse aside. */
+    readonly closing: AbortSignal;
     /** The digests of the presented link secrets. */
     readonly linkSecrets: readonly string[];
     /** The watermarks the caller requires, its credential's among them. */
@@ -103,10 +105,13 @@ export class RequestContext {
         this.access = this.access.bind(this);
 
         // end the signal as the request closes, the credential lapses or the server drains
-        this.signal = AbortSignal.any([
+        this.closing = AbortSignal.any([
             this.request.signal,
-            ...(options.lapse === undefined ? [] : [options.lapse]),
             ...(options.draining === undefined ? [] : [options.draining]),
+        ]);
+        this.signal = AbortSignal.any([
+            this.closing,
+            ...(options.lapse === undefined ? [] : [options.lapse]),
         ]);
     }
 

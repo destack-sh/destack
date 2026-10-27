@@ -46,7 +46,7 @@ const marker = defineTable(
 
 /** A publisher streaming no replicas. */
 const publisher = {
-    confirm: async () => {},
+    request: async () => {},
     stream: () => {
         throw new Error("the fixture publisher streams no replicas");
     },

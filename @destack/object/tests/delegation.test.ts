@@ -95,7 +95,7 @@ test("act with the space's delegation to its installation, refusing without one,
         fetch: (sent) => Promise.reject(new Error(`the probes reach no ${sent.url}`)),
         url: "https://probes--home.test",
         publisher: {
-            confirm: async () => {},
+            request: async () => {},
             stream: () => {
                 throw new TypeError("the fixture streams no replicas");
             },

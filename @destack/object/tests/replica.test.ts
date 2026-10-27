@@ -28,7 +28,14 @@ import { RequestContext } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { defineObject, defineShape, field, Follow, QUERIES_PUBLICATION } from "../src/index.ts";
+import {
+    defineObject,
+    defineShape,
+    field,
+    Follow,
+    QUERIES_PUBLICATION,
+    Shape,
+} from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { definePackage } from "@destack/object";
 import { testEvents, serversOf } from "../src/test/index.ts";
@@ -208,7 +215,7 @@ test("list and follow the mentions a home has as replicas of another space, from
     await database.transaction(async (replicating) => {
         await replicating
             .insert(replica)
-            .values({ name: "mentions", scope: other, tables: [table] });
+            .values({ name: "mentions", scope: other, tables: [table], living: {} });
         await replicating.insert(replicaSubscription).values({
             name: "mentions",
             scope: other,
@@ -310,7 +317,12 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     );
 
     // read the first page of alice's mentions as a space, for the readers below it
-    const subscription = mentionShape.subscription({ scope: spaceId }, home, alice);
+    const subscription = Shape.subscription(
+        spaceId,
+        [{ shape: mentionShape, keys: [{}] }],
+        home,
+        alice,
+    );
     const first = async (context: RequestContext) => {
         const pages = store.source.relayed(subscription, context);
         const page = await pages.next();
@@ -382,7 +394,12 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
 
     // follow alice's mentions as her home with a token bound to the followed space, stating its sets
     const home = spacePrincipal(Identifier.create("space", world));
-    const subscription = mentionShape.subscription({ scope: spaceId }, home.id, alice);
+    const subscription = Shape.subscription(
+        spaceId,
+        [{ shape: mentionShape, keys: [{}] }],
+        home.id,
+        alice,
+    );
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const bound = (sets: readonly Subject[]) => {
@@ -456,7 +473,12 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
 
     // follow alice's mentions without a credential, then as a space she does not relate
     const alice = principal.user.reference("universe", Identifier.create("user", world));
-    const subscription = mentionShape.subscription({ scope: spaceId }, spaceId, alice);
+    const subscription = Shape.subscription(
+        spaceId,
+        [{ shape: mentionShape, keys: [{}] }],
+        spaceId,
+        alice,
+    );
     const first = (context: RequestContext) => store.source.relayed(subscription, context).next();
     const anonymous = new RequestContext(new Request("https://test.local"), {
         audience: mention.package.id,
@@ -523,7 +545,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
     expect(await refusal(pages.next())).toEqual([
         "BAD_REQUEST",
         "INPUT_INVALID",
-        "invalid input: scopes: invalid input: expected array, received undefined; types: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined",
+        "invalid input: scopes: invalid input: expected array, received undefined; replicated: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined",
     ]);
 });
 

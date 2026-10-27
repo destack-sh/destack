@@ -81,10 +81,9 @@ import { PACKAGE_DECLARATION, PackageDescription } from "../declare/description.
 import { PackageHandle } from "../declare/package.ts";
 import { type ProcedureRouter } from "../procedure/index.ts";
 import * as sync from "@destack/sync";
-import { Follow, type FollowKey, type RowFollow } from "../replica/shape.ts";
+import { Follow, type FollowKey, type RowFollow, Shape } from "../replica/shape.ts";
 import { followKey } from "../replica/key.ts";
 import {
-    QueriesParameters,
     WriterId,
     storeProcedures,
     type PushResult,
@@ -429,6 +428,8 @@ interface StoreComposition {
     readonly installed?: ReadonlyMap<string, ServedType>;
     /** The memory store with the served ephemeral objects. */
     readonly ephemeral?: EphemeralStorage;
+    /** Open a principal's live link for one of its streams, answering its close. */
+    readonly connect?: (subject: Subject) => Promise<() => Promise<void>>;
     /** The files with the served external objects, each storing some of their types. */
     readonly external?: readonly ExternalStorage[];
     /** The subscriptions the database follows to maintain its replicas. */
@@ -488,6 +489,8 @@ export class ObjectStore {
     readonly claims: ClaimPrimary | undefined;
     /** The memory store with the served ephemeral objects. */
     readonly ephemeral: EphemeralStorage | undefined;
+    /** Open a principal's live link for one of its streams, absent without links. */
+    readonly connect: ((subject: Subject) => Promise<() => Promise<void>>) | undefined;
     /** The files with the served external objects. */
     readonly external: readonly ExternalStorage[];
     /** The subscriptions the database follows to maintain its replicas. */
@@ -579,6 +582,7 @@ export class ObjectStore {
         this.#installed = options.installed ?? new Map();
         this.uplink = this.#uplink();
         this.ephemeral = options.ephemeral;
+        this.connect = options.connect;
         this.external = options.external ?? [];
 
         // build the authorizer over the objects and the scope types enclosing them
@@ -833,7 +837,7 @@ export class ObjectStore {
     #uplink(): sync.Uplink {
         return {
             stream: (subscription, signal) => this.source.publish(subscription, signal),
-            confirm: (subscription, watermark) => this.source.confirm(subscription, watermark),
+            request: (subscription) => this.source.request(subscription),
             receive: (mutation, signer) => {
                 // run the changes as the follower's principal
                 if (signer === undefined) {
@@ -1123,7 +1127,7 @@ export class ObjectStore {
                 : {
                       ready: (signal) => this.#awaitReady(signal),
                       synced: (signal) => this.#awaitReady(signal),
-                      confirmed: (signal) => this.#awaitConfirmed(signal),
+                      confirmed: (signal) => this.awaitConfirmed(signal),
                   }),
             router: this.router(routed),
         };
@@ -1179,11 +1183,10 @@ export class ObjectStore {
         }
 
         // wait on commits until the synced replica follows the key's queries, refusing a late one
-        const wanted = shape.onDemandSubscription(scope, [parameters], this.scope, at.subject);
         const timeout = this.clock.timeout(ACQUIRE_MILLISECONDS);
         try {
             await this.database.log.until(
-                () => this.#covers(wanted),
+                () => shape.isSynced(this.database, at.key, this.#follower(at.subject)),
                 signal === undefined ? timeout : AbortSignal.any([signal, timeout]),
             );
         } catch (error) {
@@ -1196,25 +1199,6 @@ export class ObjectStore {
                 `the ${shape.name} replica of ${scope} is still syncing`,
             );
         }
-    }
-
-    /** Report whether a synced replica follows every query of a subscription of its keys. */
-    async #covers(wanted: sync.Subscription): Promise<boolean> {
-        // require a synced replica
-        const recorded = await this.source.buildReplica(wanted).subscribed(this.database);
-        const isSynced = await sync.Replica.isSynced(this.database, wanted.name, wanted.scope);
-        if (recorded === undefined || !isSynced) {
-            return false;
-        }
-
-        // require each wanted query among the recorded ones
-        const has = QueriesParameters.parse(recorded.parameters).queries ?? {};
-        const queries = QueriesParameters.parse(wanted.parameters).queries ?? {};
-
-        return Object.entries(queries).every(
-            ([name, query]) =>
-                has[name] !== undefined && canonicalize(has[name]) === canonicalize(query),
-        );
     }
 
     /** Wait for the replicas gating readiness, checked once for all packages, or until stopped. */
@@ -1234,57 +1218,75 @@ export class ObjectStore {
         }
     }
 
-    /** Wait until no home of the store's chain is silent past the lag, as writes require. */
-    async #awaitConfirmed(signal: AbortSignal): Promise<void> {
-        // check now and after each commit to the replicas' records
-        const { database } = this;
-        const records = new Set(sync.replicaRecordTables.map((table) => table[TABLE].sqlName));
-        await database.log.until(async (committed) => {
-            // leave commits that change no replica's record, then read the chain's silent home
-            if (![...committed].some((table) => records.has(table))) {
-                return false;
-            }
-            const chain = (await Scope.chain(Snapshot.live(database), this.scope)).map(
+    /** Wait until a follow hears the home of each replica of the store's chain. */
+    async awaitConfirmed(signal: AbortSignal): Promise<void> {
+        await this.#untilHeard(async () => {
+            const chain = (await Scope.chain(Snapshot.live(this.database), this.scope)).map(
                 (link) => link.object.id,
             );
-            const stale = await Access.unconfirmed(
-                database,
-                chain,
-                this.authorizer.lag,
-                this.clock.now(),
-            );
 
-            return stale === undefined;
+            return (await Access.unconfirmed(this.database, chain)) === undefined;
         }, signal);
     }
 
-    /** Wait until the chain's replicas are confirmed within the lag, checked on record changes. */
+    /** Wait until a follow hears the home of each current gating replica. */
     async #ready(signal: AbortSignal): Promise<boolean> {
-        // check the listed gates now and after each replica record commit
-        const { database } = this;
-        const records = new Set(sync.replicaRecordTables.map((table) => table[TABLE].sqlName));
-
-        return database.log.until(async (committed) => {
-            // leave commits that change no replica's record
-            if (![...committed].some((table) => records.has(table))) {
-                return false;
-            }
-
+        return await this.#untilHeard(async () => {
             // wait for a pending chain, whose replicas the store lists once it is known
+            const { database } = this;
             const chain = await this.chain(Snapshot.live(database));
             if (chain?.kind === "pending") {
                 return false;
             }
 
-            // require each gating replica confirmed by its home within the lag
+            // require each gating replica heard and current
             const gates = await this.sink.gates();
-            const since = this.clock.now() - this.authorizer.lag;
-            const confirmed = await Promise.all(
-                gates.map(({ subscription }) => sync.Replica.confirmedAt(database, subscription)),
+            const current = await Promise.all(
+                gates.map(
+                    async ({ subscription }) =>
+                        sync.Replica.isLive(database, subscription.name, subscription.scope) &&
+                        (await sync.Replica.isCurrent(database, subscription)),
+                ),
             );
 
-            return confirmed.every((at) => at !== undefined && at >= since);
+            return current.every(Boolean);
         }, signal);
+    }
+
+    /** Check now and after each replica record or liveness change, until it passes. */
+    async #untilHeard(check: () => Promise<boolean>, signal: AbortSignal): Promise<boolean> {
+        // check until passed or aborted
+        const { database } = this;
+        const records = new Set(sync.replicaRecordTables.map((table) => table[TABLE].sqlName));
+        while (!signal.aborted) {
+            // watch liveness from before the check, so no change passes unseen
+            const changed = new AbortController();
+            const unwatch = database.tracker.watchTracked(() => changed.abort());
+            const { generation } = database.state.commits;
+            try {
+                if (await check()) {
+                    return true;
+                }
+
+                // wait for a replica record commit or a liveness change
+                const waking = AbortSignal.any([signal, changed.signal]);
+                await database.log
+                    .until(
+                        async (committed) => [...committed].some((table) => records.has(table)),
+                        waking,
+                        generation,
+                    )
+                    .catch((error: unknown) => {
+                        if (!waking.aborted) {
+                            throw error;
+                        }
+                    });
+            } finally {
+                unwatch();
+            }
+        }
+
+        return false;
     }
 
     /** The server access deciding the served objects. */
@@ -1335,7 +1337,7 @@ export class ObjectStore {
 
                 // confirm the caller's streams of the scope at the watermark
                 const watermark = await this.watermark(input.scope);
-                this.source.confirmCaller(input.scope, context.authentication, watermark);
+                await this.source.confirmCaller(context.authentication, watermark);
 
                 return watermark;
             }),
@@ -1375,9 +1377,9 @@ export class ObjectStore {
                     context,
                 );
             }),
-            confirm: store.confirm.handler(async ({ input, context }) => {
-                // confirm the caller's subscription, as allowed to follow it
-                await this.source.confirmRequest(input.subscription, input.watermark, context);
+            request: store.request.handler(async ({ input, context }) => {
+                // record the caller's request of its own stream
+                await this.source.requestFrom(input.subscription, context);
 
                 return {};
             }),
@@ -2063,7 +2065,7 @@ export class ObjectStore {
 
         // confirm the caller's streams of the scope past its writes
         const watermark = await this.watermark(scope);
-        this.source.confirmCaller(scope, context.authentication, watermark);
+        await this.source.confirmCaller(context.authentication, watermark);
 
         return { outcomes, watermark };
     }
@@ -3982,7 +3984,7 @@ export class ObjectStore {
             .map((type) => type.table);
     }
 
-    /** List the subscriptions of the follows' keys, from the publisher toward each scope's home. */
+    /** List the subscriptions of the follows' keys, one per scope and principal. */
     static async #followSubscriptions(
         store: ObjectStore,
         follows: readonly Follow[],
@@ -3993,113 +3995,99 @@ export class ObjectStore {
             readonly delta?: Delta;
         },
     ): Promise<SubscriberEntry[]> {
-        // subscribe to the acquired keys of each on-demand follow, one replica per scope and subject
-        const onDemand = await Promise.all(
-            follows
-                .filter((follow) => "onDemand" in follow)
-                .map((follow) => ObjectStore.#onDemandSubscriptions(store, follow, options)),
-        );
+        // read each follow's keys: fixed, from the store's rows, or acquired on demand
+        const keyed = await Promise.all(
+            follows.map(async (follow) => {
+                // leave a chain follow to the sink
+                if ("chain" in follow) {
+                    return [];
+                }
+                // take the acquired keys that have not lapsed
+                else if ("onDemand" in follow) {
+                    return ObjectStore.#acquiredKeys(store, follow, options.view);
+                }
+                // take a follow's fixed keys
+                else if ("keys" in follow) {
+                    return follow.keys.map((key) => ({
+                        shape: follow.shape,
+                        key,
+                        isAcquired: false,
+                    }));
+                }
+                // read a follow's keys from the store's rows
+                else {
+                    const keys = await store.#readKeys(follow, options.view, options.delta);
 
-        // read each shape follow's keys, leaving the chain to the sink and on-demand keys to their uses
-        const keyed = (
-            await Promise.all(
-                follows.map(async (follow) => {
-                    // leave a chain or an on-demand follow, which has no keys
-                    if ("chain" in follow || "onDemand" in follow) {
-                        return [];
-                    }
-                    // take a follow's fixed keys
-                    else if ("keys" in follow) {
-                        return [{ follow, keys: follow.keys }];
-                    }
-                    // read a follow's keys from the store's rows
-                    else {
-                        return [
-                            {
-                                follow,
-                                keys: await store.#readKeys(follow, options.view, options.delta),
-                            },
-                        ];
-                    }
-                }),
-            )
-        ).flat();
-
-        // subscribe to each key of each shape
-        const subscribed = await Promise.all(
-            keyed.map(async ({ follow, keys }) => {
-                // subscribe to each key toward its scope's home, decided for its principal
-                const { shape } = follow;
-                const derived = keys.map(({ key, subject }) => ({
-                    subscription: shape.subscription(key, options.target, subject),
-                    home: key.scope,
-                }));
-
-                return derived.map(({ subscription, home }) => ({
-                    subscription,
-                    publisher: options.publisher(home),
-                    isAcquired: false,
-                }));
+                    return keys.map((key) => ({ shape: follow.shape, key, isAcquired: false }));
+                }
             }),
         );
-        const entries = [...onDemand.flat(), ...subscribed.flat()];
 
-        return [
-            ...new Map(
-                entries.map((entry) => [
-                    `${entry.subscription.name} ${entry.subscription.scope}`,
-                    entry,
-                ]),
-            ).values(),
-        ];
+        // group the keys by scope and the principal decided for, the store's own as none, then by shape
+        const groups = new Map<
+            string,
+            {
+                readonly scope: string;
+                readonly subject: Subject | undefined;
+                readonly shapes: Map<Shape, Map<string, object>>;
+                isAcquired: boolean;
+            }
+        >();
+        for (const { shape, key, isAcquired } of keyed.flat()) {
+            const { scope, ...parameters } = key.key;
+            const subject = store.#follower(key.subject);
+            const name = Shape.replicaName(scope, subject);
+            const group = groups.get(name) ?? {
+                scope,
+                subject,
+                shapes: new Map<Shape, Map<string, object>>(),
+                isAcquired,
+            };
+            const keys = group.shapes.get(shape) ?? new Map<string, object>();
+            keys.set(canonicalize(parameters), parameters);
+            group.shapes.set(shape, keys);
+            group.isAcquired &&= isAcquired;
+            groups.set(name, group);
+        }
+
+        // subscribe to each group toward its scope's home, as one replica
+        return [...groups.values()].map(({ scope, subject, shapes, isAcquired }) => ({
+            subscription: Shape.subscription(
+                scope,
+                [...shapes].map(([shape, keys]) => ({ shape, keys: [...keys.values()] })),
+                options.target,
+                subject,
+            ),
+            publisher: options.publisher(scope),
+            isAcquired,
+        }));
     }
 
-    /** List an on-demand follow's live keys as one subscription per scope and subject. */
-    static async #onDemandSubscriptions(
+    /** List an on-demand follow's acquired keys that have not lapsed. */
+    static async #acquiredKeys(
         store: ObjectStore,
         follow: Extract<Follow, { readonly onDemand: unknown }>,
-        options: {
-            readonly target: string;
-            readonly publisher: (scope: string) => sync.Publisher;
-            readonly view: Snapshot;
-        },
-    ): Promise<SubscriberEntry[]> {
-        // read the keys that have not lapsed
-        const rows = await options.view.read(followKey).findMany({
+        view: Snapshot,
+    ): Promise<{ readonly shape: Shape; readonly key: FollowKey; readonly isAcquired: true }[]> {
+        const rows = await view.read(followKey).findMany({
             where: { shape: follow.shape.name, expiresAt: { gt: store.clock.now() } },
         });
 
-        // group their parameters by scope and subject
-        const groups = new Map<string, { scope: string; subject: string; keys: object[] }>();
-        for (const key of rows) {
-            const group = `${key.scope} ${key.subject}`;
-            const entry = groups.get(group) ?? {
-                scope: key.scope,
-                subject: key.subject,
-                keys: [],
-            };
-            entry.keys.push(follow.shape.parameters.parse(JSON.parse(key.parameters)));
-            groups.set(group, entry);
-        }
-
-        // subscribe to each group toward its scope's home
-        return [...groups.values()].map(({ scope, subject, keys }) => ({
-            subscription: follow.shape.onDemandSubscription(
-                scope,
-                keys,
-                options.target,
-                ObjectStore.#onDemandSubject(store, subject),
-            ),
-            publisher: options.publisher(scope),
+        return rows.map((row) => ({
+            shape: follow.shape,
+            key: {
+                key: { ...schema.jsonObject().parse(JSON.parse(row.parameters)), scope: row.scope },
+                subject: Subject.parse(JSON.parse(row.subject)),
+            },
             isAcquired: true,
         }));
     }
 
-    /** Read a followed key's subject, none for the store's principal. */
-    static #onDemandSubject(store: ObjectStore, subject: string): Subject | undefined {
-        const parsed = Subject.parse(JSON.parse(subject));
-
-        return Subject.key(parsed) === Subject.key(store.principal) ? undefined : parsed;
+    /** Read the principal a follow is decided for, none for the store's own. */
+    #follower(subject: Subject | undefined): Subject | undefined {
+        return subject === undefined || Subject.key(subject) === Subject.key(this.principal)
+            ? undefined
+            : subject;
     }
 
     /** Read a follow's keys over the store's rows, again only for rows a change touched. */

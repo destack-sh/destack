@@ -1,5 +1,4 @@
 import type { Feed, Publisher, Query, Stream, Subscription } from "@destack/sync";
-import { ObjectSource } from "../server/source.ts";
 
 /** A home's feed published to followers in process, confirming their streams as they ask. */
 export const FeedPublisher = {
@@ -16,16 +15,25 @@ export const FeedPublisher = {
             stream: (subscription, signal) =>
                 feed.subscribe(queries(subscription), subscription.after, signal, {
                     opened: (stream) => {
-                        streams.set(ObjectSource.streamKey(subscription), stream);
+                        streams.set(FeedPublisher.key(subscription), stream);
                         if (subscription.confirming !== undefined) {
                             stream.confirm(subscription.confirming);
                         }
                     },
-                    closed: () => streams.delete(ObjectSource.streamKey(subscription)),
+                    closed: () => streams.delete(FeedPublisher.key(subscription)),
                 }),
-            confirm: async (subscription, watermark) => {
-                streams.get(ObjectSource.streamKey(subscription))?.confirm(watermark);
+            // ask a subscription's open stream for the watermark it requests
+            request: async (subscription) => {
+                const { confirming } = subscription;
+                if (confirming !== undefined) {
+                    streams.get(FeedPublisher.key(subscription))?.confirm(confirming);
+                }
             },
         };
+    },
+
+    /** Key a subscription's stream by its replica and target. */
+    key(subscription: Pick<Subscription, "name" | "scope" | "target">): string {
+        return `${subscription.name} ${subscription.scope} ${subscription.target}`;
     },
 };

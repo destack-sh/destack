@@ -138,7 +138,7 @@ async function openStores(): Promise<{
     // follow the cards by title from the home as the follower's space, and run its replicas
     const decided = { subject: spacePrincipal(followerId), parent: Scope.universe.id };
     const publisher = {
-        confirm: async () => {},
+        request: (asked: Subscription) => home.source.request(asked),
         receive: () => Promise.reject(new Error("the follower sends no changes")),
         call: () => Promise.reject(new Error("the follower sends no queries")),
         stream: (asked: Subscription, signal: AbortSignal) =>

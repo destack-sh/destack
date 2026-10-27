@@ -57,7 +57,7 @@ async function serveInstalledNotes(world: Environment) {
         fetch: (sent) => Promise.reject(new Error(`the notes reach no ${sent.url}`)),
         url: "https://notes--home.test",
         publisher: {
-            confirm: async () => {},
+            request: async () => {},
             stream: () => {
                 throw new TypeError("the fixture streams no replicas");
             },

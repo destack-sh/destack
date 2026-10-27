@@ -67,7 +67,7 @@ const roomsDatabase = defineDatabase({
 /** An uplink streaming and receiving nothing, named by who it stands for. */
 function idle(name: string): Uplink {
     return {
-        confirm: async () => {},
+        request: async () => {},
         stream: () => {
             throw new TypeError(`${name} streams no replicas`);
         },
@@ -138,7 +138,7 @@ test("serve a call in the store's partition or in any partition, and point one i
     ]);
 });
 
-test("follow an installation's root chain from its machine, and a partition's chain below the root from the installation's root through its package, one replica per link", async () => {
+test("follow an installation's root chain from its machine, and a partition's chain below the root from the installation's root through its package, one replica per chain", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -191,22 +191,15 @@ test("follow an installation's root chain from its machine, and a partition's ch
         ]);
     };
 
-    // follow each link's chain, which at the universe has the access grants delegated into it
+    // follow each chain in one replica of its target, which at the universe has the access grants delegated into it
     expect([await subscriptions(spaceId), await subscriptions(ROOM), called]).toEqual([
-        [
-            [`chain:${spaceId}`, spaceId, "machine"],
-            [`chain:${spaceId}`, "universe", "machine"],
-        ],
-        [
-            [`chain:${ROOM}`, ROOM, "root"],
-            [`chain:${ROOM}`, spaceId, "root"],
-            [`chain:${ROOM}`, "universe", "root"],
-        ],
+        [[`chain:${spaceId}`, spaceId, "machine"]],
+        [[`chain:${ROOM}`, ROOM, "root"]],
         [`fixture--${spaceId} ${roomsPackage.id}`],
     ]);
 });
 
-test("list the types a home and a follower decide in each chain subscription, adding an installed type to each", async () => {
+test("list the types a home and a follower decide in the chain subscription, adding an installed type", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -261,24 +254,23 @@ test("list the types a home and a follower decide in each chain subscription, ad
     const home = [await chains([card], "home"), await chains([card, marker], "home")];
     const follower = [await chains([card], "follower"), await chains([card, marker], "follower")];
 
-    // carry the decided types in every chain subscription, the installed marker beside the card
-    const chain = (scope: string, local: readonly ObjectType[]) => [
+    // carry the decided types in the chain subscription at its nearest scope, the installed marker beside the card, replicating the home's ancestors or the follower's chain
+    const chain = (replicated: readonly string[], local: readonly ObjectType[]) => [
         "chain",
-        scope,
+        replicated[0],
         {
             scopes: [spaceId, Scope.universe.id],
             local: local.map((type) => type.typeReference),
-            types: [],
+            replicated: replicated.map((scope) => ({ scope, types: [] })),
             via: [],
             between: [],
         },
     ];
+    const ancestors = [Scope.universe.id];
+    const chained = [spaceId, Scope.universe.id];
     expect({ home, follower }).toEqual({
-        home: [[chain(Scope.universe.id, [card])], [chain(Scope.universe.id, [card, marker])]],
-        follower: [
-            [chain(spaceId, [card]), chain(Scope.universe.id, [card])],
-            [chain(spaceId, [card, marker]), chain(Scope.universe.id, [card, marker])],
-        ],
+        home: [[chain(ancestors, [card])], [chain(ancestors, [card, marker])]],
+        follower: [[chain(chained, [card])], [chain(chained, [card, marker])]],
     });
 });
 
