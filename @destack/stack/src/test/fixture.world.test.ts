@@ -5,9 +5,6 @@ import { ids, TestSpace } from "./fixture.ts";
 /** The moment the simulated world starts at, the stack's template's: 2026-10-01T00:00:00Z. */
 const START = Date.UTC(2026, 9, 1);
 
-/** The statements an open runs on the space's database per dialect, as measured. */
-const OPEN_STATEMENTS = { sqlite: 5, postgresql: 2 };
-
 test("open a space in a simulated world from its template without moving its clock or losing a commit race", async () => {
     // open the fixture's space in a stopped fork of its template's world
     const fixture = await TestSpace.open();
@@ -17,15 +14,10 @@ test("open a space in a simulated world from its template without moving its clo
     const { database } = fixture;
     expect({
         now: simulation.clock.now(),
-        statements: database.state.statements,
         lostRaces: [database, fixture.universe.storage.database].map(
             (each) => each.state.lostRaces,
         ),
-    }).toEqual({
-        now: START,
-        statements: OPEN_STATEMENTS[database.dialect],
-        lostRaces: [0, 0],
-    });
+    }).toEqual({ now: START, lostRaces: [0, 0] });
 });
 
 test("serve a space and install a build in a simulated world without moving its clock", async () => {

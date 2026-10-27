@@ -21,20 +21,14 @@ import { reconciliation, TestDatabase, TestTemplate, type TemplateStorage } from
 import { expect, onTestFinished, single } from "@destack/test";
 import { Failure } from "@destack/error";
 import { SettingValue } from "@destack/setting/object";
-import {
-    AccessContext,
-    Authorization,
-    Caller,
-    CALLER_HEADER,
-    Access,
-    principal,
-} from "@destack/access";
+import { AccessContext, Authorization, Caller, CALLER_HEADER, principal } from "@destack/access";
 import { Exchange } from "@destack/access/token";
 import {
     Account,
     space,
     entitlement,
     Identity,
+    placement,
     Residency,
     type ResidencyCode,
 } from "@destack/account/object";
@@ -56,6 +50,7 @@ import {
 import { ObjectStore, type PackageImplementation } from "@destack/object/server";
 import {
     Change,
+    ControlLoop,
     type DatabaseConnection,
     defineDatabase,
     eq,
@@ -397,6 +392,9 @@ export class TestSpace implements AsyncDisposable {
         this.#defer = fields.defer;
     }
 
+    /** Stop the fixture's own replica follow, while it runs. */
+    #following: (() => Promise<void>) | undefined;
+
     /** The machine's database. */
     get database(): DatabaseConnection {
         return this.#test.database;
@@ -491,9 +489,10 @@ export class TestSpace implements AsyncDisposable {
             defer,
         });
 
-        // start it once for its birth, as its machine's first start does, then stop
+        // start it once for its birth, as its machine's first start does, then keep its replicas followed as its machine does
         const born = await fixture.serve();
         await born[Symbol.asyncDispose]();
+        await fixture.#follow();
 
         return fixture;
     }
@@ -705,9 +704,10 @@ export class TestSpace implements AsyncDisposable {
             defer,
         });
 
-        // start it once for its birth, as its machine's first start does, then stop
+        // start it once for its birth, as its machine's first start does, then keep its replicas followed as its machine does
         const born = await fixture.serve();
         await born[Symbol.asyncDispose]();
+        await fixture.#follow();
 
         return fixture;
     }
@@ -769,6 +769,7 @@ export class TestSpace implements AsyncDisposable {
                 defer,
             });
             await fixture.#restoreState(restored, options);
+            await fixture.#follow();
             spaces.set(restored.id, fixture);
         }
         const born = present(spaces.values().next().value, "the born space");
@@ -1306,17 +1307,8 @@ export class TestSpace implements AsyncDisposable {
             throw new Error(`the space's world kept committing after ${SETTLE_ROUNDS} rounds`);
         }
 
-        // wait until the homes of the space's chain confirmed its access within the lag access allows
-        const { database } = this;
-        const chain = (await Scope.chain(Snapshot.live(database), this.id)).map(
-            (link) => link.object.id,
-        );
-        const { lag } = served.store.authorizer;
-        await database.log.until(
-            async () =>
-                (await Access.unconfirmed(database, chain, lag, served.clock.now())) === undefined,
-            new AbortController().signal,
-        );
+        // wait until a follow hears the home of each replica of the space's chain
+        await served.store.awaitConfirmed(new AbortController().signal);
         await served.settle();
     }
 
@@ -1539,7 +1531,7 @@ export class TestSpace implements AsyncDisposable {
         const sockets = await SocketRegistry.open({
             objects: this.#objects(),
             environment: this.machine.environment,
-            channel: this.database.channel("sockets"),
+            tracker: this.database.tracker,
             memory: (tables) =>
                 connectBunSqlite(":memory:", tables, { environment: this.machine.environment }),
             report: (error) => reported.push(error),
@@ -1571,6 +1563,10 @@ export class TestSpace implements AsyncDisposable {
             readonly isControlled?: boolean;
         } = {},
     ): Promise<TestObjectStore> {
+        // pause the fixture's own follow, which the served store takes over
+        await this.#following?.();
+        this.#following = undefined;
+
         // host the revisions main applied, calling the space's own packages in its served store
         const { isControlled = true, ...given } = options;
         const providers = [...this.#beside.providers, ...(given.providers ?? [])];
@@ -1680,6 +1676,41 @@ export class TestSpace implements AsyncDisposable {
         await served.settle();
 
         return served;
+    }
+
+    /** Keep the space's replicas followed while no served store follows them. */
+    async #follow(): Promise<void> {
+        // follow only a space placed on the fixture's machine, as its machine serves only those
+        const placed = await Snapshot.live(this.database)
+            .read(placement.table)
+            .findFirst({ where: { id: this.id } });
+        if (placed?.machineId !== this.machine.id) {
+            return;
+        }
+
+        // run only the replica follow of a store over the space's database
+        const { store } = serveSpace(await this.options());
+        const loop = new ControlLoop(
+            this.database,
+            store.controllers().filter((controller) => controller.name === "replica"),
+            {
+                clock: store.clock,
+                report: (_controller, _key, error) => {
+                    throw error;
+                },
+            },
+        );
+
+        // stop following once a store serves the space or the fixture ends
+        const stopping = new AbortController();
+        const running = loop.run(stopping.signal);
+        const stop = async () => {
+            stopping.abort();
+            await running;
+        };
+        this.#following = stop;
+        this.#defer(stop);
+        await this.simulation.settle(store.awaitConfirmed(stopping.signal));
     }
 
     /** Call a served space as a person, carrying the token their client exchanges for it. */
@@ -1948,8 +1979,11 @@ export class TestSpace implements AsyncDisposable {
         return Handoff.connect(SPACE_URL, (request) => fetch(request), this.machine.environment);
     }
 
-    /** Close the machine's database once. */
+    /** Stop the fixture's own follow, then close the machine's database once. */
     async [Symbol.asyncDispose](): Promise<void> {
+        // stop the fixture's own follow, then close the database once
+        await this.#following?.();
+        this.#following = undefined;
         this.#closed ??= this.#test.close();
         await this.#closed;
     }
