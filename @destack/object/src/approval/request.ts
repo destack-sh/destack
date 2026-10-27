@@ -208,7 +208,9 @@ export class ChangeRequest {
 
     /** Apply the change once its approvers approve it, or reject it once one rejects it. */
     async decide(reconciliation: ObjectReconciliation<typeof changeRequest>): Promise<void> {
-        const decision = this.#decide(await this.#approvals(Snapshot.live(reconciliation.database)));
+        const decision = this.#decide(
+            await this.#approvals(Snapshot.live(reconciliation.database)),
+        );
         const target = changeRequest.target(this.row);
 
         // make the call once approved, recording the refusal it answers unless the approvals changed meanwhile
@@ -266,7 +268,10 @@ export class ChangeRequest {
                     "a change run as its approver asks exactly one approver",
                 );
             }
-            caller = AccessContext.of(Caller.of(ObjectReference.at("approver", decided)), context.now);
+            caller = AccessContext.of(
+                Caller.of(ObjectReference.at("approver", decided)),
+                context.now,
+            );
         }
 
         // make the call and answer its output
