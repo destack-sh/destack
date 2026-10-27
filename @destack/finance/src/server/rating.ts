@@ -1,4 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
+import { FinanceError } from "../error/error.ts";
 import { type Call, ObjectReference } from "@destack/sync";
 import { EventTime } from "@destack/event";
 import type { MethodContext } from "@destack/object";
@@ -23,6 +24,7 @@ import {
 import { CREDITS, Cost, type DecimalAmount } from "../rate/amount.ts";
 import { Rate } from "../rate/rate.ts";
 import type { Sku } from "../sku/sku.ts";
+import type {} from "@destack/package/import-meta";
 
 /** What a seller rates an account's usage at. */
 interface Terms {
@@ -336,13 +338,15 @@ export class Rating {
 
         // refuse usage of a period the subscription closed, and wait for one it has not started
         if (time < chosen.currentPeriodStart) {
-            throw new CallError("BAD_REQUEST", {
-                message: `usage at ${time} falls before the current period of subscription ${chosen.id}, which billed it already`,
-            });
+            throw FinanceError.of(
+                "USAGE_BILLED",
+                `usage at ${time} is before the current period of subscription ${chosen.id}, which already billed it`,
+            );
         } else if (time >= chosen.currentPeriodEnd) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `usage at ${time} falls after the period of subscription ${chosen.id}, retry once the next one starts`,
-            });
+            throw FinanceError.of(
+                "USAGE_AHEAD",
+                `usage at ${time} is after the period of subscription ${chosen.id}: retry once the next one starts`,
+            );
         }
 
         // rate in the subscription's period and currency
@@ -412,9 +416,10 @@ export class Rating {
         // price credits at the seller's price of a credit in the billing currency
         const credit = from === CREDITS ? sold.creditPrices[to] : undefined;
         if (credit === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `seller ${sold.id} prices no ${from} in ${to}`,
-            });
+            throw FinanceError.of(
+                "CONVERSION_UNPRICED",
+                `seller ${sold.id} has no price for ${from} in ${to}`,
+            );
         }
 
         return credit;
@@ -424,9 +429,10 @@ export class Rating {
     static #requireRunning(row: Subscription, now: number): void {
         // refuse once the clock passed the period's end
         if (now >= row.currentPeriodEnd) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `the period of subscription ${row.id} ended, retry once the next one starts`,
-            });
+            throw FinanceError.of(
+                "PERIOD_ENDED",
+                `the period of subscription ${row.id} ended: retry once the next one starts`,
+            );
         }
     }
 }

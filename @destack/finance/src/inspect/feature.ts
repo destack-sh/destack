@@ -1,7 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { graph } from "@destack/package";
 import { Address, Plan, type Comparator } from "@destack/resource";
-import { PlanError } from "@destack/resource/error";
+import { unreachablePlan } from "@destack/resource/error";
 import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Feature } from "../feature/feature.ts";
 import { FeatureDescription } from "../feature/feature.ts";
@@ -43,7 +43,7 @@ export const compareFeature: Comparator = (before, after) => {
 
     // refuse a change of a feature's kind
     if (earlier.kind !== later.kind) {
-        throw new PlanError([
+        throw unreachablePlan([
             {
                 target,
                 detail: `stay at kind ${earlier.kind}, or declare a feature of kind ${later.kind}`,

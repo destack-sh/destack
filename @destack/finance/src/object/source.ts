@@ -1,8 +1,8 @@
 import type { account, UsageState } from "@destack/account/object";
+import { FinanceError } from "../error/error.ts";
 import type { Snapshot } from "@destack/db";
 import type { IdentifierOf } from "@destack/object";
 import type { Meter } from "@destack/observability/meter";
-import { CallError } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import type { ReleaseReader } from "../release/reader.ts";
 import { FeatureLimit } from "../feature/feature.ts";
@@ -15,6 +15,7 @@ import { productFeature } from "./product-feature.ts";
 import { seller } from "./seller.ts";
 import { Subscription, SubscriptionItem, subscriptionItem } from "./subscription.ts";
 import { NEAR_SHARE, Usage, type UsageSeries } from "./usage.ts";
+import type {} from "@destack/package/import-meta";
 
 /** The usage cost a subscription allows in its period, and its cost so far, in minor units. */
 interface Budget {
@@ -221,9 +222,10 @@ async function readUsage(
     // require one unit, so the meters' usage adds up
     const units = new Set(meters.map((meter) => meter.definition.unit));
     if (units.size > 1) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: `a feature counts meters of several units: ${[...units].join(", ")}`,
-        });
+        throw FinanceError.of(
+            "UNITS_MIXED",
+            `a feature counts meters with different units: ${[...units].join(", ")}`,
+        );
     }
 
     // add up each meter's usage

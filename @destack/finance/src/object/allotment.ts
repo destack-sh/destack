@@ -54,7 +54,7 @@ export const Allotment = {
         // require one kind among the feature's allotments
         const first = nth(allotments, 0);
         if (allotments.some((row) => row.kind !== first.kind)) {
-            throw new TypeError(`allotments of ${first.feature} disagree on its kind`);
+            throw new TypeError(`allotments of ${first.feature} have different kinds`);
         }
 
         // resolve in the billing period ending first among the sources

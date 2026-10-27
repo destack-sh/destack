@@ -1,24 +1,14 @@
-import { account } from "@destack/account/object";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
-import { JsonValue } from "@destack/schema";
-import { CallError } from "@destack/object";
+import { FinanceError } from "../error/error.ts";
 import { seller } from "../object/index.ts";
 import type { Billing } from "./billing.ts";
+import type {} from "@destack/package/import-meta";
 
 /** Implement sellers: the platform's own sells at once, others through connected accounts. */
 export function implementSeller(billing: Billing): typeof seller {
     return seller.implement({
-        declaration: {
-            // declare the platform's own seller active on the provider account itself
-            resolve: async (_name, declared, stack) => {
-                const accountId = account.identifier(await stack.enclosing());
-                const status = billing.isPlatform(accountId) ? { status: "active" } : {};
-
-                return { ...JsonValue.object(declared), ...status };
-            },
-            // retain a seller its stack stops declaring
-            retire: "retained",
-        },
+        // retain a seller its stack stops declaring
+        declaration: { retire: "retained" },
         methods: {
             create: (call, next) => create(call, next, billing),
             onboard: {
@@ -55,17 +45,19 @@ async function prepareOnboard(
     // refuse the platform's own seller without a connected account
     const row = context.target;
     if (billing.isPlatform(row.accountId)) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: "the platform sells on the provider account itself",
-        });
+        throw FinanceError.of(
+            "SELLER_PLATFORM",
+            "the platform cannot be a seller: it sells on the provider account itself",
+        );
     }
 
     // refuse another country than the one the connected account opened in
     const { country, returnUrl, refreshUrl } = context.input;
     if (row.country !== null && row.country !== country) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: `seller ${row.id} does business from ${row.country}`,
-        });
+        throw FinanceError.of(
+            "COUNTRY_IMMUTABLE",
+            `seller ${row.id} is already registered in ${row.country}`,
+        );
     }
 
     // open the connected account once, then its onboarding page

@@ -26,9 +26,11 @@
         "@destack/account": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/locale": "workspace:*",
+        "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/observability": "workspace:*",
@@ -41,10 +43,17 @@
         "@destack/telemetry": "workspace:*",
         "@destack/vault": "workspace:*"
     },
+    "peerDependencies": {
+        "@destack/environment": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/environment": {
+            "optional": true
+        }
+    },
     "devDependencies": {
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
-        "uuid": "14.0.2"
+        "@types/bun": "1.4.2"
     }
 }

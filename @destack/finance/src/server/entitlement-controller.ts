@@ -2,7 +2,7 @@ import { account } from "@destack/account/object";
 import { Change, Snapshot, TABLE, type Table } from "@destack/db";
 import { EventView } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import type { Controller } from "@destack/db";
+import type { ReconcileController } from "@destack/db";
 import { RequestId } from "@destack/sync";
 import {
     customer,
@@ -17,7 +17,7 @@ import {
 import type { Metering } from "./metering.ts";
 
 /** Derives each account's entitlements as its usage, subscriptions or defaults change. */
-export class EntitlementController implements Controller {
+export class EntitlementController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "entitlement";
     /** The account replicas, subscriptions and default products entitlements derive from. */
@@ -92,7 +92,7 @@ export class EntitlementController implements Controller {
         // refuse an unwatched table
         else {
             throw new TypeError(
-                `table ${change.table[TABLE].name} is outside the entitlement controller's watches`,
+                `table ${change.table[TABLE].name} is not watched by the entitlement controller`,
             );
         }
     }
@@ -109,7 +109,7 @@ export class EntitlementController implements Controller {
     /** Resolve each feature an account's sources grant now, with its metered usage. */
     resolve(scope: string): Promise<Resolution[]> {
         // read the catalogs, replicas and usage series the account's sources grant from
-        const caller = this.#store.serving(customer);
+        const caller = this.#store.as(customer);
         const releases = this.#metering.reader(this.#store, caller, this.#home);
         const reader = Snapshot.live(this.#store.database);
         const events = new EventView(usage.eventKind(), this.#store.events);
@@ -126,9 +126,8 @@ export class EntitlementController implements Controller {
     /** Announce an account's changed usage states, then write its entitlements at the universe. */
     async reconcile(scope: string): Promise<number | undefined> {
         // derive the account's entitlements and alerts, comparing them to its replicated ones
-        const now = this.#store.clock.now();
         const accountId = account.identifier(scope);
-        const caller = this.#store.serving(customer);
+        const caller = this.#store.as(customer);
         const reader = Snapshot.live(this.#store.database);
         const resolutions = await this.resolve(scope);
         const { calls, alerts } = await Customer.derive(accountId, resolutions, reader);
@@ -142,14 +141,17 @@ export class EntitlementController implements Controller {
             });
             await this.#store.mutate(
                 caller,
-                { id: RequestId.create(now), calls: [announcing] },
+                { id: RequestId.create(this.#store.environment), calls: [announcing] },
                 { scope: this.#home },
             );
         }
 
         // write the changed entitlements at the universe as finance's installation
         if (calls.length > 0) {
-            await this.#store.mutate(caller, { id: RequestId.create(now), calls });
+            await this.#store.mutate(caller, {
+                id: RequestId.create(this.#store.environment),
+                calls,
+            });
         }
 
         return undefined;

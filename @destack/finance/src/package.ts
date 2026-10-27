@@ -1,5 +1,6 @@
-import { entitlement } from "@destack/account/object";
+import { account, entitlement, residency } from "@destack/account/object";
 import { defineAdapter, definePackage } from "@destack/object";
+import { FinanceError } from "./error/error.ts";
 import {
     charge,
     checkoutSession,
@@ -35,6 +36,23 @@ export default definePackage({
     },
     adapters: { stripe: defineAdapter("stripe", { path: "/stripe" }) },
     secrets: { "stripe-secret-key": stripeSecretKey },
-    // write each account's entitlements at the universe
-    permissions: { installation: { universe: [entitlement.permission("provide")] } },
+    errors: FinanceError,
+    // mirror the provider's billing in its home, write entitlements and serve its residency's accounts
+    permissions: {
+        installation: {
+            space: [
+                customer.permission("provide"),
+                seller.permission("provide"),
+                subscription.permission("provide"),
+                checkoutSession.permission("provide"),
+                invoice.permission("provide"),
+                charge.permission("provide"),
+            ],
+            universe: [
+                entitlement.permission("provide"),
+                account.permission("serve"),
+                residency.permission("locate"),
+            ],
+        },
+    },
 });

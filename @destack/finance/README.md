@@ -116,7 +116,7 @@ settings: {
 `FinanceFixture` runs finance over a test database with each package published as a forge release, and `StripeFixture` is an in-process Stripe.
 
 ```ts
-const finance = await FinanceFixture.open("sqlite", [[plan.package, [storage, storageSku]]], {
+const finance = await FinanceFixture.open([[plan.package, [storage, storageSku]]], {
     provider,
     clock,
 });

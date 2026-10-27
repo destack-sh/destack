@@ -1,10 +1,10 @@
 import { DeclarationReference } from "@destack/package/declare";
+import { FinanceError } from "../error/error.ts";
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { type Row, TABLE, type Select, type Snapshot, Table } from "@destack/db";
 import { type MethodContext, defineObject, field } from "@destack/object";
 import { present, schema, Text } from "@destack/schema";
-import { CallError } from "@destack/object";
 import type { ReleaseReader } from "../release/reader.ts";
 import { Amount, Currency, DecimalAmount } from "../rate/amount.ts";
 import { Rate } from "../rate/rate.ts";
@@ -12,6 +12,7 @@ import { product } from "./product.ts";
 import { type FeatureGrant } from "../feature/grant.ts";
 import { productFeature } from "./product-feature.ts";
 import { seller } from "./seller.ts";
+import type {} from "@destack/package/import-meta";
 
 /** The fields of every recurring price beside its usage. */
 const Recurrence = schema.object({
@@ -62,7 +63,6 @@ export const price = defineObject(
         name: "price",
         plural: "prices",
         scope: space,
-        declarable: { from: "create" },
         nested: { in: product, delete: "cascade", receive: "sell" },
         fields: {
             /** The currency of the amounts. */
@@ -138,7 +138,7 @@ export const price = defineObject(
             ],
         }),
         /** Record the provider's identifier of the price. */
-        record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
+        record: method.update("provide", { visibility: "package", fields: ["providerId"] }),
         update: method.update("sell", { fields: ["active"] }),
     }),
 );
@@ -182,17 +182,15 @@ export const Price = {
         const id = price.identifier(reference.id);
         const row = await reader.read(price.table).findFirst({ where: { id } });
         if (row === undefined || row.scope !== reference.scope) {
-            throw new CallError("NOT_FOUND", { message: `no price ${id}` });
+            throw FinanceError.of("PRICE_NOT_FOUND", `price ${id} not found`);
         }
 
         // refuse a price or product taken off sale
         const owner = await reader.read(product.table).findFirst({ where: { id: row.parentId } });
         if (!row.active) {
-            throw new CallError("BAD_REQUEST", { message: `price ${id} is inactive` });
+            throw FinanceError.of("PRICE_INACTIVE", `price ${id} is inactive`);
         } else if (!present(owner, "a price's product").active) {
-            throw new CallError("BAD_REQUEST", {
-                message: `product ${row.parentId} is inactive`,
-            });
+            throw FinanceError.of("PRODUCT_INACTIVE", `product ${row.parentId} is inactive`);
         }
 
         // read its product's grants, by package and feature
@@ -222,11 +220,12 @@ export const Price = {
             .read(product.table)
             .findFirst({ where: { id: product.identifier(parentId) } });
         if (owner === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no product ${parentId}` });
+            throw FinanceError.of("PRODUCT_NOT_FOUND", `product ${parentId} not found`);
         } else if (owner.isDefault) {
-            throw new CallError("BAD_REQUEST", {
-                message: `product ${parentId} is every account's default, which refuses prices`,
-            });
+            throw FinanceError.of(
+                "DEFAULT_PRODUCT_PRICED",
+                `product ${parentId} is every account's default, so it cannot have prices`,
+            );
         }
 
         // refuse a currency without the seller's credit price
@@ -234,13 +233,12 @@ export const Price = {
             .read(seller.table)
             .findMany({ where: { accountId: owner.accountId } });
         if (sold === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `account ${owner.accountId} sells nothing`,
-            });
+            throw FinanceError.of("SELLER_MISSING", `account ${owner.accountId} is not a seller`);
         } else if (sold.creditPrices[terms.currency] === undefined) {
-            throw new CallError("BAD_REQUEST", {
-                message: `seller ${sold.id} prices no credit in ${terms.currency}`,
-            });
+            throw FinanceError.of(
+                "CURRENCY_UNPRICED",
+                `seller ${sold.id} has no credit price in ${terms.currency}`,
+            );
         }
 
         // refuse a meter no package declares
@@ -266,9 +264,10 @@ export const Price = {
             .read(price)
             .findMany({ where: { parentId: product.identifier(row.id) } });
         if (priced.length > 0) {
-            throw new CallError("BAD_REQUEST", {
-                message: `product ${row.id} has prices, which every account's default refuses`,
-            });
+            throw FinanceError.of(
+                "DEFAULT_PRODUCT_PRICED",
+                `product ${row.id} has prices, but every account's default product cannot have prices`,
+            );
         }
     },
 };
@@ -283,8 +282,9 @@ function requireFee(terms: Pick<Price, keyof typeof PRICE_TERMS>): void {
 
     // refuse a fee below the included usage
     if (fee < terms.includedUsage) {
-        throw new CallError("BAD_REQUEST", {
-            message: `a price's included usage of ${terms.includedUsage} exceeds its fee of ${fee} ${terms.currency}`,
-        });
+        throw FinanceError.of(
+            "INCLUDED_USAGE_INVALID",
+            `a price's included usage of ${terms.includedUsage} exceeds its fee of ${fee} ${terms.currency}`,
+        );
     }
 }

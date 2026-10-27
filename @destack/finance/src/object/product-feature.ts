@@ -1,14 +1,15 @@
 import { DeclarationReference } from "@destack/package/declare";
+import { FinanceError } from "../error/error.ts";
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { type Select, type Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { PackageId, DeclarationName } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import type { ReleaseReader } from "../release/reader.ts";
 import { product } from "./product.ts";
 import { type Publisher, Seller } from "./seller.ts";
+import type {} from "@destack/package/import-meta";
 
 /** A feature a product grants its buyers, with the value or limit of the grant. */
 export const productFeature = defineObject(
@@ -16,7 +17,6 @@ export const productFeature = defineObject(
         name: "product-feature",
         plural: "productFeatures",
         scope: space,
-        declarable: { from: "create" },
         nested: { in: product, delete: "cascade", receive: "sell" },
         fields: {
             /** The package declaring the feature. */
@@ -62,7 +62,7 @@ export const ProductFeature = {
             .read(product.table)
             .findFirst({ where: { id: product.identifier(grant.parentId) } });
         if (sold === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no product ${grant.parentId}` });
+            throw FinanceError.of("PRODUCT_NOT_FOUND", `product ${grant.parentId} not found`);
         }
 
         // refuse a feature of a package another account publishes

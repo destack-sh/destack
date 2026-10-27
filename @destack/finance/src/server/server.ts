@@ -1,4 +1,5 @@
 import { implementCustomer } from "./customer.ts";
+import { FinanceError } from "../error/error.ts";
 import { implementCharge } from "./charge.ts";
 import { implementCheckoutSession } from "./checkout-session.ts";
 import { implementPrice } from "./price.ts";
@@ -9,13 +10,13 @@ import { implementSubscription } from "./subscription.ts";
 import { Billing } from "./billing.ts";
 import type { Metering } from "./metering.ts";
 import { account, entitlementShape } from "@destack/account/object";
-import { CallError } from "@destack/object";
 import { Scope, RequestId } from "@destack/sync";
 import type { ImplementationInput } from "@destack/object/server";
 import financePackage from "../package.ts";
 import { type PaymentProvider, ProviderEvent } from "../provider/provider.ts";
 import { EntitlementController } from "./entitlement-controller.ts";
 import { charge, usage } from "../object/index.ts";
+import type {} from "@destack/package/import-meta";
 
 /** Implement the finance package in a home: its types, the provider's webhook, its controllers. */
 export function implementFinance(
@@ -41,9 +42,7 @@ export function implementFinance(
         adapters: {
             stripe: async (request, _caller, _context, store) => {
                 if (charging === undefined) {
-                    throw new CallError("NOT_FOUND", {
-                        message: "finance bills through no payment provider",
-                    });
+                    throw FinanceError.of("PROVIDER_MISSING", "finance has no payment provider");
                 } else if (request.method !== "POST") {
                     return new Response(null, { status: 405 });
                 }
@@ -62,12 +61,12 @@ export function implementFinance(
 
         // rate the usage routed here and derive each account's entitlements
         controllers: [
-            usage.consume("usage", async (page, { store, transaction, now }) => {
+            usage.consume("usage", async (page, { store, transaction }) => {
                 // rate the claimed page through the charges' method, moving the reader in the same commit
                 await store.mutate(
-                    store.serving(charge),
+                    store.as(charge),
                     {
-                        id: RequestId.create(now),
+                        id: RequestId.create(store.environment),
                         calls: [
                             charge.call("rate", {
                                 ...charge.in(home),

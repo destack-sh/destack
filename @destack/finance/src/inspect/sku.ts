@@ -1,5 +1,5 @@
 import { Address, type Comparator } from "@destack/resource";
-import { PlanError } from "@destack/resource/error";
+import { unreachablePlan } from "@destack/resource/error";
 import { canonicalize, type JsonValue } from "@destack/schema";
 import type { Sku } from "../sku/sku.ts";
 import { SkuDescription } from "../sku/sku.ts";
@@ -25,7 +25,7 @@ export const compareSku: Comparator = (before, after) => {
         detail: `stay at ${field} ${canonicalize(earlier[field])}, or declare another sku`,
     }));
     if (problems.length > 0) {
-        throw new PlanError(problems);
+        throw unreachablePlan(problems);
     }
 
     return { steps: [] };

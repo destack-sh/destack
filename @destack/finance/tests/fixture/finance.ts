@@ -1,31 +1,21 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { type Message, t } from "@destack/locale";
-import { accessRelationship, principal, Relationship } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
-import {
-    account,
-    entitlement,
-    type Entitlement,
-    organisation,
-    Residency,
-    user,
-} from "@destack/account/object";
-import { asc, eq, type DatabaseConnection, type Dialect, Snapshot } from "@destack/db";
-import type { TestDatabase } from "@destack/db/test";
+
+import { entitlement, type Entitlement } from "@destack/account/object";
+import { asc, eq, type DatabaseConnection, Snapshot } from "@destack/db";
 import { ObjectType } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import {
     nth,
-    schema,
     Identifier,
     present,
     type JsonObject,
     type JsonValue,
     Text,
+    Uuid,
 } from "@destack/schema";
-import { RequestId, Call, ObjectReference, Scope, Subject } from "@destack/sync";
+import { RequestId, Call, ObjectReference } from "@destack/sync";
 import { subjectContext } from "@destack/object/test";
-import { v7 } from "uuid";
 import {
     customer,
     price,
@@ -39,7 +29,14 @@ import {
     type SubscriptionItem,
     type Resolution,
 } from "../../src/object/index.ts";
-import { FinanceFixture, type FinanceFixtureOptions } from "../../src/test/index.ts";
+import {
+    FinanceFixture,
+    type FinanceFixtureOptions,
+    ids,
+    type Person,
+} from "../../src/test/index.ts";
+
+export { ids, type Person, spaces } from "../../src/test/index.ts";
 import type { Feature, FeatureGrant } from "../../src/feature/index.ts";
 import type { Meter } from "@destack/observability/meter";
 import type { Package } from "@destack/package";
@@ -62,27 +59,6 @@ import {
     sync,
     uptime,
 } from "./storage.ts";
-
-/** The people the scenarios act as. */
-export const people = {
-    alice: user.identifier("user-019f5530-8000-7000-8000-000000000201"),
-    bob: user.identifier("user-019f5530-8000-7000-8000-000000000202"),
-    carol: user.identifier("user-019f5530-8000-7000-8000-000000000203"),
-    eve: user.identifier("user-019f5530-8000-7000-8000-000000000204"),
-    dave: user.identifier("user-019f5530-8000-7000-8000-000000000205"),
-};
-
-/** A person the scenarios act as. */
-export type Person = keyof typeof people;
-
-/** The organisation and accounts the scenarios bill. */
-export const ids = {
-    acme: organisation.identifier("organisation-019f5530-8000-7000-8000-000000000301"),
-    buyer: account.identifier("account-019f5530-8000-7000-8000-000000000302"),
-    payer: account.identifier("account-019f5530-8000-7000-8000-000000000303"),
-    shop: account.identifier("account-019f5530-8000-7000-8000-000000000304"),
-    destack: account.identifier("account-019f5530-8000-7000-8000-000000000305"),
-};
 
 /** The seats the Pro plan grants. */
 export const SEATS = 5;
@@ -127,64 +103,32 @@ const RELEASES = [
     [hosting, [domains]],
 ] as const;
 
-/** Finance over a test database with Acme's buyer and payer accounts and Carol's shop. */
+/** Finance in the residency's home with Acme's buyer and payer accounts and Carol's shop. */
 export class Finance {
-    /** The isolated database. */
-    readonly test: TestDatabase;
     /** The served finance objects. */
     readonly store: ObjectStore;
-    /** The served fixture. */
+    /** The served kit. */
     readonly fixture: FinanceFixture;
 
-    /** Create the fixture over a served finance. */
+    /** Keep a served kit. */
     private constructor(fixture: FinanceFixture) {
         this.fixture = fixture;
-        this.test = fixture.test;
         this.store = fixture.store;
     }
 
-    /** Open finance with Acme's buyer, Carol's shop and Dave's destack account. */
-    static async open(dialect: Dialect, options: FinanceFixtureOptions = {}): Promise<Finance> {
-        // serve finance with the storage and hosting packages' releases
-        const fixture = await FinanceFixture.open(dialect, RELEASES, options);
+    /** Open finance with the storage and hosting packages' releases. */
+    static async open(options: FinanceFixtureOptions = {}): Promise<Finance> {
+        return new Finance(await FinanceFixture.open(RELEASES, options));
+    }
 
-        // replicate Acme with its payer
-        const { test } = fixture;
-        const database = test.database;
-        const access = new AccessFixture(database);
-        await access.replicateScope(organisation.reference(Scope.universe.id, ids.acme));
-        await database.insert(organisation.table).values({
-            id: ids.acme,
-            scope: Scope.universe.id,
-            name: "Acme",
-            payer: ids.payer,
-            createdAt: 0,
-            updatedAt: 0,
-        });
+    /** The home's database. */
+    get database(): DatabaseConnection {
+        return this.fixture.database;
+    }
 
-        // replicate Acme's accounts, Alice owning its buyer, and Carol's and Dave's own accounts
-        const buyer = await replicateAccount(database, ids.acme, ids.buyer, "acme");
-        await replicateAccount(database, ids.acme, ids.payer, "acme-billing");
-        await access.bindOwner(buyer, subject("alice"), fixture.clock.now());
-        await fixture.account(ids.shop, "shop", people.carol);
-        await fixture.account(ids.destack, "destack", people.dave);
-
-        // let Bob view the buyer's account
-        await database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                    object: buyer,
-                    relation: "viewer",
-                    subject: subject("bob"),
-                    createdAt: 0,
-                    expiresAt: null,
-                },
-                ids.buyer,
-            ),
-        );
-
-        return new Finance(fixture);
+    /** The platform's account, which publishes the platform's packages. */
+    get platform(): Identifier<"account"> {
+        return this.fixture.platform;
     }
 
     /** Offer Carol's Pro plan monthly, granting every feature. */
@@ -238,9 +182,11 @@ export class Finance {
 
         // grant every feature in one mutation
         const { home } = this.fixture;
-        const caller = subjectContext(subject("carol"), home).access();
+        const caller = subjectContext(this.fixture.subject("carol"), home, {
+            environment: this.fixture.environment,
+        }).access();
         await this.store.mutate(caller, {
-            id: RequestId.create(this.fixture.clock.now()),
+            id: RequestId.create(this.fixture.environment),
             calls: grants.map(([feature, value]) =>
                 productFeature.call("create", {
                     ...productFeature.in(home),
@@ -281,11 +227,11 @@ export class Finance {
             ),
             currentPeriodStart: period.start,
             currentPeriodEnd: period.end,
-            providerId: `sub_${crypto.randomUUID()}`,
+            providerId: `sub_${Uuid.v4(this.fixture.environment.random)}`,
         };
         const created = nth(
-            await this.store.mutate(this.store.serving(subscription), {
-                id: RequestId.create(this.fixture.clock.now()),
+            await this.store.mutate(this.store.as(subscription), {
+                id: RequestId.create(this.fixture.environment),
                 calls: [
                     subscription.call("create", {
                         ...subscription.in(this.fixture.home),
@@ -309,7 +255,7 @@ export class Finance {
         reference: Offer["monthly"],
         grants?: readonly FeatureGrant[],
     ): Promise<SubscriptionItem> {
-        const offered = await Price.offer(reference, Snapshot.live(this.test.database));
+        const offered = await Price.offer(reference, Snapshot.live(this.database));
         const input = {
             parentId: parent.id,
             ...ObjectReference.columns("price", price.reference(reference.scope, reference.id)),
@@ -318,8 +264,8 @@ export class Finance {
         };
 
         return nth(
-            await this.store.mutate(this.store.serving(subscriptionItem), {
-                id: RequestId.create(this.fixture.clock.now()),
+            await this.store.mutate(this.store.as(subscriptionItem), {
+                id: RequestId.create(this.fixture.environment),
                 calls: [
                     subscriptionItem.call("create", {
                         ...subscriptionItem.in(this.fixture.home),
@@ -363,11 +309,13 @@ export class Finance {
 
     /** Run a call as a person: a query, else a one-call mutation. */
     #run<Result>(person: Person, object: ObjectType, call: Call<Result>): Promise<Result> {
-        const caller = subjectContext(subject(person), this.fixture.home).access();
+        const caller = subjectContext(this.fixture.subject(person), this.fixture.home, {
+            environment: this.fixture.environment,
+        }).access();
 
         return object.method(call.method).mutates
             ? this.store
-                  .mutate(caller, { id: RequestId.create(this.fixture.clock.now()), calls: [call] })
+                  .mutate(caller, { id: RequestId.create(this.fixture.environment), calls: [call] })
                   .then(([written]) => written)
             : this.store.query(caller, call);
     }
@@ -375,11 +323,6 @@ export class Finance {
     /** Derive every account's entitlements, as the controller does after each change. */
     entitle(): Promise<void> {
         return this.fixture.entitle();
-    }
-
-    /** Run an object type's controller over every pending key once. */
-    control(name: string): Promise<void> {
-        return this.fixture.control(name);
     }
 
     /** Resolve each feature an account's sources grant now, with its metered usage. */
@@ -396,7 +339,7 @@ export class Finance {
 
     /** Read an account's entitlements in a stable order. */
     async entitlements(scope: Identifier<"account">): Promise<Entitlement[]> {
-        return await this.test.database
+        return await this.database
             .select()
             .from(entitlement.table)
             .where(eq(entitlement.table.scope, scope))
@@ -422,46 +365,4 @@ export function resolved(resolutions: readonly Resolution[], feature: Declaratio
     const { kind, limit, usage, resetAt, state } = found;
 
     return { kind, limit, usage, resetAt, state };
-}
-
-/** Read a person's subject. */
-export function subject(person: Person): Subject {
-    return Subject.parse(principal.user.reference(Scope.universe.id, people[person]));
-}
-
-/** Replicate an account below its user or organisation, as the account package replicates it. */
-async function replicateAccount(
-    database: DatabaseConnection,
-    scope: string,
-    id: Identifier<"account">,
-    handle: string,
-): Promise<ObjectReference> {
-    const reference = account.reference(scope, id);
-    await new AccessFixture(database).replicateScope(reference);
-    await database.insert(account.table).values({
-        id,
-        scope,
-        handle,
-        name: handle,
-        residencyId: "eu",
-        createdAt: 0,
-        updatedAt: 0,
-    });
-
-    // let the servers of its residency serve it
-    await database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                object: reference,
-                relation: "resident",
-                subject: Residency.servers("eu"),
-                createdAt: 0,
-                expiresAt: null,
-            },
-            id,
-        ),
-    );
-
-    return reference;
 }

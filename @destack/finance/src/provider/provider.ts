@@ -1,8 +1,8 @@
 import type { Call } from "@destack/sync";
+import { FinanceError } from "../error/error.ts";
 import { Snapshot, Transaction } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { present } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import {
     checkoutSession,
@@ -16,6 +16,7 @@ import {
     seller,
     subscription,
 } from "../object/index.ts";
+import type {} from "@destack/package/import-meta";
 
 /** An invoice as the payment provider issued it, with the customer and subscription it bills. */
 export type ProviderInvoice = Pick<
@@ -189,8 +190,15 @@ export const ProviderEvent = {
             const listed = await calls(transaction.view());
             if (listed.length > 0) {
                 await store.mutate(
-                    store.serving(subscription),
-                    { id: await RequestId.derive(time, `${key}/${name}`), calls: [...listed] },
+                    store.as(subscription),
+                    {
+                        id: await RequestId.derive(
+                            time,
+                            `${key}/${name}`,
+                            store.environment.crypto,
+                        ),
+                        calls: [...listed],
+                    },
                     { transaction, scope: home },
                 );
             }
@@ -238,9 +246,10 @@ export const ProviderEvent = {
             .read(checkoutSession.table)
             .findMany({ where: { providerId: event.session } });
         if (row === undefined) {
-            throw new CallError("NOT_FOUND", {
-                message: `no checkout session ${event.session}`,
-            });
+            throw FinanceError.of(
+                "CHECKOUT_NOT_FOUND",
+                `checkout session ${event.session} not found`,
+            );
         }
 
         // settle an open one with the subscription, expire it, or leave a settled one
@@ -278,7 +287,7 @@ export const ProviderEvent = {
             .read(customer.table)
             .findMany({ where: { providerId: issued.customer } });
         if (buyer === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no customer ${issued.customer}` });
+            throw FinanceError.of("CUSTOMER_NOT_FOUND", `customer ${issued.customer} not found`);
         }
 
         // create the invoice, or update the mirrored one
@@ -338,9 +347,9 @@ export const ProviderEvent = {
 
         // close the period onto the invoice
         await store.mutate(
-            store.serving(subscription),
+            store.as(subscription),
             {
-                id: await RequestId.derive(event.time, `${key}/close`),
+                id: await RequestId.derive(event.time, `${key}/close`, store.environment.crypto),
                 calls: [
                     subscription.call("closePeriod", {
                         ...subscription.target(billed),
@@ -364,7 +373,7 @@ export const ProviderEvent = {
             .read(seller.table)
             .findMany({ where: { providerId: event.seller } });
         if (row === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no seller ${event.seller}` });
+            throw FinanceError.of("SELLER_NOT_FOUND", `seller ${event.seller} not found`);
         }
 
         // record its capabilities, and move its status with them

@@ -67,10 +67,10 @@ export const invoice = defineObject(
     },
     (method) => ({
         create: method.create("provide", {
-            isInternal: true,
+            visibility: "package",
             fields: ["accountId", ...INVOICE_FIELDS],
         }),
-        update: method.update("provide", { isInternal: true, fields: INVOICE_FIELDS }),
+        update: method.update("provide", { visibility: "package", fields: INVOICE_FIELDS }),
     }),
 );
 /** A persisted invoice. */

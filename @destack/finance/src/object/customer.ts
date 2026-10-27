@@ -1,4 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
+import { FinanceError } from "../error/error.ts";
 import { through, union } from "@destack/access";
 import { BILLING_PERMISSIONS } from "./billing.ts";
 import { Country } from "@destack/locale";
@@ -14,13 +15,13 @@ import { type Select, type Snapshot, Table } from "@destack/db";
 import { type IdentifierOf, type MethodContext, defineObject, field } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import type { Call } from "@destack/sync";
-import { CallError } from "@destack/object";
 import { canonicalize, present, schema, type Identifier } from "@destack/schema";
 import { announcement } from "@destack/notification";
 import type { ReleaseReader } from "../release/reader.ts";
 import { Allotment, type Resolution } from "./allotment.ts";
 import { Source } from "./source.ts";
 import { usageLimit, type UsageSeries } from "./usage.ts";
+import type {} from "@destack/package/import-meta";
 
 /** The usage states the account's readers of billing hear of. */
 const NOTIFIED: ReadonlySet<UsageState> = new Set(["near", "over", "blocked"]);
@@ -138,7 +139,7 @@ export const customer = defineObject(
         announce: method.mutation({
             permission: "provide",
             target: "scope",
-            isInternal: true,
+            visibility: "package",
             input: schema.object({
                 /** The account alerted. */
                 accountId: schema.identifier("account"),
@@ -148,9 +149,9 @@ export const customer = defineObject(
             output: schema.object({}),
         }),
         /** Open the customer of an entitled account under the account's name. */
-        open: method.create("provide", { isInternal: true, fields: ["accountId", "name"] }),
+        open: method.create("provide", { visibility: "package", fields: ["accountId", "name"] }),
         /** Record the provider's identifier of the customer. */
-        record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
+        record: method.update("provide", { visibility: "package", fields: ["providerId"] }),
         update: method.update("bill", { fields: ["email", "name", "address", "taxIds"] }),
     }),
 );
@@ -329,9 +330,7 @@ export const Customer = {
     ): Promise<void> {
         const [row] = await context.read(customer).findMany({ where: { accountId } });
         if (row === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `account ${accountId} lacks a customer`,
-            });
+            throw FinanceError.of("CUSTOMER_MISSING", `account ${accountId} has no customer`);
         }
     },
 };

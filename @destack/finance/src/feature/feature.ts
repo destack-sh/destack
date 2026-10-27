@@ -1,4 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
+import { FinanceError } from "../error/error.ts";
 import {
     ENTITLEMENT_RESOURCES,
     type EntitlementResource,
@@ -8,7 +9,6 @@ import { Package, PackageId, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, schema, type JsonValue } from "@destack/schema";
-import { CallError } from "@destack/object";
 
 /** What a feature grants. */
 export const FeatureKind = schema.enum(FEATURE_KINDS);
@@ -23,6 +23,7 @@ export const RESOURCE_KINDS: Readonly<Record<EntitlementResource, FeatureKind>> 
     network: "metered",
     tenancy: "static",
     domain: "boolean",
+    retention: "static",
 };
 
 /** When a metered feature's usage starts again: at each billing period of its source, or never. */
@@ -172,9 +173,10 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
 
         // refuse any other value
         if (!isAccepted) {
-            throw new CallError("BAD_REQUEST", {
-                message: `feature ${DeclarationReference.key(this.reference)} refuses the granted value`,
-            });
+            throw FinanceError.of(
+                "VALUE_REFUSED",
+                `feature ${DeclarationReference.key(this.reference)} rejects the granted value`,
+            );
         }
     }
 }

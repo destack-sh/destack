@@ -13,7 +13,6 @@ export const product = defineObject(
         name: "product",
         plural: "products",
         scope: space,
-        declarable: { from: "create" },
         owner: "account",
         fields: {
             /** The account the row belongs to. */
@@ -44,7 +43,7 @@ export const product = defineObject(
             fields: ["accountId", "name", "description", "active", "isDefault"],
         }),
         /** Record the provider's identifier of the product. */
-        record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
+        record: method.update("provide", { visibility: "package", fields: ["providerId"] }),
         update: method.update("sell", {
             fields: ["name", "description", "active", "isDefault"],
         }),

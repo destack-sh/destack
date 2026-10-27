@@ -87,7 +87,7 @@ export const checkoutSession = defineObject(
         /** Complete the session with its subscription. */
         settle: method.mutation({
             permission: "provide",
-            isInternal: true,
+            visibility: "package",
             input: schema.object({
                 /** The subscription as the provider bills it. */
                 subscription: ProviderSubscription,

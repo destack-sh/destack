@@ -1,4 +1,5 @@
 import { Account } from "@destack/account/object";
+import { FinanceError } from "../error/error.ts";
 import type {
     MethodContext,
     MethodContextOf,
@@ -9,7 +10,6 @@ import type {
 import type { Snapshot } from "@destack/db";
 import { ObjectReference } from "@destack/sync";
 import { found, type Identifier, present, zip } from "@destack/schema";
-import { CallError } from "@destack/object";
 import type { Period } from "../rate/period.ts";
 import type { CheckoutPages, Order, PaymentProvider } from "../provider/provider.ts";
 import { Cost } from "../rate/amount.ts";
@@ -33,6 +33,7 @@ import {
     Subscription,
     SubscriptionItem,
 } from "../object/index.ts";
+import type {} from "@destack/package/import-meta";
 
 /** A product with its recurring prices in one currency. */
 interface Offering {
@@ -53,17 +54,16 @@ const Offering = {
             .read(product)
             .findFirst({ where: { id: product.identifier(wanted.product.id) } });
         if (row === undefined || !row.active || row.scope !== wanted.product.scope) {
-            throw new CallError("NOT_FOUND", {
-                message: `no product ${wanted.product.id} on sale`,
-            });
+            throw FinanceError.of(
+                "PRODUCT_UNAVAILABLE",
+                `product ${wanted.product.id} is not on sale`,
+            );
         }
 
         // read the seller of the product's account
         const [sold] = await context.read(seller).findMany({ where: { accountId: row.accountId } });
         if (sold === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `account ${row.accountId} sells nothing`,
-            });
+            throw FinanceError.of("SELLER_MISSING", `account ${row.accountId} is not a seller`);
         } else if (row.isDefault) {
             return { product: row, seller: sold, prices: [] };
         }
@@ -73,9 +73,10 @@ const Offering = {
             .read(price)
             .findMany({ where: { parentId: row.id, currency: wanted.currency, active: true } });
         if (prices.every((each) => Price.isMetered(each))) {
-            throw new CallError("BAD_REQUEST", {
-                message: `product ${row.id} lacks a licensed price in ${wanted.currency}`,
-            });
+            throw FinanceError.of(
+                "LICENSED_PRICE_MISSING",
+                `product ${row.id} has no licensed price in ${wanted.currency}`,
+            );
         }
 
         return { product: row, seller: sold, prices };
@@ -103,9 +104,10 @@ export class Billing {
     /** Require the provider a sale needs. */
     requireProvider(): PaymentProvider {
         if (this.provider === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: "this home bills through no payment provider, so it sells nothing",
-            });
+            throw FinanceError.of(
+                "PROVIDER_MISSING",
+                "this home has no payment provider, so it cannot sell",
+            );
         }
 
         return this.provider;
@@ -131,9 +133,10 @@ export class Billing {
             open !== undefined &&
             (await provider.expire(open.providerId, `${key}/expire`)) === "complete"
         ) {
-            throw new CallError("CONFLICT", {
-                message: `checkout session ${open.id} is paid, and its subscription starts once the provider reports it`,
-            });
+            throw FinanceError.of(
+                "CHECKOUT_COMPLETE",
+                `checkout session ${open.id} is paid, and its subscription starts once the provider reports it`,
+            );
         }
 
         // mirror the customer and the prices, and open the provider's session
@@ -439,9 +442,10 @@ export class Billing {
     /** Require a seller's onboarded connected account, which takes the charges. */
     static #connected(sold: Seller): string {
         if (sold.providerId === null || sold.status !== "active") {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `seller ${sold.id} is ${sold.status}, and only an active seller takes charges`,
-            });
+            throw FinanceError.of(
+                "SELLER_INACTIVE",
+                `seller ${sold.id} is ${sold.status}: only an active seller can take charges`,
+            );
         }
 
         return sold.providerId;
@@ -513,9 +517,10 @@ export class Billing {
         const { lines, currency } = await Charge.draw(row, period.start, context);
         const billed = new Map(Object.entries(closed.lines));
         if (lines.length !== billed.size || lines.some((line) => !billed.has(line.id))) {
-            throw new CallError("CONFLICT", {
-                message: `the usage lines of subscription ${row.id} changed since its period was billed`,
-            });
+            throw FinanceError.of(
+                "USAGE_CHANGED",
+                `the usage lines of subscription ${row.id} changed since its period was billed`,
+            );
         }
 
         // mark each billed line invoiced, recording the included usage drawn as a negative credit line

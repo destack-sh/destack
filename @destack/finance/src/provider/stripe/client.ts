@@ -1,6 +1,7 @@
 import { Secret } from "@destack/vault";
+import { FinanceError } from "../../error/error.ts";
 import type { Fetch } from "@destack/object";
-import { CallError } from "@destack/object";
+import type {} from "@destack/package/import-meta";
 
 /** The Stripe API's origin. */
 export const STRIPE_API = "https://api.stripe.com";
@@ -62,13 +63,15 @@ export class StripeClient {
         // refuse a missing object as missing, and any other error answer with Stripe's message
         const body: unknown = await response.json();
         if (response.status === 404) {
-            throw new CallError("NOT_FOUND", {
-                message: `stripe has no ${path}: ${readMessage(body)}`,
-            });
+            throw FinanceError.of(
+                "STRIPE_NOT_FOUND",
+                `stripe has no ${path}: ${readMessage(body)}`,
+            );
         } else if (!response.ok || typeof body !== "object" || body === null) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `stripe answered ${response.status} to ${method} ${path}: ${readMessage(body)}`,
-            });
+            throw FinanceError.of(
+                "STRIPE_FAILED",
+                `stripe responded with ${response.status} to ${method} ${path}: ${readMessage(body)}`,
+            );
         }
 
         return { ...body };

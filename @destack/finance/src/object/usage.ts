@@ -1,4 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
+import { FinanceError } from "../error/error.ts";
 import { through, union } from "@destack/access";
 import { account, entitlement, machine, space } from "@destack/account/object";
 import { Table } from "@destack/db";
@@ -13,6 +14,7 @@ import {
     field,
 } from "@destack/object";
 import type { Meter } from "@destack/observability/meter";
+import type { Crypto } from "@destack/environment";
 import type { Identifier } from "@destack/schema";
 import type { Period } from "../rate/period.ts";
 import { CallError } from "@destack/object";
@@ -20,8 +22,9 @@ import { RequestId } from "@destack/sync";
 import { present, schema } from "@destack/schema";
 import type { ReaderPage } from "@destack/object";
 import { reading } from "@destack/observability/object";
-import { installation } from "@destack/stack/object";
+import { installation } from "@destack/object";
 import type { ReleaseReader } from "../release/reader.ts";
+import type {} from "@destack/package/import-meta";
 
 /** The share of a limit or budget at which usage is near it, where the soft cap first notifies. */
 export const NEAR_SHARE = 0.8;
@@ -86,8 +89,8 @@ export const usage = defineObject(
                 through("scope", "serve"),
                 through("space", "read"),
             ),
-            // let a space, or a dedicated machine, append what it measured
-            append: union(through("space", "serve"), through("machine", "serve")),
+            // let the paying account's servers append what they measured: its residency's machines and its own
+            append: through("scope", "serve"),
         },
     },
     (method) => ({
@@ -147,7 +150,7 @@ export const usageLimit = defineNotification({
 /** The uses of resources finance rates. */
 export const Usage = {
     /** Fold a page of a space's readings into each payer's uses, one per meter, SKU and month. */
-    async of(page: ReaderPage) {
+    async of(page: ReaderPage, crypto: Crypto) {
         // read each reading with the keys and data its kind declares
         const kind = reading.eventKind();
         const spaceId = schema.identifier("space").parse(page.key);
@@ -185,7 +188,7 @@ export const Usage = {
                     accountId: payerId,
                     read,
                     item: {
-                        id: await Event.identity(spaceId, contents),
+                        id: await Event.identity(spaceId, contents, crypto),
                         time: EventTime.of(from),
                         meter,
                         sku,
@@ -207,6 +210,7 @@ export const Usage = {
                 requestId: await RequestId.derive(
                     page.claimedAt,
                     JSON.stringify([accountId, ...held.flatMap((use) => use.read).toSorted()]),
+                    crypto,
                 ),
                 items: held.map((use) => use.item),
             })),
@@ -224,9 +228,10 @@ export const Usage = {
         const isAveraged = meter.definition.aggregation === "average";
         if (isAveraged !== (level !== null)) {
             const verb = isAveraged ? "needs" : "refuses";
-            throw new CallError("BAD_REQUEST", {
-                message: `an event of meter ${name} ${verb} a level, as its aggregation is ${meter.definition.aggregation}`,
-            });
+            throw FinanceError.of(
+                "LEVEL_MISMATCH",
+                `an event of meter ${name} ${verb} a level because its aggregation is ${meter.definition.aggregation}`,
+            );
         }
 
         // require the SKU to price the use's meter, whose usage adds up over a period
@@ -237,13 +242,15 @@ export const Usage = {
         const sku = await releases.sku(reference);
         const measured = DeclarationReference.key(sku.definition.meter);
         if (measured !== DeclarationReference.key({ packageId, name })) {
-            throw new CallError("BAD_REQUEST", {
-                message: `sku ${sku.name} prices meter ${measured}, and the use measures ${name}`,
-            });
+            throw FinanceError.of(
+                "METER_MISMATCH",
+                `sku ${sku.name} prices meter ${measured}, but the use measures ${name}`,
+            );
         } else if (!isAveraged && meter.definition.aggregation !== "sum") {
-            throw new CallError("BAD_REQUEST", {
-                message: `sku ${sku.name} rates sum and average meters, and meter ${name} is ${meter.definition.aggregation}`,
-            });
+            throw FinanceError.of(
+                "AGGREGATION_MISMATCH",
+                `sku ${sku.name} only rates sum and average meters, but meter ${name} is ${meter.definition.aggregation}`,
+            );
         }
     },
 

@@ -1,40 +1,48 @@
 import { DeclarationReference } from "@destack/package/declare";
 import type { Call } from "@destack/sync";
+import { residency } from "@destack/account/object";
 import { AccessContext } from "@destack/access";
 import type { MethodContext } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import type { Identifier } from "@destack/schema";
-import { telemetry } from "@destack/telemetry";
+import type { Digest, Identifier } from "@destack/schema";
+import type { Environment } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
 import { release } from "@destack/forge/object";
 import { ReleaseReader } from "../release/reader.ts";
 import { type Publisher, Usage } from "../object/index.ts";
 import { Rating } from "./rating.ts";
 
-/** The instruments capturing the uses their declarations or terms refuse. */
-const instruments = telemetry.scope(import.meta.destack.package);
-
 /** The rating of each paying account's usage against the packages' current releases. */
 export class Metering {
     /** The distribution tag of each package's current release, such as latest or dev. */
     readonly tag: string;
-    /** Who publishes each package's SKUs to the home's buyers. */
-    readonly publisher: Publisher;
     /** Open a package's published build by its manifest's digest. */
-    readonly #open: (packageId: PackageId, manifest: string) => Promise<BuildReader>;
+    readonly #open: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>;
+    /** The instruments capturing the uses their declarations or terms refuse. */
+    readonly #instruments: TelemetryScope;
 
     /** The declarations of each release read so far, by package and version. */
     readonly #released = new Map<string, Awaited<ReturnType<typeof ReleaseReader.read>>>();
 
-    /** Meter usage against the packages' current builds, and their publishers. */
+    /** Meter usage against the packages' current builds. */
     constructor(
         tag: string,
-        publisher: Publisher,
-        open: (packageId: PackageId, manifest: string) => Promise<BuildReader>,
+        open: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
+        telemetry: Environment["telemetry"],
     ) {
+        // store the tag and the builds, capturing on the telemetry
         this.tag = tag;
-        this.publisher = publisher;
         this.#open = open;
+        this.#instruments = TelemetryScope.of(import.meta.destack.package, telemetry);
+    }
+
+    /** Find each handle's seller to the home's buyers, asking as the installation, for one call. */
+    publisher(context: Pick<MethodContext, "query" | "self">): Publisher {
+        return async (handle) => {
+            // ask the universe as the installation, which runs in the space of the residency selling to its buyers
+            return context.query(context.self, residency.call("publisher", { handle }));
+        };
     }
 
     /** Read the releases the tag points at for one call, parsing each release once. */
@@ -82,10 +90,10 @@ export class Metering {
         }
 
         // rate the uses of SKUs into their lines, reporting the ones their terms refuse
-        const rating = await Rating.open(payer, releases, this.publisher, context);
+        const rating = await Rating.open(payer, releases, this.publisher(context), context);
         const sold = accepted.filter((used) => used.keys.sku !== null);
         for (const refused of await rating.rateSkus(sold)) {
-            instruments.captureException(refused);
+            this.#instruments.captureException(refused);
         }
 
         // rate the period's usage of each seller meter used into its metered prices, in one write
@@ -115,7 +123,7 @@ export class Metering {
             return true;
         } catch (error) {
             // report a use that never passes, and retry the page for one that may
-            instruments.captureException(Usage.refusal(error));
+            this.#instruments.captureException(Usage.refusal(error));
 
             return false;
         }

@@ -29,7 +29,7 @@ export const SkuMetadata = schema.object({
     /** The FOCUS ServiceCategory. */
     category: ServiceCategory,
     /** The tenancy of the priced machines, absent for a SKU every tenancy uses. */
-    tenancy: Tenancy.exclude(["own"]).exactOptional(),
+    tenancy: Tenancy.exclude(["local"]).exactOptional(),
     /** The meter measuring its billing unit. */
     meter: DeclarationReference,
     /** The FOCUS PricingUnit, such as GB-month. */

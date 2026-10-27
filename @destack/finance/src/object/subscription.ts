@@ -1,15 +1,16 @@
 import { type Call, ObjectReference } from "@destack/sync";
+import { FinanceError } from "../error/error.ts";
 import { through } from "@destack/access";
 import { account, space } from "@destack/account/object";
 import { type Select, type Snapshot, Table } from "@destack/db";
 import { type MethodContext, type MethodContextOf, defineObject, field } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { Currency } from "../rate/amount.ts";
 import { BILLING_PERMISSIONS } from "./billing.ts";
 import { Price, price, PRICE_TERMS, PriceMirror } from "./price.ts";
 import { FeatureGrant } from "../feature/grant.ts";
 import { seller } from "./seller.ts";
+import type {} from "@destack/package/import-meta";
 
 /** A transition of a subscription's state. */
 type Transition = "trial" | "activate" | "fail" | "lapse" | "pause" | "expire" | "cancel";
@@ -233,11 +234,11 @@ export const subscription = defineObject(
         },
     },
     (method) => ({
-        create: method.create("provide", { isInternal: true }),
+        create: method.create("provide", { visibility: "package" }),
         /** Follow the subscription as the provider bills it: its period, state and items. */
         sync: method.mutation({
             permission: "provide",
-            isInternal: true,
+            visibility: "package",
             input: ProviderSubscription,
         }),
         /** Move the subscription to another product, or cancel it for the default product. */
@@ -245,7 +246,7 @@ export const subscription = defineObject(
         /** Close an ended period onto the provider's draft invoice. */
         closePeriod: method.mutation({
             permission: "provide",
-            isInternal: true,
+            visibility: "package",
             input: schema.object({
                 /** When the period started, in UTC epoch milliseconds. */
                 periodStart: schema.number().int(),
@@ -295,9 +296,12 @@ export const subscriptionItem = defineObject(
         },
     },
     (method) => ({
-        create: method.create("provide", { isInternal: true }),
-        update: method.update("provide", { isInternal: true, fields: ["quantity", "providerId"] }),
-        delete: method.delete("provide", { isInternal: true }),
+        create: method.create("provide", { visibility: "package" }),
+        update: method.update("provide", {
+            visibility: "package",
+            fields: ["quantity", "providerId"],
+        }),
+        delete: method.delete("provide", { visibility: "package" }),
     }),
 );
 /** A persisted subscription item. */
@@ -349,9 +353,10 @@ export const Subscription = {
             .read(subscription)
             .findMany({ where: { accountId, status: { in: [...GRANTING_STATES] } } });
         if (granting.some((row) => row.sellerId === sold.id)) {
-            throw new CallError("CONFLICT", {
-                message: `account ${accountId} subscribes to seller ${sold.id} already, so it changes that subscription`,
-            });
+            throw FinanceError.of(
+                "SUBSCRIPTION_DUPLICATE",
+                `account ${accountId} already subscribes to seller ${sold.id}: change that subscription`,
+            );
         }
     },
 
@@ -464,9 +469,10 @@ export const SubscriptionItem = {
         return items.map((item) => {
             const found = rows.find((row) => row.providerId === item.price);
             if (found === undefined) {
-                throw new CallError("NOT_FOUND", {
-                    message: `no price mirrors provider price ${item.price}`,
-                });
+                throw FinanceError.of(
+                    "PRICE_NOT_MIRRORED",
+                    `no price matches provider price ${item.price}`,
+                );
             }
 
             return { price: found, quantity: item.quantity, providerId: item.providerId };

@@ -1,10 +1,11 @@
 import { DeclarationReference } from "@destack/package/declare";
+import { FinanceError } from "../error/error.ts";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Meter } from "@destack/observability/meter";
-import { CallError } from "@destack/object";
 import { Feature } from "../feature/feature.ts";
 import { Sku } from "../sku/sku.ts";
+import type {} from "@destack/package/import-meta";
 
 /** Read the features, meters and SKUs packages declare, in the releases one call resolves. */
 export class ReleaseReader {
@@ -37,9 +38,10 @@ export class ReleaseReader {
     async feature(reference: DeclarationReference): Promise<Feature> {
         const feature = await this.findFeature(reference);
         if (feature === undefined) {
-            throw new CallError("NOT_FOUND", {
-                message: `feature ${DeclarationReference.key(reference)} is undeclared`,
-            });
+            throw FinanceError.of(
+                "FEATURE_UNDECLARED",
+                `feature ${DeclarationReference.key(reference)} is undeclared`,
+            );
         }
 
         return feature;
@@ -58,9 +60,10 @@ export class ReleaseReader {
         const { meters } = await this.release(reference.packageId);
         const meter = meters.find((each) => ReleaseReader.#isAt(each, reference));
         if (meter === undefined) {
-            throw new CallError("NOT_FOUND", {
-                message: `meter ${DeclarationReference.key(reference)} is undeclared`,
-            });
+            throw FinanceError.of(
+                "METER_UNDECLARED",
+                `meter ${DeclarationReference.key(reference)} is undeclared`,
+            );
         }
 
         return meter;
@@ -72,9 +75,10 @@ export class ReleaseReader {
         const { skus } = await this.release(reference.packageId);
         const sku = skus.find((each) => ReleaseReader.#isAt(each, reference));
         if (sku === undefined) {
-            throw new CallError("NOT_FOUND", {
-                message: `sku ${DeclarationReference.key(reference)} is undeclared`,
-            });
+            throw FinanceError.of(
+                "SKU_UNDECLARED",
+                `sku ${DeclarationReference.key(reference)} is undeclared`,
+            );
         }
 
         return sku;

@@ -4,14 +4,16 @@ import {
     entitlement,
     key,
     machine,
-    organisation,
+    organization,
+    residency,
     space,
     user,
 } from "@destack/account/object";
-import { build, installation, installationRevision } from "@destack/stack/object";
-import { call, journal } from "@destack/object";
+import { build, installationRevision, rollout } from "@destack/stack/object";
+import { call, installation, journal } from "@destack/object";
 import { defineDatabase } from "@destack/db";
 import { packageObject, release, tag } from "@destack/forge/object";
+import { messageTables } from "@destack/message/stack";
 import { notificationTables } from "@destack/notification/stack";
 import {
     charge,
@@ -45,11 +47,21 @@ export const homeDatabase = defineDatabase({
             charge,
             usage,
         ].flatMap((type) => type.tables),
+        ...messageTables,
         ...notificationTables,
-        ...[user, installation, installationRevision, build].flatMap((type) => type.tables),
+        ...[user, installation, rollout, installationRevision, build].flatMap(
+            (type) => type.tables,
+        ),
         ...[packageObject, release, tag, claim].flatMap((type) => type.tables),
         journal,
         ...call.tables,
     ],
-    replicated: [account.table, organisation.table, space.table, machine.table, key.table],
+    replicated: [
+        account.table,
+        organization.table,
+        space.table,
+        machine.table,
+        key.table,
+        residency.table,
+    ],
 });

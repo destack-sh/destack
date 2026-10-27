@@ -1,14 +1,15 @@
 import { account, space } from "@destack/account/object";
+import { FinanceError } from "../error/error.ts";
 import type { Select, Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { Cost, Currency, DecimalAmount } from "../rate/amount.ts";
 import { SERVICE_CATEGORIES } from "../sku/sku.ts";
 import { BILLING_PERMISSIONS } from "./billing.ts";
 import { price } from "./price.ts";
 import { seller } from "./seller.ts";
 import { Subscription, SubscriptionItem } from "./subscription.ts";
+import type {} from "@destack/package/import-meta";
 
 /** What a charge is for, as FOCUS ChargeCategory has it: usage, or prepaid usage as credit. */
 export const CHARGE_CATEGORIES = ["Usage", "Credit"] as const;
@@ -118,11 +119,11 @@ export const charge = defineObject(
         },
     },
     (method) => ({
-        create: method.create("provide", { isInternal: true }),
+        create: method.create("provide", { visibility: "package" }),
         rate: method.mutation({
             permission: "provide",
             target: "scope",
-            isInternal: true,
+            visibility: "package",
             input: schema.object({
                 /** The account whose usage is rated. */
                 accountId: schema.identifier("account"),
@@ -134,7 +135,7 @@ export const charge = defineObject(
             output: schema.object({}),
         }),
         update: method.update("provide", {
-            isInternal: true,
+            visibility: "package",
             fields: [
                 "skuPriceId",
                 "consumedQuantity",
@@ -210,9 +211,10 @@ export const Charge = {
     /** Refuse a usage line its period's close already invoiced, as the next period takes over. */
     requireOpen(line: Charge | undefined): Charge | undefined {
         if (line !== undefined && line.status !== "open") {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `the period of charge ${line.id} is closed, retry once the next one starts`,
-            });
+            throw FinanceError.of(
+                "PERIOD_CLOSED",
+                `the period of charge ${line.id} is closed: retry once the next one starts`,
+            );
         }
 
         return line;

@@ -2,6 +2,7 @@ import { expect, test } from "@destack/test";
 import { defineFeature } from "../src/declare/index.ts";
 import { compareFeature, describeFeature, featureSymbols } from "../src/inspect/index.ts";
 import { schema } from "@destack/schema";
+import { testSimulation } from "@destack/object/test";
 import { ReleaseReader } from "../src/release/reader.ts";
 import { type Feature, type FeatureDefinition } from "../src/feature/index.ts";
 import { FinanceFixture } from "../src/test/index.ts";
@@ -18,15 +19,11 @@ import {
 
 test("read described features and meters back from a build, and relate metered features to their meters", async () => {
     // read the storage package's declarations back from its build
-    const build = await FinanceFixture.release(storage, [
-        requests,
-        stored,
-        sync,
-        support,
-        seats,
-        calls,
-        storageLimit,
-    ]);
+    const build = await FinanceFixture.release(
+        storage,
+        [requests, stored, sync, support, seats, calls, storageLimit],
+        testSimulation().environment("finance").crypto,
+    );
     const releases = new ReleaseReader(async () => ReleaseReader.read(build));
     const features = [sync, support, seats, calls, storageLimit];
     expect([
