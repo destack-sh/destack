@@ -142,12 +142,10 @@ export class Server implements AsyncDisposable {
         // create the server, run its controllers and wait for its readiness in the background
         const server = new Server(options);
         server.#running = (async () => {
-            // run the controllers once activated, as a workload's next start once it is current, unless stopped before
+            // run the controllers once activated, as a workload's next start once it is current
             const signal = server.#reconciling.signal;
             await options.activation?.(signal);
-            if (!signal.aborted) {
-                await Promise.all([server.#syncing?.run(signal), server.#runOnceSynced(signal)]);
-            }
+            await Promise.all([server.#syncing?.run(signal), server.#runOnceSynced(signal)]);
         })();
         server.#controlled = Promise.all([server.#running, server.#serve()]).then(() => undefined);
 
@@ -163,12 +161,10 @@ export class Server implements AsyncDisposable {
         return server;
     }
 
-    /** Run the other controllers once the replicas are synced, unless stopped first. */
+    /** Run the other controllers once the replicas are synced, or stop them at once. */
     async #runOnceSynced(signal: AbortSignal): Promise<void> {
         await this.#options.synced?.(signal);
-        if (!signal.aborted) {
-            await this.#loop?.run(signal);
-        }
+        await this.#loop?.run(signal);
     }
 
     /** Stop the controllers at once, while the server serves its requests until it drains. */
@@ -558,25 +554,26 @@ export class Server implements AsyncDisposable {
             this.#stopped.resolve();
         });
 
-        // abort overdue requests at the deadline on the server's clock
-        const deadline = Promise.withResolvers<never>();
-        const expiry = this.#options.environment.clock.timeout(this.#options.drainTimeout);
-        const expire = () => {
-            const error = new DOMException("server drain deadline exceeded", "TimeoutError");
-            for (const controller of this.#requests.keys()) {
-                controller.abort(error);
-            }
+        // abort overdue requests at the deadline on the server's clock, a deadline the drain disarms
+        const disarm = new AbortController();
+        const deadline = this.#options.environment.clock
+            .sleep(this.#options.drainTimeout, disarm.signal)
+            .then(() => {
+                const error = new DOMException("server drain deadline exceeded", "TimeoutError");
+                for (const controller of this.#requests.keys()) {
+                    controller.abort(error);
+                }
 
-            deadline.reject(error);
-        };
-        expiry.addEventListener("abort", expire, { once: true });
+                throw error;
+            });
 
         // wait for draining or the deadline
         try {
-            await Promise.race([completion, deadline.promise]);
+            await Promise.race([completion, deadline]);
         } finally {
             // stop the deadline and the controllers
-            expiry.removeEventListener("abort", expire);
+            disarm.abort();
+            deadline.catch(() => undefined);
             this.#reconciling.abort();
             await this.#controlled;
         }

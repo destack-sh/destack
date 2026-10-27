@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { TelemetryScope, trace } from "@destack/telemetry";
+import { recordSpanException, TelemetryScope, trace } from "@destack/telemetry";
 
 import { ValidationError } from "@orpc/contract";
 import { CallError } from "./call.ts";
@@ -39,7 +39,9 @@ export function reportError(
 
     // capture unexpected failures as escaping their request, and hide them
     const span = trace.getSpan(telemetry.context.active());
-    span?.recordException(error instanceof Error ? error : String(error));
+    if (span !== undefined) {
+        recordSpanException(span, error);
+    }
     TelemetryScope.of(import.meta.destack.package, telemetry).captureException(error, {
         isEscaped: true,
     });
