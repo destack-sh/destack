@@ -1,5 +1,10 @@
 import { NetworkError } from "./error.ts";
-import type { ConnectOptions, SocketAddress, Socket } from "./socket/socket.ts";
+import {
+    type ConnectOptions,
+    HostAddress,
+    type SocketAddress,
+    type Socket,
+} from "./socket/socket.ts";
 
 /** A TLS client certificate a request presents (RFC 8705). */
 export interface ClientCertificate {
@@ -17,6 +22,8 @@ export interface FetchOptions {
     readonly unix?: string;
     /** Whether to decode a response's content encoding, true by default, as Bun's fetch has it. */
     readonly decompress?: boolean;
+    /** Whether to refuse a host resolving into this computer or a private network. */
+    readonly isPublicOnly?: boolean;
 }
 
 /** A WebSocket a client opened, its binary messages arriving as ArrayBuffers. */
@@ -59,6 +66,8 @@ export interface Network {
     readonly connect: (address: SocketAddress, options?: ConnectOptions) => Socket;
     /** Open a WebSocket to a URL, offering subprotocols. */
     readonly websocket: (url: string, protocols?: string | readonly string[]) => ClientSocket;
+    /** Read the addresses a host name resolves to, an address literal as itself. */
+    readonly resolve: (hostname: string) => Promise<readonly string[]>;
 }
 
 /** The platform's WebSocket as a client socket. */
@@ -136,10 +145,32 @@ class SystemSocket implements ClientSocket {
 }
 
 /** Networks. */
-export const Network: { readonly system: Network } = {
+export const Network: {
+    readonly system: Network;
+    readonly requirePublic: (
+        network: Pick<Network, "resolve">,
+        hostname: string,
+    ) => Promise<string>;
+} = {
+    /** Resolve a host name to its first address, refusing one resolving into a private network. */
+    async requirePublic(network, hostname) {
+        // refuse a name without addresses, or with one in this computer or a private network
+        const addresses = await network.resolve(hostname);
+        const [first] = addresses;
+        const internal = addresses.find((address) => !HostAddress.isPublic(address));
+        if (first === undefined || internal !== undefined) {
+            throw NetworkError.of(
+                "ADDRESS_PRIVATE",
+                `${hostname} resolves to ${internal ?? "no address"}, outside the public network`,
+            );
+        }
+
+        return first;
+    },
+
     /** The web's network on every target: fetch and WebSockets, refusing what only hosts have. */
     system: {
-        fetch: (request, options) => {
+        fetch: async (request, options) => {
             // refuse a client certificate or a Unix socket, which only a host network sends with
             if (options?.certificate !== undefined || options?.unix !== undefined) {
                 throw NetworkError.of(
@@ -156,6 +187,15 @@ export const Network: { readonly system: Network } = {
                 );
             }
 
+            // refuse a private host by its name, as a worker's fetch reaches the public internet alone
+            const { hostname } = new URL(request.url);
+            if (options?.isPublicOnly === true && !HostAddress.isPublic(hostname)) {
+                throw NetworkError.of(
+                    "ADDRESS_PRIVATE",
+                    `${hostname} resolves to ${hostname}, outside the public network`,
+                );
+            }
+
             return fetch(request);
         },
         connect: () => {
@@ -168,5 +208,8 @@ export const Network: { readonly system: Network } = {
                     typeof protocols === "string" ? protocols : [...(protocols ?? [])],
                 ),
             ),
+        resolve: () => {
+            throw NetworkError.of("UNSUPPORTED", "resolving a host name needs a host network");
+        },
     },
 };

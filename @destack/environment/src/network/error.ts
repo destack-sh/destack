@@ -9,6 +9,11 @@ export const NetworkError = defineErrorFamily(
     {
         // not implemented
         UNSUPPORTED: { code: "NOT_IMPLEMENTED" },
+        // forbidden
+        ADDRESS_PRIVATE: { code: "FORBIDDEN" },
+
+        // unavailable
+        RESOLVE_FAILED: { code: "SERVICE_UNAVAILABLE" },
     },
     { audience: "host" },
 );

@@ -1,6 +1,6 @@
 import { BunNetwork } from "./bun.ts";
 import { BunServer } from "../server/bun.ts";
-import type { Network } from "./network.ts";
+import { Network } from "./network.ts";
 import type {
     Listener,
     Server,
@@ -8,8 +8,10 @@ import type {
     ServerSocket,
     ServerSocketHandler,
 } from "../server/server.ts";
+import { NetworkError } from "./error.ts";
 import {
     type ConnectOptions,
+    HostAddress,
     type SocketAddress,
     refuseUnixTls,
     socketName,
@@ -289,13 +291,31 @@ export class SimulatedNetwork {
                     return this.#clock.trackHost(BunNetwork.fetch(request, options));
                 }
 
+                // refuse a private host by its name, the simulated network routing by name
+                if (options?.isPublicOnly === true) {
+                    await Network.requirePublic(this.of(node), new URL(request.url).hostname);
+                }
+
                 // decode the response's content encoding, as Bun's fetch does unless asked to keep it
                 const response = await this.#transit(this.#fetch(node, request));
 
                 return options?.decompress === false ? response : decoded(response);
             },
-            connect: (address, options) => this.#connect(node, address, options),
+            connect: (address, options) => {
+                // refuse a private host by its name, the simulated network routing by name
+                const isPrivate = !("unix" in address) && !HostAddress.isPublic(address.hostname);
+                if (options?.isPublicOnly === true && isPrivate) {
+                    throw NetworkError.of(
+                        "ADDRESS_PRIVATE",
+                        `${address.hostname} resolves to ${address.hostname}, outside the public network`,
+                    );
+                }
+
+                return this.#connect(node, address, options);
+            },
             websocket: (url, protocols) => this.#websocket(node, url, protocols),
+            // route by name, each name its own address
+            resolve: async (hostname) => [hostname],
         };
     }
 

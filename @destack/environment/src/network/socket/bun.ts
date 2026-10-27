@@ -1,3 +1,6 @@
+import { lookup } from "node:dns/promises";
+import { NetworkError } from "../error.ts";
+import { Network } from "../network.ts";
 import type * as bun from "bun";
 import { present } from "@destack/schema";
 import {
@@ -224,23 +227,50 @@ export function connectSocket(address: SocketAddress, options: ConnectOptions = 
     }
     refuseUnixTls(address, options);
 
-    // connect to the Unix socket, or to the host in plain text or in TLS
+    // connect to the Unix socket
     const end = new BunSocketEnd({ address, options });
-    const connecting =
-        "unix" in address
-            ? Bun.connect<BunSocketEnd>({ unix: address.unix, data: end, socket: HANDLERS })
-            : Bun.connect<BunSocketEnd>({
-                  hostname: address.hostname,
-                  port: address.port,
-                  data: end,
-                  socket: HANDLERS,
-                  ...(options.secureTransport === "on"
-                      ? { tls: BunSocketEnd.tls(address, options) }
-                      : {}),
-              });
-    void connecting.catch(() => undefined);
+    if ("unix" in address) {
+        void Bun.connect<BunSocketEnd>({ unix: address.unix, data: end, socket: HANDLERS }).catch(
+            () => undefined,
+        );
+
+        return end;
+    }
+
+    // connect to the host, a public host at the address checked, in plain text or in TLS under its name
+    const target =
+        options.isPublicOnly === true
+            ? Network.requirePublic({ resolve: resolveHostname }, address.hostname)
+            : Promise.resolve(address.hostname);
+    void target.then(
+        (hostname) =>
+            Bun.connect<BunSocketEnd>({
+                hostname,
+                port: address.port,
+                data: end,
+                socket: HANDLERS,
+                ...(options.secureTransport === "on"
+                    ? { tls: BunSocketEnd.tls(address, options) }
+                    : {}),
+            }).catch(() => undefined),
+        (error: unknown) => end.end(error instanceof Error ? error : new TypeError(String(error))),
+    );
 
     return end;
+}
+
+/** Look a host name up as the host's resolver does, every address of both families. */
+export async function resolveHostname(hostname: string): Promise<readonly string[]> {
+    // refuse a failed lookup, the resolver's error as its cause
+    const addresses = await lookup(hostname.replace(/^\[|\]$/gu, ""), { all: true }).catch(
+        (error: unknown) => {
+            throw NetworkError.of("RESOLVE_FAILED", `resolving ${hostname} failed`, {
+                cause: error,
+            });
+        },
+    );
+
+    return addresses.map((entry) => entry.address);
 }
 
 /** Listen for plain connections through Bun's sockets, at a host and port or a Unix socket. */
