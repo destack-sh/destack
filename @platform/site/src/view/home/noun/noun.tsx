@@ -48,7 +48,7 @@ const noun: Form = {
     sense: {
         definition: "an absurdly integrated universal software engine",
         highlight: ["universal software engine"],
-        sentence: "Make custom apps with one standardised pipeline that your agents love.",
+        sentence: "Make serious custom apps with one standardised pipeline that your agents love.",
         gloss: "Unreal Engine, for everyday software",
     },
 };
