@@ -1,10 +1,10 @@
 import { schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
 
-/** The builds of each package source a space keeps by default: ten. */
+/** The builds of each package source a space retains by default: ten. */
 const RETAINED_BUILDS = 10;
 
-/** How many latest succeeded builds of each package source a space keeps. */
+/** How many latest succeeded builds of each package source a space retains. */
 export const buildRetention = defineSetting({
     name: "build.retention",
     title: "Build retention",

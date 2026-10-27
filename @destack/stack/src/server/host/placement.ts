@@ -1,5 +1,6 @@
 import { AccessContext, Authorization, Caller } from "@destack/access";
-import { account, Space, space, type StackSource, placement } from "@destack/account/object";
+import { declaredStack, MAIN_DATABASE } from "../../declare/index.ts";
+import { space, type StackSource, placement } from "@destack/account/object";
 import {
     and,
     Change,
@@ -8,24 +9,19 @@ import {
     type DatabaseConnection,
     type Table,
     Transaction,
+    isNull,
 } from "@destack/db";
+import { Installation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
+import { SPACE_PACKAGES } from "../server.ts";
 import { Digest, type Identifier, type JsonObject, present } from "@destack/schema";
-import { Provisioned } from "@destack/object";
-import type { Controller } from "@destack/db";
+import type { ReconcileController } from "@destack/db";
 import { Scope, RequestId } from "@destack/sync";
-import {
-    database,
-    type Installation,
-    installation,
-    MAIN_DATABASE,
-    SPACE_PROVIDER,
-} from "../../object/index.ts";
+import { database, rollout, type Rollout, SPACE_PROVIDER } from "../../object/index.ts";
 import { BuildStore, type Registry } from "../installation/build.ts";
 import type { PackageId } from "@destack/package";
-import { declaredStack } from "../installation/stack.ts";
 
-/** The name of the installation applying the stack a space carries from its creation. */
+/** The name of the installation applying the stack of a space from its creation. */
 const STACK_INSTALLATION = "stack";
 
 /** The build store, the spaces' main database, and the registry the stacks' releases copy from. */
@@ -38,54 +34,55 @@ export interface PlacementOptions {
     readonly main: Database;
 }
 
-/** Give birth to each space placed here once its replicated row and parent scope arrive. */
-export class PlacementController implements Controller {
+/** Give birth to the store's space once placed here, with its row and parent scope arrived. */
+export class PlacementController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "placement";
     /** The replicated placements, space rows and scopes, and the installations. */
-    readonly watches: readonly Table[] = [
-        placement.table,
-        space.table,
-        installation.table,
-        Scope.table,
-    ];
+    readonly watches: readonly Table[] = [placement.table, space.table, rollout.table, Scope.table];
     /** The space's store. */
     readonly #store: ObjectStore;
-    /** The database of the spaces this machine serves. */
+    /** The space's database. */
     readonly #database: DatabaseConnection;
-    /** This machine, which gives birth to the spaces placed on it. */
+    /** The store's space, which the controller gives birth to. */
+    readonly #space: Identifier<"space">;
+    /** This machine, which gives birth to the space once placed on it. */
     readonly #machine: Identifier<"machine">;
     /** The build store, the spaces' main database and the release registry. */
     readonly #options: PlacementOptions;
 
-    /** Give birth to the spaces placed on a machine through its store. */
-    constructor(store: ObjectStore, machine: Identifier<"machine">, options: PlacementOptions) {
-        // set the store, its database, the machine and its options
+    /** Give birth to a store's space once placed on a machine. */
+    constructor(
+        store: ObjectStore,
+        spaceId: Identifier<"space">,
+        machine: Identifier<"machine">,
+        options: PlacementOptions,
+    ) {
+        // set the store, its database, the space, the machine and its options
         this.#store = store;
         this.#database = store.database;
+        this.#space = spaceId;
         this.#machine = machine;
         this.#options = options;
     }
 
-    /** List the space a change touches, or the account whose scope arrived. */
+    /** List the store's space when a change touches it or an account's scope arrived. */
     keys(change: Change): readonly string[] {
-        // take a placement's space
+        // take the space's placement
         if (Change.of(change, placement.table)) {
-            return [Change.image(change).id];
+            return this.#touching(Change.image(change).id);
         }
-        // take a replicated space row's space
+        // take the space's replicated row
         else if (Change.of(change, space.table)) {
-            return [Change.image(change).id];
+            return this.#touching(Change.image(change).id);
         }
-        // take the space of an installation
-        else if (Change.of(change, installation.table)) {
-            return [Change.image(change).scope];
+        // take the space's rollout
+        else if (Change.of(change, rollout.table)) {
+            return this.#touching(Change.image(change).scope);
         }
-        // take an account whose scope arrived, whose spaces may now be born
+        // take an account whose scope arrived, inside which the space may now be born
         else if (Change.of(change, Scope.table)) {
-            const row = Change.image(change);
-
-            return row.type === "account" ? [row.scope] : [];
+            return Change.image(change).type === "account" ? [this.#space] : [];
         }
         // select nothing for any other change
         else {
@@ -93,16 +90,21 @@ export class PlacementController implements Controller {
         }
     }
 
-    /** List the spaces placed here awaiting birth or a main database, or whose stack changed. */
+    /** List the store's space if a change's space is it, else nothing. */
+    #touching(changed: string): readonly string[] {
+        return changed === this.#space ? [this.#space] : [];
+    }
+
+    /** List the space while placed here awaiting birth, a main database, or its changed stack. */
     async list(): Promise<readonly string[]> {
-        // read the spaces placed here with their stacks and the stacks last submitted
+        // read the space while placed here with its stack and the stack last submitted
         const rows = await this.#database
             .select({
                 id: placement.table.id,
                 born: Scope.table.scope,
                 main: database.table.id,
                 stack: space.table.stack,
-                submitted: installation.table.spaceStack,
+                submitted: rollout.table.spaceStack,
             })
             .from(placement.table)
             .innerJoin(space.table, eq(space.table.id, placement.table.id))
@@ -115,20 +117,24 @@ export class PlacementController implements Controller {
                 ),
             )
             .leftJoin(
-                installation.table,
-                and(
-                    eq(installation.table.scope, placement.table.id),
-                    eq(installation.table.role, "stack"),
-                ),
+                rollout.table,
+                and(eq(rollout.table.scope, placement.table.id), eq(rollout.table.kind, "stack")),
             )
-            .where(eq(placement.table.machineId, this.#machine));
+            .where(
+                and(
+                    eq(placement.table.id, this.#space),
+                    eq(placement.table.machineId, this.#machine),
+                    isNull(space.table.deletedAt),
+                ),
+            );
 
-        // select the unborn ones, those without a main database, and those whose stack changed since its last submission
+        // select it unborn, without a main database, or with a stack changed since its last submission
         const listed = await Promise.all(
             rows.map(async (row) =>
                 row.born === null ||
                 row.main === null ||
-                (await Digest.json(row.stack)) !== row.submitted
+                (await Digest.json(row.stack, this.#database.state.environment.crypto)) !==
+                    row.submitted
                     ? [row.id]
                     : [],
             ),
@@ -137,27 +143,9 @@ export class PlacementController implements Controller {
         return listed.flat();
     }
 
-    /** Give birth to a placed space from its replicated row, and install the stack it carries. */
+    /** Give birth to the placed space from its replicated row, and install its stack. */
     async reconcile(key: string): Promise<undefined> {
-        // reconcile each space placed here of an account whose scope arrived
-        if (account.identifies(key)) {
-            const placed = await this.#database
-                .select({ id: placement.table.id })
-                .from(placement.table)
-                .where(
-                    and(
-                        eq(placement.table.scope, account.identifier(key)),
-                        eq(placement.table.machineId, this.#machine),
-                    ),
-                );
-            for (const { id } of placed) {
-                await this.reconcile(id);
-            }
-
-            return undefined;
-        }
-
-        // leave a space not placed here, and one whose row or parent scope has not arrived
+        // leave a space not placed here, a deleting one, and one whose row or parent scope has not arrived
         const spaceId = space.identifier(key);
         const [placed] = await this.#database
             .select({ born: Scope.table.scope, parent: space.table.scope })
@@ -165,7 +153,11 @@ export class PlacementController implements Controller {
             .innerJoin(space.table, eq(space.table.id, placement.table.id))
             .leftJoin(Scope.table, eq(Scope.table.scope, space.table.id))
             .where(
-                and(eq(placement.table.id, spaceId), eq(placement.table.machineId, this.#machine)),
+                and(
+                    eq(placement.table.id, spaceId),
+                    eq(placement.table.machineId, this.#machine),
+                    isNull(space.table.deletedAt),
+                ),
             );
         if (placed === undefined) {
             return undefined;
@@ -192,20 +184,17 @@ export class PlacementController implements Controller {
             await this.#createMain(spaceId);
         }
 
-        // submit the stack the space carries once it changed since its last submission
+        // submit the space's stack once it changed since its last submission
         const [received] = await this.#database
-            .select({ stack: space.table.stack, installed: installation.table })
+            .select({ stack: space.table.stack, installed: rollout.table })
             .from(space.table)
             .leftJoin(
-                installation.table,
-                and(
-                    eq(installation.table.scope, space.table.id),
-                    eq(installation.table.role, "stack"),
-                ),
+                rollout.table,
+                and(eq(rollout.table.scope, space.table.id), eq(rollout.table.kind, "stack")),
             )
             .where(eq(space.table.id, spaceId));
         const { stack, installed } = present(received, `the row of ${spaceId}`);
-        const digest = await Digest.json(stack);
+        const digest = await Digest.json(stack, this.#database.state.environment.crypto);
         if (digest !== installed?.spaceStack) {
             await this.#install(spaceId, stack, digest, installed);
         }
@@ -213,7 +202,7 @@ export class PlacementController implements Controller {
         return undefined;
     }
 
-    /** Bear a placed space at its home below its ancestors, the space owning itself. */
+    /** Receive a placed space at its primary below its ancestors, with its base installations. */
     async #open(spaceId: Identifier<"space">, ancestors: readonly string[]): Promise<void> {
         // read the account the space lives in
         const [row] = await this.#database
@@ -223,14 +212,20 @@ export class PlacementController implements Controller {
         const replicated = present(row, `the row of ${spaceId}`);
         const now = this.#store.clock.now();
         await Transaction.run(this.#database, async (transaction) => {
-            // record its scope and write its first access here, its home
-            const authorization = new Authorization(this.#store.authorizer, transaction, () =>
-                AccessContext.of(Caller.of(this.#store.principal), now),
+            // record its scope here, its primary, born with its base installations
+            const authorization = new Authorization(
+                this.#store.authorizer,
+                transaction,
+                () => AccessContext.of(Caller.of(this.#store.principal), now),
+                this.#store.environment,
             );
-            await authorization.receive(
-                space.reference(replicated.scope, spaceId),
+            const scope = space.reference(replicated.scope, spaceId);
+            await Installation.receive(
+                authorization,
+                scope,
                 ancestors,
-                Space.creation({ id: spaceId }),
+                SPACE_PACKAGES,
+                this.#store,
             );
         });
     }
@@ -238,24 +233,21 @@ export class PlacementController implements Controller {
     /** Create a space's main database where its stack places it. */
     async #createMain(spaceId: Identifier<"space">): Promise<void> {
         // describe the main database every space has in its own storage
-        const main = {
-            declaration: this.#options.main.toJSON(),
-            placement: { provider: SPACE_PROVIDER },
-            retention: "forever" as const,
-            tags: {},
-        };
-        const now = this.#store.clock.now();
+        const { main } = this.#options;
         await Transaction.run(this.#database, async (transaction) => {
             // create the main database as the space
             await this.#store.mutate(
-                this.#store.serving(database),
+                this.#store.as(database),
                 {
-                    id: RequestId.create(now),
+                    id: RequestId.create(this.#store.environment),
                     calls: [
                         database.call("create", {
                             ...database.in(spaceId),
-                            ...Provisioned.values(MAIN_DATABASE, main),
-                            spec: this.#options.main.spec,
+                            name: MAIN_DATABASE,
+                            ...main.declare({
+                                placement: { provider: SPACE_PROVIDER },
+                                retention: "forever",
+                            }),
                         }),
                     ],
                 },
@@ -269,7 +261,7 @@ export class PlacementController implements Controller {
         // copy the stack's build, evaluate its export, and read its installations' builds without storing them
         const { builds, registry } = this.#options;
         const reader = await builds.pull(registry, stack.package.id, stack.manifest);
-        const read = (packageId: PackageId, manifest: string) =>
+        const read = (packageId: PackageId, manifest: Digest) =>
             builds.pull(registry, packageId, manifest);
 
         return declaredStack(reader, stack.export, stack.settings, read);
@@ -280,7 +272,7 @@ export class PlacementController implements Controller {
         spaceId: Identifier<"space">,
         stack: StackSource,
         digest: Digest,
-        installed: Installation | null,
+        installed: Rollout | null,
     ): Promise<void> {
         // read the space the stack declares at its pinned build
         const { package: stacked, manifest } = stack;
@@ -288,17 +280,16 @@ export class PlacementController implements Controller {
         const definition = await this.#declared(stack);
 
         // install the stack package as the space's stack once
-        const now = this.#store.clock.now();
         const selection = { kind: "release" as const, version: stacked.version };
         const [created] =
             installed === null
-                ? await this.#store.mutate(this.#store.serving(installation), {
-                      id: RequestId.create(now),
+                ? await this.#store.mutate(this.#store.as(rollout), {
+                      id: RequestId.create(this.#store.environment),
                       calls: [
-                          installation.call("create", {
-                              ...installation.in(spaceId),
+                          rollout.call("create", {
+                              ...rollout.in(spaceId),
                               packageId: stacked.id,
-                              role: "stack",
+                              kind: "stack",
                               selection,
                               export: stack.export,
                               parameters: {},
@@ -309,11 +300,11 @@ export class PlacementController implements Controller {
                 : [installed];
 
         // submit its pinned build in a mutation of its own, whose preparation reads the created stack
-        await this.#store.mutate(this.#store.serving(installation), {
-            id: RequestId.create(now),
+        await this.#store.mutate(this.#store.as(rollout), {
+            id: RequestId.create(this.#store.environment),
             calls: [
-                installation.call("submit", {
-                    ...installation.target(present(created, `the stack of ${spaceId}`)),
+                rollout.call("submit", {
+                    ...rollout.target(present(created, `the stack of ${spaceId}`)),
                     selection,
                     build,
                     evaluation: { export: stack.export, parameters: {}, definition },

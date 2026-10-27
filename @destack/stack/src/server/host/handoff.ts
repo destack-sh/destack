@@ -1,4 +1,4 @@
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { RequestId, Page, Scope, type Uplink } from "@destack/sync";
 import { AccessContext, Caller, principal } from "@destack/access";
@@ -9,9 +9,8 @@ import { type IdentityKeystore } from "@destack/account/identity";
 import type { MethodContext } from "@destack/object";
 import type { AdapterFetch } from "@destack/object/server";
 import type { Runtime } from "../../runtime/index.ts";
-import { type ResourceId, type Rewrapper, type ContentStore } from "@destack/resource";
+import { ResourceId, type Rewrapper, type ContentStore } from "@destack/resource";
 import { Recipient } from "@destack/identity";
-import { CallError } from "@destack/object";
 import { type Fence, snapshot, type Transfer } from "../../object/index.ts";
 import type { BuildStore } from "../installation/build.ts";
 import { SpaceTransfer } from "./transfer.ts";
@@ -19,6 +18,8 @@ import type { PackageLocation } from "@destack/package/manifest";
 import type { ResourceState } from "@destack/package/declare";
 import stackPackage, { HANDOFF_PATH } from "../../package.ts";
 import type { ProviderIndex } from "../resource/resource.ts";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../../error/index.ts";
 
 /** How a target calls a source's handoff. */
 interface HandoffCall {
@@ -26,10 +27,19 @@ interface HandoffCall {
     readonly signal?: AbortSignal;
 }
 
-/** The paths of a space's handoff below the adapter: its rows, states, blobs and builds. */
+/** A taken snapshot's digest, as the source answers a target waiting for it. */
+const TakenSnapshot = schema.object({
+    /** The digest of the snapshot in the source's content store. */
+    digest: Digest,
+});
+
+/** The paths of a space's handoff below the adapter: rows, states, snapshots, blobs and builds. */
 const HandoffPath = {
     /** Write the path of a space's handoff part. */
-    of(spaceId: string, part: "watch" | "capture" | "states" | "blobs" | "builds"): string {
+    of(
+        spaceId: string,
+        part: "watch" | "capture" | "states" | "snapshots" | "blobs" | "builds",
+    ): string {
         return `/${spaceId}/${part}`;
     },
 
@@ -71,7 +81,8 @@ export interface Handoff {
     readonly snapshot: (
         transfer: Pick<Transfer, "scope" | "id">,
         input: { readonly resourceId: ResourceId; readonly recipient: string },
-    ) => Promise<{ readonly digest: Digest | null }>;
+        options?: HandoffCall,
+    ) => Promise<Digest>;
     /** Read a blob of the source machine's content store as it streams its bytes. */
     readonly read: (
         spaceId: Identifier<"space">,
@@ -81,19 +92,23 @@ export interface Handoff {
     /** Locate a build the space runs in the source machine's build store. */
     readonly locate: (
         spaceId: Identifier<"space">,
-        manifest: string,
+        manifest: Digest,
     ) => {
         readonly location: PackageLocation;
         readonly fetch: (input: URL, init: RequestInit) => Promise<Response>;
     };
 }
 
-/** How a target reaches a source's handoff. */
+/** How a target connects to a source's handoff. */
 export const Handoff = {
     /** Connect to a source's handoff through a fetch reaching its stack package at a URL. */
-    connect(url: string, fetch: (request: Request) => Promise<Response>, clock: Clock): Handoff {
+    connect(
+        url: string,
+        fetch: (request: Request) => Promise<Response>,
+        environment: Environment,
+    ): Handoff {
         // call the source's stack package and its handoff adapter below it
-        const stack = createClient(stackPackage, { url, fetch });
+        const stack = createClient(stackPackage, { url, fetch }, environment);
         const adapter = `${url}${HANDOFF_PATH}`;
         const send = async (request: Request): Promise<Response> => {
             // refuse a failed answer as the source answered it
@@ -124,7 +139,7 @@ export const Handoff = {
                 stack.transfer.fence({
                     spaceId: transfer.scope,
                     id: transfer.id,
-                    requestId: RequestId.create(clock.now()),
+                    requestId: RequestId.create(environment),
                 }),
             capture: async function* ({ spaceId, recipient }, options = {}) {
                 const path = `${adapter}${HandoffPath.of(spaceId, "capture")}`;
@@ -136,13 +151,25 @@ export const Handoff = {
                 });
                 yield* pagesOf(await send(request));
             },
-            snapshot: (transfer, input) =>
-                stack.transfer.snapshot({
+            snapshot: async (transfer, input, options = {}) => {
+                // request the snapshot once, answering one the source took already
+                const requested = await stack.transfer.snapshot({
                     spaceId: transfer.scope,
                     id: transfer.id,
-                    requestId: RequestId.create(clock.now()),
+                    requestId: RequestId.create(environment),
                     ...input,
-                }),
+                });
+                if (requested.digest !== null) {
+                    return requested.digest;
+                }
+
+                // wait at the source until it took the snapshot
+                const query = new URLSearchParams({ recipient: input.recipient });
+                const path = `${adapter}${HandoffPath.of(transfer.scope, "snapshots")}/${encodeURIComponent(input.resourceId)}?${query}`;
+                const response = await send(new Request(path, { signal: options.signal ?? null }));
+
+                return TakenSnapshot.parse(await response.json()).digest;
+            },
             read: async function* (spaceId, digest, options = {}) {
                 const path = `${adapter}${HandoffPath.of(spaceId, "blobs")}/${digest}`;
                 const response = await send(new Request(path, { signal: options.signal ?? null }));
@@ -175,7 +202,7 @@ function splitLines(): TransformStream<string, string> {
 
     return new TransformStream({
         transform: (chunk, lines) => {
-            // emit each complete line, keeping the partial one
+            // emit each complete line, and buffer the partial one
             const parts = `${pending}${chunk}`.split("\n");
             pending = parts.pop() ?? "";
             for (const part of parts.filter((line) => line.length > 0)) {
@@ -229,13 +256,13 @@ export interface HandoffOptions {
     readonly database: DatabaseConnection;
     /** The account package's uplink, which places the spaces as this machine. */
     readonly publisher: Uplink;
-    /** The providers keeping the spaces' resources. */
+    /** The providers that store the spaces' resources. */
     readonly providers: ProviderIndex;
     /** The keystore of the spaces, wrapping their keys under the machine's keyring. */
     readonly keystore: IdentityKeystore;
     /** The runtimes running the spaces' instances. */
     readonly runtimes: readonly Runtime[];
-    /** The machine's content-addressed store, keeping its resources' snapshots. */
+    /** The machine's content-addressed store of its resources' snapshots. */
     readonly store: Pick<ContentStore, "read">;
     /** The machine's store of every build. */
     readonly builds: BuildStore;
@@ -245,13 +272,13 @@ export interface HandoffOptions {
 export function handoffAdapter(options: HandoffOptions): AdapterFetch {
     const content = new HandoffContent(options.database);
 
-    return async (request, admitted, context, store) => {
+    return async (request, admitted, context) => {
         // read the space and the part, refusing a caller acting for no machine the space moves to
         const caller = present(admitted, "the machine the handoff adapter admits");
         const url = new URL(request.url);
         const parsed = HandoffPath.parse(url.pathname);
         if (parsed === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no handoff at ${url.pathname}` });
+            throw StackError.of("HANDOFF_NOT_FOUND", `no handoff at ${url.pathname}`);
         }
         const { spaceId, part, rest } = parsed;
         const record = await SourceHandoff.requireTarget(options.database, spaceId, caller);
@@ -263,7 +290,7 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
             const after = written === null ? undefined : LogPosition.parse(JSON.parse(written));
 
             return ndjson(
-                space.feed(store.clock).subscribe(space.replica.queries, after, request.signal, {
+                space.feed().subscribe(space.replica.queries, after, request.signal, {
                     drain: context.signal,
                 }),
             );
@@ -279,11 +306,12 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
             const { recipient } = schema
                 .object({ recipient: schema.base64() })
                 .parse(await request.json());
-            const { seal } = machineBound(options, Recipient.of(recipient));
-
-            return ndjson(
-                space.feed(store.clock).capture(space.replica.captured, request.signal, { seal }),
+            const { seal } = machineBound(
+                options,
+                Recipient.of(recipient, options.keystore.environment),
             );
+
+            return ndjson(space.feed().capture(space.replica.captured, request.signal, { seal }));
         }
         // serve the builds the space's rows refer to
         else if (part === "builds" && request.method === "GET") {
@@ -291,12 +319,25 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
             const answer = await options.builds.packages.fetch(request, mount, {
                 authorize: async (_request, manifest) => {
                     await content.requireBuild(record, manifest);
-
-                    return {};
                 },
             });
 
             return answer ?? new Response(null, { status: 404 });
+        }
+        // answer a requested snapshot's digest once the source took it
+        else if (part === "snapshots" && request.method === "GET") {
+            const resourceId = ResourceId.parse(decodeURIComponent(rest.slice(1)));
+            const recipient = present(
+                url.searchParams.get("recipient"),
+                "the snapshot's recipient",
+            );
+            const digest = await SourceHandoff.taken(
+                options.database,
+                { spaceId, resourceId, recipient },
+                request.signal,
+            );
+
+            return Response.json({ digest });
         }
         // stream a blob a snapshot of the space reads
         else if (part === "blobs" && request.method === "GET") {
@@ -307,7 +348,7 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
         }
         // refuse any other request
         else {
-            throw new CallError("NOT_FOUND", { message: `no handoff at ${url.pathname}` });
+            throw StackError.of("HANDOFF_NOT_FOUND", `no handoff at ${url.pathname}`);
         }
     };
 }
@@ -335,20 +376,22 @@ class HandoffContent {
     }
 
     /** Refuse a build none of the space's builds or revisions runs. */
-    async requireBuild(record: Transfer, manifest: string): Promise<void> {
+    async requireBuild(record: Transfer, manifest: Digest): Promise<void> {
         if (!(await this.#includes(record, "builds", manifest))) {
-            throw new CallError("NOT_FOUND", {
-                message: `space ${record.scope} runs no build ${manifest}`,
-            });
+            throw StackError.of(
+                "BUILD_NOT_RUNNING",
+                `space ${record.scope} does not run build ${manifest}`,
+            );
         }
     }
 
     /** Refuse a blob no snapshot of the space reads. */
     async requireBlob(record: Transfer, digest: Digest): Promise<void> {
         if (!(await this.#includes(record, "blobs", digest))) {
-            throw new CallError("NOT_FOUND", {
-                message: `no snapshot of ${record.scope} reads blob ${digest}`,
-            });
+            throw StackError.of(
+                "BLOB_NOT_FOUND",
+                `no snapshot of ${record.scope} references blob ${digest}`,
+            );
         }
     }
 
@@ -399,9 +442,10 @@ export const SourceHandoff = {
         const record = await SpaceTransfer.readActive(database, spaceId);
         const acting = new Set([caller.subject, ...caller.actors].map((subject) => subject.id));
         if (!acting.has(record.targetId)) {
-            throw new CallError("NOT_FOUND", {
-                message: `${spaceId} is transferring to no machine the caller acts for`,
-            });
+            throw StackError.of(
+                "TRANSFER_TO_CALLER_MISSING",
+                `${spaceId} is not transferring to a machine the caller acts for`,
+            );
         }
 
         return record;
@@ -417,17 +461,19 @@ export const SourceHandoff = {
             readonly recipient: string;
         },
     ): Promise<{ readonly digest: Digest | null }> {
-        // refuse a resource the space keeps no record of
+        // refuse a resource without a record in the space
         const found = await providers.find(context, input.spaceId, input.resourceId);
         if (found === undefined) {
-            throw new CallError("NOT_FOUND", {
-                message: `${input.spaceId} has no resource ${input.resourceId}`,
-            });
+            throw StackError.of(
+                "RESOURCE_NOT_FOUND",
+                `${input.spaceId} has no resource ${input.resourceId}`,
+            );
         }
 
         // request the snapshot once as the space, else answer the digest of the requested one
         const [existing] = await context.read(snapshot.table).findMany({
             where: {
+                spaceId: input.spaceId,
                 resourceId: input.resourceId,
                 recipient: input.recipient,
             },
@@ -444,13 +490,47 @@ export const SourceHandoff = {
         return { digest: existing.digest };
     },
 
+    /** Wait until a requested snapshot of a space's resource is taken, answering its digest. */
+    async taken(
+        database: DatabaseConnection,
+        input: {
+            readonly spaceId: Identifier<"space">;
+            readonly resourceId: ResourceId;
+            readonly recipient: string;
+        },
+        signal: AbortSignal,
+    ): Promise<Digest> {
+        // read the requested snapshot after each commit to the snapshots until it has a digest
+        const read = async () => {
+            const [row] = await Snapshot.live(database)
+                .read(snapshot.table)
+                .findMany({
+                    where: {
+                        spaceId: input.spaceId,
+                        resourceId: input.resourceId,
+                        recipient: input.recipient,
+                    },
+                });
+            if (row === undefined) {
+                throw StackError.of(
+                    "SNAPSHOT_NOT_REQUESTED",
+                    `${input.spaceId} has no snapshot of ${input.resourceId} requested for the recipient`,
+                );
+            }
+
+            return row.digest;
+        };
+        await database.log.until(async () => (await read()) !== null, signal);
+        signal.throwIfAborted();
+
+        return present(await read(), `the snapshot of ${input.resourceId}`);
+    },
+
     /** Require a space fenced against writes. */
     async requireFenced(database: DatabaseConnection, spaceId: Identifier<"space">): Promise<void> {
         const chain = await Scope.chain(Snapshot.live(database), spaceId);
         if (Scope.fenced(chain) === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `${spaceId} is not fenced yet`,
-            });
+            throw StackError.of("FENCE_REQUIRED", `${spaceId} is not fenced yet`);
         }
     },
 };

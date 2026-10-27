@@ -2,7 +2,7 @@ import { placement } from "@destack/account/object";
 import { identityKey } from "@destack/account/identity";
 import { canonicalize, Digest, type Identifier } from "@destack/schema";
 import { accessInvitation, decisionTables } from "@destack/access";
-import { call, journal, storeTables } from "@destack/object";
+import { call, journal, SYSTEM_TABLES } from "@destack/object";
 import {
     and,
     type DatabaseConnection,
@@ -16,13 +16,13 @@ import {
     type Transaction,
 } from "@destack/db";
 import { Recipient } from "@destack/identity";
-import { CallError } from "@destack/object";
 import { Feed, Replica, replica, replicaPosition, Scope } from "@destack/sync";
 import { type Fence, restore, snapshot, transfer } from "../../object/index.ts";
 import type { Handoff } from "./handoff.ts";
-import type { Clock } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
+import { StackError } from "../../error/index.ts";
 
-/** The rows one digest page reads: 5000 rows of about 500 B keep a page near 2.5 MB. */
+/** The rows one digest page reads: 5000 rows of about 500 B give a page near 2.5 MB. */
 const DIGEST_PAGE_ROWS = 5000;
 
 /** The tables outside a replica's digest. */
@@ -36,9 +36,11 @@ const UNDIGESTED_TABLES: ReadonlySet<Table> = new Set([
 /** The name of the replicas a transfer's target follows its source's rows through. */
 const TRANSFER_REPLICA = "transfer";
 
-/** The tables a machine keeps for itself. */
+/** The tables a machine stores for itself. */
 const MACHINE_TABLES: ReadonlySet<Table> = new Set([
-    ...storeTables.filter((table) => !decisionTables.includes(table) && table !== accessInvitation),
+    ...SYSTEM_TABLES.filter(
+        (table) => !decisionTables.includes(table) && table !== accessInvitation,
+    ),
     snapshot.table,
     restore.table,
     placement.table,
@@ -63,7 +65,7 @@ export class SpaceReplica {
         spaceId: Identifier<"space">,
         beside: readonly Table[],
     ): Promise<SpaceReplica> {
-        // take the tables the database owns with the space's rows, and those beside it
+        // take the tables of the database and the given ones that have the space's rows
         const tables = [...database.tables, ...beside].filter((table) => {
             const scope = table[TABLE].columns["scope"];
 
@@ -76,7 +78,7 @@ export class SpaceReplica {
             );
         });
 
-        // move the transfers ahead of the rows referencing them where the database keeps them
+        // move the transfers ahead of the rows referencing them when the database has them
         const ordered = database.tables.includes(transfer.table)
             ? [transfer.table, ...tables]
             : tables;
@@ -94,7 +96,7 @@ export class SpaceReplica {
         readonly scopes: readonly string[];
         readonly tables: readonly Table[];
     }) {
-        // keep the database, the space and the tables with its subtree's rows
+        // store the database, the space and the tables with its subtree's rows
         this.database = options.database;
         this.spaceId = options.spaceId;
         this.tables = options.tables;
@@ -117,11 +119,9 @@ export class SpaceReplica {
         });
     }
 
-    /** Follow the space's rows and the replica's registration and position at a clock. */
-    feed(clock: Clock): Feed {
-        return new Feed(this.database, [...this.replica.tables, replica, replicaPosition], {
-            clock,
-        });
+    /** Follow the space's rows and the replica's registration and position. */
+    feed(): Feed {
+        return new Feed(this.database, [...this.replica.tables, replica, replicaPosition]);
     }
 
     /** Apply the source's capture of every column of the space's rows. */
@@ -130,39 +130,40 @@ export class SpaceReplica {
         fenced: Fence,
         recipient: Recipient,
         open: (table: Table, row: Row) => Promise<Row>,
-        clock: Clock,
     ): Promise<void> {
         // read the source's capture and apply it
         const pages = source.capture({ spaceId: this.spaceId, recipient: recipient.key });
         let isComplete = false;
-        for await (const page of this.replica.apply(this.database, pages, { open, clock })) {
+        for await (const page of this.replica.apply(this.database, pages, { open })) {
             isComplete = page.complete;
         }
 
         // refuse a capture that stopped before its end
         if (!isComplete) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `the capture of ${this.spaceId} stopped before its end`,
-            });
+            throw StackError.of(
+                "CAPTURE_STOPPED",
+                `the capture of ${this.spaceId} stopped before its end`,
+            );
         }
 
         // verify the rows
         const digest = await SpaceReplica.digest(this.database, this.digestTables(), this.scopes);
         if (digest !== fenced.digest) {
-            throw new CallError("CONFLICT", {
-                message: `the replica of ${this.spaceId} differs from its fenced source`,
-            });
+            throw StackError.of(
+                "REPLICA_DIFFERS",
+                `the replica of ${this.spaceId} differs from its fenced source`,
+            );
         }
     }
 
-    /** Own the replicated rows unless owned already. */
+    /** Promote the replicated rows unless already promoted. */
     async promote(transaction: Transaction): Promise<void> {
         if (await this.replica.isRecorded(transaction.view())) {
             await this.replica.promote(transaction);
         }
     }
 
-    /** Rewrite a row a takeover owns outside methods: a moved resource's, or its own restore. */
+    /** Rewrite a row of a takeover outside methods: a moved resource's, or its own restore. */
     async rewrite<Rewritten extends Table>(
         transaction: Transaction,
         table: Rewritten,
@@ -188,7 +189,7 @@ export class SpaceReplica {
         );
     }
 
-    /** List the tables the digest covers: those keeping the space's rows alike on both sides. */
+    /** List the tables the digest covers: those that store the space's rows alike on both sides. */
     digestTables(): Table[] {
         return this.tables.filter((table) => !UNDIGESTED_TABLES.has(table));
     }
@@ -198,8 +199,9 @@ export class SpaceReplica {
         database: DatabaseConnection,
         tables: readonly Table[],
         scopes: readonly string[],
-    ): Promise<string> {
+    ): Promise<Digest> {
         // digest each table's rows of the subtree a page at a time and seek past the last key read
+        const { crypto } = database.state.environment;
         const pages: string[] = [];
         for (const table of tables) {
             const order = Order.complete([], table);
@@ -215,14 +217,16 @@ export class SpaceReplica {
                     .limit(DIGEST_PAGE_ROWS);
                 last = rows.length === DIGEST_PAGE_ROWS ? rows.at(-1) : undefined;
 
-                // keep the digest of every column of a page with rows
+                // add the digest of every column of a page with rows
                 if (rows.length > 0) {
                     const values = rows.map((row) => table[TABLE].encode(row));
-                    pages.push(await Digest.of(canonicalize([table[TABLE].sqlName, values])));
+                    pages.push(
+                        await Digest.of(canonicalize([table[TABLE].sqlName, values]), crypto),
+                    );
                 }
             } while (last !== undefined);
         }
 
-        return Digest.of(pages.join(""));
+        return Digest.of(pages.join(""), crypto);
     }
 }
