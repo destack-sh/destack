@@ -17,18 +17,20 @@ for (const channel of ["", "-dev"]) {
         source.replace(rectangle, '<rect width="32" height="32" rx="7"/>'),
     );
 
-    // preserve existing rounded rasters; the release icon tool owns those exports
-    for (const size of [180, 256, 512, 1024]) {
-        const output = `${name}${size === 1024 ? "" : `-${size}`}.png`;
-        execFileSync("rsvg-convert", [
-            "-w",
-            String(size),
-            "-h",
-            String(size),
-            "-o",
-            output,
-            `${name}.svg`,
-        ]);
+    // render the square and rounded icons at each size
+    for (const variant of [name, `${name}-rounded`]) {
+        for (const size of [180, 256, 512, 1024]) {
+            const output = `${variant}${size === 1024 ? "" : `-${size}`}.png`;
+            execFileSync("rsvg-convert", [
+                "-w",
+                String(size),
+                "-h",
+                String(size),
+                "-o",
+                output,
+                `${variant}.svg`,
+            ]);
+        }
     }
 }
 

@@ -9,7 +9,7 @@
     </mask>
   </defs>
   <g clip-path="url(#tile)">
-    <rect width="32" height="32" fill="#11293b"/>
+    <rect width="32" height="32" fill="#081723"/>
     <circle cx="16.00" cy="1.60" r="0.5" fill="#f1eadb" opacity="0.85"/><circle cx="23.10" cy="3.70" r="0.26" fill="#f1eadb" opacity="0.4"/><circle cx="29.56" cy="8.17" r="0.32" fill="#f1eadb" opacity="0.55"/><circle cx="29.85" cy="16.00" r="0.28" fill="#f1eadb" opacity="0.45"/><circle cx="28.02" cy="22.94" r="0.24" fill="#f1eadb" opacity="0.35"/><circle cx="23.99" cy="29.84" r="0.34" fill="#f1eadb" opacity="0.6"/><circle cx="16.00" cy="29.75" r="0.27" fill="#f1eadb" opacity="0.42"/><circle cx="7.77" cy="30.26" r="0.4" fill="#f1eadb" opacity="0.7"/><circle cx="3.84" cy="23.02" r="0.25" fill="#f1eadb" opacity="0.38"/><circle cx="2.00" cy="16.00" r="0.3" fill="#f1eadb" opacity="0.5"/><circle cx="4.12" cy="9.14" r="0.23" fill="#f1eadb" opacity="0.34"/><circle cx="8.09" cy="2.30" r="0.33" fill="#f1eadb" opacity="0.55"/>
   </g>
   <g transform="translate(1.6 1.6) scale(0.9)">

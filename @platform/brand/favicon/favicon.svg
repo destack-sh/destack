@@ -8,7 +8,7 @@
       <g clip-path="url(#front)"><ellipse cx="16" cy="16" rx="15.2" ry="4.2" transform="rotate(-22 16 16)" fill="none" stroke="#000" stroke-width="6.7"/></g>
     </mask>
   </defs>
-  <rect width="32" height="32" rx="7" fill="#11293b"/>
+  <rect width="32" height="32" rx="7" fill="#081723"/>
   <g clip-path="url(#tile)"><g transform="translate(-1.92 -1.92) scale(1.12)">
     <ellipse cx="16" cy="16" rx="15.2" ry="4.2" transform="rotate(-22 16 16)" fill="none" stroke="#f1eadb" stroke-width="3.0"/>
     <g mask="url(#gap)">
