@@ -34,7 +34,7 @@ export function Footer() {
                             <span>/diːˈstak/</span>
                             <i>verb</i>
                         </p>
-                        <p {...style.attrs(styles.definition)}>to reconquer your software</p>
+                        <p {...style.attrs(styles.definition)}>to program the universe</p>
                     </div>
 
                     {/* the site's menu, and the community off the site */}
