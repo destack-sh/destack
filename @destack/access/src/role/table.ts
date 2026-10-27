@@ -70,6 +70,8 @@ export const accessRolePermission = defineTable(
         type: text("type").notNull(),
         /** The permission name within the object type. */
         name: text("name").notNull(),
+        /** The approvals each use waits for, none to run it at once. */
+        approvals: integer("approvals").notNull().default(0),
     },
     {
         log: { retention: "history" },

@@ -1,12 +1,12 @@
 import { PermissionReference } from "../declare/policy.ts";
-import { Role } from "./role.ts";
+import { Role, type RolePermission } from "./role.ts";
 
 /** What a role grants: all but reserved permissions, or those of it and its included roles. */
 export interface RoleGrant {
     /** Whether the role is the owner role or includes it, granting all but reserved permissions. */
     readonly isOwner: boolean;
-    /** The permissions the role grants itself or through the roles it includes. */
-    readonly permissions: readonly PermissionReference[];
+    /** The permissions the role and the roles it includes grant, at their approvals. */
+    readonly permissions: readonly RolePermission[];
 }
 
 /** Role grants, closed over the roles each role includes. */
@@ -28,7 +28,7 @@ export const RoleGrant = {
         // gather each role's permissions through its inclusions, each role once
         const closure = new Map<string, RoleGrant>();
         for (const role of roles) {
-            const permissions = new Map<string, PermissionReference>();
+            const permissions = new Map<string, RolePermission>();
             const visited = new Set<string>();
             let isOwner = false;
             const pending: string[] = [role.id];
@@ -40,10 +40,14 @@ export const RoleGrant = {
                 }
                 visited.add(next.id);
 
-                // take its permissions and follow its inclusions
+                // take its permissions at their fewest approvals and follow its inclusions
                 isOwner ||= next.id === Role.OWNER;
                 for (const permission of next.permissions) {
-                    permissions.set(PermissionReference.key(permission), permission);
+                    const key = PermissionReference.key(permission);
+                    const known = permissions.get(key);
+                    if (known === undefined || (permission.approvals ?? 0) < (known.approvals ?? 0)) {
+                        permissions.set(key, permission);
+                    }
                 }
                 pending.push(...(included.get(next.id) ?? []));
             }

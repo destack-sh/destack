@@ -51,7 +51,7 @@ A `Caller` is who calls, a `Credential` is what its request presented, a verifie
 const { caller, credential } = await verifier.verify(token, now);
 const context = AccessContext.of(caller, now, { credential, linkSecrets });
 const own = AccessContext.of(Caller.of(space), now);
-const applying = AccessContext.of(caller, now, { approval: changeId }); // may use approval-mode permissions
+const applying = AccessContext.of(caller, now, { approvers }); // lifts grants their delegator approved, roles by others' count
 AccessContext.assurance(context);
 await Grant.permissions(snapshot, applying); // what its chain's live grants give it, read from their rows
 Caller.principal(caller);
@@ -117,6 +117,8 @@ const role = await Role.create(
     authorization,
 );
 await Role.assign(space, role.id, carol, authorization);
+const merging = { ...branch.permission("merge"), approvals: 2 }; // a use waits for two others' approvals
+await authorizer.requiredApprovals(snapshot, merging, access, allows); // 2 for a denied caller its roles give it on approvals
 await Relationship.grant({ object: space, role: Role.OWNER, subject: bob }, authorization);
 ```
 

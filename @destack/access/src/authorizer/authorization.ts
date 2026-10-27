@@ -19,7 +19,7 @@ import { accessRelationship } from "../relationship/table.ts";
 
 import { accessInvitation } from "../invitation/table.ts";
 import { Manager } from "../manager/manager.ts";
-import { Role } from "../role/role.ts";
+import { Role, type RolePermission } from "../role/role.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 
 import type { Access } from "./access.ts";
@@ -417,10 +417,11 @@ export class Authorization {
         await this.#mark(object, { fencedAt: null, movedTo: null });
     }
 
-    /** Require permissions to change roles in a local scope, from fresh caller access. */
+    /** Require a role administration permission and the role's permissions, in a local scope. */
     async authorizeRole(
         scope: ObjectReference,
-        permissions: readonly PermissionReference[],
+        administration: PermissionReference,
+        permissions: readonly RolePermission[],
         record?: Select<typeof accessRole>,
     ): Promise<void> {
         // write only the roles of a homed scope, and refuse a managed role outside its declaration until detached
@@ -429,9 +430,29 @@ export class Authorization {
             Manager.requireChangeable(record, this.manager, "role");
         }
 
-        // require every permission in the scope
+        // require the administration with the call's approvals, and each granted permission as held
         const access = await this.authorizer.resolve(this.snapshot, scope.id, this.context());
-        await this.authorizer.require(this.snapshot, permissions, scope, access);
+        await this.authorizer.require(this.snapshot, [administration], scope, access);
+        await this.#requireHeld(scope.id, permissions, scope);
+    }
+
+    /** Require the caller to hold each permission at its approvals, apart from any change. */
+    async #requireHeld(
+        scope: string,
+        permissions: readonly RolePermission[],
+        object: ObjectReference,
+    ): Promise<void> {
+        const { approvers: _approvers, ...unapproved } = this.context();
+        for (const [approvals, held] of Map.groupBy(permissions, (each) => each.approvals ?? 0)) {
+            const access = await this.authorizer.resolve(
+                this.snapshot,
+                scope,
+                unapproved,
+                undefined,
+                approvals,
+            );
+            await this.authorizer.require(this.snapshot, held, object, access);
+        }
     }
 
     /** Refuse a subject set outside an object's scope chain, unless its rows live at this home. */
@@ -465,17 +486,15 @@ export class Authorization {
         // refuse a subject set outside the object's scope chain, unless its rows live at this home
         const chain = access.scopes.map((link) => link.id);
         await this.#requireInChain(request.object, request.subject, chain);
-        const required: PermissionReference[] = [
-            this.#grantPermission(request.object, Authorization.#relation(request)),
-        ];
+        const relation = this.#grantPermission(request.object, Authorization.#relation(request));
+        await this.authorizer.require(this.snapshot, [relation], request.object, access);
 
-        // prevent escalation: bind only scope chain roles with permissions the caller has
+        // prevent escalation: bind only scope chain roles whose permissions the caller holds at their approvals
         const grants = role === undefined ? undefined : access.grants.get(role);
         if (role !== undefined && grants === undefined) {
             throw AccessError.of("ROLE_NOT_FOUND", "role not found");
         }
-        required.push(...(grants?.permissions ?? []));
-        await this.authorizer.require(this.snapshot, required, request.object, access);
+        await this.#requireHeld(scope, grants?.permissions ?? [], request.object);
 
         // require ownership to bind a role granting everything
         if (

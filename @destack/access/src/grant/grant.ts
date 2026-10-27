@@ -50,13 +50,18 @@ export const Grant = {
         for (const { grant, delegator, delegate } of Caller.links(context)) {
             const stored = await Grant.read(reader, grant.id);
             const live = Grant.require(stored, grant.id, { delegator, delegate }, context.now);
-            given = GrantPermission.intersect(given, live.permissions);
+
+            // use a link's approval-mode permissions once its delegator approved the call's change
+            const isApproved = (context.approvers ?? []).some((each) =>
+                Subject.same(each, delegator),
+            );
+            const usable = isApproved
+                ? live.permissions.map(({ mode: _mode, ...entry }) => entry)
+                : live.permissions;
+            given = GrantPermission.intersect(given, usable);
         }
 
-        // use approval-mode permissions in a call applying an approved change
-        return context.approval === undefined || given === undefined
-            ? given
-            : given.map(({ mode: _mode, ...entry }) => entry);
+        return given;
     },
 
     /** Find a delegator's one grant to a delegate unexpired at a time, absent without one. */

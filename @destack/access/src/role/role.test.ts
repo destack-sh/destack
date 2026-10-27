@@ -1,5 +1,5 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Scope } from "@destack/sync";
+import { Scope, type Subject } from "@destack/sync";
 import { Transaction, Snapshot, and, asc, eq, ne } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { present, schema } from "@destack/schema";
@@ -85,7 +85,7 @@ async function openRoleFixture() {
     // define roles granting permissions of the fixture's types
     const defineRole = async (
         number: number,
-        permissions: { packageId: PackageId; type: string; name: string }[],
+        permissions: { packageId: PackageId; type: string; name: string; approvals?: number }[],
         scope = "personal",
     ) => {
         const id = schema
@@ -194,6 +194,51 @@ test("decide a permission of another type on a node from a role bound on or abov
         elsewhere: await decide("d"),
         expired: await decide("b", { ...carol, now: 2000 }),
     }).toEqual({ bound: [true, true, true], elsewhere: false, expired: false });
+});
+
+test("give a permission a role grants on approval only to a call whose change gathered as many approvals from others holding it, and answer how many it needs", async () => {
+    const { database, query, defineRole, relate } = await openRoleFixture();
+    const reading = node.permission("read");
+    const target = node.reference("personal", "b");
+    const erin = principal.user.reference("universe", "erin");
+    const frank = principal.user.reference("universe", "frank");
+    const gina = principal.user.reference("universe", "gina");
+    const decide = async (approvers: readonly Subject[]) => {
+        const snapshot = Snapshot.live(database);
+        const access = await query.resolve(snapshot, "personal", { ...carol, approvers });
+
+        return (await query.check(snapshot, reading, target, access)).isAllowed;
+    };
+
+    // bind a role reading the subtree under "a" once two approvals gathered, and let erin and frank read everywhere
+    const reviewed = await defineRole(1, [{ ...reading, approvals: 2 }]);
+    await relate({
+        object: node.reference("personal", "a"),
+        role: reviewed,
+        subject: carolMembership,
+    });
+    const reader = await defineRole(2, [reading], Scope.universe.id);
+    for (const subject of [erin, frank]) {
+        await relate({ object: Scope.universe, role: reader, subject });
+    }
+
+    // refuse the read at once, with one approval, with carol's own or gina's, who cannot read, as the second; allow it with two readers
+    const snapshot = Snapshot.live(database);
+    const access = await query.resolve(snapshot, "personal", carol);
+    const needed = await query.requiredApprovals(
+        snapshot,
+        reading,
+        access,
+        async (approved) => (await query.check(snapshot, reading, target, approved)).isAllowed,
+    );
+    expect({
+        direct: await decide([]),
+        one: await decide([erin]),
+        own: await decide([erin, carol.subject]),
+        unqualified: await decide([erin, gina]),
+        two: await decide([erin, frank]),
+        needed,
+    }).toEqual({ direct: false, one: false, own: false, unqualified: false, two: true, needed: 2 });
 });
 
 test("find a scope's role by name, and read an object's relationships through a relation, a role or one subject", async () => {
@@ -379,7 +424,7 @@ test("decide anew once a transaction adds the caller to a group or to a set's fi
     expect(decisions).toEqual([false, false, true, true]);
 });
 
-test("bind only roles whose permissions the granting caller has", async () => {
+test("bind only roles whose permissions the granting caller has at their approvals", async () => {
     const { database, query, alice, defineRole, environment } = await openRoleFixture();
 
     // refuse binding a role that does not exist
@@ -435,6 +480,28 @@ test("bind only roles whose permissions the granting caller has", async () => {
                         {
                             object: node.reference("personal", "a"),
                             role: escalating,
+                            subject: carolMembership,
+                        },
+                        authorization,
+                    ),
+            ),
+        ),
+    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: edit"]);
+
+    // reject binding a role granting that permission on approvals too
+    const gated = await defineRole(3, [{ ...cell.permission("edit"), approvals: 2 }]);
+    expect(
+        await refusal(
+            Authorization.run(
+                query,
+                database,
+                () => alice,
+                environment,
+                (authorization) =>
+                    Relationship.grant(
+                        {
+                            object: node.reference("personal", "a"),
+                            role: gated,
                             subject: carolMembership,
                         },
                         authorization,
@@ -1128,5 +1195,78 @@ test("bind a scope's owner at the home of the scope keeping the binding, and ref
             "cannot write the access of space personal here: it lives at the home of universe",
         ],
         undefined,
+    ]);
+});
+
+test("define a role giving a permission on approvals only at as many as the definer needs, apart from the change its call applies", async () => {
+    const { database, home, place, bob, defineRole, relate, environment } =
+        await openSpaceWithOwner();
+
+    // let bob define roles anywhere in the universe, and read nodes once two others approved
+    const reviewed = await defineRole(
+        3,
+        [role.permission("create"), { ...node.permission("read"), approvals: 2 }],
+        Scope.universe.id,
+    );
+    await relate({
+        object: Scope.universe,
+        role: reviewed,
+        subject: bob.subject,
+    });
+
+    // define roles reading nodes as bob, at two or three approvals, at none, and at none through a twice approved change
+    const erin = principal.user.reference("universe", "erin");
+    const frank = principal.user.reference("universe", "frank");
+    const define = (name: string, approvals: number, approvers: readonly Subject[] = []) =>
+        Authorization.run(
+            home,
+            database,
+            () => ({ ...bob, approvers }),
+            environment,
+            async (authorization) =>
+                (
+                    await Role.create(
+                        place,
+                        {
+                            name,
+                            description: "Reads nodes",
+                            permissions: [{ ...node.permission("read"), approvals }],
+                        },
+                        authorization,
+                    )
+                ).name,
+        );
+    expect([
+        await define("two", 2),
+        await define("three", 3),
+        await refusal(define("none", 0)),
+        await refusal(define("approved", 0, [erin, frank])),
+        await refusal(
+            Authorization.run(
+                home,
+                database,
+                () => bob,
+                environment,
+                (authorization) =>
+                    Role.create(
+                        place,
+                        {
+                            name: "twice",
+                            description: "Reads nodes twice",
+                            permissions: [
+                                { ...node.permission("read"), approvals: 2 },
+                                { ...node.permission("read"), approvals: 3 },
+                            ],
+                        },
+                        authorization,
+                    ),
+            ),
+        ),
+    ]).toEqual([
+        "two",
+        "three",
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
+        ["BAD_REQUEST", "PERMISSION_REPEATED", "a role grants node.read once"],
     ]);
 });

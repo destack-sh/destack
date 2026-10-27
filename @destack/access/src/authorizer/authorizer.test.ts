@@ -805,7 +805,7 @@ databaseTest(
 );
 
 databaseTest(
-    "give a chain what every live grant of it gives, approval-mode permissions only to a call applying an approved change",
+    "give a chain what every live grant of it gives, approval-mode permissions only to a call whose change its delegator approved",
     async ({ fixture }) => {
         // let alice's agent edit a and b, share once approved, and its sub-agent edit b and c
         const { database, alice, environment } = fixture;
@@ -829,7 +829,7 @@ databaseTest(
             [editing("b"), editing("c")],
             1,
         );
-        const caller = (approval?: string) =>
+        const caller = (approvers?: readonly Subject[]) =>
             AccessContext.of(
                 {
                     ...Caller.of(alice.subject),
@@ -840,26 +840,30 @@ databaseTest(
                     ],
                 },
                 1000,
-                { approval },
+                { approvers },
             );
-        const agentAlone = AccessContext.of(
-            {
-                ...Caller.of(alice.subject),
-                actors: [agent],
-                grants: [{ id: toAgent, scope: alice.subject.id }],
-            },
-            1000,
-            { approval: "change-request-019f5530-8000-7000-8000-0000000000c5" },
-        );
+        const agentAlone = (approvers: readonly Subject[]) =>
+            AccessContext.of(
+                {
+                    ...Caller.of(alice.subject),
+                    actors: [agent],
+                    grants: [{ id: toAgent, scope: alice.subject.id }],
+                },
+                1000,
+                { approvers },
+            );
+        const bob = principal.user.reference("universe", "bob");
 
         // give the sub-agent what both give, and the agent its sharing once applying an approved change
         const snapshot = Snapshot.live(database);
         expect([
             await Grant.permissions(snapshot, caller()),
-            await Grant.permissions(snapshot, agentAlone),
+            await Grant.permissions(snapshot, agentAlone([alice.subject])),
+            await Grant.permissions(snapshot, agentAlone([bob])),
         ]).toEqual([
             [editing("b")],
             [editing("a"), editing("b"), { ...node.permission("share"), scope: "personal" }],
+            [editing("a"), editing("b"), sharing],
         ]);
     },
 );

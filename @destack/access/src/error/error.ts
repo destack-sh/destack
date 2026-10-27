@@ -13,6 +13,7 @@ export const AccessError = defineErrorFamily(import.meta.destack.package, {
     ACCESS_UNRESOLVED: { code: "INTERNAL_SERVER_ERROR" },
     TARGET_OUTSIDE_SCOPE: { code: "INTERNAL_SERVER_ERROR" },
     PERMISSION_TYPE_MISMATCH: { code: "BAD_REQUEST" },
+    PERMISSION_REPEATED: { code: "BAD_REQUEST" },
     SCOPE_REQUIRED: { code: "BAD_REQUEST" },
 
     // authentication

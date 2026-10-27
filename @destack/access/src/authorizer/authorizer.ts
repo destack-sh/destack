@@ -1305,8 +1305,9 @@ export class Authorizer {
         scope: string,
         context: AccessContext,
         links?: readonly ScopeLink[],
+        assumed?: number,
     ): Promise<Access> {
-        return Access.resolve(snapshot, scope, context, this, links);
+        return Access.resolve(snapshot, scope, context, this, links, assumed);
     }
 
     /** Restrict a table's rows to the caller's permitted ones, before any sort, count or page. */
@@ -1435,6 +1436,25 @@ export class Authorizer {
                     assurance: level,
                     ...(elevation === undefined ? {} : { maxAge: elevation.maxAge }),
                 };
+            }
+        }
+
+        return undefined;
+    }
+
+    /** Read the fewest approvals letting a denied caller use a permission, absent for none. */
+    async requiredApprovals(
+        snapshot: Snapshot,
+        permission: PermissionReference,
+        access: Access,
+        allows: (approved: Access) => Promise<boolean>,
+    ): Promise<number | undefined> {
+        // decide again at each count the scope's roles give the permission at, fewest first
+        for (const approvals of access.waiting(permission)) {
+            const { scope, context } = access;
+            const approved = await this.resolve(snapshot, scope, context, undefined, approvals);
+            if (await allows(approved)) {
+                return approvals;
             }
         }
 

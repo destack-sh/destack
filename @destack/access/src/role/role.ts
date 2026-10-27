@@ -10,6 +10,39 @@ import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission, OWNER_ROLE } from "./table.ts";
 
+/** The most approvals a role's permission waits for: ten, as GitHub rulesets allow. */
+const MAX_APPROVALS = 10;
+
+/** The schema of a role permission: a permission, and the approvals its uses wait for. */
+const rolePermissionSchema = PermissionReference.extend({
+    /** The approvals each use waits for, none to run it at once. */
+    approvals: schema.number().int().min(0).max(MAX_APPROVALS).exactOptional(),
+});
+/** A permission a role grants, at once or once a change gathers some approvals. */
+export type RolePermission = schema.Infer<typeof rolePermissionSchema>;
+
+/** A permission a role grants, at once or once a change gathers some approvals. */
+export const RolePermission = Object.assign(rolePermissionSchema, {
+    /** Refuse a list granting a permission twice, at once and on approvals or at two counts. */
+    requireDistinct(permissions: readonly RolePermission[]): void {
+        const keys = permissions.map((each) => PermissionReference.key(each));
+        const repeated = permissions.find(
+            (each, index) => keys.indexOf(keys[index] ?? "") !== index,
+        );
+        if (repeated !== undefined) {
+            throw AccessError.of(
+                "PERMISSION_REPEATED",
+                `a role grants ${repeated.type}.${repeated.name} once`,
+            );
+        }
+    },
+
+    /** Key a role permission by its permission and the approvals its uses wait for. */
+    key(permission: RolePermission): string {
+        return `${PermissionReference.key(permission)}@${permission.approvals ?? 0}`;
+    },
+});
+
 /** The schema of a role: a named set of permissions a scope defines. */
 const roleSchema = schema.object({
     /** The role identifier. */
@@ -21,7 +54,7 @@ const roleSchema = schema.object({
     /** The purpose shown when granting the role. */
     description: schema.string(),
     /** The permissions the role grants itself. */
-    permissions: schema.array(PermissionReference),
+    permissions: schema.array(RolePermission),
     /** The revision that conditional changes compare against. */
     revision: schema.number().int().positive(),
 });
@@ -34,8 +67,8 @@ export const RoleRequest = schema.object({
     name: schema.string().min(1).max(200),
     /** The purpose shown when granting the role. */
     description: schema.string().max(1000),
-    /** The permissions the role grants. */
-    permissions: schema.array(PermissionReference),
+    /** The permissions the role grants, each once. */
+    permissions: schema.array(RolePermission),
 });
 /** The name, purpose and permissions of a role to define or change. */
 export type RoleRequest = schema.Infer<typeof RoleRequest>;
@@ -70,13 +103,13 @@ export const Role = {
     async permissions(
         transaction: Transaction,
         roleId: Select<typeof accessRole>["id"],
-    ): Promise<PermissionReference[]> {
+    ): Promise<RolePermission[]> {
         const rows = await transaction.read(accessRolePermission).findMany({
             where: { roleId },
             orderBy: { packageId: "asc", type: "asc", name: "asc" },
         });
 
-        return rows.map((row) => Role.reference(row));
+        return rows.map((row) => Role.permission(row));
     },
 
     /** Define a role with permissions and manager under a name, absent if the name is taken. */
@@ -88,7 +121,8 @@ export const Role = {
         manager: Manager | null,
         environment: UuidEnvironment,
     ): Promise<Identifier<"role"> | undefined> {
-        // refuse a name another role of the scope has
+        // refuse a permission granted twice, and a name another role of the scope has
+        RolePermission.requireDistinct(request.permissions);
         const holding = await transaction
             .read(accessRole)
             .findMany({ where: { scope, name: request.name }, limit: 1 });
@@ -121,7 +155,7 @@ export const Role = {
         transaction: Transaction,
         roleId: Select<typeof accessRole>["id"],
         scope: string,
-        granted: readonly PermissionReference[],
+        granted: readonly RolePermission[],
         environment: UuidEnvironment,
     ): Promise<void> {
         await transaction.write(
@@ -135,6 +169,7 @@ export const Role = {
                     packageId: permission.packageId,
                     type: permission.type,
                     name: permission.name,
+                    approvals: permission.approvals ?? 0,
                 }),
             })),
         );
@@ -145,34 +180,33 @@ export const Role = {
         transaction: Transaction,
         roleId: Select<typeof accessRole>["id"],
         scope: string,
-        granted: readonly PermissionReference[],
+        granted: readonly RolePermission[],
         environment: UuidEnvironment,
     ): Promise<void> {
-        // read the permissions the role grants
+        // refuse a permission granted twice, then read the permissions the role grants
+        RolePermission.requireDistinct(granted);
         const existing = await transaction
             .read(accessRolePermission)
             .findMany({ where: { roleId } });
-        const declared = new Set(granted.map((permission) => PermissionReference.key(permission)));
-        const current = new Set(existing.map((permission) => PermissionReference.key(permission)));
+        const declared = new Set(granted.map((permission) => RolePermission.key(permission)));
+        const current = new Set(existing.map((row) => RolePermission.key(Role.permission(row))));
 
         // remove the ones no longer declared and add the new ones
         await transaction.write(
             ...existing
-                .filter((permission) => !declared.has(PermissionReference.key(permission)))
+                .filter((row) => !declared.has(RolePermission.key(Role.permission(row))))
                 .map((permission) => ({
                     table: accessRolePermission,
                     before: permission,
                     after: null,
                 })),
         );
-        const added = granted.filter(
-            (permission) => !current.has(PermissionReference.key(permission)),
-        );
+        const added = granted.filter((permission) => !current.has(RolePermission.key(permission)));
         await Role.permit(transaction, roleId, scope, added, environment);
     },
 
     /** Describe a role row and its permissions. */
-    describe(record: Select<typeof accessRole>, granted: readonly PermissionReference[]): Role {
+    describe(record: Select<typeof accessRole>, granted: readonly RolePermission[]): Role {
         return {
             id: record.id,
             scope: record.scope,
@@ -285,9 +319,11 @@ export const Role = {
         });
     },
 
-    /** Read a permission reference from a role permission row. */
-    reference(row: Select<typeof accessRolePermission>): PermissionReference {
-        return { packageId: row.packageId, type: row.type, name: row.name };
+    /** Read a role permission from its row, its approvals only when its uses wait for some. */
+    permission(row: Select<typeof accessRolePermission>): RolePermission {
+        const { packageId, type, name, approvals } = row;
+
+        return approvals === 0 ? { packageId, type, name } : { packageId, type, name, approvals };
     },
 
     /** Define a role under a free name, granting only permissions the caller has there. */
@@ -298,10 +334,11 @@ export const Role = {
     ): Promise<Role> {
         return authorization.transaction.savepoint(async () => {
             // require permission to define roles and every permission the role grants
-            await authorization.authorizeRole(scope, [
+            await authorization.authorizeRole(
+                scope,
                 policies.role.permission("create"),
-                ...request.permissions,
-            ]);
+                request.permissions,
+            );
 
             // define the role under a name free in the scope
             const id = await Role.define(
@@ -337,7 +374,8 @@ export const Role = {
             }
             await authorization.authorizeRole(
                 scope,
-                [policies.role.permission("update"), ...(changes.permissions ?? [])],
+                policies.role.permission("update"),
+                changes.permissions ?? [],
                 record,
             );
 
@@ -387,7 +425,7 @@ export const Role = {
             if (record.revision !== revision) {
                 throw AccessError.of("REVISION_STALE", "role revision has changed");
             }
-            await authorization.authorizeRole(scope, [policies.role.permission("delete")], record);
+            await authorization.authorizeRole(scope, policies.role.permission("delete"), [], record);
 
             // refuse deleting a role that is still bound or included
             const bindings = await authorization.transaction.read(accessRelationship).findMany({
@@ -448,7 +486,8 @@ export const Role = {
             // accept only a role under the same manager, and leave a matching role as it is
             await authorization.authorizeRole(
                 scope,
-                [policies.role.permission("update"), ...request.permissions],
+                policies.role.permission("update"),
+                request.permissions,
                 existing,
             );
 
@@ -605,12 +644,12 @@ function isBinding(
 
 /** Report whether two lists of permissions grant the same set. */
 function isSamePermissions(
-    left: readonly PermissionReference[],
-    right: readonly PermissionReference[],
+    left: readonly RolePermission[],
+    right: readonly RolePermission[],
 ): boolean {
     // compare the sets of their keys
-    const lefts = new Set(left.map((permission) => PermissionReference.key(permission)));
-    const rights = new Set(right.map((permission) => PermissionReference.key(permission)));
+    const lefts = new Set(left.map((permission) => RolePermission.key(permission)));
+    const rights = new Set(right.map((permission) => RolePermission.key(permission)));
 
     return lefts.size === rights.size && [...lefts].every((key) => rights.has(key));
 }

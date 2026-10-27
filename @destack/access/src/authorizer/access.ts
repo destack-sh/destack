@@ -60,6 +60,12 @@ export class Access {
     readonly #owning: readonly string[];
     /** The roles bound outside the scope chain, each with the only bindings it grants through. */
     readonly #confined: ReadonlyMap<string, ReadonlySet<string>>;
+    /** The approvals the scope's roles give each permission at, beyond the call's, by key. */
+    readonly #waiting: ReadonlyMap<string, readonly number[]>;
+    /** The approvals the decision assumes, as a probe of what a change would lift does. */
+    readonly #assumed: number;
+    /** The access of each approver of the call's change other than its subject and actors. */
+    readonly #approvers: readonly Access[];
     /** The authorizer whose reserved, elevated and administration permissions apply. */
     readonly #authorizer: Authorizer;
     /** The scope and every scope enclosing it, nearest first. */
@@ -76,6 +82,8 @@ export class Access {
             readonly links: readonly ScopeLink[];
             readonly grants: ReadonlyMap<string, RoleGrant>;
             readonly confined: ReadonlyMap<string, ReadonlySet<string>>;
+            readonly assumed: number;
+            readonly approvers: readonly Access[];
             readonly bindings: readonly RoleBinding[];
             readonly until: number | undefined;
         },
@@ -100,25 +108,39 @@ export class Access {
         this.partition = resolved.links[0]?.partition;
         this.until = resolved.until;
 
-        // index the roles by the permissions they grant, apart from the owner roles granting everything
+        // index the roles by the permissions they give, apart from the owner roles granting everything
         const roles = new Map<string, string[]>();
+        const waiting = new Map<string, number[]>();
         const owning: string[] = [];
         for (const [role, grant] of resolved.grants) {
             // list an owner role apart
             if (grant.isOwner) {
                 owning.push(role);
             }
-            // index any other role under each permission it grants
+            // index any other role under each permission it gives now
             else {
                 for (const permission of grant.permissions) {
                     const key = PermissionReference.key(permission);
-                    roles.set(key, [...(roles.get(key) ?? []), role]);
+                    const approved = resolved.approvers.filter((each) => each.holds(permission));
+                    // give it once enough approvers holding it approved, or the probe assumes them
+                    const approvals = permission.approvals ?? 0;
+                    if (approvals <= Math.max(approved.length, resolved.assumed)) {
+                        roles.set(key, [...(roles.get(key) ?? []), role]);
+                    }
+                    // wait for its approvals otherwise
+                    else {
+                        const counts = new Set([...(waiting.get(key) ?? []), approvals]);
+                        waiting.set(key, [...counts].toSorted((left, right) => left - right));
+                    }
                 }
             }
         }
         this.#roles = roles;
         this.#owning = owning;
         this.#confined = resolved.confined;
+        this.#waiting = waiting;
+        this.#assumed = resolved.assumed;
+        this.#approvers = resolved.approvers;
 
         // list each role under its permission keys, a confined role once per binding it grants through
         const entries = (key: string, role: string) => {
@@ -143,6 +165,7 @@ export class Access {
         context: AccessContext,
         authorizer: Authorizer,
         known?: readonly ScopeLink[],
+        assumed = 0,
     ): Promise<Access> {
         // reject invalid request time before reading expiring records
         if (!Number.isFinite(context.now)) {
@@ -178,9 +201,23 @@ export class Access {
             Access.#readRoleRows(snapshot, [...new Set([...chain, Scope.universe.id])], "scope"),
         ]);
 
-        // add the roles bound to the caller outside the chain
+        // add the roles bound to the caller outside the chain, and resolve the change's approvers alone
         const bindings = represented.bindings;
-        const roles = await Access.#readRoles(snapshot, chained, bindings, context);
+        const [roles, approvers] = await Promise.all([
+            Access.#readRoles(snapshot, chained, bindings, context),
+            Promise.all(
+                Access.#independent(context).map(
+                    async (approver) =>
+                        await Access.resolve(
+                            snapshot,
+                            scope,
+                            AccessContext.of(Caller.of(approver), context.now),
+                            authorizer,
+                            links,
+                        ),
+                ),
+            ),
+        ]);
 
         // take the earliest time a subject set, inclusion or credential's elevation changes
         const until = earliest([
@@ -199,6 +236,8 @@ export class Access {
             links,
             grants: roles.grants,
             confined: roles.confined,
+            assumed,
+            approvers,
             bindings,
             until,
         });
@@ -350,6 +389,13 @@ export class Access {
               )
             : { grants: this.grants, confined: this.#confined, until: undefined };
 
+        // resolve the change's approvers in the scope too
+        const approvers = await Promise.all(
+            this.#approvers.map(
+                async (approver) => await approver.#below(snapshot, scope, links, defined),
+            ),
+        );
+
         return new Access(this.#authorizer, {
             scope,
             context: this.context,
@@ -358,6 +404,8 @@ export class Access {
             links: chain,
             grants: roles.grants,
             confined: roles.confined,
+            assumed: this.#assumed,
+            approvers,
             bindings,
             until: earliest([this.until, roles.until, expanded?.until]),
         });
@@ -602,6 +650,24 @@ export class Access {
         return undefined;
     }
 
+    /** List the approvals at which the scope's roles give a permission beyond the call's. */
+    waiting(permission: PermissionReference): readonly number[] {
+        return this.#waiting.get(PermissionReference.key(permission)) ?? [];
+    }
+
+    /** Report whether a role bound on an enclosing scope gives a permission at once. */
+    holds(permission: PermissionReference): boolean {
+        return this.bindings.some(
+            (binding) =>
+                [...this.scopes, Scope.universe].some(
+                    (scope) =>
+                        scope.id === binding.objectId &&
+                        scope.type === binding.objectType &&
+                        scope.packageId === binding.objectPackageId,
+                ) && this.binds({ id: binding.roleId, binding: binding.id, permission }),
+        );
+    }
+
     /** Report whether the caller meets a permission's elevation. */
     elevates(permission: PermissionReference): boolean {
         const elevation = this.#authorizer.elevated.get(PermissionReference.key(permission));
@@ -666,6 +732,16 @@ export class Access {
 
             return origin !== undefined && now - origin.confirmedAt > lag;
         });
+    }
+
+    /** List the approvers of a call's change other than its subject and its actors, each once. */
+    static #independent(context: Pick<AccessContext, "subject" | "actors" | "approvers">): Subject[] {
+        const parties = [context.subject, ...context.actors];
+        const independent = (context.approvers ?? []).filter(
+            (approver) => !parties.some((party) => Subject.same(party, approver)),
+        );
+
+        return [...new Map(independent.map((approver) => [Subject.key(approver), approver])).values()];
     }
 
     /** Read roles by scope or identifier, with their permissions and relationships. */
@@ -746,13 +822,13 @@ export class Access {
         // select the chain's roles and the confined bound roles, with their permissions and relationships
         const rows = [...chained.rows, ...held.rows.filter((role) => confined.has(role.id))];
         const selected = new Set<string>(rows.map((row) => row.id));
-        const permissions = [...chained.permissions, ...held.permissions].filter((row) =>
+        const selectedPermissions = [...chained.permissions, ...held.permissions].filter((row) =>
             selected.has(row.roleId),
         );
         const relationships = [...chained.relationships, ...held.relationships];
 
         // select the current inclusions among those roles
-        const byRole = Map.groupBy(permissions, (row) => row.roleId);
+        const byRole = Map.groupBy(selectedPermissions, (row) => row.roleId);
         const includes = relationships.filter(
             (row) =>
                 row.relation === "includes" &&
@@ -764,13 +840,9 @@ export class Access {
         );
 
         // close the roles over their inclusions
-        const roles = rows.map((row): Pick<Role, "id" | "permissions"> => ({
+        const roles = rows.map((row) => ({
             id: row.id,
-            permissions: (byRole.get(row.id) ?? []).map((granted) => ({
-                packageId: granted.packageId,
-                type: granted.type,
-                name: granted.name,
-            })),
+            permissions: (byRole.get(row.id) ?? []).map((granted) => Role.permission(granted)),
         }));
 
         return {

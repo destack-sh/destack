@@ -304,8 +304,8 @@ export interface AccessContext extends Caller {
     readonly attributes: Readonly<Record<string, Attribute>>;
     /** The request's identifier, for conditions bound to one request. */
     readonly request?: string;
-    /** The approved change the call applies, which lets it use approval-mode grant permissions. */
-    readonly approval?: string;
+    /** The subjects who approved the change the call applies, lifting approval-mode permissions. */
+    readonly approvers?: readonly Subject[];
     /** Trusted time of the decision in UTC epoch milliseconds. */
     readonly now: number;
 }
@@ -323,21 +323,28 @@ export const AccessContext = {
             readonly linkSecrets?: readonly string[];
             /** The request's identifier. */
             readonly request?: string | undefined;
-            /** The approved change the call applies. */
-            readonly approval?: string | undefined;
+            /** The subjects who approved the change the call applies. */
+            readonly approvers?: readonly Subject[] | undefined;
         } = {},
     ): AccessContext {
-        const { credential, linkSecrets = [], request, approval } = presented;
+        const { credential, linkSecrets = [], request, approvers } = presented;
 
         return {
             ...caller,
             ...(credential === undefined ? {} : { credential }),
-            ...(approval === undefined ? {} : { approval }),
+            ...(approvers === undefined ? {} : { approvers }),
             linkSecrets,
             attributes: credential?.attributes ?? {},
             now,
             ...(request === undefined ? {} : { request }),
         };
+    },
+
+    /** Key a context by its caller and approvers, which decide its approval-gated permissions. */
+    key(context: Pick<AccessContext, "subject" | "actors" | "approvers">): string {
+        const approvers = (context.approvers ?? []).map((approver) => Subject.key(approver));
+
+        return JSON.stringify([Caller.key(context), approvers.toSorted()]);
     },
 
     /** Read how strongly the caller authenticated, a key's strength for a principal's code. */
