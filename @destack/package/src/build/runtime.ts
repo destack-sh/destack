@@ -1,4 +1,6 @@
 import { isBuiltin } from "node:module";
+import { Features } from "lightningcss";
+import type { CSSOptions } from "vite";
 import { nth } from "@destack/schema";
 import type { Runtime } from "../runtime/index.ts";
 
@@ -65,8 +67,19 @@ export function runtimeTarget(runtime: Runtime): string[] {
     return runtime === "browser" ? [...BROWSER_TARGETS] : ["esnext"];
 }
 
+/** Select how a runtime's stylesheets compile: lowered for the baseline browsers, else as written. */
+export function runtimeCss(runtime: Runtime): CSSOptions {
+    // keep light-dark() native, as the theme switches appearance at runtime where lowering cannot follow
+    return runtime === "browser"
+        ? {
+              transformer: "lightningcss",
+              lightningcss: { targets: cssTargets(), exclude: Features.LightDark },
+          }
+        : {};
+}
+
 /** Encode the baseline browsers as Lightning CSS targets, each version as major and minor bytes. */
-export function cssTargets(): Record<string, number> {
+function cssTargets(): Record<string, number> {
     return Object.fromEntries(
         BROWSER_TARGETS.map((target) => {
             // split a target such as "safari17.4" into its browser and version

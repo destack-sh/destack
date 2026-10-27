@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { cssTargets, isRuntimeModule, runtimeTarget } from "./runtime.ts";
+import { isRuntimeModule, runtimeCss, runtimeTarget } from "./runtime.ts";
 
 test("supply every host module on Bun, workerd's nodejs_compat modules and stubs on workerd, and none in browsers", () => {
     const specifiers = [
@@ -30,12 +30,26 @@ test("compile browser modules to the baseline browsers and server modules to cur
         browser: runtimeTarget("browser"),
         bun: runtimeTarget("bun"),
         workerd: runtimeTarget("workerd"),
-        css: cssTargets(),
+        css: runtimeCss("browser"),
+        serverCss: runtimeCss("bun"),
     }).toEqual({
         browser: ["chrome124", "edge124", "firefox125", "safari17.4"],
         bun: ["esnext"],
         workerd: ["esnext"],
-        // each version as Lightning CSS packs it: the major in the third byte, the minor in the second
-        css: { chrome: 124 << 16, edge: 124 << 16, firefox: 125 << 16, safari: (17 << 16) | (4 << 8) },
+        // each version as Lightning CSS packs it, the major in the third byte and the minor in the second
+        css: {
+            transformer: "lightningcss",
+            lightningcss: {
+                targets: {
+                    chrome: 124 << 16,
+                    edge: 124 << 16,
+                    firefox: 125 << 16,
+                    safari: (17 << 16) | (4 << 8),
+                },
+                // light-dark() stays native, as Lightning CSS's lowering needs a color-scheme rule
+                exclude: 1 << 20,
+            },
+        },
+        serverCss: {},
     });
 });

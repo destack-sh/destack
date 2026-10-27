@@ -39,6 +39,7 @@
         "@destack/error": "workspace:*",
         "@destack/schema": "workspace:*",
         "@jridgewell/trace-mapping": "0.3.31",
+        "lightningcss": "1.33.0",
         "magic-string": "1.4.1",
         "rolldown": "1.2.9"
     },
