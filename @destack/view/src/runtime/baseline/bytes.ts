@@ -4,25 +4,28 @@ type Alphabet = "base64" | "base64url";
 /** How `Uint8Array.fromBase64` treats a final chunk shorter than four characters. */
 type LastChunkHandling = "loose" | "strict" | "stop-before-partial";
 
-/** Encode bytes as lowercase hexadecimal, as `Uint8Array.prototype.toHex` does. */
-export function toHex(this: Uint8Array): string {
-    return Array.from(this, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
+/** The encoding methods of `Uint8Array.prototype`, after TC39's base64 proposal. */
+export const Uint8ArrayMethods = {
+    /** Encode bytes as lowercase hexadecimal, as `Uint8Array.prototype.toHex` does. */
+    toHex(this: Uint8Array): string {
+        return Array.from(this, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    },
 
-/** Encode bytes as base64 in an alphabet, padded or not, as `Uint8Array.prototype.toBase64` does. */
-export function toBase64(
-    this: Uint8Array,
-    options: { alphabet?: Alphabet; omitPadding?: boolean } = {},
-): string {
-    // encode the bytes as base64, then switch alphabet and padding as asked
-    const encoded = btoa(Array.from(this, (byte) => String.fromCharCode(byte)).join(""));
-    const alphabet =
-        options.alphabet === "base64url"
-            ? encoded.replaceAll("+", "-").replaceAll("/", "_")
-            : encoded;
+    /** Encode bytes as base64 in an alphabet, as `Uint8Array.prototype.toBase64` does. */
+    toBase64(
+        this: Uint8Array,
+        options: { alphabet?: Alphabet; omitPadding?: boolean } = {},
+    ): string {
+        // encode the bytes as base64, then switch alphabet and padding as asked
+        const encoded = btoa(Array.from(this, (byte) => String.fromCharCode(byte)).join(""));
+        const alphabet =
+            options.alphabet === "base64url"
+                ? encoded.replaceAll("+", "-").replaceAll("/", "_")
+                : encoded;
 
-    return options.omitPadding === true ? alphabet.replace(/=+$/u, "") : alphabet;
-}
+        return options.omitPadding === true ? alphabet.replace(/=+$/u, "") : alphabet;
+    },
+};
 
 /** Decode pairs of hexadecimal digits to bytes, as `Uint8Array.fromHex` does. */
 export function fromHex(value: string): Uint8Array<ArrayBuffer> {

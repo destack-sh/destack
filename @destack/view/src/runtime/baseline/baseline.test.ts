@@ -1,7 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { BASELINE, installBaseline } from "./baseline.ts";
 
-
 /** Run the same calls through the platform's built-ins and through the baseline's, side by side. */
 function compare(run: () => unknown): { native: unknown; installed: unknown } {
     // record the platform's answers, then take its built-ins away
