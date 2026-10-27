@@ -17,12 +17,6 @@ import type { Tenancy } from "./placement.ts";
 /** The longest machine name, so `<machine>--<handle>` fits one DNS label: see `HANDLE_LENGTH`. */
 const MACHINE_NAME_LENGTH = 37;
 
-/** How often a serving machine reports its contact, in milliseconds. */
-export const MACHINE_REPORT_MILLISECONDS = 30_000;
-
-/** How many reports a machine may miss before it counts as offline. */
-const MACHINE_MISSED_REPORTS = 3;
-
 /** Whether a machine hosts new work, drains its existing work, or refuses work. */
 const MACHINE_STATUSES = ["enabled", "draining", "disabled"] as const;
 
@@ -159,7 +153,7 @@ export const machine = defineObject(
             startedAt: field.time().optional(),
             /** The Destack update state the machine last reported, absent for one updating none. */
             update: field.json(MachineUpdate).optional(),
-            /** The machine's last proven contact, in UTC epoch milliseconds. */
+            /** When the machine last left its home, or enrolled, in UTC epoch milliseconds. */
             lastSeenAt: field.time().optional(),
             /** The time the account withdrew the machine and its keys. */
             revokedAt: field.time().optional(),
@@ -193,6 +187,7 @@ export const machine = defineObject(
             ),
             revoke: relation("self"),
             update: none(),
+            leave: none(),
             // let the account's managers share the machine with another account's members as tenants
             share: through("account", "manage"),
             declare: none(),
@@ -262,7 +257,9 @@ export const machine = defineObject(
         enable: method.mutation({ permission: "operate" }),
         drain: method.mutation({ permission: "operate" }),
         disable: method.mutation({ permission: "operate" }),
-        /** Record the machine's proven contact and what it runs now, replacing the last report. */
+        /** Record the machine leaving its home, as the home sees its last live link close. */
+        leave: method.mutation({ permission: "leave" }),
+        /** Record what the machine runs now, replacing the last report. */
         report: method.mutation({
             permission: "rotate",
             input: schema.object({
@@ -290,6 +287,7 @@ export const machine = defineObject(
     }),
 ).implement({
     methods: {
+        leave: (call) => call.update({ lastSeenAt: call.now }),
         report: (call) => {
             // refuse a host for a cloud machine, which has no platform of its own
             const { input } = call;
@@ -301,7 +299,6 @@ export const machine = defineObject(
             }
 
             return call.update({
-                lastSeenAt: call.now,
                 version: input.version,
                 runtimes: input.runtimes,
                 osVersion: input.osVersion,
@@ -358,13 +355,6 @@ export const Machine = {
         );
 
         return { ...shared, ...variant };
-    },
-
-    /** Report whether a machine proved contact recently enough to count as online at a time. */
-    isOnline(lastSeenAt: number | null, now: number): boolean {
-        const window = MACHINE_REPORT_MILLISECONDS * MACHINE_MISSED_REPORTS;
-
-        return lastSeenAt !== null && now - lastSeenAt < window;
     },
 
     /** Take a preferred machine name, or its first free numbered variant in the account. */
