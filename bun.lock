@@ -389,6 +389,7 @@
         "@destack/account": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/locale": "workspace:*",
@@ -719,6 +720,7 @@
         "@destack/error": "workspace:*",
         "@destack/schema": "workspace:*",
         "@jridgewell/trace-mapping": "0.3.31",
+        "lightningcss": "1.33.0",
         "magic-string": "1.4.1",
         "rolldown": "1.2.9",
       },
@@ -883,7 +885,6 @@
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/view": "workspace:*",
-        "@destack/workflow": "workspace:*",
       },
       "devDependencies": {
         "@destack/check": "workspace:*",
@@ -1317,7 +1318,9 @@
       "devDependencies": {
         "@destack/build": "workspace:*",
         "@destack/check": "workspace:*",
+        "@fontsource/ibm-plex-sans": "5.3.0",
         "@platform/pricing": "workspace:*",
+        "fontkitten": "1.0.3",
         "highlight.js": "11.11.1",
         "playwright-core": "1.64.1",
         "sharp": "0.35.5",
@@ -1333,6 +1336,7 @@
         "@destack/connection": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
+        "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/observability": "workspace:*",
@@ -1713,6 +1717,8 @@
     "@fontsource-variable/ibm-plex-sans": ["@fontsource-variable/ibm-plex-sans@5.3.0", "", {}, "sha512-agG8tXFEo0hD9+J7npa4vbbWult52eMLVaQ6WQRlhs/iCAojrMAoejru85W9HTVXHfyUj96KM7gp/KGAS87XaQ=="],
 
     "@fontsource/ibm-plex-mono": ["@fontsource/ibm-plex-mono@5.3.0", "", {}, "sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q=="],
+
+    "@fontsource/ibm-plex-sans": ["@fontsource/ibm-plex-sans@5.3.0", "", {}, "sha512-CbE4CbbEEZJX860XyUiRpsksXIQR8Rp2XDva2VO53NJox9tVNtusrysd2x5YkUEY3ErQ66W1IiiQL8/wihhw5w=="],
 
     "@fontsource/ibm-plex-sans-condensed": ["@fontsource/ibm-plex-sans-condensed@5.3.0", "", {}, "sha512-fQyBpwbkguP4azjq7Cw8h/J3C/d8MFAzXOiSoFxyKCUK4x0XKrWEh3tGdTxhDM0HctVRQilQo1zGoyxDHLm5jQ=="],
 

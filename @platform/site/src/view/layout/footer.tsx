@@ -6,6 +6,7 @@ import * as style from "@destack/style";
 import { Goo } from "../effect/goo";
 import { Syllables } from "../home/entry/entry";
 import { lattice } from "./lattice.stylex";
+import { headwordBox, headwordDot, headwordLetters } from "../content/generated/headword";
 import { Mark } from "./mark";
 import {
     type Destination,
@@ -53,22 +54,20 @@ export function Footer() {
                         </nav>
                     ))}
 
-                    {/* who makes Destack, its license, and how to reach them */}
-                    <div {...style.attrs(styles.fine)}>
-                        <span>© 2026 {company.name} · MIT licensed</span>
-                        <a href={`mailto:${company.mail}`} {...style.attrs(styles.link)}>
-                            Contact
-                        </a>
-                    </div>
-
-                    {/* close on the headword itself, edge to edge and fading into the sky */}
-                    <div aria-hidden="true" {...style.attrs(styles.poster)}>
-                        <span {...style.attrs(styles.headword)}>
-                            de
-                            <span {...style.attrs(styles.dot)} />
-                            stack
-                        </span>
-                    </div>
+                    {/* close on the headword itself, its ink touching every edge */}
+                    <svg
+                        aria-hidden="true"
+                        viewBox={`0 0 ${headwordBox.width} ${headwordBox.height}`}
+                        {...style.attrs(styles.poster)}
+                    >
+                        <path d={headwordLetters} {...style.attrs(styles.letters)} />
+                        <circle
+                            cx={headwordDot.x}
+                            cy={headwordDot.y}
+                            r={headwordDot.radius}
+                            {...style.attrs(styles.dot)}
+                        />
+                    </svg>
                 </div>
             </Goo>
         </footer>
@@ -109,12 +108,6 @@ function FooterLink(properties: { destination: Destination | PendingDestination 
         </a>
     );
 }
-
-/** The company behind Destack, and the address it answers mail at. */
-const company = {
-    name: "Symbol Industries",
-    mail: "florian@symbol.industries",
-};
 
 /** The footer styles. */
 const styles = style.create({
@@ -200,48 +193,18 @@ const styles = style.create({
         color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
         cursor: "default",
     },
-    fine: {
-        alignItems: "center",
+    poster: {
         borderTopColor: `color-mix(in srgb, ${color.foreground} 14%, transparent)`,
         borderTopStyle: "solid",
         borderTopWidth: stroke.border,
-        color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
-        display: "flex",
-        fontSize: typeScale.small,
-        gridColumn: "1 / -1",
-        justifyContent: "space-between",
-        paddingBlock: "1.25rem",
-        paddingInline: frame.inset,
-    },
-    poster: {
-        gridColumn: "1 / -1",
-        overflow: "hidden",
-        paddingBlockStart: "1rem",
-    },
-    headword: {
-        color: color.foreground,
         display: "block",
-        // fill the frame edge to edge: the word's ink is 3.69em wide at this weight and tracking
-        fontSize: "calc(100cqi / 3.69)",
-        fontWeight: weight.bold,
-        // show the word down to its baseline, which sits 0.775em down a 0.8 line
-        height: "0.78em",
-        letterSpacing: "-0.045em",
-        lineHeight: 0.8,
-        // pull the d's left side bearing out past the frame edge
-        marginBlockStart: "-0.035em",
-        marginInlineStart: "-0.043em",
-        overflow: "hidden",
-        whiteSpace: "nowrap",
+        gridColumn: "1 / -1",
+        width: "100%",
+    },
+    letters: {
+        fill: color.foreground,
     },
     dot: {
-        backgroundColor: color.primary,
-        borderRadius: "50%",
-        display: "inline-block",
-        height: "0.13em",
-        marginInlineEnd: "0.09em",
-        marginInlineStart: "0.07em",
-        verticalAlign: "0.19em",
-        width: "0.13em",
+        fill: color.primary,
     },
 });

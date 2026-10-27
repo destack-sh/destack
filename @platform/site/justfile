@@ -30,6 +30,7 @@ generate:
 generate-check:
     bun run scripts/generate-release.ts --check
     bun run scripts/generate-pricing.ts --check
+    bun run scripts/generate-headword.ts --check
     bun run scripts/generate-content.ts --check
 
 # typecheck

@@ -15,7 +15,7 @@
         "readme": "bun run scripts/readme.ts",
         "test": "bun run scripts/test-highlighting.ts && bun run scripts/test-markdown.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p build/tsconfig.json --noEmit",
-        "generate": "bun run scripts/sync-assets.ts && bun run scripts/generate-release.ts && bun run scripts/generate-pricing.ts && bun run scripts/generate-content.ts"
+        "generate": "bun run scripts/sync-assets.ts && bun run scripts/generate-release.ts && bun run scripts/generate-pricing.ts && bun run scripts/generate-headword.ts && bun run scripts/generate-content.ts"
     },
     "dependencies": {
         "@destack/environment": "workspace:*",
@@ -46,13 +46,15 @@
         "unified": "11.0.5"
     },
     "devDependencies": {
-        "@destack/check": "workspace:*",
-        "wrangler": "4.134.0",
-        "highlight.js": "11.11.1",
         "@destack/build": "workspace:*",
+        "@destack/check": "workspace:*",
+        "@fontsource/ibm-plex-sans": "5.3.0",
         "@platform/pricing": "workspace:*",
+        "fontkitten": "1.0.3",
+        "highlight.js": "11.11.1",
         "playwright-core": "1.64.1",
         "sharp": "0.35.5",
-        "vite": "8.3.0"
+        "vite": "8.3.0",
+        "wrangler": "4.134.0"
     }
 }
