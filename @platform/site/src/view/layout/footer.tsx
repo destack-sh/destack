@@ -157,8 +157,8 @@ const styles = style.create({
         fontWeight: weight.semibold,
     },
     definition: {
-        fontSize: typeScale.display,
-        fontWeight: weight.medium,
+        fontSize: typeScale.closing,
+        fontWeight: weight.semibold,
         letterSpacing: tracking.display,
         lineHeight: 1.15,
         margin: 0,
@@ -186,7 +186,7 @@ const styles = style.create({
             default: color.foreground,
             ":hover": { default: null, [media.hover]: color.primary },
         },
-        fontSize: typeScale.small,
+        fontSize: typeScale.body,
         textDecorationLine: "none",
     },
     pending: {

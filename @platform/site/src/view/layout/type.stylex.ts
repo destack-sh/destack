@@ -16,6 +16,9 @@ export const typeScale = style.defineConsts({
 
     /** The size of definitions, page titles and prices. */
     display: "clamp(1.75rem, 3vw, 2.375rem)",
+
+    /** The size of the footer's closing definition, between display and the headword. */
+    closing: "clamp(2.25rem, 3.4vw, 3.25rem)",
 });
 
 /** The site's two letter spacings, for uppercase labels and display text. */
