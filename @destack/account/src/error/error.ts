@@ -140,6 +140,7 @@ export const AccountError = defineErrorFamily(import.meta.destack.package, {
 
     // service unavailable
     DNS_LOOKUP_FAILED: { code: "SERVICE_UNAVAILABLE" },
+    ENTITLEMENTS_PENDING: { code: "SERVICE_UNAVAILABLE" },
     DNS_RESOLVER_FAILED: { code: "SERVICE_UNAVAILABLE" },
     MAIL_UNSENT: { code: "SERVICE_UNAVAILABLE" },
     CLOUD_MACHINE_MISSING: { code: "SERVICE_UNAVAILABLE" },

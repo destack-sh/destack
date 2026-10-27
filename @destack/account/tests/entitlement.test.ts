@@ -63,3 +63,19 @@ test("decide a use from an account's entitlements: unknown until replicated, blo
         ],
     });
 });
+
+test("keep a space's chosen retention within its plan's days, and as chosen where no plan sets them", () => {
+    const plan = (days: number): EntitlementTerms => ({
+        packageId: PRICING,
+        feature: "retention",
+        resource: "retention",
+        value: days,
+        limit: null,
+        state: null,
+    });
+    expect([
+        Entitlement.retention([plan(7)], 30),
+        Entitlement.retention([plan(365)], 30),
+        Entitlement.retention([metered("database", "within")], 30),
+    ]).toEqual([7, 30, 30]);
+});

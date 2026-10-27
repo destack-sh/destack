@@ -8,7 +8,7 @@ import {
     field,
     ObjectWatch,
 } from "@destack/object";
-import { PackageId } from "@destack/package";
+import { type Package, PackageId } from "@destack/package";
 import type { FeatureReference } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
@@ -26,6 +26,7 @@ export const ENTITLEMENT_RESOURCES = [
     "network",
     "tenancy",
     "domain",
+    "retention",
 ] as const;
 
 /** A platform resource a feature allows. */
@@ -39,6 +40,12 @@ export const USAGE_STATES = ["within", "near", "over", "blocked"] as const;
 
 /** Where a metered usage stands. */
 export type UsageState = (typeof USAGE_STATES)[number];
+
+/** The days a plan's retention entitlement keeps events, a positive whole number. */
+const RETENTION_DAYS = schema.number().int().positive();
+
+/** Read the days a scope retains a kind's events by its setting, as event stores read them. */
+export type RetentionReader = (setting: object, owner: Package, scope: string) => Promise<number>;
 
 /** The name of the shape replicating one account's entitlements. */
 const ENTITLEMENT_SHAPE = "entitlement";
@@ -201,6 +208,31 @@ export const Entitlement = {
         return Snapshot.live(database)
             .read(entitlement.table)
             .findMany({ where: { scope: accountId } });
+    },
+
+    /** Cap a space's event retention reader at the days its payer's plan retains events. */
+    capRetention(database: DatabaseConnection, retention: RetentionReader): RetentionReader {
+        return async (setting, owner, scope) => {
+            // read the days the space chose and the entitlements of the account paying for it
+            const days = await retention(setting, owner, scope);
+            const payer = await Account.payer(Snapshot.live(database), scope);
+            const rows = await Entitlement.replicated(database, payer);
+            if (rows === undefined) {
+                throw AccountError.of(
+                    "ENTITLEMENTS_PENDING",
+                    `the entitlements of account ${payer} have not replicated yet`,
+                );
+            }
+
+            return Entitlement.retention(rows, days);
+        };
+    },
+
+    /** Keep a space's chosen days within its plan's retention, where a plan sets one. */
+    retention(rows: readonly EntitlementTerms[], days: number): number {
+        const entitled = rows.find((row) => Entitlement.matches(row, "retention"));
+
+        return entitled === undefined ? days : Math.min(days, RETENTION_DAYS.parse(entitled.value));
     },
 
     /** Decide the condition of a use from an account's replicated entitlements. */
