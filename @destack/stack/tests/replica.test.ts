@@ -116,7 +116,7 @@ async function serveInstallation() {
                 parameters: {
                     scopes: [ids.space],
                     local: [],
-                    types: type === undefined ? [] : [{ ...type }],
+                    replicated: [{ scope, types: type === undefined ? [] : [{ ...type }] }],
                     via: [],
                     between: [],
                 },

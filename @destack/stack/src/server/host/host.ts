@@ -296,8 +296,8 @@ export class SpaceHost {
             async *stream(subscription, signal) {
                 yield* await (await followerOf(subscription)).stream(subscription, { signal });
             },
-            confirm: async (subscription, watermark) => {
-                await (await followerOf(subscription)).confirm({ subscription, watermark });
+            request: async (subscription) => {
+                await (await followerOf(subscription)).request({ subscription });
             },
             receive: async (mutation, signer) => {
                 // send the machine's universe writes as the machine, and the space's changes as their signer
@@ -328,7 +328,7 @@ export class SpaceHost {
 
         return {
             stream: (subscription, signal) => at(subscription).stream(subscription, signal),
-            confirm: (subscription, watermark) => at(subscription).confirm(subscription, watermark),
+            request: (subscription) => at(subscription).request(subscription),
         };
     }
 

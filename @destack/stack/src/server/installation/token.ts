@@ -2,7 +2,6 @@ import { type Authentication, Caller, principal } from "@destack/access";
 import { and, eq, isNull, type DatabaseConnection } from "@destack/db";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { RequestId } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import {
@@ -17,7 +16,6 @@ import {
 import { installation } from "@destack/object";
 import { rollout } from "../../object/rollout.ts";
 import { installationKey } from "../../object/key.ts";
-import { proof } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../../error/index.ts";
 
@@ -25,7 +23,7 @@ import { StackError } from "../../error/index.ts";
 export const InstallationAssertion = {
     /** Verify the assertions a store's installations sign for a package, spending each once. */
     verifier(
-        objects: Pick<ObjectStore, "database" | "principal" | "as" | "mutate" | "environment">,
+        objects: Pick<ObjectStore, "database" | "environment">,
         audience: PackageId,
     ): AssertionVerifier {
         return new AssertionVerifier({
@@ -33,18 +31,7 @@ export const InstallationAssertion = {
             audience,
             keys: (id, _issuer, now) => InstallationAssertion.key(objects.database, id, now),
             crypto: objects.environment.crypto,
-            spend: async (digest, expiresAt) => {
-                await objects.mutate(objects.as(proof), {
-                    id: RequestId.create(objects.environment),
-                    calls: [
-                        proof.call("create", {
-                            ...proof.in(objects.principal.id),
-                            id: digest,
-                            expiresAt,
-                        }),
-                    ],
-                });
-            },
+            database: objects.database,
         });
     },
 

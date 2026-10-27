@@ -1,6 +1,6 @@
 import type { Crypto } from "@destack/environment";
-import { proof } from "@destack/object";
 import { principal } from "@destack/access";
+import { nonce } from "@destack/access/token";
 import { Jwk, Jwt, type JwtClaims, PublicKey } from "@destack/identity";
 import { Digest, Identifier, present, Uuid } from "@destack/schema";
 import { PackageId } from "@destack/package";
@@ -186,15 +186,15 @@ test("grant an installation tokens of its space as it asks by assertions its key
                 ["UNAUTHORIZED", "ASSERTION_TOO_LONG", "assertion lifetime exceeds five minutes"],
             ]);
 
-            // record each spent assertion once as the space's proof, until the assertion expires
+            // record each spent assertion once as the space's nonce, until the assertion expires
             const spent = [
                 await spentProof(ci.id, ciAssertion, crypto),
                 await spentProof(serverKey.id, serverAssertion, crypto),
             ];
             const kept = await database
-                .select({ id: proof.table.id, expiresAt: proof.table.expiresAt })
-                .from(proof.table)
-                .orderBy(proof.table.id);
+                .select({ id: nonce.id, expiresAt: nonce.expiresAt })
+                .from(nonce)
+                .orderBy(nonce.id);
             expect(kept).toEqual(spent.toSorted((left, right) => left.id.localeCompare(right.id)));
 
             // refuse every assertion of a revoked key
@@ -214,7 +214,7 @@ test("grant an installation tokens of its space as it asks by assertions its key
     );
 });
 
-/** Read the proof an assertion a key signed spends: its digest and its expiry. */
+/** Read the nonce an assertion a key signed spends: its digest and its expiry. */
 async function spentProof(keyId: string, assertion: string, crypto: Crypto) {
     const { jti, exp } = Jwt.claims(assertion);
 
