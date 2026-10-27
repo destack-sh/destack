@@ -117,9 +117,12 @@ export const StackFrame = Object.assign(stackFrame, {
         return lines;
     },
 
-    /** Read a stack trace's frames, innermost first. */
+    /** Read the frames of a stack trace's thrown failure, innermost first. */
     read(stack: string): StackFrame[] {
-        return stack.split("\n").flatMap((line) => {
+        // read the thrown exception's frames, leaving its causes' sections
+        const [thrown = ""] = stack.split(/\nCaused by: /u);
+
+        return thrown.split("\n").flatMap((line) => {
             // read a V8 frame, else a Gecko or WebKit one, skipping the message and native frames
             const match = line.startsWith("    at ") ? V8_FRAME.exec(line) : GECKO_FRAME.exec(line);
             if (match === null) {

@@ -53,3 +53,24 @@ test("read V8, SpiderMonkey and JavaScriptCore frames, skipping messages and run
         ],
     ]);
 });
+
+test("read the frames of the thrown failure alone, leaving its causes' sections", () => {
+    expect(
+        StackFrame.read(
+            [
+                "Error: sync failed",
+                "    at sync (file:///srv/output/bun/workload.js:3:4)",
+                "Caused by: TypeError: socket closed",
+                "    at connect (file:///srv/output/bun/workload.js:8:9)",
+            ].join("\n"),
+        ),
+    ).toEqual([
+        {
+            function: "sync",
+            file: "file:///srv/output/bun/workload.js",
+            line: 3,
+            column: 4,
+            isInApp: true,
+        },
+    ]);
+});

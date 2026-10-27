@@ -129,6 +129,36 @@ export const Sandbox = Object.assign(sandboxSchema, {
         ).join(", ");
     },
 
+    /** Read how a host and port match a sandbox's network: by name, by wildcard, or not. */
+    match(
+        sandbox: Sandbox,
+        address: { readonly hostname: string; readonly port: number },
+    ): "name" | "wildcard" | undefined {
+        // read the host's name without a trailing dot, and its port as the patterns write them
+        const patterns = sandbox.network?.connect ?? [];
+        const hostname = address.hostname.toLowerCase().replace(/\.$/u, "");
+        const port = String(address.port);
+        const matching = patterns.flatMap((pattern) => {
+            const [name = "", listed] = pattern.split(":");
+
+            return listed === undefined || listed === port ? [name] : [];
+        });
+
+        // match a listed name, else a wildcard over every host or the host's parent
+        if (matching.includes(hostname)) {
+            return "name";
+        } else if (
+            matching.some(
+                (name) =>
+                    name === "*" || (name.startsWith("*.") && hostname.endsWith(name.slice(1))),
+            )
+        ) {
+            return "wildcard";
+        }
+
+        return undefined;
+    },
+
     /** Select the abilities a workload or view uses, refusing undeclared ones. */
     select(declared: Sandbox, names: readonly SandboxName[]): Sandbox {
         // refuse a name the package does not declare
