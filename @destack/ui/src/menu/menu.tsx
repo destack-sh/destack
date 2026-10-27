@@ -202,7 +202,7 @@ export class MenuControl {
         // show it beside its trigger, or at its point, and focus the item asked for
         if (isOpen) {
             const trigger = this.#trigger;
-            const isBeside = trigger !== undefined && this.point() === undefined;
+            const isBeside = trigger !== undefined && untrack(this.point) === undefined;
             const detach = isBeside ? Position.attach(content, trigger, this.id) : () => undefined;
             content.showPopover(isBeside ? { source: trigger } : undefined);
             const unplace = isBeside ? Position.place(content, trigger) : () => undefined;
