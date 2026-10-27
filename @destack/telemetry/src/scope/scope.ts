@@ -22,6 +22,12 @@ import {
     type VisitDetail,
 } from "../otlp/analytics.ts";
 
+/** The event name of an exception on a log record or a span, as OpenTelemetry names it. */
+const EXCEPTION_EVENT = "exception";
+
+/** The causes a captured failure's stack trace lists at most, below its own stack. */
+const MAX_CAUSES = 8;
+
 /** The log severity of each capture level. */
 const LEVELS: Readonly<Record<CaptureLevel, readonly [SeverityNumber, string]>> = {
     fatal: [SeverityNumber.FATAL, "FATAL"],
@@ -297,7 +303,7 @@ export function emitException(
 ): void {
     const [severityNumber, severityText] = LEVELS[capture.level ?? "error"];
     logger.emit({
-        eventName: "exception",
+        eventName: EXCEPTION_EVENT,
         severityNumber,
         severityText,
         context: telemetry.context.active(),
@@ -333,7 +339,7 @@ function runner(
         try {
             return await context.with(trace.setSpan(parent, span), () => work(span));
         } catch (error) {
-            span.recordException(error instanceof Error ? error : String(error));
+            recordSpanException(span, error);
             span.setStatus({ code: SpanStatusCode.ERROR });
             throw error;
         } finally {
@@ -352,17 +358,34 @@ function options(definition: MetricDefinition<AttributeDomain>) {
     };
 }
 
-/** Describe a failure by the OpenTelemetry exception attributes. */
+/** Describe a failure by the OpenTelemetry exception attributes, its causes below its stack. */
 export function exceptionAttributes(error: unknown, isEscaped: boolean): Attributes {
+    // write each cause below the stack as a `Caused by:` section, as Java's traces do
     const exception = error instanceof Error ? error : new Error(String(error));
+    const sections = [exception.stack ?? `${exception.name}: ${exception.message}`];
+    let cause = exception.cause;
+    while (cause !== undefined && sections.length <= MAX_CAUSES) {
+        // write an error's stack, else a value's JSON, ending at a value
+        const section =
+            cause instanceof Error
+                ? (cause.stack ?? `${cause.name}: ${cause.message}`)
+                : JSON.stringify(cause);
+        sections.push(`Caused by: ${section}`);
+        cause = cause instanceof Error ? cause.cause : undefined;
+    }
 
     return {
         "error.type": errorType(exception),
         "exception.type": exception.name,
         "exception.message": exception.message,
-        ...(exception.stack === undefined ? {} : { "exception.stacktrace": exception.stack }),
+        "exception.stacktrace": sections.join("\n"),
         "exception.escaped": isEscaped,
     };
+}
+
+/** Annotate a span with an escaping failure, as the exception event its captured log carries. */
+export function recordSpanException(span: Span, error: unknown): void {
+    span.addEvent(EXCEPTION_EVENT, exceptionAttributes(error, true));
 }
 
 /** Read a failure's error type: its call error code, else its own code, else its name. */

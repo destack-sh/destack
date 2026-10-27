@@ -69,6 +69,35 @@ export class TestTelemetry implements Disposable {
         }));
     }
 
+    /** Describe the unread exceptions with the causes their stack traces list. */
+    describe(): string {
+        const described = this.#unread()
+            .filter(
+                (record) =>
+                    record.eventName === "exception" && "exception.type" in record.attributes,
+            )
+            .map((record) => {
+                // read each cause's first line below the stack
+                const stack = record.attributes["exception.stacktrace"];
+                const causes =
+                    typeof stack === "string"
+                        ? stack
+                              .split("\nCaused by: ")
+                              .slice(1)
+                              .map((section) => section.split("\n")[0])
+                        : [];
+
+                return {
+                    scope: record.instrumentationScope.name,
+                    name: record.attributes["exception.type"],
+                    message: record.attributes["exception.message"],
+                    ...(causes.length === 0 ? {} : { causes }),
+                };
+            });
+
+        return JSON.stringify(described);
+    }
+
     /** Read the exceptions packages captured and skip the records read so far. */
     take(): CapturedException[] {
         const captured = this.exceptions();
@@ -79,9 +108,9 @@ export class TestTelemetry implements Disposable {
 
     /** Refuse the exceptions no test took. */
     [Symbol.dispose](): void {
-        const untaken = this.take();
-        if (untaken.length > 0) {
-            throw new TypeError(`the test took no captured exceptions: ${JSON.stringify(untaken)}`);
+        const described = this.describe();
+        if (this.take().length > 0) {
+            throw new TypeError(`the test took no captured exceptions: ${described}`);
         }
     }
 

@@ -5,7 +5,7 @@ import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { startTelemetry } from "../bun/index.ts";
 import { OtlpExporter } from "../otlp/index.ts";
-import { markCaptured } from "./scope.ts";
+import { exceptionAttributes, markCaptured } from "./scope.ts";
 
 /** The instrumented package. */
 const source = {
@@ -279,5 +279,24 @@ test("record visits and actions as the platform's destack.visit and destack.acti
             ["destack.action", { audience: "space", "destack.action.name": "note.shared" }],
         ],
         refused: "log record names under destack. are reserved: destack.visit",
+    });
+});
+
+test("describe a failure by its exception attributes, its causes as Caused by sections below its stack", () => {
+    // describe a failure caused by a failure caused by a value
+    const root = new TypeError("socket closed", { cause: { code: "ECONNRESET" } });
+    const failure = new Error("sync failed", { cause: root });
+
+    // write each cause's stack below the failure's, a value cause as its JSON
+    expect(exceptionAttributes(failure, true)).toEqual({
+        "error.type": "Error",
+        "exception.type": "Error",
+        "exception.message": "sync failed",
+        "exception.stacktrace": [
+            failure.stack,
+            `Caused by: ${root.stack}`,
+            'Caused by: {"code":"ECONNRESET"}',
+        ].join("\n"),
+        "exception.escaped": true,
     });
 });
