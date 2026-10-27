@@ -4,7 +4,12 @@ import {
     type ReadableLogRecord,
     SimpleLogRecordProcessor,
 } from "@opentelemetry/sdk-logs";
-import { MeterProvider, MetricReader, type ResourceMetrics } from "@opentelemetry/sdk-metrics";
+import {
+    DataPointType,
+    MeterProvider,
+    MetricReader,
+    type ResourceMetrics,
+} from "@opentelemetry/sdk-metrics";
 import {
     InMemorySpanExporter,
     type ReadableSpan,
@@ -77,5 +82,30 @@ export class SimulatedTelemetry implements Telemetry {
         const { resourceMetrics } = await this.#metrics.collect();
 
         return resourceMetrics;
+    }
+
+    /** Count the world's metrics: each sum's total and each histogram's records. */
+    async counts(): Promise<Record<string, number>> {
+        const counts: Record<string, number> = {};
+        for (const { metrics } of (await this.metrics()).scopeMetrics) {
+            for (const metric of metrics) {
+                // count a histogram's records, as `db.client.operation.duration` counts statements
+                const { name } = metric.descriptor;
+                if (metric.dataPointType === DataPointType.HISTOGRAM) {
+                    const count = metric.dataPoints.reduce(
+                        (total, point) => total + point.value.count,
+                        0,
+                    );
+                    counts[`${name}.count`] = (counts[`${name}.count`] ?? 0) + count;
+                }
+                // add up a sum
+                else if (metric.dataPointType === DataPointType.SUM) {
+                    const sum = metric.dataPoints.reduce((total, point) => total + point.value, 0);
+                    counts[name] = (counts[name] ?? 0) + sum;
+                }
+            }
+        }
+
+        return counts;
     }
 }
