@@ -6,7 +6,7 @@ import { Toolchain } from "@destack/check/toolchain";
 import { API, type Program } from "typescript/unstable/async";
 import type { GlobalReference, ModuleDescription } from "@destack/package/code";
 import { FILE_RESOLVING_RUNTIMES, type Runtime } from "@destack/package/runtime";
-import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
+import { DOM_LIBRARIES, TYPESCRIPT_LIBRARIES, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
 import { BuildError, type BuildReason } from "../error/index.ts";
 import { modulePath } from "./dependency.ts";
@@ -136,7 +136,9 @@ export class RuntimeCompiler implements AsyncDisposable {
             await files.writeTextFile(entry, "export {};\n");
             const configuration = join(directory, "tsconfig.json");
             const libraries =
-                runtime === "browser" ? ["ESNext", "DOM", "DOM.Iterable"] : ["ESNext"];
+                runtime === "browser"
+                    ? [...TYPESCRIPT_LIBRARIES, ...DOM_LIBRARIES]
+                    : [...TYPESCRIPT_LIBRARIES];
             await files.writeTextFile(
                 configuration,
                 JSON.stringify({
