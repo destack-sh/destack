@@ -4,11 +4,9 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Run durable functions step by step as objects of the space, and approve changes before they run.",
+    "description": "Run durable functions step by step as objects of the space they run in.",
     "exports": {
         ".": "./src/index.ts",
-        "./server": "./src/server.ts",
-        "./package": "./src/package.ts",
         "./destack.json": "./destack.json",
         "./inspect": "./src/inspect/index.ts"
     },

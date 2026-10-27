@@ -10,6 +10,8 @@ import {
 import { space } from "@destack/account/object";
 import type { Simulation } from "@destack/environment/simulation";
 import {
+    approval,
+    changeRequest,
     defineObject,
     field,
     Follow,
@@ -34,9 +36,6 @@ import type {
     WorkflowImplementation,
     WorkflowServing,
 } from "../src/index.ts";
-import { approval, changeRequest } from "../src/approval/index.ts";
-import workflowPackage from "../src/package.ts";
-import workflowServer from "../src/server.ts";
 import { NOTES } from "./package.ts";
 
 /** The person starting the runs, who owns the space. */
@@ -62,7 +61,7 @@ const SPACE_NODE = "space";
 /** The longest a grant takes to reach the space's replica, in milliseconds. */
 const REPLICA_MILLISECONDS = 2000;
 
-/** The longest a fixture runs its world toward a condition: twice the longest scenario's three hours. */
+/** The longest a fixture runs its world toward a condition: twice a scenario's three hours. */
 const UNTIL_MILLISECONDS = 6 * 60 * 60 * 1000;
 
 /** Notes their owners write, and publish under a new title, which no role lets anyone else do. */
@@ -183,7 +182,7 @@ export async function openServed<Input, Output>(
     const spaceId = Identifier.create("space", universal.environment);
     const scope = principal.space.reference(Scope.universe.id, spaceId);
     const runners = await Promise.all(
-        [note.package.id, workflowPackage.id].map(async (packageId) =>
+        [note.package.id].map(async (packageId) =>
             principal.installation.reference(
                 spaceId,
                 await InstallationId.base(scope, packageId, universal.environment.crypto),
@@ -210,7 +209,6 @@ export async function openServed<Input, Output>(
         publisher: () => publisher,
         packages: [
             implementPackage(objectPackage, { follows: [grants] }),
-            workflowServer,
             implementPackage(handle, {
                 objects: [
                     servedNote,
@@ -275,7 +273,7 @@ export async function openServed<Input, Output>(
     };
 
     // let alice and bob grant the installations serving the runs every permission of the served types
-    const consented = [...declared, ...Object.values(workflowPackage.objects)].flatMap((type) =>
+    const consented = [...declared, approval, changeRequest].flatMap((type) =>
         Object.keys(type.policy.definition.permissions).map((name) => ({
             ...type.policy.permission(name),
             scope: served.scope,

@@ -2,19 +2,21 @@ import type { AccessContext } from "@destack/access";
 import { and, eq, type Select, TABLE, Transaction } from "@destack/db";
 import { CallSite, MethodContext, type ObjectCall, ObjectType } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { CallError } from "@destack/object";
+import {
+    type Approval,
+    approval,
+    ApprovalQuorum,
+    ApprovalRefusal,
+    type ApprovalState,
+    CallError,
+    changeRequest,
+    ObjectError,
+} from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { RequestId, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import { Duration, type JsonValue, present, schema } from "@destack/schema";
 import { Failure } from "@destack/error";
 import type * as sync from "@destack/sync";
-import {
-    type Approval,
-    approval,
-    ApprovalQuorum,
-    type ApprovalState,
-} from "../approval/approval.ts";
-import { changeRequest } from "../approval/request.ts";
 import type { Run } from "../run/run.ts";
 import { recorded, type StepType, type Workflow } from "../workflow/workflow.ts";
 import type {} from "@destack/package/import-meta";
@@ -164,24 +166,36 @@ export class Step<Waits extends ObjectType = ObjectType> {
 
             return made;
         } catch (error) {
-            // ask for approval of a call the grant gives once approved
+            // ask for the approvals a call waits for in a change request, which suspends the run
             const refused = CallError.of(error);
-            if (refused?.reason === "APPROVAL_REQUIRED" && refused.domain === objectPackage.name) {
-                return this.#request(name, call);
-            }
+            const failed =
+                refused?.reason === "APPROVAL_REQUIRED" && refused.domain === objectPackage.name
+                    ? await this.#request(name, call, ApprovalRefusal.parse(refused.data)).catch(
+                          (asking: unknown) => asking,
+                      )
+                    : error;
+
             // record a final refusal as the call's answer, and let anything else retry the advance
-            else if (CallError.refusal(error) !== undefined) {
-                await this.#complete(name, { failure: Failure.of(error) });
+            if (CallError.refusal(failed) !== undefined) {
+                await this.#complete(name, { failure: Failure.of(failed) });
             }
 
-            throw error;
+            throw failed;
         }
     }
 
-    /** Open a change request for a call awaiting approval, and wait on it. */
-    async #request<Result>(name: string, call: sync.Call<Result>): Promise<Result> {
+    /** Open a change request asking the approvers a refusal names, and suspend the run on it. */
+    async #request(name: string, call: sync.Call, refusal: ApprovalRefusal): Promise<never> {
+        // refuse a role's count, which names nobody for the run to ask
+        const { approvals, approvers } = refusal;
+        if (approvers.length === 0) {
+            throw ObjectError.of(
+                "APPROVERS_MISSING",
+                `${refusal.permission.name} waits for a role's approvals, which name nobody to ask`,
+            );
+        }
         await Transaction.run(this.#store.database, async (transaction) => {
-            // open the change request as the run's actor, asking its grant's delegator
+            // open the change request as the run's actor, asking the refusal's approvers
             const [opened] = await this.#store.mutate(
                 this.#caller,
                 {
@@ -190,6 +204,8 @@ export class Step<Waits extends ObjectType = ObjectType> {
                         changeRequest.call("create", {
                             ...changeRequest.in(this.#run.row.scope),
                             call,
+                            approvers: [...approvers],
+                            count: approvals,
                         }),
                     ],
                 },
@@ -219,6 +235,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
             );
         });
 
+        // suspend the run until the change request decides
         throw new Suspension(undefined, this.#waitType(changeRequest.typeReference));
     }
 

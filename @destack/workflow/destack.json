@@ -9,9 +9,6 @@
         }
     },
     "exports": {
-        "./server": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./inspect": {
             "runtimes": ["bun"]
         }

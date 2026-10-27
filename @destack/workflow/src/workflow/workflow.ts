@@ -8,7 +8,7 @@ import { RetryPolicy } from "@destack/environment";
 import { canonicalize, Duration, type JsonValue, present, schema } from "@destack/schema";
 import { type Call, ObjectReference, ObjectTypeReference, type Subject } from "@destack/sync";
 import { Failure } from "@destack/error";
-import { changeRequest } from "../approval/request.ts";
+import { changeRequest } from "@destack/object";
 import type { RunContext, Step } from "../step/step.ts";
 import { ENDED_STATES, LIVE_STATES, Run, RUN_STATES } from "../run/run.ts";
 import type { ObjectStore } from "@destack/object/server";

@@ -117,11 +117,9 @@ remind.trigger.call("reset", target); // start a stopped trigger over as a new o
 
 ## Approvals
 
-`step.approve` asks approvers to decide on an object, and a change request makes a call once they approve it, as a pull request merges once approved.
+`step.approve` asks approvers to decide on an object, and a step's call that waits for approvals opens object's change request and waits until it applies.
 
 ```ts
 const decision = await step.approve("review", subject, { approvers: [bob, alice], count: 2 }); // principals, never groups
-await client.changeRequest.create({ spaceId, parent, call: rename, approvers: [bob] });
-await client.changeRequest.create({ spaceId, call: publish }); // asks the grant's delegator
-await client.approval.approve(approval.target(asked));
+await step.call("publish", publish); // refused for approvals: a change request asks the grant's delegator, then answers
 ```

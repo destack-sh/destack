@@ -69,7 +69,7 @@ test("describe a workflow's schemas, retries, timeout, expiry, limits and trigge
             },
             waits: [
                 {
-                    packageId: "package-01a1441c-7a6d-7444-b168-a063d720a275",
+                    packageId: "package-01a0d462-1b26-7401-be27-6258e0a32141",
                     name: "change-request",
                 },
             ],

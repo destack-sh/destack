@@ -6,10 +6,7 @@ export const WorkflowError = defineErrorFamily(import.meta.destack.package, {
     // bad request
     BODY_INVALID: { code: "BAD_REQUEST" },
     TIMING_INVALID: { code: "BAD_REQUEST" },
-    APPROVERS_MISSING: { code: "BAD_REQUEST" },
     EVENT_TYPE_MISSING: { code: "BAD_REQUEST" },
-    SELF_APPROVAL: { code: "BAD_REQUEST" },
-    QUORUM_UNREACHABLE: { code: "BAD_REQUEST" },
 
     // forbidden
     CHANGE_REQUEST_CLOSED: { code: "FORBIDDEN" },

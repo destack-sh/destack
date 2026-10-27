@@ -1,12 +1,12 @@
-import workflowPackage from "../src/package.ts";
-import { present, schema } from "@destack/schema";
-import { ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
-import { AccessContext, Caller, principal } from "@destack/access";
-import { expect, refusal, test } from "@destack/test";
-import { type Approval, approval, change, changeRequest, defineWorkflow } from "../src/index.ts";
+import { schema } from "@destack/schema";
+import { ObjectReference, RequestId, Scope } from "@destack/sync";
+import { principal } from "@destack/access";
+import objectPackage from "@destack/object/package";
+import { expect, test } from "@destack/test";
+import { type Approval, approval, changeRequest } from "@destack/object";
+import { defineWorkflow } from "../src/index.ts";
 import {
     actor,
-    agentOf,
     alice,
     bob,
     note,
@@ -15,7 +15,6 @@ import {
     type WorkflowFixture,
 } from "./fixture.ts";
 import { NOTES } from "./package.ts";
-import { NO_OUTPUT } from "../src/index.ts";
 import { TEST_START } from "@destack/object/test";
 
 /** A minute, in milliseconds. */
@@ -113,63 +112,6 @@ test("answer a review nobody decides as requested once its hour passed", async (
     expect(run?.["output"]).toBe("requested");
 });
 
-/** Do nothing, so a fixture serves the change requests alone. */
-const idle = defineWorkflow({ name: "idle", input: schema.object({}), output: NO_OUTPUT }, NOTES);
-
-/** Serve the change requests and write a note alice asks to rename. */
-async function openChange(): Promise<{
-    readonly fixture: WorkflowFixture;
-    readonly id: string;
-    readonly open: (
-        target: string,
-        approvers?: readonly Subject[],
-        count?: number,
-    ) => Promise<string>;
-    readonly read: () => Promise<{ readonly state: string; readonly title: string }>;
-}> {
-    // write a note
-    const fixture = await openWorkflow(idle, async () => {});
-    const client = fixture.served.as(alice).client(notesPackage);
-    const { id } = await client.note.create({
-        spaceId: fixture.served.scope,
-        requestId: RequestId.create(fixture.environment),
-        title: "Plan",
-    });
-    const parent = { packageId: note.package.id, type: note.name, id };
-
-    // open a change renaming a note, asking bob by default
-    const open = async (target: string, approvers: readonly Subject[] = [bob], count = 1) => {
-        const rename = note.call("update", {
-            spaceId: fixture.served.scope,
-            id: target,
-            title: "Final",
-        });
-        const opened = await fixture.served
-            .as(alice)
-            .client(workflowPackage)
-            .changeRequest.create({
-                spaceId: fixture.served.scope,
-                requestId: RequestId.create(fixture.environment),
-                parent,
-                call: rename,
-                approvers: [...approvers],
-                count,
-            });
-
-        return opened.id;
-    };
-
-    // read the change request's state and the note's title
-    const read = async () => {
-        const [requested] = await fixture.served.database.select().from(changeRequest.table);
-        const [renamed] = await fixture.served.database.select().from(note.table);
-
-        return { state: requested?.state ?? "absent", title: renamed?.title ?? "absent" };
-    };
-
-    return { fixture, id, open, read };
-}
-
 /** Decide an approval as its approver through the package's client. */
 async function decideApproval(
     fixture: WorkflowFixture,
@@ -177,196 +119,12 @@ async function decideApproval(
     asked: Approval,
     decision: "approve" | "reject",
 ): Promise<void> {
-    const approvals = fixture.served.as(approver).client(workflowPackage).approval;
+    const approvals = fixture.served.as(approver).client(objectPackage).approval;
     await approvals[decision]({
         ...approval.target(asked),
         requestId: RequestId.create(fixture.environment),
     });
 }
-
-/** Run the world until the change request reaches a state, as its run advances. */
-async function settle(fixture: WorkflowFixture, state: string): Promise<void> {
-    await fixture.when(async () => {
-        const [requested] = await fixture.served.database.select().from(changeRequest.table);
-
-        return requested?.state === state;
-    });
-}
-
-test("rename a note as its requester once bob approves the change", async () => {
-    // open the change and approve it as bob
-    const { fixture, id, open, read } = await openChange();
-    await open(id);
-    await fixture.until(() => true);
-    const [asked] = await fixture.served.database.select().from(approval.table);
-    if (asked === undefined) {
-        throw new TypeError("bob was not asked");
-    }
-    const before = await read();
-    await decideApproval(fixture, bob, asked, "approve");
-    await settle(fixture, "applied");
-    expect([before, await read()]).toEqual([
-        { state: "open", title: "Plan" },
-        { state: "applied", title: "Final" },
-    ]);
-});
-
-test("record the refusal an approved change's call answers", async () => {
-    // approve a change renaming a missing note
-    const { fixture, open } = await openChange();
-    await open("note-01996ab0-0000-7000-8000-0000000000ff");
-    await fixture.until(() => true);
-    const [asked] = await fixture.served.database.select().from(approval.table);
-    if (asked === undefined) {
-        throw new TypeError("bob was not asked");
-    }
-    await decideApproval(fixture, bob, asked, "approve");
-    await settle(fixture, "failed");
-    const [failed] = await fixture.served.database.select().from(changeRequest.table);
-
-    // expect the change failed with the update's refusal
-    expect([failed?.state, failed?.failure?.code]).toEqual(["failed", "NOT_FOUND"]);
-});
-
-test("cancel the run of a change its requester withdraws", async () => {
-    // open a change and withdraw it before bob decides
-    const { fixture, id, open, read } = await openChange();
-    const opened = await open(id);
-    await fixture.until(() => true);
-    await fixture.served
-        .as(alice)
-        .client(workflowPackage)
-        .changeRequest.withdraw({
-            spaceId: fixture.served.scope,
-            requestId: RequestId.create(fixture.environment),
-            id: opened,
-        });
-    await fixture.until(() => true);
-    const runs = await fixture.served.database.select().from(change.run.table);
-    expect([await read(), runs.map((row) => row["state"])]).toEqual([
-        { state: "withdrawn", title: "Plan" },
-        ["cancelled"],
-    ]);
-});
-
-test("publish alice's note as alice once she approves bob's elevated change, and fail the same change as bob", async () => {
-    // serve the change requests over alice's note, which bob, a member of her space, cannot write
-    const fixture = await openWorkflow(idle, async () => {});
-    const { id } = await fixture.served
-        .as(alice)
-        .client(notesPackage)
-        .note.create({
-            spaceId: fixture.served.scope,
-            requestId: RequestId.create(fixture.environment),
-            title: "Plan",
-        });
-    const parent = { packageId: note.package.id, type: note.name, id };
-
-    // look once the controllers settled
-    const whenSettled = async <Value>(look: () => Promise<Value | undefined>): Promise<Value> => {
-        await fixture.until(() => true);
-
-        return present(await look(), "the change's settled state");
-    };
-
-    // ask alice to publish it, approve as alice, and read how the change settled
-    const ask = async (as: "requester" | "approver") => {
-        const rename = note.call("publish", { spaceId: fixture.served.scope, id, title: as });
-        const opened = await fixture.served
-            .as(bob)
-            .client(workflowPackage)
-            .changeRequest.create({
-                spaceId: fixture.served.scope,
-                requestId: RequestId.create(fixture.environment),
-                parent,
-                call: rename,
-                approvers: [alice],
-                as,
-            });
-        const asked = await whenSettled(async () =>
-            (await fixture.served.database.select().from(approval.table)).find(
-                (row) => row.state === "requested",
-            ),
-        );
-        await decideApproval(fixture, alice, asked, "approve");
-
-        return whenSettled(async () => {
-            const rows = await fixture.served.database.select().from(changeRequest.table);
-            const row = rows.find((each) => each.id === opened.id && each.state !== "open");
-
-            return row === undefined ? undefined : [row.state, row.failure?.code ?? null];
-        });
-    };
-    const elevated = await ask("approver");
-    const reviewed = await ask("requester");
-    const [renamed] = await fixture.served.database.select().from(note.table);
-
-    // apply the elevated change as alice, and fail bob's own with the refusal of a note he cannot read
-    expect([elevated, reviewed, renamed?.title]).toEqual([
-        ["applied", null],
-        ["failed", "NOT_FOUND"],
-        "approver",
-    ]);
-});
-
-test("refuse alice's agent a call her grant gives once approved, ask her in a change request, and make it through the agent once she approves", async () => {
-    // let alice's agent read her notes at once, publish them once each use is approved, and open change requests for her
-    const fixture = await openWorkflow(idle, async () => {});
-    const spaceId = fixture.served.scope;
-    const { id } = await fixture.served
-        .as(alice)
-        .client(notesPackage)
-        .note.create({ spaceId, requestId: RequestId.create(fixture.environment), title: "Plan" });
-    const agent = agentOf(spaceId);
-    const permissions = [
-        { ...note.permission("read"), scope: spaceId },
-        { ...note.permission("publish"), scope: spaceId, mode: "approval" as const },
-        { ...changeRequest.permission("open"), scope: spaceId },
-    ];
-    const grantId = await fixture.grant(alice, agent, permissions);
-    const caller = AccessContext.of(
-        {
-            ...Caller.of(alice),
-            actors: [agent],
-            grants: [{ id: grantId, scope: alice.id }],
-        },
-        fixture.simulation.clock.now(),
-    );
-
-    // publish as the agent, refused for approval, then ask alice in a change request
-    const publish = note.call("publish", { spaceId, id, title: "Final" });
-    const refused = await refusal(
-        fixture.served.store.mutate(caller, {
-            id: RequestId.create(fixture.environment),
-            calls: [publish],
-        }),
-    );
-    const [requested] = await fixture.served.store.mutate(caller, {
-        id: RequestId.create(fixture.environment),
-        calls: [changeRequest.call("create", { spaceId, call: publish })],
-    });
-
-    // approve as alice once asked, and publish the note through her agent
-    await fixture.until(() => true);
-    const [listed] = await fixture.served.database.select().from(approval.table);
-    const asked: Approval = present(listed, "alice's approval");
-    await decideApproval(fixture, alice, asked, "approve");
-    await settle(fixture, "applied");
-    const [published] = await fixture.served.database.select().from(note.table);
-    const [request] = await fixture.served.database.select().from(changeRequest.table);
-    expect([refused, request?.id, ObjectReference.at("approver", asked), published?.title]).toEqual(
-        [
-            [
-                "FORBIDDEN",
-                "APPROVAL_REQUIRED",
-                `grant ${grantId} gives publish on note ${id} only after approval`,
-            ],
-            present(requested, "the change request").id,
-            alice,
-            "Final",
-        ],
-    );
-});
 
 /** Publish a note in a run, answering its published title. */
 const release = defineWorkflow(
@@ -396,6 +154,7 @@ test("wait at a call alice's grant gives once approved, ask her in a change requ
         .client(notesPackage)
         .note.create({ spaceId, requestId: RequestId.create(fixture.environment), title: "Plan" });
     await fixture.grant(alice, fixture.served.store.as(release.run).subject, [
+        { ...note.permission("read"), scope: spaceId },
         { ...note.permission("publish"), scope: spaceId, mode: "approval" as const },
         { ...changeRequest.permission("open"), scope: spaceId },
     ]);
@@ -422,34 +181,52 @@ test("wait at a call alice's grant gives once approved, ask her in a change requ
     ]);
 });
 
-test("refuse a requester asking to approve their own change, asking nobody, asking a group, or asking more approvals than its approvers give", async () => {
-    const { fixture, id, open } = await openChange();
-    const spaceId = fixture.served.scope;
-    const unasked = fixture.served
-        .as(alice)
-        .client(workflowPackage)
-        .changeRequest.create({
-            spaceId,
-            requestId: RequestId.create(fixture.environment),
-            parent: { packageId: note.package.id, type: note.name, id },
-            call: note.call("update", { spaceId, id, title: "Final" }),
+test("fail a run whose call a role gives on two approvals, which a change asking only its delegator cannot gather", async () => {
+    // publish a note in a run bob starts, bob's role giving publish once two others approve
+    const fixture: WorkflowFixture = await openWorkflow(release, async (step, input) => {
+        const publish = note.call("publish", {
+            spaceId: fixture.served.scope,
+            id: input.id,
+            title: "Final",
         });
-    const owners = { ...principal.space.reference(Scope.universe.id, spaceId), relation: "owner" };
-    expect(
-        await Promise.all([
-            refusal(open(id, [alice])),
-            refusal(unasked),
-            refusal(open(id, [owners])),
-            refusal(open(id, [bob], 2)),
-        ]),
-    ).toEqual([
-        ["BAD_REQUEST", "SELF_APPROVAL", "a requester cannot approve their own change"],
-        ["BAD_REQUEST", "APPROVERS_MISSING", "a direct change request names no approvers"],
-        [
-            "BAD_REQUEST",
-            "INPUT_INVALID",
-            'invalid input: approvers.0: unrecognized key: "relation"',
+        const published = await step.call("publish", publish);
+
+        return { title: published.title };
+    });
+    const spaceId = fixture.served.scope;
+    const { id } = await fixture.served
+        .as(alice)
+        .client(notesPackage)
+        .note.create({ spaceId, requestId: RequestId.create(fixture.environment), title: "Plan" });
+    const access = fixture.served.as(alice).client(objectPackage);
+    const reviewed = await access.role.create({
+        scope: spaceId,
+        requestId: RequestId.create(fixture.environment),
+        name: "reviewed",
+        description: "Reads notes, publishes them once two others approve, and asks for approvals",
+        permissions: [
+            note.permission("read"),
+            { ...note.permission("publish"), approvals: 2 },
+            changeRequest.permission("open"),
         ],
-        ["BAD_REQUEST", "QUORUM_UNREACHABLE", "2 approvals need at least 2 approvers, not 1"],
+    });
+    await access.relationship.create({
+        scope: spaceId,
+        requestId: RequestId.create(fixture.environment),
+        object: principal.space.reference(Scope.universe.id, spaceId),
+        role: reviewed.id,
+        subject: bob,
+    });
+    await fixture.grant(bob, fixture.served.store.as(release.run).subject, [
+        { ...note.permission("read"), scope: spaceId },
+        { ...note.permission("publish"), scope: spaceId },
+        { ...changeRequest.permission("open"), scope: spaceId },
     ]);
+
+    // start the run as bob, and expect it to fail once asking for the approvals is refused
+    await fixture.start(() => release.start({ id }, actor(bob)));
+    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
+    expect([
+        schema.looseObject({ reason: schema.string() }).parse(run?.["failure"]).reason,
+    ]).toEqual(["APPROVERS_MISSING"]);
 });
