@@ -9,7 +9,7 @@ import { DatabaseError } from "../error/error.ts";
 import { databaseProvider } from "../provider/provider.ts";
 import { text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
-import { MemoryContentStore } from "@destack/resource/test";
+import { MemoryBlobStorage } from "@destack/resource";
 import { connectPostgres } from "./connection.ts";
 import { reportNotices } from "./pool.ts";
 import { PostgresDatabaseHost } from "./host.ts";
@@ -187,7 +187,7 @@ test("snapshot a PostgreSQL database's rows and restore them into another", asyn
     await handle.close();
 
     // snapshot the source and restore it into the target
-    const store = new MemoryContentStore(system.crypto);
+    const store = new MemoryBlobStorage(system.crypto);
     const digest = await host.snapshot(source, desired, store);
     await host.restore(target, desired, digest, store);
     const restored = await host.open(target, desired);

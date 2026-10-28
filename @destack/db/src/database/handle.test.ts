@@ -1,7 +1,7 @@
 import { type Digest, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
-import { MemoryContentStore } from "@destack/resource/test";
+import { MemoryBlobStorage } from "@destack/resource";
 import { defineTable, eq, text } from "../index.ts";
 import { DatabaseHandle } from "./handle.ts";
 import { testSimulation } from "@destack/test/world";
@@ -36,7 +36,7 @@ async function openPair() {
 }
 
 /** Read the digests of a snapshot's pages. */
-async function pagesOf(store: MemoryContentStore, snapshot: Digest): Promise<string[]> {
+async function pagesOf(store: MemoryBlobStorage, snapshot: Digest): Promise<string[]> {
     const [bytes] = await Array.fromAsync(store.read(snapshot));
     const manifest = schema
         .object({ tables: schema.record(schema.string(), schema.array(schema.string())) })
@@ -50,7 +50,7 @@ test("snapshot a database's rows into a content-addressed store and restore them
     const world = testSimulation().environment("test");
 
     const [source, target] = await openPair();
-    const store = new MemoryContentStore(world.crypto);
+    const store = new MemoryBlobStorage(world.crypto);
     await source.database
         .insert(attachment)
         .values({ id: "a", scope: "space", title: "notes", file: SHARED });
@@ -81,7 +81,7 @@ test("restore onto a base snapshot only the pages an edit, an insert and a delet
 
     // store 6001 attachments
     const [source, target] = await openPair();
-    const store = new MemoryContentStore(world.crypto);
+    const store = new MemoryBlobStorage(world.crypto);
     const rows = Array.from({ length: 6001 }, (_, index) => ({
         id: `a${String(index).padStart(4, "0")}`,
         scope: "space",

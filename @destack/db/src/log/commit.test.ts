@@ -1041,7 +1041,7 @@ test("answer a live read from memory until a commit writes its table, each trans
         transaction.insert(task).values({ id: "a", scope: "inbox", priority: 1 }).execute(),
     );
 
-    // hear other writers' commits, as a serving store does
+    // listen to other writers' commits, as a serving store does
     await database.log.listening();
     const counted = async (read: () => Promise<readonly unknown[]>) => {
         const before = database.driver.state.statements;
@@ -1251,7 +1251,7 @@ test("answer a read from memory across commits writing other tables, reading ane
         transaction.insert(member).values({ id: "ada", scope: "s", role: "owner" }).execute(),
     );
 
-    // hear other writers' commits, as a serving store does
+    // listen to other writers' commits, as a serving store does
     await database.log.listening();
     const counted = async () => {
         const before = database.driver.state.statements;

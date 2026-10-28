@@ -320,10 +320,14 @@ export class ChangeSet {
         const isBytes = [...definition.key, ...changed].some(
             (column) => definition.column(column).definition.kind === "binary",
         );
+        const isBlob = definition.entries.some(
+            ([, column]) => column.definition.blob !== undefined,
+        );
         const isPlain =
             Key.name(table, before) === Key.name(table, after) &&
             !changed.some((column) => unique.has(column)) &&
-            !(isBytes && dialect === "sqlite");
+            !(isBytes && dialect === "sqlite") &&
+            !isBlob;
 
         return isPlain ? "update" : "single";
     }

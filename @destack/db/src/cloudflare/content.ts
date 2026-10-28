@@ -1,4 +1,4 @@
-import type { ContentStore } from "@destack/resource";
+import type { BlobStorage } from "@destack/resource";
 import { Digest, type DigestCrypto } from "@destack/schema";
 import { DatabaseError } from "../error/error.ts";
 import type { DurableObjectStub } from "./host.ts";
@@ -7,7 +7,7 @@ import type { DurableObjectStub } from "./host.ts";
 export const CONTENT_PATH = "/.destack/content";
 
 /** The content pages another Durable Object stores for one operation. */
-export class DurableObjectContentStore implements Pick<ContentStore, "read" | "write"> {
+export class DurableObjectBlobStorage implements Pick<BlobStorage, "read" | "write"> {
     /** The object that stores the pages. */
     readonly #object: DurableObjectStub;
     /** The operation's credential, proving each request. */

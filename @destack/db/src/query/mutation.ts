@@ -16,6 +16,10 @@ import { type Insert, TABLE, type Table } from "../table/table.ts";
 import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
 import { mapValues } from "@destack/schema";
+import { blobGarbage } from "../blob/table.ts";
+
+/** The digests one retiring insert binds: 500, far under SQLite's 32,766 parameters. */
+const BATCH_ROWS = 500;
 
 /** The values of an insert or update: values, fragments or placeholders, undefined as default. */
 export type InsertValue<Definition extends Table> = {
@@ -214,6 +218,10 @@ export class MutationQuery<
 
     /** Run the mutation, returning the changed rows when asked. */
     async execute(): Promise<Result> {
+        // retire the blobs the changed rows may let go, in the mutation's transaction
+        await this.#retire();
+
+        // run the mutation
         const state = this.state;
         const statement = fill(
             render(
@@ -240,6 +248,59 @@ export class MutationQuery<
         rejected?: ((reason: unknown) => Rejected | PromiseLike<Rejected>) | null,
     ): PromiseLike<Fulfilled | Rejected> {
         return this.execute().then(fulfilled, rejected);
+    }
+
+    /** Retire the blobs the matched rows reference before a delete or blob update lets them go. */
+    async #retire(): Promise<void> {
+        // retire every blob column of deleted rows, and the written or conditioned ones of updated rows
+        const { driver, table, operation, changes, where } = this.state;
+        const blobs = table[TABLE].entries.filter(
+            ([property, column]) =>
+                column.definition.blob !== undefined &&
+                (operation === "delete" ||
+                    (operation === "update" &&
+                        (Object.hasOwn(changes, property) ||
+                            column.definition.blob.while !== undefined))),
+        );
+        if (blobs.length === 0) {
+            return;
+        }
+        if (driver.transaction === undefined) {
+            throw DatabaseError.of(
+                "QUERY_INVALID",
+                `a ${operation} of ${table[TABLE].name} lets blobs go, so it runs in a transaction`,
+            );
+        }
+
+        // read the blobs the matched rows reference
+        const { dialect } = driver;
+        const { namespace, cipher } = driver.state;
+        const projection = new Projection(unqualified(Object.fromEntries(blobs)));
+        const filter = where === undefined ? sql`` : sql` WHERE ${where}`;
+        const statement = fill(
+            render(
+                sql`SELECT ${projection.sql()} FROM ${table}${filter}`,
+                dialect,
+                namespace,
+                cipher,
+            ),
+        );
+        const rows = projection.decode(await driver.values(statement), dialect, new Set(), cipher);
+        const digests = [
+            ...new Set(
+                rows.flatMap((row) =>
+                    blobs.flatMap(([property, column]) => column.digests(row[property])),
+                ),
+            ),
+        ];
+
+        // retire them, which a collection checks again for references
+        for (let start = 0; start < digests.length; start += BATCH_ROWS) {
+            const batch = digests.slice(start, start + BATCH_ROWS);
+            await MutationQuery.of(driver, blobGarbage, "insert")
+                .values(batch.map((digest) => ({ digest })))
+                .onConflictDoNothing();
+        }
     }
 
     /** Write the mutation as SQL. */

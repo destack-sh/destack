@@ -5,7 +5,7 @@ import type {
     ResourceKind,
     ResourceRecord,
     Snapshotter,
-    ContentStore,
+    BlobStorage,
 } from "@destack/resource";
 import type { DatabaseConnection } from "./connection.ts";
 import { Plan } from "@destack/resource";
@@ -116,7 +116,7 @@ export const DatabaseHandle = {
     /** Copy every row of the database into a store as content-addressed pages. */
     async snapshot(
         handle: Pick<DatabaseHandle, "database">,
-        store: Pick<ContentStore, "write">,
+        store: Pick<BlobStorage, "write">,
         rewrite?: RowRewrite,
     ): Promise<Digest> {
         // read each table's rows in content-defined pages, in one read transaction
@@ -147,7 +147,7 @@ export const DatabaseHandle = {
     async restore(
         handle: Pick<DatabaseHandle, "database">,
         digest: Digest,
-        store: Pick<ContentStore, "read">,
+        store: Pick<BlobStorage, "read">,
         rewrite?: RowRewrite,
         base?: Digest,
     ): Promise<void> {
@@ -260,7 +260,7 @@ function fnv(text: string): number {
 
 /** Read a snapshot's manifest from a store. */
 async function readManifest(
-    store: Pick<ContentStore, "read">,
+    store: Pick<BlobStorage, "read">,
     digest: Digest,
 ): Promise<{ readonly tables: Record<string, Digest[]> }> {
     return SnapshotManifest.parse(JSON.parse(await read(store, digest)));
@@ -268,7 +268,7 @@ async function readManifest(
 
 /** Read a page of a table's rows from a store. */
 async function readPage(
-    store: Pick<ContentStore, "read">,
+    store: Pick<BlobStorage, "read">,
     table: Table,
     digest: Digest,
 ): Promise<Row[]> {
@@ -278,12 +278,12 @@ async function readPage(
 }
 
 /** Store text under its digest. */
-function write(store: Pick<ContentStore, "write">, text: string): Promise<Digest> {
+function write(store: Pick<BlobStorage, "write">, text: string): Promise<Digest> {
     return store.write(chunked(new TextEncoder().encode(text)));
 }
 
 /** Read the text stored under a digest. */
-async function read(store: Pick<ContentStore, "read">, digest: Digest): Promise<string> {
+async function read(store: Pick<BlobStorage, "read">, digest: Digest): Promise<string> {
     // decode the chunks as one text
     const decoder = new TextDecoder();
     let text = "";

@@ -1,7 +1,8 @@
 import { SQL, type SQLWrapper } from "../sql/index.ts";
 import { assertNever } from "../error/error.ts";
-import { schema, type Identifier, type JsonValue } from "@destack/schema";
+import { Digest, schema, type Identifier, type JsonValue } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
+import type { Condition } from "../query/condition.ts";
 
 /** How a sensitive value is sealed: randomly, or alike for a column looked up by value. */
 export type Sealing = "random" | "deterministic";
@@ -99,6 +100,17 @@ export class Column<
     /** Report whether a column's values are their JSON form and parameter. */
     static isPlain(column: Column): boolean {
         return PLAIN_KINDS.has(column.definition.kind);
+    }
+
+    /** List the blobs a value of the column references: one, a list, or none for other columns. */
+    digests(value: unknown): Digest[] {
+        if (this.definition.blob === undefined || value === null || value === undefined) {
+            return [];
+        }
+
+        return Array.isArray(value)
+            ? value.map((digest) => Digest.parse(digest))
+            : [Digest.parse(value)];
     }
 
     /** Embed the column, qualified by its table. */
@@ -256,6 +268,8 @@ export interface ColumnDefinition<
     readonly reference?: ReferenceAction & {
         readonly column: () => Column;
     };
+    /** The value is the digest of a blob in the partition's blob store, or a list of them. */
+    readonly blob?: BlobOptions;
     /** The protection: sensitive values stay in the row and out of the log. */
     readonly classification?: "sensitive";
     /** How a sensitive value is sealed, absent for an opaque copy of sealed text. */
@@ -303,6 +317,26 @@ const TEXT_TYPES = { sqlite: "text", postgresql: "text" };
 /** Define text. */
 export function text(name: string): ColumnBuilder<ColumnDefinitionOf<string, "text">> {
     return scalarColumn(name, "text", TEXT_TYPES, schema.string());
+}
+
+/** What keeps a blob column's blobs alive: the row, while a condition on its fields holds. */
+export interface BlobOptions {
+    /** The condition on the row's fields, such as being unexpired, absent for always. */
+    readonly while?: Condition;
+}
+
+/** Define the digest of a blob in the partition's blob store, kept alive by the row. */
+export function blob(name: string, options: BlobOptions = {}) {
+    const column = text(name).validate(Digest);
+
+    return new ColumnBuilder({ ...column.definition, blob: options });
+}
+
+/** Define the digests of blobs in the partition's blob store, kept alive by the row. */
+export function blobs(name: string, options: BlobOptions = {}) {
+    const column = json(name, schema.array(Digest));
+
+    return new ColumnBuilder({ ...column.definition, blob: options });
 }
 
 /** Define text taking one of a set of strings, listed beside the column. */

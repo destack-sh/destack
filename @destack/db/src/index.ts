@@ -3,6 +3,7 @@ export * from "./query/index.ts";
 export * from "./expression/index.ts";
 export * from "./declare/index.ts";
 export * from "./table/index.ts";
+export * from "./blob/index.ts";
 export * from "./database/index.ts";
 export * from "./dialect/dialect.ts";
 export * from "./log/index.ts";
