@@ -2,7 +2,7 @@ import { AccessContext, Caller } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { machine, Residency } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
-import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Environment, type Listener } from "@destack/environment";
 import { Egress, PackageMount } from "@destack/object";
@@ -23,14 +23,7 @@ import { Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { MemoryBuild } from "@destack/package/test";
 import { Identifier, present, schema, Uuid } from "@destack/schema";
-import {
-    Replica,
-    Scope,
-    type Subject,
-    Subscription,
-    subscriptionTable,
-    type Uplink,
-} from "@destack/sync";
+import { Replica, Scope, type Subject, type Uplink } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
 import type { TestMachine, TestUniverse } from "@destack/universe/test";
 import relayPackage from "../package.ts";
@@ -389,29 +382,21 @@ export class TestRelay implements AsyncDisposable {
 
     /** Report whether the root's replicas reached the universe's log as of now. */
     async isSettled(): Promise<boolean> {
-        // ask every stream of the universe's scope to confirm the head, as a waiter does
-        const universe = this.#universe.storage.database;
-        const position = await universe.log.position();
-        const watermark = { scope: Scope.universe.id, ...position };
-        const requests = await universe
-            .select({ caller: subscriptionTable.caller })
-            .from(subscriptionTable)
-            .where(eq(subscriptionTable.scope, Scope.universe.id));
-        for (const caller of new Set(requests.map((request) => request.caller))) {
-            await Subscription.confirm(universe, caller, watermark);
-        }
-
-        // read whether the root's replicas recorded it
+        // read the universe's head and the root's replicas of the universe
+        const position = await this.#universe.storage.database.log.position();
         const root = await present(this.#memories.get(undefined), "the root's memory");
+        const replicas = await Replica.including(root, Scope.universe.id);
 
-        return Replica.isAt(root, Scope.universe.id, position);
+        return await Replica.isAt(root, replicas, position);
     }
 
-    /** Wait until the root's replicas reach the universe's log, at each commit of the root. */
+    /** Wait until the root's replicas reach the universe's log as of now. */
     async settled(signal: AbortSignal): Promise<boolean> {
+        // wait until the root's replicas of the universe reach its head
+        const position = await this.#universe.storage.database.log.position();
         const root = await present(this.#memories.get(undefined), "the root's memory");
 
-        return root.log.until(() => this.isSettled(), signal);
+        return await Replica.wait(root, Scope.universe.id, position, signal);
     }
 
     /** Stop the instances, take a step meanwhile, then start them again as their host does. */

@@ -22,6 +22,7 @@
         "@destack/identity": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",

@@ -1,4 +1,6 @@
 import { principal } from "@destack/access";
+import { defineDatabase, Snapshot } from "@destack/db";
+import { MemoryBlobStorage } from "@destack/resource";
 import { DOMAINS } from "@destack/account/address";
 import {
     directoryShape,
@@ -7,7 +9,6 @@ import {
     type ResidencyCode,
     residentsShape,
 } from "@destack/account/object";
-import { defineDatabase, Snapshot } from "@destack/db";
 import { Egress, Follow, PackageMount, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { implementPackage, ObjectStore, type PackageHandler } from "@destack/object/server";
@@ -223,6 +224,7 @@ async function openReplica(
 
     // follow the rows through the home space's replicas, served at the relay installation
     return new ObjectStore({
+        blobs: new MemoryBlobStorage(context.environment.crypto),
         servers: [implementPackage(relayPackage, { follows, adapters: { tunnels } }).at(server)],
         chain: async () => undefined,
         principal: principal.installation.reference(server.scope, server.installation),
