@@ -29,7 +29,7 @@
             "DOM",
             "DOM.Iterable"
         ],
-        "types": ["node"]
+        "types": ["bun"]
     },
     "include": ["src", "tests", "*.config.ts"]
 }

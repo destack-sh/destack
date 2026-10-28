@@ -4,6 +4,9 @@ import { Dialect } from "../dialect/dialect.ts";
 import { TestDatabase } from "./database.ts";
 import { ImageIndex, TestTemplate } from "./template.ts";
 
+/** Milliseconds per second. */
+const MILLISECONDS = 1000;
+
 /** Write the images of the templates a module lists into a run's directory, with their index. */
 async function write(
     module: string | undefined,
@@ -32,10 +35,15 @@ async function write(
         await TestDatabase.sweep();
     }
     const images: Record<string, Record<string, unknown>> = {};
+    const { clock, process } = BunEnvironment.system;
     for (const template of templates.filter((each) => each.dialects?.includes(dialect) ?? true)) {
+        // write the image, reporting its host time
+        const started = clock.now();
         images[template.name] = {
             [dialect]: await TestDatabase.image(template, dialect, { id, directory }),
         };
+        const seconds = ((clock.now() - started) / MILLISECONDS).toFixed(1);
+        process.stderr.writeSync(`template ${template.name}: ${seconds} s\n`);
     }
 
     // leave the index for the run's setup, whole or not at all

@@ -1,4 +1,4 @@
-import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
+import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
 import { modulePlugin } from "@destack/package/vite";
