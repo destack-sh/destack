@@ -92,12 +92,15 @@ async function serveTasks(world: Environment) {
         );
     };
     const pages = store.source.relayed(
-        store.source.queriesPublication.subscription({
-            name: "objects",
-            scope: spaceId,
-            target: spaceId,
-            parameters: {},
-        }),
+        {
+            ...store.source.queriesPublication.subscription({
+                name: "objects",
+                scope: spaceId,
+                target: spaceId,
+                parameters: {},
+            }),
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
+        },
         context,
     );
     const next = async (): Promise<[boolean, string, unknown, unknown][]> => {

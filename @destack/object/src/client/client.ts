@@ -1173,6 +1173,7 @@ export class ObjectClient<
             scope: this.scope,
             target: this.scope,
             parameters,
+            revision: await this.database.log.position(),
             ...(this.#refresh === undefined ? {} : { refresh: this.#refresh }),
         };
         const from = await replica.resume(this.database, followed);

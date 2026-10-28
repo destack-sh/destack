@@ -6,7 +6,6 @@ import {
     accessRolePermission,
     Caller,
     CHAIN_PUBLICATION,
-    type Authentication,
     ChainParameters,
     CONTAINED,
     decisionTables,
@@ -23,7 +22,6 @@ import {
     TABLE,
     type Table,
     Transaction,
-    DatabaseError,
 } from "@destack/db";
 
 import { canonicalize, Duration, present, schema } from "@destack/schema";
@@ -709,6 +707,7 @@ export class ObjectSource {
         const streaming = AbortSignal.any([signal, failed.signal]);
         const subscribed = feed.subscribe(queries(parameters), followed.after, streaming, {
             audience,
+            scopes: [...new Set([...audience.chain, ...held.map((each) => each.scope)])],
             drain: followed.drain,
             ...(request === undefined ? {} : { request }),
             ...(previous === undefined ? {} : { previous: queries(previous) }),
@@ -768,11 +767,17 @@ export class ObjectSource {
                 context,
                 "ephemeral",
                 (audience, signal, isFirst) => {
-                    const options = this.#feedOptions(subscription, audience, context, {
-                        requested,
-                        compile,
-                        previous: isFirst ? reflected : undefined,
-                    });
+                    const options = this.#feedOptions(
+                        subscription,
+                        audience,
+                        audience.chain,
+                        context,
+                        {
+                            requested,
+                            compile,
+                            previous: isFirst ? reflected : undefined,
+                        },
+                    );
                     const pages = store.feed.subscribe(
                         compiled,
                         isFirst ? after : undefined,
@@ -819,7 +824,7 @@ export class ObjectSource {
 
         // follow until access changes, or to a completed page once the caller lapses
         yield* this.#decided(scope, follower, context, "external", (audience, signal, isFirst) => {
-            const options = this.#feedOptions(subscription, audience, context, {
+            const options = this.#feedOptions(subscription, audience, audience.chain, context, {
                 requested,
                 compile,
                 previous: isFirst ? reflected : undefined,
@@ -852,7 +857,7 @@ export class ObjectSource {
                     where: Relationship.heldBy(subjects),
                 },
             };
-            const options = this.#feedOptions(subscription, sync.EVERYONE, context, {
+            const options = this.#feedOptions(subscription, sync.EVERYONE, chain, context, {
                 requested,
                 compile: () => queries,
                 previous: undefined,
@@ -994,7 +999,7 @@ export class ObjectSource {
     }
 
     /** Build the replica a request of a served publication asks for. */
-    buildReplica(request: sync.Subscription): sync.Replica {
+    buildReplica(request: sync.SubscriptionRecord): sync.Replica {
         return this.publication(request).replica(request);
     }
 
@@ -1011,31 +1016,8 @@ export class ObjectSource {
         return publication;
     }
 
-    /** Record a caller's request here, asking upstream for a replicated scope's ask. */
+    /** Record a caller's request here, which the stream serving it follows on any instance. */
     async request(subscription: sync.Subscription, caller = this.#inProcess): Promise<void> {
-        // ask upstream for a watermark of a scope this store's replicas include, refusing one it has no history of
-        const { confirming } = subscription;
-        if (confirming !== undefined) {
-            const history = await this.store.history(confirming);
-            if (history.kind === "replicated") {
-                await this.store.sink.request(confirming, [
-                    ...history.including,
-                    ...history.followed,
-                ]);
-            } else if (history.kind === "stale") {
-                throw DatabaseError.of(
-                    "EPOCH_STALE",
-                    `${confirming.scope} no longer has the watermark's history`,
-                );
-            } else if (history.kind === "unknown") {
-                throw ObjectError.of(
-                    "HOME_OR_REPLICA_MISSING",
-                    `${confirming.scope} has no home or replica here`,
-                );
-            }
-        }
-
-        // record the request, which the stream serving it follows on whichever instance it runs
         await sync.Subscription.request(this.store.database, subscription, caller);
     }
 
@@ -1048,17 +1030,6 @@ export class ObjectSource {
             throw ObjectError.of("CREDENTIAL_MISSING", "missing caller credential");
         }
         await this.request(subscription, caller);
-    }
-
-    /** Ask a caller's streams of a scope to confirm a watermark of this store's log. */
-    async confirmCaller(
-        authentication: Authentication | undefined,
-        watermark: sync.Watermark,
-    ): Promise<void> {
-        const subject = authentication?.caller.subject;
-        if (subject !== undefined) {
-            await sync.Subscription.confirm(this.store.database, Subject.key(subject), watermark);
-        }
     }
 
     /** Read the key of an authenticated caller, absent for an anonymous one. */
@@ -1131,7 +1102,7 @@ export class ObjectSource {
             await replica.requireAcyclic(this.store.database, origin);
         }
 
-        // stream the replica from the parameters it reflects, ending at a completed page once drained
+        // stream the replica from the parameters it reflects, publishing past commits in its follower's chain
         const reflected =
             previous === undefined
                 ? undefined
@@ -1141,42 +1112,152 @@ export class ObjectSource {
             request.parameters,
             (parameters) => publication.replica({ ...request, parameters }).queries,
         );
+        let stream: sync.Stream | undefined;
+        const chain = await Scope.chain(Snapshot.live(this.store.database), request.target);
+        const targeted = chain.map((link) => link.object.id);
         const pages = this.store.feed.subscribe(replica.queries, after, signal, {
             audience,
+            scopes: [...new Set([replica.scope, ...replica.reads, ...targeted])],
             ...(serving.drain === undefined ? {} : { drain: serving.drain }),
             ...(streamRequest === undefined ? {} : { request: streamRequest }),
             ...(reflected === undefined ? {} : { previous: reflected }),
+            opened: (opened) => {
+                stream = opened;
+            },
         });
 
         // send a relayed replica's home position with each completed page at this database's head
         const isRelayed =
             (await sync.Replica.origin(this.store.database, request.name, request.scope)) !==
             undefined;
-        yield* isRelayed ? this.#originating(pages, request) : pages;
+        yield* isRelayed ? this.#originating(pages, request, () => stream?.beat()) : pages;
     }
 
-    /** Send a relayed replica's home position with each completed page at this database's head. */
+    /** Send a relayed replica's home position with each completed page and each move of it. */
     async *#originating(
         pages: AsyncIterable<sync.Page>,
         request: Pick<sync.Subscription, "name" | "scope">,
+        beat: () => void,
     ): AsyncGenerator<sync.Page> {
-        for await (const page of pages) {
-            // forward a heartbeat only while this replica's own source is heard, which keeps the follower fresh
-            const isBeat =
-                page.complete && page.changes.length === 0 && page.isConfirmation !== true;
-            if (isBeat) {
-                if (sync.Replica.isLive(this.store.database, request.name, request.scope)) {
-                    yield page;
+        // read the pages one at a time, closing them once the follower stops
+        const { database } = this.store;
+        const { lag } = this.store.authorizer;
+        const iterator = pages[Symbol.asyncIterator]();
+        let next: Promise<IteratorResult<sync.Page>> | undefined;
+        let caught: sync.Page | undefined;
+        try {
+            for (;;) {
+                // wait for the pending page or a move of the relayed replica's mark
+                const moved = Promise.withResolvers<undefined>();
+                const unwatch = sync.Replica.watchMarked(database, request, () =>
+                    moved.resolve(undefined),
+                );
+                next ??= iterator.next();
+                const result = await Promise.race([next, moved.promise]).finally(unwatch);
+                next = result === undefined ? next : undefined;
+                const isLive = sync.Replica.isLive(database, request.name, request.scope, lag);
+
+                // forward a moved home position, or beat a stream behind this log's head
+                if (result === undefined) {
+                    const forwarded = await this.#forwarded(request, caught, isLive, beat);
+                    caught = forwarded ?? caught;
+                    if (forwarded !== undefined) {
+                        yield forwarded;
+                    }
+                }
+                // end with the stream
+                else if (result.done === true) {
+                    return;
+                }
+                // forward a bare page while live, which keeps the follower live
+                else if (ObjectSource.#isBare(result.value)) {
+                    if (isLive) {
+                        const origin = await this.#originOf(request, result.value.position);
+                        caught = origin === undefined ? result.value : { ...result.value, origin };
+                        yield caught;
+                    }
+                }
+                // attach the home position to a completed page a follower records
+                else {
+                    const page = result.value;
+                    const origin = page.complete
+                        ? await sync.Replica.originAt(database, request, page.position)
+                        : undefined;
+                    const sent = origin === undefined ? page : { ...page, origin };
+                    caught = page.complete ? sent : undefined;
+                    yield sent;
                 }
             }
-            // attach the home position to a completed page a follower records, when it is the head
-            else {
-                const origin = page.complete
-                    ? await sync.Replica.originAt(this.store.database, request, page.position)
-                    : undefined;
-                yield origin === undefined ? page : { ...page, origin };
-            }
+        } finally {
+            // close the pages behind any pending read, which the stream's signal ends
+            void iterator.return?.().catch(() => {});
         }
+    }
+
+    /** Answer the bare page forwarding a relayed replica's moved mark, or beat a stream behind. */
+    async #forwarded(
+        request: Pick<sync.Subscription, "name" | "scope">,
+        caught: sync.Page | undefined,
+        isLive: boolean,
+        beat: () => void,
+    ): Promise<sync.Page | undefined> {
+        // forward nothing before a completed page, while stale, or for a mark that did not move
+        const { database } = this.store;
+        const marked = sync.Replica.marked(database, request.name, request.scope)?.position;
+        const origin = caught?.origin;
+        const isMoved =
+            marked !== undefined &&
+            (origin === undefined ||
+                origin.log !== marked.log ||
+                LogPosition.isAfter(marked, origin));
+        if (caught === undefined || marked === undefined || !isLive || !isMoved) {
+            return undefined;
+        }
+
+        // beat a stream behind this log's head, which then publishes the mark itself
+        const head = await database.log.position();
+        if (LogPosition.isAfter(head, caught.position)) {
+            beat();
+
+            return undefined;
+        }
+
+        return {
+            reset: false,
+            complete: true,
+            changes: [],
+            position: caught.position,
+            origin: marked,
+        };
+    }
+
+    /** Decide whether a page only moves a position: no rows, results, reset or reshape. */
+    static #isBare(page: sync.Page): boolean {
+        return (
+            page.complete &&
+            !page.reset &&
+            page.changes.length === 0 &&
+            (page.results ?? []).length === 0 &&
+            page.parameters === undefined &&
+            page.scopes === undefined &&
+            page.subjects === undefined
+        );
+    }
+
+    /** Read the home position a relayed replica's rows reflect at a position of this log. */
+    async #originOf(
+        request: Pick<sync.Subscription, "name" | "scope">,
+        position: LogPosition,
+    ): Promise<LogPosition | undefined> {
+        // take the mark once the log has nothing past the position, else what the rows recorded
+        const { database } = this.store;
+        const head = await database.log.position();
+        const marked = sync.Replica.marked(database, request.name, request.scope);
+        const isCaughtUp = !LogPosition.isAfter(head, position);
+
+        return marked !== undefined && isCaughtUp
+            ? marked.position
+            : await sync.Replica.originAt(database, request, position);
     }
 
     /** Require a chain replica's scope and claimed chain to contain the follower's scope. */
@@ -1462,10 +1543,11 @@ export class ObjectSource {
         return broadcasts;
     }
 
-    /** Build a caller's replica feed options, following its request. */
+    /** Build a caller's replica feed options, following its request across its chain. */
     #feedOptions(
         subscription: sync.Subscription,
         audience: sync.Audience,
+        scopes: readonly string[],
         context: RequestContext,
         serving: {
             readonly requested: Recorded | undefined;
@@ -1480,6 +1562,7 @@ export class ObjectSource {
 
         return {
             audience,
+            scopes,
             drain: context.closing,
             ...(request === undefined ? {} : { request }),
             ...(previous === undefined ? {} : { previous }),

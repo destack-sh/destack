@@ -1,7 +1,7 @@
 import { CHAIN_PUBLICATION, type ChainOptions } from "@destack/access";
 import { Scope, type ObjectTypeReference } from "@destack/sync";
-import { Key, LogPosition, Snapshot, TABLE, type Table } from "@destack/db";
-import { canonicalize, Digest, schema } from "@destack/schema";
+import { Key, type LogPosition, Snapshot, TABLE, type Table } from "@destack/db";
+import { canonicalize, Digest, schema, present } from "@destack/schema";
 import * as sync from "@destack/sync";
 import type { FollowController, Delta } from "@destack/db";
 import { until } from "@destack/environment";
@@ -11,8 +11,6 @@ import type { ObjectStore, Subscriber } from "./store.ts";
 export class ObjectSink {
     /** The store whose database stores the replicas. */
     readonly store: ObjectStore;
-    /** The latest watermark each followed replica waits for upstream to confirm, by replica key. */
-    readonly #pending = new Map<string, sync.Watermark>();
     /** The replicas the store's subscriber asks for as last listed, by replica key. */
     readonly #listed = new Map<string, ReplicaEntry>();
     /** The latest listing of the replicas, each one run after the one before. */
@@ -70,39 +68,6 @@ export class ObjectSink {
         );
     }
 
-    /** Ask the publishers of the followed replicas including a scope to confirm a watermark. */
-    async request(
-        watermark: sync.Watermark,
-        including: readonly { readonly name: string; readonly scope: string }[],
-    ): Promise<void> {
-        // find the followed replicas among the including ones
-        const followed = await this.followed();
-        const asked = followed.filter(({ subscription }) =>
-            including.some(
-                (replica) =>
-                    replica.name === subscription.name && replica.scope === subscription.scope,
-            ),
-        );
-
-        // record the latest ask of each for a stream it opens next, then request it at its publisher
-        for (const { subscription } of asked) {
-            const key = ObjectSink.#key(subscription);
-            const known = this.#pending.get(key);
-            const isNewer =
-                known === undefined ||
-                known.log !== watermark.log ||
-                LogPosition.isAfter(watermark, known);
-            if (isNewer) {
-                this.#pending.set(key, watermark);
-            }
-        }
-        await Promise.all(
-            asked.map(({ subscription, publisher }) =>
-                publisher.request({ ...subscription, confirming: watermark }),
-            ),
-        );
-    }
-
     /** List the replicas after the listing before, recording this one as the latest. */
     #listInOrder(
         subscriber: Subscriber,
@@ -119,16 +84,10 @@ export class ObjectSink {
 
     /** List the requested replicas through a view, revising the listed ones, by replica key. */
     async #list(subscriber: Subscriber, view: Snapshot, delta?: Delta): Promise<readonly string[]> {
-        // list the replicas, revising the listed ones
+        // list the replicas, revising the listed ones at the log position the listing read from
+        const revision = await this.store.database.log.position();
         const replicas = await this.#replicas(subscriber, view, delta);
-        ObjectSink.#revise(this.#listed, replicas);
-
-        // forget the asks of replicas the listing left
-        for (const key of this.#pending.keys()) {
-            if (!replicas.has(key)) {
-                this.#pending.delete(key);
-            }
-        }
+        ObjectSink.#revise(this.#listed, replicas, revision);
 
         return [...replicas.keys()];
     }
@@ -220,7 +179,6 @@ export class ObjectSink {
                     ...replica.subscription,
                     tables: [],
                 });
-                this.#pending.delete(key);
                 synced();
                 await until(revised);
             }
@@ -240,20 +198,11 @@ export class ObjectSink {
             const { audience } = this.store.source.publication(requested.subscription);
             const following = replica.replica.follow(
                 this.store.database,
-                (from, stream) => {
-                    // resume the subscription requested now, with the position a wait asked for
-                    const { subscription } = requested;
-                    const confirming = this.#pending.get(ObjectSink.#key(subscription));
-
-                    return publisher.stream(
-                        {
-                            ...subscription,
-                            ...from,
-                            ...(confirming === undefined ? {} : { confirming }),
-                        },
+                (from, stream, subscription) =>
+                    publisher.stream(
+                        { ...present(subscription, "the followed subscription"), ...from },
                         stream,
-                    );
-                },
+                    ),
                 revised,
                 {
                     get subscription() {
@@ -308,7 +257,7 @@ export class ObjectSink {
         view: Snapshot,
     ): Promise<
         {
-            readonly subscription: sync.Subscription;
+            readonly subscription: sync.SubscriptionRecord;
             readonly home: string;
         }[]
     > {
@@ -371,7 +320,7 @@ export class ObjectSink {
         target: string,
         options: ChainOptions,
         isScoped: boolean,
-    ): Promise<sync.Subscription[]> {
+    ): Promise<sync.SubscriptionRecord[]> {
         // read the scope and its ancestors, up to the universe
         const chain = await this.#ancestry(view, target, options);
         const ancestors = chain.slice(1);
@@ -429,7 +378,7 @@ export class ObjectSink {
         view: Snapshot,
         target: string,
         via: readonly { readonly id: string; readonly scope: string | null }[],
-    ): Promise<sync.Subscription[]> {
+    ): Promise<sync.SubscriptionRecord[]> {
         // request nothing without a replicated scope
         if (via.length === 0) {
             return [];
@@ -536,6 +485,7 @@ export class ObjectSink {
     static #revise(
         listed: Map<string, ReplicaEntry>,
         replicas: ReadonlyMap<string, ReplicaIntent & { digest: string }>,
+        revision: LogPosition,
     ): void {
         for (const [key, replica] of listed) {
             // keep an unchanged replica
@@ -552,7 +502,7 @@ export class ObjectSink {
                 ObjectSink.#isReshape(replica, next)
             ) {
                 const { requested } = replica;
-                requested.subscription = next.subscription;
+                requested.subscription = { ...next.subscription, revision };
                 listed.set(key, { ...next, revised: replica.revised, requested });
                 requested.waking.abort();
                 requested.waking = new AbortController();
@@ -571,7 +521,7 @@ export class ObjectSink {
                     ...replica,
                     revised: new AbortController(),
                     requested: {
-                        subscription: replica.subscription,
+                        subscription: { ...replica.subscription, revision },
                         waking: new AbortController(),
                     },
                 });
@@ -606,8 +556,8 @@ type ReplicaIntent =
     | {
           /** A request follows the replica. */
           readonly action: "follow";
-          /** The request following the replica. */
-          readonly subscription: sync.Subscription;
+          /** The subscription following the replica. */
+          readonly subscription: sync.SubscriptionRecord;
           /** The replica the request follows into. */
           readonly replica: sync.Replica;
           /** The publisher streaming the replica's pages. */
@@ -619,7 +569,7 @@ type ReplicaIntent =
           /** The stored replica drops for want of a request. */
           readonly action: "drop";
           /** The subscription the stored replica recorded. */
-          readonly subscription: sync.Subscription;
+          readonly subscription: sync.SubscriptionRecord;
       };
 
 /** A replica the replica controller lists, with the digest each listing compares. */
@@ -634,7 +584,7 @@ type ReplicaEntry = ReplicaIntent & {
 
 /** The subscription a follow requests now, and the signal waking its request once it moves. */
 interface Request {
-    /** The subscription. */
+    /** The subscription at its latest revision. */
     subscription: sync.Subscription;
     /** Aborts once the subscription moves. */
     waking: AbortController;

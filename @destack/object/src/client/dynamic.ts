@@ -210,6 +210,7 @@ export class DynamicObjectClient {
             scope,
             target: scope,
             parameters: { queries: { [name]: schema.json().parse(followed) } },
+            revision: await database.log.position(),
         };
 
         // follow the replica, stopping the watch at its first failure

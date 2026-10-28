@@ -1,4 +1,13 @@
 import { testSimulation } from "@destack/test/world";
+import { MemoryBlobStorage } from "@destack/resource";
+import {
+    type DatabaseConnection,
+    defineDatabase,
+    type LogPosition,
+    TABLE,
+    type Table,
+    Transaction,
+} from "@destack/db";
 import {
     AccessContext,
     anyone,
@@ -10,13 +19,6 @@ import {
 } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { AccessFixture } from "@destack/access/test";
-import {
-    type DatabaseConnection,
-    defineDatabase,
-    TABLE,
-    type Table,
-    Transaction,
-} from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { TestDatabase } from "@destack/db/test";
 import { Clock, type Environment } from "@destack/environment";
@@ -28,6 +30,7 @@ import {
     type ObjectReference,
     ObjectTypeReference,
     type Publisher,
+    Replica,
     Scope,
     Subject,
 } from "@destack/sync";
@@ -85,6 +88,13 @@ export interface TestCredential {
     /** Authenticate a request to a served package, absent for no one. */
     readonly authenticate: TestAuthenticate;
 }
+
+/** A test store's options: a store's, its principal given and its blobs in memory. */
+export type TestStoreOptions = (ObjectStoreOptions extends infer Options
+    ? Options extends unknown
+        ? Omit<Options, "blobs">
+        : never
+    : never) & { readonly principal: Subject };
 
 /** What a test store serves: its packages, its host's tables, its world and its space. */
 export interface TestObjectStoreOptions {
@@ -170,11 +180,8 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         );
     }
 
-    /** Serve packages at their base installations in a scope, as its home and its followers do. */
-    static async at(
-        scope: ObjectReference,
-        options: ObjectStoreOptions & { readonly principal: Subject },
-    ): Promise<ObjectStore> {
+    /** Serve packages at their base installations in a scope, its blobs in memory. */
+    static async at(scope: ObjectReference, options: TestStoreOptions): Promise<ObjectStore> {
         // serve each package at its base installation in the scope
         const { environment } = options;
         const servers = await Promise.all(
@@ -185,14 +192,15 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             ),
         );
 
-        return new ObjectStore({ ...options, servers });
+        return new ObjectStore({
+            ...options,
+            blobs: new MemoryBlobStorage(environment.crypto),
+            servers,
+        });
     }
 
     /** Open a store of packages in a scope born with their base installations. */
-    static async receive(
-        scope: ObjectReference,
-        options: ObjectStoreOptions & { readonly principal: Subject },
-    ): Promise<ObjectStore> {
+    static async receive(scope: ObjectReference, options: TestStoreOptions): Promise<ObjectStore> {
         // serve the packages at their base installations, homing a partition scope's partition
         const types = options.servers.flatMap((server) => Object.values(server.package.objects));
         const policies = [
@@ -542,6 +550,40 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         const servers = [...this.#servers.values()];
         const ready = Promise.all(servers.map((server) => server.ready()));
         await this.#drive(Promise.race([ready, this.#failed]));
+    }
+
+    /** Wait until each store's followed replicas reach their sources' heads and their requests. */
+    static async settleReplicas(stores: readonly ObjectStore[]): Promise<void> {
+        // run every store's heartbeat now, so every caught-up stream publishes its head
+        const heads = new Map<string, LogPosition>();
+        for (const store of stores) {
+            const head = await store.database.log.position();
+            heads.set(`${head.log} ${head.epoch}`, head);
+            store.feed.beat();
+        }
+
+        // wait until each followed replica reaches its source's head
+        const signal = new AbortController().signal;
+        for (const { database, sink } of stores) {
+            for (const { subscription } of await sink.followed()) {
+                const { name, scope } = subscription;
+                const marked = Replica.marked(database, name, scope)?.position;
+                const head = marked && heads.get(`${marked.log} ${marked.epoch}`);
+                if (head !== undefined) {
+                    await Replica.untilAt(database, [subscription], head, signal);
+                }
+            }
+
+            // wait until each followed replica completed a run of the subscription it requests now
+            await database.log.until(async () => {
+                const requested = await sink.followed();
+                const current = await Promise.all(
+                    requested.map(({ subscription }) => Replica.isCurrent(database, subscription)),
+                );
+
+                return current.every(Boolean);
+            }, signal);
+        }
     }
 
     /** Settle once no controller of any package has work left, under the store's world. */

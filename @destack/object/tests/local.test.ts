@@ -1,4 +1,5 @@
 import type { Clock } from "@destack/environment";
+import { MemoryBlobStorage } from "@destack/resource";
 import { testSimulation } from "../src/test/index.ts";
 import { defineObject, device, field, Installation, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -151,6 +152,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                     servers: [implementPackage(draftPackage, {}).at(drafts)],
                     chain: async () => undefined,
                     environment: environment,
+                    blobs: new MemoryBlobStorage(environment.crypto),
                     origin: { package: draft.package },
                     principal: spacePrincipal(spaceId),
                     callKey: testCallKey,

@@ -1,10 +1,11 @@
 import { testSimulation } from "../src/test/index.ts";
+import { MemoryBlobStorage } from "@destack/resource";
+import { defineDatabase, Snapshot } from "@destack/db";
 import { defineObject, field, ObjectDescription, type ObjectType } from "../src/index.ts";
 import { Package } from "@destack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { defineDatabase, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
@@ -166,6 +167,7 @@ test("follow an installation's root chain from its machine, and a partition's ch
                 parent: partition === spaceId ? Scope.universe.id : spaceId,
             }),
             environment: world,
+            blobs: new MemoryBlobStorage(world.crypto),
             origin: { package: Package.of(roomsPackage) },
             callKey: testCallKey,
             events: await testEvents(storage.database, world),
@@ -228,6 +230,7 @@ test("list the types a home and a follower decide in the chain subscription, add
             servers: serversOf(types),
             chain: async () => ({ kind, parent: Scope.universe.id }),
             environment: world,
+            blobs: new MemoryBlobStorage(world.crypto),
             origin: { package: card.package },
             callKey: testCallKey,
             events: await testEvents(storage.database, world),

@@ -1,8 +1,9 @@
 import { schema } from "@destack/schema";
+import { MemoryBlobStorage } from "@destack/resource";
+import { Transaction } from "@destack/db";
 import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { ResourceContext } from "@destack/resource/context";
-import { Transaction } from "@destack/db";
 import { MemoryBuild } from "@destack/package/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
@@ -77,6 +78,7 @@ async function serveInstalledNotes(world: Environment) {
     const store = new ObjectStore({
         chain: async () => undefined,
         environment: world,
+        blobs: new MemoryBlobStorage(world.crypto),
         server,
         servers: [implementPackage(notesPackage, { objects: [notebook, note] })],
         database,

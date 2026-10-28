@@ -1,9 +1,7 @@
 import { testSimulation } from "../src/test/index.ts";
-import { SimulatedClock } from "@destack/environment/simulation";
-import { subjectContext, testCallKey } from "@destack/object/test";
-import { reconciliation, TestDatabase } from "@destack/db/test";
-import { FeedPublisher, testEvents, testServerContext, serversOf } from "../src/test/index.ts";
+import { MemoryBlobStorage } from "@destack/resource";
 import {
+    BLOB_TABLES,
     ControlLoop,
     type DatabaseConnection,
     defineDatabase,
@@ -15,6 +13,10 @@ import {
     Snapshot,
     TABLE,
 } from "@destack/db";
+import { SimulatedClock } from "@destack/environment/simulation";
+import { subjectContext, testCallKey } from "@destack/object/test";
+import { reconciliation, TestDatabase } from "@destack/db/test";
+import { FeedPublisher, testEvents, testServerContext, serversOf } from "../src/test/index.ts";
 import { definePackage } from "@destack/object";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
@@ -47,6 +49,9 @@ import { spacePrincipal } from "./fixture/space.ts";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+
+/** The lag access allows a replica: 30 s. */
+const LAG_MILLISECONDS = 30_000;
 
 /** The event loop turns a woken store gets to report ready early, ten times one check. */
 const READY_TURNS = 20;
@@ -846,7 +851,7 @@ test("finish a wait through a store's replica of a scope once it stops following
     );
     const head = await home.database.log.position();
 
-    // wait for the head at the other space, held back by its unconfirmed replica
+    // wait for the head at the other space, held back by its stale replica
     const waiting = store.wait(
         { scope: otherSpaceId, ...head },
         world.clock.timeout(REPLICA_MILLISECONDS),
@@ -954,7 +959,7 @@ test("replicate a person's grant to an installation of the space from the univer
     expect(remaining.map((row) => row.id)).toEqual([granted]);
 });
 
-test("serve a woken store and let its controllers act only once its home confirms the replicas it stored unheard past the lag", async () => {
+test("serve a woken store only once the replicas it stored are live again", async () => {
     // insert an account and its space at home, both databases on the world's clock
     const simulation = testSimulation();
     const { clock } = simulation;
@@ -1027,8 +1032,12 @@ test("serve a woken store and let its controllers act only once its home confirm
         const current = await Promise.all(
             gates.map(
                 async ({ subscription }) =>
-                    Replica.isLive(installed.database, subscription.name, subscription.scope) &&
-                    (await Replica.isCurrent(installed.database, subscription)),
+                    Replica.isLive(
+                        installed.database,
+                        subscription.name,
+                        subscription.scope,
+                        LAG_MILLISECONDS,
+                    ) && (await Replica.isCurrent(installed.database, subscription)),
             ),
         );
 
@@ -1045,16 +1054,11 @@ test("serve a woken store and let its controllers act only once its home confirm
     const handle = definePackage({ objects: { document } });
     const implemented = woken.implement(handle, [], []);
     const ready = present(implemented.ready, "the readiness wait");
-    const confirmed = present(implemented.confirmed, "the confirmation wait");
     const waking = new AbortController();
     onTestFinished(() => waking.abort());
     let isReady = false;
-    let isConfirmed = false;
     const readying = ready(waking.signal).then(() => {
         isReady = true;
-    });
-    const confirming = confirmed(waking.signal).then(() => {
-        isConfirmed = true;
     });
     const following = follow(woken, waking.signal);
     const isListed = async () => (await woken.sink.gates()).length > 0;
@@ -1062,17 +1066,14 @@ test("serve a woken store and let its controllers act only once its home confirm
     for (let turn = 0; turn < READY_TURNS; turn++) {
         await yieldToEventLoop();
     }
-    const before = { isReady, isConfirmed };
+    const before = isReady;
 
-    // release the pages, which confirm the replicas fresh and make the store ready
+    // release the pages, which make the replicas live and the store ready
     pages.resolve();
-    await Promise.all([readying, confirming]);
+    await readying;
     waking.abort();
     await following;
-    expect({ before, after: { isReady, isConfirmed } }).toEqual({
-        before: { isReady: false, isConfirmed: false },
-        after: { isReady: true, isConfirmed: true },
-    });
+    expect({ before, after: isReady }).toEqual({ before: false, after: true });
 });
 
 test("follow replicates as a server without methods, journal or call key", async () => {
@@ -1081,7 +1082,7 @@ test("follow replicates as a server without methods, journal or call key", async
 
     // store an account and its space at home, and a database with access replicas
     const home = await TestDatabase.create(accessTables, { environment: world, isMigrated: true });
-    const follower = await TestDatabase.create([...accessTables, lock], {
+    const follower = await TestDatabase.create([...accessTables, lock, ...BLOB_TABLES], {
         environment: world,
         isMigrated: true,
     });
@@ -1124,8 +1125,12 @@ test("follow replicates as a server without methods, journal or call key", async
     const head = await home.database.log.position();
     await Replica.wait(follower.database, Scope.universe.id, head, controller.signal);
 
-    // run only compaction and the replica follow, with no event log
-    expect(store.controllers().map((each) => each.name)).toEqual(["compaction", "replica"]);
+    // run only compaction, the blob collection and the replica follow, with no event log
+    expect(store.controllers().map((each) => each.name)).toEqual([
+        "compaction",
+        "blobs",
+        "replica",
+    ]);
 });
 
 test("replicate the chains of an installation's two served spaces in one replica via both, requiring it to replicate each and refusing a scope outside them", async () => {
@@ -1239,13 +1244,22 @@ test("replicate the chains of an installation's two served spaces in one replica
 
         return page.done === true ? undefined : page.value;
     };
-    const refused = await refusal(first(chains));
+    const refused = await refusal(
+        first({ ...chains, revision: { log: "follower", epoch: "follower", sequence: 1 } }),
+    );
     await grant(otherSpaceId, "replicator");
 
     // replicate both chains, and refuse a scope between outside them
-    const page = present(await first(chains), "the chains' first page");
+    const page = present(
+        await first({ ...chains, revision: { log: "follower", epoch: "follower", sequence: 1 } }),
+        "the chains' first page",
+    );
     const outside = await refusal(
-        first({ ...chains, parameters: { ...chains.parameters, between: [otherAccountId] } }),
+        first({
+            ...chains,
+            parameters: { ...chains.parameters, between: [otherAccountId] },
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
+        }),
     );
     expect({
         requests: requests.map((request) => [request.name, request.scope, request.target]),
@@ -1324,7 +1338,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     });
     const first = async (): Promise<Page | undefined> => {
         const pages = source.source.relayed(
-            request,
+            { ...request, revision: { log: "follower", epoch: "follower", sequence: 1 } },
             subjectContext(subject, spaceId, { environment: world }),
         );
         const page = await pages.next();
@@ -1348,18 +1362,21 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
         refusal(
             source.source
                 .relayed(
-                    source.source.chainPublication.subscription({
-                        name: ObjectSink.chainName(spaceId),
-                        scope: spaceId,
-                        target: spaceId,
-                        parameters: {
-                            scopes,
-                            local: [],
-                            replicated: replicated.map((scope) => ({ scope, types: [] })),
-                            via: [],
-                            between: [],
-                        },
-                    }),
+                    {
+                        ...source.source.chainPublication.subscription({
+                            name: ObjectSink.chainName(spaceId),
+                            scope: spaceId,
+                            target: spaceId,
+                            parameters: {
+                                scopes,
+                                local: [],
+                                replicated: replicated.map((scope) => ({ scope, types: [] })),
+                                via: [],
+                                between: [],
+                            },
+                        }),
+                        revision: { log: "follower", epoch: "follower", sequence: 1 },
+                    },
                     subjectContext(subject, spaceId, { environment: world }),
                 )
                 .next(),
@@ -1445,7 +1462,7 @@ test("replicate a partition's chain via its installation's space, whose source h
     });
     const first = async (): Promise<Page | undefined> => {
         const pages = source.source.relayed(
-            request,
+            { ...request, revision: { log: "follower", epoch: "follower", sequence: 1 } },
             subjectContext(subject, spaceId, { environment: world }),
         );
         const page = await pages.next();
@@ -1479,7 +1496,10 @@ test("replicate a partition's chain via its installation's space, whose source h
     });
     const claimed = await refusal(
         source.source
-            .relayed(claiming, subjectContext(subject, spaceId, { environment: world }))
+            .relayed(
+                { ...claiming, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+                subjectContext(subject, spaceId, { environment: world }),
+            )
             .next(),
     );
     expect({
@@ -1816,6 +1836,7 @@ test("replicate a scoped table an installation's database declares beside its fo
     const replicating: ObjectStore = new ObjectStore({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,
+        blobs: new MemoryBlobStorage(world.crypto),
         server: {
             ...following,
             installation: schema.identifier("installation").parse(followingId),
@@ -2095,18 +2116,27 @@ test("replicate the chain of an account another replica brought first, once the 
         name: "residents",
     };
     const early = new AbortController();
-    const replicated = replicating.source
-        .buildReplica(residents)
-        .follow(
-            installed.database,
-            (from, signal) => publisher.stream({ ...residents, ...from }, signal),
-            early.signal,
-            {
-                subscription: residents,
-                audience: replicating.source.queriesPublication.audience,
-                synced: () => {},
+    const replicated = replicating.source.buildReplica(residents).follow(
+        installed.database,
+        (from, signal) =>
+            publisher.stream(
+                {
+                    ...residents,
+                    ...from,
+                    revision: { log: "follower", epoch: "follower", sequence: 1 },
+                },
+                signal,
+            ),
+        early.signal,
+        {
+            subscription: {
+                ...residents,
+                revision: { log: "follower", epoch: "follower", sequence: 1 },
             },
-        );
+            audience: replicating.source.queriesPublication.audience,
+            synced: () => {},
+        },
+    );
     const head = await home.database.log.position();
     await Replica.wait(
         installed.database,

@@ -346,7 +346,12 @@ test("refuse a requester asking to approve their own change, asking nobody, aski
             refusal(openChange(fixture, alice, { id, call: rename, approvers: [owners] })),
             refusal(openChange(fixture, alice, { id, call: rename, approvers: [bob], count: 2 })),
             refusal(
-                openChange(fixture, alice, { id, call: rename, approvers: [bob, carol], as: "approver" }),
+                openChange(fixture, alice, {
+                    id,
+                    call: rename,
+                    approvers: [bob, carol],
+                    as: "approver",
+                }),
             ),
         ]),
     ).toEqual([

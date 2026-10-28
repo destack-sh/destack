@@ -263,19 +263,22 @@ test("attach remarks to articles and photos, counting them and deleting them wit
 
     // include each article's remarks, and only those, sharing identifiers with no photo
     const pages = store.source.relayed(
-        store.source.queriesPublication.subscription({
-            name: "objects",
-            scope: spaceId,
-            target: spaceId,
-            parameters: {
-                queries: {
-                    articles: {
-                        object: "article",
-                        with: { remarks: {} },
+        {
+            ...store.source.queriesPublication.subscription({
+                name: "objects",
+                scope: spaceId,
+                target: spaceId,
+                parameters: {
+                    queries: {
+                        articles: {
+                            object: "article",
+                            with: { remarks: {} },
+                        },
                     },
                 },
-            },
-        }),
+            }),
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
+        },
         context(),
     );
     const read = await pages.next();

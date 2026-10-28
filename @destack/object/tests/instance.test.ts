@@ -33,14 +33,17 @@ test("follow the changes one instance writes through another instance on a separ
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const pages = west.source.relayed(
-        west.source.queriesPublication.subscription({
-            name: "objects",
-            scope: spaceId,
-            target: spaceId,
-            parameters: {
-                queries: { notebooks: { object: "notebook" } },
-            },
-        }),
+        {
+            ...west.source.queriesPublication.subscription({
+                name: "objects",
+                scope: spaceId,
+                target: spaceId,
+                parameters: {
+                    queries: { notebooks: { object: "notebook" } },
+                },
+            }),
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
+        },
         context(controller.signal, world),
     );
     const first = await pages.next();

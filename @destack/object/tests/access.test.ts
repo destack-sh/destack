@@ -97,17 +97,20 @@ test("follow a space's roles and the members bound to them as the owner defines 
 
     // follow the space's roles and the relationships inside it, its owner bound beside its row
     const pages = store.source.relayed(
-        store.source.queriesPublication.subscription({
-            name: "objects",
-            scope: SPACE_ID,
-            target: SPACE_ID,
-            parameters: {
-                queries: {
-                    roles: { object: "role" },
-                    members: { object: "relationship" },
+        {
+            ...store.source.queriesPublication.subscription({
+                name: "objects",
+                scope: SPACE_ID,
+                target: SPACE_ID,
+                parameters: {
+                    queries: {
+                        roles: { object: "role" },
+                        members: { object: "relationship" },
+                    },
                 },
-            },
-        }),
+            }),
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
+        },
         context,
     );
     const next = async () => {

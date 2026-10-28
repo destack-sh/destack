@@ -16,6 +16,9 @@ import { principal } from "@destack/access";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { unmoved } from "./fixture/space.ts";
 
+/** The feed's heartbeat, after which a caught-up stream publishes its position: 10 s. */
+const HEARTBEAT_MILLISECONDS = 10_000;
+
 test("store notes private until shared, move them between notebooks and sync them", async () => {
     const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
@@ -591,7 +594,10 @@ test("resume a store stream from the last event it sent, at that page's position
     const complete = async (lastEventId?: string) => {
         const controller = new AbortController();
         const options = lastEventId === undefined ? {} : { lastEventId };
-        const pages = await store.stream(subscription, { signal: controller.signal, ...options });
+        const pages = await store.stream(
+            { ...subscription, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+            { signal: controller.signal, ...options },
+        );
         for await (const page of pages) {
             if (page.complete) {
                 controller.abort();
@@ -629,6 +635,7 @@ test("follow a caller's access rows on behalf of the caller itself as without a 
         scope: spaceId,
         target: spaceId,
         parameters: {},
+        revision: { log: "follower", epoch: "follower", sequence: 1 },
     };
 
     // read the rows up to the first complete page, without a subject and with alice as it
@@ -681,7 +688,10 @@ test("restart a caller's access stream only on access changes concerning the cal
     };
     const errors: unknown[] = [];
     const following = (async () => {
-        for await (const page of await store.stream(subscription, { signal: controller.signal })) {
+        for await (const page of await store.stream(
+            { ...subscription, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+            { signal: controller.signal },
+        )) {
             pages.push(page);
         }
     })().catch((error: unknown) => {
@@ -703,12 +713,12 @@ test("restart a caller's access stream only on access changes concerning the cal
         });
     await share(users.carol);
 
-    // have bob's stream confirm the position past carol's share, so a restart for it would show first
+    // have bob's stream publish the position past carol's share at the feed's next heartbeat, so a restart for it would show first
     const watermark = await ObjectClient.store(endpoint(users.alice), world).watermark({
         scope: spaceId,
         homes: [],
     });
-    await store.request({ subscription: { ...subscription, confirming: watermark } });
+    await simulation.run({ to: simulation.clock.now() + HEARTBEAT_MILLISECONDS });
     const isPast = () =>
         pages.some(
             (page) =>

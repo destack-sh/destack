@@ -1205,6 +1205,7 @@ export const RecordMethod = {
         const { authorizer } = authorization;
         grants.creating(
             created,
+            row,
             authorizer.initialRelationships(
                 created,
                 initial,
@@ -1411,20 +1412,19 @@ export const RecordMethod = {
         // find a row with the identifier, or a relationship a deleted object left under it
         const { packageId, name } = object.policy.definition;
         const id = object.idSchema.parse(chosen);
-        const rows = await execution.transaction
-            .view()
-            .read<Table>(object.table)
-            .findMany({ where: { id } });
-        const relationships = await execution.authorization.transaction
-            .view()
-            .read(accessRelationship)
-            .findMany({
-                where: {
-                    objectPackageId: packageId,
-                    objectType: name,
-                    objectId: id,
-                },
-            });
+        const [rows, relationships] = await Promise.all([
+            execution.transaction.view().read<Table>(object.table).findMany({ where: { id } }),
+            execution.authorization.transaction
+                .view()
+                .read(accessRelationship)
+                .findMany({
+                    where: {
+                        objectPackageId: packageId,
+                        objectType: name,
+                        objectId: id,
+                    },
+                }),
+        ]);
         const isTaken = rows.length > 0 || relationships.length > 0;
 
         // refuse a taken identifier, as a lost race when a later commit took it

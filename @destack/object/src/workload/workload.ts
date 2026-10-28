@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import type { DatabaseConnection, Table } from "@destack/db";
+import { type BlobStore, type DatabaseConnection, type Table } from "@destack/db";
 import type { Identifier, JsonValue } from "@destack/schema";
 import type { Publisher, Uplink } from "@destack/sync";
 import {
@@ -76,6 +76,27 @@ export interface WorkloadContext {
 
 /** The context a package's server runs in: a base installation's, or an installed one's. */
 export type ServerContext = BaseServerContext | InstalledServerContext;
+
+/** An installed package server's context, with its partition's database and blobs. */
+export interface PackageContext extends InstalledServerContext {
+    /** The installation's database, with the tables the package declares beside its objects. */
+    readonly database: DatabaseConnection;
+    /** The partition's blobs, which the package's blob columns keep alive. */
+    readonly blobs: BlobStore;
+}
+
+/** Give an installed installation's server context the database its store serves. */
+export const PackageContext = {
+    /** Add the store's database and blobs to an installed context, leaving others as they are. */
+    of(
+        context: ServerContext | undefined,
+        blobs: BlobStore,
+    ): PackageContext | BaseServerContext | undefined {
+        return context === undefined || context.origin === "base"
+            ? context
+            : { ...context, database: blobs.database, blobs };
+    },
+};
 
 /** The context of a base installation, born with its scope and shipped with the platform. */
 export interface BaseServerContext {

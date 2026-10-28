@@ -1,6 +1,6 @@
 import { type Condition, type DatabaseConnection, type RowImage, type Snapshot } from "@destack/db";
 import { canonicalize, type Duration, schema } from "@destack/schema";
-import { Replica, Subject, type Subscription } from "@destack/sync";
+import { Replica, Subject, type SubscriptionRecord } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import { QUERIES_PUBLICATION, QueriesParameters, type ObjectQuery } from "./replica.ts";
 
@@ -60,7 +60,7 @@ export class Shape<Parameters extends object = object> {
         followed: readonly ShapeKeys[],
         target: string,
         subject?: Subject,
-    ): Subscription {
+    ): SubscriptionRecord {
         // name each shape's keys' queries under the shape
         const queries = Object.fromEntries(
             followed.flatMap(({ shape, keys }) => Object.entries(shape.#keyed(keys))),

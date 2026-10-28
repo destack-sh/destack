@@ -3,7 +3,7 @@ import type { PackageHandle } from "../declare/package.ts";
 import type { PackageHandler } from "./http.ts";
 import type { RequestContext } from "./context.ts";
 import type { Controller } from "@destack/db";
-import type { InstalledServerContext, ServerContext } from "../workload/workload.ts";
+import type { BaseServerContext, PackageContext, ServerContext } from "../workload/workload.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Follow } from "../replica/shape.ts";
 import type { ExternalStorage } from "./external.ts";
@@ -61,7 +61,9 @@ export interface PackageImplementation {
     /** The installation it serves as, the store's when absent. */
     readonly installation: ServerContext | undefined;
     /** Read the package's code for an installation, the platform's without one. */
-    readonly definition: (context: ServerContext | undefined) => ImplementationInput;
+    readonly definition: (
+        context: PackageContext | BaseServerContext | undefined,
+    ) => ImplementationInput;
     /** Serve the package as an installation inside a store of other packages. */
     readonly at: (installation: ServerContext) => PackageImplementation;
 }
@@ -71,10 +73,10 @@ export function implementPackage<const Handle extends ObjectPackage>(
     handle: Handle,
     definition:
         | ImplementationInput<Handle>
-        | ((context: InstalledServerContext) => ImplementationInput<Handle>),
+        | ((context: PackageContext) => ImplementationInput<Handle>),
 ): PackageImplementation {
     // serve a static definition, else build an installed installation's from its context
-    const read = (context: ServerContext | undefined): ImplementationInput => {
+    const read = (context: PackageContext | BaseServerContext | undefined): ImplementationInput => {
         if (typeof definition !== "function") {
             return definition;
         } else if (context === undefined) {

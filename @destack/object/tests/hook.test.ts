@@ -1,4 +1,6 @@
 import { testSimulation } from "../src/test/index.ts";
+import { MemoryBlobStorage } from "@destack/resource";
+import { defineDatabase, TABLE } from "@destack/db";
 import { Failure } from "@destack/error";
 import {
     CallSite,
@@ -17,7 +19,6 @@ import {
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Call } from "@destack/sync";
 import { principal, relation } from "@destack/access";
-import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
 import { type Identifier, schema, present, type JsonValue } from "@destack/schema";
@@ -742,6 +743,7 @@ test("refuse serving the cards of two installations of one package from one stor
             servers: [],
             chain: async () => undefined,
             environment: world,
+            blobs: new MemoryBlobStorage(world.crypto),
             principal: spacePrincipal(spaceId),
             database: storage.database,
             callKey: testCallKey,

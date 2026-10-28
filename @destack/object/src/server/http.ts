@@ -93,15 +93,14 @@ export class Server implements AsyncDisposable {
         });
 
         // run the controllers syncing the replicas, and the others once they are synced
-        this.#syncing = Server.#loopOf(options.syncing ?? [], options, undefined);
-        this.#loop = Server.#loopOf(options.controllers ?? [], options, options.confirmed);
+        this.#syncing = Server.#loopOf(options.syncing ?? [], options);
+        this.#loop = Server.#loopOf(options.controllers ?? [], options);
     }
 
     /** Create the loop of some controllers over the access database, absent for none. */
     static #loopOf(
         controllers: readonly Controller[],
         options: ServerOptions,
-        confirmed: ServerOptions["confirmed"],
     ): ControlLoop | undefined {
         // run no loop without controllers, and refuse controllers without an access database
         const { access } = options;
@@ -119,7 +118,6 @@ export class Server implements AsyncDisposable {
                 );
             },
             ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
-            ...(confirmed === undefined ? {} : { ready: confirmed }),
             clock: options.environment.clock,
         });
     }
@@ -652,8 +650,6 @@ export interface PackageHandler extends Omit<
     readonly syncing?: readonly Controller[];
     /** Wait until the package's replicas are synced, at once when absent. */
     readonly synced?: (signal: AbortSignal) => Promise<void>;
-    /** Wait until the server's access is confirmed before each reconciliation. */
-    readonly confirmed?: (signal: AbortSignal) => Promise<void>;
     /** Verify a credential whose keys the package has before the host, undefined for another. */
     readonly verify?: (request: Request) => Promise<Authentication | undefined>;
     /** Wait until the package can answer before it serves. */

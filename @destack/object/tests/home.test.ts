@@ -242,7 +242,7 @@ async function followChain(
         for (const key of keys) {
             const [name, scope] = key.split(" ");
             const listed = { name: present(name, "a name"), scope: present(scope, "a scope") };
-            await Replica.wait(database, listed.scope, head, controller.signal, [listed]);
+            await Replica.untilAt(database, [listed], head, controller.signal);
         }
         isGrowing = keys.length > 0;
     }
@@ -537,35 +537,6 @@ test("enter a scope at once past a watermark of a scope outside its chain", asyn
         .enter(userContext(users.alice, roomId, { environment: world, bookmark }), roomId)
         .then(() => "entered");
     expect(entered).toBe("entered");
-});
-
-test("refuse a request to confirm a position of a scope with no home or replica in the store", async () => {
-    // run in a world of its own
-    const world = testSimulation().environment("test");
-
-    // ask the home to confirm a position of a scope it never saw
-    const served = await serveHomes(world);
-    const head = await served.homeDatabase.log.position();
-    const subscription = {
-        name: "nowhere",
-        publication: "nowhere",
-        scope: "space-nowhere",
-        target: roomId,
-        parameters: {},
-    };
-    const refused = await refusal(
-        served.home.source.request(
-            { ...subscription, confirming: { scope: "space-nowhere", ...head } },
-            undefined,
-        ),
-    );
-
-    // refuse the unknown scope
-    expect(refused).toEqual([
-        "NOT_FOUND",
-        "HOME_OR_REPLICA_MISSING",
-        "space-nowhere has no home or replica here",
-    ]);
 });
 
 test("refuse a mutation changing rows of two homes", async () => {

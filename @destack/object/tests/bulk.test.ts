@@ -353,7 +353,7 @@ test("create and trash a thousand objects in as many statements as one object", 
     const { storage, call } = await serveLabels(world);
     const state = storage.database.driver.state;
 
-    // hear other writers' commits as a serving store does, then create two labels, warming the cached reads
+    // listen to other writers' commits as a serving store does, then create two labels, warming the cached reads
     await storage.database.log.listening();
     await call(users.frank, "createMany", { items: items(2) });
 

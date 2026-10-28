@@ -126,12 +126,15 @@ test("refuse a follow whose caller's credential lapsed before its first page, fo
     clock.advance(TOKEN_LIFETIME_MILLISECONDS);
     await Promise.resolve();
     const pages = store.source.relayed(
-        store.source.queriesPublication.subscription({
-            name: "objects",
-            scope: spaceId,
-            target: spaceId,
-            parameters: { queries: { mentions: { object: "mention" } } },
-        }),
+        {
+            ...store.source.queriesPublication.subscription({
+                name: "objects",
+                scope: spaceId,
+                target: spaceId,
+                parameters: { queries: { mentions: { object: "mention" } } },
+            }),
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
+        },
         context,
     );
     expect(await refusal(pages.next())).toEqual([
@@ -201,12 +204,15 @@ test("list and follow the mentions a home has as replicas of another space, from
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const pages = store.source.relayed(
-        store.source.queriesPublication.subscription({
-            name: "objects",
-            scope: spaceId,
-            target: spaceId,
-            parameters: { queries: { mentions: { object: "mention" } } },
-        }),
+        {
+            ...store.source.queriesPublication.subscription({
+                name: "objects",
+                scope: spaceId,
+                target: spaceId,
+                parameters: { queries: { mentions: { object: "mention" } } },
+            }),
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
+        },
         subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
     );
     const first = await pages.next();
@@ -324,7 +330,10 @@ test("follow a person's mentions on their behalf as the home they relate, and re
         alice,
     );
     const first = async (context: RequestContext) => {
-        const pages = store.source.relayed(subscription, context);
+        const pages = store.source.relayed(
+            { ...subscription, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+            context,
+        );
         const page = await pages.next();
         await pages.return(undefined);
 
@@ -425,7 +434,10 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
         });
     };
     const first = async (context: RequestContext) => {
-        const pages = store.source.relayed(subscription, context);
+        const pages = store.source.relayed(
+            { ...subscription, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+            context,
+        );
         const page = await pages.next();
         await pages.return(undefined);
 
@@ -479,7 +491,13 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
         spaceId,
         alice,
     );
-    const first = (context: RequestContext) => store.source.relayed(subscription, context).next();
+    const first = (context: RequestContext) =>
+        store.source
+            .relayed(
+                { ...subscription, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+                context,
+            )
+            .next();
     const anonymous = new RequestContext(new Request("https://test.local"), {
         audience: mention.package.id,
         scope: spaceId,
@@ -534,6 +552,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
             scope: spaceId,
             target: spaceId,
             parameters: { local: [] },
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
         },
         subjectContext(spacePrincipal(spaceId), spaceId, {
             environment: world,
@@ -735,12 +754,15 @@ test("replicate only the rows a query's permission allows, drop a row once the f
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const pages = store.source.relayed(
-        store.source.queriesPublication.subscription({
-            name: "loans",
-            scope: spaceId,
-            target: spaceId,
-            parameters: { queries: { loans: loan.query({ permission: "use" }) } },
-        }),
+        {
+            ...store.source.queriesPublication.subscription({
+                name: "loans",
+                scope: spaceId,
+                target: spaceId,
+                parameters: { queries: { loans: loan.query({ permission: "use" }) } },
+            }),
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
+        },
         subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
     );
     const table = loan.table[TABLE].sqlName;
@@ -775,12 +797,15 @@ test("replicate only the rows a query's permission allows, drop a row once the f
     const undeclared = await refusal(
         store.source
             .relayed(
-                store.source.queriesPublication.subscription({
-                    name: "loans",
-                    scope: spaceId,
-                    target: spaceId,
-                    parameters: { queries: { loans: { object: "loan", permission: "lend" } } },
-                }),
+                {
+                    ...store.source.queriesPublication.subscription({
+                        name: "loans",
+                        scope: spaceId,
+                        target: spaceId,
+                        parameters: { queries: { loans: { object: "loan", permission: "lend" } } },
+                    }),
+                    revision: { log: "follower", epoch: "follower", sequence: 1 },
+                },
                 subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
             )
             .next(),
@@ -824,12 +849,15 @@ test("answer a follow of a type the scope does not install with a complete page 
     onTestFinished(() => following.abort());
     const alice = principal.user.reference("universe", users.alice);
     const pages = store.source.relayed(
-        store.source.queriesPublication.subscription({
-            name: "activity",
-            scope: spaceId,
-            target: spaceId,
-            parameters: { queries: { activity: { object: "activity" } } },
-        }),
+        {
+            ...store.source.queriesPublication.subscription({
+                name: "activity",
+                scope: spaceId,
+                target: spaceId,
+                parameters: { queries: { activity: { object: "activity" } } },
+            }),
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
+        },
         subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
     );
     const first = await pages.next();
@@ -871,12 +899,15 @@ test("answer a query follow of a type the store does not serve with a complete p
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const pages = store.source.relayed(
-        store.source.queriesPublication.subscription({
-            name: spaceId,
-            scope: spaceId,
-            target: spaceId,
-            parameters: { queries: { grants: { object: "grant", scopes: "every" } } },
-        }),
+        {
+            ...store.source.queriesPublication.subscription({
+                name: spaceId,
+                scope: spaceId,
+                target: spaceId,
+                parameters: { queries: { grants: { object: "grant", scopes: "every" } } },
+            }),
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
+        },
         subjectContext(spacePrincipal(spaceId), spaceId, {
             environment: world,
             signal: following.signal,

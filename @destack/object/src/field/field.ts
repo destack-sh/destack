@@ -7,6 +7,9 @@ import {
     ColumnBuilder,
     TABLE,
     integer,
+    blob,
+    type BlobOptions,
+    blobs,
     json,
     real,
     text,
@@ -47,6 +50,8 @@ export const FIELD_TYPES = [
     "object",
     "fractionalIndex",
     "file",
+    "blob",
+    "blobs",
     "state",
     "text",
 ] as const;
@@ -73,6 +78,8 @@ const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
     json: "json",
     message: "message",
     file: "file",
+    blob: "blob",
+    blobs: "blobs",
     subject: "subject",
     object: "object",
     state: "state",
@@ -134,6 +141,7 @@ export type FieldSource =
     | { readonly builder: "enum"; readonly arguments: readonly [readonly [string, ...string[]]] }
     | { readonly builder: "json"; readonly arguments: readonly [schema.Schema] }
     | { readonly builder: "file"; readonly arguments: readonly [FileBucket] }
+    | { readonly builder: "blob" | "blobs"; readonly arguments: readonly [BlobOptions] }
     | { readonly builder: "subject"; readonly arguments: readonly (Policy | ObjectType)[] }
     | { readonly builder: "object"; readonly arguments: readonly (ObjectType | Policy)[] }
     | { readonly builder: "state"; readonly arguments: readonly [StateMachine] }
@@ -1092,6 +1100,20 @@ export const field = {
     /** Bytes. */
     binary() {
         return Field.required({ builder: "binary", arguments: [] }, binary);
+    },
+
+    /** The digest of a blob in the partition's blob store, kept alive by the row. */
+    blob(options: BlobOptions = {}) {
+        return Field.required({ builder: "blob", arguments: [options] }, (name) =>
+            blob(name, options),
+        );
+    },
+
+    /** The digests of blobs in the partition's blob store, kept alive by the row. */
+    blobs(options: BlobOptions = {}) {
+        return Field.required({ builder: "blobs", arguments: [options] }, (name) =>
+            blobs(name, options),
+        );
     },
 
     /** True or false. */

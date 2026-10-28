@@ -11,6 +11,7 @@ import {
     text,
     TABLE,
     uniqueIndex,
+    BLOB_TABLES,
 } from "@destack/db";
 import type { DatabaseDefinition, Table } from "@destack/db";
 import { accessTables } from "@destack/access";
@@ -59,6 +60,7 @@ export const journal = defineTable(
 /** Each object store's system tables, from access to follow keys. */
 export const SYSTEM_TABLES: readonly Table[] = [
     ...accessTables,
+    ...BLOB_TABLES,
     journal,
     settlement,
     lease,

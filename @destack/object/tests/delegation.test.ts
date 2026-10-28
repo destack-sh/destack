@@ -1,7 +1,8 @@
 import { testSimulation } from "../src/test/index.ts";
+import { MemoryBlobStorage } from "@destack/resource";
+import { defineDatabase } from "@destack/db";
 import { AccessError, principal, through } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceContext } from "@destack/resource/context";
@@ -115,6 +116,7 @@ test("act with the space's delegation to its installation, refusing without one,
     const store = new ObjectStore({
         chain: async () => undefined,
         environment: world,
+        blobs: new MemoryBlobStorage(world.crypto),
         server,
         servers: [implementPackage(probes, { objects: [probe] })],
         database,

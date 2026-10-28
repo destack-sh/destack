@@ -182,6 +182,7 @@ const INDEXED_TYPES: ReadonlySet<string> = new Set([
     "subject",
     "object",
     "fractionalIndex",
+    "blob",
     "state",
 ]);
 

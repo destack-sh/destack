@@ -1,4 +1,5 @@
 import { PackageManifest } from "@destack/package/manifest";
+import type { BlobStorage } from "@destack/resource";
 import { ObjectError } from "../error/error.ts";
 import { graph, Package, type PackageId } from "@destack/package";
 import type { EventStore } from "@destack/event";
@@ -27,22 +28,26 @@ import {
     RequestId,
 } from "@destack/sync";
 import {
+    and,
+    BlobController,
+    BlobStore,
     Change,
+    CompactionController,
+    type Controller,
+    type DatabaseConnection,
+    DatabaseError,
+    type Delta,
+    eq,
     Key,
     LogPosition,
+    lte,
     ReadSet,
+    type ReconcileController,
+    Row,
     Snapshot,
     TABLE,
-    type DatabaseConnection,
-    Row,
     type Table,
-    DatabaseError,
     Transaction,
-    and,
-    eq,
-    lte,
-    CompactionController,
-    type ReconcileController,
 } from "@destack/db";
 import { objectUnmask } from "../audit/unmask.ts";
 import { Replay } from "../audit/replay.ts";
@@ -67,7 +72,11 @@ import {
     Uuid,
     type UuidEnvironment,
 } from "@destack/schema";
-import type { InstalledServerContext, ServerContext } from "../workload/workload.ts";
+import {
+    type InstalledServerContext,
+    PackageContext,
+    type ServerContext,
+} from "../workload/workload.ts";
 import type { Watermark } from "@destack/sync";
 import { refuseInput } from "../error/error.ts";
 import { copyRequest } from "@destack/environment";
@@ -113,7 +122,6 @@ import { ResourceController, type ResourceControllerOptions } from "./provisione
 import { ExpiringController } from "./expiring.ts";
 import { RecoverableController } from "./recoverable.ts";
 import { TrackedHistory } from "./tracked.ts";
-import type { Controller, Delta } from "@destack/db";
 import { Settlement } from "./settlement.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import { Claimant } from "../claim/claim.ts";
@@ -166,7 +174,7 @@ const ACQUIRE_MILLISECONDS = 5000;
 /** A database's replica: the subscription following it, and the publisher streaming its pages. */
 export interface SubscriberEntry {
     /** The subscription following the replica. */
-    readonly subscription: sync.Subscription;
+    readonly subscription: sync.SubscriptionRecord;
     /** The publisher streaming the replica's pages, one step closer to its rows' home. */
     readonly publisher: sync.Publisher;
     /** Whether a use acquired the replica's key, as on-demand follows do, not a declaration. */
@@ -203,7 +211,7 @@ export type WatermarkHistory =
           /** The replicas including the scope's rows. */
           readonly including: readonly { readonly name: string; readonly scope: string }[];
           /** The followed replicas of the scope or reading it. */
-          readonly followed: readonly sync.Subscription[];
+          readonly followed: readonly sync.SubscriptionRecord[];
       }
     | {
           /** No home or replica of the scope here. */
@@ -416,6 +424,8 @@ interface StoreComposition {
     readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
     /** The database with the objects. */
     readonly database: DatabaseConnection;
+    /** The storage of the partition's blobs, which its rows' blob columns keep alive. */
+    readonly blobs: BlobStorage;
     /** The principal of the store's work: controllers, settlements and in-process changes. */
     readonly principal: Subject;
     /** The partitions the store serves, its own first: its installation's, else its scope. */
@@ -473,6 +483,8 @@ export class ObjectStore {
     readonly replicas: readonly ObjectType[];
     /** The database with the objects. */
     readonly database: DatabaseConnection;
+    /** The partition's blobs, kept alive by its rows' blob columns. */
+    readonly blobs: BlobStore;
     /** The principal of the store's work: controllers, settlements and in-process changes. */
     readonly principal: Subject;
     /** The partitions the store serves, its own first, none for its principal's scope alone. */
@@ -552,6 +564,13 @@ export class ObjectStore {
 
     /** Serve object types over one database. */
     constructor(given: ObjectStoreOptions) {
+        // keep the partition's blobs over the store's database
+        this.blobs = new BlobStore({
+            storage: given.blobs,
+            database: given.database,
+            environment: given.environment,
+        });
+
         // compose the servers' packages, with the principal and partition the follows place replicas below
         const { composed, served } = ObjectStore.#compose(given, () => this);
         this.principal = composed.principal;
@@ -1127,7 +1146,6 @@ export class ObjectStore {
                 : {
                       ready: (signal) => this.#awaitReady(signal),
                       synced: (signal) => this.#awaitReady(signal),
-                      confirmed: (signal) => this.awaitConfirmed(signal),
                   }),
             router: this.router(routed),
         };
@@ -1218,20 +1236,20 @@ export class ObjectStore {
         }
     }
 
-    /** Wait until a follow hears the home of each replica of the store's chain. */
-    async awaitConfirmed(signal: AbortSignal): Promise<void> {
-        await this.#untilHeard(async () => {
+    /** Wait until each access replica of the store's chain is live. */
+    async untilLive(signal: AbortSignal): Promise<void> {
+        await this.#untilLive(async () => {
             const chain = (await Scope.chain(Snapshot.live(this.database), this.scope)).map(
                 (link) => link.object.id,
             );
 
-            return (await Access.unconfirmed(this.database, chain)) === undefined;
+            return (await Access.stale(this.database, chain, this.authorizer.lag)) === undefined;
         }, signal);
     }
 
-    /** Wait until a follow hears the home of each current gating replica. */
+    /** Wait until each current gating replica is live. */
     async #ready(signal: AbortSignal): Promise<boolean> {
-        return await this.#untilHeard(async () => {
+        return await this.#untilLive(async () => {
             // wait for a pending chain, whose replicas the store lists once it is known
             const { database } = this;
             const chain = await this.chain(Snapshot.live(database));
@@ -1239,13 +1257,17 @@ export class ObjectStore {
                 return false;
             }
 
-            // require each gating replica heard and current
+            // require each gating replica live and current
             const gates = await this.sink.gates();
             const current = await Promise.all(
                 gates.map(
                     async ({ subscription }) =>
-                        sync.Replica.isLive(database, subscription.name, subscription.scope) &&
-                        (await sync.Replica.isCurrent(database, subscription)),
+                        sync.Replica.isLive(
+                            database,
+                            subscription.name,
+                            subscription.scope,
+                            this.authorizer.lag,
+                        ) && (await sync.Replica.isCurrent(database, subscription)),
                 ),
             );
 
@@ -1254,14 +1276,14 @@ export class ObjectStore {
     }
 
     /** Check now and after each replica record or liveness change, until it passes. */
-    async #untilHeard(check: () => Promise<boolean>, signal: AbortSignal): Promise<boolean> {
+    async #untilLive(check: () => Promise<boolean>, signal: AbortSignal): Promise<boolean> {
         // check until passed or aborted
         const { database } = this;
         const records = new Set(sync.replicaRecordTables.map((table) => table[TABLE].sqlName));
         while (!signal.aborted) {
             // watch liveness from before the check, so no change passes unseen
             const changed = new AbortController();
-            const unwatch = database.tracker.watchTracked(() => changed.abort());
+            const unwatch = database.tracker.watchMarked(() => changed.abort());
             const { generation } = database.state.commits;
             try {
                 if (await check()) {
@@ -1335,11 +1357,7 @@ export class ObjectStore {
                 await this.enter(context, input.scope);
                 await this.#waitForHomes(context, input.scope, input.homes);
 
-                // confirm the caller's streams of the scope at the watermark
-                const watermark = await this.watermark(input.scope);
-                await this.source.confirmCaller(context.authentication, watermark);
-
-                return watermark;
+                return await this.watermark(input.scope);
             }),
             call: store.call.handler(async ({ input, context }) => {
                 // read in the given scope
@@ -2063,11 +2081,7 @@ export class ObjectStore {
             }
         }
 
-        // confirm the caller's streams of the scope past its writes
-        const watermark = await this.watermark(scope);
-        await this.source.confirmCaller(context.authentication, watermark);
-
-        return { outcomes, watermark };
+        return { outcomes, watermark: await this.watermark(scope) };
     }
 
     /** Find the served replica of an object type with the store's handlers. */
@@ -2338,6 +2352,7 @@ export class ObjectStore {
 
         return [
             new CompactionController(this.database, this.clock),
+            new BlobController(this.blobs),
             ...(this.#journal === undefined
                 ? []
                 : [this.#journal.controller(), ...this.#journal.events.controllers]),
@@ -2560,9 +2575,12 @@ export class ObjectStore {
         }
     }
 
-    /** Read the position the store's log has now, under a scope its commits wrote. */
+    /** Read the position of the latest change in a scope's chain, which its readers see. */
     async watermark(scope: string): Promise<Watermark> {
-        return { scope, ...(await this.database.log.position()) };
+        const chain = await Scope.chain(Snapshot.live(this.database), scope);
+        const scopes = chain.map((link) => link.object.id);
+
+        return { scope, ...(await this.database.log.changed("every", scopes)) };
     }
 
     /** Decide where a watermark's history is here: local log, an older one, replicas, or none. */
@@ -2583,11 +2601,7 @@ export class ObjectStore {
         // take the replicas including the scope and the followed ones reading it
         const including = await sync.Replica.including(database, watermark.scope);
         const followed = (await this.sink.followed())
-            .filter(
-                ({ subscription, replica }) =>
-                    subscription.scope === watermark.scope ||
-                    replica.reads.includes(watermark.scope),
-            )
+            .filter(({ replica }) => replica.holds(watermark.scope))
             .map((entry) => entry.subscription);
 
         return including.length === 0 && followed.length === 0
@@ -2610,40 +2624,13 @@ export class ObjectStore {
                 `${watermark.scope} no longer has the watermark's history`,
             );
         }
-        // wait through the replicas reading the scope, asking upstream for a position they miss
-        else {
-            const { including, followed } =
-                history.kind === "replicated" ? history : { including: [], followed: [] };
-            if (!(await this.#isReplicated(watermark, history))) {
-                await this.sink.request(watermark, [...including, ...followed]);
-            }
-
-            // read the history again at each replica change, as the sink drops replicas it stops following
-            const tables = sync.Replica.recordTables;
-
-            return await this.database.log.until(
-                async (committed) =>
-                    tables.some((table) => committed.has(table)) &&
-                    (await this.#isReplicated(watermark, await this.history(watermark))),
-                signal,
-            );
+        // wait until the followed replicas reading the scope reach it, as only a followed replica moves
+        else if (history.kind === "replicated" && history.followed.length > 0) {
+            return await sync.Replica.untilAt(this.database, history.followed, watermark, signal);
         }
-    }
-
-    /** Report whether a history's replicas reached a watermark, refusing a lost history. */
-    async #isReplicated(watermark: Watermark, history: WatermarkHistory): Promise<boolean> {
-        // refuse a history the store no longer has
-        if (history.kind === "stale") {
-            throw DatabaseError.of(
-                "EPOCH_STALE",
-                `${watermark.scope} no longer has the watermark's history`,
-            );
-        }
-        // read the replicas the store follows now, or any replica of the scope
+        // wait until the replicas including the scope reach it, for a store following none yet
         else {
-            const followed = history.kind === "replicated" ? history.followed : [];
-
-            return await sync.Replica.isAt(this.database, watermark.scope, watermark, followed);
+            return await sync.Replica.wait(this.database, watermark.scope, watermark, signal);
         }
     }
 
@@ -3599,7 +3586,7 @@ export class ObjectStore {
         const { servers, sandboxes = [], uplink, machine, publisher, server, ...rest } = given;
         const { policies = [] } = rest;
         const implementations = servers.map((each) =>
-            ObjectStore.#packageOf(each, each.installation ?? server),
+            ObjectStore.#packageOf(each, each.installation ?? server, store().blobs),
         );
         const providers = implementations.flatMap((each) => each.definition.providers ?? []);
         if (providers.length > 0 && machine === undefined) {
@@ -3702,9 +3689,10 @@ export class ObjectStore {
     static #packageOf(
         server: PackageImplementation,
         context: ServerContext | undefined,
+        blobs: BlobStore,
     ): StorePackage {
         // refuse a handled type of the package that its handle neither declares nor its providers provision
-        const definition = server.definition(context);
+        const definition = server.definition(PackageContext.of(context, blobs));
         const handled = definition.objects ?? [];
         const served = Object.values(server.package.objects);
         const provisioned = (definition.providers ?? []).map((provider) => provider.object);

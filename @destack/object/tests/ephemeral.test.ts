@@ -116,12 +116,15 @@ test("share presence on a board across instances, guarded by access, gone after 
                 subject: principal.user.reference("universe", users.bob),
             });
             const durable = east.store.source.relayed(
-                east.store.source.queriesPublication.subscription({
-                    name: "objects",
-                    scope: spaceId,
-                    target: spaceId,
-                    parameters: {},
-                }),
+                {
+                    ...east.store.source.queriesPublication.subscription({
+                        name: "objects",
+                        scope: spaceId,
+                        target: spaceId,
+                        parameters: {},
+                    }),
+                    revision: { log: "follower", epoch: "follower", sequence: 1 },
+                },
                 context(users.alice, world).context,
             );
             expect((await nextPage(durable)).complete).toBe(true);
@@ -507,12 +510,18 @@ async function serveBoards(world: Environment) {
                 // read the pages in the background until closed, ending before the databases close
                 const { context: streamed, controller } = context(as, world);
                 const pages = store.source.relayed(
-                    store.source.ephemeralPublication.subscription({
-                        name: "ephemeral",
-                        scope: spaceId,
-                        target: spaceId,
-                        parameters: { writerId, queries: { presences: { object: "presence" } } },
-                    }),
+                    {
+                        ...store.source.ephemeralPublication.subscription({
+                            name: "ephemeral",
+                            scope: spaceId,
+                            target: spaceId,
+                            parameters: {
+                                writerId,
+                                queries: { presences: { object: "presence" } },
+                            },
+                        }),
+                        revision: { log: "follower", epoch: "follower", sequence: 1 },
+                    },
                     streamed,
                 );
                 const reading = (async () => {
