@@ -98,12 +98,11 @@ export function TopBar() {
                                 ))}
                             </nav>
 
-                            {/* keep search, the repository and community, appearance, sign in and the install at the row's end */}
+                            {/* keep search, the repository, appearance, sign in and the install at the row's end */}
                             {/* TODO #Incomplete: sign in with the Destack account, then open your space, once accounts are live */}
                             <div {...style.attrs(styles.tools)}>
                                 <CommandPalette appearance={appearance} />
                                 <SocialLink destination={github} />
-                                <SocialLink destination={discord} />
                                 <AppearanceToggle appearance={appearance} />
                                 <span
                                     title="Soon"
@@ -291,13 +290,12 @@ const styles = style.create({
     },
     content: {
         alignItems: "center",
-        columnGap: "2rem",
+        columnGap: { default: "2rem", [media.maxMd]: "1rem" },
         display: "flex",
         gridColumn: "1 / -1",
         minWidth: 0,
+        paddingInline: frame.inset,
         position: "relative",
-        paddingInlineEnd: { default: "0.75rem", [media.maxMd]: "0.25rem" },
-        paddingInlineStart: frame.inset,
     },
     navigation: {
         alignItems: "baseline",
@@ -347,7 +345,7 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: color.primary },
         },
         color: color.background,
-        marginInlineStart: { default: "0.5rem", [media.maxMd]: "0.25rem" },
+        marginInlineStart: { default: "0.625rem", [media.maxMd]: "0.25rem" },
         whiteSpace: "nowrap",
     },
     install: {
@@ -359,7 +357,7 @@ const styles = style.create({
     },
     signIn: {
         display: { default: "inline", [media.maxMd]: "none" },
-        marginInlineStart: "0.5rem",
+        paddingInline: "0.625rem",
     },
     menuButton: {
         alignItems: "center",
@@ -370,6 +368,7 @@ const styles = style.create({
         display: { default: "none", [media.maxMd]: "inline-flex" },
         height: "2.75rem",
         justifyContent: "center",
+        marginInlineEnd: "-0.75rem",
         padding: 0,
         width: "2.75rem",
     },
