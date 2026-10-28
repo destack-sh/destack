@@ -353,7 +353,7 @@ test("exchange a token acting as a member in the account's space, with the membe
     });
 });
 
-test("resolve the paying account: an organization's payer for it and its accounts, and a person's account itself", async () => {
+test("resolve the paying account: an organization's payer for it and its accounts, a person's account itself, and a space's through its account", async () => {
     await using fixture = await TestAccountStore.open();
     const founder = await fixture.signIn("founder@example.com");
 
@@ -373,14 +373,15 @@ test("resolve the paying account: an organization's payer for it and its account
         residencyId: "us",
     });
 
-    // charge the organization and both its accounts to its payer, and the person's account to itself
+    // charge the organization and both its accounts to its payer, the person's account and home space to the account
     const snapshot = Snapshot.live(fixture.database);
     expect([
         await Account.payer(snapshot, acme.id),
         await Account.payer(snapshot, second.id),
         await Account.payer(snapshot, acme.payer),
         await Account.payer(snapshot, founder.account),
-    ]).toEqual([acme.payer, acme.payer, acme.payer, founder.account]);
+        await Account.payer(snapshot, founder.home),
+    ]).toEqual([acme.payer, acme.payer, acme.payer, founder.account, founder.account]);
 });
 
 test("create accounts in an organization, administered by its owner members", async () => {

@@ -87,8 +87,16 @@ export function bearerGrant(options: BearerOptions): TokenGrant {
                 `${asserted.subject.id} acts in its own partition and its spaces alone`,
             );
         }
+        // refuse a space a partition other than a space
+        else if (!isOpen && principal.space.is(asserted.subject) && !spaceId.success) {
+            throw OAuthError.of("INVALID_GRANT", `${asserted.subject.id} acts in spaces alone`);
+        }
         // bind an installation to its space alone
-        else if (!isOpen && asserted.subject.scope !== partition) {
+        else if (
+            !isOpen &&
+            !principal.space.is(asserted.subject) &&
+            asserted.subject.scope !== partition
+        ) {
             throw OAuthError.of("INVALID_GRANT", `${asserted.subject.id} acts in its space alone`);
         }
 

@@ -129,7 +129,7 @@ export type Account = Select<typeof account.table>;
 
 /** The residency, relations and payers of accounts. */
 export const Account = {
-    /** Read the account of a scope: a person's personal one, an organization's payer, or itself. */
+    /** Read a scope's account: itself, a person's, an organization's payer, or its parent's. */
     async of(reader: Pick<Snapshot, "read">, scope: string): Promise<Account> {
         // refuse a scope without an account
         const found = await findAccount(reader, scope);
@@ -287,8 +287,10 @@ async function findAccount(
             where: { scope: user.identifier(scope), kind: "personal" },
         });
     }
-    // find none for any other scope
+    // read the account of any other scope's parent, such as a space's
     else {
-        return undefined;
+        const row = await reader.read(Scope.table).findFirst({ where: { scope } });
+
+        return row === undefined ? undefined : findAccount(reader, row.parent);
     }
 }

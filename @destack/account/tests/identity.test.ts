@@ -567,6 +567,35 @@ test("grant a machine tokens for its own partition and the spaces it serves, rec
     ]);
 });
 
+test("grant a space a token in another space stating the people it is home to, and refuse it a machine's partition", async () => {
+    // sign the owner in, whose home space asserts itself, and take another space and a machine
+    await using accounts = await TestAccountStore.open();
+    const owner = await accounts.signIn(OWNER_EMAIL);
+    const laptop = await accounts.enroll(ids.account, owner);
+    const other = Identifier.create("space", accounts.environment);
+    await place(accounts, owner, other, laptop.machineId);
+    const personal = await accounts.personalHome(owner);
+    await accounts.startIdentity(personal.spaceId, personal.machine);
+    const home = accounts.source(principal.space.reference(Scope.universe.id, personal.spaceId));
+
+    // grant a token in the other space, and ask for one in the machine's partition
+    const granted = TestJwt.claims(await home.grantedToken(AUDIENCE, other));
+    const machineToken = await refusal(home.grantedToken(AUDIENCE, laptop.machineId));
+
+    // state the owner's home set in the other space, and refuse the machine's partition
+    expect([
+        granted.caller.groups.filter((group) => group.relation === "home"),
+        machineToken,
+    ]).toEqual([
+        [{ ...principal.user.reference(Scope.universe.id, owner.id), relation: "home" }],
+        [
+            "BAD_REQUEST",
+            "INVALID_GRANT",
+            `the token endpoint refused the request: invalid_grant: ${personal.spaceId} acts in spaces alone`,
+        ],
+    ]);
+});
+
 test("disable, drain and enable a machine, refusing its token grants while disabled", async () => {
     // enroll a machine of the owner's account
     await using accounts = await TestAccountStore.open();

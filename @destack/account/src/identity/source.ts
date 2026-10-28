@@ -119,16 +119,18 @@ export class TokenSource {
         };
     }
 
-    /** Create a fetch calling a universe package with tokens granted for the subject. */
-    fetchGranted(audience: PackageId): Fetch {
+    /** Create a fetch calling a package with the subject's granted tokens, bound to a partition. */
+    fetchGranted(audience: PackageId, partition?: string): Fetch {
         return async (request) =>
-            this.send(TokenSource.#bearer(request, await this.grantedToken(audience)));
+            this.send(TokenSource.#bearer(request, await this.grantedToken(audience, partition)));
     }
 
-    /** Read the subject's token of a package the universe's issuer granted, reused a while. */
-    grantedToken(audience: PackageId): Promise<string> {
-        return this.#granted.token(audience, this.keystore.environment.clock.now(), () =>
-            this.#grant(audience),
+    /** Read the subject's granted token of a package and partition, reused a while. */
+    grantedToken(audience: PackageId, partition?: string): Promise<string> {
+        const key = partition === undefined ? audience : `${audience} ${partition}`;
+
+        return this.#granted.token(key, this.keystore.environment.clock.now(), () =>
+            this.#grant(audience, partition),
         );
     }
 
@@ -160,13 +162,14 @@ export class TokenSource {
     }
 
     /** Ask the universe's issuer for the subject's token of a package with its assertion. */
-    async #grant(audience: PackageId) {
-        // post an assertion of the subject for the package at the universe, where its relations decide
+    async #grant(audience: PackageId, partition: string | undefined) {
+        // post the subject's assertion for the package and partition to the universe's issuer
         const endpoint = `${this.issuer}${TOKEN_PATH}`;
         const body = new URLSearchParams({
             grant_type: JWT_BEARER,
             assertion: await this.assertion(endpoint),
             resource: PackageId.resource(audience),
+            ...(partition === undefined ? {} : { partition }),
         });
         const response = await this.send(new Request(endpoint, { method: "POST", body }));
         if (!response.ok) {
