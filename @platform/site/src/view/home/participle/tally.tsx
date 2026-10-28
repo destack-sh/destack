@@ -64,11 +64,12 @@ export function Tally(properties: {
                         />
                     }
                 >
-                    <Label>{properties.isOpen ? "Owned, paid by use" : "Rented by the seat"}</Label>
+                    <Label>
+                        {properties.isOpen ? "Owned, paid by usage" : "Rented, paid per seat"}
+                    </Label>
                 </LabelRow>
                 <Bill
                     isWindow
-                    plan="go"
                     lines={tallyOf(properties.picks)}
                     scale={{ people: people(), users: BASE_USERS }}
                     scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}

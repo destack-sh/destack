@@ -335,7 +335,6 @@ export function Verb(properties: {
                 ) : (
                     <Bill
                         isWindow
-                        plan="go"
                         scale={{ people: people(), users: BASE_USERS }}
                         scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
                         lines={holdingsWith(source(), lineup()).map((entry, index) => ({

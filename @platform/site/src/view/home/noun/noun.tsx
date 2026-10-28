@@ -166,11 +166,7 @@ export function Noun(properties: { isOpen: boolean }) {
                         )
                     }
                 >
-                    <Label>
-                        {isOpenAt(0)
-                            ? "Your app, in production"
-                            : "Your app, stuck where it was made"}
-                    </Label>
+                    <Label>{isOpenAt(0) ? "Your app, in production" : "Your app, in limbo"}</Label>
                 </LabelRow>
                 <div {...style.attrs(styles.window)}>
                     <XRay
@@ -215,7 +211,6 @@ export function Noun(properties: { isOpen: boolean }) {
                 ) : (
                     <Bill
                         isWindow
-                        plan="plus"
                         scale={{ people: 1, users: users() }}
                         scales={audiences.map((audience) => ({ people: 1, users: audience }))}
                         lines={entriesWith(lineup()).map((entry, index) => {

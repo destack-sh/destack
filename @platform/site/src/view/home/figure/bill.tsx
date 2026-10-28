@@ -2,12 +2,12 @@ import { present } from "@destack/schema";
 import { createMemo } from "@destack/view";
 
 import { isEmptyOf, type Item, type Lighting, type Line, marksOf } from "./item";
-import { type Cell, type Column, Ledger, type LedgerRow, type LedgerTotal } from "./ledger";
+import { type Cell, type Column, Ledger, type LedgerRow } from "./ledger";
 import type { Option } from "./picker";
 import { type Scale, usageAt, usageCostOf } from "./price";
 import type { Stagger } from "./stagger";
 import { palette } from "../../palette.stylex";
-import { plans, rates } from "../../content/generated/pricing";
+import { rates } from "../../content/generated/pricing";
 
 /** The bytes in a gigabyte. */
 const GB = 1_000_000_000;
@@ -25,20 +25,17 @@ const columns: readonly Column[] = [
         unit: "GB",
         note: "Database storage, hot",
         isQuiet: true,
+        isSpare: false,
     },
-    { caption: "Files", unit: "GB", note: "File storage, cold", isQuiet: true },
-    { caption: "Compute", unit: "GB·h", note: "Memory time", isQuiet: true },
-    { caption: "Cost", unit: "$/mo", note: "US dollars a month", isQuiet: false },
+    { caption: "Files", unit: "GB", note: "File storage, cold", isQuiet: true, isSpare: true },
+    { caption: "Compute", unit: "GB·h", note: "Memory time", isQuiet: true, isSpare: false },
+    { caption: "Cost", unit: "$/mo", note: "US dollars a month", isQuiet: false, isSpare: false },
 ];
 
-/** A Destack plan a bill's owned lines run on. */
-export type PlanKey = (typeof plans)[number]["key"];
-
-/** Draw a figure's bill as a ledger of blocks, database, files, compute and cost, and a total. */
+/** Draw a figure's bill as a ledger of blocks: database, files, compute and cost. */
 export function Bill(properties: {
     isWindow: boolean;
     lines: readonly Line[];
-    plan: PlanKey;
     scale: Scale;
     scales: readonly Scale[];
     isOpenAt: Stagger;
@@ -78,10 +75,6 @@ export function Bill(properties: {
             };
         });
 
-    // add the lines up: the rented ones, and the owned ones on the plan, its fee their floor
-    const total = (): LedgerTotal =>
-        totalOf(properties.lines, properties.scale, isOwned, planOf(properties.plan));
-
     // size each column to its widest figure at every dial setting in both states, so nothing shifts
     const widths = createMemo(() => {
         const lengths = properties.scales.flatMap((scale) =>
@@ -101,7 +94,6 @@ export function Bill(properties: {
             columns={columns}
             widths={widths()}
             rows={rows()}
-            total={total()}
             isWhole={isWhole()}
             lit={lightOf(properties.lighting)}
             isPressable={properties.lighting !== undefined || properties.onToggle !== undefined}
@@ -172,49 +164,6 @@ function rowOf(index: number | undefined): number | undefined {
 /** Return an amount to the hundredth with thousands separated, so decimal points line up. */
 function decimalOf(amount: number): string {
     return decimals.format(amount);
-}
-
-/** Return a Destack plan's name and its monthly fee in US dollars, refusing an unknown key. */
-function planOf(key: PlanKey): { name: string; fee: number } {
-    const plan = plans.find((candidate) => candidate.key === key);
-    if (plan === undefined) {
-        throw new RangeError(`no plan ${key}`);
-    }
-
-    return { name: plan.name, fee: plan.fees.USD };
-}
-
-/** Return the total row: rented lines' fees, and owned lines' usage above the plan's fee. */
-function totalOf(
-    lines: readonly Line[],
-    scale: Scale,
-    isOwned: (index: number) => boolean,
-    plan: { name: string; fee: number },
-): LedgerTotal {
-    // add up what renting each line costs, and what running each costs in your space
-    const rents = lines.map((line) => costOf(line.entry.stacked, scale) ?? 0);
-    const usages = lines.map((line) => usageCostOf(usageAt(line.workload, scale), rates));
-    const rented = rents.filter((_, index) => !isOwned(index));
-    const used = usages.filter((_, index) => isOwned(index));
-
-    // bill the owned lines at least the plan's fee, since the fee counts as usage
-    const isAnyOwned = used.length > 0;
-    const owned = isAnyOwned ? Math.max(plan.fee, sumOf(used)) : 0;
-    const cost = owned + sumOf(rented);
-    const rent = sumOf(rents);
-
-    return {
-        amount: `$${decimalOf(cost)}/mo`,
-        saving: isAnyOwned && rent > 0 ? changeOf(cost, rent) : undefined,
-        plan: isAnyOwned
-            ? `Destack ${plan.name}: $${plan.fee} a month, counted as usage, then usage past it${rented.length > 0 ? ", plus the lines still rented" : ""}`
-            : "Every line's plan, added up",
-    };
-}
-
-/** Return the sum of amounts. */
-function sumOf(amounts: readonly number[]): number {
-    return amounts.reduce((sum, amount) => sum + amount, 0);
 }
 
 /** Return the plan a rented item is on, set as the start of a sentence. */

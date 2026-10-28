@@ -1,4 +1,4 @@
-import { color, font, motion, shadow, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -37,6 +37,9 @@ const NARROW_NAME_WIDTH = "8rem";
 /** A ledger narrower than its name and figures at full size, as beside a tablet's wall. */
 const NARROW_LEDGER = "@container (max-width: 460px)";
 
+/** A ledger narrower than every column at narrow tracking, as on a phone: the bill needs 392px. */
+const CRAMPED_LEDGER = "@container (max-width: 400px)";
+
 /** The padding each row keeps inside its block, which its subgrid takes from the edge columns. */
 const ROW_INSET = "0.75rem";
 
@@ -50,6 +53,8 @@ export type Column = {
     note: string;
     /** Whether the column's figures set lighter, as measures beside the row's main figure. */
     isQuiet: boolean;
+    /** Whether the column hides in a cramped ledger, so the others fit without scrolling. */
+    isSpare: boolean;
 };
 
 /** One figure in a ledger row. */
@@ -62,16 +67,6 @@ export type Cell = {
     isFloor: boolean;
     /** The line set above the value, level with the row's label, such as a saving. */
     caption: string | undefined;
-};
-
-/** What a ledger's lines come to a month, set in its window's title bar. */
-export type LedgerTotal = {
-    /** The amount a month, such as "$99.00/mo". */
-    amount: string;
-    /** The saving against renting every line, or none while every line is rented. */
-    saving: string | undefined;
-    /** How the total is billed, shown when pointed at. */
-    plan: string;
 };
 
 /** One row of a ledger: what it is, its marks, its colour, and its figures. */
@@ -100,7 +95,6 @@ export function Ledger(properties: {
     columns: readonly Column[];
     widths: readonly number[];
     rows: readonly LedgerRow[];
-    total: LedgerTotal;
     isWhole: boolean;
     lit: number | undefined;
     isPressable: boolean;
@@ -126,16 +120,21 @@ export function Ledger(properties: {
     });
 
     // size each figure column at a caption tracking, the last one padded by the row's inset
-    const tracks = (captionTracking: number) =>
+    const tracks = (captionTracking: number, isCramped: boolean) =>
         properties.widths
-            .map((characters, column) =>
-                widthOf(
-                    characters,
-                    present(properties.columns[column], "column"),
-                    column === properties.widths.length - 1 ? ROW_INSET : "0rem",
-                    captionTracking,
-                ),
-            )
+            .map((characters, column) => {
+                const shown = present(properties.columns[column], "column");
+
+                return isCramped && shown.isSpare
+                    ? undefined
+                    : widthOf(
+                          characters,
+                          shown,
+                          column === properties.widths.length - 1 ? ROW_INSET : "0rem",
+                          captionTracking,
+                      );
+            })
+            .filter((track) => track !== undefined)
             .join(" ");
 
     return (
@@ -146,10 +145,14 @@ export function Ledger(properties: {
                     ref={scroller}
                     {...style.attrs(
                         styles.grid,
-                        styles.columns(tracks(LABEL_TRACKING), tracks(NARROW_LABEL_TRACKING)),
+                        styles.columns(
+                            tracks(LABEL_TRACKING, false),
+                            tracks(NARROW_LABEL_TRACKING, false),
+                            tracks(NARROW_LABEL_TRACKING, true),
+                        ),
                     )}
                 >
-                    {/* the title bar: the window's lights and the total, then each caption over its unit */}
+                    {/* the title bar: the window's lights, then each caption over its unit */}
                     <div
                         {...style.attrs(
                             styles.row,
@@ -158,25 +161,13 @@ export function Ledger(properties: {
                         )}
                     >
                         <span
-                            title={properties.total.plan}
                             {...style.attrs(
                                 styles.corner,
                                 properties.isWindow && styles.cornerWindow,
                             )}
                         >
                             {properties.isWindow && (
-                                <span
-                                    aria-hidden="true"
-                                    {...style.attrs(browserStyles.lights, styles.lights)}
-                                />
-                            )}
-                            <b {...style.attrs(styles.total)}>
-                                <Digits text={properties.total.amount} />
-                            </b>
-                            {properties.total.saving === undefined ? undefined : (
-                                <span {...style.attrs(styles.saving)}>
-                                    <Digits text={properties.total.saving} />
-                                </span>
+                                <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                             )}
                         </span>
                         <For each={properties.columns}>
@@ -184,7 +175,7 @@ export function Ledger(properties: {
                                 <span
                                     aria-hidden="true"
                                     title={column.note}
-                                    {...style.attrs(styles.cell)}
+                                    {...style.attrs(styles.cell, column.isSpare && styles.spare)}
                                 >
                                     <span {...style.attrs(styles.label)}>{column.caption}</span>
                                     <span {...style.attrs(styles.label)}>{column.unit}</span>
@@ -230,7 +221,15 @@ export function Ledger(properties: {
                                         )}
                                     </span>
                                     <For each={row().cells} keyed={false}>
-                                        {(cell) => <Figure cell={cell()} />}
+                                        {(cell, column) => (
+                                            <Figure
+                                                cell={cell()}
+                                                isSpare={
+                                                    present(properties.columns[column], "column")
+                                                        .isSpare
+                                                }
+                                            />
+                                        )}
                                     </For>
                                 </li>
                             )}
@@ -243,9 +242,9 @@ export function Ledger(properties: {
 }
 
 /** Draw one figure of a row, its value level with the row's name and its caption with the label. */
-function Figure(properties: { cell: Cell }) {
+function Figure(properties: { cell: Cell; isSpare: boolean }) {
     return (
-        <span {...style.attrs(styles.cell)}>
+        <span {...style.attrs(styles.cell, properties.isSpare && styles.spare)}>
             {/* caption, kept as an empty line where there is none */}
             <span {...style.attrs(styles.captionLine)}>
                 {properties.cell.caption !== undefined && (
@@ -331,10 +330,11 @@ function fillOf(tint: string, isLit: boolean): string {
 
 /** The ledger styles. */
 const styles = style.create({
-    columns: (figures: string, narrowFigures: string) => ({
+    columns: (figures: string, narrowFigures: string, crampedFigures: string) => ({
         gridTemplateColumns: {
             default: `minmax(${NAME_WIDTH}, 1fr) ${figures}`,
             [NARROW_LEDGER]: `minmax(${NARROW_NAME_WIDTH}, 1fr) ${narrowFigures}`,
+            [CRAMPED_LEDGER]: `minmax(${NARROW_NAME_WIDTH}, 1fr) ${crampedFigures}`,
         },
     }),
     tinted: (fill: string, tint: string) => ({
@@ -510,6 +510,9 @@ const styles = style.create({
         display: "grid",
         justifyItems: "end",
     },
+    spare: {
+        display: { default: null, [CRAMPED_LEDGER]: "none" },
+    },
     captionLine: {
         display: "flex",
         height: "0.875rem",
@@ -547,29 +550,11 @@ const styles = style.create({
         position: "sticky",
         zIndex: 1,
     },
-    total: {
-        color: color.foreground,
-        fontFamily: font.text,
-        fontSize: typeScale.small,
-        fontWeight: weight.semibold,
-        whiteSpace: "nowrap",
-    },
-    saving: {
-        color: color.primary,
-        fontSize: typeScale.label,
-        fontWeight: weight.semibold,
-        whiteSpace: "nowrap",
-    },
     cornerWindow: {
         alignItems: "center",
         backgroundColor: color.muted,
         display: "flex",
-        gap: { default: "0.75rem", [media.maxMd]: "0.5rem" },
         paddingInlineStart: "0.875rem",
-    },
-    lights: {
-        // drop the lights where the corner is too narrow for them and the total
-        display: { default: null, [media.maxMd]: "none" },
     },
     headWindow: {
         backgroundColor: color.muted,
