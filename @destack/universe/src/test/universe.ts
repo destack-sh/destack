@@ -1,4 +1,5 @@
 import { Issuer } from "@destack/account/native";
+import { MemoryBlobStorage } from "@destack/resource";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
 import { sudo } from "@destack/account/authentication";
 import {
@@ -328,6 +329,7 @@ export class TestUniverse implements AsyncDisposable {
                 callKey: () => key,
                 mail,
                 events: new MemoryBucket(clock),
+                blobs: new MemoryBlobStorage(environment.crypto),
                 ipAddress: { disableIpTracking: true },
                 environment,
                 report: (error) => {
@@ -724,7 +726,6 @@ export class TestUniverse implements AsyncDisposable {
             id: declared.id,
             keychain: declared.keychain,
             origin: TEST_ORIGIN,
-            head: () => this.storage.database.log.position(),
             send: this.#sender(declared.id),
             environment: this.environment,
         });
@@ -794,7 +795,6 @@ export class TestUniverse implements AsyncDisposable {
             id,
             keychain,
             origin: TEST_ORIGIN,
-            head: () => this.storage.database.log.position(),
             send: this.#sender(id),
             environment: this.environment,
         });

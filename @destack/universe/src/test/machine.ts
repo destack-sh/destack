@@ -1,10 +1,11 @@
 import { principal } from "@destack/access";
+import { defineDatabase, type LogPosition, Snapshot } from "@destack/db";
+import { MemoryBlobStorage } from "@destack/resource";
 import { Directory } from "@destack/account/address";
 import { MachineIdentity } from "@destack/account/client";
 import { IdentityRegistry } from "@destack/account/identity";
 import { directoryShape, identityShape, machine, machineShape } from "@destack/account/object";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
-import { defineDatabase, type LogPosition, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import type { Clock, Environment } from "@destack/environment";
 import { LocalKeyring, MemoryKeychain } from "@destack/identity";
@@ -59,8 +60,6 @@ export class TestMachine implements AsyncDisposable {
     readonly #keychain: MemoryKeychain;
     /** Whether the machine created its replica's database, and closes it. */
     readonly #isOwned: boolean;
-    /** Read the universe's log head, which settling follows up to. */
-    readonly #head: () => Promise<LogPosition>;
 
     /** The migrated replica database of a test machine, the same for every machine. */
     static readonly database = defineDatabase({
@@ -87,7 +86,6 @@ export class TestMachine implements AsyncDisposable {
         readonly storage: TestDatabase;
         readonly keychain: MemoryKeychain;
         readonly isOwned: boolean;
-        readonly head: () => Promise<LogPosition>;
     }) {
         // keep the machine's identity and its replica
         const accounts = PackageMount.url(fields.origin, accountPackage.id);
@@ -101,7 +99,6 @@ export class TestMachine implements AsyncDisposable {
         this.#storage = fields.storage;
         this.#keychain = fields.keychain;
         this.#isOwned = fields.isOwned;
-        this.#head = fields.head;
 
         // read the directory from the replica, and register identities as the machine
         this.directory = new Directory(Snapshot.live(fields.storage.database));
@@ -113,6 +110,11 @@ export class TestMachine implements AsyncDisposable {
             ),
             fields.environment,
         );
+    }
+
+    /** The store following the universe for the machine, which relays it to the spaces here. */
+    get store(): ObjectStore {
+        return this.#replica.store;
     }
 
     /** The clock the machine runs at, its environment's. */
@@ -136,8 +138,6 @@ export class TestMachine implements AsyncDisposable {
         readonly storage?: TestDatabase;
         /** The keyring secrets a template kept, new ones by default. */
         readonly world?: MachineWorld;
-        /** Read the universe's log head, which settling follows up to. */
-        readonly head: () => Promise<LogPosition>;
     }): Promise<TestMachine> {
         // prove the machine by its declared key, and keep the keys of the spaces it hosts in memory, the world's when restored
         const { id, keychain, origin, send, environment } = options;
@@ -166,6 +166,7 @@ export class TestMachine implements AsyncDisposable {
                 isMigrated: true,
             }));
         const replica = new ObjectStore({
+            blobs: new MemoryBlobStorage(environment.crypto),
             servers: [implementPackage(handle, { follows })],
             chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
             principal: principal.machine.reference(Scope.universe.id, id),
@@ -193,7 +194,6 @@ export class TestMachine implements AsyncDisposable {
             storage,
             keychain: kept,
             isOwned: options.storage === undefined,
-            head: options.head,
         });
     }
 
@@ -242,9 +242,9 @@ export class TestMachine implements AsyncDisposable {
         await this.#replica.settle();
     }
 
-    /** Settle once the replica follows the universe's head, failing on a reported failure. */
+    /** Settle the replica's store, failing on a reported failure. */
     async settle(): Promise<void> {
-        await this.follow(await this.#head(), new AbortController().signal);
+        await this.#replica.settle();
     }
 
     /** Read the keyring secrets of the spaces' keys, as a template's value keeps them. */

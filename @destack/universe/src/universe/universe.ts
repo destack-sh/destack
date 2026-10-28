@@ -1,4 +1,6 @@
 import { Directory } from "@destack/account/address";
+import { type Alarm, type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
+import type { BlobStorage } from "@destack/resource";
 import {
     AccountAuthentication,
     BetterAuthAuthenticator,
@@ -15,7 +17,6 @@ import {
     type ReleaseRegistry,
 } from "@destack/account/server";
 import type { Bucket } from "@destack/bucket";
-import { type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { type Keyring } from "@destack/identity";
 import type { MailTransport } from "@destack/account/better-auth";
@@ -33,7 +34,6 @@ import { Package, type PackageId } from "@destack/package";
 import { AccessContext, Authorization, Caller, type Policy } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
 import { Digest, present, schema } from "@destack/schema";
-import type { Alarm } from "@destack/db";
 import { RequestId, Scope } from "@destack/sync";
 import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
@@ -81,6 +81,8 @@ export interface UniverseOptions {
     readonly mail: MailTransport;
     /** The bucket with the segments of the universe's call events. */
     readonly events: Bucket;
+    /** The storage of the universe's blobs, which its rows' blob columns reference. */
+    readonly blobs: BlobStorage;
     /** The proxy and address headers the host's ingress sets. */
     readonly ipAddress: BetterAuthAuthenticatorOptions["ipAddress"];
     /** The clock the universe runs at, and the network it sends to other origins through. */
@@ -205,6 +207,7 @@ export class Universe implements AsyncDisposable {
             partitions: [Scope.universe.id],
             policies: options.policies,
             database,
+            blobs: options.blobs,
             claims: { object: claim },
             environment: options.environment,
             callKey,
