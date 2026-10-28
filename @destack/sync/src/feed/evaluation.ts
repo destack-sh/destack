@@ -8,7 +8,7 @@ import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { Run, type Walk } from "../dataflow/run.ts";
 import { type Decision, Patch } from "../dataflow/sink.ts";
 import { View } from "../dataflow/view.ts";
-import type { Audience, Watch } from "./audience.ts";
+import { type Audience, Watch } from "./audience.ts";
 import type { Feed } from "./feed.ts";
 
 /** The recent sequences whose decided pages an evaluation stores. */
@@ -160,12 +160,13 @@ export class Evaluation {
         return decided;
     }
 
-    /** Wait until the feed passes a watched change, the decisions expire, or the signal aborts. */
-    async wait(sequence: number, signal: AbortSignal): Promise<void> {
+    /** Wait until the feed passes a change in some scopes, the decisions expire, or aborts. */
+    async wait(sequence: number, signal: AbortSignal, scopes: readonly string[]): Promise<void> {
         // wait only for the feed, without expiry
+        const routes = Watch.routes(this.watches(), scopes);
         const until = await this.#audience.until();
         if (until === undefined) {
-            return this.#feed.next(sequence, signal, this.watches());
+            return this.#feed.next(sequence, signal, routes);
         }
 
         // wake the waiters of an earlier deadline, and arm one timer for this one
@@ -189,7 +190,7 @@ export class Evaluation {
             await this.#feed.next(
                 sequence,
                 AbortSignal.any([signal, expiry.expired.signal]),
-                this.watches(),
+                routes,
             );
         } finally {
             expiry.waiters -= 1;
@@ -508,13 +509,19 @@ export class Evaluation {
         }
 
         // refresh once the decisions expired
+        const sequence = next.value;
         const until = await this.#audience.until();
         if (until !== undefined && until <= this.#feed.clock.now()) {
-            const refreshed = { ...position, sequence: next.value };
-            pages.push(await this.redecide(refreshed, true, []));
+            pages.push(await this.redecide({ ...position, sequence }, true, []));
         }
 
-        return { pages, sequence: next.value, until: await this.#audience.until() };
+        // move the last page to the sequence the pages arrive at, past commits outside the queries
+        const last = pages.at(-1);
+        if (last !== undefined && last.position.sequence < sequence) {
+            pages[pages.length - 1] = { ...last, position: { ...last.position, sequence } };
+        }
+
+        return { pages, sequence, until: await this.#audience.until() };
     }
 
     /** Report whether any of some changes may decide the visibility of other rows. */

@@ -66,8 +66,23 @@ export interface Watch {
     readonly match?: Match;
 }
 
+/** The route of changes in any scope, beside the route of each scope. */
+export const EVERY_SCOPE = "*";
+
 /** Watches of logged tables. */
 export const Watch = {
+    /** List the routes some watches and other scopes wait on: each scope, any scope as one. */
+    routes(watches: readonly Watch[], scopes: readonly string[]): string[] {
+        return [
+            ...new Set([
+                ...watches.flatMap((watch) =>
+                    watch.scopes === "every" ? [EVERY_SCOPE] : watch.scopes,
+                ),
+                ...scopes,
+            ]),
+        ];
+    },
+
     /** Watch a table's changes in some scopes, of the rows a condition matches, compiled once. */
     of(table: Table, scopes: Query["scopes"], where?: Condition): Watch {
         // watch every row without a condition

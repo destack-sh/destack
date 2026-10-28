@@ -16,6 +16,9 @@ import type { Feed } from "../feed.ts";
 import type { Stream } from "../stream.ts";
 import { groupName, type Contents } from "./oracle.ts";
 
+/** The longest a follower waits for the feed to read a position: 5 s. */
+const WAIT_MILLISECONDS = 5000;
+
 /** What a subscriber has after applying its pages. */
 export class MemoryReplica implements Contents {
     /** The tables the replica's rows belong to. */
@@ -218,11 +221,13 @@ export class Follower {
         await this.#running;
     }
 
-    /** Wait until the replica arrives at a position, asking the stream to confirm it. */
+    /** Wait until the replica arrives at a position, beating the feed past skipped commits. */
     async wait(position: LogPosition): Promise<void> {
+        // wait for the feed to read the position
+        await this.#feed.next(position.sequence - 1, AbortSignal.timeout(WAIT_MILLISECONDS));
         for (;;) {
-            // ask the current stream to confirm the position
-            this.#stream?.confirm(position);
+            // make the stream publish its position, as the feed's next heartbeat would
+            this.#feed.beat();
             if (this.#failure !== undefined) {
                 throw this.#failure;
             }

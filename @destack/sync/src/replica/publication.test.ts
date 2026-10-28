@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "../test/index.ts";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import type { Call } from "../call/call.ts";
@@ -44,6 +45,7 @@ test("stream through a client's replica procedures as the follower, and send a f
                 target: "inbox",
                 publication: "notes",
                 parameters: {},
+                revision: FOLLOWER_REVISION,
             },
             AbortSignal.timeout(1000),
         ),
@@ -69,8 +71,8 @@ test("stream through a client's replica procedures as the follower, and send a f
     ]);
 });
 
-test("record a follower's requests at its source, keeping its latest ask with its latest parameters", async () => {
-    // record a request, an ask, then parameters alone
+test("record a follower's request at its source, keeping its latest revision of a log and taking another epoch's", async () => {
+    // record a request, a later revision with other parameters, then an earlier revision arriving late
     const database = await openReplica({ simulation: new Simulation({ seed: 1, start: 1000 }) });
     const subscription = {
         name: "notes",
@@ -78,19 +80,32 @@ test("record a follower's requests at its source, keeping its latest ask with it
         scope: "inbox",
         target: "inbox",
         parameters: { queries: {} },
+        revision: at("first", 1),
     };
-    const asked = { scope: "inbox", log: "log", epoch: "epoch", sequence: 4 };
     const caller = "user alice";
-    await Subscription.request(database, subscription, caller);
     const key = { name: "notes", scope: "inbox", target: "inbox", caller };
-    const [first] = await Subscription.requests(database, [key]);
-    await Subscription.request(database, { ...subscription, confirming: asked }, caller);
-    const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
-    await Subscription.request(database, reshaped, caller);
+    const read = async () => {
+        const [row] = await Subscription.requests(database, [key]);
 
-    // keep the ask past later requests without one, with the latest parameters
-    expect([first, ...(await Subscription.requests(database, [key]))]).toEqual([
-        { ...key, parameters: subscription.parameters, confirming: null },
-        { ...key, parameters: reshaped.parameters, confirming: asked },
+        return [row?.parameters, row?.revisionEpoch, row?.revisionSequence];
+    };
+    await Subscription.request(database, subscription, caller);
+    const first = await read();
+    const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
+    await Subscription.request(database, { ...reshaped, revision: at("first", 3) }, caller);
+    await Subscription.request(database, { ...subscription, revision: at("first", 2) }, caller);
+    const latest = await read();
+
+    // take a restored follower's request of another epoch, whatever its sequence
+    await Subscription.request(database, { ...subscription, revision: at("restored", 1) }, caller);
+    expect([first, latest, await read()]).toEqual([
+        [subscription.parameters, "first", 1],
+        [reshaped.parameters, "first", 3],
+        [subscription.parameters, "restored", 1],
     ]);
 });
+
+/** Build a follower's log position in an epoch. */
+function at(epoch: string, sequence: number) {
+    return { log: "follower", epoch, sequence };
+}

@@ -18,7 +18,7 @@ import type { Page, RowChange } from "../query/page.ts";
 import type { Query, Item } from "../query/query.ts";
 import type { AggregateGroup } from "../query/aggregate.ts";
 import { Node } from "../query/node.ts";
-import { EVERYONE, type Audience, Watch } from "./audience.ts";
+import { EVERY_SCOPE, EVERYONE, type Audience, Watch } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import { Stream, type StreamRequest } from "./stream.ts";
 import {
@@ -48,9 +48,6 @@ const MEMO_SEQUENCES = 8;
 
 /** The default wait before a caught-up stream repeats its position, in milliseconds. */
 const HEARTBEAT_MILLISECONDS = 10_000;
-
-/** The route of a table's changes in any scope, beside the routes of each scope. */
-const EVERY_SCOPE = "*";
 
 /** The rows of one capture page across tables: 500 rows of about 500 B make a page near 250 KB. */
 const CAPTURE_ROWS = 500;
@@ -201,13 +198,17 @@ export class Feed implements Cache {
             if (!isBeating) {
                 return;
             }
-
-            // count the beat, and end the caught-up streams' wait with a fresh signal for the next
-            const beating = this.#beating;
-            this.#beats++;
-            this.#beating = new AbortController();
-            beating.abort();
+            this.beat();
         }
+    }
+
+    /** Make every caught-up stream publish its position now, as each heartbeat does. */
+    beat(): void {
+        // count the beat, and end the caught-up streams' wait with a fresh signal for the next
+        const beating = this.#beating;
+        this.#beats++;
+        this.#beating = new AbortController();
+        beating.abort();
     }
 
     /** Describe the feed. */
@@ -239,7 +240,7 @@ export class Feed implements Cache {
     ): AsyncGenerator<Page> {
         // resolve the queries
         const audience = options.audience ?? EVERYONE;
-        const stream = new Stream(this, queries, audience, options.every, options.request);
+        const stream = new Stream(this, queries, audience, options);
         const previous =
             options.previous === undefined
                 ? undefined
@@ -465,7 +466,7 @@ export class Feed implements Cache {
         sequence: number,
     ): Promise<{ readonly changes: readonly Change[]; readonly sequence: number } | undefined> {
         // answer no changes from the routes when none of the watched tables and scopes changed
-        if (sequence >= this.#start && !this.#isTouched(watches, sequence)) {
+        if (sequence >= this.#start && !this.#isTouched(Watch.routes(watches, []), sequence)) {
             return { changes: [], sequence: Math.max(sequence, this.#sequence) };
         }
         // read stored changes from memory
@@ -629,7 +630,7 @@ export class Feed implements Cache {
         followed.handlers.add(apply);
         try {
             // read the row now, then hand changes until aborted, watching anew once a watch ends
-            this.#watch();
+            void this.#watch();
             const [row] = await Subscription.requests(this.database, [key]);
             apply(row);
             while (!signal.aborted) {
@@ -690,16 +691,15 @@ export class Feed implements Cache {
         }
     }
 
-    /** Wait until the feed passes a sequence or a watched change past it, fails, or aborts. */
-    async next(sequence: number, signal: AbortSignal, watches?: readonly Watch[]): Promise<void> {
-        // register under the watched routes, or for every page without watches
-        const routes = watches === undefined ? undefined : Feed.#routesOf(watches);
+    /** Wait until the feed passes a sequence or a routed change past it, fails, or aborts. */
+    async next(sequence: number, signal: AbortSignal, routes?: readonly string[]): Promise<void> {
+        // register under the routes, or for every page without routes
         await new Promise<void>((resolve) => {
             // wake once past or past a watched change, failed or aborted
             const isPassed = () =>
                 routes === undefined
                     ? this.#sequence > sequence
-                    : this.#isTouched(watches ?? [], sequence);
+                    : this.#isTouched(routes, sequence);
             const wake = () => {
                 if (isPassed() || this.#failure !== undefined || signal.aborted) {
                     this.#unregister(wake, routes);
@@ -746,26 +746,12 @@ export class Feed implements Cache {
         }
     }
 
-    /** Decide whether a watched table changed in a watched scope past a sequence. */
-    #isTouched(watches: readonly Watch[], sequence: number): boolean {
+    /** Decide whether some scopes changed past a sequence. */
+    #isTouched(scopes: readonly string[], sequence: number): boolean {
         return (
             (sequence < this.#start && this.#sequence > sequence) ||
-            Feed.#routesOf(watches).some((route) => (this.#touched.get(route) ?? -1) > sequence)
+            scopes.some((scope) => (this.#touched.get(scope) ?? -1) > sequence)
         );
-    }
-
-    /** List the routes some watches wait on: each table in each scope, or in any scope. */
-    static #routesOf(watches: readonly Watch[]): string[] {
-        return watches.flatMap(({ table, scopes }) =>
-            scopes === "every"
-                ? [Feed.#route(table, EVERY_SCOPE)]
-                : scopes.map((scope) => Feed.#route(table, scope)),
-        );
-    }
-
-    /** Build the route of a table in a scope, or in any scope. */
-    static #route(table: Table, scope: string): string {
-        return `${table[TABLE].sqlName}\n${scope}`;
     }
 
     /** Find the index of the first stored change after a sequence. */
@@ -863,14 +849,11 @@ export class Feed implements Cache {
         }
     }
 
-    /** Record each change's table and scope as touched, answering the waiters on their routes. */
+    /** Record each change's scope as touched, answering the waiters on their routes. */
     #touch(changes: readonly Change[]): Set<() => void> {
         const routed = new Set<() => void>();
         for (const change of changes) {
-            for (const route of [
-                Feed.#route(change.table, change.scope),
-                Feed.#route(change.table, EVERY_SCOPE),
-            ]) {
+            for (const route of [change.scope, EVERY_SCOPE]) {
                 this.#touched.set(route, change.sequence);
                 for (const wake of this.#routes.get(route) ?? []) {
                     routed.add(wake);
@@ -908,7 +891,9 @@ export interface FeedOptions {
     readonly drain?: AbortSignal;
     /** The subscriber's request the stream follows at its source, none by default. */
     readonly request?: StreamRequest;
-    /** Receive the stream once it starts, to ask it to confirm positions. */
+    /** The scopes whose commits the stream publishes its position past, beside its queries'. */
+    readonly scopes?: readonly string[];
+    /** Receive the stream once it starts, to reshape it. */
     readonly opened?: (stream: Stream) => void;
     /** Receive the stream once it ends, however it ends. */
     readonly closed?: (stream: Stream) => void;

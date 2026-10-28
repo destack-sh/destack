@@ -255,9 +255,11 @@ test("wake every stream sharing an evaluation at its expiry, after another strea
     const woken: string[] = [];
     const stopping = new AbortController();
     const waits = [
-        evaluation.wait(sequence, stopping.signal).then(() => woken.push(`first ${clock.now()}`)),
         evaluation
-            .wait(sequence, new AbortController().signal)
+            .wait(sequence, stopping.signal, [])
+            .then(() => woken.push(`first ${clock.now()}`)),
+        evaluation
+            .wait(sequence, new AbortController().signal, [])
             .then(() => woken.push(`second ${clock.now()}`)),
     ];
     void clock.sleep(500).then(() => stopping.abort());

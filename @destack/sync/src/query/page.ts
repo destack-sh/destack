@@ -66,8 +66,6 @@ export const Page = schema.object({
     subjects: schema.array(Subject).exactOptional(),
     /** The parameters the stream reflects from this page on, sent once they change. */
     parameters: schema.jsonObject().exactOptional(),
-    /** Whether the page answers the subscriber's ask to confirm a position, which it records. */
-    isConfirmation: schema.literal(true).exactOptional(),
     /** The home position a relaying source's rows reflect at its head. */
     origin: LogPosition.exactOptional(),
 });

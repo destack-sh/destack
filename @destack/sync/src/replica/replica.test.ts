@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "../test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import {
     asc,
@@ -19,7 +20,6 @@ import {
 import { TestDatabase } from "@destack/db/test";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
-import type { Stream } from "../feed/stream.ts";
 import { nth, schema } from "@destack/schema";
 import { replicaTables, Replica, replicaPosition, replicaKey } from "./replica.ts";
 import type { Resumption } from "./publication.ts";
@@ -46,6 +46,9 @@ import type { Page } from "../query/page.ts";
 import { Scope } from "../scope/scope.ts";
 import { Simulation } from "@destack/environment/simulation";
 import { until } from "@destack/environment";
+
+/** The lag a replica stays live within, as access sets it: 30 s. */
+const LAG = 30_000;
 
 /** The source log of the replica scenarios. */
 const LOG = "01996ab0-0000-7000-8000-0000000000aa";
@@ -117,7 +120,6 @@ test("follow a scope of another database into a local replica, then promote its 
     expect((await local.select().from(note)).map((row) => [row.id, row.title])).toEqual([
         ["a", "Renamed"],
     ]);
-    expect(await notes.position(local)).toEqual(await source.log.position());
 
     // release a row the replica's database pruned from the replica's bookkeeping
     const stored = async () =>
@@ -180,7 +182,7 @@ test("delete the rows of a table a reshaped replica stopped replicating, retaini
     ]);
 });
 
-test("follow two databases each replicating the other's table, receiving each write as a separate page and no bare position", async () => {
+test("follow two databases each replicating the other's table, receiving each write as one page and any other commit in the scope as a bare page", async () => {
     // store the notes on one database and the projects on the other, on a clock that stands still
     const simulation = new Simulation({ seed: 1, start: 0 });
     const home = await open({ simulation });
@@ -217,7 +219,7 @@ test("follow two databases each replicating the other's table, receiving each wr
     ];
     await expect.poll(rows).toEqual([["a"], ["p"]]);
 
-    // write once more on each side, and receive each write as the next page, never a bare position first
+    // write once more on each side, receiving each write as one page and every other page bare
     received.notes.length = 0;
     received.projects.length = 0;
     await home.transaction(
@@ -233,7 +235,16 @@ test("follow two databases each replicating the other's table, receiving each wr
     ]);
     controller.abort();
     await following;
-    expect([changedIds(received.notes), changedIds(received.projects)]).toEqual([[["b"]], [["q"]]]);
+    const split = (pages: readonly Page[]) => ({
+        written: changedIds(pages.filter((page) => page.changes.length > 0)),
+        isRestBare: pages.every(
+            (page) => page.complete && (page.changes.length > 0 || !page.reset),
+        ),
+    });
+    expect([split(received.notes), split(received.projects)]).toEqual([
+        { written: [["b"]], isRestBare: true },
+        { written: [["q"]], isRestBare: true },
+    ]);
 });
 
 test("refuse publishing a replicated table back to the database it replicates from, with rows or without, and publish it on to any other", async () => {
@@ -316,7 +327,11 @@ test("replicate several scopes in one replica recorded elsewhere, storing each s
         ]),
     });
     const feed = new Feed(source, [Scope.table, note, replicaPosition]);
-    const subscription = { ...inboxSubscription("folders"), scope: Scope.universe.id };
+    const subscription = {
+        ...inboxSubscription("folders"),
+        scope: Scope.universe.id,
+        revision: FOLLOWER_REVISION,
+    };
     const controller = new AbortController();
     const following = folders.follow(
         local,
@@ -333,15 +348,16 @@ test("replicate several scopes in one replica recorded elsewhere, storing each s
     controller.abort();
     await following;
 
-    // store both scopes' notes, and find the one silent record as the replica of each scope with its row in the replica
+    // store both scopes' notes, and find the one silent record past the lag as the replica of each scope with its row in the replica
+    simulation.clock.advance(LAG);
     const silent = await Promise.all(
         [...scopes, "drafts", "universe"].map((scope) =>
-            Replica.unconfirmed(local, "notes", [scope]),
+            Replica.stale(local, "notes", [scope], LAG),
         ),
     );
     const merged = nth(await Replica.including(local, "inbox"), 0);
-    local.tracker.track(Replica.owner(merged.name, merged.scope));
-    const live = await Replica.unconfirmed(local, "notes", scopes);
+    Replica.mark(local, merged, head);
+    const live = await Replica.stale(local, "notes", scopes, LAG);
     expect([
         arrived,
         (await local.select({ id: note.id }).from(note).orderBy(asc(note.id))).map((row) => row.id),
@@ -783,9 +799,10 @@ test("arrive at a position through the replicas of its log, skipping a required 
 
     // arrive at the inbox's position with the other replica required, which follows another log
     const required = [{ name: "notes", scope: "elsewhere" }];
+    const including = await Replica.including(local, "inbox");
     expect([
-        await Replica.isAt(local, "inbox", { log: LOG, epoch, sequence: 5 }, required),
-        await Replica.isAt(local, "inbox", { log: LOG, epoch, sequence: 6 }, required),
+        await Replica.isAt(local, [...including, ...required], { log: LOG, epoch, sequence: 5 }),
+        await Replica.isAt(local, [...including, ...required], { log: LOG, epoch, sequence: 6 }),
     ]).toEqual([true, false]);
 });
 
@@ -815,9 +832,10 @@ test("arrive at a position of a restored log only once every replica of the log 
     // wait on the other replica behind the restore, then arrive at the position once it follows
     const required = [{ name: "notes", scope: "elsewhere" }];
     const position = { log: LOG, epoch: restored, sequence: 5 };
-    const behind = await Replica.isAt(local, "inbox", position, required);
+    const replicas = [...(await Replica.including(local, "inbox")), ...required];
+    const behind = await Replica.isAt(local, replicas, position);
     await follow(other, restored);
-    expect([behind, await Replica.isAt(local, "inbox", position, required)]).toEqual([false, true]);
+    expect([behind, await Replica.isAt(local, replicas, position)]).toEqual([false, true]);
 });
 
 test("stage a run's pages and apply them at once when the run completes", async () => {
@@ -1628,7 +1646,7 @@ test("resume a subscription from the replica's position, reshape one of other pa
     const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
     const origin = (await local.log.position()).log;
     expect([
-        await notes.resume(local, { ...subscription, after: { ...position, sequence: 1 } }),
+        await notes.resume(local, subscription),
         await notes.resume(local, reshaped),
         await notes.resume(local, { ...subscription, publication: "chain" }),
         await notes.resume(local),
@@ -1640,7 +1658,7 @@ test("resume a subscription from the replica's position, reshape one of other pa
     ]);
 });
 
-test("keep a replica live on its database's tracker while its source is heard within the lag, and end a silent stream to resume", async () => {
+test("keep a replica live while its pages arrive within the lag, and end a stream silent for two lags to resume", async () => {
     const simulation = new Simulation({ seed: 1, start: 1000 });
     const { clock } = simulation;
     const local = await openReplica({ simulation });
@@ -1671,11 +1689,11 @@ test("keep a replica live on its database's tracker while its source is heard wi
         controller.signal,
         { synced: () => {}, lag: 30_000 },
     );
-    const isLive = () => Replica.isLive(local, "notes", "inbox");
+    const isLive = () => Replica.isLive(local, "notes", "inbox", LAG);
 
-    // hear the snapshot, stay live through a beat inside the lag, then go silent past the lag
+    // receive the snapshot, stay live through a beat inside the lag, then go silent past the lag
     await simulation.run({ until: () => isLive() });
-    const heard = isLive();
+    const live = isLive();
     clock.advance(20_000);
     beat.resolve();
     await simulation.run({ to: clock.now() });
@@ -1685,23 +1703,29 @@ test("keep a replica live on its database's tracker while its source is heard wi
     clock.advance(20_000);
     await simulation.run({ to: clock.now() });
     const silent = isLive();
+    const kept = streams;
+
+    // end the silent stream to resume once the second lag passes without a page
+    clock.advance(30_000);
+    await simulation.run({ to: clock.now() });
     controller.abort();
     await following;
-    expect({ heard, beaten, silent, streams, stopped: isLive() }).toEqual({
-        heard: true,
+    expect({ live, beaten, silent, kept, streams, stopped: isLive() }).toEqual({
+        live: true,
         beaten: true,
         silent: false,
+        kept: 1,
         streams: 2,
         stopped: false,
     });
 });
-test("keep a replica live across its follows while its source was heard within the lag, past a follow's stop", async () => {
+test("keep a replica live across its follows while its pages arrive within the lag, past a follow's stop", async () => {
     const simulation = new Simulation({ seed: 1, start: 1000 });
     const { clock } = simulation;
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
-    const isLive = () => Replica.isLive(local, "notes", "inbox");
+    const isLive = () => Replica.isLive(local, "notes", "inbox", LAG);
 
     // follow a source that sends one page, then stop the follow
     const followOnce = async (sequence: number) => {
@@ -1743,7 +1767,7 @@ test("keep a replica live across its follows while its source was heard within t
     });
 });
 
-test("move past bare pages in memory without a statement, and record the position a confirmation answers in one transaction", async () => {
+test("move past bare pages in memory without a statement, leaving the snapshot's recorded position", async () => {
     const simulation = new Simulation({ seed: 1, start: 1000 });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
@@ -1763,9 +1787,8 @@ test("move past bare pages in memory without a statement, and record the positio
         ...extra,
     });
 
-    // snapshot, then take a beat at the same position, one past a commit outside the queries, and a confirmation
+    // snapshot, then take a beat at the same position and one past a commit outside the queries
     const costs: number[] = [];
-    const bare: (number | undefined)[] = [];
     let mark: number | undefined;
     const measure = () => {
         if (mark !== undefined) {
@@ -1774,12 +1797,9 @@ test("move past bare pages in memory without a statement, and record the positio
     };
     const pages = async function* () {
         yield page(4, { reset: true });
-        for (const next of [page(4), page(7), page(9, { isConfirmation: true })]) {
-            // close the previous page's window, then read where the replica resumes before the confirmation
+        for (const next of [page(4), page(7)]) {
+            // close the previous page's window
             measure();
-            if (next.isConfirmation === true) {
-                bare.push((await notes.resume(local, subscription)).after?.sequence);
-            }
             mark = local.driver.state.statements;
             yield next;
         }
@@ -1787,12 +1807,11 @@ test("move past bare pages in memory without a statement, and record the positio
     await Array.fromAsync(notes.apply(local, pages(), { subscription, audience: "contained" }));
     measure();
 
-    // expect bare pages to cost nothing and leave the snapshot's position, and the confirmation to log its own in a transaction
-    expect({
-        costs,
-        bare,
-        confirmed: (await notes.resume(local, subscription)).after?.sequence,
-    }).toEqual({ costs: [0, 0, 4], bare: [4], confirmed: 9 });
+    // expect bare pages to cost nothing and leave the snapshot's recorded position
+    expect({ costs, recorded: (await notes.resume(local, subscription)).after?.sequence }).toEqual({
+        costs: [0, 0],
+        recorded: 4,
+    });
 });
 
 test("report a replica current for the request it completed a run of, and for a reshaped request only once a run of it completes", async () => {
@@ -1948,26 +1967,22 @@ function followConfirmed(
     feed: Feed,
     signal: AbortSignal,
 ) {
-    // follow the feed, recording the stream it opens
-    let stream: Stream | undefined;
+    // follow the feed
     const following = replica.follow(
         local,
-        (from, subscribed) =>
-            feed.subscribe(replica.queries, from.after, subscribed, {
-                opened: (opened) => {
-                    stream = opened;
-                },
-            }),
+        (from, subscribed) => feed.subscribe(replica.queries, from.after, subscribed),
         signal,
         { synced: () => {} },
     );
 
-    // ask the stream to confirm the source's head, and wait for the replica to arrive at it
+    // beat the feed once it read the source's head, and wait for the replica to arrive at it
     const confirmed = async () => {
         const position = await source.log.position();
-        stream?.confirm(position);
+        const waiting = AbortSignal.timeout(5000);
+        await feed.next(position.sequence - 1, waiting);
+        feed.beat();
 
-        return Replica.wait(local, replica.scope, position, AbortSignal.timeout(5000));
+        return Replica.wait(local, replica.scope, position, waiting);
     };
 
     return { following, confirmed };

@@ -44,6 +44,7 @@ import { Page, type ResultChange, type RowChange } from "../query/page.ts";
 import {
     PublicationAudience,
     Subscription,
+    type SubscriptionRecord,
     subscriptionTable,
     type Resumption,
 } from "./publication.ts";
@@ -59,7 +60,7 @@ import { Run } from "../dataflow/run.ts";
 import { Trace, type Group, type Upstream } from "../dataflow/upstream.ts";
 import { View } from "../dataflow/view.ts";
 import { scopeTable } from "../scope/table.ts";
-import { RetryPolicy } from "@destack/environment";
+import { RetryPolicy, until } from "@destack/environment";
 
 /** The staged pages a run's completion reads at once. */
 const STAGED_BATCH = 16;
@@ -67,22 +68,14 @@ const STAGED_BATCH = 16;
 /** The retained keys a snapshot's completion reads at once. */
 const PRUNE_BATCH = 1000;
 
+/** The lags a stream goes without a page before its follow ends it: two, past a late beat. */
+const SILENT_LAGS = 2;
+
 /** How a follow retries a source lapsing fresh credentials before any page: 5 tries, about 15 s. */
 const LAPSE_RETRY = RetryPolicy.of({ maximumAttempts: 5 });
 
 /** A group's values as a retained group's canonical JSON text has them. */
 const GroupValues = schema.record(schema.string(), Scalar);
-
-/** A subscription as a replica records it: what it follows, without where it resumes. */
-const SubscriptionRecord = Subscription.omit({
-    after: true,
-    previous: true,
-    refresh: true,
-    origin: true,
-    confirming: true,
-});
-/** A subscription as a replica records it. */
-export type SubscriptionRecord = schema.Infer<typeof SubscriptionRecord>;
 
 /** The replicas a database stores: what each replicates and from which subscription. */
 export const replica = defineTable(
@@ -114,6 +107,16 @@ export const replica = defineTable(
 /** A replica's position row without its key. */
 type ReplicaPosition = Omit<Select<typeof replicaPosition>, "name" | "scope">;
 
+/** A replica's watermark: the home position applied, and when its page arrived. */
+const ReplicaMark = schema.object({
+    /** The home position the replica applied. */
+    position: LogPosition,
+    /** When the page arrived, in UTC epoch milliseconds. */
+    receivedAt: schema.number(),
+});
+/** A replica's watermark: the home position applied, and when its page arrived. */
+type ReplicaMark = schema.Infer<typeof ReplicaMark>;
+
 /** The home position a replica reflects, and the tables it holds. */
 export interface Reflection {
     /** The home position. */
@@ -122,7 +125,7 @@ export interface Reflection {
     readonly tables: readonly string[];
 }
 
-/** How far each replica's source confirmed its rows, logged for relays to publish. */
+/** The position each replica's rows reached at their source, logged for relays to publish. */
 export const replicaPosition = defineTable(
     "replica_position",
     {
@@ -352,6 +355,11 @@ export class Replica {
             .filter((scope) => scope !== this.scope)
             .toSorted();
         this.reads = reads;
+    }
+
+    /** Decide whether the replica holds a scope's rows: its own scope, or one it reads. */
+    holds(scope: string): boolean {
+        return scope === this.scope || this.reads.includes(scope);
     }
 
     /** Join replicas of several scopes into one replica of a scope. */
@@ -689,58 +697,93 @@ export class Replica {
         );
     }
 
-    /** The tables holding replicas' records and the keys they include, by name. */
-    static readonly recordTables: readonly string[] = [...replicaRecordTables, replicaKey].map(
-        (table) => table[TABLE].sqlName,
-    );
-
-    /** Wait until a scope's replicas and the required ones reflect its home up to a position. */
+    /** Wait until the replicas including a scope reflect its home up to a position. */
     static async wait(
         database: DatabaseConnection,
         scope: string,
         position: LogPosition,
         signal: AbortSignal,
-        required: readonly Pick<Subscription, "name" | "scope">[] = [],
     ): Promise<boolean> {
-        // check again only once a commit changes a replica's record or the keys it includes
-        const tables = Replica.recordTables;
+        // read the replicas including the scope, again at each mark while none does
+        let replicas = await Replica.including(database, scope);
 
-        return database.log.until(
-            async (committed) =>
-                tables.some((table) => committed.has(table)) &&
-                (await Replica.isAt(database, scope, position, required)),
+        return await Replica.#untilMarked(
+            database,
+            async () => {
+                if (replicas.length === 0) {
+                    replicas = await Replica.including(database, scope);
+                }
+
+                return Replica.isAt(database, replicas, position);
+            },
             signal,
         );
     }
 
-    /** Report whether each replica of a scope and the required ones arrived at a position. */
-    static async isAt(
+    /** Wait until some replicas arrived at a position, as their marks show. */
+    static async untilAt(
         database: DatabaseConnection,
-        scope: string,
+        replicas: readonly { readonly name: string; readonly scope: string }[],
         position: LogPosition,
-        required: readonly Pick<Subscription, "name" | "scope">[] = [],
+        signal: AbortSignal,
     ): Promise<boolean> {
-        // read the replicas including the scope and the required ones, arriving nowhere before both
-        const including = await Replica.#recordsIncluding(database, [scope]);
-        const records = await Promise.all(
-            required.map((each) => Replica.#find(database, each.name, each.scope)),
+        return await Replica.#untilMarked(
+            database,
+            () => Replica.isAt(database, replicas, position),
+            signal,
         );
-        const recorded = records.filter((record) => record !== undefined);
-        if (recorded.length < records.length) {
-            return false;
+    }
+
+    /** Check now and at each mark change, until the check passes or the signal aborts. */
+    static async #untilMarked(
+        database: DatabaseConnection,
+        check: () => Promise<boolean>,
+        signal: AbortSignal,
+    ): Promise<boolean> {
+        const aborted = until(signal);
+        while (!signal.aborted) {
+            // watch the marks from before the check, so no change passes unseen
+            const changed = Promise.withResolvers<void>();
+            const unwatch = database.tracker.watchMarked(() => changed.resolve());
+            try {
+                if (await check()) {
+                    return true;
+                }
+                await Promise.race([changed.promise, aborted]);
+            } finally {
+                unwatch();
+            }
         }
 
-        // require the position of each replica following the position's log, skipping other logs
-        const included = [...including.map(({ record }) => record), ...recorded].flatMap(
-            (record) => {
-                const origin = Replica.#origin(record);
-                const isFollowing = origin === undefined || origin.log === position.log;
+        return false;
+    }
 
-                return isFollowing ? [Replica.#isReached(origin, scope, position)] : [];
-            },
+    /** Report whether some replicas arrived at a position, skipping those of other logs. */
+    static async isAt(
+        database: DatabaseConnection,
+        replicas: readonly { readonly name: string; readonly scope: string }[],
+        position: LogPosition,
+    ): Promise<boolean> {
+        // take each replica's mark, or the home position it recorded before any mark
+        const homes = await Promise.all(
+            replicas.map(
+                async ({ name, scope }) =>
+                    [
+                        scope,
+                        Replica.marked(database, name, scope)?.position ??
+                            (await Replica.origin(database, name, scope)),
+                    ] as const,
+            ),
         );
 
-        return included.length > 0 && included.every(Boolean);
+        // require each replica following the position's log to have reached it, and one at least
+        const reached = homes.flatMap(([scope, home]) =>
+            home === undefined || home.log === position.log
+                ? [Replica.#isReached(home, scope, position)]
+                : [],
+        );
+
+        return reached.length > 0 && reached.every(Boolean);
     }
 
     /** List the replicas including a scope's rows, by name and the scope each replicates. */
@@ -759,22 +802,7 @@ export class Replica {
         position: LogPosition,
         signal: AbortSignal,
     ): Promise<boolean> {
-        // check the replica's home position again only once a commit changes its record
-        const tables = replicaRecordTables.map((table) => table[TABLE].sqlName);
-
-        return database.log.until(
-            async (committed) =>
-                tables.some((table) => committed.has(table)) &&
-                Replica.#isReached(await this.#readOrigin(database), this.scope, position),
-            signal,
-        );
-    }
-
-    /** Read the origin the replica's record stores, absent before it follows. */
-    async #readOrigin(database: DatabaseConnection): Promise<LogPosition | undefined> {
-        const record = await this.#record(database);
-
-        return record === undefined ? undefined : Replica.#origin(record);
+        return await Replica.untilAt(database, [this], position, signal);
     }
 
     /** Report whether a home position arrived at a position of its log, refusing older history. */
@@ -823,7 +851,7 @@ export class Replica {
     /** Report whether a database's replica completed a run of exactly a subscription. */
     static async isCurrent(
         database: DatabaseConnection,
-        subscription: Subscription,
+        subscription: SubscriptionRecord,
     ): Promise<boolean> {
         const recorded = await Replica.subscription(
             database,
@@ -952,30 +980,107 @@ export class Replica {
         }
     }
 
-    /** Find the first scope a complete replica includes while no follow hears its source. */
-    static async unconfirmed(
+    /** Wait until a publication's replicas of some scopes are live, answering one still stale. */
+    static async untilLive(
         database: DatabaseConnection,
         publication: string,
         scopes: readonly string[],
+        lag: number,
+        signal: AbortSignal,
     ): Promise<string | undefined> {
-        // take the complete replicas of the publication including each scope
+        let stale: string | undefined;
+        await Replica.#untilMarked(
+            database,
+            async () => {
+                stale = await Replica.stale(database, publication, scopes, lag);
+
+                return stale === undefined;
+            },
+            signal,
+        );
+
+        return stale;
+    }
+
+    /** Find the first scope a replica includes while it is not live or has no page yet. */
+    static async stale(
+        database: DatabaseConnection,
+        publication: string,
+        scopes: readonly string[],
+        lag: number,
+    ): Promise<string | undefined> {
+        // take the replicas of the publication including each scope
         const records = await Replica.#recordsIncluding(database, scopes);
         const silent = records.filter(
             ({ record }) =>
                 record.subscription?.publication === publication &&
-                Replica.#origin(record) !== undefined &&
-                !Replica.isLive(database, record.name, record.scope),
+                !Replica.isLive(database, record.name, record.scope, lag),
         );
 
         return scopes.find((scope) => silent.some((each) => each.scope === scope));
     }
 
-    /** Report whether a follow on any instance heard a replica's source within its lag. */
-    static isLive(database: DatabaseConnection, name: string, scope: string): boolean {
-        return database.tracker.isTracked(Replica.owner(name, scope));
+    /** Report whether a replica is live: a follow on any instance received a page within a lag. */
+    static isLive(database: DatabaseConnection, name: string, scope: string, lag: number): boolean {
+        const marked = Replica.marked(database, name, scope);
+
+        return marked !== undefined && database.state.clock.now() - marked.receivedAt < lag;
     }
 
-    /** Name the owner a database's tracker keeps while a follow hears a replica's source. */
+    /** Mark a replica with the home position a page brought, announced at once. */
+    static mark(
+        database: DatabaseConnection,
+        followed: { readonly name: string; readonly scope: string },
+        position: LogPosition,
+    ): void {
+        const marked: ReplicaMark = { position, receivedAt: database.state.clock.now() };
+        database.tracker.mark(Replica.owner(followed.name, followed.scope), marked);
+    }
+
+    /** Refresh a replica's mark at a beat, announced with the tracker's heartbeat. */
+    static refresh(
+        database: DatabaseConnection,
+        followed: { readonly name: string; readonly scope: string },
+        position: LogPosition,
+    ): void {
+        const marked: ReplicaMark = { position, receivedAt: database.state.clock.now() };
+        database.tracker.refresh(Replica.owner(followed.name, followed.scope), marked);
+    }
+
+    /** Read a replica's latest mark across the live instances, absent before any. */
+    static marked(
+        database: DatabaseConnection,
+        name: string,
+        scope: string,
+    ): ReplicaMark | undefined {
+        // take the mark that arrived last across the instances
+        const marks = database.tracker
+            .marks(Replica.owner(name, scope))
+            .map((mark) => ReplicaMark.parse(mark));
+
+        return marks.reduce<ReplicaMark | undefined>(
+            (latest, mark) =>
+                latest === undefined || mark.receivedAt > latest.receivedAt ? mark : latest,
+            undefined,
+        );
+    }
+
+    /** Tell a listener each time a replica's marks change, until stopped. */
+    static watchMarked(
+        database: DatabaseConnection,
+        followed: { readonly name: string; readonly scope: string },
+        listener: () => void,
+    ): () => void {
+        const owner = Replica.owner(followed.name, followed.scope);
+
+        return database.tracker.watchMarked((marked) => {
+            if (marked === owner) {
+                listener();
+            }
+        });
+    }
+
+    /** Build the owner key a database's tracker marks a replica under. */
     static owner(name: string, scope: string): string {
         return `replica/${name}/${scope}`;
     }
@@ -1138,7 +1243,10 @@ export class Replica {
     }
 
     /** Resume a subscription from the replica. */
-    async resume(database: DatabaseConnection, subscription?: Subscription): Promise<Resumption> {
+    async resume(
+        database: DatabaseConnection,
+        subscription?: SubscriptionRecord,
+    ): Promise<Resumption> {
         // resume a replica without a subscription from its position
         const after = await this.position(database);
         const recorded = await this.subscribed(database);
@@ -1406,6 +1514,9 @@ export class Replica {
                 { constraints: "deferred" },
             ),
         );
+
+        // forget the dropped rows' mark, so nothing reads the replica live until it is followed again
+        database.tracker.unmark(Replica.owner(name, scope));
     }
 
     /** List the subscriptions of a database's replicas, leaving out replicas without one. */
@@ -1429,7 +1540,7 @@ export class Replica {
         let staged = 0;
         let isSnapshot = false;
         let parameters = options.subscription?.parameters;
-        let confirmed: ReplicaPosition | undefined;
+        let reached: ReplicaPosition | undefined;
         let marks: string | undefined;
         for await (const page of pages) {
             // register the parameters a reshaped stream reflects from this page on
@@ -1451,15 +1562,32 @@ export class Replica {
                 isSnapshot = page.reset;
             }
 
-            // confirm the position of a bare page continuing this stream's run, else apply the run a page completes
+            // move past a bare page continuing this stream's run in memory, else apply the run a page completes
             if (
                 page.complete &&
-                confirmed !== undefined &&
-                Replica.#isBeat(page, staged, confirmed, marks, reflected)
+                reached !== undefined &&
+                Replica.#isBeat(page, staged, reached, marks, reflected)
             ) {
-                confirmed = await this.#beat(database, page, confirmed);
+                const before = this.#home(reached);
+                reached = Replica.#beat(page, reached);
+                const home = this.#home(reached);
+
+                // refresh an unmoved home position with the next heartbeat
+                if (home !== undefined && before !== undefined && LogPosition.same(home, before)) {
+                    Replica.refresh(database, this, home);
+                }
+                // announce a moved one at once
+                else if (home !== undefined) {
+                    Replica.mark(database, this, home);
+                }
             } else if (page.complete) {
-                confirmed = await this.#complete(database, page, { staged, isSnapshot }, reflected);
+                reached = await this.#complete(database, page, { staged, isSnapshot }, reflected);
+
+                // announce the run's home position at once
+                const home = this.#home(reached);
+                if (home !== undefined) {
+                    Replica.mark(database, this, home);
+                }
                 marks = Replica.#marks(page);
                 staged = 0;
             }
@@ -1477,19 +1605,23 @@ export class Replica {
     /** Apply a source's pages until aborted, resuming each stream ending where the replica is. */
     async follow(
         database: DatabaseConnection,
-        source: (from: Resumption, signal: AbortSignal) => AsyncIterable<Page>,
+        source: (
+            from: Resumption,
+            signal: AbortSignal,
+            subscription: Subscription | undefined,
+        ) => AsyncIterable<Page>,
         signal: AbortSignal,
-        options: ApplyOptions & {
+        options: ApplyOptions<Subscription> & {
             /** Report the replica caught up, once per follow at its first full page. */
             readonly synced: () => void;
-            /** Keep the replica live while its source is heard within this lag, in milliseconds. */
+            /** End a stream silent for twice this lag, in milliseconds, to resume it. */
             readonly lag?: number;
         },
     ): Promise<void> {
-        // apply each stream from where the replica is until aborted, live while its source is heard, ending a silent one to resume
+        // apply each stream from where the replica is until aborted, ending a silent one to resume
         await this.register(database, options);
         let silent = new AbortController();
-        const hear = this.#hearing(database, options.lag, signal, () => silent.abort());
+        const silence = this.#silence(database, options.lag, signal, () => silent.abort());
         let isSynced = false;
         let lapses = 0;
         while (!signal.aborted) {
@@ -1497,13 +1629,18 @@ export class Replica {
             let isLapsed = false;
             silent = new AbortController();
             const streaming = AbortSignal.any([signal, silent.signal]);
-            const pages = source(await this.resume(database, options.subscription), streaming);
-            hear(false);
+
+            // take the subscription once, so the stream opens and records the same parameters
+            const { subscription } = options;
+            const from = await this.resume(database, subscription);
+            const pages = source(from, streaming, subscription);
+            const opened = subscription === undefined ? options : { ...options, subscription };
+            silence();
             try {
-                for await (const page of this.apply(database, pages, options)) {
+                for await (const page of this.apply(database, pages, opened)) {
                     // report the replica synced at its first complete page
                     isReceived = true;
-                    hear(true);
+                    silence();
                     if (page.complete && !isSynced) {
                         isSynced = true;
                         options.synced();
@@ -1552,44 +1689,27 @@ export class Replica {
         }
     }
 
-    /** Keep the replica's owner tracked while its source was heard within the lag. */
-    #hearing(
+    /** Arm the silence ending a stream without a page for two lags, rearmed at each page. */
+    #silence(
         database: DatabaseConnection,
         lag: number | undefined,
         signal: AbortSignal,
         silent: () => void,
-    ): (isPage: boolean) => void {
-        // hear nothing without a lag
+    ): () => void {
+        // end nothing without a lag
         if (lag === undefined) {
             return () => {};
         }
 
-        // release the owner once the lag passes unheard, even past the follow's end
-        const { tracker } = database;
+        // replace the armed silence at each stream start and page
         const { clock } = database.state;
-        const owner = Replica.owner(this.name, this.scope);
-        let isTracked = false;
         let waking = new AbortController();
 
-        // arm the silence for the lag after a stream starts or a page arrives, tracking the owner at each page
-        return (isPage) => {
-            // replace the armed silence
+        return () => {
             waking.abort();
             waking = new AbortController();
-            if (isPage && !isTracked) {
-                isTracked = true;
-                tracker.track(owner);
-            }
-            clock.sleep(lag, waking.signal).then(
-                () => {
-                    if (isTracked) {
-                        isTracked = false;
-                        tracker.release(owner);
-                    }
-                    if (!signal.aborted) {
-                        silent();
-                    }
-                },
+            clock.sleep(lag * SILENT_LAGS, AbortSignal.any([signal, waking.signal])).then(
+                () => silent(),
                 () => {},
             );
         };
@@ -1751,7 +1871,7 @@ export class Replica {
         }
     }
 
-    /** Read how far a run's source confirmed the replica, with its home position. */
+    /** Read the position a run reached at its source, with its home position. */
     static #position(
         page: Page,
         run: Stage,
@@ -1761,16 +1881,12 @@ export class Replica {
         return { ...page.position, ...Replica.#originColumns(page, run, record, relayed) };
     }
 
-    /** Move past a bare page in memory, recording it once it answers an ask. */
-    async #beat(
-        database: DatabaseConnection,
-        page: Page,
-        confirmed: ReplicaPosition,
-    ): Promise<ReplicaPosition> {
-        // take a relaying source's origin, else keep the recorded one
+    /** Move past a bare page's position in memory, taking a relaying source's origin. */
+    static #beat(page: Page, reached: ReplicaPosition): ReplicaPosition {
         const { origin } = page;
-        const position: ReplicaPosition = {
-            ...confirmed,
+
+        return {
+            ...reached,
             ...page.position,
             ...(origin === undefined
                 ? {}
@@ -1780,20 +1896,14 @@ export class Replica {
                       originSequence: origin.sequence,
                   }),
         };
-
-        // record the position a confirmation answers
-        if (page.isConfirmation === true) {
-            await database.state.serialize(() =>
-                database.transaction((transaction) =>
-                    transaction.log.asReplica(() => this.#writePosition(transaction, position)),
-                ),
-            );
-        }
-
-        return position;
     }
 
-    /** Write how far the source confirmed the replica, and the home position its rows reflect. */
+    /** Read the home position of a replica position, absent before its first snapshot. */
+    #home(at: ReplicaPosition): LogPosition | undefined {
+        return Replica.#origin({ name: this.name, scope: this.scope, ...at });
+    }
+
+    /** Write the position the replica reached at its source, and its rows' home position. */
     async #writePosition(database: DatabaseConnection, position: ReplicaPosition): Promise<void> {
         await database
             .insert(replicaPosition)
@@ -1804,11 +1914,11 @@ export class Replica {
             });
     }
 
-    /** Report whether a page only confirms a position continuing a stream's applied run. */
+    /** Report whether a page only moves the position of a stream's applied run. */
     static #isBeat(
         page: Page,
         staged: number,
-        confirmed: ReplicaPosition,
+        reached: ReplicaPosition,
         marks: string | undefined,
         options: ApplyOptions,
     ): boolean {
@@ -1821,8 +1931,8 @@ export class Replica {
                 (page.scopes === undefined && page.subjects === undefined)) &&
             page.parameters === undefined &&
             options.prediction === undefined &&
-            page.position.log === confirmed.log &&
-            page.position.epoch === confirmed.epoch
+            page.position.log === reached.log &&
+            page.position.epoch === reached.epoch
         );
     }
 
@@ -2354,7 +2464,7 @@ export class Replica {
     }
 
     /** Write a subscription as its replica's subscription columns. */
-    static subscriptionColumns(subscription: Subscription, audience: PublicationAudience) {
+    static subscriptionColumns(subscription: SubscriptionRecord, audience: PublicationAudience) {
         const { subject } = subscription;
 
         return {
@@ -2397,18 +2507,18 @@ export class Replica {
         };
     }
 
-    /** Record a subscription without where it resumes. */
-    static #subscribed(subscription: Subscription): SubscriptionRecord {
-        const {
-            after: _after,
-            previous: _previous,
-            refresh: _refresh,
-            origin: _origin,
-            confirming: _confirming,
-            ...subscribed
-        } = subscription;
+    /** Pick what a subscription follows, without where it resumes or its revision. */
+    static #subscribed(subscription: SubscriptionRecord): SubscriptionRecord {
+        const { name, publication, scope, target, subject, parameters } = subscription;
 
-        return subscribed;
+        return {
+            name,
+            publication,
+            scope,
+            target,
+            ...(subject === undefined ? {} : { subject }),
+            parameters,
+        };
     }
 
     /** Add a predicted row image to its group, or take it away. */
@@ -2672,11 +2782,11 @@ interface GroupWrite {
     readonly row: Insert<typeof replicaResult> | null;
 }
 
-/** How a replica registers in a database. */
-export type RegisterOptions =
+/** How a replica registers in a database, with the subscription it follows. */
+export type RegisterOptions<Followed extends SubscriptionRecord = SubscriptionRecord> =
     | {
           /** The subscription the replica follows. */
-          readonly subscription: Subscription;
+          readonly subscription: Followed;
           /** Whose access the source decides the rows by. */
           readonly audience: PublicationAudience;
       }
@@ -2688,12 +2798,13 @@ export type RegisterOptions =
       };
 
 /** How a replica applies its source's pages. */
-export type ApplyOptions = RegisterOptions & {
-    /** The client's predictions to rebase. */
-    readonly prediction?: Prediction;
-    /** Open the machine-bound values a fenced source sealed to this replica. */
-    readonly open?: (table: Table, row: Row) => Promise<Row>;
-};
+export type ApplyOptions<Followed extends SubscriptionRecord = SubscriptionRecord> =
+    RegisterOptions<Followed> & {
+        /** The client's predictions to rebase. */
+        readonly prediction?: Prediction;
+        /** Open the machine-bound values a fenced source sealed to this replica. */
+        readonly open?: (table: Table, row: Row) => Promise<Row>;
+    };
 
 /** The inspection of a replica. */
 export interface ReplicaInspection {

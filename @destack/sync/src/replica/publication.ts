@@ -3,7 +3,10 @@ import {
     type DatabaseConnection,
     defineTable,
     eq,
+    integer,
     json,
+    lte,
+    ne,
     LogPosition,
     or,
     type Select,
@@ -14,7 +17,6 @@ import { canonicalize, Duration, schema } from "@destack/schema";
 import type { Call, Mutation } from "../call/call.ts";
 import { Subject } from "../call/subject.ts";
 import type { Page } from "../query/index.ts";
-import { Watermark } from "../scope/watermark.ts";
 import type { Replica } from "./replica.ts";
 
 /** A publication's parameters in JSON form. */
@@ -34,6 +36,8 @@ const subscriptionSchema = schema.object({
     subject: Subject.exactOptional(),
     /** The publication's parameters, which its declaration parses. */
     parameters: PARAMETERS,
+    /** The follower's log position when it chose the parameters, the latest of a log kept. */
+    revision: LogPosition,
     /** The log position the replica arrived at, absent before its first snapshot. */
     after: LogPosition.exactOptional(),
     /** The parameters the replica reflects at its position, if other than the subscribed. */
@@ -42,11 +46,20 @@ const subscriptionSchema = schema.object({
     refresh: schema.object({ every: Duration.schema }).exactOptional(),
     /** The follower's log as a replication origin, which the source never publishes back to. */
     origin: schema.string().min(1).exactOptional(),
-    /** The watermark the follower waits for its source to confirm. */
-    confirming: Watermark.exactOptional(),
 });
 /** A follower's subscription to a publication over one scope, from the position it arrived at. */
 export type Subscription = schema.Infer<typeof subscriptionSchema>;
+
+/** A subscription as a listing decides it and a replica records it, without resumption. */
+export const SubscriptionRecord = subscriptionSchema.omit({
+    revision: true,
+    after: true,
+    previous: true,
+    refresh: true,
+    origin: true,
+});
+/** A subscription as a listing decides it and a replica records it. */
+export type SubscriptionRecord = schema.Infer<typeof SubscriptionRecord>;
 
 /** The subscriptions a source's followers request. */
 export const subscriptionTable = defineTable("subscription", {
@@ -58,8 +71,12 @@ export const subscriptionTable = defineTable("subscription", {
     target: text("target").primaryKey(),
     /** The publication's parameters the follower requests. */
     parameters: json("parameters", schema.jsonObject()).notNull(),
-    /** The watermark the follower last asked its stream to confirm, absent before any ask. */
-    confirming: json("confirming", Watermark),
+    /** The follower's log when it chose the parameters. */
+    revisionLog: text("revision_log").notNull(),
+    /** The follower's log epoch when it chose the parameters. */
+    revisionEpoch: text("revision_epoch").notNull(),
+    /** The follower's log sequence when it chose the parameters. */
+    revisionSequence: integer("revision_sequence").notNull(),
     /** The key of the principal requesting the subscription. */
     caller: text("caller").primaryKey(),
 });
@@ -69,17 +86,20 @@ export type SubscriptionRequest = Select<typeof subscriptionTable>;
 
 /** A follower's subscription and the requests it records at its source. */
 export const Subscription = Object.assign(subscriptionSchema, {
-    /** Record a caller's request at its source: its parameters and its latest ask. */
+    /** Record a caller's request at its source, unless it holds a later revision of the log. */
     async request(
         database: DatabaseConnection,
         subscription: Subscription,
         caller: string,
-    ): Promise<SubscriptionRequest> {
-        // keep the latest ask
-        const { name, scope, target, parameters, confirming } = subscription;
-        const [recorded] = await Subscription.requests(database, [{ name, scope, target, caller }]);
-        const ask = Watermark.later(recorded?.confirming ?? null, confirming ?? null);
-        const row = { name, scope, target, caller, parameters, confirming: ask };
+    ): Promise<void> {
+        // take the request at its revision, a follower's other log or epoch replacing what it recorded
+        const { name, scope, target, parameters, revision } = subscription;
+        const revised = {
+            revisionLog: revision.log,
+            revisionEpoch: revision.epoch,
+            revisionSequence: revision.sequence,
+        };
+        const row = { name, scope, target, caller, parameters, ...revised };
         await database
             .insert(subscriptionTable)
             .values(row)
@@ -90,44 +110,13 @@ export const Subscription = Object.assign(subscriptionSchema, {
                     subscriptionTable.target,
                     subscriptionTable.caller,
                 ],
-                set: row,
-            });
-
-        return row;
-    },
-
-    /** Ask every stream a principal requested of a scope to confirm a watermark. */
-    async confirm(
-        database: DatabaseConnection,
-        caller: string,
-        watermark: Watermark,
-    ): Promise<void> {
-        // move each of the caller's asks of the scope to the watermark when later
-        const rows = await database
-            .select()
-            .from(subscriptionTable)
-            .where(
-                and(
-                    eq(subscriptionTable.scope, watermark.scope),
-                    eq(subscriptionTable.caller, caller),
+                set: { parameters, ...revised },
+                setWhere: or(
+                    ne(subscriptionTable.revisionLog, revision.log),
+                    ne(subscriptionTable.revisionEpoch, revision.epoch),
+                    lte(subscriptionTable.revisionSequence, revision.sequence),
                 ),
-            );
-        for (const row of rows) {
-            const ask = Watermark.later(row.confirming, watermark);
-            if (ask !== row.confirming) {
-                await database
-                    .update(subscriptionTable)
-                    .set({ confirming: ask })
-                    .where(
-                        and(
-                            eq(subscriptionTable.name, row.name),
-                            eq(subscriptionTable.scope, row.scope),
-                            eq(subscriptionTable.target, row.target),
-                            eq(subscriptionTable.caller, row.caller),
-                        ),
-                    );
-            }
-        }
+            });
     },
 
     /** Read the recorded requests of some keys in one statement. */
@@ -174,17 +163,17 @@ export interface Publication {
     /** Whose access decides the rows. */
     readonly audience: PublicationAudience;
     /** Build the replica a subscription follows. */
-    readonly replica: (subscription: Subscription) => Replica;
+    readonly replica: (subscription: SubscriptionRecord) => Replica;
 }
 
 /** A declared publication, with the typed subscriptions of its parameters. */
 export interface PublicationOf<Parameters> extends Publication {
     /** Build a subscription to the publication for typed parameters. */
     subscription(
-        subscription: Omit<Subscription, "publication" | "parameters"> & {
+        subscription: Omit<SubscriptionRecord, "publication" | "parameters"> & {
             readonly parameters: Parameters;
         },
-    ): Subscription;
+    ): SubscriptionRecord;
 }
 
 /** Declare a publication: its name, parameter schema, audience and the replica they build. */

@@ -5,7 +5,7 @@ import type { Query } from "../query/query.ts";
 import { Node } from "../query/node.ts";
 import type { Audience } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
-import type { Feed } from "./feed.ts";
+import type { Feed, FeedOptions } from "./feed.ts";
 import { View } from "../dataflow/view.ts";
 import type { Clock } from "@destack/environment";
 import { SyncError } from "../error/error.ts";
@@ -33,62 +33,52 @@ export class Stream {
     #evaluation: Evaluation;
     /** The shortest time between two pages at the head. */
     readonly #every: number | undefined;
-    /** The highest position the subscriber asked the stream to confirm, absent before any ask. */
-    #confirming: LogPosition | undefined;
-    /** The log and epoch the stream publishes, absent before it starts. */
-    #published: Omit<LogPosition, "sequence"> | undefined;
-    /** The controller that wakes the stream's wait once a subscriber asks for a position. */
-    #asked = new AbortController();
+    /** Wakes the stream's wait once a subscriber moves it to other queries or beats it. */
+    #waking = new AbortController();
     /** The feed's beats when the stream last published, a later one making it publish again. */
-    #heard: number;
+    #lastBeat: number;
+    /** Whether the stream was beaten alone since it last published, making it publish again. */
+    #isBeaten = false;
+    /** The scopes whose commits the stream publishes its position past, beside its queries'. */
+    readonly #scopes: readonly string[];
 
     /** Create the stream of a subscriber. */
     constructor(
         feed: Feed,
         queries: Readonly<Record<string, Query>>,
         audience: Audience,
-        every?: number,
-        request?: StreamRequest,
+        options: FeedOptions = {},
     ) {
         // evaluate the queries alone
         this.#feed = feed;
-        this.#request = request;
-        this.#parameters = request?.parameters;
-        this.#every = every;
+        this.#request = options.request;
+        this.#parameters = options.request?.parameters;
+        this.#every = options.every;
+        this.#scopes = options.scopes ?? [];
         this.#queries = queries;
         this.#audience = audience;
         this.#evaluation = new Evaluation(feed, queries, audience);
-        this.#heard = feed.beats;
+        this.#lastBeat = feed.beats;
     }
 
     /** Move the stream to other queries at its next position, waking its wait. */
     reshape(queries: Readonly<Record<string, Query>>, parameters?: JsonObject): void {
         // record the queries, then wake the wait
         this.#requested = { queries, ...(parameters === undefined ? {} : { parameters }) };
-        const asked = this.#asked;
-        this.#asked = new AbortController();
-        asked.abort();
+        this.#wake();
     }
 
-    /** Ask the stream to publish a position at or past a position. */
-    confirm(position: LogPosition): void {
-        // take a higher ask of the published log and epoch, waking the stream's wait
-        const confirming = this.#confirming;
-        const published = this.#published;
-        const isPublished =
-            published === undefined ||
-            (position.log === published.log && position.epoch === published.epoch);
-        const isHigher =
-            confirming === undefined ||
-            confirming.log !== position.log ||
-            confirming.epoch !== position.epoch ||
-            position.sequence > confirming.sequence;
-        if (isPublished && isHigher) {
-            this.#confirming = position;
-            const asked = this.#asked;
-            this.#asked = new AbortController();
-            asked.abort();
-        }
+    /** Make the stream publish its position at its next decision, as a feed's heartbeat does. */
+    beat(): void {
+        this.#isBeaten = true;
+        this.#wake();
+    }
+
+    /** Wake the stream's wait with a fresh signal for the next. */
+    #wake(): void {
+        const waking = this.#waking;
+        this.#waking = new AbortController();
+        waking.abort();
     }
 
     /** Key the tables some queries read, in order. */
@@ -98,33 +88,6 @@ export class Stream {
         );
 
         return [...new Set(tables)].toSorted().join("\n");
-    }
-
-    /** Report whether the stream arrived at an asked position its follower lacks. */
-    #isAsked(recorded: number, position: LogPosition): boolean {
-        const confirming = this.#confirming;
-
-        return (
-            confirming !== undefined &&
-            confirming.log === position.log &&
-            confirming.epoch === position.epoch &&
-            confirming.sequence > recorded &&
-            position.sequence >= confirming.sequence
-        );
-    }
-
-    /** Read the sequence asked past what the follower recorded, absent for none. */
-    #ahead(recorded: number): number | undefined {
-        const confirming = this.#confirming;
-        const current = this.#published;
-
-        return confirming !== undefined &&
-            current !== undefined &&
-            confirming.log === current.log &&
-            confirming.epoch === current.epoch &&
-            confirming.sequence > recorded
-            ? confirming.sequence
-            : undefined;
     }
 
     /** Stream the queries from a position until aborted, or to a completed page once drained. */
@@ -153,29 +116,44 @@ export class Stream {
         // publish the log's current epoch
         const { log, epoch: started } = await this.#feed.database.log.position();
         let epoch = started;
-        this.#published = { log, epoch };
         let sequence: number | undefined;
+        let isSent = false;
         try {
             while (!signal.aborted) {
                 try {
                     // continue within the epoch or start over with a snapshot
                     if (sequence === undefined) {
                         // start over with a snapshot outside the epoch
+                        let opening: AsyncGenerator<Page, number>;
                         if (after?.log !== log || after.epoch !== epoch) {
-                            sequence = yield* this.#snapshot(signal);
+                            opening = this.#snapshot(signal);
                         }
                         // reshape the replica of previous queries
                         else if (previous !== undefined) {
-                            sequence = yield* this.#reshape(previous, after, signal);
+                            opening = this.#reshape(previous, after, signal);
                         }
                         // resume within the epoch
                         else {
-                            sequence = yield* this.#resume(after, signal);
+                            opening = this.#resume(after, signal);
                         }
+
+                        // send the opening pages, noting whether any went out
+                        let opened = await opening.next();
+                        while (opened.done !== true) {
+                            isSent = true;
+                            yield opened.value;
+                            opened = await opening.next();
+                        }
+                        sequence = opened.value;
                     }
 
-                    // publish what follows
-                    const published = this.#follow({ log, epoch, sequence }, signal, drain);
+                    // publish the opened position at once when the opening sent nothing, then what follows
+                    const start = { log, epoch, sequence };
+                    if (!isSent) {
+                        isSent = true;
+                        yield { reset: false, complete: true, changes: [], position: start };
+                    }
+                    const published = this.#follow(start, signal, drain);
                     yield* this.#every === undefined
                         ? published
                         : Stream.coalesce(
@@ -204,7 +182,6 @@ export class Stream {
                     }
                     this.#alone();
                     epoch = (await this.#feed.database.log.position()).epoch;
-                    this.#published = { log, epoch };
                     after = undefined;
                     previous = undefined;
                     sequence = undefined;
@@ -218,7 +195,7 @@ export class Stream {
         }
     }
 
-    /** Follow the subscriber's request: its asks, its credential's lapse and its parameters. */
+    /** Follow the subscriber's request: its parameters. */
     async #followRequest(signal: AbortSignal): Promise<void> {
         // follow nothing without a request
         const request = this.#request;
@@ -249,18 +226,13 @@ export class Stream {
             });
     }
 
-    /** Apply a request's ask, its credential's lapse, and its changed parameters. */
+    /** Apply a request's changed parameters. */
     async #applyRequest(
         request: StreamRequest,
         row: SubscriptionRequest | undefined,
     ): Promise<void> {
         if (row === undefined) {
             return;
-        }
-
-        // ask for the confirmation the subscriber waits for
-        if (row.confirming !== null) {
-            this.confirm(row.confirming);
         }
 
         // move in place to the queries of changed parameters over the same tables
@@ -276,7 +248,7 @@ export class Stream {
         }
     }
 
-    /** Publish pages after a position, then positions at each heartbeat and ask, until done. */
+    /** Publish pages after a position, then its position past commits in its scopes and beats. */
     async *#follow(
         start: LogPosition,
         signal: AbortSignal,
@@ -286,8 +258,7 @@ export class Stream {
         const { log, epoch } = start;
         let position = start;
         let published = start.sequence;
-        // track the last position the follower records, unset to answer a standing ask once
-        let recorded = Number.NEGATIVE_INFINITY;
+        let hasWaited = false;
         const waking = drain === undefined ? signal : AbortSignal.any([signal, drain]);
         while (!waking.aborted) {
             // move to the queries a subscriber asked for, alone, at the current position
@@ -297,16 +268,18 @@ export class Stream {
                 yield* this.#reshapeAt(requested, position, signal);
                 this.#queries = requested.queries;
                 published = position.sequence;
-                recorded = position.sequence;
-                this.#heard = this.#feed.beats;
             }
 
-            // join the shared evaluation
+            // join the shared evaluation, deciding after the beats so far
             this.#evaluation = this.#feed.join(this.#evaluation, position);
+            const beats = this.#feed.beats;
+            const isBeaten = this.#isBeaten;
+            this.#isBeaten = false;
             const decided = this.#evaluation.after(position);
 
-            // catch up alone once the shared evaluation moved on
+            // catch up alone once the shared evaluation moved on, keeping a beat for the next decision
             if (decided === undefined) {
+                this.#isBeaten ||= isBeaten;
                 this.#alone();
                 await this.#audience.refresh();
                 const resumed = yield* this.#resume(position, signal);
@@ -318,65 +291,37 @@ export class Stream {
                 await Evaluation.nextTask(this.#feed.clock);
                 for (const page of pages) {
                     published = page.position.sequence;
-                    if (page.reset || page.changes.length > 0) {
-                        recorded = published;
-                    }
-                    this.#heard = this.#feed.beats;
                     yield page;
                 }
 
-                // wait for a commit, an ask or a reshape, else publish the position at the next beat
-                const asked = { log, epoch, sequence };
-                const ahead = this.#ahead(recorded);
-                const isAskPassed = ahead !== undefined && this.#feed.sequence >= ahead;
-                if (
-                    sequence === position.sequence &&
-                    this.#requested === undefined &&
-                    !this.#isAsked(recorded, asked) &&
-                    !isAskPassed
-                ) {
-                    const beat = this.#feed.beating;
-                    if (this.#feed.beats === this.#heard) {
-                        const woken = AbortSignal.any([waking, beat, this.#asked.signal]);
-                        await (ahead === undefined
-                            ? this.#evaluation.wait(sequence, woken)
-                            : this.#feed.next(ahead - 1, woken));
-                    }
-
-                    // publish the current position once the feed beat since the stream published
-                    const isBeat = beat.aborted || this.#feed.beats !== this.#heard;
-                    if (isBeat && !waking.aborted) {
-                        const current = { log, epoch, sequence };
-                        const isConfirmation = this.#isAsked(recorded, current);
-                        published = sequence;
-                        if (isConfirmation) {
-                            recorded = sequence;
-                        }
-                        this.#heard = this.#feed.beats;
-                        yield {
-                            reset: false,
-                            complete: true,
-                            changes: [],
-                            position: current,
-                            ...(isConfirmation ? { isConfirmation } : {}),
-                        };
-                    }
-                }
-                position = { log, epoch, sequence };
-
-                // confirm the position once past the sequence the subscriber asked to confirm
-                if (this.#isAsked(recorded, position)) {
+                // publish the decided position after a wake or a beat
+                const isMoved = hasWaited && published < sequence;
+                if (isMoved || beats !== this.#lastBeat || isBeaten) {
                     published = sequence;
-                    recorded = sequence;
-                    this.#heard = this.#feed.beats;
+                    this.#lastBeat = beats;
                     yield {
                         reset: false,
                         complete: true,
                         changes: [],
-                        position,
-                        isConfirmation: true,
+                        position: { log, epoch, sequence },
                     };
                 }
+                // wait for a watched commit, a reshape or the next beat, unless one came meanwhile
+                else if (
+                    sequence === position.sequence &&
+                    this.#requested === undefined &&
+                    this.#feed.beats === this.#lastBeat &&
+                    !this.#isBeaten
+                ) {
+                    const woken = AbortSignal.any([
+                        waking,
+                        this.#feed.beating,
+                        this.#waking.signal,
+                    ]);
+                    await this.#evaluation.wait(sequence, woken, this.#scopes);
+                    hasWaited = true;
+                }
+                position = { log, epoch, sequence };
             }
         }
 

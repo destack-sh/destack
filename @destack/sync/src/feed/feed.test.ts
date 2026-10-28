@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { nth, present, schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
 import type { Stream } from "./stream.ts";
@@ -85,19 +85,14 @@ test("report a stream that ends by draining as closed, the same stream it opened
     ]).toEqual([true, ["opened", "closed"], true]);
 });
 
-test("publish a caught-up stream's position past a commit outside its queries only once asked to confirm it, and at the next heartbeat", async () => {
-    // follow the inbox's notes to their snapshot, taking the stream
+test("publish nothing past a commit outside a caught-up stream's queries until the next heartbeat", async () => {
+    // follow the inbox's notes to their snapshot
     const simulation = new Simulation({ seed: 1, start: 1000 });
     const { clock } = simulation;
     const database = await open({ simulation });
     const feed = new Feed(database, [note], { heartbeat: 60_000 });
     const signal = AbortSignal.timeout(5000);
-    let stream: Stream | undefined;
-    const pages = feed.subscribe({ notes: { table: note, scopes: ["inbox"] } }, undefined, signal, {
-        opened: (opened) => {
-            stream = opened;
-        },
-    });
+    const pages = feed.subscribe({ notes: { table: note, scopes: ["inbox"] } }, undefined, signal);
     let snapshot = await nextValue(pages);
     while (!snapshot.complete) {
         snapshot = await nextValue(pages);
@@ -119,8 +114,6 @@ test("publish a caught-up stream's position past a commit outside its queries on
         await Evaluation.nextTask(clock);
     }
     const isQuiet = !isSettled;
-    present(stream, "the stream").confirm(archived);
-    const confirmed = await next;
 
     // commit another, and read the current position at the next heartbeat
     await database.transaction(
@@ -129,17 +122,9 @@ test("publish a caught-up stream's position past a commit outside its queries on
     );
     const later = await database.log.position();
     await expect.poll(() => feed.sequence).toBe(later.sequence);
-    const beat = nextValue(pages);
     clock.advance(60_000);
-    expect({ isQuiet, confirmed, beat: await beat }).toEqual({
+    expect({ isQuiet, beat: await next }).toEqual({
         isQuiet: true,
-        confirmed: {
-            reset: false,
-            complete: true,
-            changes: [],
-            position: archived,
-            isConfirmation: true,
-        },
         beat: { reset: false, complete: true, changes: [], position: later },
     });
     await pages.return(undefined);
@@ -326,8 +311,8 @@ test("follow the head through pages merged within an interval", async () => {
     await database.transaction(
         async (transaction) => await transaction.insert(note).values({ ...first, id: "c" }),
     );
-    const following = await until(pages, (page) =>
-        page.changes.some((change) => change.row["id"] === "c"),
+    const following = await simulation.drive(
+        until(pages, (page) => page.changes.some((change) => change.row["id"] === "c")),
     );
 
     // store each note as the pages leave it
