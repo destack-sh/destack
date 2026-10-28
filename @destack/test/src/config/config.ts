@@ -94,6 +94,9 @@ export function defineProject(
 /** The modules declaring a package's scenarios, which the runner plays as tests. */
 export const SCENARIO_MODULES = "src/**/*.scenario.{ts,tsx}";
 
+/** The modules declaring a package's benchmarks, which the runner measures as tests. */
+export const BENCHMARK_MODULES = "src/**/*.benchmark.ts";
+
 /** A driver type a package's scenarios play through, as its module and export. */
 export interface DriverReference {
     /** The module exporting the driver type, such as `@destack/view/test`. */
@@ -102,12 +105,12 @@ export interface DriverReference {
     readonly name: string;
 }
 
-/** Play each exported scenario of a scenario module as a test of that module. */
+/** Play each exported scenario and measure each benchmark of a module as tests of that module. */
 export function scenarioPlugin(drivers: readonly DriverReference[]): Plugin {
     return {
         name: "destack-scenarios",
         transform: {
-            filter: { id: /\.scenario\.tsx?$/u },
+            filter: { id: /\.(scenario\.tsx?|benchmark\.ts)$/u },
             handler(code, id) {
                 // import the module itself, the runner and the driver types, then play its exports
                 const self = JSON.stringify(`./${basename(id)}`);

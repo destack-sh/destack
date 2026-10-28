@@ -1,6 +1,7 @@
 export {
     defineConfiguration,
     defineProject,
+    BENCHMARK_MODULES,
     SCENARIO_MODULES,
     scenarioPlugin,
     type DriverReference,

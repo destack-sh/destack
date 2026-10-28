@@ -1,34 +1,34 @@
-import type { Given, Scenario, SetStep, Interaction } from "@destack/package/declare";
+import type { Benchmark, Given, Interaction, Scenario, SetStep } from "@destack/package/declare";
 import type { Clock } from "@destack/environment";
 import type { JsonValue, schema } from "@destack/schema";
 import { join } from "node:path";
-import { expect, test } from "vitest";
+import { expect, inject, test } from "vitest";
 import { testHost } from "../host/index.ts";
 
-/** The variable setting how often a play repeats to measure a scenario, once by default. */
-const PLAYS_VARIABLE = "DESTACK_BENCH_PLAYS";
-
-/** The variable naming the baseline a run's measurements are saved as, `current` by default. */
+/** The variable naming the baseline a run's results are saved as, `current` by default. */
 const BASELINE_VARIABLE = "DESTACK_BENCH_BASELINE";
 
-/** The baseline a run's measurements are saved as without one named. */
+/** The baseline a run's results are saved as without one named. */
 const CURRENT_BASELINE = "current";
 
-/** The directory of the saved measurements, below the package's working directory. */
+/** The directory of the saved results, below the package's working directory. */
 const BENCH_DIRECTORY = "node_modules/.cache/destack/bench";
 
-/** Nanoseconds per second, as process usage reads seconds and Go's format writes nanoseconds. */
-const NANOSECONDS = 1e9;
+/** The most milliseconds a benchmark takes, its world's setup included. */
+const BENCHMARK_MILLISECONDS = 600_000;
 
-/** A driver that plays one scenario's steps and reads its observations, after WebDriver. */
-export interface Driver<Speaks extends Interaction = Interaction> {
-    /** The clock the driver's world runs on, which measures each step's world time. */
+/** Milliseconds per second: clocks read milliseconds, and Go's format writes seconds. */
+const MILLISECONDS = 1000;
+
+/** A driver that takes an interaction's steps and reads its observations, after WebDriver. */
+export interface Driver<Speaks extends Interaction = Interaction> extends AsyncDisposable {
+    /** The clock the driver's world runs on, which measures each operation's world time. */
     readonly clock: Clock;
     /** Take one step. */
     act(step: SetStep | schema.Infer<Speaks["step"]>): void | Promise<void>;
     /** Read one observation. */
     observe(observation: schema.Infer<Speaks["observation"]>): JsonValue | Promise<JsonValue>;
-    /** Read the world's counters since the driver started, such as statements, by unit. */
+    /** Read the world's counters since the driver started, by name. */
     readonly count: () => Counters | Promise<Counters>;
 }
 
@@ -36,167 +36,243 @@ export interface Driver<Speaks extends Interaction = Interaction> {
 export interface DriverType<Speaks extends Interaction = Interaction, Instance = unknown> {
     /** The interaction the drivers speak. */
     readonly interaction: Speaks;
-    /** Start a driver on the examples a scenario is given, in its environment. */
+    /** Start a driver on the examples a scenario is given, none for a benchmark. */
     start(given: Given<Instance>): Driver<Speaks> | Promise<Driver<Speaks>>;
 }
 
 /** The values of a scenario's named observations at one point. */
 export type Observations = Record<string, JsonValue>;
 
-/** A world's counters by unit, such as `statements`, cumulative since its driver started. */
+/** A world's counters by name, such as `db.client.operation.duration.count`, since it started. */
 export type Counters = Readonly<Record<string, number>>;
 
-/** One step's cost in one play: host CPU, world time and each counter's growth. */
-export interface StepCost {
-    /** The host CPU time the step took, in nanoseconds. */
+/** The configuration a benchmark ran in, written as Go's `key: value` lines. */
+export type Configuration = Readonly<Record<string, string>>;
+
+/** One operation's measurement: its iterations' host CPU, world time and counter growth. */
+export interface Measurement {
+    /** The operation, such as `issue.create`. */
+    readonly operation: string;
+    /** The iterations taken. */
+    readonly iterations: number;
+    /** The host CPU time all iterations took, in seconds. */
     readonly cpu: number;
-    /** The world time the step took on the driver's clock, in milliseconds. */
+    /** The world time all iterations took on the driver's clock, in seconds. */
     readonly world: number;
-    /** Each counter's growth over the step, by unit. */
+    /** Each counter's growth over all iterations, by name. */
     readonly counters: Counters;
 }
 
-/** One play of a scenario: what it observed and what each step cost. */
-export interface Play {
-    /** The observations after each step, or after the last. */
-    readonly observed: Observations[];
-    /** The step costs, in step order. */
-    readonly costs: readonly StepCost[];
-}
-
-/** The runner playing scenarios through the driver of each one's interaction. */
+/** The runner playing scenarios and measuring benchmarks through their interactions' drivers. */
 export const Runner = {
-    /** Play a scenario some times through new drivers. */
-    async measure<Speaks extends Interaction, Instance>(
+    /** Play a scenario through a new driver, reading its observations. */
+    async observe<Speaks extends Interaction, Instance>(
         scenario: Scenario<Speaks, Instance>,
         type: DriverType<Speaks, Instance>,
-        plays = 1,
-    ): Promise<Play[]> {
-        const played: Play[] = [];
-        for (let play = 0; play < plays; play += 1) {
-            played.push(await playOnce(scenario, type));
+    ): Promise<Observations[]> {
+        // take each step, reading the observations after each step or after the last
+        await using driver = await type.start(scenario.given);
+        const isEach = "each" in scenario.then;
+        const observed: Observations[] = [];
+        for (const [index, step] of scenario.when.entries()) {
+            await driver.act(step);
+            if (isEach || index === scenario.when.length - 1) {
+                observed.push(await read(driver, scenario.then.observe));
+            }
         }
 
-        return played;
+        return observed;
     },
 
-    /** Play a scenario as a test through the driver of its interaction, saving its costs. */
-    play(scenario: Scenario, types: readonly DriverType[]): void {
-        // pick the driver speaking the scenario's interaction
-        const name = scenario.interaction.name;
-        const type = types.find((candidate) => candidate.interaction.name === name);
-        if (type === undefined) {
-            throw new TypeError(`no driver plays the ${name} interaction of ${scenario.name}`);
+    /** Set a benchmark's world up through a new driver, then measure each operation in order. */
+    async measure<Speaks extends Interaction>(
+        benchmark: Benchmark<Speaks>,
+        type: DriverType<Speaks>,
+    ): Promise<Measurement[]> {
+        // set the world up unmeasured, reporting each step's host time as it ends
+        const { clock, process } = testHost();
+        const started = clock.now();
+        await using driver = await type.start({ examples: [] });
+        report(benchmark, "start", started);
+        for (const step of benchmark.setup) {
+            const taken = clock.now();
+            await driver.act(step);
+            report(benchmark, JSON.stringify(step), taken);
         }
 
-        // save the costs of its plays, then expect the observations it names
-        const then = scenario.then;
-        test(scenario.name, async () => {
-            // play the scenario as often as asked, and save its costs
-            const { variables } = testHost().process;
-            const plays = Number(variables[PLAYS_VARIABLE] ?? 1);
-            const played = await Runner.measure(scenario, type, plays);
-            await Runner.save(scenario, played, variables[BASELINE_VARIABLE] ?? CURRENT_BASELINE);
+        // take each operation's iterations between two readings of CPU, clock and counters
+        const measured: Measurement[] = [];
+        for (const [operation, step] of Object.entries(benchmark.operations)) {
+            const before = { usage: process.usage(), now: driver.clock.now(), taken: clock.now() };
+            const counted = await driver.count();
+            for (let iteration = 0; iteration < benchmark.iterations; iteration += 1) {
+                await driver.act(step);
+            }
+            const after = { usage: process.usage(), now: driver.clock.now() };
+            report(benchmark, `${operation} x${benchmark.iterations}`, before.taken);
+            const counters = await driver.count();
 
-            // expect every play to observe the same, as a world plays alike from its seed
+            // record the operation's totals
+            const cpu =
+                after.usage.user + after.usage.system - before.usage.user - before.usage.system;
+            const grown = Object.entries(counters).map(
+                ([name, value]) => [name, value - (counted[name] ?? 0)] as const,
+            );
+            measured.push({
+                operation,
+                iterations: benchmark.iterations,
+                cpu,
+                world: (after.now - before.now) / MILLISECONDS,
+                counters: Object.fromEntries(grown),
+            });
+        }
+
+        return measured;
+    },
+
+    /** Play a scenario as a test through the driver of its interaction. */
+    play(scenario: Scenario, types: readonly DriverType[]): void {
+        const type = Runner.driverOf(scenario.interaction, scenario.name, types);
+        test(scenario.name, async () => {
+            const then = scenario.then;
             const expected = "each" in then ? then.each : [then.end];
-            expect(played.map((play) => play.observed)).toEqual(played.map(() => expected));
+            expect(await Runner.observe(scenario, type)).toEqual(expected);
         });
     },
 
-    /** Play each scenario a module exports as a test. */
+    /** Measure a benchmark as a test, saving its results and expecting operations within limits. */
+    bench(benchmark: Benchmark, types: readonly DriverType[]): void {
+        const type = Runner.driverOf(benchmark.interaction, benchmark.name, types);
+        test(`measure ${benchmark.description}`, { timeout: BENCHMARK_MILLISECONDS }, async () => {
+            // measure, then save the results under the run's baseline
+            const measured = await Runner.measure(benchmark, type);
+            const { variables } = testHost().process;
+            const baseline = variables[BASELINE_VARIABLE] ?? CURRENT_BASELINE;
+            const configuration = await Runner.configuration(benchmark);
+            await Runner.save(benchmark, measured, configuration, baseline);
+
+            // expect each operation's counters within their limits, refusing a limit nothing counts
+            const exceeded = measured.flatMap(({ operation, iterations, counters }) =>
+                Object.entries(benchmark.limits[operation] ?? {}).flatMap(([name, limit]) => {
+                    const total = counters[name];
+                    // refuse a counter the world never counted
+                    if (total === undefined) {
+                        return [`${operation} ${name}: not counted`];
+                    }
+                    // compare the counter per iteration otherwise
+                    else {
+                        const each = total / iterations;
+
+                        return each > limit ? [`${operation} ${name}: ${each} > ${limit}`] : [];
+                    }
+                }),
+            );
+            expect(exceeded).toEqual([]);
+        });
+    },
+
+    /** Play each scenario and measure each benchmark a module exports, as tests. */
     playModule(exports: Readonly<Record<string, unknown>>, types: readonly DriverType[]): void {
         for (const exported of Object.values(exports)) {
+            // play a scenario
             if (isScenario(exported)) {
                 Runner.play(exported, types);
+            }
+            // measure a benchmark
+            else if (isBenchmark(exported)) {
+                Runner.bench(exported, types);
             }
         }
     },
 
-    /** Save a scenario's measurement under a baseline in Go's benchmark format, for benchstat. */
-    async save(scenario: Scenario, played: readonly Play[], baseline: string): Promise<void> {
-        // write the lines under the baseline's directory
+    /** Pick the driver type speaking an interaction, refusing one no driver speaks. */
+    driverOf<Type extends DriverType>(
+        interaction: Interaction,
+        name: string,
+        types: readonly Type[],
+    ): Type {
+        const type = types.find((candidate) => candidate.interaction.name === interaction.name);
+        if (type === undefined) {
+            throw new TypeError(`no driver plays the ${interaction.name} interaction of ${name}`);
+        }
+
+        return type;
+    },
+
+    /** Read the configuration a benchmark runs in: its package, targets, host and commit. */
+    async configuration(benchmark: Benchmark): Promise<Configuration> {
+        // read the commit the working tree is at, marked dirty when it has changes
+        const { host, process } = testHost();
+        const output = async (command: readonly string[]) => {
+            const { stdout } = await process.spawn(command).output();
+
+            return new TextDecoder().decode(stdout).trim();
+        };
+        const commit = await output(["git", "rev-parse", "--short", "HEAD"]);
+        const isDirty = (await output(["git", "status", "--porcelain"])) !== "";
+
+        return {
+            pkg: benchmark.package.name,
+            ...inject("targets"),
+            os: host.os,
+            arch: host.architecture,
+            commit: isDirty ? `${commit}-dirty` : commit,
+        };
+    },
+
+    /** Save a benchmark's results under a baseline in Go's benchmark format, for benchstat. */
+    async save(
+        benchmark: Benchmark,
+        measured: readonly Measurement[],
+        configuration: Configuration,
+        baseline: string,
+    ): Promise<void> {
+        // write one file per benchmark and target combination under the baseline's directory
         const { files, process } = testHost();
         const directory = join(process.workingDirectory, BENCH_DIRECTORY, baseline);
+        const targets = Object.values(inject("targets") ?? {});
         await files.mkdir(directory, { recursive: true });
         await files.writeTextFile(
-            join(directory, `${scenario.name}.txt`),
-            Runner.format(scenario, played),
+            join(directory, `${[benchmark.name, ...targets].join("-")}.txt`),
+            Runner.format(benchmark, measured, configuration),
         );
     },
 
-    /** Write a measurement as Go benchmark lines: one per step and play, each one iteration. */
-    format(scenario: Scenario, played: readonly Play[]): string {
-        const lines = played.flatMap(({ costs }) =>
-            costs.map((cost, index) => {
-                // name the step by the scenario, its position and its action
-                const step = scenario.when[index];
-                const action =
-                    typeof step === "object" && step !== null && "action" in step
-                        ? String(step.action)
-                        : "step";
-                const name = `Benchmark${pascal(scenario.name)}/${index + 1}-${action}`;
+    /** Write results in Go's benchmark format: configuration lines, then one line per operation. */
+    format(
+        benchmark: Benchmark,
+        measured: readonly Measurement[],
+        configuration: Configuration,
+    ): string {
+        // write the configuration as key: value lines
+        const header = Object.entries(configuration).map(([key, value]) => `${key}: ${value}`);
 
-                // write the host CPU, the world time and each counter per iteration
-                const metrics = [
-                    `${cost.cpu} cpu-ns/op`,
-                    `${cost.world} world-ms/op`,
-                    ...Object.entries(cost.counters).map(([unit, value]) => `${value} ${unit}/op`),
-                ];
+        // name each line by family, operation and parameters, its values per operation
+        const parameters = Object.entries(benchmark.parameters)
+            .map(([key, value]) => `/${key}=${value}`)
+            .join("");
+        const lines = measured.map(({ operation, iterations, cpu, world, counters }) => {
+            const name = `Benchmark${pascal(benchmark.name)}/op=${operation}${parameters}`;
+            const values = [
+                `${world / iterations} sec/op`,
+                `${cpu / iterations} cpu-sec/op`,
+                ...Object.entries(counters).map(
+                    ([unit, value]) => `${value / iterations} ${unit}/op`,
+                ),
+            ];
 
-                return `${name} 1 ${metrics.join(" ")}`;
-            }),
-        );
+            return `${name} ${iterations} ${values.join(" ")}`;
+        });
 
-        return `${lines.join("\n")}\n`;
+        return `${[...header, "", ...lines].join("\n")}\n`;
     },
 };
 
-/** Take a scenario's steps through a new driver, reading observations and step costs. */
-async function playOnce<Speaks extends Interaction, Instance>(
-    scenario: Scenario<Speaks, Instance>,
-    type: DriverType<Speaks, Instance>,
-): Promise<Play> {
-    // start the driver
-    const driver = await type.start(scenario.given);
-    const { process } = testHost();
-    const isEach = "each" in scenario.then;
-    const observed: Observations[] = [];
-    const costs: StepCost[] = [];
-    for (const [index, step] of scenario.when.entries()) {
-        // take the step between two readings of the host's CPU, the world's clock and its counters
-        const before = {
-            usage: process.usage(),
-            now: driver.clock.now(),
-            counters: await driver.count(),
-        };
-        await driver.act(step);
-        const after = {
-            usage: process.usage(),
-            now: driver.clock.now(),
-            counters: await driver.count(),
-        };
-
-        // keep the step's cost
-        const cpu = after.usage.user + after.usage.system - before.usage.user - before.usage.system;
-        costs.push({
-            cpu: Math.round(cpu * NANOSECONDS),
-            world: after.now - before.now,
-            counters: Object.fromEntries(
-                Object.entries(after.counters).map(([unit, value]) => [
-                    unit,
-                    value - (before.counters[unit] ?? 0),
-                ]),
-            ),
-        });
-
-        // read the observations after each step, or after the last
-        if (isEach || index === scenario.when.length - 1) {
-            observed.push(await read(driver, scenario.then.observe));
-        }
-    }
-
-    return { observed, costs };
+/** Report a benchmark step's host time on standard error, as a long setup runs. */
+function report(benchmark: Benchmark, step: string, started: number): void {
+    const { clock, process } = testHost();
+    const seconds = ((clock.now() - started) / MILLISECONDS).toFixed(1);
+    process.stderr.writeSync(`${benchmark.name}: ${step} ${seconds} s\n`);
 }
 
 /** Read each named observation through a driver. */
@@ -229,5 +305,16 @@ function isScenario(value: unknown): value is Scenario {
         "given" in value &&
         "when" in value &&
         "then" in value
+    );
+}
+
+/** Report whether a module export is a benchmark. */
+function isBenchmark(value: unknown): value is Benchmark {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        "interaction" in value &&
+        "setup" in value &&
+        "operations" in value
     );
 }

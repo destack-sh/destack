@@ -1,4 +1,5 @@
 import {
+    defineBenchmark,
     defineExample,
     defineScenario,
     type Given,
@@ -65,6 +66,19 @@ export const createTallyMarkTwice = defineScenario({
     },
 });
 
+/** Mark a tally four times after two unmeasured marks. */
+export const markTally = defineBenchmark({
+    of: createTally,
+    interaction: tallyInteraction,
+    name: "tally",
+    description: "a tally marked four times after two setup marks",
+    parameters: { start: 2 },
+    setup: [{ action: "mark" }, { action: "mark" }],
+    operations: { "tally.mark": { action: "mark" } },
+    iterations: 4,
+    limits: { "tally.mark": { marks: 1 } },
+});
+
 /** The clock tallies run on, which never moves. */
 const tallyClock = new SimulatedClock(0);
 
@@ -72,11 +86,8 @@ const tallyClock = new SimulatedClock(0);
 const TallyDriver: DriverType<Tallying, Tally> = {
     interaction: tallyInteraction,
     start(given: Given<Tally>): Driver<Tallying> {
-        const render = given.examples[0]?.render;
-        if (render === undefined) {
-            throw new TypeError("no tally is given");
-        }
-        const tally = render();
+        // start the given tally, or an empty one for a benchmark
+        const tally = given.examples[0]?.render?.() ?? createTally({ marks: 0 });
 
         return {
             clock: tallyClock,
@@ -86,6 +97,7 @@ const TallyDriver: DriverType<Tallying, Tally> = {
             },
             observe: () => String(tally.marks),
             count: () => ({ marks: tally.marks }),
+            [Symbol.asyncDispose]: async () => undefined,
         };
     },
 };
@@ -93,38 +105,38 @@ const TallyDriver: DriverType<Tallying, Tally> = {
 test("observe a scenario's named observations after each step, or once after the last", async () => {
     const atEnd = {
         ...createTallyMarkTwice,
-        then: { observe: createTallyMarkTwice.then.observe, end: { marks: "0" } },
-    };
+        then: { observe: { marks: { kind: "marks" } }, end: { marks: "0" } },
+    } as const;
+
     expect([
-        (await Runner.measure(createTallyMarkTwice, TallyDriver)).map((play) => play.observed),
-        (await Runner.measure(atEnd, TallyDriver)).map((play) => play.observed),
-    ]).toEqual([[[{ marks: "3" }, { marks: "4" }, { marks: "0" }]], [[{ marks: "0" }]]]);
+        await Runner.observe(createTallyMarkTwice, TallyDriver),
+        await Runner.observe(atEnd, TallyDriver),
+    ]).toEqual([[{ marks: "3" }, { marks: "4" }, { marks: "0" }], [{ marks: "0" }]]);
 });
 
-test("measure each step's counters per play and write them as Go benchmark lines", async () => {
-    // play twice, as a repeated measurement does
-    const played = await Runner.measure(createTallyMarkTwice, TallyDriver, 2);
+test("measure each operation per iteration after an unmeasured setup, as Go benchmark lines", async () => {
+    // measure marking after two setup marks
+    const measured = await Runner.measure(markTally, TallyDriver);
 
-    // expect each step's counter growth and world time, the host's CPU time left out as it varies
-    const counted = played.map(({ costs }) =>
-        costs.map(({ world, counters }) => ({ world, counters })),
-    );
-    const steps = [
-        { world: 0, counters: { marks: 1 } },
-        { world: 0, counters: { marks: 1 } },
-        { world: 0, counters: { marks: -4 } },
-    ];
-    expect(counted).toEqual([steps, steps]);
+    // expect the counter growth of the measured iterations only, the host CPU left out as it varies
+    expect(
+        measured.map(({ operation, iterations, world, counters }) => ({
+            operation,
+            iterations,
+            world,
+            counters,
+        })),
+    ).toEqual([{ operation: "tally.mark", iterations: 4, world: 0, counters: { marks: 4 } }]);
 
-    // expect one line per step and play, the CPU time written in place
-    const lines = Runner.format(createTallyMarkTwice, played)
-        .trimEnd()
-        .split("\n")
-        .map((line) => line.replace(/^(\S+ 1 )\d+ cpu-ns/u, "$1N cpu-ns"));
-    const play = [
-        "BenchmarkMarkTwice/1-mark 1 N cpu-ns/op 0 world-ms/op 1 marks/op",
-        "BenchmarkMarkTwice/2-mark 1 N cpu-ns/op 0 world-ms/op 1 marks/op",
-        "BenchmarkMarkTwice/3-set 1 N cpu-ns/op 0 world-ms/op -4 marks/op",
-    ];
-    expect(lines).toEqual([...play, ...play]);
+    // expect configuration lines, then one line per operation with values per iteration
+    const lines = Runner.format(markTally, measured, { pkg: "@destack/test", database: "sqlite" })
+        .replace(/ \S+ cpu-sec/u, " N cpu-sec")
+        .split("\n");
+    expect(lines).toEqual([
+        "pkg: @destack/test",
+        "database: sqlite",
+        "",
+        "BenchmarkTally/op=tally.mark/start=2 4 0 sec/op N cpu-sec/op 1 marks/op",
+        "",
+    ]);
 });

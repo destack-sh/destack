@@ -18,11 +18,11 @@ export { refusal, type Refusal } from "./refusal/index.ts";
 export { single } from "./single/index.ts";
 export { testTarget, type TestMatrix } from "./project/index.ts";
 export {
+    type Configuration,
     type Counters,
     type Driver,
     type DriverType,
+    type Measurement,
     type Observations,
-    type Play,
     Runner,
-    type StepCost,
 } from "./scenario/index.ts";
