@@ -14,6 +14,7 @@
     },
     "stamps": {
         "definePackage": { "module": 1 },
+        "defineBenchmark": { "module": 1 },
         "defineExample": { "module": 1 },
         "defineScenario": { "module": 1 }
     }

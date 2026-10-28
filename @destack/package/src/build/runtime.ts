@@ -4,9 +4,6 @@ import type { CSSOptions } from "vite";
 import { nth } from "@destack/schema";
 import type { Runtime } from "../runtime/index.ts";
 
-/** The workerd compatibility date Destack's Workers and workloads run at. */
-export const WORKERD_COMPATIBILITY_DATE = "2026-07-30";
-
 /** Workerd's Node modules then, per developers.cloudflare.com/workers/runtime-apis/nodejs. */
 const WORKERD_NODE_MODULES: ReadonlySet<string> = new Set([
     "_stream_wrap",

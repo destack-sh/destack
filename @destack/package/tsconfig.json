@@ -29,7 +29,7 @@
             "DOM",
             "DOM.Iterable"
         ],
-        "types": ["vite/client"]
+        "types": ["bun", "vite/client"]
     },
     "include": ["src", "tests", "*.config.ts"],
     "exclude": ["src/transform/tests/fixture/notes"]
