@@ -9,7 +9,7 @@ import {
     exerciseMarkers,
 } from "../scenario/bucket.ts";
 import { exerciseMultipart } from "../scenario/multipart.ts";
-import { exerciseBlobStore } from "../scenario/store.ts";
+import { exerciseBlobStorage } from "../scenario/store.ts";
 import { exerciseOperations } from "./operations.ts";
 
 /** The Worker running the bucket scenarios against the local R2 simulator. */
@@ -37,8 +37,8 @@ export default {
                 case "/exerciseMultipart":
                     await exerciseMultipart(bucket);
                     break;
-                case "/exerciseBlobStore":
-                    await exerciseBlobStore(bucket, Environment.system.random);
+                case "/exerciseBlobStorage":
+                    await exerciseBlobStorage(bucket, Environment.system.random);
                     break;
                 case "/exerciseOperations":
                     await exerciseOperations(bucket);

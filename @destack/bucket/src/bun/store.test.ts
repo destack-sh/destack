@@ -1,21 +1,22 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
-import { LocalBlobStore } from "./store.ts";
+import { LocalBlobStorage } from "./store.ts";
 
 /** Yield text as one chunk of bytes. */
 async function* bytesOf(content: string): AsyncIterable<Uint8Array> {
     yield new TextEncoder().encode(content);
 }
 
-test("keep a body once under its digest, list the kept blobs and delete one", async () => {
-    // keep two blobs, write one's bytes again and delete the other
+test("keep a body once under its digest, list the kept blobs and delete one, twice alike", async () => {
+    // keep two blobs, write one's bytes again and delete the other twice
     await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("blobs-");
-    const store = await LocalBlobStore.open(directory, world);
+    const store = await LocalBlobStorage.open(directory, world);
     const kept = await store.write(bytesOf("kept"));
     const dropped = await store.write(bytesOf("dropped"));
     const again = await store.write(bytesOf("kept"));
+    await store.delete(dropped);
     await store.delete(dropped);
 
     // list the one kept file, with no temporary file left
@@ -30,7 +31,7 @@ test("read a range of a blob at an unaligned offset across read-sized chunks, an
     // keep a blob of two and a half read sizes
     await using simulation = testSimulation();
     const world = simulation.environment("host");
-    const store = await LocalBlobStore.open(
+    const store = await LocalBlobStorage.open(
         await world.files.makeTemporaryDirectory("slice-"),
         world,
     );

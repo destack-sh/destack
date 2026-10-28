@@ -2,7 +2,7 @@ import { nth } from "@destack/schema";
 import { BucketError } from "../error/index.ts";
 import type { segment } from "./stack/index.ts";
 import type { CustomerKey } from "./encryption.ts";
-import type { BlobStore } from "./store.ts";
+import type { BlobStorage } from "@destack/resource";
 
 /** One blob of a stored file, its nonce and its length. */
 export type Segment = Pick<typeof segment.$inferSelect, "blob" | "nonce" | "size">;
@@ -12,7 +12,7 @@ export class ContentReader {
     /** The selected content stream. */
     readonly stream: ReadableStream<Uint8Array>;
     /** The blobs of the segments. */
-    readonly #blobs: BlobStore;
+    readonly #blobs: BlobStorage;
     /** The file's content segments in order. */
     readonly #segments: Segment[];
     /** Release the bucket's references to the segments. */
@@ -36,7 +36,7 @@ export class ContentReader {
 
     /** Read one range of retained segments, releasing them once. */
     constructor(
-        blobs: BlobStore,
+        blobs: BlobStorage,
         segments: Segment[],
         offset: number,
         length: number,

@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type { DirectoryEntry, Environment, FileSystem, Random } from "@destack/environment";
-import type { ContentStore } from "@destack/resource";
+import type { BlobStorage } from "@destack/resource";
 import { Digest, Uuid } from "@destack/schema";
-import type { BlobStore } from "../catalogue/store.ts";
 import { BucketError } from "../error/index.ts";
 import { createDurably, syncDirectory } from "./directory.ts";
 
@@ -14,7 +13,7 @@ const READ_BYTES = 64 * 1024;
 export type BlobEnvironment = Pick<Environment<"files">, "files" | "random">;
 
 /** A bucket's blobs as files in a directory, each keyed by its digest. */
-export class LocalBlobStore implements BlobStore {
+export class LocalBlobStorage implements BlobStorage {
     /** The directory of blob files. */
     readonly directory: string;
     /** The files the blobs live in. */
@@ -30,10 +29,10 @@ export class LocalBlobStore implements BlobStore {
     }
 
     /** Open a directory of blobs, creating it durably when missing. */
-    static async open(directory: string, environment: BlobEnvironment): Promise<LocalBlobStore> {
+    static async open(directory: string, environment: BlobEnvironment): Promise<LocalBlobStorage> {
         await createDurably(directory, environment.files);
 
-        return new LocalBlobStore(directory, environment);
+        return new LocalBlobStorage(directory, environment);
     }
 
     /** Build the path of a blob's file, refusing anything but a digest. */
@@ -106,7 +105,7 @@ export class LocalBlobStore implements BlobStore {
     }
 
     /** Keep the blobs the directory lacks among some digests, read from another store. */
-    async fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void> {
+    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "read">): Promise<void> {
         for (const digest of new Set(digests)) {
             // copy a missing blob
             if (!(await this.#files.exists(this.path(digest)))) {
@@ -115,9 +114,9 @@ export class LocalBlobStore implements BlobStore {
         }
     }
 
-    /** Delete a blob's file. */
+    /** Delete a blob's file, if stored. */
     async delete(digest: Digest): Promise<void> {
-        await this.#files.remove(this.path(digest));
+        await this.#files.remove(this.path(digest), { force: true });
     }
 
     /** List the blob files. */

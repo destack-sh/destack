@@ -25,7 +25,7 @@ import { BucketError } from "../error/index.ts";
 import { file, part, segment, upload } from "./stack/index.ts";
 import { CatalogueFile } from "./file.ts";
 import type { Segment } from "./reader.ts";
-import type { BlobStore } from "./store.ts";
+import type { BlobStorage } from "@destack/resource";
 
 /** The file columns a listing reads. */
 const LISTING_COLUMNS = {
@@ -48,7 +48,7 @@ export type CatalogueEnvironment = Pick<Environment, "clock" | "random" | "netwo
 /** A bucket's catalogue database, opened by its host only for it, and its blob store. */
 export interface Catalogue extends DatabaseHandle {
     /** The store of the blobs the catalogue's segments and parts reference. */
-    readonly blobs: BlobStore;
+    readonly blobs: BlobStorage;
     /** The clock, randomness and network the catalogue's writes run on. */
     readonly environment: CatalogueEnvironment;
     /** Delete blobs while no other process has the catalogue open, answering whether it ran. */
@@ -106,7 +106,7 @@ export class CatalogueStorage implements AsyncDisposable {
     }
 
     /** The store of the bucket's blobs. */
-    get blobs(): BlobStore {
+    get blobs(): BlobStorage {
         return this.#catalogue.blobs;
     }
 

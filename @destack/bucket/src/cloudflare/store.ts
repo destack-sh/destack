@@ -1,9 +1,8 @@
 import { createHash, type Hash } from "node:crypto";
 import type { Random } from "@destack/environment";
-import type { ContentStore } from "@destack/resource";
+import type { BlobStorage } from "@destack/resource";
 import { Digest, present, Uuid } from "@destack/schema";
 import { type Bucket, type UploadedPart, MAX_BATCH_FILES } from "../bucket/index.ts";
-import type { BlobStore } from "../catalogue/index.ts";
 import { BucketError } from "../error/index.ts";
 
 /** The bytes of each part of a blob written in parts: 8 MiB. */
@@ -13,7 +12,7 @@ const PART_BYTES = 8 * 1024 * 1024;
 const STAGING = "staging/";
 
 /** A bucket's blobs as files of a residency's R2 bucket below the bucket's prefix. */
-export class R2BlobStore implements BlobStore {
+export class R2BlobStorage implements BlobStorage {
     /** The residency's bucket. */
     readonly #files: Bucket;
     /** The prefix of the bucket's blobs, such as `bucket-…/`. */
@@ -85,7 +84,7 @@ export class R2BlobStore implements BlobStore {
     }
 
     /** Keep the blobs the store lacks among some digests, read from another store. */
-    async fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void> {
+    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "read">): Promise<void> {
         // copy the missing blobs
         for (const digest of await this.missing([...new Set(digests)])) {
             await this.write(source.read(digest), digest);

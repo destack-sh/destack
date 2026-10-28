@@ -2,7 +2,7 @@ import type { Random } from "@destack/environment";
 import assert from "node:assert/strict";
 import { Digest } from "@destack/schema";
 import type { Bucket } from "../../src/bucket/index.ts";
-import { R2BlobStore } from "../../src/cloudflare/store.ts";
+import { R2BlobStorage } from "../../src/cloudflare/store.ts";
 
 /** The bytes of one stored part, as the store splits long bodies. */
 const PART_BYTES = 8 * 1024 * 1024;
@@ -38,9 +38,9 @@ async function joined(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
 }
 
 /** Keep blobs by digest below a prefix, and read, list, copy and delete them. */
-export async function exerciseBlobStore(bucket: Bucket, random: Random): Promise<void> {
+export async function exerciseBlobStorage(bucket: Bucket, random: Random): Promise<void> {
     // keep a short body under its digest, and a long one staged in two parts
-    const store = new R2BlobStore(bucket, "bucket-source/", random);
+    const store = new R2BlobStorage(bucket, "bucket-source/", random);
     const short = new TextEncoder().encode("short body");
     const long = new Uint8Array(PART_BYTES + 1024).map((_, index) => index % 251);
     assert.deepStrictEqual(
@@ -82,7 +82,7 @@ export async function exerciseBlobStore(bucket: Bucket, random: Random): Promise
     );
 
     // copy the blobs another prefix lacks, then delete one blob and clear both prefixes
-    const target = new R2BlobStore(bucket, "bucket-target/", random);
+    const target = new R2BlobStorage(bucket, "bucket-target/", random);
     await target.fetch([SHORT_DIGEST, LONG_DIGEST, SHORT_DIGEST], store);
     const copied = await target.missing([SHORT_DIGEST, LONG_DIGEST]);
     await store.delete(SHORT_DIGEST);

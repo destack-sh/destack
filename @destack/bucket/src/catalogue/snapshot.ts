@@ -1,8 +1,7 @@
 import { DatabaseHandle } from "@destack/db";
-import type { ContentStore } from "@destack/resource";
+import type { BlobStorage } from "@destack/resource";
 import { canonicalize, Digest, schema } from "@destack/schema";
 import { part, segment } from "./stack/index.ts";
-import type { BlobStore } from "./store.ts";
 
 /** A snapshot of a bucket. */
 const SnapshotManifest = schema.object({
@@ -18,7 +17,7 @@ type SnapshotManifest = schema.Infer<typeof SnapshotManifest>;
 /** A bucket opened for copying. */
 export interface CatalogueHandle extends DatabaseHandle {
     /** The store of the blobs the catalogue's segments and parts reference. */
-    readonly blobs: BlobStore;
+    readonly blobs: BlobStorage;
     /** Keep every blob from collection until the hold is released. */
     readonly hold: () => Promise<AsyncDisposable>;
     /** Collect the blobs deleted rows referenced, deleting those no row references any longer. */
@@ -30,7 +29,7 @@ export const BucketSnapshot = {
     /** Copy the catalogue's rows and the blobs they reference into a store. */
     async take(
         bucket: CatalogueHandle,
-        store: Pick<ContentStore, "read" | "write" | "fetch">,
+        store: Pick<BlobStorage, "read" | "write" | "fetch">,
     ): Promise<Digest> {
         // copy the rows in one read, noting the blobs their segments and parts reference
         await using _held = await bucket.hold();
@@ -54,7 +53,7 @@ export const BucketSnapshot = {
     async restore(
         bucket: CatalogueHandle,
         digest: Digest,
-        store: Pick<ContentStore, "read">,
+        store: Pick<BlobStorage, "read">,
         base?: Digest,
     ): Promise<void> {
         // keep the blobs the base lacks, held from collection until their rows commit
@@ -81,14 +80,14 @@ export const BucketSnapshot = {
 
 /** Keep a manifest in a store under its digest. */
 async function write(
-    store: Pick<ContentStore, "write">,
+    store: Pick<BlobStorage, "write">,
     manifest: SnapshotManifest,
 ): Promise<Digest> {
     return store.write(chunked(new TextEncoder().encode(canonicalize(manifest))));
 }
 
 /** Read a manifest a store keeps. */
-async function read(store: Pick<ContentStore, "read">, digest: Digest): Promise<SnapshotManifest> {
+async function read(store: Pick<BlobStorage, "read">, digest: Digest): Promise<SnapshotManifest> {
     // decode the chunks as one text
     const decoder = new TextDecoder();
     let text = "";

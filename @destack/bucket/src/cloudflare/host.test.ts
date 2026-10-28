@@ -8,7 +8,7 @@ import { ResourceId } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { BucketError } from "../error/index.ts";
-import { LocalBucket, LocalBucketHost, LocalBlobStore } from "../bun/index.ts";
+import { LocalBucket, LocalBucketHost, LocalBlobStorage } from "../bun/index.ts";
 import { bucketProvider } from "../provider/index.ts";
 import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
 import type { CatalogueStore } from "../catalogue/index.ts";
@@ -195,7 +195,7 @@ test("move a bucket from a device host to a cell: snapshot its catalogue and fil
     const to = { ...record, ...(await target.provision.provision(record)) };
 
     // fence the device's bucket, snapshot it into a content store, and restore it on the cell
-    const store = await LocalBlobStore.open(
+    const store = await LocalBlobStorage.open(
         await world.files.makeTemporaryDirectory("r2-host-"),
         world,
     );

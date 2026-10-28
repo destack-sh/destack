@@ -8,7 +8,7 @@ import { CatalogueBucket } from "../catalogue/bucket.ts";
 import { CatalogueStorage } from "../catalogue/storage.ts";
 import { catalogueDatabase } from "../catalogue/stack/index.ts";
 import { syncDirectory } from "./directory.ts";
-import { LocalBlobStore } from "./store.ts";
+import { LocalBlobStorage } from "./store.ts";
 
 /** The effects a local bucket runs on: its files, and its catalogue's clock, random and network. */
 export type LocalBucketEnvironment = Environment<"files">;
@@ -18,10 +18,10 @@ export class LocalBucket extends CatalogueBucket {
     /** The open catalogue and its blobs. */
     readonly #storage: CatalogueStorage;
     /** The blob files. */
-    readonly #blobs: LocalBlobStore;
+    readonly #blobs: LocalBlobStorage;
 
     /** Serve a catalogue over its blob files. */
-    private constructor(storage: CatalogueStorage, blobs: LocalBlobStore) {
+    private constructor(storage: CatalogueStorage, blobs: LocalBlobStorage) {
         super(storage);
         this.#storage = storage;
         this.#blobs = blobs;
@@ -48,7 +48,7 @@ export class LocalBucket extends CatalogueBucket {
         }
 
         // create the blob directory before publishing any catalogue entries, and share the bucket's lock until the open fails or the storage takes it
-        const blobs = await LocalBlobStore.open(join(directory, "files"), environment);
+        const blobs = await LocalBlobStorage.open(join(directory, "files"), environment);
         await using opening = new AsyncDisposableStack();
         const lock = opening.use(await files.lock(join(directory, "bucket.lock"), "shared"));
 
@@ -137,7 +137,7 @@ async function prepare(
 function openedStorage(
     catalogue: string,
     database: SqliteDatabase,
-    blobs: LocalBlobStore,
+    blobs: LocalBlobStorage,
     lock: FileLock,
     environment: LocalBucketEnvironment,
 ): CatalogueStorage {

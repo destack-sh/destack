@@ -11,7 +11,7 @@ import {
 } from "../catalogue/index.ts";
 import { BucketError } from "../error/index.ts";
 import type { BucketReference, S3Credentials } from "../s3/index.ts";
-import { R2BlobStore } from "./store.ts";
+import { R2BlobStorage } from "./store.ts";
 
 /** The file below a bucket's prefix marking it fenced while a transfer copies it. */
 const FENCE_FILE = "fence";
@@ -93,7 +93,11 @@ export class R2BucketHost extends CatalogueBucketHost {
     /** Close a bucket, then delete its blobs and its catalogue. */
     override async destroy(bucket: Pick<BucketReference, "bucketId">): Promise<void> {
         await this.close(bucket);
-        await new R2BlobStore(this.#files, `${bucket.bucketId}/`, this.#environment.random).clear();
+        await new R2BlobStorage(
+            this.#files,
+            `${bucket.bucketId}/`,
+            this.#environment.random,
+        ).clear();
         await this.#catalogues.destroy(bucket.bucketId);
     }
 
@@ -129,7 +133,7 @@ export class R2BucketHost extends CatalogueBucketHost {
             get database() {
                 return database;
             },
-            blobs: new R2BlobStore(this.#files, `${bucketId}/`, this.#environment.random),
+            blobs: new R2BlobStorage(this.#files, `${bucketId}/`, this.#environment.random),
             environment: this.#environment,
             migrate: async (beside) => {
                 // migrate, then reconnect declaring every table
