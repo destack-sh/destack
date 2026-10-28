@@ -109,6 +109,13 @@ export function Ledger(properties: {
         }
     };
 
+    // press a block, unless the click landed on its name's picker or in the menu it opens
+    const press = (event: MouseEvent, row: number) => {
+        if (!(event.target instanceof Element && event.target.closest("button, [popover]"))) {
+            properties.onPress(row);
+        }
+    };
+
     // start scrolled to the last column, the cost, where the figures overflow a narrow ledger
     let scroller: HTMLDivElement | undefined;
     onSettled(() => {
@@ -190,7 +197,7 @@ export function Ledger(properties: {
                                     title={row().plan}
                                     onPointerEnter={(event) => point(event, index)}
                                     onPointerLeave={(event) => point(event, undefined)}
-                                    onClick={() => properties.onPress(index)}
+                                    onClick={(event) => press(event, index)}
                                     {...style.attrs(
                                         styles.row,
                                         styles.block,
