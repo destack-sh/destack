@@ -230,7 +230,7 @@ export class Authorization {
         return enclosing;
     }
 
-    /** Record a new object's access beside its row: a scope's row, its first subjects and owner. */
+    /** Record a new object's access beside its row, which has no relationships yet. */
     async create(object: ObjectReference, creation: Creation): Promise<void> {
         // record a new scope below the scopes containing it, none below the universe
         const isScope = this.authorizer.policy(object).definition.scope === true;
@@ -314,17 +314,8 @@ export class Authorization {
 
     /** Relate a local object's first subjects, and bind a scope's owner. */
     async #relate(object: ObjectReference, creation: Creation): Promise<void> {
-        // write the access of a local object with no relationships yet
+        // write the access of a local object
         await this.authorizer.requireLocal(this.transaction, object);
-        const related = await this.transaction
-            .read(accessRelationship)
-            .findMany({ where: Relationship.objectColumns(object), limit: 1 });
-        if (related.length > 0) {
-            throw AccessError.of(
-                "RELATIONSHIP_INVALID",
-                "a relationship needs a grant after creation",
-            );
-        }
 
         // refuse owners of an object that is not a scope
         const definition = this.authorizer.policy(object).definition;

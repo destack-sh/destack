@@ -127,11 +127,18 @@ export class TupleReader {
         }
     }
 
-    /** Note an object a call creates and the relationships its creation writes. */
+    /** Note an object a call creates, its row and the relationships its creation writes. */
     creating(
         object: ObjectReference,
+        row: Row,
         relationships: readonly Select<typeof accessRelationship>[],
     ): void {
+        // know the new row and its first relationships, reading neither
+        const mapping = this.#authorizer.requireMapping(object);
+        this.#loaded.set(
+            TupleReader.#rowKey(mapping, object.scope, object.id),
+            Promise.resolve(row),
+        );
         this.#read.set(ObjectReference.key(object), Promise.resolve([...relationships]));
     }
 
@@ -1013,9 +1020,7 @@ export class TupleReader {
         }
 
         // read the unread rows in one query, and note the missing ones, by table and type
-        const { packageId, name } = mapping.policy.definition;
-        const table = mapping.table[TABLE].sqlName;
-        const key = (id: string) => JSON.stringify([table, packageId, name, scope, id]);
+        const key = (id: string) => TupleReader.#rowKey(mapping, scope, id);
         const missing = ids.filter((id) => !this.#loaded.has(key(id)));
         if (missing.length > 0) {
             const read = TableMapping.read(this.#snapshot, mapping, scope, missing).then(
@@ -1033,6 +1038,13 @@ export class TupleReader {
         const rows = await Promise.all(ids.map((id) => found(this.#loaded, key(id))));
 
         return rows.flatMap((row) => (row === undefined ? [] : [row]));
+    }
+
+    /** Key a row of a mapped type by its table, type, scope and identifier. */
+    static #rowKey(mapping: TableMapping, scope: string, id: string): string {
+        const { packageId, name } = mapping.policy.definition;
+
+        return JSON.stringify([mapping.table[TABLE].sqlName, packageId, name, scope, id]);
     }
 
     /** Read the identifiers of a row's proper ancestors through a tree. */
