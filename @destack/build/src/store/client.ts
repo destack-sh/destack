@@ -25,24 +25,7 @@ export class PackageClient {
         // upload each distinct file the server lacks
         const files = distinctFiles(await build.distributed());
         await inBatches(files, signal, async (file) => {
-            // ask whether the server has the file
-            const target = `${this.url}files/${file.digest}`;
-            const held = await this.#fetch(new Request(target, { method: "HEAD" }));
-            await held.body?.cancel();
-
-            // upload a file the server lacks
-            if (held.status === 404) {
-                const body = await build.load(file.path, signal);
-                const headers = { "content-type": file.mediaType };
-                await this.#upload(new Request(target, { method: "PUT", body, headers }));
-            }
-            // refuse a failed probe
-            else if (!held.ok) {
-                throw BuildError.of(
-                    "PROBE_FAILED",
-                    `cannot probe ${new URL(target).pathname}: HTTP ${held.status}`,
-                );
-            }
+            await this.upload(file.digest, () => build.load(file.path, signal));
         });
 
         // upload the manifest last in the store's encoding, under the build's digest
@@ -58,6 +41,26 @@ export class PackageClient {
         );
 
         return digest;
+    }
+
+    /** Upload a file the server lacks under its digest, reading its bytes only if needed. */
+    async upload(digest: Digest, load: () => Promise<Uint8Array<ArrayBuffer>>): Promise<void> {
+        // ask whether the server has the file
+        const target = `${this.url}files/${digest}`;
+        const stored = await this.#fetch(new Request(target, { method: "HEAD" }));
+        await stored.body?.cancel();
+
+        // upload a file the server lacks
+        if (stored.status === 404) {
+            await this.#upload(new Request(target, { method: "PUT", body: await load() }));
+        }
+        // refuse a failed probe
+        else if (!stored.ok) {
+            throw BuildError.of(
+                "PROBE_FAILED",
+                `cannot probe ${new URL(target).pathname}: HTTP ${stored.status}`,
+            );
+        }
     }
 
     /** Send an upload, releasing its answer's body, and refuse a failed one. */

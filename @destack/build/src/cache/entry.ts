@@ -29,7 +29,7 @@ export const OutputKeys = schema.record(schema.string(), Digest);
 /** The cache key of each requested output, by name. */
 export type OutputKeys = schema.Infer<typeof OutputKeys>;
 
-/** What a cache key names: a build's manifest, one output, or one file a transform derived. */
+/** What a cache key stores: a build's manifest, one output, or one file a transform derived. */
 export const CacheEntry = schema.discriminatedUnion("kind", [
     schema.object({
         /** A whole build. */
@@ -50,5 +50,5 @@ export const CacheEntry = schema.discriminatedUnion("kind", [
         file: PackageFile,
     }),
 ]);
-/** What a cache key names. */
+/** What a cache key stores. */
 export type CacheEntry = schema.Infer<typeof CacheEntry>;

@@ -1,35 +1,41 @@
 import { dirname, join } from "node:path";
-import { LocalBucket } from "@destack/bucket/bun";
+import { LocalBlobStorage } from "@destack/bucket/bun";
+import { BlobStore, blobLease, eq } from "@destack/db";
+import { connectBunSqlite } from "@destack/db/bun";
 import { locateWorkspace } from "@destack/check/workspace";
 import type { Environment } from "@destack/environment";
 import { Identities } from "../cache/index.ts";
 import type { PackageFile } from "@destack/package/file";
 import { PackageStore } from "./store.ts";
+import { packageStoreDatabase } from "./table.ts";
 import { BuildError } from "../error/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { STAGING_DIRECTORY } from "../dependency/tree.ts";
 import { Digest } from "@destack/schema";
 
-/** The directory below a store's bucket with the dependency trees of its builds, by manifest. */
+/** The directory below a store's directory with its blobs, by digest. */
+const FILES_DIRECTORY = "files";
+
+/** The database file of a store of its own, which indexes its blobs. */
+const DATABASE_FILE = "store.db";
+
+/** The directory below a store's directory with the dependency trees of its builds, by manifest. */
 const TREES_DIRECTORY = "trees";
 
 /** The prefix of a root a directory names, forgotten once the directory is gone. */
 const DIRECTORY_ROOT_PREFIX = "directory:";
 
-/** The file every process using a store's bucket locks shared. */
-const BUCKET_LOCK = "bucket.lock";
+/** The file every process using a store locks shared. */
+const STORE_LOCK = "store.lock";
 
-/** The scope of a local store's bucket: this machine's builds, as `universe` is the universe's. */
-const SCOPE = "builds";
-
-/** The file a stores' directory locks while one process sweeps and opens its stores. */
+/** The file a stores' directory locks while one process collects and opens its stores. */
 const DIRECTORY_LOCK = "stores.lock";
 
-/** How long a store keeps an unrooted build past its last use: a week, as Nx keeps its cache. */
+/** How long a store retains an unrooted build past its last use: a week, as Nx keeps its cache. */
 const CACHE_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
-/** How often an idle open sweeps: once a day, so a build a week unused goes within eight days. */
-const SWEEP_MILLISECONDS = 24 * 60 * 60_000;
+/** How often a store records a build's use: daily, a seventh of its retention. */
+const USE_MILLISECONDS = 24 * 60 * 60_000;
 
 /** The cache directory below a checkout's root, where find-cache-dir places tools' caches. */
 const CHECKOUT_CACHE = join("node_modules", ".cache", "destack");
@@ -37,62 +43,71 @@ const CHECKOUT_CACHE = join("node_modules", ".cache", "destack");
 /** What a checkout's store has builds for: development tools, or test runs. */
 export type LocalStoreUse = "development" | "test";
 
-/** A store of builds on this machine's disk, one per toolchain, which processes share. */
+/** The blobs, database, trees directory and environment of a store on this machine's disk. */
+export interface LocalPackageStoreOptions {
+    /** The blobs, kept in a directory, whose database declares the store's tables. */
+    readonly blobs: BlobStore<LocalBlobStorage>;
+    /** The directory with the dependency trees. */
+    readonly directory: string;
+    /** The environment the store runs in. */
+    readonly environment: Environment<"files" | "process" | "host">;
+}
+
+/** A store of builds on this machine's disk, its blobs in a directory, which processes share. */
 export class LocalPackageStore
-    extends PackageStore<Environment<"files" | "process" | "host">>
+    extends PackageStore<Environment<"files" | "process" | "host">, LocalBlobStorage>
     implements AsyncDisposable
 {
     /** The directory of the dependency trees its builds are materialized in, one per manifest. */
     readonly trees: string;
-    /** The bucket that stores the builds. */
-    readonly #bucket: LocalBucket;
-    /** The builds this store used since it opened, each leased once. */
-    readonly #used = new Set<Digest>();
-    /** What disposal releases: the bucket the store opened, and a temporary store's directory. */
+    /** What disposal releases: the database the store opened, and a temporary store's directory. */
     readonly #disposables: AsyncDisposableStack;
 
-    /** Store the store's bucket below its directory, and what disposal releases. */
-    private constructor(
-        bucket: LocalBucket,
-        directory: string,
-        environment: Environment<"files" | "process" | "host">,
-        disposables: AsyncDisposableStack,
-    ) {
-        // store the bucket, its environment, its trees and its disposables
-        super(bucket, environment);
-        this.trees = join(directory, TREES_DIRECTORY);
-        this.#bucket = bucket;
+    /** Store builds in a directory's blobs indexed in a database, and what disposal releases. */
+    private constructor(options: LocalPackageStoreOptions, disposables: AsyncDisposableStack) {
+        // store the blobs, the database, the trees and the disposables
+        super(options);
+        this.trees = join(options.directory, TREES_DIRECTORY);
         this.#disposables = disposables;
     }
 
-    /** Store the builds of a bucket its opener opened and closes, their trees below a directory. */
-    static async of(
-        bucket: LocalBucket,
-        directory: string,
-        environment: Environment<"files" | "process" | "host">,
-    ): Promise<LocalPackageStore> {
-        return await LocalPackageStore.#create(
-            bucket,
-            directory,
-            environment,
-            new AsyncDisposableStack(),
-        );
+    /** Store builds in blobs and an opened database, their trees below a directory. */
+    static async of(options: LocalPackageStoreOptions): Promise<LocalPackageStore> {
+        return await LocalPackageStore.#create(options, new AsyncDisposableStack());
     }
 
-    /** Store a bucket's builds, creating the directory of their trees. */
+    /** Store a directory's builds, creating the directory of their trees. */
     static async #create(
-        bucket: LocalBucket,
-        directory: string,
-        environment: Environment<"files" | "process" | "host">,
+        options: LocalPackageStoreOptions,
         disposables: AsyncDisposableStack,
     ): Promise<LocalPackageStore> {
-        const store = new LocalPackageStore(bucket, directory, environment, disposables);
-        await environment.files.mkdir(store.trees, { recursive: true });
+        const store = new LocalPackageStore(options, disposables);
+        await options.environment.files.mkdir(store.trees, { recursive: true });
 
         return store;
     }
 
-    /** Store a build, keeping it a week past this use. */
+    /** Open a store of its own in a directory: its blobs, and its database migrated. */
+    static async #openDirectory(
+        directory: string,
+        environment: Environment<"files" | "process" | "host">,
+        disposables: AsyncDisposableStack,
+    ): Promise<LocalPackageStore> {
+        // open the blobs, then the database, closed on disposal
+        const storage = await LocalBlobStorage.open(join(directory, FILES_DIRECTORY), environment);
+        const database = await connectBunSqlite(
+            join(directory, DATABASE_FILE),
+            packageStoreDatabase,
+            { environment },
+        );
+        disposables.defer(() => database.close());
+        await database.migrate(packageStoreDatabase.tables);
+        const blobs = new BlobStore({ storage, database, environment });
+
+        return await LocalPackageStore.#create({ blobs, directory, environment }, disposables);
+    }
+
+    /** Store a build, retaining it a week past this use. */
     override async put(...stored: Parameters<PackageStore["put"]>): Promise<Digest> {
         const digest = await super.put(...stored);
         await this.#use(digest);
@@ -100,36 +115,40 @@ export class LocalPackageStore
         return digest;
     }
 
-    /** Open a stored build, keeping it a week past this use, as a cache keeps what it serves. */
+    /** Open a stored build, retaining it a week past this use, as a cache does. */
     override async contents(digest: Digest): Promise<BuildReader> {
         await this.#use(digest);
 
         return super.contents(digest);
     }
 
-    /** Lease a build once per open store, sparing it and its files from sweeps a week on. */
+    /** Lease a build a week on once a day it is used, retaining it and its files. */
     async #use(digest: Digest): Promise<void> {
-        if (!this.#used.has(digest)) {
-            this.#used.add(digest);
-            await this.lease(digest, new Date(this.environment.clock.now() + CACHE_MILLISECONDS));
+        // read the build's lease, renewing one a day or more old
+        const now = this.environment.clock.now();
+        const [leased] = await this.database
+            .select({ until: blobLease.until })
+            .from(blobLease)
+            .where(eq(blobLease.digest, digest));
+        if (leased === undefined || leased.until - CACHE_MILLISECONDS <= now - USE_MILLISECONDS) {
+            await this.lease(digest, new Date(now + CACHE_MILLISECONDS));
         }
     }
 
     /** Root some builds by a directory, until the directory is gone. */
     async rootDirectory(directory: string, manifests: ReadonlySet<string>): Promise<void> {
-        const now = new Date(this.environment.clock.now());
-        await this.root(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests, now);
+        await this.root(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests);
     }
 
     /** Clone a stored file to a path, creating its folder, copying where cloning is unsupported. */
     async place(file: PackageFile, destination: string): Promise<void> {
         await this.environment.files.mkdir(dirname(destination), { recursive: true });
-        await this.#bucket.clone(PackageStore.fileKey(file.digest), destination);
+        await this.blobs.storage.copy(file.digest, destination);
     }
 
-    /** Forget the roots of deleted directories, then sweep what no root retains, as of now. */
-    async #sweepIdle(now: Date): Promise<void> {
-        // forget each root named by a directory that no longer exists
+    /** Forget deleted directories' roots, collect, then delete deleted builds' trees. */
+    async #collectIdle(): Promise<void> {
+        // forget each root of a directory that no longer exists
         for (const name of (await this.roots()).keys()) {
             const directory = name.startsWith(DIRECTORY_ROOT_PREFIX)
                 ? name.slice(DIRECTORY_ROOT_PREFIX.length)
@@ -139,23 +158,16 @@ export class LocalPackageStore
             }
         }
 
-        // delete what crashed materializations left staged
-        const staging = join(this.trees, STAGING_DIRECTORY);
-        await this.environment.files.remove(staging, { recursive: true, force: true });
-
-        // sweep unrooted builds older than a week, once a day
-        await this.sweepIfDue(
-            new Date(now.getTime() - CACHE_MILLISECONDS),
-            now,
-            SWEEP_MILLISECONDS,
-        );
-    }
-
-    /** Delete what retention drops, and the dependency trees of the builds it deleted. */
-    override async sweep(...options: Parameters<PackageStore["sweep"]>): Promise<void> {
-        // sweep the bucket, then delete each tree whose build the store no longer has
-        await super.sweep(...options);
+        // delete what crashed materializations left staged, and what interrupted blob writes left
         const { files } = this.environment;
+        await files.remove(join(this.trees, STAGING_DIRECTORY), { recursive: true, force: true });
+        await this.blobs.storage.clean();
+
+        // unrecord the builds no root or lease retains, and delete the blobs they let go
+        await this.collect();
+        await this.blobs.collect();
+
+        // delete the trees of the builds the store no longer has
         const entries = await files.readDirectory(this.trees);
         const trees = entries
             .filter((entry) => entry.kind === "directory" && entry.name !== STAGING_DIRECTORY)
@@ -168,13 +180,13 @@ export class LocalPackageStore
         }
     }
 
-    /** Open the toolchain's store below a directory, sweeping idle stores of every toolchain. */
+    /** Open the toolchain's store below a directory, deleting idle stores of other toolchains. */
     static async open(
         directory: string,
         environment: Environment<"files" | "process" | "host">,
     ): Promise<LocalPackageStore> {
-        // lock the directory while sweeping and opening, so no process opens a store being deleted
-        const { clock, files } = environment;
+        // lock the directory while collecting and opening, so no process opens a store being deleted
+        const { files } = environment;
         const toolchain = await Identities.of({}, environment).toolchain();
         await files.mkdir(directory, { recursive: true });
         const held = await files.lock(join(directory, DIRECTORY_LOCK), "exclusive");
@@ -185,7 +197,7 @@ export class LocalPackageStore
                 .filter((entry) => entry.kind === "directory" && entry.name !== toolchain)
                 .map((entry) => entry.name);
             for (const entry of stores) {
-                const lock = await files.tryLock(join(directory, entry, BUCKET_LOCK), "exclusive");
+                const lock = await files.tryLock(join(directory, entry, STORE_LOCK), "exclusive");
                 if (lock !== undefined) {
                     await files.remove(join(directory, entry), { recursive: true });
                     await lock.close();
@@ -195,20 +207,20 @@ export class LocalPackageStore
             // learn whether another process has the toolchain's store open, as openers wait here
             await files.mkdir(join(directory, toolchain), { recursive: true });
             const location = await files.realPath(join(directory, toolchain));
-            const idle = await files.tryLock(join(location, BUCKET_LOCK), "exclusive");
+            const idle = await files.tryLock(join(location, STORE_LOCK), "exclusive");
             await idle?.close();
 
-            // open the store, then sweep it while no other process builds into it
+            // open the store sharing its lock, then collect it while no other process builds into it
             const disposables = new AsyncDisposableStack();
-            const bucket = disposables.use(await LocalBucket.open(location, SCOPE, environment));
-            const store = await LocalPackageStore.#create(
-                bucket,
+            const shared = await files.lock(join(location, STORE_LOCK), "shared");
+            disposables.defer(() => shared.close());
+            const store = await LocalPackageStore.#openDirectory(
                 location,
                 environment,
                 disposables,
             );
             if (idle !== undefined) {
-                await store.#sweepIdle(new Date(clock.now()));
+                await store.#collectIdle();
             }
 
             return store;
@@ -242,18 +254,17 @@ export class LocalPackageStore
     static async temporary(
         environment: Environment<"files" | "process" | "host">,
     ): Promise<LocalPackageStore> {
-        // open a bucket in a new directory, both released on disposal
+        // open a store in a new directory, both released on disposal
         const { files } = environment;
         const temporary = await files.makeTemporaryDirectory("destack-store-");
         const directory = await files.realPath(temporary);
         const disposables = new AsyncDisposableStack();
         disposables.defer(() => files.remove(directory, { recursive: true }));
-        const bucket = disposables.use(await LocalBucket.open(directory, SCOPE, environment));
 
-        return await LocalPackageStore.#create(bucket, directory, environment, disposables);
+        return await LocalPackageStore.#openDirectory(directory, environment, disposables);
     }
 
-    /** Release the store's disposables: close the bucket it opened, removing a temporary one. */
+    /** Close the database the store opened, removing a temporary store. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.#disposables.disposeAsync();
     }

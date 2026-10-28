@@ -1,14 +1,16 @@
 import type { Environment } from "@destack/environment";
-import { Digest, type DigestCrypto, Instant, nth, present, schema } from "@destack/schema";
+import { Digest, type DigestCrypto, present, schema } from "@destack/schema";
+import type { BlobStorage } from "@destack/resource";
 import {
-    type Bucket,
-    type BucketBody,
-    type BucketEntry,
-    BucketFile,
-    BucketError,
-    type BucketRange,
-    MAX_BATCH_FILES,
-} from "@destack/bucket";
+    and,
+    asc,
+    type BlobStore,
+    type DatabaseConnection,
+    eq,
+    inArray,
+    lte,
+    sql,
+} from "@destack/db";
 import { DependencyName, type PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {
@@ -22,29 +24,27 @@ import type { Runtime } from "@destack/package/runtime";
 import { BuildError } from "../error/index.ts";
 import { Tarball } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
-import { CacheEntry } from "../cache/entry.ts";
+import type { CacheEntry } from "../cache/entry.ts";
 import { type PackageAccess, serveStore } from "./http.ts";
+import { buildCache, buildManifest, buildReference, buildReferrer, buildRoot } from "./table.ts";
+
+/** A row of one blob, as a raw statement answers it. */
+const DigestRow = schema.object({ digest: Digest });
 
 /** The concurrent uploads of one store. */
 const CONCURRENT_UPLOADS = 8;
 
-/** The prefix of the keys storing files, each followed by its digest. */
-const FILES_PREFIX = "files/";
+/** The rows one statement binds: 500, far under SQLite's 32,766 parameters at two columns. */
+const BATCH_ROWS = 500;
 
-/** The prefix of the keys storing manifests, each followed by its digest. */
-const MANIFESTS_PREFIX = "manifests/";
+/** How long a cache entry retains what it references past its last use: a week, as Nx does. */
+const CACHE_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
-/** The prefix of the keys storing referrers, each followed by its subject's digest and its path. */
-const REFERRERS_PREFIX = "referrers/";
+/** How often a store records a cache entry's use: daily, a seventh of the entry's lifetime. */
+const USE_MILLISECONDS = 24 * 60 * 60_000;
 
-/** The key of a sweep's marks: each dropped object's key to the instant a sweep marked it. */
-const MARKS_KEY = "marks";
-
-/** The key of the instant the last sweep began on its machine's clock, close to others by NTP. */
-const SWEPT_KEY = "swept";
-
-/** The marks of the objects a sweep drops, by key. */
-const Marks = schema.record(schema.string(), Instant);
+/** The prefix of the root a cache entry retains its blobs by, followed by its key. */
+const CACHE_ROOT_PREFIX = "cache:";
 
 /** The prefix of a build's runtime builds among its referrers, one per server runtime. */
 export const RUNTIME_REFERRER = "runtime";
@@ -55,49 +55,39 @@ export const MAPS_REFERRER = "maps";
 /** The type declaration files a runtime never loads, beside the modules they describe. */
 const TYPE_DECLARATION = /\.d\.[cm]?ts$/u;
 
-/** The prefix of the keys of the roots, each retaining manifests under its name. */
-const ROOTS_PREFIX = "roots/";
-
-/** A root's record: when it was written and the manifests it retains. */
-const Root = schema.object({
-    /** When the root was written, in UTC epoch milliseconds on the writer's clock. */
-    rootedAt: Instant,
-    /** The manifests the root retains. */
-    manifests: schema.array(Digest),
-});
-
-/** Decide which of some stored digests a sweep retains, read in batches the bucket lists. */
-export type Retention = (digests: readonly string[]) => Promise<ReadonlySet<string>>;
-
-/** The retentions of a sweep. */
-export const Retention = {
-    /** Retain the digests of a known set. */
-    of(retained: Iterable<string>): Retention {
-        const set = new Set(retained);
-
-        return async (digests) => new Set(digests.filter((digest) => set.has(digest)));
-    },
-
-    /** Retain none of the digests. */
-    none: (async () => new Set<string>()) satisfies Retention,
-};
-
 /** Read a build's manifest at a package's registry, absent where none is stored. */
 export type ManifestRead = (
     manifest: Digest,
     packageId: PackageId,
 ) => Promise<PackageManifest | undefined>;
 
-/** Immutable package builds in a bucket: files by digest, and manifests by digest. */
+/** What a collection unrecorded, and when the next lease or cache entry ends. */
+export interface Collection {
+    /** The builds deleted. */
+    readonly manifests: readonly Digest[];
+    /** When the next collection can delete more, in UTC epoch milliseconds, absent for never. */
+    readonly next: number | undefined;
+}
+
+/** The blobs a store keeps builds in, and the environment it runs in. */
+export interface PackageStoreOptions<StoreEnvironment, Storage extends BlobStorage> {
+    /** The partition's blobs, whose database declares the store's tables beside its own. */
+    readonly blobs: BlobStore<Storage>;
+    /** The compression streaming archives, the crypto digesting files and the clock of leases. */
+    readonly environment: StoreEnvironment;
+}
+
+/** Immutable package builds in a partition's blobs, kept while any of its rows references them. */
 export class PackageStore<
-    StoreEnvironment extends Pick<Environment, "compression" | "crypto"> = Pick<
+    StoreEnvironment extends Pick<Environment, "compression" | "crypto" | "clock"> = Pick<
         Environment,
-        "compression" | "crypto"
+        "compression" | "crypto" | "clock"
     >,
+    Storage extends BlobStorage = BlobStorage,
 > {
-    /** The bucket storing the builds. */
-    readonly bucket: Bucket;
-    /** The compression streaming the store's archives, and the crypto digesting its files. */
+    /** The partition's blobs, keeping the builds' files and manifests. */
+    readonly blobs: BlobStore<Storage>;
+    /** The compression, crypto and clock the store archives, digests and expires with. */
     readonly environment: StoreEnvironment;
     /** The reader of each build opened so far, by manifest digest, until its build is deleted. */
     readonly #readers = new Map<string, Promise<BuildReader>>();
@@ -106,15 +96,15 @@ export class PackageStore<
     /** The runtime builds being derived, by build and runtime. */
     readonly #attaching = new Map<string, Promise<Digest>>();
 
-    /** Store builds in a bucket, streaming archives and digesting files in an environment. */
-    constructor(bucket: Bucket, environment: StoreEnvironment) {
-        this.bucket = bucket;
-        this.environment = environment;
+    /** Store builds in a partition's blobs. */
+    constructor(options: PackageStoreOptions<StoreEnvironment, Storage>) {
+        this.blobs = options.blobs;
+        this.environment = options.environment;
     }
 
-    /** Build the bucket key of a stored file from its digest. */
-    static fileKey(digest: Digest): string {
-        return `${FILES_PREFIX}${digest}`;
+    /** The partition's database with the store's index. */
+    get database(): DatabaseConnection {
+        return this.blobs.database;
     }
 
     /** Serve the store's manifests, files and archives below a mount, as a host allows each. */
@@ -129,35 +119,54 @@ export class PackageStore<
         return Digest.of(bytes, crypto);
     }
 
-    /** Store each file of a build, then its manifest, returning the manifest's digest. */
+    /** Store each missing file of a build, then its manifest, returning the manifest's digest. */
     async put(source: BuildReader, signal?: AbortSignal): Promise<Digest> {
-        // parse the manifest and refuse reserved and duplicate file paths
-        const manifest = PackageManifest.parse(source.manifest);
+        // take a stored build by its manifest
+        const bytes = encodeManifest(PackageManifest.parse(source.manifest));
+        const digest = await Digest.of(bytes, this.environment.crypto);
+        if (await this.contains(digest)) {
+            return digest;
+        }
+
+        // lease the build's blobs, refusing reserved and duplicate file paths
         const list = await source.distributed();
         requireDistinctPaths(list);
+        const files = distinctFiles(list);
+        await this.blobs.lease([digest, ...files.map((file) => file.digest)]);
 
-        // store each distinct file, a bounded number of streams at a time
-        await inBatches(distinctFiles(list), signal, (file) =>
-            this.putFile(file, () => source.stream(file.path, signal)),
+        // store each missing file, a bounded number of streams at a time, then the manifest
+        const { storage } = this.blobs;
+        const missing = new Set(await storage.missing(files.map((file) => file.digest)));
+        await inBatches(
+            files.filter((file) => missing.has(file.digest)),
+            signal,
+            async (file) => {
+                await storage.write(await source.stream(file.path, signal), file.digest);
+            },
         );
-
-        // store the manifest last
         signal?.throwIfAborted();
-        const bytes = encodeManifest(manifest);
-        const file = await PackageFile.describe(
-            "manifest.json",
-            "application/json",
-            bytes,
-            this.environment.crypto,
-        );
-        await this.#put(`${MANIFESTS_PREFIX}${file.digest}`, bytes, file);
+        await this.#write(digest, bytes);
 
-        return file.digest;
+        // record the build
+        await this.#record(digest, bytes.byteLength, source.manifest, files);
+
+        return digest;
     }
 
-    /** Report whether the store has a build, whose manifest it stores after every file. */
+    /** Report whether the store has a build, recorded once every blob it references is stored. */
     async contains(digest: Digest): Promise<boolean> {
-        return (await this.bucket.head(`${MANIFESTS_PREFIX}${digest}`)) !== null;
+        const [found] = await this.database
+            .select({ digest: buildManifest.digest })
+            .from(buildManifest)
+            .where(eq(buildManifest.digest, digest))
+            .limit(1);
+
+        return found !== undefined;
+    }
+
+    /** Report whether the store has a blob. */
+    async has(digest: Digest): Promise<boolean> {
+        return (await this.blobs.storage.missing([digest])).length === 0;
     }
 
     /** Copy a served build by manifest digest unless stored, fetching only missing files. */
@@ -184,12 +193,8 @@ export class PackageStore<
         }
     }
 
-    /** Store an uploaded file under its digest, refusing bytes of another digest. */
-    async receive(
-        digest: string,
-        bytes: Uint8Array<ArrayBuffer>,
-        mediaType: string,
-    ): Promise<void> {
+    /** Lease and store an uploaded file under its digest, refusing bytes of another digest. */
+    async receive(digest: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
         // refuse bytes of another digest
         const expected = Digest.parse(digest);
         if ((await Digest.of(bytes, this.environment.crypto)) !== expected) {
@@ -198,77 +203,58 @@ export class PackageStore<
                 `the uploaded file does not match its digest ${digest}`,
             );
         }
-        await this.putFile(
-            {
-                path: PackageStore.fileKey(expected),
-                digest: expected,
-                size: bytes.byteLength,
-                mediaType,
-            },
-            async () => bytes,
-        );
+
+        // lease the file for its manifest, then store it
+        await this.blobs.put(expected, async () => PackageStore.#chunks(bytes));
     }
 
     /** Store an uploaded manifest with all its files, refusing other digests and missing files. */
     async adopt(digest: Digest, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
-        // read the manifest its digest names
+        // read and parse the manifest by its digest
         if ((await Digest.of(bytes, this.environment.crypto)) !== digest) {
             throw BuildError.of(
                 "DIGEST_INVALID",
                 `the uploaded manifest does not match its digest ${digest}`,
             );
         }
-        const manifest = PackageManifest.parse(
+        const parsed = PackageManifest.parse(
             JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
         );
 
-        // require the files the manifest names, then each file its lists name under a distinct path
+        // require the files the manifest lists, then each listed file under a distinct path
         const reader = new BuildReader(
-            manifest,
-            async (path) =>
-                (await this.open(present(references.get(path), `the listed file ${path}`))).body,
+            parsed,
+            async (path) => this.#stream(present(references.get(path), `the listed file ${path}`)),
             this.environment.crypto,
         );
         const references = new Map(reader.references().map((file) => [file.path, file]));
         await this.#requireStored(digest, reader.references());
         await this.#requireStored(digest, await reader.files());
-        requireDistinctPaths(await reader.distributed());
+        const list = await reader.distributed();
+        requireDistinctPaths(list);
 
-        // store the manifest last
-        await this.#put(`${MANIFESTS_PREFIX}${digest}`, bytes, {
-            path: "manifest.json",
-            digest,
-            size: bytes.byteLength,
-            mediaType: "application/json",
-        });
+        // lease and store the manifest, then record the build
+        await this.blobs.put(digest, async () => PackageStore.#chunks(bytes));
+        await this.#record(digest, bytes.byteLength, parsed, distinctFiles(list));
     }
 
-    /** Store a file under its digest unless the bucket has it, opening its bytes only if needed. */
-    async putFile(file: PackageFile, open: () => Promise<BucketBody>): Promise<void> {
-        const key = PackageStore.fileKey(file.digest);
-        if (!(await this.#has(key, file))) {
-            await this.#put(key, await open(), file);
-        }
-    }
-
-    /** Attach a stored file to a stored manifest as its referrer at a path, unless one exists. */
+    /** Attach a stored blob to a stored build as its referrer at a path, unless one exists. */
     async attach(subject: Digest, file: PackageFile): Promise<void> {
-        // require the manifest and the file
+        // require the build and the blob
         await this.head(subject);
         await this.#requireStored(subject, [file]);
 
         // record the referrer, unless another writer recorded one first
-        const key = PackageStore.#referrerKey(subject, file.path);
-        await this.bucket
-            .put(key, JSON.stringify(file), {
-                onlyIf: { etagDoesNotMatch: "*" },
-                httpMetadata: { contentType: "application/json" },
+        await this.database
+            .insert(buildReferrer)
+            .values({
+                subject,
+                path: file.path,
+                digest: file.digest,
+                size: file.size,
+                mediaType: file.mediaType,
             })
-            .catch((error: unknown) => {
-                if (!BucketError.is(error, "PRECONDITION_UNMET")) {
-                    throw error;
-                }
-            });
+            .onConflictDoNothing();
     }
 
     /** List a manifest's referrer builds and theirs in turn, each after its subject. */
@@ -298,37 +284,37 @@ export class PackageStore<
 
     /** List a stored manifest's referrers, as OCI's referrers API lists a subject's artifacts. */
     async referrers(subject: Digest): Promise<PackageFile[]> {
-        // list the subject's referrers, then read their descriptions at once
-        const keys: string[] = [];
-        for await (const entry of this.#list(`${REFERRERS_PREFIX}${subject}/`)) {
-            keys.push(entry.key);
-        }
-        const read = await Promise.all(keys.map((key) => this.bucket.get(key)));
+        const rows = await this.database
+            .select({
+                path: buildReferrer.path,
+                digest: buildReferrer.digest,
+                size: buildReferrer.size,
+                mediaType: buildReferrer.mediaType,
+            })
+            .from(buildReferrer)
+            .where(eq(buildReferrer.subject, subject));
 
-        return Promise.all(
-            read.flatMap((object) =>
-                object === null ? [] : [object.json().then((json) => PackageFile.parse(json))],
-            ),
-        );
+        return rows.toSorted((left, right) => comparePath(left, right));
     }
 
     /** Read the file attached to a manifest at a path, absent for a manifest without one. */
     async referrer(subject: Digest, path: string): Promise<PackageFile | undefined> {
-        const object = await this.bucket.get(PackageStore.#referrerKey(subject, path));
+        const [found] = await this.database
+            .select({
+                path: buildReferrer.path,
+                digest: buildReferrer.digest,
+                size: buildReferrer.size,
+                mediaType: buildReferrer.mediaType,
+            })
+            .from(buildReferrer)
+            .where(and(eq(buildReferrer.subject, subject), eq(buildReferrer.path, path)));
 
-        return object === null ? undefined : PackageFile.parse(await object.json());
+        return found;
     }
 
     /** Read and verify a build's manifest. */
     async get(digest: Digest): Promise<PackageManifest> {
-        // read and verify the manifest bytes
-        const object = await this.manifest(digest);
-        const bytes = new Uint8Array(await object.arrayBuffer());
-        await PackageFile.verify(
-            { path: "manifest.json", digest, size: object.size, mediaType: "application/json" },
-            bytes,
-            this.environment.crypto,
-        );
+        const bytes = await this.file(await this.head(digest));
 
         return PackageManifest.parse(
             JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
@@ -352,16 +338,14 @@ export class PackageStore<
     /** Open a stored build's reader over its manifest's listed files. */
     async #open(digest: Digest): Promise<BuildReader> {
         // index the files the manifest lists directly
-        const manifest = await this.get(digest);
+        const read = await this.get(digest);
         const reader = new BuildReader(
-            manifest,
+            read,
             async (path, signal) => {
                 signal?.throwIfAborted();
-                const object = await this.open(await select(path));
+                const stream = this.#stream(await select(path));
 
-                return signal
-                    ? object.body.pipeThrough(new TransformStream(), { signal })
-                    : object.body;
+                return signal ? stream.pipeThrough(new TransformStream(), { signal }) : stream;
             },
             this.environment.crypto,
         );
@@ -387,26 +371,45 @@ export class PackageStore<
         return reader;
     }
 
-    /** Read a cache key's entry, a miss when absent or when it refers to dropped objects. */
+    /** Read a cache key's entry, recording its use once a day, absent for a miss. */
     async cached(key: string): Promise<CacheEntry | undefined> {
-        // read the entry
-        const object = await this.bucket.get(`cache/${Digest.parse(key)}`);
-        if (!object) {
-            return undefined;
+        // read the entry, a root of what it references while it lives
+        const digest = Digest.parse(key);
+        const [found] = await this.database
+            .select({ entry: buildCache.entry, usedAt: buildCache.usedAt })
+            .from(buildCache)
+            .where(eq(buildCache.key, digest));
+
+        // record a hit's use once a day
+        const now = this.environment.clock.now();
+        if (found !== undefined && now - found.usedAt >= USE_MILLISECONDS) {
+            await this.database
+                .update(buildCache)
+                .set({ usedAt: now })
+                .where(eq(buildCache.key, digest));
         }
-        const entry = CacheEntry.parse(await object.json());
 
-        // miss an entry of a manifest or file retention removed since
-        const named = PackageStore.#objects(entry);
-        const stored = await Promise.all(named.map((name) => this.bucket.head(name)));
-
-        return stored.every((file) => file !== null) ? entry : undefined;
+        return found?.entry;
     }
 
-    /** Name an entry by a cache key, once the manifest or files it names are stored. */
+    /** Store an entry under a cache key, once the manifest or files it references are stored. */
     async cache(key: string, entry: CacheEntry): Promise<void> {
-        await this.bucket.put(`cache/${Digest.parse(key)}`, JSON.stringify(entry), {
-            httpMetadata: { contentType: "application/json" },
+        // read the key's digest and the use time
+        const digest = Digest.parse(key);
+        const usedAt = this.environment.clock.now();
+        await this.database.transaction(async (transaction) => {
+            // record the entry
+            await transaction
+                .insert(buildCache)
+                .values({ key: digest, entry, usedAt })
+                .onConflictDoUpdate({ target: buildCache.key, set: { entry, usedAt } });
+
+            // retain what it references under its root
+            await PackageStore.#replaceRoot(
+                transaction,
+                `${CACHE_ROOT_PREFIX}${digest}`,
+                new Set(PackageStore.#digests(entry)),
+            );
         });
     }
 
@@ -425,10 +428,10 @@ export class PackageStore<
             if (entry?.kind === "build") {
                 return entry.manifest;
             }
-            const manifest = await build();
-            await this.cache(key, { kind: "build", manifest });
+            const built = await build();
+            await this.cache(key, { kind: "build", manifest: built });
 
-            return manifest;
+            return built;
         })();
         this.#building.set(key, building);
         void building.finally(() => this.#building.delete(key)).catch(() => undefined);
@@ -436,86 +439,117 @@ export class PackageStore<
         return building;
     }
 
-    /** Lease a manifest or file until a moment, protecting it and its listed files from sweeps. */
+    /** Lease a build or file until a moment, retaining it and what it references until then. */
     async lease(digest: Digest, until: Date): Promise<void> {
-        await this.bucket.put(`leases/${digest}`, JSON.stringify(until.getTime()), {
-            httpMetadata: { contentType: "application/json" },
-        });
+        await this.blobs.lease([digest], until.getTime());
     }
 
-    /** Set the manifests a root retains at a moment, such as a space's, replacing earlier ones. */
-    async root(name: string, manifests: ReadonlySet<string>, now: Date): Promise<void> {
-        const root = { rootedAt: now.getTime(), manifests: [...manifests].toSorted() };
-        await this.bucket.put(`${ROOTS_PREFIX}${name}`, JSON.stringify(root), {
-            httpMetadata: { contentType: "application/json" },
-        });
+    /** Set the builds a root retains, such as a space's, leaving what it drops to a collection. */
+    async root(name: string, manifests: ReadonlySet<string>): Promise<void> {
+        await this.database.transaction((transaction) =>
+            PackageStore.#replaceRoot(transaction, name, manifests),
+        );
     }
 
-    /** Forget a root, retaining nothing by it. */
+    /** Forget a root, leaving what only it retained to a collection. */
     async forget(name: string): Promise<void> {
-        await this.bucket.delete(`${ROOTS_PREFIX}${name}`);
+        await this.root(name, new Set());
     }
 
-    /** Read when a root was last written, in UTC epoch milliseconds, absent without one. */
-    async rootedAt(name: string): Promise<number | undefined> {
-        const object = await this.bucket.get(`${ROOTS_PREFIX}${name}`);
-
-        return object === null ? undefined : Root.parse(await object.json()).rootedAt;
-    }
-
-    /** Read the manifests each root retains, by root name. */
+    /** Read the builds each root retains, by root name, the cache entries' roots left out. */
     async roots(): Promise<ReadonlyMap<string, ReadonlySet<string>>> {
-        const roots = new Map<string, ReadonlySet<string>>();
-        for await (const file of this.#list(ROOTS_PREFIX)) {
-            // skip a root forgotten since the listing
-            const object = await this.bucket.get(file.key);
-            if (object !== null) {
-                const { manifests } = Root.parse(await object.json());
-                roots.set(file.key.slice(ROOTS_PREFIX.length), new Set(manifests));
-            }
+        // group the root rows by name, the cache entries' roots left out
+        const rows = await this.database.select().from(buildRoot);
+        const roots = new Map<string, Set<string>>();
+        for (const row of rows.filter((each) => !each.name.startsWith(CACHE_ROOT_PREFIX))) {
+            const retained = roots.get(row.name) ?? new Set<string>();
+            retained.add(row.digest);
+            roots.set(row.name, retained);
         }
 
         return roots;
     }
 
-    /** Read the manifests every root retains: with its attached builds and what they run with. */
+    /** Read the stored builds the roots, leases and cache entries retain, directly or in turn. */
     async retained(): Promise<ReadonlySet<string>> {
-        // read the manifests the roots list, and each stored manifest once across them
-        const roots = await this.roots();
-        const listed = new Set([...roots.values()].flatMap((manifests) => [...manifests]));
-        const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
-        const stored = (digest: Digest) => {
-            const reading =
-                manifests.get(digest) ??
-                this.contains(digest).then((isHere) => (isHere ? this.get(digest) : undefined));
-            manifests.set(digest, reading);
+        // read what the references retain, then keep the stored builds among it
+        const retained = new Set(await this.#retained(this.database, this.environment.clock.now()));
+        const stored = await this.database
+            .select({ digest: buildManifest.digest })
+            .from(buildManifest);
 
-            return reading;
-        };
-        const read: ManifestRead = (digest) => stored(digest);
+        return new Set(stored.map(({ digest }) => digest).filter((digest) => retained.has(digest)));
+    }
 
-        // retain each listed build, the builds attached to it, and the closures of all of them among the stored builds
-        const retained = new Set<string>(listed);
-        const pending = [...listed].map((listing) => Digest.parse(listing));
-        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
-            const found = await stored(next);
-            if (found !== undefined) {
-                // follow a package build's closure, and an npm unit's attached builds alone
-                const closure =
-                    "id" in found.package
-                        ? await this.closure(next, found.package.id, read)
-                        : new Set<Digest>();
-                const attached = await this.attached(next);
-                for (const needed of [...closure, ...attached.map(({ file }) => file.digest)]) {
-                    if (!retained.has(needed)) {
-                        retained.add(needed);
-                        pending.push(needed);
-                    }
-                }
-            }
+    /** Unrecord the builds nothing retains, retiring their blobs, answering what went. */
+    async collect(): Promise<Collection> {
+        // drop unused cache entries and unrecord unretained builds, retiring what they referenced
+        const now = this.environment.clock.now();
+        const manifests = await this.database.transaction(async (transaction) => {
+            // drop the cache entries unused for a lifetime with their roots
+            const unused = await transaction
+                .delete(buildCache)
+                .where(lte(buildCache.usedAt, now - CACHE_MILLISECONDS))
+                .returning({ key: buildCache.key });
+            await transaction.delete(buildRoot).where(
+                inArray(
+                    buildRoot.name,
+                    unused.map(({ key }) => `${CACHE_ROOT_PREFIX}${key}`),
+                ),
+            );
+
+            // unrecord the builds nothing retains
+            const retained = new Set(await this.#retained(transaction, now));
+            const stored = await transaction
+                .select({ digest: buildManifest.digest })
+                .from(buildManifest);
+            const dropped = stored
+                .map(({ digest }) => digest)
+                .filter((digest) => !retained.has(digest));
+            await PackageStore.#unrecord(transaction, dropped);
+
+            return dropped;
+        });
+
+        // forget the deleted builds' readers
+        for (const digest of manifests) {
+            this.#readers.delete(digest);
         }
 
-        return retained;
+        // look again once the next lease or cache entry ends
+        const [oldest] = await this.database
+            .select({ usedAt: buildCache.usedAt })
+            .from(buildCache)
+            .orderBy(asc(buildCache.usedAt))
+            .limit(1);
+        const ends = [
+            await this.blobs.nextLeaseEnd(now),
+            oldest === undefined ? undefined : oldest.usedAt + CACHE_MILLISECONDS,
+        ].filter((end) => end !== undefined);
+
+        return { manifests, next: ends.length === 0 ? undefined : Math.min(...ends) };
+    }
+
+    /** Delete every build's index, as the partition leaves its host, answering the builds. */
+    async clear(): Promise<readonly Digest[]> {
+        // read the builds, then delete their index
+        const stored = await this.database
+            .select({ digest: buildManifest.digest })
+            .from(buildManifest);
+        await this.database.transaction(async (transaction) => {
+            for (const table of [
+                buildReference,
+                buildReferrer,
+                buildRoot,
+                buildCache,
+                buildManifest,
+            ]) {
+                await transaction.delete(table);
+            }
+        });
+        this.#readers.clear();
+
+        return stored.map(({ digest }) => digest);
     }
 
     /** Attach the runtime build of each emitted server output of a stored build. */
@@ -554,10 +588,10 @@ export class PackageStore<
 
         // read the build's output for the runtime, refusing a build without one
         const reader = await this.contents(digest);
-        const { manifest } = reader;
+        const read = reader.manifest;
         const [name, output] = present(
-            Object.entries(manifest.outputs).find(([, each]) => each.runtime === runtime),
-            `the ${runtime} output of ${manifest.package.name}`,
+            Object.entries(read.outputs).find(([, each]) => each.runtime === runtime),
+            `the ${runtime} output of ${read.package.name}`,
         );
 
         // point each dependency at its runtime build, attaching it first
@@ -584,17 +618,17 @@ export class PackageStore<
             (file) => !file.path.endsWith(".map") && !TYPE_DECLARATION.test(file.path),
         );
         const declared = files.filter((file) => file.path === "package.json");
-        const { commit } = manifest;
-        const built = await this.#write(reader, [...declared, ...loaded], {
-            package: manifest.package,
+        const { commit } = read;
+        const built = await this.#build(reader, [...declared, ...loaded], {
+            package: read.package,
             ...(commit === undefined ? {} : { commit }),
             outputs: { [name]: { ...output, dependencies } },
         });
 
         // attach the maps to the runtime build when the output has any, then the runtime build to the build
         if (maps.length > 0) {
-            const mapped = await this.#write(reader, maps, {
-                package: manifest.package,
+            const mapped = await this.#build(reader, maps, {
+                package: read.package,
                 ...(commit === undefined ? {} : { commit }),
             });
             await this.attachBuild(built, mapped, MAPS_REFERRER);
@@ -605,7 +639,7 @@ export class PackageStore<
     }
 
     /** Store a build of some files of another build, answering its manifest's digest. */
-    async #write(
+    async #build(
         source: BuildReader,
         files: readonly PackageFile[],
         contents: BuildContents,
@@ -619,33 +653,31 @@ export class PackageStore<
         for (const file of files) {
             await writer.write(file.path, await source.load(file.path));
         }
-        const manifest = await writer.finish(contents);
+        const built = await writer.finish(contents);
 
         return this.put(
             new BuildReader(
-                manifest,
+                built,
                 async (path) => new Blob([present(written.get(path), path)]).stream(),
                 this.environment.crypto,
             ),
         );
     }
 
-    /** Attach a stored build to another at a path, storing its manifest as the referrer's file. */
-    async attachBuild(subject: Digest, referrer: Digest, path: string): Promise<void> {
-        const described = await this.head(referrer);
-        await this.putFile(described, async () => (await this.manifest(referrer)).body);
-        await this.attach(subject, { ...described, path });
+    /** Attach a stored build to another at a path, its manifest as the referrer's blob. */
+    async attachBuild(subject: Digest, attached: Digest, path: string): Promise<void> {
+        await this.attach(subject, { ...(await this.head(attached)), path });
     }
 
     /** List the npm units a build depends on, directly or through other units, as far as found. */
     async units(
-        manifest: Digest,
+        root: Digest,
         packageId: PackageId,
         read: ManifestRead = (digest) => this.get(digest),
     ): Promise<Digest[]> {
         // visit each unit once, from the build's outputs through each found unit's outputs, at the build's registry
         const units = new Set<Digest>();
-        const pending = [manifest];
+        const pending = [root];
         for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
             const found = await read(next, packageId);
             const recorded = Object.values(found?.outputs ?? {}).flatMap((output) =>
@@ -664,7 +696,7 @@ export class PackageStore<
 
     /** Read the manifests a build runs with, as far as found: itself and its workloads' imports. */
     async closure(
-        manifest: Digest,
+        start: Digest,
         packageId: PackageId,
         read: ManifestRead = (digest) => this.get(digest),
     ): Promise<ReadonlySet<Digest>> {
@@ -676,10 +708,10 @@ export class PackageStore<
 
             return reading;
         };
-        const root = await once(manifest, packageId);
-        const pending = Object.values(root?.outputs ?? {}).flatMap((output) =>
+        const first = await once(start, packageId);
+        const pending = Object.values(first?.outputs ?? {}).flatMap((output) =>
             Object.values(output.workloads).map((workload) => ({
-                manifest,
+                manifest: start,
                 packageId,
                 runtime: output.runtime,
                 subpath: workload.entrypoint,
@@ -688,7 +720,7 @@ export class PackageStore<
 
         // follow each export once to the dependency exports its chunks import
         const units = new Map<Digest, PackageId>();
-        const closure = new Set<Digest>([manifest]);
+        const closure = new Set<Digest>([start]);
         const visited = new Set<string>();
         for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
             const key = `${next.manifest} ${next.runtime} ${next.subpath}`;
@@ -734,225 +766,22 @@ export class PackageStore<
         return closure;
     }
 
-    /** Report whether a lease covers a manifest or file at a moment. */
-    async leased(digest: Digest, at: Date): Promise<boolean> {
-        const object = await this.bucket.get(`leases/${digest}`);
-
-        return object !== null && Instant.parse(await object.json()) > at.getTime();
-    }
-
-    /** Delete what retention drops and was stored before a moment. */
-    async sweep(
-        retained: Retention,
-        before: Date,
-        files: Retention,
-        now: Date,
-        marked: Date = now,
-    ): Promise<void> {
-        // list the objects retention drops
-        const candidates = await this.#candidates(retained, before, files);
-
-        // read the marks
-        const { marks, etag } = await this.#marks();
-
-        // read the leases last
-        const leases = await this.#leases();
-        const leased = new Set(
-            [...leases].filter(([, until]) => until > now).map(([digest]) => digest),
-        );
-
-        // spare the leased objects and the files a leased manifest lists
-        const spared = new Set([...leased, ...(await this.#listedFiles(leased))]);
-
-        // drop the expired leases
-        const dropped = [...leases.keys()]
-            .filter((digest) => !leased.has(digest))
-            .map((digest) => `leases/${digest}`);
-
-        // drop the unleased objects marked by the marking moment
-        const next: Record<string, number> = {};
-        for (const [key, digest] of candidates) {
-            // clear the mark of a leased object
-            if (spared.has(digest)) {
-                continue;
-            }
-
-            // delete an object an earlier sweep marked by the marking moment
-            const mark = marks[key];
-            if (mark !== undefined && mark <= marked.getTime()) {
-                dropped.push(key);
-            }
-            // mark any other object now
-            else {
-                next[key] = mark ?? now.getTime();
-            }
-        }
-        await this.#delete(dropped);
-
-        // replace the marks
-        await this.#writeMarks(next, etag);
-
-        // delete the cache entries of a deleted manifest or file
-        await this.#deleteDanglingEntries();
-    }
-
-    /** Sweep what no root retains once an interval passed, answering the retained builds. */
-    async sweepIfDue(
-        before: Date,
-        now: Date,
-        interval: number,
-    ): Promise<ReadonlySet<string> | undefined> {
-        // leave a sweep that began within the interval
-        const last = await this.bucket.get(SWEPT_KEY);
-        const began = last === null ? undefined : Instant.parse(await last.json());
-        if (began !== undefined && now.getTime() - began < interval) {
-            return undefined;
-        }
-
-        // claim this sweep unless a concurrent one claimed it first
-        try {
-            await this.bucket.put(SWEPT_KEY, JSON.stringify(now.getTime()), {
-                onlyIf: last === null ? { etagDoesNotMatch: "*" } : { etagMatches: last.etag },
-                httpMetadata: { contentType: "application/json" },
-            });
-        } catch (error) {
-            if (BucketError.is(error, "PRECONDITION_UNMET")) {
-                return undefined;
-            }
-            throw error;
-        }
-
-        // sweep what the roots no longer retain, releasing the claim of a failed sweep for a retry
-        try {
-            const retained = await this.retained();
-            await this.sweep(Retention.of(retained), before, Retention.none, now);
-
-            return retained;
-        } catch (error) {
-            await this.bucket.delete(SWEPT_KEY);
-            throw error;
-        }
-    }
-
-    /** List the unretained manifests and the unlisted files stored before a moment, by key. */
-    async #candidates(
-        retained: Retention,
-        before: Date,
-        files: Retention,
-    ): Promise<Map<string, string>> {
-        // retain the manifests stored since the moment and those retention lists, by batch
-        const live = new Set<string>();
-        const candidates = new Map<string, string>();
-        await this.#batches(MANIFESTS_PREFIX, async (batch) => {
-            const old = batch
-                .filter((file) => file.uploaded < before)
-                .map((file) => PackageStore.#digest(file));
-            const retainedDigests = await retained(old);
-            for (const file of batch) {
-                const digest = PackageStore.#digest(file);
-                if (file.uploaded >= before || retainedDigests.has(digest)) {
-                    live.add(digest);
-                } else {
-                    candidates.set(file.key, digest);
-                }
-            }
-        });
-
-        // drop the referrers of dropped manifests
-        for await (const file of this.#list(REFERRERS_PREFIX)) {
-            const subject = nth(file.key.slice(REFERRERS_PREFIX.length).split("/"), 0);
-            if (!live.has(subject)) {
-                candidates.set(file.key, subject);
-            }
-        }
-
-        // retain the files of live manifests, the retained files and the files stored since the moment
-        const listed = await this.#listedFiles(live);
-        await this.#batches(FILES_PREFIX, async (batch) => {
-            const old = batch.filter(
-                (file) => file.uploaded < before && !listed.has(PackageStore.#digest(file)),
-            );
-            const retainedDigests = await files(old.map((file) => PackageStore.#digest(file)));
-            for (const file of old) {
-                if (!retainedDigests.has(PackageStore.#digest(file))) {
-                    candidates.set(file.key, PackageStore.#digest(file));
-                }
-            }
-        });
-
-        return candidates;
-    }
-
-    /** Hand on the entries below a prefix in batches the bucket deletes at once. */
-    async #batches(
-        prefix: string,
-        handle: (batch: readonly BucketEntry[]) => Promise<void>,
-    ): Promise<void> {
-        // collect each batch, handing on the last one too
-        let batch: BucketEntry[] = [];
-        for await (const file of this.#list(prefix)) {
-            batch.push(file);
-            if (batch.length === MAX_BATCH_FILES) {
-                await handle(batch);
-                batch = [];
-            }
-        }
-        if (batch.length > 0) {
-            await handle(batch);
-        }
-    }
-
-    /** Replace the sweep marks, deleting the marks object when no mark remains. */
-    async #writeMarks(
-        marks: Readonly<Record<string, number>>,
-        etag: string | undefined,
-    ): Promise<void> {
-        // delete the marks object without marks
-        if (Object.keys(marks).length === 0) {
-            if (etag !== undefined) {
-                await this.bucket.delete(MARKS_KEY);
-            }
-        }
-        // replace the marks this sweep read, leaving them to an overlapping sweep that wrote first
-        else {
-            try {
-                await this.bucket.put(MARKS_KEY, JSON.stringify(marks), {
-                    onlyIf: etag === undefined ? { etagDoesNotMatch: "*" } : { etagMatches: etag },
-                    httpMetadata: { contentType: "application/json" },
-                });
-            } catch (error) {
-                if (!BucketError.is(error, "PRECONDITION_UNMET")) {
-                    throw error;
-                }
-            }
-        }
-    }
-
-    /** Delete the cache entries of a deleted manifest or file. */
-    async #deleteDanglingEntries(): Promise<void> {
-        const dangling: string[] = [];
-        for await (const file of this.#list("cache/")) {
-            if ((await this.cached(file.key.slice("cache/".length))) === undefined) {
-                dangling.push(file.key);
-            }
-        }
-        await this.#delete(dangling);
-    }
-
     /** Read one complete file and verify its exact bytes. */
     async file(file: PackageFile): Promise<Uint8Array<ArrayBuffer>> {
         // read and verify the file bytes
-        const object = await this.open(file);
-        const bytes = new Uint8Array(await object.arrayBuffer());
+        const bytes = new Uint8Array(await new Response(this.#stream(file)).arrayBuffer());
         await PackageFile.verify(file, bytes, this.environment.crypto);
 
         return bytes;
     }
 
-    /** Describe a build's manifest file from the bucket's metadata, leaving its bytes unread. */
+    /** Describe a stored build's manifest file, leaving its bytes unread. */
     async head(digest: Digest): Promise<PackageFile> {
-        // read the manifest's metadata by its digest
-        const stored = await this.bucket.head(`${MANIFESTS_PREFIX}${digest}`);
+        // read the manifest's size by its digest
+        const [stored] = await this.database
+            .select({ size: buildManifest.size })
+            .from(buildManifest)
+            .where(eq(buildManifest.digest, digest));
         if (!stored) {
             throw BuildError.of("MANIFEST_UNKNOWN", "package manifest not found");
         }
@@ -960,36 +789,16 @@ export class PackageStore<
         return { path: "manifest.json", digest, size: stored.size, mediaType: "application/json" };
     }
 
-    /** Stream a manifest by its digest. */
-    async manifest(digest: Digest, range?: BucketRange) {
-        // read the manifest by its digest
-        const object = await this.bucket.get(
-            `${MANIFESTS_PREFIX}${digest}`,
-            range === undefined ? {} : { range },
-        );
-        if (!object) {
-            throw BuildError.of("MANIFEST_UNKNOWN", "package manifest not found");
-        }
-
-        return object;
-    }
-
-    /** Stream a stored file, refusing one whose size or digest differs. */
-    async open(file: PackageFile, range?: BucketRange) {
-        // read the object and refuse a size or digest mismatch
-        const object = await this.bucket.get(
-            PackageStore.fileKey(file.digest),
-            range === undefined ? {} : { range },
-        );
-        if (!object) {
-            throw BuildError.of("BLOB_UNKNOWN", `package file not found: ${file.path}`);
-        }
-        if (!isStored(object, file)) {
-            await object.body.cancel();
-            throw BuildError.of("STORED_CONTENT_DIFFERS", `stored file differs: ${file.path}`);
-        }
-
-        return object;
+    /** Stream a stored file or manifest, or a range of it. */
+    open(
+        file: PackageFile,
+        range?: { readonly offset: number; readonly length: number },
+    ): ReadableStream<Uint8Array> {
+        return range === undefined
+            ? this.#stream(file)
+            : PackageStore.#readable(
+                  this.blobs.storage.slice(file.digest, range.offset, range.length),
+              );
     }
 
     /** Stream a stored build as a tarball of its manifest and files in path order, verified. */
@@ -1013,171 +822,167 @@ export class PackageStore<
         }
     }
 
+    /** Stream a stored blob, refusing a missing one by its file's path. */
+    #stream(file: PackageFile): ReadableStream<Uint8Array> {
+        const { storage } = this.blobs;
+
+        return PackageStore.#readable(
+            (async function* () {
+                // refuse a missing blob, then stream its bytes
+                if ((await storage.missing([file.digest])).length > 0) {
+                    throw BuildError.of("BLOB_UNKNOWN", `package file not found: ${file.path}`);
+                }
+                yield* storage.read(file.digest);
+            })(),
+        );
+    }
+
+    /** Store bytes under their digest unless stored. */
+    async #write(digest: Digest, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+        if (!(await this.has(digest))) {
+            await this.blobs.storage.write(PackageStore.#chunks(bytes), digest);
+        }
+    }
+
     /** Require the store to have each file a build's manifest lists. */
     async #requireStored(digest: string, files: readonly PackageFile[]): Promise<void> {
-        for (const file of files) {
-            if (!(await this.#has(PackageStore.fileKey(file.digest), file))) {
-                throw BuildError.of(
-                    "MANIFEST_BLOB_UNKNOWN",
-                    `build ${digest} lists ${file.path}, which was not uploaded`,
-                );
-            }
+        const missing = new Set(await this.blobs.storage.missing(files.map((file) => file.digest)));
+        const absent = files.find((file) => missing.has(file.digest));
+        if (absent !== undefined) {
+            throw BuildError.of(
+                "MANIFEST_BLOB_UNKNOWN",
+                `build ${digest} lists ${absent.path}, which was not uploaded`,
+            );
         }
     }
 
-    /** Collect the digests of the files the store's retained manifests list or attach. */
-    async #listedFiles(retained: ReadonlySet<string>): Promise<Set<string>> {
-        const referenced = new Set<string>();
-        for (const retainedDigest of retained) {
-            // skip a retained manifest the store lacks
-            const digest = Digest.parse(retainedDigest);
-            if ((await this.bucket.head(`${MANIFESTS_PREFIX}${digest}`)) === null) {
-                continue;
-            }
+    /** Record a stored build and the blobs its manifest references, all in one transaction. */
+    async #record(
+        digest: Digest,
+        size: number,
+        recorded: PackageManifest,
+        files: readonly PackageFile[],
+    ): Promise<void> {
+        // list the build's files and the builds it depends on
+        const dependencies = Object.values(recorded.outputs).flatMap((output) =>
+            Object.values(output.dependencies).map((dependency) => dependency.manifest),
+        );
+        const referenced = [...new Set([...files.map((file) => file.digest), ...dependencies])];
 
-            // retain every file the manifest lists and every file attached to it
-            const reader = await this.contents(digest);
-            for (const file of await reader.distributed()) {
-                referenced.add(file.digest);
+        // record the references, then the build
+        await this.database.transaction(async (transaction) => {
+            for (let start = 0; start < referenced.length; start += BATCH_ROWS) {
+                const batch = referenced.slice(start, start + BATCH_ROWS);
+                await transaction
+                    .insert(buildReference)
+                    .values(batch.map((target) => ({ manifest: digest, digest: target })))
+                    .onConflictDoNothing();
             }
-            for await (const entry of this.#list(`${REFERRERS_PREFIX}${digest}/`)) {
-                // skip a referrer a concurrent sweep deleted since the listing
-                const object = await this.bucket.get(entry.key);
-                if (object !== null) {
-                    referenced.add(PackageFile.parse(await object.json()).digest);
+            await transaction.insert(buildManifest).values({ digest, size }).onConflictDoNothing();
+        });
+    }
+
+    /** Read the blobs other rows or leases reference at a moment, and what those reference. */
+    async #retained(database: DatabaseConnection, now: number): Promise<Digest[]> {
+        const seeds = this.blobs.referenced(now, {
+            except: [buildManifest, buildReference, buildReferrer],
+        });
+        const rows = await database.all(sql`WITH RECURSIVE retained(digest) AS (
+                SELECT seed.digest FROM (${seeds}) AS seed
+                UNION SELECT edge.digest FROM (
+                    SELECT ${buildReference.manifest} AS source, ${buildReference.digest} AS digest FROM ${buildReference}
+                    UNION ALL SELECT ${buildReferrer.subject}, ${buildReferrer.digest} FROM ${buildReferrer}
+                ) AS edge JOIN retained ON edge.source = retained.digest
+            )
+            SELECT digest FROM retained`);
+
+        return rows.map((row) => DigestRow.parse(row).digest);
+    }
+
+    /** Replace the blobs a root retains. */
+    static async #replaceRoot(
+        transaction: DatabaseConnection,
+        name: string,
+        digests: ReadonlySet<string>,
+    ): Promise<void> {
+        // read the root's blobs, then add the new ones and drop the old ones
+        const rows = await transaction
+            .select({ digest: buildRoot.digest })
+            .from(buildRoot)
+            .where(eq(buildRoot.name, name));
+        const current = new Set(rows.map(({ digest }) => digest));
+        const wanted = new Set([...digests].map((digest) => Digest.parse(digest)));
+        const added = [...wanted].filter((digest) => !current.has(digest));
+        const dropped = [...current].filter((digest) => !wanted.has(digest));
+        for (let start = 0; start < added.length; start += BATCH_ROWS) {
+            const batch = added.slice(start, start + BATCH_ROWS);
+            await transaction.insert(buildRoot).values(batch.map((digest) => ({ name, digest })));
+        }
+        for (let start = 0; start < dropped.length; start += BATCH_ROWS) {
+            const batch = dropped.slice(start, start + BATCH_ROWS);
+            await transaction
+                .delete(buildRoot)
+                .where(and(eq(buildRoot.name, name), inArray(buildRoot.digest, batch)));
+        }
+    }
+
+    /** Delete the rows of some builds: their references, their referrers and their records. */
+    static async #unrecord(
+        transaction: DatabaseConnection,
+        manifests: readonly Digest[],
+    ): Promise<void> {
+        for (let start = 0; start < manifests.length; start += BATCH_ROWS) {
+            const batch = manifests.slice(start, start + BATCH_ROWS);
+            await transaction.delete(buildReference).where(inArray(buildReference.manifest, batch));
+            await transaction.delete(buildReferrer).where(inArray(buildReferrer.subject, batch));
+            await transaction.delete(buildManifest).where(inArray(buildManifest.digest, batch));
+        }
+    }
+
+    /** Stream the chunks of an async iterable, reading one per pull. */
+    static #readable(chunks: AsyncIterable<Uint8Array>): ReadableStream<Uint8Array> {
+        const iterator = chunks[Symbol.asyncIterator]();
+
+        return new ReadableStream({
+            async pull(controller) {
+                // enqueue the next chunk, or close after the last
+                const next = await iterator.next();
+                if (next.done === true) {
+                    controller.close();
+                } else {
+                    controller.enqueue(next.value);
                 }
-            }
-        }
-
-        return referenced;
+            },
+            async cancel() {
+                await iterator.return?.();
+            },
+        });
     }
 
-    /** Read the marks the last sweep left, by key. */
-    async #marks(): Promise<{
-        readonly marks: Record<string, number>;
-        readonly etag: string | undefined;
-    }> {
-        const object = await this.bucket.get(MARKS_KEY);
-
-        return object === null
-            ? { marks: {}, etag: undefined }
-            : { marks: Marks.parse(await object.json()), etag: object.etag };
+    /** Read some bytes as one chunk. */
+    static async *#chunks(bytes: Uint8Array<ArrayBuffer>): AsyncIterable<Uint8Array> {
+        yield bytes;
     }
 
-    /** Read every lease's expiry by its digest. */
-    async #leases(): Promise<Map<string, Date>> {
-        const leases = new Map<string, Date>();
-        for await (const file of this.#list("leases/")) {
-            // skip a lease another sweep deleted since the listing, which only deletes expired ones
-            const object = await this.bucket.get(file.key);
-            if (object === null) {
-                continue;
-            }
-            const until = Instant.parse(await object.json());
-            leases.set(file.key.slice("leases/".length), new Date(until));
-        }
-
-        return leases;
-    }
-
-    /** List the bucket's files below a prefix, page by page. */
-    async *#list(prefix: string): AsyncGenerator<BucketEntry> {
-        let cursor: string | undefined;
-        do {
-            const page = await this.bucket.list({
-                prefix,
-                ...(cursor === undefined ? {} : { cursor }),
-            });
-            yield* page.files;
-            cursor = page.cursor;
-        } while (cursor !== undefined);
-    }
-
-    /** Delete files in batches the bucket accepts, forgetting the readers of deleted builds. */
-    async #delete(keys: readonly string[]): Promise<void> {
-        // forget the readers of the builds whose manifests go
-        for (const key of keys.filter((each) => each.startsWith(MANIFESTS_PREFIX))) {
-            this.#readers.delete(key.slice(MANIFESTS_PREFIX.length));
-        }
-        for (let start = 0; start < keys.length; start += MAX_BATCH_FILES) {
-            await this.bucket.delete(keys.slice(start, start + MAX_BATCH_FILES));
-        }
-    }
-
-    /** List the objects a cache entry names: a manifest, or files. */
-    static #objects(entry: CacheEntry): string[] {
+    /** List the blobs a cache entry references: a manifest, or files. */
+    static #digests(entry: CacheEntry): Digest[] {
         switch (entry.kind) {
-            // key a whole build's manifest
+            // list a whole build's manifest
             case "build":
-                return [`${MANIFESTS_PREFIX}${entry.manifest}`];
-            // key an output's files
+                return [entry.manifest];
+            // list an output's files
             case "output":
-                return entry.output.files.map((file) => PackageStore.fileKey(file.digest));
-            // name a transform's file
+                return entry.output.files.map((file) => file.digest);
+            // list a transform's file
             case "file":
-                return [PackageStore.fileKey(entry.file.digest)];
+                return [entry.file.digest];
         }
-    }
-
-    /** Decide whether the bucket has a file's exact bytes at its key, refusing other bytes. */
-    async #has(key: string, file: PackageFile): Promise<boolean> {
-        const stored = await this.bucket.head(key);
-        if (stored === null) {
-            return false;
-        } else if (!isStored(stored, file)) {
-            throw BuildError.of("STORED_CONTENT_DIFFERS", `stored object differs: ${key}`);
-        }
-
-        return true;
-    }
-
-    /** Create an immutable checksum-verified object, or take one another writer created first. */
-    async #put(key: string, body: BucketBody, file: PackageFile): Promise<void> {
-        // create the object, or read the object another writer created first
-        const stored = await this.bucket
-            .put(key, body, {
-                sha256: file.digest,
-                httpMetadata: { contentType: file.mediaType },
-                onlyIf: { etagDoesNotMatch: "*" },
-            })
-            .catch((error: unknown) => {
-                // read the existing object
-                if (BucketError.is(error, "PRECONDITION_UNMET")) {
-                    const { current } = error.data;
-
-                    return current === null ? null : BucketFile.read(current);
-                }
-                // rethrow any other failure
-                else {
-                    throw error;
-                }
-            });
-
-        // require the stored object to match the file
-        if (!stored || !isStored(stored, file)) {
-            throw BuildError.of("STORED_CONTENT_DIFFERS", `stored object differs: ${key}`);
-        }
-    }
-
-    /** Key the referrer of a manifest at a path. */
-    static #referrerKey(subject: string, path: string): string {
-        return `${REFERRERS_PREFIX}${Digest.parse(subject)}/${path}`;
-    }
-
-    /** Read the digest of a manifest or file entry from its key. */
-    static #digest(file: BucketEntry): string {
-        return file.key.slice(file.key.indexOf("/") + 1);
     }
 }
 
 /** Encode a parsed manifest as its stored bytes, whose digest identifies the build. */
-export function encodeManifest(manifest: PackageManifest): Uint8Array<ArrayBuffer> {
-    return new TextEncoder().encode(JSON.stringify(manifest));
-}
-
-/** Report whether a bucket object has a file's exact size and digest. */
-function isStored(object: BucketFile, file: PackageFile): boolean {
-    return object.size === file.size && object.digest.toJSON().sha256 === file.digest;
+export function encodeManifest(parsed: PackageManifest): Uint8Array<ArrayBuffer> {
+    return new TextEncoder().encode(JSON.stringify(parsed));
 }
 
 /** Take the first file of each digest. */

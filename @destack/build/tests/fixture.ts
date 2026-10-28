@@ -332,16 +332,7 @@ export function isNoteModule(module: object): module is NoteModule {
     return "createNote" in module && typeof module.createNote === "function";
 }
 
-/** Count the objects a store keeps. */
+/** Count the blobs a store has. */
 export async function countObjects(store: LocalPackageStore): Promise<number> {
-    // count each page of the bucket's listing
-    let count = 0;
-    let cursor: string | undefined;
-    do {
-        const page = await store.bucket.list(cursor === undefined ? {} : { cursor });
-        count += page.files.length;
-        cursor = page.cursor;
-    } while (cursor !== undefined);
-
-    return count;
+    return (await Array.fromAsync(store.blobs.storage.digests())).length;
 }

@@ -2,11 +2,10 @@ import { TEST_START } from "@destack/test/world";
 import type { Crypto } from "@destack/environment";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LocalBucket } from "@destack/bucket/bun";
 import { Simulation } from "@destack/environment/simulation";
 import { Package } from "@destack/package";
 import { BuildReader, BuildWriter } from "@destack/package/manifest";
-import { type Digest, found } from "@destack/schema";
+import { Digest, found } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { Identities } from "../cache/index.ts";
@@ -16,8 +15,11 @@ import { LocalPackageStore } from "./local.ts";
 /** A day, in milliseconds. */
 const DAY_MILLISECONDS = 24 * 60 * 60_000;
 
-/** A week and a moment, past which an idle open sweeps an unrooted build. */
+/** A week and a moment, past which an idle open collects an unrooted build. */
 const WEEK_MILLISECONDS = 7 * 24 * 60 * 60_000 + 1;
+
+/** The bytes a test stores as a blob. */
+const MARKER = new TextEncoder().encode("stored");
 
 /** Write a build of one module in memory, as a builder writes one. */
 async function written(text: string, crypto: Crypto): Promise<BuildReader> {
@@ -53,26 +55,29 @@ test("open one store per toolchain, deleting other toolchains' idle stores and r
     const environment = simulation.environment("test");
     const { files } = environment;
     const directory = await files.makeTemporaryDirectory("test-stores-");
-    const idle = await LocalBucket.open(join(directory, "idle"), "space-test", environment);
-    await idle[Symbol.asyncDispose]();
-    await using _open = await LocalBucket.open(join(directory, "open"), "space-test", environment);
+    await files.mkdir(join(directory, "idle"), { recursive: true });
+    await files.writeTextFile(join(directory, "idle", "store.lock"), "");
+    await files.mkdir(join(directory, "open"), { recursive: true });
+    const held = await files.lock(join(directory, "open", "store.lock"), "shared");
     await files.writeTextFile(join(directory, ".DS_Store"), "");
 
-    // write an object into the toolchain's store, then reopen it
+    // store a blob in the toolchain's store, then reopen it
+    const marker = await Digest.of(MARKER, environment.crypto);
     {
         await using store = await LocalPackageStore.open(directory, environment);
-        await store.bucket.put("marker", "stored");
+        await store.receive(marker, MARKER);
     }
     await using reopened = await LocalPackageStore.open(directory, environment);
+    await held.close();
 
-    // retain the open store and the toolchain's store, which still has the object
+    // retain the open store and the toolchain's store, which still has the blob
     const toolchain = await Identities.of({}, environment).toolchain();
     expect({
         stores: (await files.readDirectory(directory)).map((entry) => entry.name).toSorted(),
-        marker: await (await reopened.bucket.get("marker"))?.text(),
+        isStored: await reopened.has(marker),
     }).toEqual({
         stores: [toolchain, ".DS_Store", "open", "stores.lock"].toSorted(),
-        marker: "stored",
+        isStored: true,
     });
 });
 
@@ -85,13 +90,18 @@ test("share the toolchain's store between opens, each reading what the other wri
     await using first = await LocalPackageStore.open(directory, environment);
     await using second = await LocalPackageStore.open(directory, environment);
 
-    // read through each open what the other wrote
-    await first.bucket.put("first", "from first");
-    await second.bucket.put("second", "from second");
-    expect({
-        first: await (await second.bucket.get("first"))?.text(),
-        second: await (await first.bucket.get("second"))?.text(),
-    }).toEqual({ first: "from first", second: "from second" });
+    // read through each open what the other stored
+    const bytes = { first: new TextEncoder().encode("first"), second: MARKER };
+    const digests = {
+        first: await Digest.of(bytes.first, environment.crypto),
+        second: await Digest.of(bytes.second, environment.crypto),
+    };
+    await first.receive(digests.first, bytes.first);
+    await second.receive(digests.second, bytes.second);
+    expect([await second.has(digests.first), await first.has(digests.second)]).toEqual([
+        true,
+        true,
+    ]);
 });
 
 test("retain a build's files while another process opens the store twice before its manifest", async () => {
@@ -104,25 +114,21 @@ test("retain a build's files while another process opens the store twice before 
     const build = await written("export const answer = 42;\n", environment.crypto);
     const distributed = await build.distributed();
     for (const file of distributed) {
-        await building.putFile(file, () => build.stream(file.path));
+        await building.receive(file.digest, await build.load(file.path));
     }
 
-    // open the store twice elsewhere, which would mark and then delete unlisted files of an idle store
+    // open the store twice elsewhere, which would collect unleased files of an idle store
     for (const attempt of ["marking", "deleting"]) {
         await using opened = await LocalPackageStore.open(directory, environment);
         expect({ attempt, trees: opened.trees }).toEqual({ attempt, trees: building.trees });
     }
 
     // retain every file the build put before its manifest
-    const stored = await Promise.all(
-        distributed.map(
-            async (file) => (await building.bucket.head(`files/${file.digest}`)) !== null,
-        ),
-    );
+    const stored = await Promise.all(distributed.map((file) => building.has(file.digest)));
     expect(stored).toEqual(distributed.map(() => true));
 });
 
-test("collect an unrooted build and its tree a week after storing it, on the next day's idle open", async () => {
+test("collect an unrooted build and its tree on the first idle open a week after storing it", async () => {
     // store a rooted build and an unrooted one with its tree
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -135,7 +141,7 @@ test("collect an unrooted build and its tree a week after storing it, on the nex
         await using store = await LocalPackageStore.open(directory, environment);
         rooted = await store.put(await written("export const answer = 42;\n", environment.crypto));
         dropped = await store.put(await written("export const answer = 43;\n", environment.crypto));
-        await store.root("answer", new Set([rooted]), new Date(clock.now()));
+        await store.root("answer", new Set([rooted]));
         await files.mkdir(join(store.trees, dropped, "node_modules"), { recursive: true });
         await files.mkdir(join(store.trees, rooted, "node_modules"), { recursive: true });
     }
@@ -153,19 +159,17 @@ test("collect an unrooted build and its tree a week after storing it, on the nex
     };
     const kept = [await contents(), await contents()];
 
-    // mark it on one idle open past the week and delete it on an open a day later
+    // collect it with its tree on the first idle open past the week
     clock.set(clock.now() + WEEK_MILLISECONDS);
-    await contents();
-    clock.set(clock.now() + DAY_MILLISECONDS);
-    const swept = await contents();
+    const collected = await contents();
     const all = { rooted: true, dropped: true, rootedTree: true, droppedTree: true };
-    expect({ kept, swept }).toEqual({
+    expect({ kept, collected }).toEqual({
         kept: [all, all],
-        swept: { rooted: true, dropped: false, rootedTree: true, droppedTree: false },
+        collected: { rooted: true, dropped: false, rootedTree: true, droppedTree: false },
     });
 });
 
-test("keep an unrooted build a week past its last use, and collect it once a week passed unused", async () => {
+test("retain an unrooted build a week past its last use, and collect it on the first idle open after", async () => {
     // store an unrooted build, and use it six days later
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -187,7 +191,7 @@ test("keep an unrooted build a week past its last use, and collect it once a wee
     const contains = async () => {
         await using store = await LocalPackageStore.open(directory, environment);
 
-        return store.contains(used);
+        return await store.contains(used);
     };
     const opens = async () => {
         const first = await contains();
@@ -196,12 +200,12 @@ test("keep an unrooted build a week past its last use, and collect it once a wee
         return [first, await contains()];
     };
 
-    // keep it past the week after storing it, then drop it a week after its use
+    // retain it past the week after storing it, then collect it a week after its use
     clock.set(clock.now() + DAY_MILLISECONDS * 2);
     const kept = await opens();
     clock.set(clock.now() + WEEK_MILLISECONDS);
     const dropped = await opens();
-    expect({ kept, dropped }).toEqual({ kept: [true, true], dropped: [true, false] });
+    expect({ kept, dropped }).toEqual({ kept: [true, true], dropped: [false, false] });
 });
 
 test("refuse an empty cache directory the environment sets for a checkout's store", async () => {

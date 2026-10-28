@@ -1,7 +1,6 @@
 import { Digest } from "@destack/schema";
 import { type PackageFile, PackagePath } from "@destack/package/file";
 import { CallError } from "@destack/object";
-import { BuildError } from "../error/index.ts";
 import { PackageStore } from "./store.ts";
 
 /** The most bytes one upload has: 64 MiB, which bounds its memory. */
@@ -70,12 +69,9 @@ async function write(
 
     // tell whether the store has a file
     if (request.method === "HEAD") {
-        const held =
-            target?.kind === "file"
-                ? await store.bucket.head(PackageStore.fileKey(target.digest))
-                : null;
+        const isStored = target?.kind === "file" && (await store.has(target.digest));
 
-        return new Response(null, { status: held === null ? 404 : 200 });
+        return new Response(null, { status: isStored ? 200 : 404 });
     }
     if (target === undefined) {
         return new Response(null, { status: 404 });
@@ -87,16 +83,9 @@ async function write(
         return new Response(null, { status: 413 });
     }
 
-    // store a file under its upload's media type, refusing an upload without one
+    // store a file under its digest
     if (target.kind === "file") {
-        const type = request.headers.get("content-type");
-        if (type === null) {
-            throw BuildError.of(
-                "MEDIA_TYPE_MISSING",
-                `the upload of ${target.digest} has no media type`,
-            );
-        }
-        await store.receive(target.digest, bytes, type);
+        await store.receive(target.digest, bytes);
     }
     // store a manifest
     else {
@@ -241,10 +230,7 @@ async function serve(
     const selection = range
         ? { offset: range.start, length: range.end - range.start + 1 }
         : undefined;
-    const body =
-        selected === "manifest.json"
-            ? (await store.manifest(digest, selection)).body
-            : (await store.open(file, selection)).body;
+    const body = store.open(file, selection);
 
     // describe the range the body covers
     if (range) {
