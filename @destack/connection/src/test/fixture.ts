@@ -1,20 +1,21 @@
 import { Package, type PackageId } from "@destack/package";
+import {
+    ControlLoop,
+    type DatabaseConnection,
+    defineDatabase,
+    defineTable,
+    eq,
+    Snapshot,
+    TABLE,
+    type Table,
+    text,
+} from "@destack/db";
+import { MemoryBlobStorage } from "@destack/resource";
 import { TOKEN_LIFETIME_MILLISECONDS, Pkce } from "@destack/access/token";
 import { Account, account, space } from "@destack/account/object";
 import { AccessContext, Authentication, Caller, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { STACKS } from "@destack/account/test";
-import {
-    defineDatabase,
-    defineTable,
-    type DatabaseConnection,
-    eq,
-    TABLE,
-    type Table,
-    Snapshot,
-    text,
-    ControlLoop,
-} from "@destack/db";
 import { TestDatabase, reconcileOnce } from "@destack/db/test";
 import {
     defineObject,
@@ -627,6 +628,7 @@ export class ConnectionFixture {
 
         // primary the account's integrations at the universe, where an account's inside lives, else serve the space
         return new ObjectStore({
+            blobs: new MemoryBlobStorage(environment.crypto),
             environment,
             principal: ConnectionFixture.#installation(scope),
             ...(primary === undefined ? { partitions: [Scope.universe.id] } : {}),
@@ -677,6 +679,7 @@ export class ConnectionFixture {
         };
 
         return new ObjectStore({
+            blobs: new MemoryBlobStorage(environment.crypto),
             environment,
             principal: principal.installation.reference(serving.id, ISSUER_INSTALLATION),
             servers: [
