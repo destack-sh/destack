@@ -5,13 +5,13 @@ import { Clock } from "@destack/environment";
 /** How long a database retains windowed changes: a week. */
 const CHANGE_WINDOW_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
-/** How often a database compacts its log: hourly, a week of changes taking seconds to compact. */
-const COMPACTION_INTERVAL_MILLISECONDS = 60 * 60_000;
+/** The least time between compactions, an hour, so a log a live slot holds never spins. */
+const RETRY_MILLISECONDS = 60 * 60_000;
 
 /** The one key the compaction controller reconciles: the database's log. */
 const LOG = "log";
 
-/** Compacts a database's log once an hour, dropping windowed changes older than the window. */
+/** Compacts a database's log once its oldest windowed change leaves the window. */
 export class CompactionController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "compaction";
@@ -31,11 +31,14 @@ export class CompactionController implements ReconcileController {
         return [LOG];
     }
 
-    /** Compact the log and look again after the compaction interval. */
+    /** Compact the log, and look again once its oldest windowed change leaves the window. */
     async reconcile(): Promise<number> {
+        // drop the changes older than the window, then read the oldest left
         const now = this.#clock.now();
-        await this.#database.log.compact(now - CHANGE_WINDOW_MILLISECONDS, now);
+        const { log } = this.#database;
+        await log.compact(now - CHANGE_WINDOW_MILLISECONDS, now);
+        const oldest = (await log.oldestWindowed()) ?? now;
 
-        return COMPACTION_INTERVAL_MILLISECONDS;
+        return Math.max(oldest + CHANGE_WINDOW_MILLISECONDS - now, RETRY_MILLISECONDS);
     }
 }

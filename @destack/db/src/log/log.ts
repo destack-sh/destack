@@ -361,7 +361,7 @@ export class Log {
             return position;
         }
 
-        // start catching up at the head, the watch having heard every commit since delivery began
+        // start catching up at the head, the watch having received every commit since delivery began
         if (caught === undefined) {
             commits.catchUp(position, []);
         }
@@ -369,7 +369,7 @@ export class Log {
         else if (caught.epoch !== head.epoch || caught.sequence < head.horizon) {
             commits.catchUp(position, "every");
         }
-        // wake the tables of the commits the watch has yet to hear
+        // wake the tables of the commits the watch has yet to receive
         else if (sequence > caught.sequence) {
             commits.catchUp(position, head.written);
         }
@@ -393,37 +393,42 @@ export class Log {
     }
 
     /** Read the position of some scopes' latest change to some tables, or the horizon. */
-    async changed(tables: readonly Table[], scopes: readonly string[]): Promise<LogPosition> {
-        // read the newest committed entry of the scopes in the tables through the log's scope index
-        const head = await this.#readHead(this.#head());
-        const names = tables.map((table) => sql`${table[TABLE].sqlName}`);
-        const scoped = sql.join(
-            scopes.map((scope) => sql`${scope}`),
-            sql`, `,
-        );
-        const [row] =
-            names.length === 0 || scopes.length === 0
-                ? []
-                : await this.database.all(sql`
-            SELECT sequence FROM ${sql.relation(LOG)} AS entry
-            WHERE scope IN (${scoped}) AND "table" IN (${sql.join(names, sql`, `)})
+    async changed(
+        tables: readonly Table[] | "every",
+        scopes: readonly string[],
+    ): Promise<LogPosition> {
+        // seek each scope's newest committed entry on the log's scope index
+        const names = tables === "every" ? [] : tables.map((table) => sql`${table[TABLE].sqlName}`);
+        const inTables =
+            tables === "every" ? sql`` : sql`AND "table" IN (${sql.join(names, sql`, `)})`;
+        const seeks = scopes.map(
+            (scope) => sql`SELECT (SELECT sequence FROM ${sql.relation(LOG)} AS entry
+            WHERE scope = ${scope} ${inTables}
                 AND sequence IS NOT NULL AND ${committedEntry(this.database.dialect, sql`entry`)}
-            ORDER BY sequence DESC LIMIT 1
-        `);
-        const sequence = row === undefined ? null : LogColumn.integer(row["sequence"]);
+            ORDER BY sequence DESC LIMIT 1) AS latest`,
+        );
 
-        return { log: head.log, epoch: head.epoch, sequence: latestOf(sequence, head.horizon) };
+        // take the newest of them beside the head, in one statement
+        const isEmpty = scopes.length === 0 || (tables !== "every" && tables.length === 0);
+        const latest = isEmpty
+            ? sql`NULL`
+            : sql`(SELECT max(latest) FROM (${sql.join(seeks, sql` UNION ALL `)}) AS seeks)`;
+        const [row] = await this.database.all(sql`${this.#head()}, ${latest} AS changed`);
+        const head = Log.#parseHead(row);
+        const changed = LogColumn.nullableInteger(row?.["changed"]);
+
+        return { log: head.log, epoch: head.epoch, sequence: latestOf(changed, head.horizon) };
     }
 
     /** Read the log's head row: its log, epoch, latest sequence and horizon. */
-    async #readHead(statement: SQL): Promise<{
-        readonly log: string;
-        readonly epoch: string;
-        readonly logged: number | null;
-        readonly horizon: number;
-        readonly written: readonly string[];
-    }> {
+    async #readHead(statement: SQL): Promise<LogHead> {
         const [row] = await this.database.all(statement);
+
+        return Log.#parseHead(row);
+    }
+
+    /** Parse the log's head row. */
+    static #parseHead(row: Readonly<Record<string, unknown>> | undefined): LogHead {
         const written = row?.["written"];
 
         return {
@@ -595,7 +600,7 @@ export class Log {
         return this.until(async () => await this.#includes(sequence), signal);
     }
 
-    /** Settle once the log hears other writers' commits as they end. */
+    /** Settle once the log receives other writers' commits as they end. */
     listening(): Promise<void> {
         return this.database.state.commits.listen();
     }
@@ -825,6 +830,17 @@ export class Log {
         });
     }
 
+    /** Read when the oldest windowed change still logged was made, absent with none. */
+    async oldestWindowed(): Promise<number | undefined> {
+        const [row] = await this.database.all(sql`
+            SELECT min(changed_at) AS "changedAt"
+            FROM ${sql.relation(LOG)}
+            WHERE retention = 'window' AND sequence IS NOT NULL
+        `);
+
+        return LogColumn.nullableInteger(row?.["changedAt"]) ?? undefined;
+    }
+
     /** Read the positions and times of a change's transaction. */
     async bounds(sequence: number): Promise<TransactionBounds> {
         // read the transaction's first and last change
@@ -867,10 +883,15 @@ export class Log {
         options: { readonly limit?: number; readonly transaction?: string },
     ): Promise<Record<string, unknown>[]> {
         // read through the statement of the selection's shape
-        const statement = entryRead(
-            selection.scopes !== undefined,
-            options.transaction !== undefined,
-        );
+        const isScoped = selection.scopes !== undefined;
+        const statement =
+            options.transaction === undefined
+                ? isScoped
+                    ? ENTRY_READS.scopedPage
+                    : ENTRY_READS.page
+                : isScoped
+                  ? ENTRY_READS.scopedRest
+                  : ENTRY_READS.rest;
 
         return statement.all(this.database, {
             after,
@@ -882,21 +903,34 @@ export class Log {
     }
 }
 
-/** The entry statements by shape. */
-const ENTRY_READS = new Map<string, Statement>();
+/** The log's head row: its log, epoch, latest sequence, horizon and written tables. */
+interface LogHead {
+    /** The log's identifier. */
+    readonly log: string;
+    /** The log's epoch. */
+    readonly epoch: string;
+    /** The latest logged sequence, null before the first commit. */
+    readonly logged: number | null;
+    /** The sequence compaction removed the changes up to. */
+    readonly horizon: number;
+    /** The SQL names of the tables commits after a sequence wrote, empty when unread. */
+    readonly written: readonly string[];
+}
+
+/** The statements reading log entries after a sequence, scoped or not, paged or a rest. */
+const ENTRY_READS = {
+    page: entryRead(false, false),
+    scopedPage: entryRead(true, false),
+    rest: entryRead(false, true),
+    scopedRest: entryRead(true, true),
+};
 
 /** Build the statement reading log entries after a sequence. */
 function entryRead(isScoped: boolean, isRest: boolean): Statement {
-    // reuse the statement of the same shape
-    const key = `${isScoped}:${isRest}`;
-    const known = ENTRY_READS.get(key);
-    if (known !== undefined) {
-        return known;
-    }
-
     // select the bounds and entries
     const log = sql.relation(LOG);
-    const statement = new Statement(
+
+    return new Statement(
         (value) => sql`
             WITH bounds AS (
                 SELECT
@@ -918,9 +952,6 @@ function entryRead(isScoped: boolean, isRest: boolean): Statement {
             ORDER BY entries.sequence
         `,
     );
-    ENTRY_READS.set(key, statement);
-
-    return statement;
 }
 
 /** Decode a log entry through its table's columns. */

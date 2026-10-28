@@ -795,7 +795,7 @@ test("read the log's position from memory until a commit writes the log, past co
         return { sequence, statements: state.statements - before };
     };
 
-    // hear other writers' commits as a serving store does, catch up once, then read the position
+    // listen to other writers' commits as a serving store does, catch up once, then read the position
     await database.log.listening();
     await database.log.position();
     await database.log.position();
@@ -829,22 +829,22 @@ test("answer a read from memory until another connection's commit of its table r
         return { ids, statements: state.statements - before };
     };
 
-    // hear other writers' commits, then read the notes twice
+    // listen to other writers' commits, then read the notes twice
     await database.log.listening();
     const cold = await counted();
     const warm = await counted();
 
-    // commit a note through the other connection, and wait until this connection hears it
+    // commit a note through the other connection, and wait until this connection receives it
     await other.transaction((transaction) => transaction.insert(note).values(first).execute());
     const { sequence } = await other.log.position();
     await database.log.wait(sequence, AbortSignal.timeout(5000));
-    const heard = await counted();
+    const received = await counted();
 
     // read the notes anew once the other commit arrives
-    expect({ cold, warm, heard }).toEqual({
+    expect({ cold, warm, received }).toEqual({
         cold: { ids: [], statements: 1 },
         warm: { ids: [], statements: 0 },
-        heard: { ids: [first.id], statements: 1 },
+        received: { ids: [first.id], statements: 1 },
     });
 });
 
@@ -857,12 +857,12 @@ test("answer a read anew once another connection deletes an append-only row, whi
         transaction.insert(reading).values({ id: "r", scope: "inbox", value: 1 }).execute(),
     );
 
-    // hear commits, then read the readings from the database
+    // listen to commits, then read the readings from the database
     await database.log.listening();
     const readings = async () => (await database.select().from(reading)).map((row) => row.id);
     const before = await readings();
 
-    // delete the reading through the other connection, and wait until this connection hears it
+    // delete the reading through the other connection, and wait until this connection receives it
     const { generation } = database.state.commits;
     await other.transaction((transaction) =>
         transaction.delete(reading).where(eq(reading.id, "r")).execute(),
