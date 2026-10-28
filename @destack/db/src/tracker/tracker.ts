@@ -26,13 +26,28 @@ export const TrackerMessage = schema.discriminatedUnion("kind", [
         topic: schema.string(),
         event: schema.json(),
     }),
+    schema.object({
+        kind: schema.literal("mark"),
+        instance: schema.string(),
+        marks: schema.record(schema.string(), schema.json()),
+    }),
+    schema.object({
+        kind: schema.literal("unmark"),
+        instance: schema.string(),
+        owner: schema.string(),
+    }),
     schema.object({ kind: schema.literal("hello"), instance: schema.string() }),
     schema.object({
         kind: schema.literal("state"),
         instance: schema.string(),
         tracked: schema.array(schema.string()),
+        marks: schema.record(schema.string(), schema.json()),
     }),
-    schema.object({ kind: schema.literal("heartbeat"), instance: schema.string() }),
+    schema.object({
+        kind: schema.literal("heartbeat"),
+        instance: schema.string(),
+        marks: schema.record(schema.string(), schema.json()),
+    }),
     schema.object({ kind: schema.literal("stop"), instance: schema.string() }),
 ]);
 /** A message between the instances sharing a database. */
@@ -54,7 +69,7 @@ export interface TrackerOptions {
     readonly heartbeat?: number;
 }
 
-/** The live instances sharing a database and the owners each tracks, after Phoenix.Tracker. */
+/** The live instances sharing a database, the owners and marks of each, after Phoenix.Tracker. */
 export class Tracker {
     /** This instance's identifier. */
     readonly instance: string;
@@ -70,6 +85,12 @@ export class Tracker {
     readonly #holds = new Map<string, number>();
     /** The listeners of owner tracking changes. */
     readonly #watchers = new Set<(owner: string, isTracked: boolean) => void>();
+    /** The value each instance marked each owner with, by owner and instance. */
+    readonly #marks = new Map<string, Map<string, JsonValue>>();
+    /** This instance's marks the next heartbeat announces, by owner. */
+    readonly #pending = new Map<string, JsonValue>();
+    /** The listeners of mark changes. */
+    readonly #marked = new Set<(owner: string) => void>();
     /** The listeners of instances found stopped. */
     readonly #stopped = new Set<(instance: string) => void>();
     /** The listeners of each topic. */
@@ -135,7 +156,39 @@ export class Tracker {
         }
     }
 
-    /** Decide whether an instance is live: this one, one heard recently, or any while listening. */
+    /** Mark an owner with this instance's new value, announced to the others at once. */
+    mark(owner: string, value: JsonValue): void {
+        this.#setMark(owner, this.instance, value);
+        this.#pending.delete(owner);
+        this.#notify({ kind: "mark", instance: this.instance, marks: { [owner]: value } });
+    }
+
+    /** Refresh this instance's mark of an owner, announced with the next heartbeat. */
+    refresh(owner: string, value: JsonValue): void {
+        this.#setMark(owner, this.instance, value);
+        this.#pending.set(owner, value);
+    }
+
+    /** Drop this instance's mark of an owner, announced to the others at once. */
+    unmark(owner: string): void {
+        this.#unmark(owner, this.instance);
+        this.#pending.delete(owner);
+        this.#notify({ kind: "unmark", instance: this.instance, owner });
+    }
+
+    /** Read the values the live instances marked an owner with. */
+    marks(owner: string): JsonValue[] {
+        return [...(this.#marks.get(owner)?.values() ?? [])];
+    }
+
+    /** Tell a listener each owner whose marks change, until stopped. */
+    watchMarked(listener: (owner: string) => void): () => void {
+        this.#marked.add(listener);
+
+        return () => this.#marked.delete(listener);
+    }
+
+    /** Decide whether an instance is live: this one, a recent sender, or any while starting. */
     isLive(instance: string): boolean {
         const isListening =
             this.#environment.clock.now() - this.#startedAt < this.#heartbeat * MISSED_HEARTBEATS;
@@ -198,8 +251,12 @@ export class Tracker {
                 () => false,
             )
         ) {
-            // announce this instance, and stop the instances silent for too many heartbeats
-            this.#notify({ kind: "heartbeat", instance: this.instance });
+            // announce this instance and its pending marks
+            const marks = Object.fromEntries(this.#pending);
+            this.#pending.clear();
+            this.#notify({ kind: "heartbeat", instance: this.instance, marks });
+
+            // stop the instances silent for too many heartbeats
             const deadline = clock.now() - this.#heartbeat * MISSED_HEARTBEATS;
             for (const [instance, seen] of this.#instances) {
                 if (seen < deadline) {
@@ -221,8 +278,12 @@ export class Tracker {
             this.#instances.set(message.instance, this.#environment.clock.now());
         }
 
-        // apply the tracking changes and broadcasts
-        if (message.kind === "track") {
+        // apply the tracking changes, marks and broadcasts
+        if (message.kind === "mark" || message.kind === "heartbeat") {
+            this.#setMarks(message.instance, message.marks);
+        } else if (message.kind === "unmark") {
+            this.#unmark(message.owner, message.instance);
+        } else if (message.kind === "track") {
             this.#track(message.owner, message.instance);
         } else if (message.kind === "release") {
             this.#release(message.owner, message.instance);
@@ -232,13 +293,20 @@ export class Tracker {
             for (const owner of message.tracked) {
                 this.#track(owner, message.instance);
             }
+            this.#setMarks(message.instance, message.marks);
         }
-        // answer a hello with this instance's tracked owners
+        // answer a hello with this instance's tracked owners and marks
         else if (message.kind === "hello") {
+            const marks = [...this.#marks].flatMap(([owner, values]) => {
+                const value = values.get(this.instance);
+
+                return value === undefined ? [] : [[owner, value] as const];
+            });
             this.#notify({
                 kind: "state",
                 instance: this.instance,
                 tracked: [...this.#holds.keys()],
+                marks: Object.fromEntries(marks),
             });
         }
         // count a stopping instance stopped
@@ -247,12 +315,20 @@ export class Tracker {
         }
     }
 
-    /** Count an instance stopped: forget it and release every owner it tracked. */
+    /** Count an instance stopped: forget it, its marks, and every owner it tracked. */
     #drop(instance: string): void {
+        // forget the instance and release the owners it tracked
         this.#instances.delete(instance);
         for (const owner of this.#tracked.keys()) {
             this.#release(owner, instance);
         }
+
+        // forget its marks, telling the listeners
+        for (const owner of this.#marks.keys()) {
+            this.#unmark(owner, instance);
+        }
+
+        // tell the listeners the instance stopped
         for (const listener of this.#stopped) {
             listener(instance);
         }
@@ -281,6 +357,38 @@ export class Tracker {
         this.#tracked.delete(owner);
         for (const listener of this.#watchers) {
             listener(owner, false);
+        }
+    }
+
+    /** Store an instance's marks, telling the listeners. */
+    #setMarks(instance: string, marks: Readonly<Record<string, JsonValue>>): void {
+        for (const [owner, value] of Object.entries(marks)) {
+            this.#setMark(owner, instance, value);
+        }
+    }
+
+    /** Store an instance's mark of an owner, telling the listeners. */
+    #setMark(owner: string, instance: string, value: JsonValue): void {
+        const values = this.#marks.get(owner) ?? new Map<string, JsonValue>();
+        this.#marks.set(owner, values.set(instance, value));
+        this.#announceMarked(owner);
+    }
+
+    /** Forget an instance's mark of an owner, telling the listeners. */
+    #unmark(owner: string, instance: string): void {
+        const values = this.#marks.get(owner);
+        if (values?.delete(instance) === true) {
+            if (values.size === 0) {
+                this.#marks.delete(owner);
+            }
+            this.#announceMarked(owner);
+        }
+    }
+
+    /** Tell the listeners an owner's marks changed. */
+    #announceMarked(owner: string): void {
+        for (const listener of this.#marked) {
+            listener(owner);
         }
     }
 

@@ -59,7 +59,7 @@ test("hand a late instance the tracked owners, and count a silent instance stopp
             }
         },
         listen: (listener) => channel.listen(listener),
-        hear: (token) => channel.hear(token),
+        delivery: (token) => channel.delivery(token),
         close: () => channel.close(),
     };
     const crashing = open(silenced, simulation);
@@ -74,7 +74,7 @@ test("hand a late instance the tracked owners, and count a silent instance stopp
     });
 });
 
-test("count an unknown instance live only until this one could hear it, and report each instance that stops", async () => {
+test("count an unknown instance live only until this one could receive from it, and report each instance that stops", async () => {
     const simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(), simulation);
@@ -82,7 +82,7 @@ test("count an unknown instance live only until this one could hear it, and repo
     const stopped: string[] = [];
     west.watchStopped((instance) => stopped.push(instance));
 
-    // count an unknown instance live while west listens, and east once heard
+    // count an unknown instance live while west listens, and east once it sent a message
     const isListening = west.isLive("unknown");
     east.track("alice");
     await tracked(west, "alice", true);
@@ -108,24 +108,24 @@ test("deliver a broadcast on every instance with its sender, and track alone wit
     const west = open(join(), simulation);
     const alone = open(undefined, simulation);
 
-    // hear a broadcast on the sending and the other instance
-    const heard: TrackerEvent[] = [];
-    const received = Promise.withResolvers<void>();
-    east.listen("board", (event) => heard.push(event));
+    // receive a broadcast on the sending and the other instance
+    const received: TrackerEvent[] = [];
+    const arrival = Promise.withResolvers<void>();
+    east.listen("board", (event) => received.push(event));
     west.listen("board", (event) => {
-        heard.push(event);
-        received.resolve();
+        received.push(event);
+        arrival.resolve();
     });
     east.broadcast("board", { reaction: "👍" });
-    await received.promise;
+    await arrival.promise;
 
     // track an owner and broadcast on an instance without others
     const lone: TrackerEvent[] = [];
     alone.listen("board", (event) => lone.push(event));
     alone.track("alice");
     alone.broadcast("board", { reaction: "👋" });
-    expect({ heard, lone, isTracked: alone.isTracked("alice") }).toEqual({
-        heard: [
+    expect({ received, lone, isTracked: alone.isTracked("alice") }).toEqual({
+        received: [
             { instance: east.instance, event: { reaction: "👍" } },
             { instance: east.instance, event: { reaction: "👍" } },
         ],
@@ -153,6 +153,34 @@ test("skip the messages a channel echoes back to their sender, as PostgreSQL's d
     });
 });
 
+test("announce a mark at once and a refresh with the next heartbeat, hand a late instance the marks, and forget unmarked and stopped ones", async () => {
+    const simulation = new Simulation({ seed: 1, start: 0 });
+    const join = channelHub<TrackerMessage>();
+    const east = open(join(), simulation);
+    const west = open(join(), simulation);
+
+    // see a mark at once, and a refresh only once the next heartbeat carries it
+    east.mark("replica", 1);
+    await marked(west, "replica", [1]);
+    east.refresh("replica", 2);
+    const beforeBeat = west.marks("replica");
+    await simulation.run({ to: simulation.clock.now() + HEARTBEAT });
+    await marked(west, "replica", [2]);
+
+    // hand a late instance the marks set before it joined
+    const late = open(join(), simulation);
+    await marked(late, "replica", [2]);
+
+    // forget an unmarked owner, and the marks of an instance that stops
+    east.unmark("replica");
+    await marked(west, "replica", []);
+    east.mark("other", 3);
+    await marked(west, "other", [3]);
+    east.close();
+    await marked(west, "other", []);
+    expect({ beforeBeat, east: east.marks("replica") }).toEqual({ beforeBeat: [1], east: [] });
+});
+
 /** Track the instances on a channel, or alone, in the test's world. */
 function open(channel: Channel<unknown> | undefined, simulation: Simulation): Tracker {
     const tracker = new Tracker(simulation.environment("database"), channel, {
@@ -170,6 +198,22 @@ async function tracked(tracker: Tracker, owner: string, isTracked: boolean): Pro
         await new Promise<void>((resolve) => {
             const stop = tracker.watchTracked((changed, now) => {
                 if (changed === owner && now === isTracked) {
+                    stop();
+                    resolve();
+                }
+            });
+        });
+    }
+}
+
+/** Wait until an instance sees an owner's marks. */
+async function marked(tracker: Tracker, owner: string, marks: readonly unknown[]): Promise<void> {
+    // wait for the marks unless the instance already sees them
+    const isMarked = () => JSON.stringify(tracker.marks(owner)) === JSON.stringify(marks);
+    if (!isMarked()) {
+        await new Promise<void>((resolve) => {
+            const stop = tracker.watchMarked(() => {
+                if (isMarked()) {
                     stop();
                     resolve();
                 }
