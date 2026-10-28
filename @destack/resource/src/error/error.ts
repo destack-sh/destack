@@ -24,6 +24,12 @@ export type UnreachablePlan = schema.Infer<typeof UnreachablePlan>;
 export const ResourceError = defineErrorFamily(
     import.meta.destack.package,
     {
+        // bad request
+        BAD_DIGEST: { code: "BAD_REQUEST" },
+
+        // not found
+        BLOB_NOT_FOUND: { code: "NOT_FOUND" },
+
         // conflict
         PLAN_UNREACHABLE: { code: "CONFLICT", data: UnreachablePlan },
 

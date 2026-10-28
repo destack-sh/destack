@@ -153,21 +153,27 @@ export interface Opener<Kind extends ResourceKind = ResourceKind, Handle = unkno
     open(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Handle>;
 }
 
-/** A content-addressed store of blobs, such as snapshots' pages. */
-export interface ContentStore {
+/** Content-addressed storage of blobs, such as snapshots' pages and files' segments. */
+export interface BlobStorage {
     /** Read a blob's bytes. */
     readonly read: (digest: Digest) => AsyncIterable<Uint8Array>;
+    /** Read a range of a blob's bytes. */
+    readonly slice: (digest: Digest, offset: number, length: number) => AsyncIterable<Uint8Array>;
+    /** List the digests the store lacks, in the given order. */
+    readonly missing: (digests: readonly Digest[]) => Promise<readonly Digest[]>;
     /** Keep bytes under their digest and return it. */
     readonly write: (body: AsyncIterable<Uint8Array>, expected?: Digest) => Promise<Digest>;
     /** Keep the blobs the store lacks among some digests, read from another store. */
     readonly fetch: (
         digests: readonly Digest[],
-        source: Pick<ContentStore, "read">,
+        source: Pick<BlobStorage, "read">,
     ) => Promise<void>;
     /** List the kept blobs' digests. */
     readonly digests: () => AsyncIterable<Digest>;
-    /** Delete a blob. */
+    /** Delete a blob, if stored. */
     readonly delete: (digest: Digest) => Promise<void>;
+    /** Delete the unfinished writes interrupted writers left behind, while no writer runs. */
+    readonly clean: () => Promise<void>;
 }
 
 /** Copy a resource's content at a point in time into a content-addressed store. */
@@ -176,7 +182,7 @@ export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
     snapshot(
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
-        store: Pick<ContentStore, "read" | "write" | "fetch">,
+        store: Pick<BlobStorage, "read" | "write" | "fetch">,
         recipient?: Recipient,
     ): Promise<Digest>;
     /** Restore the copy a digest identifies into a provisioned resource. */
@@ -184,7 +190,7 @@ export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
         digest: Digest,
-        store: Pick<ContentStore, "read" | "write" | "fetch">,
+        store: Pick<BlobStorage, "read" | "write" | "fetch">,
         recipient?: Recipient,
         base?: Digest,
     ): Promise<void>;

@@ -1,9 +1,10 @@
 import type { Crypto } from "@destack/environment";
 import { Digest } from "@destack/schema";
-import type { ContentStore } from "../provider/provider.ts";
+import { ResourceError } from "../error/error.ts";
+import type { BlobStorage } from "./provider.ts";
 
-/** A snapshot store in memory. */
-export class MemoryContentStore implements ContentStore {
+/** Blob storage in memory. */
+export class MemoryBlobStorage implements BlobStorage {
     /** The kept blobs, by digest. */
     readonly #blobs = new Map<Digest, Uint8Array>();
     /** The crypto digesting the kept blobs. */
@@ -23,9 +24,21 @@ export class MemoryContentStore implements ContentStore {
     async *read(digest: Digest): AsyncIterable<Uint8Array> {
         const blob = this.#blobs.get(digest);
         if (blob === undefined) {
-            throw new TypeError(`blob ${digest} not found`);
+            throw ResourceError.of("BLOB_NOT_FOUND", `blob ${digest} not found`);
         }
         yield blob;
+    }
+
+    /** Read a range of a blob's bytes as one chunk. */
+    async *slice(digest: Digest, offset: number, length: number): AsyncIterable<Uint8Array> {
+        for await (const blob of this.read(digest)) {
+            yield blob.subarray(offset, offset + length);
+        }
+    }
+
+    /** List the digests the store lacks, in the given order. */
+    async missing(digests: readonly Digest[]): Promise<readonly Digest[]> {
+        return digests.filter((digest) => !this.#blobs.has(digest));
     }
 
     /** Keep bytes under their digest. */
@@ -38,7 +51,7 @@ export class MemoryContentStore implements ContentStore {
 
         // refuse bytes of another digest, and keep them once
         if (expected !== undefined && digest !== expected) {
-            throw new TypeError(`expected blob ${expected}, got ${digest}`);
+            throw ResourceError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
         }
         this.#blobs.set(digest, bytes);
 
@@ -46,7 +59,7 @@ export class MemoryContentStore implements ContentStore {
     }
 
     /** Keep the missing blobs of some digests from another store. */
-    async fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void> {
+    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "read">): Promise<void> {
         for (const digest of new Set(digests)) {
             // copy a missing blob
             if (!this.#blobs.has(digest)) {
@@ -60,8 +73,11 @@ export class MemoryContentStore implements ContentStore {
         yield* this.#blobs.keys();
     }
 
-    /** Delete a blob. */
+    /** Delete a blob, if stored. */
     async delete(digest: Digest): Promise<void> {
         this.#blobs.delete(digest);
     }
+
+    /** Clean up after interrupted writes, which memory never leaves. */
+    async clean(): Promise<void> {}
 }
