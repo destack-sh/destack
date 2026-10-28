@@ -1,7 +1,7 @@
 import { modulePlugin } from "@destack/package/vite";
 import { testHost } from "@destack/test/host";
 import { rolldown } from "rolldown";
-import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
+import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
 import { expect, onTestFinished, test } from "@destack/test";

@@ -1,4 +1,4 @@
-import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
+import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { modulePlugin } from "@destack/package/vite";
 import { testHost } from "@destack/test/host";
 import { rolldown } from "rolldown";
