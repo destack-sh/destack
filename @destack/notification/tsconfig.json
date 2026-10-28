@@ -18,7 +18,17 @@
         "noUncheckedSideEffectImports": true,
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
-        "lib": ["ES2024", "ESNext.Array", "ESNext.TypedArrays", "ES2025.Collection", "ES2025.RegExp", "ESNext.Disposable", "DOM", "DOM.Iterable"],
+        "lib": [
+            "ES2024",
+            "ESNext.Array",
+            "ESNext.TypedArrays",
+            "ES2025.Collection",
+            "ES2025.Promise",
+            "ES2025.RegExp",
+            "ESNext.Disposable",
+            "DOM",
+            "DOM.Iterable"
+        ],
         "types": ["bun", "@destack/view/client"],
         "jsx": "preserve",
         "jsxImportSource": "@destack/view"
