@@ -179,8 +179,6 @@ export class ControlLoop {
     readonly #clock: Clock;
     /** How long a key may fail transiently before its failures are reported. */
     readonly #transientFor: number;
-    /** Wait until the loop may act, absent when it acts at once. */
-    readonly #ready: ((signal: AbortSignal) => Promise<void>) | undefined;
     /** The earliest due time the alarm is set to, absent for none. */
     #alarmed: number | undefined;
     /** The due time of the key that began the running reconciliations. */
@@ -189,8 +187,8 @@ export class ControlLoop {
     #idle: PromiseWithResolvers<void>[] = [];
     /** The abort of every loop once a controller fails undeclared, its reason the failure. */
     readonly #failing = new AbortController();
-    /** Whether the database's log hears other writers' commits, which settling idle waits for. */
-    #isHearing = false;
+    /** Whether the log listens to other writers' commits, which idle waits for. */
+    #isListening = false;
     /** Whether every controller was listed once since the loop started. */
     #isListed = false;
     /** The log sequence the follow consumed, moved forward by the follow and by idle checks. */
@@ -221,8 +219,6 @@ export class ControlLoop {
             readonly clock: Clock;
             /** How long a key may fail transiently before reporting. */
             readonly transientFor?: number;
-            /** Wait until the loop may act, such as once a store's access is confirmed. */
-            readonly ready?: (signal: AbortSignal) => Promise<void>;
         },
     ) {
         // start with no key due and no failure
@@ -245,7 +241,6 @@ export class ControlLoop {
         this.#retry = { ...RETRY, ...options.retry };
         this.#clock = options.clock;
         this.#transientFor = options.transientFor ?? TRANSIENT_REPORT_MILLISECONDS;
-        this.#ready = options.ready;
         if (options.alarm !== undefined) {
             this.#alarm = options.alarm;
         }
@@ -289,7 +284,7 @@ export class ControlLoop {
             // wait for every loop to end, its running reconciliations included
             await Promise.all(
                 [
-                    this.#hear(running),
+                    this.#listen(running),
                     this.#follow(running),
                     this.#listUnlogged(running),
                     this.#work(running),
@@ -342,7 +337,7 @@ export class ControlLoop {
         return this.#followed;
     }
 
-    /** Settle once no key is due or reconciling, every follow synced and every change heard. */
+    /** Settle once no key is due or reconciling, every follow synced and every change received. */
     idle(deadline?: number): Promise<void> {
         // settle at once when the loop stopped, failing with a controller's failure
         if (this.#isStopped) {
@@ -384,10 +379,10 @@ export class ControlLoop {
         this.#wake();
     }
 
-    /** Wait until the log hears other writers' commits, failing the loop as listening fails. */
-    async #hear(signal: AbortSignal): Promise<void> {
+    /** Wait until the log listens to other writers' commits, failing as listening fails. */
+    async #listen(signal: AbortSignal): Promise<void> {
         await Promise.race([this.database.log.listening(), until(signal)]);
-        this.#isHearing = !signal.aborted;
+        this.#isListening = !signal.aborted;
         this.#wake();
     }
 
@@ -619,14 +614,6 @@ export class ControlLoop {
         }
     }
 
-    /** Wait until the loop may act, traced while it waits. */
-    async #awaitReady(signal: AbortSignal): Promise<void> {
-        const ready = this.#ready;
-        if (ready !== undefined) {
-            await this.#instruments.span("controller.ready", {}, () => ready(signal));
-        }
-    }
-
     /** Start due keys and sleep until more are due. */
     async #work(signal: AbortSignal): Promise<void> {
         while (!signal.aborted) {
@@ -635,12 +622,8 @@ export class ControlLoop {
             const now = this.#clock.now();
             const { runnable, due, skipped } = this.#take(now);
 
-            // start it once the loop may act, holding no lock or slot meanwhile
+            // start it, holding no lock or slot meanwhile
             if (runnable !== undefined) {
-                await this.#awaitReady(signal);
-                if (signal.aborted) {
-                    break;
-                }
                 this.#start(runnable);
 
                 // set the wake-up due while the key runs
@@ -659,7 +642,7 @@ export class ControlLoop {
                     this.#isListed &&
                     this.#unsettled.size === 0 &&
                     skipped === undefined &&
-                    this.#isHearing &&
+                    this.#isListening &&
                     (await this.#isFollowed()) &&
                     !this.#woken.signal.aborted
                 ) {
