@@ -65,6 +65,7 @@ function chainOf(
         scope,
         target,
         parameters,
+        revision: { log: "follower", epoch: "follower", sequence: 1 },
     };
 
     return {
@@ -154,15 +155,16 @@ test("relay an account's access through the space's database into an app's, and 
         ).map((row) => row.id);
     expect(await readable(carol)).toEqual(["a", "b", "c"]);
 
-    // revoke the binding in the account's database, and refuse deciding on a replica no follow hears
+    // revoke the binding in the account's database, and refuse deciding on a replica that stays stale for a lag
     await owner((authorization) => Relationship.revoke(object, binding.id, authorization));
     const revoked = await global.database.log.position();
-    const personal = chainOf(notes, "personal").replica;
-    app.database.tracker.release(Replica.owner(personal.name, personal.scope));
-    expect(await refusal(notes.resolve(Snapshot.live(app.database), "personal", carol))).toEqual([
+    app.simulation.clock.advance(notes.lag);
+    const resolving = refusal(notes.resolve(Snapshot.live(app.database), "personal", carol));
+    await app.simulation.run({ to: app.simulation.clock.now() + notes.lag });
+    expect(await resolving).toEqual([
         "SERVICE_UNAVAILABLE",
         "STALE",
-        "no follow heard the home of personal within 30000 ms",
+        "the access replica of personal is not live: no page within 30000 ms",
     ]);
 
     // relay the revocation: carol reads nothing, and the app's replica reflects the universe's position
@@ -307,7 +309,6 @@ async function replicate(
         }
     }
 
-    // apply them in order, hearing the source as a follow does
+    // apply them in order, which marks the replica live as a follow does
     await Array.fromAsync(replica.apply(database, pages, {}));
-    database.tracker.track(Replica.owner(replica.name, replica.scope));
 }

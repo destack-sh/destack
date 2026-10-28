@@ -58,7 +58,7 @@ import { TableMapping, type FieldRelation } from "./mapping.ts";
 /** The identifier of a wildcard subject, matching every identity of its type. */
 const WILDCARD = "*";
 
-/** How long an unheard access replica lasts before refusal: three 10-second beats, in ms. */
+/** How long an access replica stays live without a page: three 10-second beats, in ms. */
 const LAG_MILLISECONDS = 30_000;
 
 /** The relation from a relationship with a subject set to the relationships of that set. */
@@ -179,7 +179,7 @@ export class Authorizer {
         policies: readonly Policy[],
         mappings: readonly TableMapping[] = [],
         options: {
-            /** How long an access replica may go without hearing from its home, in milliseconds. */
+            /** How long an access replica stays live without a page, in milliseconds. */
             readonly lag?: number;
             /** The tables whose rows the database replicates from their homes, none when absent. */
             readonly replicated?: ReadonlySet<Table>;

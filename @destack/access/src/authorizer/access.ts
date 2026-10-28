@@ -196,7 +196,7 @@ export class Access {
         // read the subject sets of the caller with their containing scopes, beside the chain's roles
         const [, represented, chained] = await Promise.all([
             snapshot.position === undefined
-                ? Access.#requireConfirmed(snapshot.database, chain, authorizer.lag)
+                ? Access.#requireLive(snapshot.database, chain, authorizer.lag)
                 : undefined,
             Access.#represented(snapshot, context, scopes, authorizer).then((sets) =>
                 Access.expand(snapshot, sets, context, authorizer, scopes),
@@ -283,7 +283,7 @@ export class Access {
                 ids.map((id) => [id]),
             ),
             snapshot.position === undefined
-                ? Access.#requireConfirmed(snapshot.database, ids, this.#authorizer.lag)
+                ? Access.#requireLive(snapshot.database, ids, this.#authorizer.lag)
                 : undefined,
         ]);
         const defined = new Set(defining.map((row) => row.scope));
@@ -700,24 +700,36 @@ export class Access {
         return isMapped ? object : undefined;
     }
 
-    /** Refuse replicas of a chain's access with a home no follow heard within the lag. */
-    static async #requireConfirmed(
+    /** Refuse a chain whose access replica stays stale for a lag, waiting for its next page. */
+    static async #requireLive(
         database: DatabaseConnection,
         chain: readonly string[],
         lag: number,
     ): Promise<void> {
-        const stale = await Access.unconfirmed(database, chain);
+        // decide at once on a live chain
+        const before = await Access.stale(database, chain, lag);
+        if (before === undefined) {
+            return;
+        }
+
+        // wait a lag for a stale replica's next page, then refuse it
+        const deadline = database.state.clock.timeout(lag);
+        const stale = await Replica.untilLive(database, CHAIN_PUBLICATION, chain, lag, deadline);
         if (stale !== undefined) {
-            throw AccessError.of("STALE", `no follow heard the home of ${stale} within ${lag} ms`);
+            throw AccessError.of(
+                "STALE",
+                `the access replica of ${stale} is not live: no page within ${lag} ms`,
+            );
         }
     }
 
-    /** Find the first scope of a chain whose access replica's home no follow hears. */
-    static async unconfirmed(
+    /** Find the first scope of a chain whose access replica is not live within a lag. */
+    static async stale(
         database: DatabaseConnection,
         chain: readonly string[],
+        lag: number,
     ): Promise<string | undefined> {
-        return await Replica.unconfirmed(database, CHAIN_PUBLICATION, chain);
+        return await Replica.stale(database, CHAIN_PUBLICATION, chain, lag);
     }
 
     /** List the approvers of a call's change other than its subject and its actors, each once. */

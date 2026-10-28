@@ -49,6 +49,7 @@ export async function openDatabase(partition: string = Scope.universe.id) {
 
     return {
         test,
+        simulation,
         database,
         environment,
         authorizer,

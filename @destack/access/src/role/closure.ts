@@ -45,7 +45,10 @@ export const RoleGrant = {
                 for (const permission of next.permissions) {
                     const key = PermissionReference.key(permission);
                     const known = permissions.get(key);
-                    if (known === undefined || (permission.approvals ?? 0) < (known.approvals ?? 0)) {
+                    if (
+                        known === undefined ||
+                        (permission.approvals ?? 0) < (known.approvals ?? 0)
+                    ) {
                         permissions.set(key, permission);
                     }
                 }

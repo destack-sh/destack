@@ -378,6 +378,7 @@ function chainOf(
                 via: [...outside.via],
                 between: [...outside.between],
             },
+            revision: { log: "follower", epoch: "follower", sequence: 1 },
         },
     };
 }
@@ -415,7 +416,6 @@ async function follow(database: DatabaseConnection, followed: Followed, feed: Fe
         }
     }
     await Array.fromAsync(replica.apply(database, pages, options));
-    database.tracker.track(Replica.owner(replica.name, replica.scope));
 }
 
 /** Read a database's relationships in key order. */

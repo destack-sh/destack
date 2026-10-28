@@ -425,7 +425,12 @@ export const Role = {
             if (record.revision !== revision) {
                 throw AccessError.of("REVISION_STALE", "role revision has changed");
             }
-            await authorization.authorizeRole(scope, policies.role.permission("delete"), [], record);
+            await authorization.authorizeRole(
+                scope,
+                policies.role.permission("delete"),
+                [],
+                record,
+            );
 
             // refuse deleting a role that is still bound or included
             const bindings = await authorization.transaction.read(accessRelationship).findMany({
