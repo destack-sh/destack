@@ -144,8 +144,8 @@ export function Command(properties: { isOpen: boolean }) {
                 >
                     <Label>
                         {properties.isOpen
-                            ? "Your agent, one connection"
-                            : "Your agent, one connector per app"}
+                            ? "Your agent, with one connection"
+                            : "Your agent, with a connector per app"}
                     </Label>
                 </LabelRow>
                 <AgentChat

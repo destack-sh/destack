@@ -44,7 +44,7 @@ export function LabelTabs(properties: {
     );
 }
 
-/** Set a column's label with a control at the end of its row, such as a dial. */
+/** Set a column's label with a control after it, wrapped below when both do not fit. */
 export function LabelRow(properties: { children: JSX.Element; end: JSX.Element }) {
     return (
         <div {...style.attrs(styles.row)}>
@@ -58,10 +58,12 @@ export function LabelRow(properties: { children: JSX.Element; end: JSX.Element }
 const styles = style.create({
     row: {
         alignItems: "baseline",
+        columnGap: "0.75rem",
         display: "flex",
-        gap: "0.75rem",
+        flexWrap: "wrap",
         justifyContent: "space-between",
         minWidth: 0,
+        rowGap: "0.5rem",
     },
     start: {
         minWidth: 0,

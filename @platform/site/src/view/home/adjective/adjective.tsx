@@ -115,7 +115,7 @@ export function Adjective(properties: { isOpen: boolean }) {
                     <Label>
                         {properties.isOpen
                             ? "Your agent, in your space"
-                            : "Your agent, one connector per tool"}
+                            : "Your agent, with a connector per tool"}
                     </Label>
                 </LabelRow>
                 <AgentChat
