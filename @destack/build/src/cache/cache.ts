@@ -38,6 +38,8 @@ export class Identities {
     readonly #packages = new Map<string, Promise<PackageIdentity>>();
     /** The manifest digests of the Destack dependencies' builds, by package name. */
     readonly #builds: ReadonlyMap<string, string>;
+    /** The identity of the toolchain this process loaded, read once per process. */
+    static #toolchain: Promise<Digest> | undefined;
 
     /** Identify packages, Destack dependencies by their builds' manifests. */
     private constructor(
@@ -203,8 +205,15 @@ export class Identities {
         return directories.filter((directory) => directory !== undefined);
     }
 
-    /** Identify the toolchain running this compiler. */
-    async toolchain(): Promise<Digest> {
+    /** Identify the toolchain running this compiler, once per process as its code stays loaded. */
+    toolchain(): Promise<Digest> {
+        Identities.#toolchain ??= this.#identifyToolchain();
+
+        return Identities.#toolchain;
+    }
+
+    /** Identify the toolchain by its executable, else Bun, TypeScript and the compiler. */
+    async #identifyToolchain(): Promise<Digest> {
         // identify a standalone executable by its bytes
         if (this.environment.process.runtime.isStandalone) {
             return await Digest.json(
