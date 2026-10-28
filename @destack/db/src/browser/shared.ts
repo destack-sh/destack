@@ -3,7 +3,7 @@ import type { DatabaseEnvironment } from "../database/connection.ts";
 import { DriverValue } from "../table/column.ts";
 import { schema, Uuid } from "@destack/schema";
 import type * as declaration from "../declare/database.ts";
-import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
+import { typedChannel, type Channel } from "../channel/channel.ts";
 import type { Table } from "../table/table.ts";
 import { SqliteDatabase } from "../sqlite/database.ts";
 import { DatabaseError, errorCode } from "../error/error.ts";
@@ -12,7 +12,6 @@ import {
     type SqliteConnectionClient,
     type SqliteQueryClient,
 } from "../sqlite/client.ts";
-import { LOG_TOPIC } from "../log/schema.ts";
 import type { Model } from "../query/model.ts";
 
 /** The idle timeout of a party's transaction at the owner, in milliseconds. */
@@ -83,7 +82,14 @@ export const Message = schema.discriminatedUnion("kind", [
             })
             .exactOptional(),
     }),
-    Commit,
+    schema.object({
+        /** A message on one of the database's channels, such as its log or its tracker. */
+        kind: schema.literal("topic"),
+        /** The channel's name. */
+        topic: schema.string(),
+        /** The channel's message. */
+        message: schema.unknown(),
+    }),
     schema.object({
         /** An owner serving from now on. */
         kind: schema.literal("serving"),
@@ -391,28 +397,20 @@ export class SharedClient extends SharedQuery implements SqliteConnectionClient 
         super(new Party(channel, name));
     }
 
-    /** Open the log channel of commit announcements, refusing other channel names. */
-    static channel(channel: Channel<unknown>, name: string): Channel<unknown> {
-        if (name !== LOG_TOPIC) {
-            throw DatabaseError.of(
-                "CHANNEL_MISSING",
-                `a shared connection can only open its ${LOG_TOPIC} channel, not ${name}`,
-            );
-        }
-
-        // deliver the commits among the shared messages
+    /** Open one of the database's channels among the shared messages. */
+    static channel(channel: Channel<unknown>, topic: string): Channel<unknown> {
         const shared = typedChannel(channel, Message);
 
         return {
-            notify: (message) => channel.notify(message),
-            hear: (token) => channel.hear(token),
-            close: () => channel.close(),
+            notify: (message) => shared.notify({ kind: "topic", topic, message }),
+            delivery: (token) => shared.delivery(token),
+            close: () => shared.close(),
             listen: (listener) =>
                 shared.listen({
                     ...listener,
                     receive: (message) => {
-                        if (message.kind === "commit") {
-                            listener.receive(message);
+                        if (message.kind === "topic" && message.topic === topic) {
+                            listener.receive(message.message);
                         }
                     },
                 }),

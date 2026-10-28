@@ -151,10 +151,10 @@ await transaction.commit();
 
 ## Cached reads
 
-A read outside a SQL transaction is answered from memory until a commit writes one of its tables, once the connection hears every commit.
+A read outside a SQL transaction is answered from memory until a commit writes one of its tables, once the connection receives every commit.
 
 ```ts
-await database.log.listening(); // hear other writers' commits on the database's channel
+await database.log.listening(); // listen to other writers' commits on the database's channel
 await database.select().from(member); // reads the database
 await database.select().from(member); // answers from memory until a commit writes member
 ```

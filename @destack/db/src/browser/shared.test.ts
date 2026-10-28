@@ -2,7 +2,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, defineTable, eq, integer, text } from "../index.ts";
 import { connectBunSqlite } from "../bun/connection.ts";
 import { channelHub } from "../channel/channel.ts";
-import { connectShared, Party, serveDatabase } from "./shared.ts";
+import { connectShared, Party, serveDatabase, SharedClient } from "./shared.ts";
 import { testSimulation } from "@destack/test/world";
 
 /** Notes a party writes. */
@@ -21,7 +21,7 @@ test("run a party's statements and transactions on the owner's connection, notif
     const join = channelHub<unknown>();
     const owner = await connectBunSqlite(":memory:", [note], {
         environment: world,
-        openChannel: () => join(),
+        openChannel: (name) => SharedClient.channel(join(), name),
     });
     onTestFinished(() => owner.close());
     await owner.migrate([note]);

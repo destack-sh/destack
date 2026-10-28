@@ -239,7 +239,7 @@ test("announce a schema's commits on its channel alone, never to a database of a
     ]);
 });
 
-test("count a commit in flight until a watching connection hears it, though its writer never listens", async () => {
+test("count a commit in flight until a watching connection receives it, though its writer never listens", async () => {
     // write on one connection of a simulated world, and watch the log on another
     const simulation = testSimulation();
     const storage = await TestDatabase.create([note], {
@@ -276,11 +276,11 @@ test("count a commit in flight until a watching connection hears it, though its 
     );
     await simulation.run({ until: () => isSeen });
 
-    // leave the clock where it started, as the commit stays in flight until heard
+    // leave the clock where it started, as the commit stays in flight until delivered
     expect(simulation.clock.now()).toBe(Date.UTC(2026, 9, 1));
 });
 
-test("send a listening writer's commit token in its commit notification, counted in flight until heard, and none for a rolled back or unlogged transaction", async () => {
+test("send a listening writer's commit token in its commit notification, counted in flight until delivered, and none for a rolled back or unlogged transaction", async () => {
     // open a database on a simulated clock whose commit watch listens, and a second listener
     const simulation = testSimulation();
     const { clock } = simulation;
@@ -328,7 +328,7 @@ test("send a listening writer's commit token in its commit notification, counted
         })
         .parse(received[0]);
 
-    // hear one commit carrying its token, and wait for nothing else
+    // receive one commit carrying its token, and wait for nothing else
     expect({
         refused,
         received: [{ ...announced, token: UUID.test(announced.token) }, ...received.slice(1)],

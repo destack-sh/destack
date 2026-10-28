@@ -104,7 +104,7 @@ test("release the lock a party that only notified took to serve, once it closes 
     expect([held, released === undefined]).toEqual([undefined, false]);
 });
 
-test("keep hearing the channel when a listener starts as the last one stops", async () => {
+test("keep listening on the channel when a listener starts as the last one stops", async () => {
     // stop the serving party's only listener and start another in the same turn
     const directory = await HOST.files.makeTemporaryDirectory("destack-socket-");
     onTestFinished(() => HOST.files.remove(directory, { recursive: true }));

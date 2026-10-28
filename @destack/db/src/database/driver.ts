@@ -237,7 +237,7 @@ export class DatabaseDriver {
         cache: ReadCache<Row[]>,
         read: () => Promise<Row[]>,
     ): Promise<Row[]> {
-        // read from the database until the watch hears every commit, listening from the first read
+        // read from the database until the watch receives every commit, listening from the first read
         const { commits } = this.state;
         if (!commits.isComplete) {
             void commits.listen();

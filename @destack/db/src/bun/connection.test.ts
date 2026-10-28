@@ -61,7 +61,7 @@ test("wake a file's readers on a commit another process announces on the file's 
 
 test("read anew what an unannounced commit wrote, once a position read finds it in the log", async () => {
     // open a file twice: a reader on a channel, and a writer that announces nothing
-    const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-unheard-");
+    const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-undelivered-");
     onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
     const path = join(directory, "database.db");
     const hub = channelHub<unknown>();
@@ -82,7 +82,7 @@ test("read anew what an unannounced commit wrote, once a position read finds it 
                 .execute(),
         );
 
-    // hear commits, catch the position up once, then read the notes from the database
+    // listen to commits, catch the position up once, then read the notes from the database
     await reader.log.listening();
     await revise(1);
     await reader.log.position();
@@ -100,7 +100,7 @@ test("read anew what an unannounced commit wrote, once a position read finds it 
 
 test("rerun a transaction once over an unannounced commit to a row it read, then commit on the fresh row", async () => {
     // open a file twice: a reader on a channel, and a writer that announces nothing
-    const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-unheard-race-");
+    const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-undelivered-race-");
     onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
     const path = join(directory, "database.db");
     const hub = channelHub<unknown>();
@@ -114,7 +114,7 @@ test("rerun a transaction once over an unannounced commit to a row it read, then
     const writer = await connectBunSqlite(path, changeTables, { environment: HOST });
     onTestFinished(() => writer.close());
 
-    // store a note, hear commits, catch up, and read the position into memory
+    // store a note, listen to commits, catch up, and read the position into memory
     await reader.transaction((transaction) => transaction.insert(note).values(first).execute());
     await reader.log.listening();
     await reader.log.position();

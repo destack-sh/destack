@@ -6,8 +6,8 @@ export interface Channel<Message> {
     notify(message: Message): void;
     /** Receive other parties' messages until stopped. */
     listen(listener: ChannelListener<Message>): () => void;
-    /** Wait until every party listening in this process heard a commit with a token. */
-    readonly hear: (token: string) => Hearing;
+    /** Wait until a commit's token reaches every party listening in this process. */
+    readonly delivery: (token: string) => Delivery;
     /** Leave the channel, releasing what opening and joining it took. */
     readonly close: () => Promise<void>;
 }
@@ -25,15 +25,15 @@ export interface ChannelListener<Message> {
 }
 
 /** The wait for a commit's token to reach every party listening in a process. */
-export interface Hearing {
-    /** Settles once every listening party heard the token, or stopped listening. */
-    readonly heard: Promise<void>;
+export interface Delivery {
+    /** Settles once the token reached every listening party, or each stopped listening. */
+    readonly delivered: Promise<void>;
     /** Stop waiting, for a transaction whose commit sends no token. */
     readonly forget: () => void;
 }
 
-/** Hear a token at once, where a channel delivers inside the process before the commit returns. */
-export const HEARD: Hearing = { heard: Promise.resolve(), forget: () => {} };
+/** Deliver a token at once, where the channel delivers in process before the commit returns. */
+export const DELIVERED: Delivery = { delivered: Promise.resolve(), forget: () => {} };
 
 /** A commit announced on a database's channel. */
 export const Commit = schema.object({
@@ -43,7 +43,7 @@ export const Commit = schema.object({
     tables: schema.array(schema.string()),
     /** The log sequence the commit ends at, absent where its writer announces it unnumbered. */
     sequence: schema.number().int().exactOptional(),
-    /** The token of a committed transaction, which its own connection waits to hear. */
+    /** The token of a committed transaction, whose delivery its own connection waits for. */
     token: schema.string().exactOptional(),
 });
 /** A commit announced on a database's channel. */
@@ -56,7 +56,7 @@ export function typedChannel<Message>(
 ): Channel<Message> {
     return {
         notify: (value) => channel.notify(value),
-        hear: (token) => channel.hear(token),
+        delivery: (token) => channel.delivery(token),
         close: () => channel.close(),
         listen: (listener) =>
             channel.listen({
@@ -84,7 +84,7 @@ export function channelHub<Payload>(): () => Channel<Payload> {
         const local = new Set<(message: Payload) => void>();
 
         return {
-            hear: () => HEARD,
+            delivery: () => DELIVERED,
             notify: (message) => {
                 // deliver to every other party
                 for (const listener of listeners) {

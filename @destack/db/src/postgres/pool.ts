@@ -29,6 +29,8 @@ export interface PostgresReservation {
 export class PostgresPool {
     /** The connection listening for every database on the pool. */
     readonly listener: postgres.Sql;
+    /** The parties listening by channel name, with the tokens each waits to receive. */
+    readonly parties = new Map<string, Set<Map<string, () => void>>>();
     /** How long a reservation waits for an idle connection before failing, in milliseconds. */
     readonly #wait: number;
     /** The pool's connections. */

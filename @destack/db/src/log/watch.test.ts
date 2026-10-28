@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { type Channel, type Commit, HEARD } from "../channel/channel.ts";
+import { type Channel, type Commit, DELIVERED } from "../channel/channel.ts";
 import { CommitWatch } from "./watch.ts";
 
 test("announce a commit's tables the database leaves unannounced, nothing when it announces them all, and every table a script changed", () => {
@@ -8,7 +8,7 @@ test("announce a commit's tables the database leaves unannounced, nothing when i
     const channel: Channel<Commit> = {
         notify: (message) => announced.push(message),
         listen: () => () => undefined,
-        hear: () => HEARD,
+        delivery: () => DELIVERED,
         close: async () => {},
     };
     const watch = new CommitWatch(

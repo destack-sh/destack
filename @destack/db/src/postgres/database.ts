@@ -3,7 +3,7 @@ import type { DatabaseEnvironment } from "../database/connection.ts";
 import { errorCode } from "../error/error.ts";
 import { present, Uuid } from "@destack/schema";
 import { ConnectionState, DatabaseConnection, requireDistinct } from "../database/connection.ts";
-import type { Channel, ChannelListener, Hearing } from "../channel/channel.ts";
+import type { Channel, ChannelListener, Delivery } from "../channel/channel.ts";
 import { CHANNEL_PREFIX } from "../log/schema.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { PostgresSession } from "../database/session.ts";
@@ -113,9 +113,6 @@ export class PostgresDatabase<
     }
 }
 
-/** The parties listening in this process by channel name, with the tokens each waits to hear. */
-const listening = new Map<string, Set<Map<string, () => void>>>();
-
 /** Connect every party of a PostgreSQL notification channel with JSON messages. */
 export function postgresChannel(
     pool: PostgresPool,
@@ -170,20 +167,20 @@ export function postgresChannel(
 
             return () => track(stop());
         },
-        hear: (token) => hearEveryParty(name, token),
+        delivery: (token) => deliverToEveryParty(pool, name, token),
         close: async () => {
             await Promise.all(pending);
         },
     };
 }
 
-/** Wait until every party listening in this process on a channel heard a commit's token. */
-function hearEveryParty(name: Promise<string>, token: string): Hearing {
+/** Wait until a commit's token reaches every party listening on a channel through a pool. */
+function deliverToEveryParty(pool: PostgresPool, name: Promise<string>, token: string): Delivery {
     // expect the token at each party listening once the channel's name resolves
     const settlers = new Set<{ readonly parties: Map<string, () => void>; resolve: () => void }>();
     let isForgotten = false;
-    const heard = name.then(async (resolved) => {
-        const waits = [...(listening.get(resolved) ?? [])].map(
+    const delivered = name.then(async (resolved) => {
+        const waits = [...(pool.parties.get(resolved) ?? [])].map(
             (expected) =>
                 new Promise<void>((resolve) => {
                     if (isForgotten) {
@@ -198,7 +195,7 @@ function hearEveryParty(name: Promise<string>, token: string): Hearing {
     });
 
     return {
-        heard,
+        delivered,
         forget: () => {
             // settle and drop every expectation of a token no commit sends
             isForgotten = true;
@@ -239,21 +236,21 @@ function listenToChannel(
 
     // deliver each notification once listening, resuming on each reconnect
     const expected = new Map<string, () => void>();
-    const hearAll = () => {
+    const deliverAll = () => {
         for (const resolve of expected.values()) {
             resolve();
         }
         expected.clear();
     };
     const failing = (error: unknown) => {
-        // settle the token waits of a party that stopped hearing, then fail
-        hearAll();
+        // settle the token waits of a party that stopped listening, then fail
+        deliverAll();
         fail?.(error);
     };
     if (fail !== undefined) {
         failures.add(failing);
     }
-    const hearing = (message: unknown) => {
+    const deliver = (message: unknown) => {
         // deliver the message, then settle the wait for the commit's token
         receive(message);
         const token: unknown =
@@ -266,17 +263,17 @@ function listenToChannel(
         }
     };
     const subscription = name.then(async (resolved) => {
-        // listen, then hear tokens as a party of the channel
+        // listen, then receive tokens as a party of the channel
         const subscribed = await clock.trackHost(
-            pool.listener.listen(resolved, reassembler(resolved, party, hearing, clock), () => {
+            pool.listener.listen(resolved, reassembler(resolved, party, deliver, clock), () => {
                 // settle every token wait on a reconnect, which may have lost notifications
-                hearAll();
+                deliverAll();
                 resume?.();
             }),
         );
-        const parties = listening.get(resolved) ?? new Set();
+        const parties = pool.parties.get(resolved) ?? new Set();
         parties.add(expected);
-        listening.set(resolved, parties);
+        pool.parties.set(resolved, parties);
 
         return { subscribed, resolved };
     });
@@ -289,9 +286,9 @@ function listenToChannel(
 
         return subscription.then(
             ({ subscribed, resolved }) => {
-                // stop hearing tokens, settling the ones this party waited for
-                listening.get(resolved)?.delete(expected);
-                hearAll();
+                // stop receiving tokens, settling the ones this party waited for
+                pool.parties.get(resolved)?.delete(expected);
+                deliverAll();
 
                 return subscribed.unlisten().catch((error: unknown) => {
                     // count a closed connection as stopped, and fail on anything else

@@ -10,8 +10,8 @@ import { FullTextIndex } from "../search/search.ts";
 interface CommitToken {
     /** The token. */
     readonly value: string;
-    /** Settles once the writer's connection heard the token. */
-    readonly heard: Promise<void>;
+    /** Settles once the token reached the writer's connection. */
+    readonly delivered: Promise<void>;
     /** Whether the transaction wrote log rows, which makes its commit notify. */
     isLogged: Promise<boolean>;
 }
@@ -88,7 +88,7 @@ export class TransactionIdentity {
         this.#timed = undefined;
     }
 
-    /** Count a committed transaction's token in flight on the clock until it is heard. */
+    /** Count a committed transaction's token in flight on the clock until it is delivered. */
     commit(): void {
         // wait for the token of a transaction that logged, and forget one that logged nothing
         const token = this.#token;
@@ -96,11 +96,11 @@ export class TransactionIdentity {
             return;
         }
         const { commits } = this.#connection;
-        const heard = token.isLogged.then(
-            (isLogged) => (isLogged ? token.heard : commits.forget(token.value)),
+        const delivered = token.isLogged.then(
+            (isLogged) => (isLogged ? token.delivered : commits.forget(token.value)),
             () => commits.forget(token.value),
         );
-        void this.#connection.clock.trackHost(heard).catch(() => commits.forget(token.value));
+        void this.#connection.clock.trackHost(delivered).catch(() => commits.forget(token.value));
     }
 
     /** Stop waiting for the token of a transaction that rolled back. */
@@ -146,7 +146,7 @@ export class TransactionIdentity {
 
     /** Set PostgreSQL's transaction-local time, and the token while the connection listens. */
     #time(): Promise<unknown> {
-        // set the time alone without a listener to hear the token
+        // set the time alone without a listener to receive the token
         const time = String(this.#connection.clock.now());
         const { commits } = this.#connection;
         let timed: Promise<unknown>;
@@ -159,7 +159,11 @@ export class TransactionIdentity {
         // set the token beside the time, for the stamp trigger's commit notification to send
         else {
             const value = Uuid.v4(this.#connection.environment.random);
-            this.#token = { value, heard: commits.expect(value), isLogged: Promise.resolve(false) };
+            this.#token = {
+                value,
+                delivered: commits.expect(value),
+                isLogged: Promise.resolve(false),
+            };
             timed = this.#session.run("SELECT set_config($1, $2, true), set_config($3, $4, true)", [
                 CHANGED_AT_SETTING,
                 time,

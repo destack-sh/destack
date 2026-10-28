@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type { Environment, FileLock, Socket, SocketListener } from "@destack/environment";
-import { type Channel, type ChannelListener, HEARD, type Hearing } from "./channel.ts";
+import { type Channel, type ChannelListener, DELIVERED, type Delivery } from "./channel.ts";
 
 /** The hex digits of a path digest in its socket name, fitting macOS's 104-byte socket paths. */
 const NAME_DIGITS = 16;
@@ -68,9 +68,9 @@ class SocketChannel implements Channel<unknown> {
         this.#environment = environment;
     }
 
-    /** Hear a token at once, as this channel sends no commit tokens. */
-    hear(): Hearing {
-        return HEARD;
+    /** Deliver a token at once, as this channel sends no commit tokens. */
+    delivery(): Delivery {
+        return DELIVERED;
     }
 
     /** Leave the channel, releasing the served socket and its lock or the connection to it. */

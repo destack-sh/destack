@@ -1,4 +1,4 @@
-import { type Channel, type Commit, HEARD, type Hearing } from "../channel/channel.ts";
+import { type Channel, type Commit, DELIVERED, type Delivery } from "../channel/channel.ts";
 import type { LogPosition } from "./position.ts";
 import { LOG_TABLES } from "./schema.ts";
 
@@ -17,10 +17,10 @@ export class CommitWatch {
     readonly #unlogged: ReadonlySet<string>;
     /** The version each table's cached reads are valid at, by SQL name. */
     readonly #versions: Map<string, number>;
-    /** The latest version given, counting every commit heard and every expiry. */
+    /** The latest version given, counting every commit received and every expiry. */
     #version = 0;
-    /** Whether the watch hears other writers' commits: delivery started and has not failed. */
-    #isHearing = false;
+    /** Whether the watch receives other writers' commits: delivery started and has not failed. */
+    #isListening = false;
     /** The readers waiting for the next commit. */
     readonly #waiting = new Set<(failure?: unknown) => void>();
     /** The tables committed since each waiting reader's last check. */
@@ -29,7 +29,7 @@ export class CommitWatch {
     #stop?: () => Promise<void>;
     /** The failure that ended listening. */
     #failure?: { readonly error: unknown };
-    /** Settle once the watch hears other writers' commits or stops, failing as listening fails. */
+    /** Settle once the watch receives others' commits or stops, failing as listening fails. */
     readonly #listening: Promise<void>;
     /** Settle the listening wait. */
     readonly #settleListening: () => void;
@@ -39,10 +39,10 @@ export class CommitWatch {
     #sequence = 0;
     /** The latest position whose written tables a read of the log woke, absent before the first. */
     #caughtUp: Omit<LogPosition, "log"> | undefined;
-    /** The wakes since the watch began: each commit heard, delivery start and stop. */
+    /** The wakes since the watch began: each commit received, delivery start and stop. */
     #generation = 0;
     /** The waits for this connection's commit tokens to reach every listening party. */
-    readonly #hearings = new Map<string, Hearing>();
+    readonly #deliveries = new Map<string, Delivery>();
     /** The tokens of this connection's commits the channel has yet to deliver. */
     readonly #own = new Set<string>();
 
@@ -62,7 +62,7 @@ export class CommitWatch {
         // version every declared and log table from the watch's start
         this.#versions = new Map([...tables, ...LOG_TABLES].map((table) => [table, 0]));
 
-        // hear a sole writer's commits at once, and other writers' once listening
+        // receive a sole writer's commits at once, and other writers' once listening
         const { promise, resolve, reject } = Promise.withResolvers<void>();
         promise.catch(() => undefined);
         this.#listening = promise;
@@ -83,7 +83,7 @@ export class CommitWatch {
         return this.#caughtUp;
     }
 
-    /** The wakes since the watch began: each commit heard, delivery start and stop. */
+    /** The wakes since the watch began: each commit received, delivery start and stop. */
     get generation(): number {
         return this.#generation;
     }
@@ -93,12 +93,12 @@ export class CommitWatch {
         return this.#stop !== undefined;
     }
 
-    /** Whether the watch hears every commit: a sole writer's, or a channel's while delivered. */
+    /** Whether the watch receives every commit: a sole writer's, or a channel's while delivered. */
     get isComplete(): boolean {
-        return this.#channel === undefined || (this.#isHearing && this.#failure === undefined);
+        return this.#channel === undefined || (this.#isListening && this.#failure === undefined);
     }
 
-    /** Read the generation of the latest commit heard writing each of some versioned tables. */
+    /** Read the generation of the latest commit received writing each of some versioned tables. */
     versions(tables: readonly string[]): number[] {
         return tables.map((table) => {
             const version = this.#versions.get(table);
@@ -115,23 +115,23 @@ export class CommitWatch {
         return this.#versions.has(table);
     }
 
-    /** Wait until every party listening in this process heard a commit's token. */
+    /** Wait until a commit's token reaches every party listening in this process. */
     expect(token: string): Promise<void> {
-        // remember a token heard while listening as this connection's, then wait for every party
+        // remember a token received while listening as this connection's, then wait for every party
         if (this.isListening) {
             this.#own.add(token);
         }
-        const hearing = this.#channel?.hear(token) ?? HEARD;
-        this.#hearings.set(token, hearing);
+        const delivery = this.#channel?.delivery(token) ?? DELIVERED;
+        this.#deliveries.set(token, delivery);
 
-        return hearing.heard.finally(() => this.#hearings.delete(token));
+        return delivery.delivered.finally(() => this.#deliveries.delete(token));
     }
 
     /** Stop waiting for the token of a transaction that never commits. */
     forget(token: string): void {
         this.#own.delete(token);
-        this.#hearings.get(token)?.forget();
-        this.#hearings.delete(token);
+        this.#deliveries.get(token)?.forget();
+        this.#deliveries.delete(token);
     }
 
     /** Whether commits announce on a channel, which other connections listen to. */
@@ -146,7 +146,7 @@ export class CommitWatch {
 
     /** Wake a commit's readers here, and announce what the database leaves unannounced. */
     notify(tables: ReadonlySet<string>, scripted: ReadonlySet<string>): void {
-        // wake this connection's readers of every written table, which it hears before the channel does
+        // wake this connection's readers of every written table, which it knows before the channel delivers
         this.#wake([...tables]);
 
         // announce the tables the database leaves unannounced, and every table a script changed
@@ -162,7 +162,7 @@ export class CommitWatch {
     fail(error: unknown): void {
         // record the failure, end the listening wait and wake the readers
         this.#failure = { error };
-        this.#isHearing = false;
+        this.#isListening = false;
         this.#failListening(error);
         const waiting = [...this.#waiting];
         this.#waiting.clear();
@@ -181,7 +181,7 @@ export class CommitWatch {
         const committed = new Set(generation === this.#generation ? [] : this.#tables);
         this.#committed.add(committed);
         try {
-            // check first once the watch hears other writers' commits
+            // check first once the watch receives other writers' commits
             await this.#listened(signal);
             while (!signal.aborted) {
                 // refuse waiting on a channel that failed
@@ -215,7 +215,7 @@ export class CommitWatch {
         return false;
     }
 
-    /** Listen for other writers' commits once, settling once they are heard. */
+    /** Listen for other writers' commits once, settling once they arrive. */
     listen(): Promise<void> {
         // listen once a reader asks, so a connection without readers never listens
         if (this.#channel !== undefined) {
@@ -239,7 +239,7 @@ export class CommitWatch {
     async stop(): Promise<void> {
         // end the listening waits and wake every reader
         this.#settleListening();
-        this.#isHearing = false;
+        this.#isListening = false;
         this.#wake("every");
         await this.#stop?.();
         await this.#channel?.close();
@@ -349,8 +349,8 @@ export class CommitWatch {
                 }
             },
             resume: () => {
-                // hear from here on, and wake every reader, as a reconnect may have lost notifications
-                this.#isHearing = true;
+                // receive from here on, and wake every reader, as a reconnect may have lost notifications
+                this.#isListening = true;
                 this.#own.clear();
                 this.#settleListening();
                 this.#wake("every");
@@ -358,7 +358,7 @@ export class CommitWatch {
             fail: (error) => this.fail(error),
             pause: () => {
                 // stop trusting what readers stored until delivery resumes
-                this.#isHearing = false;
+                this.#isListening = false;
             },
         });
 
