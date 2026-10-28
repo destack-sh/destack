@@ -48,7 +48,7 @@ test("list on start only the activities whose notification is missing or planned
         async (transaction) =>
             await transaction
                 .update(table)
-                .set({ plannedAt: 0 })
+                .set({ plannedAt: present(mentioned, "bob's activity").occurredAt - 1 })
                 .where(
                     eq(table.id, nth(await transaction.select({ id: table.id }).from(table), 0).id),
                 ),

@@ -1,6 +1,7 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { Snapshot } from "@destack/db";
 import { message } from "@destack/message";
-import { journal } from "@destack/object";
+import { journal, QueriesParameters, Shape } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { Account, account } from "@destack/account/object";
 import { subjectContext } from "@destack/object/test";
@@ -42,15 +43,16 @@ test("replicate a person's activities from a space as the person, and none of th
 
     // read the first page of alice's activities as alice, then as bob
     const first = async (person: Subject) => {
-        const subscription = activityShape.subscription(
-            { scope: fixture.scope.spaceId, recipient: fixture.subject("alice").id },
+        const subscription = Shape.subscription(
+            fixture.scope.spaceId,
+            [{ shape: activityShape, keys: [{ recipient: fixture.subject("alice").id }] }],
             "space-019f5530-8000-7000-8000-0000000000aa",
             person,
         );
         const { environment } = fixture;
         const signal = environment.clock.timeout(RELAY_TIMEOUT);
         const pages = fixture.served.store.source.relayed(
-            subscription,
+            { ...subscription, revision: FOLLOWER_REVISION },
             subjectContext(person, fixture.scope.spaceId, { signal, environment }),
         );
         const read: Page[] = [];
@@ -129,16 +131,13 @@ test("follow the spaces of an account once the person owns it, and their activit
 
         const listed = subscriptions
             .map((entry) => entry.subscription)
-            .filter(
-                (subscription) =>
-                    subscription.name.startsWith("account-space:") ||
-                    subscription.name.startsWith("activity:"),
+            .filter((subscription) => subscription.name.startsWith("follow:"))
+            .flatMap((subscription) =>
+                Object.entries(QueriesParameters.parse(subscription.parameters).queries ?? {}).map(
+                    ([key, query]) => [key.split(":")[0], subscription.scope, query],
+                ),
             )
-            .map((subscription) => [
-                subscription.name.split(":")[0],
-                subscription.scope,
-                subscription.parameters,
-            ]);
+            .filter(([shape]) => shape === "account-space" || shape === "activity");
 
         return sorted(listed);
     };
@@ -162,7 +161,7 @@ test("follow the spaces of an account once the person owns it, and their activit
     const activities = (spaceId: string) => [
         "activity",
         spaceId,
-        { queries: { "0:activity": { object: "activity", where: { recipientId } } } },
+        { object: "activity", where: { recipientId } },
     ];
     const personal = Account.personal(recipientId);
     expect({ guest, owner }).toEqual({
@@ -181,11 +180,7 @@ function accountSpaces(accountId: string): unknown[] {
     return [
         "account-space",
         Scope.universe.id,
-        {
-            queries: {
-                "0:space": { object: "space", scopes: "every", where: { scope: accountId } },
-            },
-        },
+        { object: "space", scopes: "every", where: { scope: accountId } },
     ];
 }
 

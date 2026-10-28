@@ -19,7 +19,7 @@ import { MethodContext, PACKAGE_DECLARATION, PACKAGE_EXPORT } from "@destack/obj
 import { describePackage } from "@destack/object/inspect";
 import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
-import type { TestCaller, TestObjectStore } from "@destack/object/test";
+import { type TestCaller, TestObjectStore } from "@destack/object/test";
 import { Package } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
@@ -59,7 +59,7 @@ const GONE = 410;
 const DISPATCH_ROUNDS = 10;
 
 /** The time a jump runs before its target: two 10 s feed heartbeats, inside access's 30 s lag. */
-const CONFIRM_MILLISECONDS = 20_000;
+const CATCH_UP_MILLISECONDS = 20_000;
 
 /** The types a person's home serves, which calls address in the home. */
 const HOME_TYPES: ReadonlySet<string> = new Set([notification.name, summary.name, message.name]);
@@ -591,9 +591,18 @@ export class TestNotification implements AsyncDisposable {
             // settle each, and stop once a round moved no log
             const before = await this.#positions();
             await this.settle();
-            for (const home of await this.#served()) {
+            const homes = await this.#served();
+            for (const home of homes) {
                 await home.space.settle(home.served);
             }
+
+            // let every home's replicas of the space and of each other catch up to their sources
+            await this.space.simulation.settle(
+                TestObjectStore.settleReplicas([
+                    this.served.store,
+                    ...homes.map((home) => home.served.store),
+                ]),
+            );
             if ((await this.#positions()) === before) {
                 return;
             }
@@ -606,11 +615,11 @@ export class TestNotification implements AsyncDisposable {
         return this.reach(this.clock.now() + minutes * 60_000);
     }
 
-    /** Jump the world to a time, running its last moments so the follows confirm. */
+    /** Jump the world to a time, running its last moments so the follows catch up. */
     async reach(at: number): Promise<void> {
         // jump to a moment before the time, run the rest, then dispatch what fell due
-        const confirming = Math.max(this.clock.now(), at - CONFIRM_MILLISECONDS);
-        await this.space.simulation.jump(confirming);
+        const catchingUp = Math.max(this.clock.now(), at - CATCH_UP_MILLISECONDS);
+        await this.space.simulation.jump(catchingUp);
         await this.space.simulation.run({ to: at });
         await this.dispatch();
     }
