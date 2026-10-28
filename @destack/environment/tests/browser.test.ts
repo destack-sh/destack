@@ -73,10 +73,10 @@ test("emulate media, telling each listener of a query once its result changes", 
     // follow one query with two listeners
     await using simulation = new Simulation({ seed: 1, start: START });
     const { display } = new BrowserSimulation(simulation).environment("tab");
-    const heard: string[] = [];
+    const received: string[] = [];
     for (const name of ["first", "second"]) {
         const list = display.media("(prefers-color-scheme: dark)");
-        list.addEventListener("change", () => heard.push(`${name} ${list.matches}`));
+        list.addEventListener("change", () => received.push(`${name} ${list.matches}`));
     }
 
     // turn dark on twice, then off, and leave another query alone
@@ -84,7 +84,7 @@ test("emulate media, telling each listener of a query once its result changes", 
     display.emulate({ "(prefers-color-scheme: dark)": true, "(max-width: 640px)": false });
     display.emulate({ "(prefers-color-scheme: dark)": false });
 
-    expect([heard, display.media("(prefers-color-scheme: dark)").matches]).toEqual([
+    expect([received, display.media("(prefers-color-scheme: dark)").matches]).toEqual([
         ["first true", "second true", "first false", "second false"],
         false,
     ]);
@@ -180,13 +180,13 @@ test("broadcast copies of a message to every other open port of a channel, and p
     const browsers = new BrowserSimulation(simulation);
     const sender = browsers.environment("sender");
     const receiver = browsers.environment("receiver");
-    const heard: unknown[] = [];
+    const received: unknown[] = [];
     const sending = sender.broadcast.open("destack:space");
     const receiving = receiver.broadcast.open("destack:space");
     const other = receiver.broadcast.open("destack:other");
-    using _sent = sending.on((message) => heard.push(["sender", message]));
-    using _received = receiving.on((message) => heard.push(["receiver", message]));
-    using _other = other.on((message) => heard.push(["other", message]));
+    using _sent = sending.on((message) => received.push(["sender", message]));
+    using _received = receiving.on((message) => received.push(["receiver", message]));
+    using _other = other.on((message) => received.push(["other", message]));
 
     // send a message and change it after sending, then close the receiver before a delivery
     const message = { commit: 1 };
@@ -198,10 +198,10 @@ test("broadcast copies of a message to every other open port of a channel, and p
     await simulation.drive(Promise.resolve());
 
     expect({
-        heard,
+        received,
         persisted: await sender.storage.persist(),
         isPersisted: sender.storage.isPersisted,
-    }).toEqual({ heard: [["receiver", { commit: 1 }]], persisted: true, isPersisted: true });
+    }).toEqual({ received: [["receiver", { commit: 1 }]], persisted: true, isPersisted: true });
 });
 
 test("deliver a broadcast to every listener past one that throws, and report what it threw", async () => {
@@ -211,20 +211,20 @@ test("deliver a broadcast to every listener past one that throws, and report wha
     const sending = browsers.environment("sender").broadcast.open("destack:space");
     const failing = browsers.environment("failing").broadcast.open("destack:space");
     const listening = browsers.environment("listening").broadcast.open("destack:space");
-    const heard: unknown[] = [];
+    const received: unknown[] = [];
     using _failing = failing.on(() => {
         throw new Error("listener broke");
     });
-    using _listening = listening.on((message) => heard.push(message));
+    using _listening = listening.on((message) => received.push(message));
 
     // send once, and read what the delivery reported
     sending.send("commit");
     await simulation.drive(Promise.resolve());
 
     expect({
-        heard,
+        received,
         errors: browsers.broadcast.errors.map((error) =>
             error instanceof Error ? error.message : error,
         ),
-    }).toEqual({ heard: ["commit"], errors: ["listener broke"] });
+    }).toEqual({ received: ["commit"], errors: ["listener broke"] });
 });
