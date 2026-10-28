@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import type { Environment } from "@destack/environment";
 import { testSimulation } from "../src/test/index.ts";
 import type { CallableName, MethodOutput } from "../src/index.ts";
@@ -99,7 +100,7 @@ async function serveTasks(world: Environment) {
                 target: spaceId,
                 parameters: {},
             }),
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
         context,
     );

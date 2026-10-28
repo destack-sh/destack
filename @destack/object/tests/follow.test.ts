@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import {
@@ -1244,21 +1245,19 @@ test("replicate the chains of an installation's two served spaces in one replica
 
         return page.done === true ? undefined : page.value;
     };
-    const refused = await refusal(
-        first({ ...chains, revision: { log: "follower", epoch: "follower", sequence: 1 } }),
-    );
+    const refused = await refusal(first({ ...chains, revision: FOLLOWER_REVISION }));
     await grant(otherSpaceId, "replicator");
 
     // replicate both chains, and refuse a scope between outside them
     const page = present(
-        await first({ ...chains, revision: { log: "follower", epoch: "follower", sequence: 1 } }),
+        await first({ ...chains, revision: FOLLOWER_REVISION }),
         "the chains' first page",
     );
     const outside = await refusal(
         first({
             ...chains,
             parameters: { ...chains.parameters, between: [otherAccountId] },
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         }),
     );
     expect({
@@ -1338,7 +1337,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     });
     const first = async (): Promise<Page | undefined> => {
         const pages = source.source.relayed(
-            { ...request, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+            { ...request, revision: FOLLOWER_REVISION },
             subjectContext(subject, spaceId, { environment: world }),
         );
         const page = await pages.next();
@@ -1375,7 +1374,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
                                 between: [],
                             },
                         }),
-                        revision: { log: "follower", epoch: "follower", sequence: 1 },
+                        revision: FOLLOWER_REVISION,
                     },
                     subjectContext(subject, spaceId, { environment: world }),
                 )
@@ -1462,7 +1461,7 @@ test("replicate a partition's chain via its installation's space, whose source h
     });
     const first = async (): Promise<Page | undefined> => {
         const pages = source.source.relayed(
-            { ...request, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+            { ...request, revision: FOLLOWER_REVISION },
             subjectContext(subject, spaceId, { environment: world }),
         );
         const page = await pages.next();
@@ -1497,7 +1496,7 @@ test("replicate a partition's chain via its installation's space, whose source h
     const claimed = await refusal(
         source.source
             .relayed(
-                { ...claiming, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+                { ...claiming, revision: FOLLOWER_REVISION },
                 subjectContext(subject, spaceId, { environment: world }),
             )
             .next(),
@@ -2123,7 +2122,7 @@ test("replicate the chain of an account another replica brought first, once the 
                 {
                     ...residents,
                     ...from,
-                    revision: { log: "follower", epoch: "follower", sequence: 1 },
+                    revision: FOLLOWER_REVISION,
                 },
                 signal,
             ),
@@ -2131,7 +2130,7 @@ test("replicate the chain of an account another replica brought first, once the 
         {
             subscription: {
                 ...residents,
-                revision: { log: "follower", epoch: "follower", sequence: 1 },
+                revision: FOLLOWER_REVISION,
             },
             audience: replicating.source.queriesPublication.audience,
             synced: () => {},

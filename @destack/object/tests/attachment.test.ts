@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
 import { present, schema, type Identifier } from "@destack/schema";
 import { expect, refusal, onTestFinished, test } from "@destack/test";
@@ -277,7 +278,7 @@ test("attach remarks to articles and photos, counting them and deleting them wit
                     },
                 },
             }),
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
         context(),
     );

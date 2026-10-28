@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
 import { users, userName } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -595,7 +596,7 @@ test("resume a store stream from the last event it sent, at that page's position
         const controller = new AbortController();
         const options = lastEventId === undefined ? {} : { lastEventId };
         const pages = await store.stream(
-            { ...subscription, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+            { ...subscription, revision: FOLLOWER_REVISION },
             { signal: controller.signal, ...options },
         );
         for await (const page of pages) {
@@ -635,7 +636,7 @@ test("follow a caller's access rows on behalf of the caller itself as without a 
         scope: spaceId,
         target: spaceId,
         parameters: {},
-        revision: { log: "follower", epoch: "follower", sequence: 1 },
+        revision: FOLLOWER_REVISION,
     };
 
     // read the rows up to the first complete page, without a subject and with alice as it
@@ -689,7 +690,7 @@ test("restart a caller's access stream only on access changes concerning the cal
     const errors: unknown[] = [];
     const following = (async () => {
         for await (const page of await store.stream(
-            { ...subscription, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+            { ...subscription, revision: FOLLOWER_REVISION },
             { signal: controller.signal },
         )) {
             pages.push(page);

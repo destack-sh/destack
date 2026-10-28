@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import type { Page } from "@destack/sync";
@@ -123,7 +124,7 @@ test("share presence on a board across instances, guarded by access, gone after 
                         target: spaceId,
                         parameters: {},
                     }),
-                    revision: { log: "follower", epoch: "follower", sequence: 1 },
+                    revision: FOLLOWER_REVISION,
                 },
                 context(users.alice, world).context,
             );
@@ -520,7 +521,7 @@ async function serveBoards(world: Environment) {
                                 queries: { presences: { object: "presence" } },
                             },
                         }),
-                        revision: { log: "follower", epoch: "follower", sequence: 1 },
+                        revision: FOLLOWER_REVISION,
                     },
                     streamed,
                 );

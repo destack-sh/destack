@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
 import { users, userName } from "./fixture/user.ts";
 import { expect, expectTypeOf, onTestFinished, single, test } from "@destack/test";
@@ -109,7 +110,7 @@ test("follow a space's roles and the members bound to them as the owner defines 
                     },
                 },
             }),
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
         context,
     );

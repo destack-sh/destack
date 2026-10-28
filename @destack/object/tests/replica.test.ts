@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import {
@@ -133,7 +134,7 @@ test("refuse a follow whose caller's credential lapsed before its first page, fo
                 target: spaceId,
                 parameters: { queries: { mentions: { object: "mention" } } },
             }),
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
         context,
     );
@@ -211,7 +212,7 @@ test("list and follow the mentions a home has as replicas of another space, from
                 target: spaceId,
                 parameters: { queries: { mentions: { object: "mention" } } },
             }),
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
         subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
     );
@@ -331,7 +332,7 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     );
     const first = async (context: RequestContext) => {
         const pages = store.source.relayed(
-            { ...subscription, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+            { ...subscription, revision: FOLLOWER_REVISION },
             context,
         );
         const page = await pages.next();
@@ -435,7 +436,7 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
     };
     const first = async (context: RequestContext) => {
         const pages = store.source.relayed(
-            { ...subscription, revision: { log: "follower", epoch: "follower", sequence: 1 } },
+            { ...subscription, revision: FOLLOWER_REVISION },
             context,
         );
         const page = await pages.next();
@@ -492,12 +493,7 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
         alice,
     );
     const first = (context: RequestContext) =>
-        store.source
-            .relayed(
-                { ...subscription, revision: { log: "follower", epoch: "follower", sequence: 1 } },
-                context,
-            )
-            .next();
+        store.source.relayed({ ...subscription, revision: FOLLOWER_REVISION }, context).next();
     const anonymous = new RequestContext(new Request("https://test.local"), {
         audience: mention.package.id,
         scope: spaceId,
@@ -552,7 +548,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
             scope: spaceId,
             target: spaceId,
             parameters: { local: [] },
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
         subjectContext(spacePrincipal(spaceId), spaceId, {
             environment: world,
@@ -761,7 +757,7 @@ test("replicate only the rows a query's permission allows, drop a row once the f
                 target: spaceId,
                 parameters: { queries: { loans: loan.query({ permission: "use" }) } },
             }),
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
         subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
     );
@@ -804,7 +800,7 @@ test("replicate only the rows a query's permission allows, drop a row once the f
                         target: spaceId,
                         parameters: { queries: { loans: { object: "loan", permission: "lend" } } },
                     }),
-                    revision: { log: "follower", epoch: "follower", sequence: 1 },
+                    revision: FOLLOWER_REVISION,
                 },
                 subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
             )
@@ -856,7 +852,7 @@ test("answer a follow of a type the scope does not install with a complete page 
                 target: spaceId,
                 parameters: { queries: { activity: { object: "activity" } } },
             }),
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
         subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
     );
@@ -906,7 +902,7 @@ test("answer a query follow of a type the store does not serve with a complete p
                 target: spaceId,
                 parameters: { queries: { grants: { object: "grant", scopes: "every" } } },
             }),
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
         subjectContext(spacePrincipal(spaceId), spaceId, {
             environment: world,

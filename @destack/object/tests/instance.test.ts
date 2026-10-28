@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import type { Environment } from "@destack/environment";
 import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
@@ -42,7 +43,7 @@ test("follow the changes one instance writes through another instance on a separ
                     queries: { notebooks: { object: "notebook" } },
                 },
             }),
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
         context(controller.signal, world),
     );
