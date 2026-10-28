@@ -1,8 +1,8 @@
 import type { Clock } from "@destack/environment";
 import type { Alarm } from "@destack/db";
 
-/** How long an alarm runs the controllers at most: 10 minutes. */
-const ALARM_MILLISECONDS = 10 * 60_000;
+/** How long an alarm runs a Durable Object's controllers at most: 10 minutes. */
+export const ALARM_MILLISECONDS = 10 * 60_000;
 
 /** The members of a Durable Object's state a workload object uses. */
 export interface DurableObjectState {

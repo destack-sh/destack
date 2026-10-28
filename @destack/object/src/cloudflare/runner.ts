@@ -21,9 +21,6 @@ import {
     WorkloadStart,
 } from "../workload/index.ts";
 
-/** The export of a workerd output's workload entry with the class of its instances' objects. */
-export const WORKLOAD_EXPORT = "Workload";
-
 /** The path a partition's object posts its workload's start to. */
 export const START_PATH = "/.destack/start";
 

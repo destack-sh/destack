@@ -16,6 +16,9 @@ import type { Deriver } from "@destack/identity";
 import { type CallKey } from "../audit/key.ts";
 import type { Hibernation, SocketHandler } from "./socket.ts";
 
+/** The export of a server output's workload entry: the workload its runtime hosts. */
+export const WORKLOAD_EXPORT = "Workload";
+
 /** A declared unit of deployment. */
 export interface Workload extends Declaration {
     /** The compute settings of each instance. */

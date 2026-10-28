@@ -139,12 +139,8 @@ export async function runWorkload(
         runner.environment.files,
         runner.environment.crypto,
     );
-    await using workload = await WorkloadRunner.start(
-        runner,
-        start,
-        build,
-        (options) => startRunnerTelemetry(options, runner.environment),
-        (error) => host.stderr.writeSync(`workload failed: ${String(error)}\n`),
+    await using workload = await startWorkload(runner, start, build, (error) =>
+        host.stderr.writeSync(`workload failed: ${String(error)}\n`),
     );
 
     // serve the workload on the socket only its host can open
@@ -156,6 +152,22 @@ export async function runWorkload(
         close: () => workload.close(),
         ready: () => ready({}),
     });
+}
+
+/** Start a build's workload from its host's start, exporting its telemetry to the host. */
+export function startWorkload(
+    runner: RunnerOptions & { readonly environment: Environment<"process"> },
+    start: WorkloadStart,
+    build: BuildReader,
+    report: (error: unknown) => void,
+): Promise<WorkloadRunner> {
+    return WorkloadRunner.start(
+        runner,
+        start,
+        build,
+        (options) => startRunnerTelemetry(options, runner.environment),
+        report,
+    );
 }
 
 /** Start a runner's telemetry, reporting the runner process's CPU time to its host. */
