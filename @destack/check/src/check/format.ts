@@ -1,3 +1,4 @@
+import type { FileSystem } from "@destack/environment";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkConfiguration, formatConfiguration } from "./configuration.ts";
@@ -5,6 +6,14 @@ import type { CheckOptions } from "./index.ts";
 import { runTool, type ToolResult } from "./tool.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { CheckError } from "../error/index.ts";
+
+/** The files kept as written: migration snapshots, generated JSON Schemas, byte-exact fixtures. */
+const WRITTEN_AS_IS = [
+    "**/migration/**/snapshot.json",
+    "**/schemas/*.json",
+    "**/fixture/**/source/**",
+    "**/fixture/**/expected/**",
+] as const;
 
 /** The longest the formatter runs, in milliseconds, far above formatting a scope's sources. */
 const FORMAT_TIMEOUT = 30_000;
@@ -39,19 +48,8 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
         // supply fixed formatting and include every selected file
         const configuration = join(temporary, "format.json");
         await files.writeTextFile(configuration, JSON.stringify(formatConfiguration));
-        // leave migration snapshots, generated JSON Schemas and byte-exact fixture files as written
-        const ignore = join(temporary, "ignore");
-        await files.writeTextFile(
-            ignore,
-            [
-                "**/migration/**/snapshot.json",
-                "**/schemas/*.json",
-                "**/fixture/**/source/**",
-                "**/fixture/**/expected/**",
-            ]
-                .map((pattern) => `${pattern}\n`)
-                .join(""),
-        );
+        // leave the files kept as written
+        const ignore = await writeIgnore(temporary, files);
 
         return await runTool(
             executable,
@@ -77,4 +75,12 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
     } finally {
         await files.remove(temporary, { recursive: true });
     }
+}
+
+/** Write the ignore file of the files kept as written into a directory, answering its path. */
+export async function writeIgnore(directory: string, files: FileSystem): Promise<string> {
+    const ignore = join(directory, "ignore");
+    await files.writeTextFile(ignore, WRITTEN_AS_IS.map((pattern) => `${pattern}\n`).join(""));
+
+    return ignore;
 }

@@ -1,6 +1,7 @@
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Environment, FileSystem } from "@destack/environment";
+import { writeIgnore } from "./format.ts";
 import { readExpectations, applyExpectations } from "./expectation.ts";
 import {
     checkConfiguration,
@@ -177,6 +178,7 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
             builtin: Toolchain.lint(process),
         });
         await files.writeTextFile(configuration, JSON.stringify(lint));
+        const ignore = await writeIgnore(temporary, files);
 
         // run the checker against the selected source
         const output = await runTool(
@@ -185,7 +187,8 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
                 "--config",
                 configuration,
                 "--disable-nested-config",
-                "--no-ignore",
+                "--ignore-path",
+                ignore,
                 "--format",
                 "json",
                 ...(fix ? ["--fix"] : []),

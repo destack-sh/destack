@@ -19,6 +19,7 @@ const LANGUAGE = [
     "ESNext.Array",
     "ESNext.TypedArrays",
     "ES2025.Collection",
+    "ES2025.Promise",
     "ES2025.RegExp",
     "ESNext.Disposable",
 ];
