@@ -1,4 +1,5 @@
 import { type ErrorFamily, type ReasonDeclarations, ReasonDescription } from "@destack/error";
+import { isContractProcedure } from "@orpc/contract";
 import type { Table } from "@destack/db";
 import { DeclarationName, ModuleMetadata, PACKAGE, Package, PackageError } from "@destack/package";
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
@@ -149,6 +150,27 @@ export const PackageHandle = {
         );
         if (overlap !== undefined) {
             throw PackageError.of("DEFINITION_INVALID", `adapter path ${overlap} overlaps another`);
+        }
+
+        // refuse an adapter answering below an object's routes, which would take its calls
+        const roots = new Set<string | undefined>();
+        const routers: ProcedureRouter[] = Object.values(objects).map(
+            (object) => object.procedures,
+        );
+        for (let router = routers.pop(); router !== undefined; router = routers.pop()) {
+            // take a procedure's first path segment, and walk a nested router
+            if (isContractProcedure(router)) {
+                roots.add(router["~orpc"].route.path?.split("/")[1]);
+            } else {
+                routers.push(...Object.values(router));
+            }
+        }
+        const shadowing = paths.find((path) => roots.has(path.split("/")[1]));
+        if (shadowing !== undefined) {
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `adapter path ${shadowing} overlaps an object's routes`,
+            );
         }
 
         // route the objects' procedures on first use, which spares a package's import the work

@@ -91,6 +91,22 @@ test("refuse adapters at an empty path, and adapters at or below another's path"
     ]);
 });
 
+test("refuse an adapter at an object's routes, which would take its calls", async () => {
+    const routed = {
+        ...note,
+        procedures: { create: create.route({ method: "POST", path: "/notes" }) },
+    };
+    const notes = defineAdapter("notes", { path: "/notes" });
+
+    expect(
+        await refusal(() => definePackage({ objects: { note: routed }, adapters: { notes } })),
+    ).toEqual([
+        "BAD_REQUEST",
+        "DEFINITION_INVALID",
+        "adapter path /notes overlaps an object's routes",
+    ]);
+});
+
 test("refuse a declaration listed under another name, and a name taken twice", async () => {
     const npm = defineAdapter("npm", { path: "/npm" });
 
