@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "@destack/object/test";
 import objectPackage from "@destack/object/package";
 import {
@@ -142,16 +143,17 @@ function move(
 /** Read the machine rows a machine replicates of the directory, with their statuses. */
 async function machines(copier: TestCaller): Promise<unknown[][]> {
     const controller = new AbortController();
-    const pages = await copier
-        .client(accountPackage)
-        .store.stream(
-            Shape.subscription(
+    const pages = await copier.client(accountPackage).store.stream(
+        {
+            ...Shape.subscription(
                 Scope.universe.id,
                 [{ shape: directoryShape, keys: [{}] }],
                 copier.subject.id,
             ),
-            { signal: controller.signal },
-        );
+            revision: FOLLOWER_REVISION,
+        },
+        { signal: controller.signal },
+    );
     const page = await firstPage(pages);
     controller.abort();
 
@@ -232,16 +234,19 @@ function claims(caller: TestCaller): ClaimLookup {
 async function assignments(caller: TestCaller): Promise<unknown[]> {
     const controller = new AbortController();
     const pages = await caller.client(accountPackage).store.stream(
-        Shape.subscription(
-            Scope.universe.id,
-            [
-                {
-                    shape: machineShape,
-                    keys: [{ machine: schema.identifier("machine").parse(caller.subject.id) }],
-                },
-            ],
-            caller.subject.id,
-        ),
+        {
+            ...Shape.subscription(
+                Scope.universe.id,
+                [
+                    {
+                        shape: machineShape,
+                        keys: [{ machine: schema.identifier("machine").parse(caller.subject.id) }],
+                    },
+                ],
+                caller.subject.id,
+            ),
+            revision: FOLLOWER_REVISION,
+        },
         { signal: controller.signal },
     );
     const page = await firstPage(pages);
@@ -350,6 +355,7 @@ test("store the account's row in the chain replica of a space storing accounts",
                     via: [],
                     between: [],
                 },
+                revision: FOLLOWER_REVISION,
             },
             { signal: following.signal },
         );
@@ -407,6 +413,7 @@ test("follow a machine's chain as a space of its account, and refuse a space of 
                         via: [],
                         between: [],
                     },
+                    revision: FOLLOWER_REVISION,
                 },
                 { signal: following.signal },
             );
@@ -460,6 +467,7 @@ test("follow a machine's chain via the universe as a machine of its account, and
                     via: [identity.machineId],
                     between: [accountId],
                 },
+                revision: FOLLOWER_REVISION,
             },
             { signal: following.signal },
         );

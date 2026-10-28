@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import accountPackage from "../src/package.ts";
 import {
     AccessContext,
@@ -90,7 +91,13 @@ async function replicas(caller: TestCaller, space: string, accountId: string): P
     const controller = new AbortController();
     const replicated = caller
         .client(accountPackage)
-        .store.stream(chain(space, accountId), { signal: controller.signal })
+        .store.stream(
+            {
+                ...chain(space, accountId),
+                revision: FOLLOWER_REVISION,
+            },
+            { signal: controller.signal },
+        )
         .then((pages) => firstPage(pages));
 
     return refusal(replicated).finally(() => controller.abort());
@@ -106,6 +113,7 @@ async function accounts(caller: TestCaller, space: string): Promise<string[]> {
             target: space,
             publication: QUERIES_PUBLICATION,
             parameters: { queries: { account: { object: ACCOUNT_TYPE.type, scopes: "every" } } },
+            revision: FOLLOWER_REVISION,
         },
         { signal: controller.signal },
     );

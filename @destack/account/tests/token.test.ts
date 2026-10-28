@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import objectPackage from "@destack/object/package";
 import { type GrantPermission, principal } from "@destack/access";
 import { Snapshot } from "@destack/db";
@@ -404,7 +405,7 @@ test("follow a space's chain at the universe as the space, through the tokens it
     const followed = fixture
         .as(spaceId)
         .client(accountPackage)
-        .store.stream(chain, { signal: controller.signal })
+        .store.stream({ ...chain, revision: FOLLOWER_REVISION }, { signal: controller.signal })
         .then((pages) => firstPage(pages));
 
     // answer its first page

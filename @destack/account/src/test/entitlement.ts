@@ -77,8 +77,8 @@ export const TestEntitlement = {
                 .onConflictDoNothing();
         });
 
-        // hear the replica's source, as its follow would
-        database.tracker.track(Replica.owner(name, scope));
+        // mark the replica live, as its follow would
+        Replica.mark(database, { name, scope }, { log: "test", epoch: "test", sequence: 1 });
 
         // replace the entitlement, a resource's under a test feature of its name
         const feature =

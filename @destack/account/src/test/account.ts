@@ -1,5 +1,6 @@
 import type { Environment, HostCapability } from "@destack/environment";
-import { eq, type DatabaseConnection, type Dialect, Snapshot } from "@destack/db";
+import { type DatabaseConnection, type Dialect, eq, Snapshot } from "@destack/db";
+import { MemoryBlobStorage } from "@destack/resource";
 import { type ImageIndex, TestDatabase, TestTemplate } from "@destack/db/test";
 import { Scope, Subject, RequestId } from "@destack/sync";
 import {
@@ -1196,6 +1197,7 @@ export class TestAccountStore implements AsyncDisposable {
         const base = (handle: (typeof UNIVERSE_PACKAGES)[number]) =>
             Installation.base(Scope.universe, handle, environment.crypto);
         const store = new ObjectStore({
+            blobs: new MemoryBlobStorage(environment.crypto),
             servers: [
                 objectServer.at(await base(objectPackage)),
                 accountServer({

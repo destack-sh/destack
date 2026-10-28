@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { Shape } from "@destack/object";
 import accountPackage from "../src/package.ts";
 import { TABLE } from "@destack/db";
@@ -29,16 +30,17 @@ test("replicate every account of a residency to its cloud machine as it is creat
         controller.signal,
         fixture.clock.timeout(REPLICA_MILLISECONDS),
     ]);
-    const stream = await machine
-        .client(accountPackage)
-        .store.stream(
-            Shape.subscription(
+    const stream = await machine.client(accountPackage).store.stream(
+        {
+            ...Shape.subscription(
                 Scope.universe.id,
                 [{ shape: residentsShape, keys: [{ residency: "eu" }] }],
                 machine.subject.id,
             ),
-            { signal },
-        );
+            revision: FOLLOWER_REVISION,
+        },
+        { signal },
+    );
     const first = await firstPage(stream);
     const pages = stream[Symbol.asyncIterator]();
 
