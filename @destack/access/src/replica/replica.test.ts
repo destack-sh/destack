@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Snapshot, asc, eq, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
@@ -65,7 +66,7 @@ function chainOf(
         scope,
         target,
         parameters,
-        revision: { log: "follower", epoch: "follower", sequence: 1 },
+        revision: FOLLOWER_REVISION,
     };
 
     return {

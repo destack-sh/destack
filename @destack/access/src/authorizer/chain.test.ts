@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { TEST_START } from "@destack/test/world";
 import { SimulatedClock } from "@destack/environment/simulation";
 import { ChainParameters } from "./authorizer.ts";
@@ -378,7 +379,7 @@ function chainOf(
                 via: [...outside.via],
                 between: [...outside.between],
             },
-            revision: { log: "follower", epoch: "follower", sequence: 1 },
+            revision: FOLLOWER_REVISION,
         },
     };
 }
