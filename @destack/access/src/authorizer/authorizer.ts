@@ -1,3 +1,4 @@
+import type { Authority } from "./authority.ts";
 import {
     sql,
     type Transaction,
@@ -1340,7 +1341,9 @@ export class Authorizer {
 
     /** Match one object in its scope if the caller has a permission directly or by a role above. */
     permits(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
-        return this.#compiler.permits(permission, target, access);
+        return this.#isStated(permission, target, access)
+            ? sql`true`
+            : this.#compiler.permits(permission, target, access);
     }
 
     /** Start reading the grants of rows in a scope chain from a snapshot, shared by all callers. */
@@ -1356,6 +1359,14 @@ export class Authorizer {
         access: Access,
         reader?: TupleReader,
     ): Promise<Decision> {
+        // allow a permission the caller's stated sets decide on the object without its row
+        if (this.#isStated(permission, target, access)) {
+            return {
+                isAllowed: true,
+                ...(access.until === undefined ? {} : { until: access.until }),
+            };
+        }
+
         // read the object, a scope whose object row lives elsewhere by its ancestry row
         const declared = this.requireMapping(target);
         const reading = reader ?? this.reader(snapshot, access.scopes);
@@ -1393,13 +1404,21 @@ export class Authorizer {
         access: Access,
         reader?: TupleReader,
     ): Promise<void> {
+        // leave the permissions the caller's stated sets decide on the object without its row
+        const undecided = permissions.filter(
+            (permission) => !this.#isStated(permission, target, access),
+        );
+        if (undecided.length === 0) {
+            return;
+        }
+
         // decide in memory when reads are cheap, the snapshot is past, layered or recorded, or the target is the universe
         const database = snapshot.database;
         const isUniverse =
             target.packageId === Scope.universe.packageId && target.type === Scope.universe.type;
         if (!snapshot.isLive || database.state.locality === "embedded" || isUniverse) {
             const read = reader ?? this.reader(snapshot, access.scopes);
-            for (const permission of permissions) {
+            for (const permission of undecided) {
                 const decision = await this.check(snapshot, permission, target, access, read);
                 if (!decision.isAllowed) {
                     await this.#refuse(snapshot, permission, target, access);
@@ -1410,7 +1429,7 @@ export class Authorizer {
         }
 
         // decide every permission as a column of a single row
-        const columns = permissions.map(
+        const columns = undecided.map(
             (permission, index) =>
                 sql`CASE WHEN ${this.permits(permission, target, access)} THEN 1 ELSE 0 END AS ${sql.identifier(`permitted_${index}`)}`,
         );
@@ -1424,9 +1443,45 @@ export class Authorizer {
         if (row === undefined) {
             throw new TypeError("the permission query returned no row");
         }
-        const denied = permissions.find((_, index) => Number(row[`permitted_${index}`]) !== 1);
+        const denied = undecided.find((_, index) => Number(row[`permitted_${index}`]) !== 1);
         if (denied) {
             await this.#refuse(snapshot, denied, target, access);
+        }
+    }
+
+    /** Decide whether the caller's stated sets grant a permission on an object, ungated and without its row. */
+    #isStated(permission: PermissionReference, target: ObjectReference, access: Access): boolean {
+        // decide declared permissions alone, leaving others to refuse on the row
+        const { permissions } = this.policy(permission).definition;
+
+        return (
+            Object.hasOwn(permissions, permission.name) &&
+            access.allows(permission, target.id) &&
+            access.blocked(permission) === undefined &&
+            Authorizer.#states(this.expression(permission), target, access.authority)
+        );
+    }
+
+    /** Decide whether an expression holds on an object by the subject sets an authority states. */
+    static #states(
+        expression: AccessExpression,
+        target: ObjectReference,
+        authority: Authority,
+    ): boolean {
+        // hold a relation the authority states on the object, any or every branch of a set
+        switch (expression.kind) {
+            case "relation":
+                return authority.isMember({ ...target, relation: expression.name });
+            case "union":
+                return expression.expressions.some((each) =>
+                    Authorizer.#states(each, target, authority),
+                );
+            case "intersection":
+                return expression.expressions.every((each) =>
+                    Authorizer.#states(each, target, authority),
+                );
+            default:
+                return false;
         }
     }
 

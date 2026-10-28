@@ -133,3 +133,42 @@ test("permit a package's installations in a note's scope as members of its set, 
         [false, []],
     ]);
 });
+
+test("decide a relation the caller states on an object without its row, and refuse a caller stating none", async () => {
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
+    const tables = [installationTable, noteTable, ...accessTables];
+    const storage = await TestDatabase.create(tables, { environment, isMigrated: true });
+    onTestFinished(() => storage.close());
+    const authorizer = new Authorizer([installed, note], mappings);
+
+    // state the note's owner set for one caller, the note's row stored nowhere here
+    const snapshot = Snapshot.live(storage.database);
+    const target = note.reference("space-1", "note-absent");
+    const read = note.permission("read");
+    const stating = {
+        ...caller(principal.space.reference(Scope.universe.id, "space-home")),
+        groups: [{ ...target, relation: "owner" }],
+    };
+    const plain = caller(principal.space.reference(Scope.universe.id, "space-other"));
+
+    // decide reading the note for each caller, by check and by require
+    const decided = await Promise.all(
+        [stating, plain].map(async (context) => {
+            const access = await authorizer.resolve(snapshot, "space-1", context);
+            const checked = await authorizer.check(snapshot, read, target, access);
+            const required = await authorizer.require(snapshot, [read], target, access).then(
+                () => "allowed",
+                (error: unknown) => (error instanceof Error ? error.message : String(error)),
+            );
+
+            return [checked.isAllowed, required];
+        }),
+    );
+
+    // allow the caller stating the owner set, refuse the other on the missing row
+    expect(decided).toEqual([
+        [true, "allowed"],
+        [false, "permission denied: read"],
+    ]);
+});

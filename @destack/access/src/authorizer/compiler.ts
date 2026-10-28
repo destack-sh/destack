@@ -833,23 +833,10 @@ export class Compiler {
 
     /** Match the subject in a field, or current relationships, for one relation. */
     #relation(name: string, mapping: TableMapping, source: Table, compilation: Compilation): SQL {
-        // read the relation and whether a field stores it
+        // read the relation, whether a field stores it, and the relation sets the authority states
         const relation = this.#authorizer.relation(mapping.policy, name);
         const field = mapping.relations[name];
-
-        // match the subject in a field
-        if (field) {
-            return this.#field(name, field, mapping, source, compilation.authority);
-        }
-
-        // match current relationships of subject types the relation accepts
-        const relationship = alias(
-            accessRelationship,
-            `access_relationship_${compilation.aliases.next++}`,
-        );
         const definition = mapping.policy.definition;
-
-        // match the relation sets of the authority
         const isHolding = compilation.authority.subjects.some(
             (subject) =>
                 subject.relation === name &&
@@ -865,6 +852,19 @@ export class Compiler {
                   relation: sql`${name}`,
               })
             : sql`false`;
+
+        // match the subject in a field, or a stated set
+        if (field) {
+            const matched = this.#field(name, field, mapping, source, compilation.authority);
+
+            return isHolding ? sql`(${matched} OR ${isMember})` : matched;
+        }
+
+        // match current relationships of subject types the relation accepts, or a stated set
+        const relationship = alias(
+            accessRelationship,
+            `access_relationship_${compilation.aliases.next++}`,
+        );
 
         return sql`(EXISTS (
             SELECT 1 FROM ${Compiler.#current(compilation)} AS ${relationship}

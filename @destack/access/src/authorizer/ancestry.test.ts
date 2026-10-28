@@ -64,7 +64,7 @@ test("decide a scope with no table here on its ancestry row, refusing terms that
     });
 });
 
-test("decide a scope whose object row lives elsewhere on its ancestry row, and refuse a scope with neither", async () => {
+test("decide a scope whose object row lives elsewhere on its ancestry row, and decide a scope with neither by its signed sets alone", async () => {
     // add the clubs' table, empty, beside the access tables
     await using simulation = testSimulation();
     const environment = simulation.environment("access");
@@ -83,10 +83,10 @@ test("decide a scope whose object row lives elsewhere on its ancestry row, and r
     };
     const authorizer = new Authorizer([club], [mapping]);
 
-    // refuse even a member while this database stores no row of the club
+    // let a member's signed set decide joining while this database stores no row of the club, refusing terms on its attributes
     const member = [carol, { ...chess, relation: "member" }];
     expect(await decide(authorizer, storage.database, member)).toEqual({
-        join: [false, false],
+        join: [true, true],
         visit: [false, false],
     });
     await new AccessFixture(storage.database, environment).replicateScope(chess, club);
