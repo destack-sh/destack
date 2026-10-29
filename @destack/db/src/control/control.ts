@@ -176,6 +176,8 @@ export class ControlLoop {
     readonly #leading = new Map<Controller, Promise<boolean>>();
     /** The keys waiting for another holder's lock, run again once it releases or stops. */
     readonly #waiting = new Map<Controller, Set<string>>();
+    /** The count of other holders' releases and stops, which a refused take compares. */
+    #releases = 0;
     /** The host's wake-up for the earliest due key. */
     readonly #alarm?: Alarm;
     /** The clock keys come due at. */
@@ -879,27 +881,32 @@ export class ControlLoop {
             return reconcile({ signal: stopped, changed });
         }
 
-        // mark the key waiting first, so a release while it takes the lock runs it again
+        // lead the controller, its keys sharing one take of its lock, counting the releases since
         const { controller, key } = work;
-        const waiting = this.#waiting.get(controller) ?? new Set();
-        this.#waiting.set(controller, waiting.add(key));
-
-        // lead the controller, its keys sharing one take of its lock
+        const releases = this.#releases;
         let leading = this.#leading.get(controller);
         if (leading === undefined) {
             leading = found(this.#locks, controller).take((instance) => tracker.isLive(instance));
             this.#leading.set(controller, leading);
         }
 
-        // wait for another holder's release, taking the lock afresh then
+        // run the key once the loop leads, else after another holder releases
         if (!(await leading)) {
             if (this.#leading.get(controller) === leading) {
                 this.#leading.delete(controller);
             }
+            // wait for the next release
+            if (this.#releases === releases) {
+                const waiting = this.#waiting.get(controller) ?? new Set();
+                this.#waiting.set(controller, waiting.add(key));
+            }
+            // take the lock again at once after a release during the take
+            else {
+                this.enqueue(controller, key);
+            }
 
             return undefined;
         }
-        waiting.delete(key);
 
         return reconcile({ signal: stopped, changed });
     }
@@ -950,6 +957,7 @@ export class ControlLoop {
 
     /** Run every waiting key again. */
     #requeueWaiting(): void {
+        this.#releases += 1;
         for (const [controller, keys] of this.#waiting) {
             for (const key of keys) {
                 this.enqueue(controller, key);
