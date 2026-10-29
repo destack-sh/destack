@@ -3,86 +3,53 @@ import { BuildError } from "../error/index.ts";
 
 /** Serialize an inspection value without implicit conversions or discarded values. */
 export function stringifyInspection(value: unknown, indent = 0): string {
-    checkValue(value, "$", new Set());
+    // refuse each non-JSON value as the serializer reaches it, by its path from the root
+    const paths = new Map<object, string>();
+    const replacer = function (this: object, key: string, raw: unknown): unknown {
+        // check the value at its path, and remember an object's path for its own values
+        const path = key === "" ? "$" : `${paths.get(this) ?? "$"}[${JSON.stringify(key)}]`;
+        checkValue(this, key, raw, path);
+        if (typeof raw === "object" && raw !== null) {
+            paths.set(raw, path);
+        }
 
-    return JSON.stringify(value, null, indent);
+        return raw;
+    };
+
+    // refuse cyclic values, which the serializer reports as a type error
+    try {
+        return JSON.stringify(value, replacer, indent);
+    } catch (error) {
+        if (error instanceof TypeError) {
+            throw BuildError.of("INSPECTION_FAILED", `cyclic inspection value: ${error.message}`);
+        }
+        throw error;
+    }
 }
 
-/** Require JSON values, allowing absent optional object properties. */
-function checkValue(value: unknown, path: string, ancestors: Set<object>): void {
-    // accept JSON scalars without conversion
-    if (value === null || typeof value === "string" || typeof value === "boolean") {
+/** Require a JSON value, allowing an absent optional object property. */
+function checkValue(holder: object, key: string, raw: unknown, path: string): void {
+    // accept JSON scalars without conversion, and an absent object property
+    const isElement = Array.isArray(holder);
+    if (raw === null || typeof raw === "string" || typeof raw === "boolean") {
+        return;
+    } else if (typeof raw === "number" && Number.isFinite(raw)) {
+        return;
+    } else if (raw === undefined && !isElement && key !== "") {
         return;
     }
-    if (typeof value === "number" && Number.isFinite(value)) {
-        return;
-    }
-    if (typeof value !== "object" || value === null) {
+    // refuse other scalars, holes and undefined elements
+    else if (typeof raw !== "object") {
         throw BuildError.of("INSPECTION_FAILED", `non-JSON inspection value at ${path}`);
     }
 
-    // reject objects with serialization behavior and cyclic references
-    const isArray = Array.isArray(value);
-    const prototype: unknown = Object.getPrototypeOf(value);
-    const plain: unknown = isArray ? Array.prototype : Object.prototype;
-    if (prototype !== plain && prototype !== null) {
+    // refuse objects with serialization behavior, and symbol keys
+    const prototype: unknown = Object.getPrototypeOf(raw);
+    const plain: unknown = Array.isArray(raw) ? Array.prototype : Object.prototype;
+    if ((prototype !== plain && prototype !== null) || Object.hasOwn(raw, "toJSON")) {
         throw BuildError.of("INSPECTION_FAILED", `non-JSON inspection object at ${path}`);
-    }
-    if (ancestors.has(value)) {
-        throw BuildError.of("INSPECTION_FAILED", `cyclic inspection value at ${path}`);
-    }
-    ancestors.add(value);
-
-    // examine descriptors without invoking getters or toJSON methods
-    const properties = Object.getOwnPropertyDescriptors(value);
-    for (const [key, property] of Object.entries(properties)) {
-        checkProperty(key, property, isArray ? value : undefined, path, ancestors);
-    }
-
-    // reject symbol keys, leaving non-enumerable object metadata outside the JSON document
-    for (const key of Object.getOwnPropertySymbols(value)) {
-        if (isArray || Object.prototype.propertyIsEnumerable.call(value, key)) {
-            throw BuildError.of(
-                "INSPECTION_FAILED",
-                `non-JSON inspection property at ${path}[${JSON.stringify(String(key))}]`,
-            );
-        }
-    }
-
-    // reject array holes, which JSON would replace with null
-    if (isArray && Object.keys(properties).length !== value.length + 1) {
-        throw BuildError.of("INSPECTION_FAILED", `sparse inspection array at ${path}`);
-    }
-    ancestors.delete(value);
-}
-
-/** Check one property of an inspection object or array, skipping absent optional fields. */
-function checkProperty(
-    key: string,
-    property: PropertyDescriptor,
-    array: readonly unknown[] | undefined,
-    path: string,
-    ancestors: Set<object>,
-): void {
-    // skip an array's length and an object's non-enumerable metadata
-    const location = `${path}[${JSON.stringify(key)}]`;
-    if (array !== undefined && key === "length") {
-        return;
-    } else if (array === undefined && property.enumerable !== true && key !== "toJSON") {
-        return;
-    }
-
-    // require a data property at an array index
-    if (!("value" in property)) {
-        throw BuildError.of("INSPECTION_FAILED", `non-JSON inspection property at ${location}`);
-    }
-    if (array !== undefined && (!/^(0|[1-9][0-9]*)$/u.test(key) || Number(key) >= array.length)) {
-        throw BuildError.of("INSPECTION_FAILED", `non-JSON array property at ${location}`);
-    }
-
-    // check a present value
-    if (array !== undefined || property.value !== undefined) {
-        checkValue(property.value, location, ancestors);
+    } else if (Object.getOwnPropertySymbols(raw).length > 0) {
+        throw BuildError.of("INSPECTION_FAILED", `non-JSON inspection property at ${path}`);
     }
 }
 

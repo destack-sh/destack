@@ -22,12 +22,17 @@ async function copyUnit(name: string, destination: string, files: FileSystem): P
     await copySource(source, destination, files);
 }
 
+/** List a build's files by path and digest. */
+async function digests(build: PackageBuild): Promise<string[][]> {
+    return (await build.reader.files()).map((file) => [file.path, file.digest]);
+}
+
 /** Report whether a built export is the greeting function. */
 function isGreeter(value: unknown): value is () => unknown {
     return typeof value === "function";
 }
 
-test("build a workspace's units on their dependencies' builds, restore every unit while unchanged, and rebuild the dependents of an edited unit", async () => {
+test("build a workspace's units on their dependencies' builds, restore every unit while unchanged, and relink the dependents of an edited unit", async () => {
     // lay out a workspace whose application links its library unit
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -112,11 +117,17 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     const before = previous?.kind === "destack" ? previous.manifest : "";
     const refused = `${LIBRARY} is required as two different builds: ${before} and ${edited.manifest}`;
 
+    // relink the application on the edited library: its files as they were, its pins anew
+    const relinked = {
+        files: JSON.stringify(await digests(rebuilt)) === JSON.stringify(await digests(built)),
+        manifest: JSON.stringify(rebuilt.manifest) === JSON.stringify(built.manifest),
+    };
+
     // expect the restored build to equal the first one, and the rebuilt one to greet anew
     expect({
         units: units.units.map((unit) => unit.name),
         restored: restored.manifest,
-        reused: restored.reused,
+        relinked,
         written: unchanged - stored,
         greetings,
         conflict: await conflict,
@@ -124,7 +135,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     }).toEqual({
         units: [LIBRARY, "@destack/build-unit-application-fixture"],
         restored: built.manifest,
-        reused: ["bun"],
+        relinked: { files: true, manifest: false },
         written: 0,
         greetings: [
             { name: "world", text: "hello world" },

@@ -86,6 +86,15 @@ export class PackageCopy implements AsyncDisposable {
         return await this.#compilers.use(this.source, (compiler) => compiler.build(options));
     }
 
+    /** Check the copy's outputs, their types and runtime globals, then build them. */
+    async check(
+        request: Omit<PackageBuildOptions, "directory" | "dependencies">,
+    ): Promise<PackageBuild> {
+        const options = { ...request, directory: this.source, dependencies: this.dependencies };
+
+        return await this.#compilers.use(this.source, (compiler) => compiler.check(options));
+    }
+
     /** Write a build into a directory with the builds its outputs import placed beside it. */
     async deploy(build: PackageBuild, destination: string): Promise<void> {
         // write the build, then place the builds its outputs record and link them into it

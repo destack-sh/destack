@@ -23,6 +23,9 @@ import { found, Text, type Version } from "@destack/schema";
 import { Catalog } from "@destack/locale";
 import { readCatalogs } from "../build/catalog.ts";
 
+/** A dynamic import, the one import whose source a module can compute. */
+const DYNAMIC_IMPORT = /\bimport\s*\(/u;
+
 /** The prefixes of virtual module identifiers, as Rollup and Vite give them. */
 const VIRTUAL_PREFIXES = ["\0", "virtual:"];
 
@@ -146,6 +149,7 @@ class DependencyRecorder {
     async parsed(
         id: string,
         runtimes: Runtime[] | undefined,
+        code: string,
         parse: () => ESTree.Program,
     ): Promise<void> {
         // record a virtual module, which has no package declaration on disk
@@ -180,7 +184,8 @@ class DependencyRecorder {
                 kind: "source",
                 path: `${local}${query}`,
                 ...(declared === undefined ? {} : { runtimes: declared }),
-                unresolvedImports: unresolvedImports(parse()),
+                // parse only a module with a dynamic import, the one place an import can be unresolved
+                unresolvedImports: DYNAMIC_IMPORT.test(code) ? unresolvedImports(parse()) : [],
             });
         }
         // record a dependency's module under its release
@@ -325,9 +330,14 @@ class DependencyRecorder {
         path: string,
         key: string,
     ): Promise<void> {
-        // match installed code to the resolver's release
+        // leave an installed npm package the output bundles, which no dependent reads as a release
         const resolution = this.resolutions[key] ?? this.resolutions[source.name];
-        if (resolution || path.split(sep).includes("node_modules")) {
+        const isInstalled = path.split(sep).includes("node_modules");
+        if (resolution === undefined && isInstalled && definition === undefined) {
+            return;
+        }
+        // match installed Destack code to the resolver's release
+        else if (resolution || isInstalled) {
             const release = this.#release(source, key, "unresolved bundled dependency");
             if (this.description.packages[key] === undefined && "id" in release.package) {
                 await this.#bundleCatalogs(source.directory, release.package.id);
@@ -477,7 +487,7 @@ export function dependencyPlugin(
     );
     const runtimes = new Map<string, Runtime[]>();
     const imports = new Map<string, ParsedImports>();
-    let root: string;
+    let root = project.directory;
 
     return {
         ...resolutionPlugin(project, resolutions, runtime, runtimes, recorder.resolver),
@@ -503,7 +513,10 @@ export function dependencyPlugin(
                     `parsed module has no source: ${module.id}`,
                 );
             }
-            await recorder.parsed(module.id, runtimes.get(module.id), () => this.parse(code));
+            const lang = moduleLanguage(module.id);
+            await recorder.parsed(module.id, runtimes.get(module.id), code, () =>
+                this.parse(code, lang === undefined ? {} : { lang }),
+            );
 
             // pass an export's runtimes on to the modules of its package it imports
             const inherited = runtimes.get(module.id);
@@ -578,37 +591,48 @@ export function resolutionPlugin(
                 if (resolved === null || resolved.external === true || !isAbsolute(resolved.id)) {
                     return resolved;
                 }
+                const selected =
+                    runtime && (environmentName(this) === "client" ? "browser" : runtime);
+                const entry = specifier === name ? "." : `.${specifier.slice(name.length)}`;
 
                 // require authored imports to appear in the package manifest
                 requireDeclared(source, importer, name);
 
-                // reject installed releases that differ from the host's selected dependencies
+                // reject installed Destack releases that differ from the host's selected builds
                 const path = modulePath(resolved.id);
                 const owner = await resolver.package(dirname(path));
-                requireSelected(source, dependencies, owner, name, path);
+                const declared = await resolver.definition(owner.directory);
+                requireSelected(source, dependencies, owner, declared !== undefined, path);
 
                 // enforce compatibility for the exact imported Destack export
-                const declared = await resolver.definition(owner.directory);
-                const entry = specifier === name ? "." : `.${specifier.slice(name.length)}`;
                 const required = declared && PackageDefinition.runtimes(declared, entry);
                 if (required) {
                     const previous = runtimes.get(resolved.id);
                     const narrowed = previous?.filter((candidate) => required.includes(candidate));
                     runtimes.set(resolved.id, narrowed ?? required);
                 }
-                const selected =
-                    runtime && (this.environment.name === "client" ? "browser" : runtime);
-                if (selected && required && !required.includes(selected)) {
-                    throw BuildError.of(
-                        "RUNTIME_MODULE_UNSUPPORTED",
-                        `unsupported ${selected} dependency: ${specifier}`,
-                    );
-                }
+                requireRuntime(declared, entry, selected, specifier);
 
                 return resolved;
             },
         },
     };
+}
+
+/** Require a Destack dependency's export to run on the runtime an output selects. */
+function requireRuntime(
+    declared: PackageDefinition | undefined,
+    entry: string,
+    selected: Runtime | undefined,
+    specifier: string,
+): void {
+    const required = declared && PackageDefinition.runtimes(declared, entry);
+    if (selected && required && !required.includes(selected)) {
+        throw BuildError.of(
+            "RUNTIME_MODULE_UNSUPPORTED",
+            `unsupported ${selected} dependency: ${specifier}`,
+        );
+    }
 }
 
 /** Require an authored import to be the package itself or a declared dependency. */
@@ -631,12 +655,12 @@ function requireDeclared(source: PackageSource, importer: string, name: string):
     }
 }
 
-/** Require an installed dependency to be the release the host selected. */
+/** Require an installed Destack dependency to be the build the host selected. */
 function requireSelected(
     source: PackageSource,
     dependencies: Readonly<Record<string, DependencyResolution>>,
     owner: PackageLocation,
-    name: string,
+    isDestack: boolean,
     path: string,
 ): void {
     // accept the package's modules
@@ -646,17 +670,17 @@ function requireSelected(
 
     // refuse a different release than the selected one
     const key = `${owner.name}@${owner.version}`;
-    const selected = dependencies[key] ?? dependencies[name];
+    const selected = dependencies[key] ?? dependencies[owner.name];
     if (selected) {
         if (selected.package.name !== owner.name || selected.package.version !== owner.version) {
             throw BuildError.of(
                 "DEPENDENCY_INVALID",
-                `dependency resolution differs from installation: ${name}`,
+                `dependency resolution differs from installation: ${owner.name}`,
             );
         }
     }
-    // refuse an installed release without a selection
-    else if (path.split(sep).includes("node_modules")) {
+    // refuse an installed Destack release without a selection
+    else if (isDestack && path.split(sep).includes("node_modules")) {
         throw BuildError.of("DEPENDENCY_UNRESOLVED", `unresolved installed dependency: ${key}`);
     }
 }
@@ -826,6 +850,22 @@ export function unresolvedImports(ast: ESTree.Program): string[] {
     }).visit(ast);
 
     return imports;
+}
+
+/** Read the name of a hook's Vite environment, absent under Rolldown, which has none. */
+function environmentName(context: object): unknown {
+    const environment: unknown = Reflect.get(context, "environment");
+
+    return typeof environment === "object" && environment !== null
+        ? Reflect.get(environment, "name")
+        : undefined;
+}
+
+/** Read the language a module's extension writes, absent for JavaScript. */
+function moduleLanguage(id: string): "ts" | "tsx" | "jsx" | undefined {
+    const extension = /\.([cm]?)(tsx?|jsx)(?:\?|$)/u.exec(id)?.[2];
+
+    return extension === "ts" || extension === "tsx" || extension === "jsx" ? extension : undefined;
 }
 
 /** Report whether a path is a file on disk, refusing any failure but a missing one. */

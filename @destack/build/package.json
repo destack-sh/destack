@@ -15,6 +15,7 @@
         ".": "./src/index.ts",
         "./error": "./src/error/index.ts",
         "./store": "./src/store/index.ts",
+        "./table": "./src/store/table.ts",
         "./test": "./src/test/index.ts"
     },
     "scripts": {

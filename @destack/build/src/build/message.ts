@@ -4,24 +4,27 @@ import { deserialize, serialize } from "node:v8";
 import { DependencyResolution, PackageName } from "@destack/package";
 import { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
-import { History } from "@destack/resource";
 import { Commit, Digest, schema, Version } from "@destack/schema";
 import { Failure } from "@destack/error";
 import { BuildError } from "../error/index.ts";
-import { CachedOutput, OutputKeys } from "../cache/entry.ts";
 import { ModuleOptions } from "./build.ts";
+import { EvaluatedDeclaration } from "../declaration/evaluation.ts";
 
 /** Completed compiler work. */
 export const BuildResult = schema.discriminatedUnion("kind", [
     schema.object({
-        kind: schema.literal("plan"),
-        /** The build's cache keys. */
-        keys: OutputKeys,
+        kind: schema.literal("build"),
+        /** The npm packages each output imports, which the host's link pins, by output. */
+        npm: schema.record(schema.string(), schema.array(schema.string())),
     }),
     schema.object({
-        kind: schema.literal("build"),
-        /** The requested outputs the build compiled, to cache under their keys. */
-        outputs: schema.record(schema.string(), CachedOutput),
+        kind: schema.literal("evaluate"),
+        /** The package's declarations, each with the module and export it has. */
+        declarations: schema.array(EvaluatedDeclaration),
+    }),
+    schema.object({
+        /** The package's outputs passed their type and runtime checks. */
+        kind: schema.literal("check"),
     }),
     schema.object({
         kind: schema.literal("inspect"),
@@ -32,11 +35,8 @@ export const BuildResult = schema.discriminatedUnion("kind", [
         kind: schema.literal("index"),
         /** The code of each module of the indexed package. */
         code: schema.array(graph.Document),
-    }),
-    schema.object({
-        kind: schema.literal("convert"),
-        /** The installed packages the converted modules import. */
-        imported: schema.array(schema.string()),
+        /** The module graph: each module's exports, declarations and edges. */
+        modules: schema.array(graph.Module),
     }),
 ]);
 /** Completed compiler work. */
@@ -84,8 +84,6 @@ export const RequestedBuild = schema.object({
     dependencies: schema.record(schema.string(), DependencyResolution).readonly(),
     /** The TypeScript configuration, absent for the package defaults. */
     configuration: schema.string().exactOptional(),
-    /** What the package has published, to plan the upgrade from. */
-    history: History.exactOptional(),
     /** The commit of the source directory, absent for a working tree with changes. */
     commit: Commit.exactOptional(),
     /** The versions the build releases its source packages at, by package name. */
@@ -100,31 +98,24 @@ export type RequestedBuild = schema.Infer<typeof RequestedBuild>;
 /** Work accepted by the isolated compiler. */
 export const BuildRequest = schema.discriminatedUnion("kind", [
     schema.object({
-        kind: schema.literal("plan"),
-        /** The build's options. */
-        options: RequestedBuild,
-    }),
-    schema.object({
         kind: schema.literal("build"),
-        /** The directory the build writes into, with the files of the reused outputs. */
+        /** The directory the build writes into. */
         destination: schema.string(),
         /** The build's options. */
         options: RequestedBuild,
-        /** The requested outputs to reuse instead of compiling them, by name. */
-        reuse: schema.record(schema.string(), CachedOutput),
+        /** The package's evaluated declarations. */
+        declarations: schema.array(EvaluatedDeclaration),
     }),
     schema.object({
-        kind: schema.literal("convert"),
-        /** The installed copy of the npm package. */
-        source: schema.string(),
-        /** The directory the converted copy is written into. */
-        destination: schema.string(),
-        /** The package's name. */
-        name: schema.string(),
-        /** The installed packages it requires. */
-        dependencies: schema.array(schema.string()),
-        /** The peers it declares. */
-        peers: schema.array(schema.string()),
+        kind: schema.literal("evaluate"),
+        /** The build's options. */
+        options: RequestedBuild,
+    }),
+    schema.object({
+        /** Check the outputs' types and the runtime globals their modules use. */
+        kind: schema.literal("check"),
+        /** The build's options. */
+        options: RequestedBuild,
     }),
     schema.object({
         kind: schema.enum(["inspect", "index"]),
@@ -177,6 +168,8 @@ export type CacheResponse = schema.Infer<typeof CacheResponse>;
 
 /** What the host sends the compiler: work, or the answer to a cache request. */
 export const HostMessage = schema.union([BuildRequest, CacheResponse]);
+/** What the host sends the compiler: work, or the answer to a cache request. */
+export type HostMessage = schema.Infer<typeof HostMessage>;
 
 /** What the compiler sends its host: a result, or a cache request. */
 export const CompilerMessage = schema.union([BuildResponse, CacheRequest]);
@@ -187,10 +180,10 @@ export interface MessageOutput {
     readonly write: (chunk: Uint8Array) => Promise<void> | void;
 }
 
-/** Read and parse length-prefixed messages from writeMessage without copying chunks. */
+/** Read length-prefixed messages from writeMessage without copying chunks. */
 export async function* readMessages<Message>(
     stream: AsyncIterable<Uint8Array>,
-    message: schema.Schema<Message>,
+    read: (value: unknown) => Message,
 ): AsyncGenerator<Message> {
     // read message headers and bodies from the stream
     let buffer = Buffer.allocUnsafe(HEADER_BYTES);
@@ -225,7 +218,7 @@ export async function* readMessages<Message>(
             }
             // release the complete payload before reading the next header
             else {
-                yield message.parse(deserialize(buffer));
+                yield read(deserialize(buffer));
                 buffer = Buffer.allocUnsafe(HEADER_BYTES);
                 isHeader = true;
             }

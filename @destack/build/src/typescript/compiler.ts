@@ -3,22 +3,14 @@ import type { Environment, FileSystem } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { API, type Diagnostic, type Project } from "typescript/unstable/async";
 import { Toolchain } from "@destack/check/toolchain";
-import { nth } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
-import { type InspectionDepth, TypeScriptInspection } from "./module.ts";
-import { isAuthored } from "../source/dependency.ts";
+import { TypeScriptInspection } from "./module.ts";
+import { isAuthored, linkDependencies } from "../source/dependency.ts";
+import { runtimeConditions, TYPE_CHECKS, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import type { PackageSource } from "../source/index.ts";
 
 /** This package's directory, whose dependencies include the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
-
-/** A compiler configuration as the compiler parses it. */
-export interface ParsedConfiguration {
-    /** The effective compiler options. */
-    readonly options: Readonly<Record<string, unknown>>;
-    /** The root files of the program, by absolute path. */
-    readonly files: readonly string[];
-}
 
 /** Retain TypeScript compiler state across inspections of one package. */
 export class TypeScriptCompiler implements AsyncDisposable {
@@ -28,12 +20,16 @@ export class TypeScriptCompiler implements AsyncDisposable {
     readonly #api: API;
     /** The files the configurations resolve through. */
     readonly #files: FileSystem;
+    /** The directory of the program configurations, linking the installed dependencies. */
+    readonly #configurations: string;
 
     /** Run the native compiler for a source package's real directory. */
-    private constructor(directory: string, api: API, files: FileSystem) {
+    private constructor(directory: string, api: API, files: FileSystem, configurations: string) {
+        // store the package, the compiler process and the configurations' directory
         this.directory = directory;
         this.#api = api;
         this.#files = files;
+        this.#configurations = configurations;
     }
 
     /** Start the native compiler for a source package. */
@@ -41,13 +37,19 @@ export class TypeScriptCompiler implements AsyncDisposable {
         directory: string,
         environment: Environment<"files" | "process" | "host">,
     ): Promise<TypeScriptCompiler> {
-        const real = await environment.files.realPath(directory);
+        // resolve explicit type packages from the same installation as authored modules
+        const { files } = environment;
+        const real = await files.realPath(directory);
+        const configurations = await files.makeTemporaryDirectory("destack-typescript-");
+        await linkDependencies(real, configurations, files);
+
+        // start the compiler process
         const api = new API({
             cwd: real,
             tsserverPath: TypeScriptCompiler.executable(environment),
         });
 
-        return new TypeScriptCompiler(real, api, environment.files);
+        return new TypeScriptCompiler(real, api, files, configurations);
     }
 
     /** Find this platform's native TypeScript compiler among the tools. */
@@ -60,47 +62,28 @@ export class TypeScriptCompiler implements AsyncDisposable {
         return join(directory, "lib", "tsc");
     }
 
-    /** Inspect programs to a depth: check them at once, then read the first and the rest. */
-    async inspect(
-        programs: readonly Pick<
-            PackageSource,
-            "configuration" | "entries" | "directory" | "versions" | "environment"
-        >[],
-        depth: InspectionDepth,
-    ): Promise<TypeScriptInspection[]> {
-        return await this.#read(
-            programs.map((program) => program.configuration),
-            async (projects) => {
-                // check every program's configuration and authored modules at once
-                const diagnostics = (
-                    await Promise.all(projects.map((project) => this.#check(project)))
-                ).flat();
-                if (diagnostics.length) {
-                    throw BuildError.of(
-                        "INSPECTION_FAILED",
-                        `the TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
-                    );
-                }
+    /** Check a package's whole program, then read its modules and every symbol they lead to. */
+    async inspect(source: PackageSource): Promise<TypeScriptInspection> {
+        return await this.#read(await this.#configure(source), async (project) => {
+            // check the configuration and the authored modules
+            const diagnostics = await this.#check(project);
+            if (diagnostics.length) {
+                throw BuildError.of(
+                    "INSPECTION_FAILED",
+                    `the TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
+                );
+            }
 
-                // read the first program, then the others beside it
-                const [first, ...rest] = programs.map((program, index) => ({
-                    program,
-                    project: nth(projects, index),
-                }));
-                if (first === undefined) {
-                    return [];
-                }
-                const describing = TypeScriptInspection.read(first.project, first.program, depth);
-                const [described, ...others] = await Promise.all([
-                    describing,
-                    ...rest.map(({ program, project }) =>
-                        TypeScriptInspection.read(project, program, depth, describing),
-                    ),
-                ]);
+            return await TypeScriptInspection.read(project, source);
+        });
+    }
 
-                return [described, ...others];
-            },
-        );
+    /** Write a source's program configuration at one stable path per runtime. */
+    async #configure(source: PackageSource): Promise<string> {
+        const path = join(this.#configurations, `${source.runtime}.json`);
+        await this.#files.writeTextFile(path, JSON.stringify(programSettings(source)));
+
+        return path;
     }
 
     /** Collect a program's configuration diagnostics and its authored modules' diagnostics. */
@@ -122,25 +105,13 @@ export class TypeScriptCompiler implements AsyncDisposable {
         ).flat();
     }
 
-    /** Parse a configuration into options and root files, without loading its program. */
-    async configure(configuration: string): Promise<ParsedConfiguration> {
-        const path = await this.#files.realPath(resolve(this.directory, configuration));
-        const parsed = await this.#api.parseConfigFile(path);
-
-        return { options: parsed.options, files: parsed.fileNames };
-    }
-
-    /** Read configurations' projects from one fresh snapshot, then release the snapshot. */
+    /** Read a configuration's project from one fresh snapshot, then release the snapshot. */
     async #read<Result>(
-        configurations: readonly string[],
-        read: (projects: Project[]) => Promise<Result>,
+        configuration: string,
+        read: (project: Project) => Promise<Result>,
     ): Promise<Result> {
-        // refresh the selected configurations
-        const paths = await Promise.all(
-            configurations.map((configuration) =>
-                this.#files.realPath(resolve(this.directory, configuration)),
-            ),
-        );
+        // refresh the configuration
+        const path = await this.#files.realPath(configuration);
 
         // refresh client ASTs while the native compiler retains incremental project state
         this.#api.clearSourceFileCache();
@@ -151,25 +122,21 @@ export class TypeScriptCompiler implements AsyncDisposable {
 
         // reread configured include patterns so added and removed modules change the lists
         const snapshot = await this.#api.updateSnapshot({
-            openProjects: paths,
-            fileChanges: { changed: paths },
+            openProjects: [path],
+            fileChanges: { changed: [path] },
         });
 
-        // read the requested compiler projects and release the snapshot
+        // read the compiler project and release the snapshot
         try {
-            const projects = paths.map((path) => {
-                const project = snapshot.getProject(path);
-                if (!project) {
-                    throw BuildError.of(
-                        "INSPECTION_FAILED",
-                        `the TypeScript compiler did not load ${path}`,
-                    );
-                }
+            const project = snapshot.getProject(path);
+            if (!project) {
+                throw BuildError.of(
+                    "INSPECTION_FAILED",
+                    `the TypeScript compiler did not load ${path}`,
+                );
+            }
 
-                return project;
-            });
-
-            return await read(projects);
+            return await read(project);
         } finally {
             await snapshot.dispose();
         }
@@ -177,6 +144,46 @@ export class TypeScriptCompiler implements AsyncDisposable {
 
     /** Close the compiler and release retained projects. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await this.#api.close();
+        try {
+            await this.#api.close();
+        } finally {
+            await this.#files.remove(this.#configurations, { recursive: true });
+        }
+    }
+}
+
+/** Extend the authored or default configuration with the runtime, checks and dependency builds. */
+function programSettings(source: PackageSource): object {
+    // resolve the runtime's conditions and the dependencies' builds from the root modules
+    const conditions = runtimeConditions(source.runtime);
+    const paths = source.tree.paths();
+    const files = source.entries;
+
+    // extend the authored configuration with the standard type checks
+    if (source.configuration !== undefined) {
+        return {
+            extends: source.configuration,
+            compilerOptions: { ...TYPE_CHECKS, customConditions: conditions, paths },
+            files,
+        };
+    }
+    // check the package's sources and tests with the default options
+    else {
+        return {
+            compilerOptions: {
+                ...TYPESCRIPT_OPTIONS,
+                jsx: "preserve",
+                jsxImportSource: "@destack/view",
+                customConditions: conditions,
+                paths,
+            },
+            files,
+            include: [
+                resolve(source.directory, "src/**/*.ts"),
+                resolve(source.directory, "src/**/*.tsx"),
+                resolve(source.directory, "test/**/*.test.ts"),
+                resolve(source.directory, "tests/**/*.test.ts"),
+            ],
+        };
     }
 }

@@ -4,7 +4,8 @@ import { test } from "@destack/test";
 import { join } from "node:path";
 import { graph } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
+import type { PackageBuild } from "../src/build/index.ts";
 import { Fixture } from "./fixture.ts";
 import * as library from "./fixture/library/request.ts";
 
@@ -117,7 +118,12 @@ async function writeCards(source: string, files: FileSystem): Promise<void> {
     await files.writeTextFile(join(source, "src/card.example.ts"), CARD_EXAMPLES);
 }
 
-test.concurrent("reuse the graph file of each module an edit leaves unchanged", async ({
+/** Read a build's file digests by path. */
+async function digests(build: PackageBuild): Promise<Map<string, string>> {
+    return new Map((await build.reader.files()).map((file) => [file.path, file.digest]));
+}
+
+test.concurrent("keep each output module an edit leaves unchanged byte for byte", async ({
     expect,
 }) => {
     // build the library, then reorder a function body in one module and build again
@@ -134,20 +140,18 @@ test.concurrent("reuse the graph file of each module an edit leaves unchanged", 
     );
     await using after = await input.build(library.request);
 
-    // leave the untouched module's file byte for byte, and change the edited module's file and the root
-    const [first, second] = await Promise.all([before.reader.graph(), after.reader.graph()]);
-    const index = await files.readTextFile(
-        join(after.directory, `graph/${second.modules["src/index.ts"]}.json`),
-    );
-    const previous = await files.readTextFile(
-        join(before.directory, `graph/${first.modules["src/index.ts"]}.json`),
-    );
+    // leave the untouched module's output file as it was, and change the edited module's
+    const [first, second] = await Promise.all([digests(before), digests(after)]);
+    const module = (path: string) =>
+        present(
+            [...second.keys()].find((each) => each.startsWith("output/") && each.endsWith(path)),
+            `the output module ${path}`,
+        );
+    const [index, edited] = [module("/index.js"), module("/note.js")];
     expect([
-        second.modules["src/index.ts"] === first.modules["src/index.ts"],
-        second.modules["src/note.ts"] === first.modules["src/note.ts"],
-        after.manifest.lists.graph.digest === before.manifest.lists.graph.digest,
-        index === previous,
-    ]).toEqual([true, false, false, true]);
+        second.get(index) === first.get(index),
+        second.get(edited) === first.get(edited),
+    ]).toEqual([true, false]);
 });
 
 test.concurrent("declare each test in its module's graph, and index the package symbols it calls as covered", async ({
@@ -175,18 +179,13 @@ describe("note", () => {
 });
 `,
     );
-    await using build = await input.build(library.request);
-    const code = await input.index();
+    const { code, modules } = await input.index();
 
-    // read the test module's declarations from the build, and its symbols and the edges from its test from the code index
+    // read the test module's declarations, its symbols and the edges from its test from the index
     const indexed = code.find((each) => each.path === "src/note.test.ts");
-    const root = await build.reader.graph();
-    const module = graph.Module.parse(
-        JSON.parse(
-            await files.readTextFile(
-                join(build.directory, `graph/${root.modules["src/note.test.ts"]}.json`),
-            ),
-        ),
+    const module = present(
+        modules.find((each) => each.path === "src/note.test.ts"),
+        "the test module's graph",
     );
     const registered = module.declarations.find((declaration) => declaration.kind === "test");
     expect({
@@ -231,15 +230,12 @@ test.concurrent("declare each example showing its symbol with controls and the p
     await using input = await Fixture.open("library", environment);
     await writeCards(input.source, files);
     await using build = await input.build(library.request);
+    const { modules } = await input.index();
 
     // read the example module's declarations and edges, with monikers within the package
-    const root = await build.reader.graph();
-    const module = graph.Module.parse(
-        JSON.parse(
-            await files.readTextFile(
-                join(build.directory, `graph/${root.modules["src/card.example.ts"]}.json`),
-            ),
-        ),
+    const module = present(
+        modules.find((each) => each.path === "src/card.example.ts"),
+        "the example module's graph",
     );
     const loud = module.declarations.find((declaration) => declaration.kind === "example");
     expect({

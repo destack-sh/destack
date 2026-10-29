@@ -6,21 +6,19 @@ import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
 import { Toolchain } from "@destack/check/toolchain";
 import { FamilyError } from "@destack/error";
+import type { EvaluatedDeclaration } from "../declaration/evaluation.ts";
 import { BuildError } from "../error/index.ts";
 import { locateWorkspace } from "@destack/check/workspace";
 import { present } from "@destack/schema";
 import { PackageFile } from "@destack/package/file";
-import type { OutputKeys, CacheEntry, CachedOutput } from "../cache/index.ts";
-import type { PackageStore } from "../store/index.ts";
 import type { LocalPackageStore } from "../store/local.ts";
 import type { PackageBuildOptions } from "./build.ts";
 import { DependencyTree } from "../dependency/tree.ts";
-import {
-    type NpmConversionRequest,
-    type NpmConverter,
-    type NpmDependency,
-    NpmUnit,
-} from "../dependency/npm.ts";
+import { readLockedReleases, readLockfile } from "../source/index.ts";
+import { Identities } from "../cache/index.ts";
+import { PackageLocator } from "@destack/package/locator";
+import type { Runtime } from "@destack/package/runtime";
+import { type NpmDependency, NpmInstallation, NpmUnit } from "../dependency/npm.ts";
 import { PackageBuild } from "./build.ts";
 import {
     type BuildRequest,
@@ -33,8 +31,17 @@ import {
     writeMessage,
 } from "./message.ts";
 import type { InspectOptions } from "../inspection/inspection.ts";
-import type { PackageManifest } from "@destack/package/manifest";
-import { BuildReader } from "@destack/package/manifest";
+import { BuildReader, BuildWriter, Once } from "@destack/package/manifest";
+
+/** A package compiled into a directory, before its link pins its outputs' npm imports. */
+interface CompilerOutput {
+    /** The directory holding the compiled build. */
+    readonly destination: string;
+    /** The package's real directory, from which its npm imports resolve. */
+    readonly directory: string;
+    /** The npm packages each output imports, by output. */
+    readonly npm: Readonly<Record<string, readonly string[]>>;
+}
 
 /** The compiler executable beside a standalone Destack executable. */
 const EXECUTABLE = "destack-build";
@@ -154,6 +161,8 @@ export class Compiler implements AsyncDisposable {
     #builds = 0;
     /** The last request's settled work, since the compiler takes one request at a time. */
     #queue: Promise<void> = Promise.resolve();
+    /** The npm packages the workspace's lockfile locks, read once a build imports one. */
+    readonly #npm = new Once<NpmInstallation>();
 
     /** Retain the workspace, store, compiler files, read paths, command and started compiler. */
     private constructor(
@@ -303,7 +312,9 @@ export class Compiler implements AsyncDisposable {
         sandbox: Sandbox,
         input: WritableStreamDefaultWriter<Uint8Array>,
     ): Promise<void> {
-        for await (const message of readMessages(sandbox.stdout, CompilerMessage)) {
+        for await (const message of readMessages(sandbox.stdout, (value) =>
+            CompilerMessage.parse(value),
+        )) {
             // refuse a message no request awaits
             const pending = this.#pending;
             if (pending === undefined) {
@@ -355,13 +366,75 @@ export class Compiler implements AsyncDisposable {
         await writeMessage(input, { kind: "cached", id: request.id, bytes });
     }
 
-    /** Build a package's current source after the requests before it. */
-    build(options: PackageBuildOptions): Promise<PackageBuild> {
-        return this.#serially(() => this.#build(options));
+    /** Build a package's current source: evaluate its declarations, then compile and link it. */
+    async build(options: PackageBuildOptions): Promise<PackageBuild> {
+        return await this.compile(options, await this.evaluate(options));
     }
 
-    /** Build a package's current source using retained compiler state. */
-    async #build(options: PackageBuildOptions): Promise<PackageBuild> {
+    /** Check a package's outputs, their types and the runtime globals they use, then build it. */
+    async check(options: PackageBuildOptions): Promise<PackageBuild> {
+        // check after the requests before it, then build
+        await this.#serially(async () => {
+            // send the check at the real directory, the dependencies materialized
+            const { files } = this.store.environment;
+            const { signal, timeout, ...given } = options;
+            const directory = await files.realPath(resolve(given.directory));
+            const tree = await this.#install(given.dependencies);
+            const request = {
+                kind: "check",
+                options: { ...given, directory, tree: tree.directories },
+            } as const;
+            const response = await this.#request(request, signal, timeout);
+            if (response.kind !== "check") {
+                throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
+            }
+        });
+
+        return await this.build(options);
+    }
+
+    /** Evaluate a package's declarations after the requests before it. */
+    evaluate(options: PackageBuildOptions): Promise<EvaluatedDeclaration[]> {
+        return this.#serially(async () => {
+            // send the evaluation at the real directory, the dependencies materialized
+            const { files } = this.store.environment;
+            const { signal, timeout, ...given } = options;
+            const directory = await files.realPath(resolve(given.directory));
+            const tree = await this.#install(given.dependencies);
+            const request = {
+                kind: "evaluate",
+                options: { ...given, directory, tree: tree.directories },
+            } as const;
+            const response = await this.#request(request, signal, timeout);
+            if (response.kind !== "evaluate") {
+                throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
+            }
+
+            return response.declarations;
+        });
+    }
+
+    /** Compile and link a package's current source on its evaluated declarations. */
+    async compile(
+        options: PackageBuildOptions,
+        declarations: readonly EvaluatedDeclaration[],
+    ): Promise<PackageBuild> {
+        // compile after the requests before it, then link outside them, since linking converts npm units
+        const { files } = this.store.environment;
+        const compiled = await this.#serially(() => this.#build(options, declarations));
+        try {
+            return await this.#link(compiled, options.signal);
+        } catch (error) {
+            await files.remove(compiled.destination, { recursive: true, force: true });
+            throw error;
+        }
+    }
+
+    /** Compile a package's current source using retained compiler state. */
+    async #build(
+        options: PackageBuildOptions,
+        declarations: readonly EvaluatedDeclaration[],
+    ): Promise<CompilerOutput> {
         // build the package at its real directory
         const { files } = this.store.environment;
         const { signal, timeout, ...given } = options;
@@ -373,7 +446,10 @@ export class Compiler implements AsyncDisposable {
         const written = join(this.#temporary, "builds", String(this.#builds++));
         const destination = await files.makeTemporaryDirectory("destack-build-");
         try {
-            return await this.#buildCached(request, written, destination, signal, timeout);
+            const npm = await this.#compile(request, declarations, written, signal, timeout);
+            await files.rename(written, destination);
+
+            return { destination, directory: request.directory, npm };
         } catch (error) {
             if (this.#stopping) {
                 await this.#closed;
@@ -384,97 +460,134 @@ export class Compiler implements AsyncDisposable {
         }
     }
 
-    /** Compile the outputs the cache lacks, reusing the others' files, and fill the cache. */
-    async #buildCached(
-        request: RequestedBuild,
-        written: string,
-        destination: string,
-        signal: AbortSignal | undefined,
-        timeout: number | undefined,
-    ): Promise<PackageBuild> {
-        // compile the outputs the cache lacks beside the cached outputs' files
+    /** Pin each output's npm imports to their units for its runtime, then store the build. */
+    async #link(compiled: CompilerOutput, signal: AbortSignal | undefined): Promise<PackageBuild> {
+        // store the units each output imports for its runtime, with the peers they require
         const { store } = this;
-        const { files } = store.environment;
-        const keys = await this.#plan(request, signal, timeout);
-        const reuse = await reuseOutputs(store, keys, written);
-        const response = await this.#compile(request, reuse, written, signal, timeout);
-        await files.rename(written, destination);
-        const reused = Object.keys(reuse);
-        const reader = await BuildReader.openDirectory(
-            destination,
-            files,
-            store.environment.crypto,
+        const { files, crypto } = store.environment;
+        const { destination, directory, npm } = compiled;
+        const reader = await BuildReader.openDirectory(destination, files, crypto);
+        const outputs = Object.fromEntries(
+            await Promise.all(
+                Object.entries(reader.manifest.outputs).map(async ([name, output]) => {
+                    // pin the units the output imports beside its Destack builds
+                    const imported = present(npm[name], `the npm imports of output ${name}`);
+                    const pinned = await this.#storeNpm(imported, reader.manifest.package.name, {
+                        directory,
+                        runtime: output.runtime,
+                    });
+                    const dependencies = { ...output.dependencies, ...pinned };
+
+                    return [name, { ...output, dependencies }] as const;
+                }),
+            ),
         );
-        const build = new PackageBuild(reader, destination, "temporary", files, reused);
 
-        // refuse an unloadable build, then store it with its runtime builds and key each compiled output
-        await Compiler.#requireLoadable(build.manifest, store);
-        const digest = await store.put(build.reader, signal);
-        await store.attachRuntimes(digest);
-        for (const [name, output] of Object.entries(response.outputs)) {
-            const key = present(keys[name], `the key of output ${name}`);
-            await store.cache(key, { kind: "output", output });
-        }
+        // rewrite the manifest in place under the pins, then store the build
+        await BuildWriter.relink(
+            reader,
+            {
+                write: async (path, bytes) => {
+                    const written = join(destination, path);
+                    await files.mkdir(dirname(written), { recursive: true });
+                    await files.writeFile(written, bytes);
+                },
+            },
+            crypto,
+            outputs,
+        );
+        const linked = await BuildReader.openDirectory(destination, files, crypto);
+        await store.put(linked, signal);
 
-        return build;
+        return new PackageBuild(linked, destination, "temporary", files);
     }
 
-    /** Refuse an output importing an npm unit whose build lacks the output's runtime. */
-    static async #requireLoadable(manifest: PackageManifest, store: PackageStore): Promise<void> {
-        for (const output of Object.values(manifest.outputs)) {
-            // take the npm units the output imports
-            const units = Object.values(output.dependencies).filter(
-                (dependency): dependency is NpmDependency => dependency.kind === "npm",
+    /** Read the npm packages the workspace's lockfile locks, once. */
+    #installation(): Promise<NpmInstallation> {
+        return this.#npm.get(async () => {
+            // read the locked releases and the conversion keying the units
+            const { environment } = this.store;
+            const locked = readLockedReleases(
+                await readLockfile(this.workspace, environment.files),
             );
-            for (const unit of units) {
-                // refuse a unit without the runtime: a native addon, or one importing such a unit
-                const { outputs } = await store.get(unit.manifest);
-                if (!Object.values(outputs).some((each) => each.runtime === output.runtime)) {
-                    throw BuildError.of(
-                        "RUNTIME_MODULE_UNSUPPORTED",
-                        `the ${output.runtime} output of ${manifest.package.name} needs ${unit.package.name}, which ${output.runtime} cannot load`,
-                    );
-                }
+            const conversion = await Identities.of(environment).conversion();
+
+            return new NpmInstallation(locked, this.store, conversion, environment);
+        });
+    }
+
+    /** Store the npm units a package imports for a runtime, with their required peers, by name. */
+    async #storeNpm(
+        imported: readonly string[],
+        importer: string,
+        output: { readonly directory: string; readonly runtime: Runtime },
+    ): Promise<Record<string, NpmDependency>> {
+        // open each import where the package resolves it, then each peer where Bun linked it beside its unit
+        const { files } = this.store.environment;
+        const locator = new PackageLocator(files);
+        const { directory, runtime } = output;
+        const opened = new Map<string, NpmUnit>();
+        const pending = imported.map((name) => ({ name, by: importer, from: directory }));
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            const { name, by, from } = next;
+            const installed = await locator.directory(name, from);
+            const real = installed === undefined ? undefined : await files.realPath(installed);
+            const known = opened.get(name);
+            // refuse a package unresolved from where it is required
+            if (real === undefined) {
+                throw BuildError.of(
+                    "DEPENDENCY_UNRESOLVED",
+                    `unresolved runtime dependency of ${by}: ${name}`,
+                );
+            }
+            // refuse two releases of one package under its name
+            else if (known !== undefined && known.directory !== real) {
+                throw BuildError.of(
+                    "DEPENDENCY_INVALID",
+                    `${importer} requires ${name} as two releases: ${known.directory} and ${real}`,
+                );
+            }
+            // open a new one, queueing the peers it requires
+            else if (known === undefined) {
+                const unit = await (await this.#installation()).open(real);
+                opened.set(name, unit);
+                pending.push(
+                    ...unit.requiredPeers.map((peer) => ({ name: peer, by: name, from: real })),
+                );
             }
         }
+
+        // store each unit for the runtime
+        const stored = await Promise.all(
+            [...opened].map(
+                async ([name, unit]) =>
+                    [name, await (await this.#installation()).store(unit, runtime)] as const,
+            ),
+        );
+
+        return Object.fromEntries(stored);
     }
 
-    /** Derive a build's cache keys inside the compiler. */
-    async #plan(
-        options: RequestedBuild,
-        signal: AbortSignal | undefined,
-        timeout: number | undefined,
-    ): Promise<OutputKeys> {
-        const planned = await this.#request({ kind: "plan", options }, signal, timeout);
-        if (planned.kind !== "plan") {
-            throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
-        }
-
-        return planned.keys;
-    }
-
-    /** Compile current source into a temporary directory with the reused outputs' files. */
+    /** Compile current source into a directory, answering each output's npm imports. */
     async #compile(
         options: RequestedBuild,
-        reuse: Readonly<Record<string, CachedOutput>>,
+        declarations: readonly EvaluatedDeclaration[],
         destination: string,
         signal: AbortSignal | undefined,
         timeout: number | undefined,
-    ): Promise<Extract<BuildResult, { kind: "build" }>> {
-        // send the build with its destination, reused outputs and whether transforms have a cache
+    ): Promise<Readonly<Record<string, readonly string[]>>> {
+        // compile into the directory, answering each output's npm imports
         await this.store.environment.files.mkdir(destination, { recursive: true });
-        const request: BuildRequest = {
-            kind: "build",
-            destination,
-            options,
-            reuse,
-        };
-        const response = await this.#request(request, signal, timeout);
+        const response = await this.#request(
+            { kind: "build", destination, options, declarations: [...declarations] },
+            signal,
+            timeout,
+        );
         if (response.kind !== "build") {
             throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
         }
 
-        return response;
+        return response.npm;
     }
 
     /** Inspect source inside the isolated compiler process after the requests before it. */
@@ -498,7 +611,7 @@ export class Compiler implements AsyncDisposable {
     index(
         options: InspectOptions & Pick<PackageBuildOptions, "dependencies">,
         signal?: AbortSignal,
-    ): Promise<graph.Document[]> {
+    ): Promise<{ code: graph.Document[]; modules: graph.Module[] }> {
         return this.#serially(async () => {
             // send the index request at the real directory, the dependencies materialized
             const request = { kind: "index", options: await this.#inspected(options) } as const;
@@ -507,7 +620,7 @@ export class Compiler implements AsyncDisposable {
                 throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
             }
 
-            return response.code;
+            return { code: response.code, modules: response.modules };
         });
     }
 
@@ -522,37 +635,6 @@ export class Compiler implements AsyncDisposable {
         const tree = await this.#install(dependencies);
 
         return { ...inspected, directory, tree: tree.directories };
-    }
-
-    /** Convert an installed npm package for workerd inside the compiler, answering its files. */
-    convert(request: NpmConversionRequest): ReturnType<NpmConverter> {
-        return this.#serially(async () => {
-            // convert into a separate directory of the compiler, then read the converted copy
-            const { files } = this.store.environment;
-            const destination = await files.makeTemporaryDirectory("npm-", {
-                directory: this.#temporary,
-            });
-            try {
-                const response = await this.#request({
-                    kind: "convert",
-                    source: request.source,
-                    destination,
-                    name: request.name,
-                    dependencies: [...request.dependencies],
-                    peers: [...request.peers],
-                });
-                if (response.kind !== "convert") {
-                    throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
-                }
-
-                return {
-                    files: await NpmUnit.files(destination, files),
-                    imported: new Set(response.imported),
-                };
-            } finally {
-                await files.remove(destination, { recursive: true });
-            }
-        });
     }
 
     /** Run work after the compiler's earlier requests settled. */
@@ -729,43 +811,4 @@ function resultOf(response: BuildResponse): BuildResult {
     }
 
     return response.result;
-}
-
-/** Write the files of each cached output into a build directory once, returning the outputs. */
-async function reuseOutputs(
-    store: LocalPackageStore,
-    keys: OutputKeys,
-    destination: string,
-): Promise<Record<string, CachedOutput>> {
-    // write each cached output's files no earlier output wrote
-    const reuse: Record<string, CachedOutput> = {};
-    const placed = new Set<string>();
-    for (const [name, key] of Object.entries(keys)) {
-        const entry = await store.cached(key);
-        if (entry !== undefined) {
-            const output = cachedOutput(entry);
-            const files = output.files.filter((file) => !placed.has(file.path));
-            for (const file of files) {
-                await store.place(file, join(destination, file.path));
-            }
-            for (const file of files) {
-                placed.add(file.path);
-            }
-            reuse[name] = output;
-        }
-    }
-
-    return reuse;
-}
-
-/** Read the output a cached output names, refusing an entry of another kind. */
-function cachedOutput(entry: CacheEntry): CachedOutput {
-    if (entry.kind !== "output") {
-        throw BuildError.of(
-            "INVARIANT_VIOLATED",
-            "the cache entry of an output is a package build",
-        );
-    }
-
-    return entry.output;
 }

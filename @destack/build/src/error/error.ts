@@ -52,6 +52,7 @@ export const BuildError = defineErrorFamily(
         BUILD_CANCELLED: { code: "CLIENT_CLOSED_REQUEST" },
 
         // internal server error
+        BUILD_NOT_IN_BUCKET: { code: "INTERNAL_SERVER_ERROR" },
         CHECKOUT_FAILED: { code: "INTERNAL_SERVER_ERROR" },
         COMPILER_FAILED: { code: "INTERNAL_SERVER_ERROR" },
         INVARIANT_VIOLATED: { code: "INTERNAL_SERVER_ERROR" },

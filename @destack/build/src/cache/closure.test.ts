@@ -109,11 +109,11 @@ test("key the toolchain by the compiler's modules, leaving the modules only its 
     );
     const modules = new Set(closure.modules.keys());
 
-    // include the compiler and its conversion pass, and leave the local store and its bucket out
+    // include the compiler, and leave the host's npm conversion, the local store and its bucket out
     expect({
         worker: modules.has("@destack/build/src/build/worker.ts"),
         conversion: modules.has("@destack/build/src/compile/conversion.ts"),
         store: modules.has("@destack/build/src/store/local.ts"),
         bucket: [...modules].some((module) => module.startsWith("@destack/bucket/")),
-    }).toEqual({ worker: true, conversion: true, store: false, bucket: false });
+    }).toEqual({ worker: true, conversion: false, store: false, bucket: false });
 });

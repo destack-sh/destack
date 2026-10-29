@@ -25,7 +25,6 @@ import {
 import type { JsonValue } from "@destack/schema";
 import type { SourceRange } from "@destack/package/source";
 import { BuildError, type BuildReason } from "../error/index.ts";
-import { exportedNames } from "./declaration.ts";
 import type { SymbolInspector } from "./symbol.ts";
 
 /** The module declaring the example and scenario constructors. */
@@ -355,4 +354,22 @@ async function locateConstant(
 /** Report whether a literal field can have a property name. */
 function isFieldName(name: Node): name is Node & { readonly text: string } {
     return isIdentifier(name) || isStringLiteral(name);
+}
+
+/** Read the exported name of each symbol a module exports, including lists and aliases. */
+export async function exportedNames(
+    source: SourceFile,
+    inspector: SymbolInspector,
+): Promise<Map<number, string>> {
+    // key each export's original symbol
+    const checker = inspector.project.checker;
+    const module = await checker.getSymbolAtLocation(source);
+    const exports = module ? await checker.getExportsOfModule(module) : [];
+    const exported = new Map<number, string>();
+    for (const symbol of exports) {
+        const target = await inspector.original(symbol);
+        exported.set(target.id, symbol.name);
+    }
+
+    return exported;
 }

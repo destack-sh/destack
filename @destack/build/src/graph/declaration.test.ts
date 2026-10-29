@@ -36,7 +36,6 @@ function declare(
         name,
         kind,
         package: kinds,
-        constructor: { package: kinds, symbol: { module: "src/index.ts", name: "define" } },
         symbol: { package: owner, symbol: { module, name: symbol } },
         source: { file: module, line: 0, column: 0 },
         description: { name },

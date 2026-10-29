@@ -87,7 +87,7 @@ async function written(
         ),
     );
 
-    // describe the file, dependency and source map lists, and an empty graph
+    // describe the file, dependency, source map and declaration lists
     const index = async (path: string, value: unknown) => {
         const contents = encoder.encode(JSON.stringify(value));
         bytes.set(path, contents);
@@ -102,8 +102,9 @@ async function written(
             dependencies: await index("manifest/dependencies.json", {}),
             files: await index("manifest/files.json", files),
             sourceMaps: await index("manifest/sourceMaps.json", []),
-            graph: await index("manifest/graph.json", { modules: {} }),
+            declarations: await index("manifest/declarations.json", []),
         },
+        interface: await Digest.json({ package: built }, crypto),
         outputs,
     });
 
@@ -642,11 +643,11 @@ test("copy a served build into another store by its digest, fetching only the fi
         after: true,
         manifest: build.manifest,
         first: [
+            // fetch the empty declaration and source map lists once, as their bytes share one digest
+            "files/manifest/declarations.json",
             "files/manifest/dependencies.json",
             "files/manifest/files.json",
             "files/manifest/files.json",
-            "files/manifest/graph.json",
-            "files/manifest/sourceMaps.json",
             "files/src/answer.ts",
             "files/src/index.ts",
             "manifest.json",
@@ -910,11 +911,15 @@ test("derive a build's runtime build once: the output's loaded files, its maps a
         attached: (await store.referrer(built, `${RUNTIME_REFERRER}/bun`))?.digest,
         runtime: await filesOf(store, first),
         maps: await filesOf(store, maps.digest),
+        listed: (await store.maps(first)).map((file) => file.path),
+        unmapped: await store.maps(built),
     }).toEqual({
         again: first,
         attached: first,
         runtime: ["bun/addon.node", "bun/serve.js", "package.json"],
         maps: ["bun/serve.js.map"],
+        listed: ["bun/serve.js.map"],
+        unmapped: [],
     });
 });
 

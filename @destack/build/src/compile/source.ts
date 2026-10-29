@@ -1,3 +1,4 @@
+import type { BuildDirectory } from "../build/directory.ts";
 import { isAbsolute, dirname, resolve } from "node:path";
 import type { Environment } from "@destack/environment";
 import { type Plugin } from "vite";
@@ -23,7 +24,7 @@ type SourceMap = schema.Infer<typeof SourceMap>;
 export function sourcePlugin(
     directory: string,
     files: Map<string, Uint8Array<ArrayBuffer>>,
-    sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+    sources: Pick<BuildDirectory, "retained" | "retain">,
     destination: string,
     paths: string[],
     environment: Environment<"files">,
@@ -44,16 +45,9 @@ export function sourcePlugin(
                     return null;
                 }
 
-                // compile inspected module bytes and retain additional assets read by Vite
-                if (/\.[cm]?tsx?$/u.test(path) && !sources.has(local)) {
-                    throw BuildError.of(
-                        "INVARIANT_VIOLATED",
-                        `uninspected source module: ${local}`,
-                    );
-                }
-
                 // preserve large assets by file copy while Vite loads them separately
-                if (!sources.has(local) && !/\.[cm]?[jt]sx?$/u.test(path)) {
+                const isModule = /\.[cm]?[jt]sx?$/u.test(path);
+                if (!sources.retained.has(local) && !isModule) {
                     const output = resolve(destination, PackagePath.parse(local));
                     await environment.files.mkdir(dirname(output), { recursive: true });
                     await environment.files.copyFile(path, output);
@@ -61,10 +55,14 @@ export function sourcePlugin(
                     return null;
                 }
 
-                // return inspected source to the compiler without rereading it
-                const bytes = sources.get(local) ?? (await environment.files.readFile(path));
+                // snapshot a module's bytes once for every output, refusing one changed between them
+                const bytes =
+                    sources.retained.get(local) ?? (await environment.files.readFile(path));
+                if (isModule) {
+                    sources.retain(local, bytes);
+                }
                 files.set(PackagePath.parse(local), bytes);
-                if (!id.includes("?") && /\.[cm]?[jt]sx?$/u.test(path)) {
+                if (!id.includes("?") && isModule) {
                     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
                 }
 

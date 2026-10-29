@@ -4,7 +4,7 @@ import { expect, test } from "@destack/test";
 
 import { NpmInstallation } from "./npm.ts";
 import { testSimulation } from "../test/world.ts";
-import { convertHere, copy, moduleFailure, writeStore } from "./test/store.ts";
+import { copy, moduleFailure, writeStore } from "./test/store.ts";
 import { DependencyTree } from "./tree.ts";
 import { LocalPackageStore } from "../store/local.ts";
 
@@ -44,7 +44,7 @@ test("place npm units with the peers the packages beside them provide, failing a
     await using store = await LocalPackageStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
-        await installation.store(await installation.open(copy(root, name)), convertHere(files));
+        await installation.store(await installation.open(copy(root, name)), "bun");
     const [renderer, core, lists] = [
         await build("renderer"),
         await build("core"),

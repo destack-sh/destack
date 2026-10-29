@@ -1,8 +1,8 @@
 import { dirname, join, resolve, isAbsolute, sep } from "node:path";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { type InspectOptions } from "../inspection/inspection.ts";
-import { runtimeConditions, TYPE_CHECKS, TYPESCRIPT_OPTIONS } from "@destack/package/build";
-import { linkDependencies, ReleasedPackage } from "./dependency.ts";
+import { runtimeConditions } from "@destack/package/build";
+import { ReleasedPackage } from "./dependency.ts";
 import { PackageError } from "@destack/package/error";
 import { PackageDefinition, PackageJson, type PackageExport, TEST_EXPORT } from "@destack/package";
 import { type JsonObject, type JsonValue, schema, type Version } from "@destack/schema";
@@ -12,9 +12,9 @@ import { PackageLocator } from "@destack/package/locator";
 import { DependencyTree } from "../dependency/tree.ts";
 
 /** Source manifests and selected runtime exports for a package build. */
-export interface PackageSource extends AsyncDisposable {
-    /** The absolute compiler configuration path. */
-    configuration: string;
+export interface PackageSource {
+    /** The authored compiler configuration's real path, absent without one. */
+    configuration: string | undefined;
     /** The absolute package directory. */
     directory: string;
     /** The package.json and destack.json, at the versions the build releases. */
@@ -27,7 +27,7 @@ export interface PackageSource extends AsyncDisposable {
     types: Record<string, string>;
     /** The runtime used for conditional dependency resolution and compilation. */
     runtime: Runtime;
-    /** The modules the configuration roots: exports, type declarations and extra modules. */
+    /** The package's root modules: exports, type declarations and extra modules. */
     entries: readonly string[];
     /** The builds of the package's Destack dependencies, materialized for it. */
     tree: DependencyTree;
@@ -48,8 +48,6 @@ export const PackageSource = {
             versions?: Readonly<Record<string, Version>>;
             /** The materialized directory of each Destack dependency's build, by package name. */
             tree: Readonly<Record<string, string>>;
-            /** What the program reads: the package's whole source, or the entries' closure. */
-            roots: "package" | "entries";
         },
         environment: Environment<"files" | "process">,
     ): Promise<PackageSource> {
@@ -75,10 +73,8 @@ export const PackageSource = {
             hasConfiguration = false;
         }
 
-        // read the dependencies' builds, then root the configuration at the selected modules
+        // read the dependencies' builds and list the root modules
         const tree = await DependencyTree.read(options.tree, files);
-        const temporary = await files.makeTemporaryDirectory("destack-project-");
-        const configuration = join(temporary, "tsconfig.json");
         const extra = (options.files ?? []).map((path) =>
             resolve(definition.directory, PackagePath.parse(path)),
         );
@@ -87,81 +83,17 @@ export const PackageSource = {
             ...Object.values(definition.types),
             ...extra,
         ];
-        const modules = [...new Set(roots.filter((path) => /\.[cm]?[jt]sx?$/u.test(path)))];
-        try {
-            // resolve explicit type packages from the same installation as authored modules
-            await linkDependencies(definition.directory, temporary, files);
-            const extended = hasConfiguration ? await files.realPath(authored) : undefined;
-            const settings = compilerSettings(
-                definition,
-                modules,
-                extended,
-                tree.paths(),
-                options.roots,
-            );
-            await files.writeTextFile(configuration, JSON.stringify(settings), {
-                createNew: true,
-            });
-        } catch (error) {
-            await files.remove(temporary, { recursive: true });
-            throw error;
-        }
+        const entries = [...new Set(roots.filter((path) => /\.[cm]?[jt]sx?$/u.test(path)))];
 
         return {
             ...definition,
-            configuration,
-            entries: modules,
+            configuration: hasConfiguration ? await files.realPath(authored) : undefined,
+            entries,
             tree,
             environment,
-            async [Symbol.asyncDispose]() {
-                await files.remove(temporary, { recursive: true });
-            },
         };
     },
 };
-
-/** Apply runtime resolution and the standard type checks to a configuration or defaults. */
-function compilerSettings(
-    definition: Pick<PackageSource, "directory" | "runtime">,
-    files: readonly string[],
-    authored: string | undefined,
-    paths: Readonly<Record<string, string[]>>,
-    roots: "package" | "entries",
-): object {
-    const conditions = runtimeConditions(definition.runtime);
-
-    // extend the authored configuration with the standard type checks
-    if (authored !== undefined) {
-        return {
-            extends: authored,
-            compilerOptions: { ...TYPE_CHECKS, customConditions: conditions, paths },
-            files,
-            ...(roots === "entries" ? { include: [] } : {}),
-        };
-    }
-    // check the package's sources and tests with the default options
-    else {
-        return {
-            compilerOptions: {
-                ...TYPESCRIPT_OPTIONS,
-                jsx: "preserve",
-                jsxImportSource: "@destack/view",
-                customConditions: conditions,
-                paths,
-            },
-            files,
-            include:
-                roots === "entries"
-                    ? []
-                    : [
-                          resolve(definition.directory, "src/**/*.ts"),
-                          resolve(definition.directory, "src/**/*.tsx"),
-                          resolve(definition.directory, "test/**/*.test.ts"),
-                          resolve(definition.directory, "tests/**/*.test.ts"),
-                      ],
-        };
-    }
-}
 
 /** Read a package at the versions a build releases, selecting its exports for one runtime. */
 async function readPackageSource(
@@ -170,12 +102,7 @@ async function readPackageSource(
     entries: Readonly<Record<string, string>> | undefined,
     versions: Readonly<Record<string, Version>>,
     files: FileSystem,
-): Promise<
-    Omit<
-        PackageSource,
-        "configuration" | "entries" | "tree" | "environment" | typeof Symbol.asyncDispose
-    >
-> {
+): Promise<Omit<PackageSource, "configuration" | "entries" | "tree" | "environment">> {
     // read the package.json and destack.json
     directory = await files.realPath(directory);
     const packageJson = await readPackageJson(directory, files, versions);

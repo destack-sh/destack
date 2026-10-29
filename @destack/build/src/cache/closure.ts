@@ -63,6 +63,28 @@ export class ModuleClosure {
         );
     }
 
+    /** Select the npm releases and the sources below some prefixes, leaving other sources out. */
+    select(prefixes: ReadonlySet<string>): ModuleClosure {
+        const isSelected = (key: string, identity: string) =>
+            identity === "release" || [...prefixes].some((prefix) => key.startsWith(prefix));
+
+        return new ModuleClosure(
+            new Map([...this.modules].filter(([key, identity]) => isSelected(key, identity))),
+        );
+    }
+
+    /** Select the npm releases of some packages by name, leaving every source out. */
+    releases(names: ReadonlySet<string>): ModuleClosure {
+        return new ModuleClosure(
+            new Map(
+                [...this.modules].filter(
+                    ([key, identity]) =>
+                        identity === "release" && names.has(key.slice(0, key.lastIndexOf("@"))),
+                ),
+            ),
+        );
+    }
+
     /** Digest the closure by its modules' identities. */
     async digest(crypto: DigestCrypto): Promise<Digest> {
         return await Digest.json([...this.modules], crypto);

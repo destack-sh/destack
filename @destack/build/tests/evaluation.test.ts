@@ -2,10 +2,6 @@ import type { Environment, OperatingSystem } from "@destack/environment";
 import { testHost } from "@destack/test/host";
 import { testSimulation } from "../src/test/world.ts";
 import { join } from "node:path";
-import { formatSource } from "@destack/check";
-import { PackageManifest } from "@destack/package/manifest";
-import { type History, Vocabulary } from "@destack/resource";
-import { present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { type PackageBuild, Workspace, CompilerPool } from "../src/index.ts";
 import { LocalPackageStore } from "../src/store/local.ts";
@@ -133,71 +129,5 @@ test("reinspect edited modules a declaration imports in a retained compiler", as
         names: [["title"], ["heading"]],
         restored: first.manifest,
         files: await first.reader.distributed(),
-    });
-});
-
-test("plan the upgrade from what a package published", async () => {
-    // publish the app's first release, declaring one thing
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const { files } = environment;
-    const directory = await thingPackage(
-        'import { defineThing } from "@example/owner";\n\nexport const greeting = defineThing({ name: "greeting" });\n',
-        environment,
-    );
-    await using store = await LocalPackageStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
-    const build = async (history?: Readonly<Record<string, History>>) =>
-        await (
-            await Workspace.open(directory, compilers)
-        ).build({ outputs: OUTPUTS, ...(history === undefined ? {} : { history }) });
-    await using first = await build();
-    const published = await first.reader.declarations();
-    const release = PackageManifest.package(first.manifest).version;
-    const history = {
-        release,
-        declarations: published,
-        vocabulary: Vocabulary.advance({}, published, release),
-    };
-
-    // rename the thing and add another in the next release
-    const manifest = join(directory, "package.json");
-    await files.writeTextFile(
-        manifest,
-        (await files.readTextFile(manifest)).replace(
-            '"version":"2026.9.0"',
-            '"version":"2026.10.0"',
-        ),
-    );
-    const app = join(directory, "src/app.ts");
-    await files.writeTextFile(
-        app,
-        await formatSource(
-            app,
-            'import { defineThing } from "@example/owner";\n\nexport const welcome = defineThing({ name: "welcome" });\nexport const farewell = defineThing({ name: "farewell" });\n',
-        ),
-    );
-    await using second = await build({ "@example/app": history });
-
-    // plan the next release's steps from the published one
-    const upgrade = present(second.manifest.upgrade, "the upgrade");
-    const planned: unknown = JSON.parse(
-        new TextDecoder().decode(await second.reader.load(upgrade.file.path)),
-    );
-    expect({ package: PackageManifest.package(second.manifest).version, planned }).toEqual({
-        package: "2026.10.0",
-        planned: {
-            from: "2026.9.0",
-            steps: [
-                { action: "create", target: "thing/farewell", risk: "safe", detail: "add thing" },
-                { action: "create", target: "thing/welcome", risk: "safe", detail: "add thing" },
-                {
-                    action: "delete",
-                    target: "thing/greeting",
-                    risk: "backward-incompatible",
-                    detail: "remove thing: earlier releases still serve it",
-                },
-            ],
-        },
     });
 });

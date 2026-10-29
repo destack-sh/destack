@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Toolchain } from "@destack/check/toolchain";
 import { API, type Program } from "typescript/unstable/async";
 import type { GlobalReference, ModuleDescription } from "@destack/package/code";
-import { FILE_RESOLVING_RUNTIMES, type Runtime } from "@destack/package/runtime";
+import { LISTED_MODULE_RUNTIMES, type Runtime } from "@destack/package/runtime";
 import { DOM_LIBRARIES, TYPESCRIPT_LIBRARIES, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
 import { BuildError, type BuildReason } from "../error/index.ts";
@@ -279,46 +279,52 @@ function describeReference(reference: GlobalReference): { path: string; location
     return { path, location };
 }
 
-/** Check emitted source against the declared runtime APIs and the runtime's global APIs. */
-export async function checkRuntime(
+/** Refuse compiled modules an output's runtime cannot load. */
+export function checkInputs(build: BuildDescription, runtime: Runtime): void {
+    for (const id of new Set(Object.values(build.outputs).flatMap((output) => output.inputs))) {
+        // require each compiled module
+        const input = build.inputs[id];
+        if (!input) {
+            throw BuildError.of("INVARIANT_VIOLATED", `unknown compiled module: ${id}`);
+        }
+        // refuse a module of other runtimes
+        else if (input.runtimes && !input.runtimes.includes(runtime)) {
+            throw BuildError.of(
+                "RUNTIME_MODULE_UNSUPPORTED",
+                `unsupported ${runtime} module: ${input.package ?? "source"}/${input.path}`,
+            );
+        }
+        // refuse computed imports on a runtime loading only the modules its deployment lists
+        else if (
+            input.unresolvedImports !== undefined &&
+            input.unresolvedImports.length > 0 &&
+            LISTED_MODULE_RUNTIMES.has(runtime)
+        ) {
+            throw BuildError.of(
+                "DEPENDENCY_UNRESOLVED",
+                `unresolved runtime imports: ${input.path}`,
+            );
+        }
+    }
+}
+
+/** Check the globals an output's own modules use against the runtimes they run on. */
+export async function checkGlobals(
     build: BuildDescription,
     modules: readonly ModuleDescription[],
     runtime: Runtime,
     compiler: RuntimeCompiler,
 ): Promise<void> {
-    // index the compiled inputs and source modules
-    const inputs = new Set(Object.values(build.outputs).flatMap((output) => output.inputs));
+    // collect the package's globals, those in functions by the runtimes their module ships to
     const source = new Map(modules.map((module) => [module.path, module]));
     const evaluated: GlobalReference[] = [];
     const deferred = new Map<
         string,
         { runtimes: readonly Runtime[]; globals: GlobalReference[] }
     >();
-
-    // check retained modules once, including library outputs without workload declarations
-    for (const id of inputs) {
+    for (const id of new Set(Object.values(build.outputs).flatMap((output) => output.inputs))) {
         const input = build.inputs[id];
-        if (!input) {
-            throw BuildError.of("INVARIANT_VIOLATED", `unknown compiled module: ${id}`);
-        }
-        if (input.runtimes && !input.runtimes.includes(runtime)) {
-            throw BuildError.of(
-                "RUNTIME_MODULE_UNSUPPORTED",
-                `unsupported ${runtime} module: ${input.package ?? "source"}/${input.path}`,
-            );
-        }
-        // refuse imports a deployed module graph lacks, unless the runtime resolves them from files
-        const isUnresolved =
-            input.unresolvedImports !== undefined && input.unresolvedImports.length > 0;
-        if (isUnresolved && !FILE_RESOLVING_RUNTIMES.has(runtime)) {
-            throw BuildError.of(
-                "DEPENDENCY_UNRESOLVED",
-                `unresolved runtime imports: ${input.path}`,
-            );
-        }
-
-        // collect the package's globals, those in functions by the runtimes their module ships to
-        if (input.package === undefined) {
+        if (input?.package === undefined && input !== undefined) {
             const runtimes = input.runtimes ?? [runtime];
             const key = runtimes.toSorted().join(" ");
             const group = deferred.get(key) ?? { runtimes, globals: [] };

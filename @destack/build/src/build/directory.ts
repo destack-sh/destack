@@ -1,7 +1,7 @@
 import { dirname, join } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
 import type { PackageFile } from "@destack/package/file";
-import { type BuildContents, BuildWriter, type PackageManifest } from "@destack/package/manifest";
+import { type BuildContent, BuildWriter, type PackageManifest } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
 import { Digest, Text } from "@destack/schema";
 
@@ -69,7 +69,7 @@ export class BuildDirectory {
     }
 
     /** Write every retained source, then the build's graph, lists, upgrade and manifest. */
-    async finish(contents: BuildContents): Promise<PackageManifest> {
+    async finish(contents: BuildContent): Promise<PackageManifest> {
         for (const [path, bytes] of this.#retained) {
             await this.#writer.write(path, bytes);
         }

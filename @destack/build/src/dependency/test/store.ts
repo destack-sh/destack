@@ -1,8 +1,6 @@
 import { dirname, join } from "node:path";
 import type { FileSystem } from "@destack/environment";
 import type { NpmRelease } from "@destack/package";
-import { NpmConversion } from "../../compile/conversion.ts";
-import { type NpmConverter, NpmUnit } from "../npm.ts";
 
 /** A package of a fixture Bun store: its manifest fields and files. */
 export interface StoredPackage {
@@ -52,19 +50,6 @@ export async function writeStore(
 /** Find a package's copy in a fixture store. */
 export function copy(root: string, name: string): string {
     return join(root, `${name}@1.0.0`, "node_modules", name);
-}
-
-/** Make a converter of npm packages in this process, as the compiler converts them. */
-export function convertHere(files: FileSystem): NpmConverter {
-    return async (request) => {
-        // convert into a separate directory of the world, then read the converted copy
-        const destination = await files.makeTemporaryDirectory("destack-npm-convert-");
-        const { name, dependencies, peers } = request;
-        const conversion = new NpmConversion(name, dependencies, peers, files);
-        const imported = await conversion.convert(request.source, destination);
-
-        return { files: await NpmUnit.files(destination, files), imported: new Set(imported) };
-    };
 }
 
 /** Read a module load's failure as its runtime's code and message, or "loaded". */

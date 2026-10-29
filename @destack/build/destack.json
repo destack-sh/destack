@@ -23,6 +23,9 @@
         },
         "./store": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./table": {
+            "runtimes": ["bun", "workerd", "browser"]
         }
     }
 }

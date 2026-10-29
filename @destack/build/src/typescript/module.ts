@@ -1,6 +1,5 @@
 import { BuildError } from "../error/index.ts";
-import { stringifyInspection } from "../build/serialization.ts";
-import { found, nth, present, Text } from "@destack/schema";
+import { found, nth, Text } from "@destack/schema";
 import { basename, dirname } from "node:path";
 import { version } from "typescript";
 import {
@@ -11,7 +10,6 @@ import {
 } from "typescript/unstable/async";
 import {
     isExportDeclaration,
-    isImportDeclaration,
     isNoSubstitutionTemplateLiteral,
     isStringLiteral,
     type Node,
@@ -29,17 +27,12 @@ import { PackageFile } from "@destack/package/file";
 import type { TestDeclaration } from "./test.ts";
 import { inspectErrors } from "@destack/check/diagnostic";
 import { collectTests } from "./test.ts";
-import { collectDeclarations, ConstructorCatalog } from "./declaration.ts";
+import { ConstructorCatalog } from "../declaration/catalog.ts";
 import type { PackageSource } from "../source/index.ts";
 import { ExampleDeclaration } from "./example.ts";
 import { ScenarioDeclaration } from "./scenario.ts";
-import type { DeclarationExport } from "../declaration/declaration.ts";
 import { collectGlobals } from "./global.ts";
-import { DirectoryReference } from "./directory.ts";
 import { isAuthored, relativePath } from "../source/dependency.ts";
-
-/** The identifier `meta`, which every `import.meta` expression spells without escapes. */
-const META = /(?<![\w$])meta(?![\w$])/u;
 
 /** A module's exports by name: each export, its original and whether it exists at runtime. */
 type ExportTable = ReadonlyMap<
@@ -60,10 +53,6 @@ export interface TypeScriptInspection {
     files: readonly string[];
     /** Exact source bytes checked against the compiler's parsed modules. */
     sources: Map<string, Uint8Array<ArrayBuffer>>;
-    /** Literal directory references indexed by absolute source module path. */
-    directories: Map<string, DirectoryReference[]>;
-    /** Exported domain declarations to evaluate after static collection. */
-    declarations: DeclarationExport[];
     /** Public declarations and exports. */
     modules: ModuleDescription[];
     /** Statically collected test and suite declarations. */
@@ -74,36 +63,26 @@ export interface TypeScriptInspection {
     scenarios: ScenarioDeclaration[];
 }
 
-/** How much an inspection reads: what a build needs, or every symbol for the code index. */
-export type InspectionDepth = "build" | "index";
-
 /** The modules and declarations the compiler reads from a package's source. */
 export const TypeScriptInspection = {
-    /** Read a project's source modules to a depth, adopting another program's it also read. */
+    /** Read a project's source modules and every symbol their exports lead to. */
     read: inspectProject,
 };
 
-/** Inspect a project's modules to a depth, every symbol their exports lead to at the index's. */
+/** Inspect a project's modules and every symbol their exports lead to. */
 async function inspectProject(
     project: Project,
     compiled: Pick<PackageSource, "directory" | "versions" | "entries" | "environment">,
-    depth: InspectionDepth,
-    described?: Promise<TypeScriptInspection>,
 ): Promise<TypeScriptInspection> {
-    // read the program's entries
-    const { entries } = compiled;
     // read the authored modules from the compiler file list
     const root = compiled.directory;
-    const inspection = new ProjectInspection(project, compiled, depth);
+    const inspection = new ProjectInspection(project, compiled);
     const fileNames = [...(await project.program.getSourceFileNames())].toSorted();
     const authored = await readAuthored(project, root, fileNames);
-    const runtime = await collectRuntimeFiles(project, entries, authored);
 
-    // read the modules' directory references, and the authored modules' tests and declarations
+    // read the authored modules' tests
     const collected = await Promise.all(
-        fileNames
-            .filter((file) => authored.has(file) || !isDeclarationPath(file))
-            .map((file) => inspection.collect(file, authored.get(file), runtime.has(file))),
+        [...authored].map(([file, source]) => inspection.collect(file, source)),
     );
 
     // leave test modules' examples and scenarios to their runner, as only it can import them
@@ -111,37 +90,16 @@ async function inspectProject(
         collected.flatMap((entry) => (entry.tests.length > 0 ? [entry.file] : [])),
     );
 
-    // index the directory references of each module reading any
-    const directories = new Map<string, DirectoryReference[]>();
-    for (const { file, references } of collected) {
-        if (references.length) {
-            directories.set(file, references);
-        }
-    }
-
     // register every authored module before following references between declarations
     for (const [file, source] of authored) {
         await inspection.register(file, source);
     }
 
-    // describe each module and the declarations it queues, once per package
-    if (described === undefined) {
-        await Promise.all(
-            [...authored].map(([file, source]) =>
-                inspection.describe(file, source, tested.has(file)),
-            ),
-        );
-        if (depth === "index") {
-            await inspection.describeQueued();
-        }
-    }
-    // describe what each runtime decides, taking the rest from another runtime's description
-    else {
-        await Promise.all(
-            [...authored].map(([file, source]) => inspection.describeRuntime(file, source)),
-        );
-        inspection.adopt(await described);
-    }
+    // describe each module and the declarations it queues
+    await Promise.all(
+        [...authored].map(([file, source]) => inspection.describe(file, source, tested.has(file))),
+    );
+    await inspection.describeQueued();
 
     // parse compiler descriptions before returning them to executable inspectors
     const modules = [...inspection.modules.values()].map((module) =>
@@ -155,21 +113,15 @@ async function inspectProject(
         tests: collected.flatMap((entry) => entry.tests),
         examples: inspection.examples,
         scenarios: inspection.scenarios,
-        declarations: collected.flatMap((entry) => entry.declarations),
-        directories,
     };
 }
 
-/** What a source module has beside its description: directory references, tests, declarations. */
+/** The tests an authored module declares. */
 interface CollectedModule {
     /** The module's absolute path. */
     readonly file: string;
-    /** The literal directory URLs the module reads. */
-    readonly references: DirectoryReference[];
-    /** The tests an authored module declares. */
+    /** The tests the module declares. */
     readonly tests: TestDeclaration[];
-    /** The declarations an authored runtime module exports. */
-    readonly declarations: DeclarationExport[];
 }
 
 /** One inspection of a compiler project: its modules, bytes and queued declarations. */
@@ -202,21 +154,17 @@ class ProjectInspection {
     readonly #pending = new Map<number, TypeScriptSymbol>();
     /** The reference of each located symbol. */
     readonly #locations = new Map<number, Promise<SymbolReference>>();
-    /** How much the inspection reads: what a build needs, or every symbol the exports lead to. */
-    readonly depth: InspectionDepth;
 
-    /** Start inspecting a project of a compiled package, completely or as a build describes it. */
+    /** Start inspecting a project of a compiled package. */
     constructor(
         project: Project,
         compiled: Pick<PackageSource, "directory" | "versions" | "environment">,
-        depth: InspectionDepth,
     ) {
         // store the project, the package's directory and its catalog, then inspect its symbols
         this.project = project;
         this.root = compiled.directory;
         this.catalog = new ConstructorCatalog(compiled.versions, compiled.environment.files);
         this.#environment = compiled.environment;
-        this.depth = depth;
         this.inspector = new SymbolInspector(
             project,
             (symbol) => this.reference(symbol),
@@ -244,43 +192,19 @@ class ProjectInspection {
     /** Locate a symbol, queueing a declaration of the package for description when complete. */
     async reference(symbol: TypeScriptSymbol): Promise<SymbolReference> {
         const located = await this.locate(symbol);
-        if (this.depth === "index" && "module" in located) {
+        if ("module" in located) {
             this.#pending.set(symbol.id, symbol);
         }
 
         return located;
     }
 
-    /** Read a module's directory references, and an authored one's tests and declarations. */
-    async collect(
-        file: string,
-        authored: SourceFile | undefined,
-        isRuntime: boolean,
-    ): Promise<CollectedModule> {
-        // read a dependency module only when it can construct a directory URL from import.meta
-        const { project } = this;
-        const isMeta =
-            authored === undefined && META.test(await this.#environment.files.readTextFile(file));
-        const source = isMeta ? await project.program.getSourceFile(file) : authored;
-        if (!source || source.isDeclarationFile) {
-            return { file, references: [], tests: [], declarations: [] };
-        }
-
-        // retain literal directory references for package files
-        const references = await DirectoryReference.collect(source, project);
-        if (!authored) {
-            return { file, references, tests: [], declarations: [] };
-        }
-
-        // describe the tests of authored modules and the declarations of runtime modules
+    /** Read an authored module's tests. */
+    async collect(file: string, source: SourceFile): Promise<CollectedModule> {
         const owner = await this.catalog.locate(dirname(file));
         const path = relativePath(owner.directory, file);
-        const tests = await collectTests(source, path, project);
-        const declarations = isRuntime
-            ? await collectDeclarations(source, path, this.inspector, owner, this.catalog, tests)
-            : [];
 
-        return { file, references, tests, declarations };
+        return { file, tests: await collectTests(source, path, this.project) };
     }
 
     /** Register an authored module by package path, requiring bytes equal to the snapshot. */
@@ -469,7 +393,7 @@ class ProjectInspection {
                 collectGlobals(source, this.project, module.path, (symbol) =>
                     this.reference(symbol),
                 ),
-                this.depth === "index" ? inspectErrors(source, this.inspector) : [],
+                inspectErrors(source, this.inspector),
                 this.describeExports(source, module.path),
                 isTest
                     ? []
@@ -480,55 +404,6 @@ class ProjectInspection {
             ]);
         this.examples.push(...examples);
         this.scenarios.push(...scenarios);
-    }
-
-    /** Describe a module's imports, globals and errors, and the exports runtimes agree on. */
-    async describeRuntime(file: string, source: SourceFile): Promise<void> {
-        const module = found(this.modules, relativePath(this.root, file));
-        [module.imports, module.globals, module.errors, module.exports] = await Promise.all([
-            describeImports(source, this.inspector, this.root, this.catalog),
-            collectGlobals(source, this.project, module.path, (symbol) => this.reference(symbol)),
-            this.depth === "index" ? inspectErrors(source, this.inspector) : [],
-            this.describeExports(source, module.path),
-        ]);
-    }
-
-    /** Take the symbols, examples and scenarios another runtime's program describes. */
-    adopt(described: TypeScriptInspection): void {
-        // require the modules among the described ones, which read the package's whole source
-        const modules = new Map(described.modules.map((module) => [module.path, module]));
-        const unknown = [...this.modules.keys()].filter((path) => !modules.has(path));
-        if (unknown.length > 0) {
-            throw BuildError.of(
-                "INSPECTION_FAILED",
-                `the runtime programs read modules that the first one does not have: ${unknown.join(", ")}`,
-            );
-        }
-
-        // require each module's bytes and exports to agree, then take its symbols
-        for (const [path, module] of this.modules) {
-            const other = found(modules, path);
-            const exported = new Set(other.exports.map((each) => stringifyInspection(each)));
-            const differing = module.exports
-                .filter((each) => !exported.has(stringifyInspection(each)))
-                .map((each) => each.name);
-            if (other.source.digest !== module.source.digest) {
-                throw BuildError.of(
-                    "INSPECTION_FAILED",
-                    `${path} changed between runtime programs`,
-                );
-            } else if (differing.length > 0 || other.exports.length !== module.exports.length) {
-                throw BuildError.of(
-                    "INSPECTION_FAILED",
-                    `the runtime programs disagree on the exports of ${path}: ${differing.join(", ")}`,
-                );
-            }
-            module.symbols.push(...other.symbols);
-        }
-
-        // take the examples and scenarios
-        this.examples.push(...described.examples);
-        this.scenarios.push(...described.scenarios);
     }
 
     /** Describe the queued declarations in waves, as each wave queues the local types it names. */
@@ -592,61 +467,6 @@ async function readAuthored(
     );
 
     return new Map(sources);
-}
-
-/** Collect the package modules the entries import through runtime imports and reexports. */
-async function collectRuntimeFiles(
-    project: Project,
-    entries: readonly string[],
-    sourceFiles: ReadonlyMap<string, SourceFile>,
-): Promise<Set<string>> {
-    // index the package's modules by the compiler's path
-    const byPath = new Map([...sourceFiles.values()].map((source) => [source.path, source]));
-
-    // follow imports from the entry modules
-    const pending = await Promise.all(
-        entries.map(async (entry) => {
-            const source = await project.program.getSourceFile(entry);
-
-            return found(byPath, present(source, `the entry module ${entry}`).path);
-        }),
-    );
-    const visited = new Set(pending.map((source) => source.fileName));
-    for (const source of pending) {
-        // skip declaration files, which contribute no runtime modules
-        if (source.isDeclarationFile) {
-            continue;
-        }
-
-        // select specifiers of imports and reexports that remain after type erasure
-        const specifiers = source.statements.flatMap((statement) => {
-            if (isImportDeclaration(statement)) {
-                return statement.importClause?.phaseModifier === SyntaxKind.TypeKeyword
-                    ? []
-                    : [statement.moduleSpecifier];
-            } else if (isExportDeclaration(statement) && statement.moduleSpecifier) {
-                return statement.isTypeOnly ? [] : [statement.moduleSpecifier];
-            } else {
-                return [];
-            }
-        });
-        if (!specifiers.length) {
-            continue;
-        }
-
-        // follow each of the package's modules once, leaving dependencies to their builds
-        const modules = await project.checker.getSymbolAtLocation(specifiers);
-        for (const module of modules) {
-            const path = module?.declarations[0]?.path;
-            const target = path === undefined ? undefined : byPath.get(path);
-            if (target !== undefined && !visited.has(target.fileName)) {
-                visited.add(target.fileName);
-                pending.push(target);
-            }
-        }
-    }
-
-    return visited;
 }
 
 /** Report whether a declaration or one of its ancestors has a type-only modifier. */

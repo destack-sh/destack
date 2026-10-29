@@ -96,13 +96,8 @@ test("refuse an undeclared, differently selected or unsupported dependency in th
         },
         files: [],
     });
-    await using source = await PackageSource.open(
-        {
-            directory: join(root, "application"),
-            runtime: "browser",
-            tree: {},
-            roots: "package",
-        },
+    const source = await PackageSource.open(
+        { directory: join(root, "application"), runtime: "browser", tree: {} },
         environment,
     );
     const server = await createServer({
@@ -130,55 +125,6 @@ test("refuse an undeclared, differently selected or unsupported dependency in th
     } finally {
         await server.close();
     }
-});
-
-test("resolve a dependency the build releases at a given version exactly, refusing any other version", async () => {
-    // build the application importing one dependency the host selects at a version
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const { files } = environment;
-    const root = await writeApplication(files);
-    await files.writeTextFile(
-        join(root, "bun.lock"),
-        JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
-    );
-    const directory = join(root, "application");
-    await files.writeTextFile(
-        join(directory, "src", "index.ts"),
-        'export { pinned } from "./pinned.ts";\n',
-    );
-    const dev = { "@fixture/application": "2026.9.0-dev.4", "@fixture/pinned": "2026.9.0-dev.4" };
-    await using store = await LocalPackageStore.temporary(environment);
-    await using compiler = await Compiler.start(directory, { store });
-    const build = (version: string, versions?: typeof dev) =>
-        compiler.build({
-            directory,
-            dependencies: {
-                "@fixture/pinned": DependencyResolution.parse({
-                    kind: "source",
-                    package: {
-                        id: "package-01a10a00-0000-7000-8000-000000000002",
-                        name: "@fixture/pinned",
-                        version,
-                    },
-                    files: [],
-                }),
-            },
-            outputs: { browser: { kind: "module", runtime: "browser" } },
-            ...(versions === undefined ? {} : { versions }),
-        });
-    // release the application and its dependency at the dev version
-    await using built = await build("2026.9.0-dev.4", dev);
-    expect(built.manifest.package.version).toEqual("2026.9.0-dev.4");
-
-    // refuse the declared version in a dev build, and the dev version in a release build
-    const refused = [
-        "UNPROCESSABLE_CONTENT",
-        "DEPENDENCY_INVALID",
-        "dependency resolution differs from installation: @fixture/pinned",
-    ];
-    expect(await refusal(build("2026.9.0", dev))).toEqual(refused);
-    expect(await refusal(build("2026.9.0-dev.4"))).toEqual(refused);
 });
 
 test("refuse an unsupported dependency in a build as the development server does", async () => {
@@ -216,12 +162,13 @@ test("refuse an unsupported dependency in a build as the development server does
         outputs: Object.keys(build.manifest.outputs),
         server: build.manifest.outputs["bun"]?.dependencies["@fixture/server"]?.kind,
     }).toEqual({ outputs: ["bun"], server: "destack" });
+    const dependencies = await workspace.storeDependencies({});
     expect(
         await refusal(
             compilers.use(directory, (compiler) =>
                 compiler.build({
                     directory,
-                    dependencies: {},
+                    dependencies,
                     outputs: { browser: { kind: "module", runtime: "browser" } },
                 }),
             ),
@@ -239,10 +186,15 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
     const environment = simulation.environment("test");
     const { files } = environment;
     const root = await files.realPath(await files.makeTemporaryDirectory("destack-build-export-"));
+    const workspaces = {
+        library: { name: "@fixture/library" },
+        application: { name: "@fixture/application" },
+    };
     await files.writeTextFile(
         join(root, "bun.lock"),
-        JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+        JSON.stringify({ lockfileVersion: 2, workspaces, packages: {} }),
     );
+    await files.writeTextFile(join(root, ".gitignore"), "node_modules/\n");
     const library = join(root, "library");
     await writePackage(
         library,
@@ -289,17 +241,24 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
     );
     await files.mkdir(join(directory, "node_modules", "@fixture"), { recursive: true });
     await files.symlink(library, join(directory, "node_modules", "@fixture", "library"));
+    expect((await environment.process.spawn(["git", "init", "--quiet", root]).output()).code).toBe(
+        0,
+    );
     await using store = await LocalPackageStore.temporary(environment);
-    await using compiler = await Compiler.start(directory, { store });
-    await using build = await compiler.build({
-        directory,
-        dependencies: {},
+    await using compilers = await CompilerPool.open(store);
+    const workspace = await Workspace.open(directory, compilers);
+    await using build = await workspace.build({
         outputs: { browser: { kind: "module", runtime: "browser" } },
     });
-    expect(Object.keys(build.manifest.outputs)).toEqual(["browser"]);
+
+    // load the library's browser export from its own browser output
+    expect({
+        outputs: Object.keys(build.manifest.outputs),
+        library: build.manifest.outputs["browser"]?.dependencies["@fixture/library"]?.kind,
+    }).toEqual({ outputs: ["browser"], library: "destack" });
 });
 
-test("refuse star exports that lead back into a module, listing the cycle", async () => {
+test("refuse indexing star exports that lead back into a module, listing the cycle", async () => {
     // write a package whose modules star-export each other
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -327,15 +286,7 @@ test("refuse star exports that lead back into a module, listing the cycle", asyn
     );
     await using store = await LocalPackageStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store });
-    expect(
-        await refusal(
-            compiler.build({
-                directory,
-                dependencies: {},
-                outputs: { bun: { kind: "module", runtime: "bun" } },
-            }),
-        ),
-    ).toEqual([
+    expect(await refusal(compiler.index({ directory, runtime: "bun", dependencies: {} }))).toEqual([
         "UNPROCESSABLE_CONTENT",
         "INSPECTION_FAILED",
         "export * cycle: src/left.ts -> src/right.ts -> src/left.ts",

@@ -244,8 +244,8 @@ export class Fixture implements AsyncDisposable {
         return await this.#compiler.build({ directory: this.source, dependencies: {}, ...request });
     }
 
-    /** Index the copied package's code for Bun. */
-    async index(): Promise<graph.Document[]> {
+    /** Index the copied package for Bun: each module's code and its graph. */
+    async index(): Promise<{ code: graph.Document[]; modules: graph.Module[] }> {
         return await this.#compiler.index({
             directory: this.source,
             runtime: "bun",
@@ -261,7 +261,7 @@ export class Fixture implements AsyncDisposable {
     }
 }
 
-/** Read each manifest list and graph file independently from a relocated package. */
+/** Read each manifest list independently from a relocated package. */
 export async function expectManifest(
     build: PackageBuild,
     destination: string,
@@ -285,6 +285,7 @@ export async function expectManifest(
         ["dependencies", () => reader.dependencies()],
         ["files", () => reader.files()],
         ["sourceMaps", () => reader.sourceMaps()],
+        ["declarations", () => reader.declarations()],
     ] as const) {
         loaded.length = 0;
         const records = await read();
@@ -294,16 +295,6 @@ export async function expectManifest(
         );
         expect(records).toEqual(expected);
         expect(loaded).toEqual([reference.path]);
-    }
-
-    // load the graph root alone, then each module's graph file alone by its digest
-    loaded.length = 0;
-    const root = await reader.graph();
-    expect(loaded).toEqual([build.manifest.lists.graph.path]);
-    for (const [path, digest] of Object.entries(root.modules)) {
-        loaded.length = 0;
-        const module = await reader.module(digest);
-        expect([module.path, loaded]).toEqual([path, [`graph/${digest}.json`]]);
     }
 }
 

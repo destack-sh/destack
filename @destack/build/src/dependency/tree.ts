@@ -141,7 +141,12 @@ export class DependencyTree {
             // visit the Destack dependencies the build's outputs import, as builds
             const { manifest } = await store.contents(dependency.manifest);
             const recorded: Record<string, DependencyRelease> = {};
-            for (const output of Object.values(manifest.outputs)) {
+            const outputs = Object.values(manifest.outputs).toSorted(
+                (left, right) =>
+                    Number(left.runtime === HOST_RUNTIME) - Number(right.runtime === HOST_RUNTIME),
+            );
+            // take each npm unit from the Bun output where it has one, which the tree places
+            for (const output of outputs) {
                 Object.assign(recorded, output.dependencies);
             }
             pending.push(
@@ -201,8 +206,9 @@ export class DependencyTree {
             }
         }
 
-        // clone each of the build's files, then write its manifest
-        for (const file of await reader.distributed()) {
+        // clone each of the build's files and source maps, then write its manifest
+        const built = [...(await reader.distributed()), ...(await store.maps(dependency.manifest))];
+        for (const file of built) {
             const destination = join(target, file.path);
             await store.place(file, destination);
         }

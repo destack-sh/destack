@@ -8,7 +8,6 @@ import { BuildReader, BuildWriter } from "@destack/package/manifest";
 import { Digest, found } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
-import { Identities } from "../cache/index.ts";
 import { testSimulation } from "../test/world.ts";
 import { LocalPackageStore } from "./local.ts";
 
@@ -49,39 +48,34 @@ async function written(text: string, crypto: Crypto): Promise<BuildReader> {
     );
 }
 
-test("open one store per toolchain, deleting other toolchains' idle stores and reusing the current one", async () => {
-    // write an idle store and an open one of other toolchains, beside a file a file manager left
+test("keep one store in a directory, which a later open of any toolchain reads", async () => {
+    // store a blob, then reopen the store, as a process of another toolchain does
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
     const directory = await files.makeTemporaryDirectory("test-stores-");
-    await files.mkdir(join(directory, "idle"), { recursive: true });
-    await files.writeTextFile(join(directory, "idle", "store.lock"), "");
-    await files.mkdir(join(directory, "open"), { recursive: true });
-    const held = await files.lock(join(directory, "open", "store.lock"), "shared");
-    await files.writeTextFile(join(directory, ".DS_Store"), "");
-
-    // store a blob in the toolchain's store, then reopen it
     const marker = await Digest.of(MARKER, environment.crypto);
     {
         await using store = await LocalPackageStore.open(directory, environment);
         await store.receive(marker, MARKER);
     }
     await using reopened = await LocalPackageStore.open(directory, environment);
-    await held.close();
 
-    // retain the open store and the toolchain's store, which still has the blob
-    const toolchain = await Identities.of({}, environment).toolchain();
+    // read the blob from the store's files beside its database and locks
+    const entries = await files.readDirectory(directory);
     expect({
-        stores: (await files.readDirectory(directory)).map((entry) => entry.name).toSorted(),
+        entries: entries
+            .map((entry) => entry.name)
+            .filter((name) => !name.startsWith("store.db-"))
+            .toSorted(),
         isStored: await reopened.has(marker),
     }).toEqual({
-        stores: [toolchain, ".DS_Store", "open", "stores.lock"].toSorted(),
+        entries: ["files", "open.lock", "store.db", "store.lock", "trees"],
         isStored: true,
     });
 });
 
-test("share the toolchain's store between opens, each reading what the other writes", async () => {
+test("share the store between opens, each reading what the other writes", async () => {
     // open the store twice at once, as two test processes do
     await using simulation = testSimulation();
     const environment = simulation.environment("test");

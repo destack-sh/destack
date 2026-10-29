@@ -4,7 +4,6 @@ import { BlobStore, blobLease, eq } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { locateWorkspace } from "@destack/check/workspace";
 import type { Environment } from "@destack/environment";
-import { Identities } from "../cache/index.ts";
 import type { PackageFile } from "@destack/package/file";
 import { PackageStore } from "./store.ts";
 import { packageStoreDatabase } from "./table.ts";
@@ -28,8 +27,8 @@ const DIRECTORY_ROOT_PREFIX = "directory:";
 /** The file every process using a store locks shared. */
 const STORE_LOCK = "store.lock";
 
-/** The file a stores' directory locks while one process collects and opens its stores. */
-const DIRECTORY_LOCK = "stores.lock";
+/** The file a store's directory locks while one process opens and collects the store. */
+const OPEN_LOCK = "open.lock";
 
 /** How long a store retains an unrooted build past its last use: a week, as Nx keeps its cache. */
 const CACHE_MILLISECONDS = 7 * 24 * 60 * 60_000;
@@ -180,33 +179,18 @@ export class LocalPackageStore
         }
     }
 
-    /** Open the toolchain's store below a directory, deleting idle stores of other toolchains. */
+    /** Open the store in a directory, collecting it first when no other process has it open. */
     static async open(
         directory: string,
         environment: Environment<"files" | "process" | "host">,
     ): Promise<LocalPackageStore> {
-        // lock the directory while collecting and opening, so no process opens a store being deleted
+        // lock the directory while opening and collecting, so no process builds into a store being collected
         const { files } = environment;
-        const toolchain = await Identities.of({}, environment).toolchain();
         await files.mkdir(directory, { recursive: true });
-        const held = await files.lock(join(directory, DIRECTORY_LOCK), "exclusive");
+        const held = await files.lock(join(directory, OPEN_LOCK), "exclusive");
         try {
-            // delete each other toolchain's store no process has open, leaving files such as .DS_Store
-            const entries = await files.readDirectory(directory);
-            const stores = entries
-                .filter((entry) => entry.kind === "directory" && entry.name !== toolchain)
-                .map((entry) => entry.name);
-            for (const entry of stores) {
-                const lock = await files.tryLock(join(directory, entry, STORE_LOCK), "exclusive");
-                if (lock !== undefined) {
-                    await files.remove(join(directory, entry), { recursive: true });
-                    await lock.close();
-                }
-            }
-
-            // learn whether another process has the toolchain's store open, as openers wait here
-            await files.mkdir(join(directory, toolchain), { recursive: true });
-            const location = await files.realPath(join(directory, toolchain));
+            // learn whether another process has the store open, as openers wait here
+            const location = await files.realPath(directory);
             const idle = await files.tryLock(join(location, STORE_LOCK), "exclusive");
             await idle?.close();
 

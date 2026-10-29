@@ -5,7 +5,6 @@ import {
     type PackageJson,
     TEST_EXPORT,
 } from "@destack/package";
-import type { History } from "@destack/resource";
 import type { LocalPackageStore } from "../store/local.ts";
 import { mapExports } from "../source/source.ts";
 import type { OutputRequest } from "@destack/package/build";
@@ -28,18 +27,15 @@ export class PackageBuild implements AsyncDisposable {
     readonly ownership: "temporary" | "retained";
     /** Selective access to the build's description files. */
     readonly reader: BuildReader;
-    /** The requested outputs the build reused from a cache instead of compiling them. */
-    readonly reused: readonly string[];
     /** The files the directory lives in. */
     readonly #files: FileSystem;
 
-    /** Store a build directory's reader, whether it removes it and the outputs it reused. */
+    /** Store a build directory's reader, and whether disposal removes the directory. */
     constructor(
         reader: BuildReader,
         directory: string,
         ownership: "temporary" | "retained",
         files: FileSystem,
-        reused: readonly string[] = [],
     ) {
         // store the reader with its manifest, the directory and whether the build removes it
         this.reader = reader;
@@ -47,7 +43,6 @@ export class PackageBuild implements AsyncDisposable {
         this.directory = directory;
         this.ownership = ownership;
         this.#files = files;
-        this.reused = reused;
     }
 
     /** Remove only this instance's temporary results. */
@@ -57,7 +52,7 @@ export class PackageBuild implements AsyncDisposable {
         }
     }
 
-    /** Write a stored build's files and manifest into a directory, reusing every output. */
+    /** Write a stored build's files and manifest into a directory. */
     static async restore(
         store: LocalPackageStore,
         digest: Digest,
@@ -74,15 +69,14 @@ export class PackageBuild implements AsyncDisposable {
             createNew: true,
         });
 
-        // read the written build back, reusing every output
-        const reused = Object.keys(manifest.outputs);
+        // read the written build back
         const written = await BuildReader.openDirectory(
             destination,
             files,
             store.environment.crypto,
         );
 
-        return new PackageBuild(written, destination, "temporary", files, reused);
+        return new PackageBuild(written, destination, "temporary", files);
     }
 
     /** Read a distributed build and verify its files. */
@@ -251,8 +245,6 @@ export interface PackageBuildOptions {
     signal?: AbortSignal;
     /** The longest a compilation may take, in milliseconds, absent for no deadline. */
     timeout?: number;
-    /** What the package has published, to plan its upgrade from. */
-    history?: History;
     /** The commit of the source directory, absent for a working tree with changes. */
     commit?: Commit;
     /** The versions the build releases its source packages at, by package name. */

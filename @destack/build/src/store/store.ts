@@ -11,10 +11,15 @@ import {
     lte,
     sql,
 } from "@destack/db";
-import { DependencyName, type PackageId } from "@destack/package";
+import {
+    DependencyName,
+    DependencyRelease,
+    type DependencyResolution,
+    type PackageId,
+} from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {
-    type BuildContents,
+    type BuildContent,
     BuildReader,
     BuildWriter,
     type PackageLocation,
@@ -312,6 +317,13 @@ export class PackageStore<
         return found;
     }
 
+    /** List the source map files attached to a build, none for a build without maps. */
+    async maps(digest: Digest): Promise<readonly PackageFile[]> {
+        const attached = await this.referrer(digest, MAPS_REFERRER);
+
+        return attached === undefined ? [] : (await this.contents(attached.digest)).files();
+    }
+
     /** Read and verify a build's manifest. */
     async get(digest: Digest): Promise<PackageManifest> {
         const bytes = await this.file(await this.head(digest));
@@ -552,12 +564,12 @@ export class PackageStore<
         return stored.map(({ digest }) => digest);
     }
 
-    /** Attach the runtime build of each emitted server output of a stored build. */
+    /** Attach the runtime build of each emitted output of a stored build. */
     async attachRuntimes(digest: Digest): Promise<void> {
         const { outputs } = await this.get(digest);
         await Promise.all(
             Object.values(outputs)
-                .filter((output) => output.emit && output.runtime !== "browser")
+                .filter((output) => output.emit)
                 .map((output) => this.attachRuntime(digest, output.runtime)),
         );
     }
@@ -638,27 +650,80 @@ export class PackageStore<
         return built;
     }
 
+    /** Store a build again with its Destack dependencies pinned to other builds. */
+    async relink(
+        digest: Digest,
+        dependencies: Readonly<Record<string, DependencyResolution>>,
+    ): Promise<Digest> {
+        // pin each output's Destack dependencies to the given builds, keeping its npm units
+        const reader = await this.contents(digest);
+        const pin = (name: string, pinned: DependencyRelease): DependencyRelease =>
+            pinned.kind === "npm"
+                ? pinned
+                : DependencyRelease.parse(present(dependencies[name], `the build of ${name}`));
+        const outputs = Object.fromEntries(
+            Object.entries(reader.manifest.outputs).map(([name, output]) => [
+                name,
+                {
+                    ...output,
+                    dependencies: Object.fromEntries(
+                        Object.entries(output.dependencies).map(([each, pinned]) => [
+                            each,
+                            pin(each, pinned),
+                        ]),
+                    ),
+                },
+            ]),
+        );
+
+        // write the manifest anew, streaming the build's files from the stored one
+        const written = new Map<string, Uint8Array<ArrayBuffer>>();
+        const manifest = await BuildWriter.relink(
+            reader,
+            { write: async (path, bytes) => void written.set(path, bytes) },
+            this.environment.crypto,
+            outputs,
+        );
+
+        return await this.#putWritten(reader, written, manifest);
+    }
+
     /** Store a build of some files of another build, answering its manifest's digest. */
     async #build(
         source: BuildReader,
         files: readonly PackageFile[],
-        contents: BuildContents,
+        contents: BuildContent,
     ): Promise<Digest> {
-        // write the files in memory, then the manifest listing them
+        // record the source's files as they are, writing only the lists and the manifest
         const written = new Map<string, Uint8Array<ArrayBuffer>>();
         const writer = new BuildWriter(
             { write: async (path, bytes) => void written.set(path, bytes) },
             this.environment.crypto,
         );
         for (const file of files) {
-            await writer.write(file.path, await source.load(file.path));
+            writer.add(file);
         }
         const built = await writer.finish(contents);
 
-        return this.put(
+        return await this.#putWritten(source, written, built);
+    }
+
+    /** Store a build with its new files in memory, streaming the rest from its source build. */
+    async #putWritten(
+        source: BuildReader,
+        written: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+        manifest: PackageManifest,
+    ): Promise<Digest> {
+        return await this.put(
             new BuildReader(
-                built,
-                async (path) => new Blob([present(written.get(path), path)]).stream(),
+                manifest,
+                async (path, signal) => {
+                    const bytes = written.get(path);
+
+                    return bytes === undefined
+                        ? await source.stream(path, signal)
+                        : new Blob([bytes]).stream();
+                },
                 this.environment.crypto,
             ),
         );
@@ -964,15 +1029,12 @@ export class PackageStore<
         yield bytes;
     }
 
-    /** List the blobs a cache entry references: a manifest, or files. */
+    /** List the blobs a cache entry references: a manifest, or a file. */
     static #digests(entry: CacheEntry): Digest[] {
         switch (entry.kind) {
             // list a whole build's manifest
             case "build":
                 return [entry.manifest];
-            // list an output's files
-            case "output":
-                return entry.output.files.map((file) => file.digest);
             // list a transform's file
             case "file":
                 return [entry.file.digest];

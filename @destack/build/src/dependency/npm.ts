@@ -8,20 +8,11 @@ import {
 } from "@destack/package";
 import { PackageLocator } from "@destack/package/locator";
 import { BuildReader, BuildWriter, type PackageOutput } from "@destack/package/manifest";
-import { NATIVE_ADDON_RUNTIMES, type Runtime, SERVER_RUNTIMES } from "@destack/package/runtime";
+import { NATIVE_ADDON_RUNTIMES, Runtime } from "@destack/package/runtime";
+import { NpmConversion } from "../compile/conversion.ts";
 import { Digest, found, nth, schema } from "@destack/schema";
-import { minifySync } from "rolldown/utils";
 import { BuildError } from "../error/index.ts";
 import type { PackageStore } from "../store/index.ts";
-
-/** The modules a unit's minification rewrites. */
-const MODULE_FILE = /\.[cm]?js$/u;
-
-/** The CommonJS bindings minification leaves unmangled, for runtimes to detect named exports. */
-const COMMONJS_NAMES = ["exports", "module", "require"];
-
-/** The part of a package.json that decides how its modules load. */
-const PackageType = schema.looseObject({ type: schema.string().exactOptional() });
 
 /** The files read at once, 64: well under macOS's default limit of 256 open files. */
 const CONCURRENT_READS = 64;
@@ -35,24 +26,6 @@ const Manifest = RuntimeRequirements.extend({
     version: schema.string().min(1),
 });
 
-/** The workerd conversion of one installed npm package: its copy, name, dependencies and peers. */
-export interface NpmConversionRequest {
-    /** The installed copy in Bun's store. */
-    readonly source: string;
-    /** The package's name. */
-    readonly name: string;
-    /** The installed packages it requires. */
-    readonly dependencies: readonly string[];
-    /** The peers it declares. */
-    readonly peers: readonly string[];
-}
-
-/** Convert an installed npm package for workerd, answering its files and what it imports. */
-export type NpmConverter = (request: NpmConversionRequest) => Promise<{
-    readonly files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
-    readonly imported: ReadonlySet<string>;
-}>;
-
 /** An npm dependency taken by its unit's build. */
 export type NpmDependency = Extract<DependencyRelease, { readonly kind: "npm" }>;
 
@@ -62,28 +35,26 @@ export class NpmInstallation {
     readonly locked: Readonly<Record<string, NpmRelease>>;
     /** The store of the units' builds. */
     readonly #store: PackageStore;
-    /** The identity of the toolchain building the units, which their keys include. */
-    readonly #toolchain: Digest;
+    /** The identity of the npm conversion building the units, which their keys include. */
+    readonly #conversion: Digest;
     /** The files the installed copies are read from, and the crypto keying their builds. */
     readonly #environment: Environment<"files">;
     /** The units opened so far, by their copy in Bun's store. */
     readonly #opened = new Map<string, NpmUnit>();
-    /** The units' stored builds so far, by their copy in Bun's store. */
-    readonly #stored = new Map<string, Promise<NpmDependency>>();
     /** The last open, after which the next one runs, so concurrent units open each copy once. */
     #opening: Promise<unknown> = Promise.resolve();
 
-    /** Store the locked releases, and the store and toolchain the units build with. */
+    /** Store the locked releases, and the store and conversion the units build with. */
     constructor(
         locked: Readonly<Record<string, NpmRelease>>,
         store: PackageStore,
-        toolchain: Digest,
+        conversion: Digest,
         environment: Environment<"files">,
     ) {
         // store the locked releases and what the units build with
         this.locked = locked;
         this.#store = store;
-        this.#toolchain = toolchain;
+        this.#conversion = conversion;
         this.#environment = environment;
     }
 
@@ -123,7 +94,6 @@ export class NpmInstallation {
             ...manifest.dependencies,
             ...manifest.optionalDependencies,
         });
-        const peers = new Set(PackageJson.peers(manifest));
         const next = new Set([...visiting, directory]);
         for (const name of required.toSorted()) {
             const installed = await locator.directory(name, directory);
@@ -144,67 +114,42 @@ export class NpmInstallation {
                 dependencies.set(name, await this.#open(real, next));
             }
         }
-        const unit = new NpmUnit(release, directory, dependencies, peers, this.#environment);
+        const unit = new NpmUnit(release, directory, dependencies, manifest, this.#environment);
         this.#opened.set(directory, unit);
 
         return unit;
     }
 
-    /** Store a unit's build for every server runtime on its dependencies' builds, once. */
-    async store(unit: NpmUnit, convert: NpmConverter): Promise<NpmDependency> {
-        // store each unit once, whichever unit requires it
-        let dependency = this.#stored.get(unit.directory);
-        if (dependency === undefined) {
-            dependency = this.#storeOnce(unit, convert);
-            this.#stored.set(unit.directory, dependency);
-        }
-
-        return await dependency;
-    }
-
-    /** Store a unit's build after its dependencies', keyed by their builds and the release. */
-    async #storeOnce(unit: NpmUnit, convert: NpmConverter): Promise<NpmDependency> {
-        // store its dependencies first, which its key and build record
-        const dependencies: Record<string, NpmDependency> = {};
-        for (const [name, each] of unit.dependencies) {
-            dependencies[name] = await this.store(each, convert);
-        }
-
-        // key the build by the toolchain, the release and the dependencies' builds
+    /** Store a unit's build for a runtime once, keyed by conversion, release and closure. */
+    async store(unit: NpmUnit, runtime: Runtime): Promise<NpmDependency> {
+        // key the build by what decides its bytes: the conversion, the release, the runtime and the locked closure
         const { package: released, integrity } = unit.release;
         const key = await Digest.json(
             {
                 kind: "npm",
-                toolchain: this.#toolchain,
+                conversion: this.#conversion,
                 package: { ...released, integrity },
-                dependencies: Object.fromEntries(
-                    Object.entries(dependencies).map(([name, each]) => [name, each.manifest]),
-                ),
+                runtime,
+                closure: unit
+                    .closure()
+                    .map((each) => `${each.release.package.name}@${each.release.package.version}`)
+                    .toSorted(),
             },
             this.#environment.crypto,
         );
 
-        // take the stored build, building and storing it once when missing
+        // take the stored build, else build it on the builds of the dependencies its modules import
         const manifest = await this.#store.cachedBuild(key, async () => {
-            // read the runtimes each dependency's build loads on, then build on them
-            const loadable = new Map<string, ReadonlySet<Runtime>>();
-            for (const [name, each] of Object.entries(dependencies)) {
-                const { outputs } = await this.#store.get(each.manifest);
-                loadable.set(name, new Set(Object.values(outputs).map((output) => output.runtime)));
-            }
+            const built = await unit.build(runtime, (each) => this.store(each, runtime));
 
-            // store the unit with the runtime build of each of its outputs
-            const stored = await this.#store.put(await unit.build(dependencies, loadable, convert));
-            await this.#store.attachRuntimes(stored);
-
-            return stored;
+            return await this.#store.put(built);
         });
 
         return { kind: "npm", ...unit.release, manifest };
     }
 }
 
-/** An npm package installed in the workspace's Bun store, built as one unit for server runtimes. */
+/** An npm package installed in the workspace's Bun store, built as one unit per runtime. */
 export class NpmUnit {
     /** The release the lockfile locks. */
     readonly release: NpmRelease;
@@ -212,25 +157,35 @@ export class NpmUnit {
     readonly directory: string;
     /** The installed packages it requires, peers excepted, by the names it imports them by. */
     readonly dependencies: ReadonlyMap<string, NpmUnit>;
-    /** The peers it declares, which the tree it sits in provides. */
-    readonly peers: ReadonlySet<string>;
+    /** The dependencies, optional dependencies and peers its package.json declares. */
+    readonly requirements: RuntimeRequirements;
     /** The files the installed copy is read from, and the crypto digesting its build. */
     readonly #environment: Environment<"files">;
 
-    /** Store an installed package's release, copy, dependencies and peers. */
+    /** Store an installed package's release, copy, dependencies and requirements. */
     constructor(
         release: NpmRelease,
         directory: string,
         dependencies: ReadonlyMap<string, NpmUnit>,
-        peers: ReadonlySet<string>,
+        requirements: RuntimeRequirements,
         environment: Environment<"files">,
     ) {
         // store the release, its copy and its requirements
         this.release = release;
         this.directory = directory;
         this.dependencies = dependencies;
-        this.peers = peers;
+        this.requirements = requirements;
         this.#environment = environment;
+    }
+
+    /** List the peers it declares, which the tree it sits in provides. */
+    get peers(): string[] {
+        return PackageJson.peers(this.requirements);
+    }
+
+    /** List the peers it requires, which every package importing it provides beside it. */
+    get requiredPeers(): string[] {
+        return this.peers.filter((peer) => !PackageJson.isOptional(this.requirements, peer));
     }
 
     /** List this unit and every unit it requires, each once. */
@@ -248,75 +203,69 @@ export class NpmUnit {
         return [...units];
     }
 
-    /** Build the unit in memory: Bun's output as installed, workerd's converted to ESM. */
+    /** Build the unit for a runtime in memory: Bun's as installed, the others converted to ESM. */
     async build(
-        dependencies: Readonly<Record<string, NpmDependency>>,
-        loadable: ReadonlyMap<string, ReadonlySet<Runtime>>,
-        convert: NpmConverter,
+        runtime: Runtime,
+        store: (dependency: NpmUnit) => Promise<NpmDependency>,
     ): Promise<BuildReader> {
-        // read the installed copy's files once, leaving workerd out for a native addon
+        // refuse a native addon on a runtime that cannot load it
         const files = await NpmUnit.files(this.directory, this.#environment.files);
+        const isAddon = [...files.keys()].some((path) => path.endsWith(ADDON_EXTENSION));
+        const { name } = this.release.package;
+        if (isAddon && !NATIVE_ADDON_RUNTIMES.has(runtime)) {
+            throw BuildError.of(
+                "RUNTIME_MODULE_UNSUPPORTED",
+                `${name} is a native addon, which ${runtime} cannot load`,
+            );
+        }
+
+        // take the installed files for Bun, which runs them as installed, else convert them
+        const converted =
+            runtime === "bun"
+                ? { files, exports: {}, imported: new Set(this.dependencies.keys()) }
+                : await new NpmConversion(
+                      name,
+                      [...this.dependencies.keys()],
+                      this.peers,
+                      runtime,
+                      this.#environment.files,
+                  ).convert(files);
+
+        // store the dependencies its modules import for the runtime, at once
+        const imported = [...this.dependencies].filter(([each]) => converted.imported.has(each));
+        const dependencies = Object.fromEntries(
+            await Promise.all(
+                imported.map(async ([each, unit]) => [each, await store(unit)] as const),
+            ),
+        );
+
+        // write its files below the runtime, described by its exports and the dependencies it imports
         const written = new Map<string, Uint8Array<ArrayBuffer>>();
         const writer = new BuildWriter(
-            {
-                write: async (path, bytes) => {
-                    written.set(path, bytes);
-                },
-            },
+            { write: async (path, bytes) => void written.set(path, bytes) },
             this.#environment.crypto,
         );
-        const isAddon = [...files.keys()].some((path) => path.endsWith(ADDON_EXTENSION));
-        const runtimes = SERVER_RUNTIMES.filter(
-            (runtime) => !isAddon || NATIVE_ADDON_RUNTIMES.has(runtime),
+        await Promise.all(
+            [...converted.files].map(([path, bytes]) => writer.write(`${runtime}/${path}`, bytes)),
         );
-
-        // copy the package for Bun, which runs it as installed, and convert it for workerd, together
-        const built = await Promise.all(
-            runtimes.map(async (runtime) => {
-                // take the installed files for Bun and the converted ones for workerd, writing each
-                const converted =
-                    runtime === "workerd"
-                        ? await convert({
-                              source: this.directory,
-                              name: this.release.package.name,
-                              dependencies: [...this.dependencies.keys()],
-                              peers: [...this.peers],
-                          })
-                        : { files, imported: new Set(Object.keys(dependencies)) };
-
-                // leave the runtime out when a dependency it imports has no output for it
-                const imported = Object.entries(dependencies).filter(([name]) =>
-                    converted.imported.has(name),
-                );
-                if (!imported.every(([name]) => found(loadable, name).has(runtime))) {
-                    return [];
-                }
-
-                // write its files with its modules minified, and describe it by the dependencies it imports
-                const minified = this.#minify(converted.files, runtime === "workerd");
-                await Promise.all(
-                    [...minified].map(([path, bytes]) => writer.write(`${runtime}/${path}`, bytes)),
-                );
-                const output: PackageOutput = {
-                    runtime,
-                    emit: true,
-                    workloads: {},
-                    views: {},
-                    directory: runtime,
-                    exports: {},
-                    dependencies: Object.fromEntries(imported),
-                };
-
-                return [[runtime, output] as const];
-            }),
-        );
-        const outputs = Object.fromEntries(built.flat());
-
-        // finish the build under the release's name, version and integrity
-        const { package: released, integrity } = this.release;
+        const output: PackageOutput = {
+            runtime,
+            emit: true,
+            workloads: {},
+            views: {},
+            directory: runtime,
+            exports: Object.fromEntries(
+                Object.entries(converted.exports).map(([subpath, module]) => [
+                    subpath,
+                    { path: `${runtime}/${module}`, imports: [] },
+                ]),
+            ),
+            dependencies,
+        };
+        const { integrity } = this.release;
         const manifest = await writer.finish({
-            package: { ...released, integrity },
-            outputs,
+            package: { ...this.release.package, integrity },
+            outputs: { [runtime]: output },
             dependencies,
         });
 
@@ -325,63 +274,6 @@ export class NpmUnit {
             async (path) => new Blob([found(written, path)]).stream(),
             this.#environment.crypto,
         );
-    }
-
-    /** Minify a unit's modules with their names intact, each beside a map to its installed file. */
-    #minify(
-        files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
-        isConverted: boolean,
-    ): Map<string, Uint8Array<ArrayBuffer>> {
-        // copy every other file, replacing the maps of the modules this minifies
-        const minified = new Map(files);
-        const decoder = new TextDecoder();
-        const encoder = new TextEncoder();
-        for (const [path, bytes] of files) {
-            if (MODULE_FILE.test(path)) {
-                // minify the module as an ES module or a script, CommonJS exports still detectable
-                const isModule = isConverted || NpmUnit.#isModule(path, files);
-                const result = minifySync(path, decoder.decode(bytes), {
-                    module: isModule,
-                    compress: { keepNames: { function: true, class: true } },
-                    mangle: { keepNames: true, reserved: COMMONJS_NAMES },
-                    sourcemap: true,
-                });
-                if (result.errors.length > 0) {
-                    const messages = result.errors.map((error) => error.message).join("; ");
-                    throw BuildError.of(
-                        "BUNDLE_FAILED",
-                        `cannot minify ${this.release.package.name}/${path}: ${messages}`,
-                    );
-                }
-
-                // write the minified module and its map
-                minified.set(path, encoder.encode(result.code));
-                minified.set(`${path}.map`, encoder.encode(JSON.stringify(result.map)));
-            }
-        }
-
-        return minified;
-    }
-
-    /** Decide whether an installed module is an ES module by its extension or package.json. */
-    static #isModule(path: string, files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>): boolean {
-        // decide by the extension, else by the nearest package.json's type
-        if (path.endsWith(".mjs")) {
-            return true;
-        } else if (path.endsWith(".cjs")) {
-            return false;
-        }
-        const segments = path.split("/").slice(0, -1);
-        for (let depth = segments.length; depth >= 0; depth -= 1) {
-            const declared = files.get([...segments.slice(0, depth), "package.json"].join("/"));
-            if (declared !== undefined) {
-                const parsed = PackageType.parse(JSON.parse(new TextDecoder().decode(declared)));
-
-                return parsed.type === "module";
-            }
-        }
-
-        return false;
     }
 
     /** Read every file of an installed copy by its path, leaving the copy's node_modules out. */

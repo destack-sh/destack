@@ -4,7 +4,7 @@ import { expect, refusal, test } from "@destack/test";
 
 import { NpmInstallation } from "./npm.ts";
 import { testSimulation } from "../test/world.ts";
-import { convertHere, copy, moduleFailure, writeStore } from "./test/store.ts";
+import { copy, moduleFailure, writeStore } from "./test/store.ts";
 import { LocalPackageStore } from "../store/local.ts";
 
 /** The toolchain identity the units key by, as one call's workspace reads it. */
@@ -60,7 +60,7 @@ async function runtimesOf(store: LocalPackageStore, manifest: Digest): Promise<s
     return Object.keys((await store.contents(manifest)).manifest.outputs);
 }
 
-test("build an npm unit as installed for Bun and as ESM for workerd, on its dependency's unit", async () => {
+test("build an npm unit per runtime, as installed for Bun and as ESM for workerd, on its dependency's unit", async () => {
     // install a CommonJS package requiring another
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -82,12 +82,10 @@ test("build an npm unit as installed for Bun and as ESM for workerd, on its depe
     await using store = await LocalPackageStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const unit = await installation.open(copy(root, "greeting"));
-    const stored = await installation.store(unit, convertHere(files));
+    const stored = await installation.store(unit, "workerd");
+    const installed = await installation.store(unit, "bun");
     const reopened = new NpmInstallation(locked, store, CONTEXT, environment);
-    const again = await reopened.store(
-        await reopened.open(copy(root, "greeting")),
-        convertHere(files),
-    );
+    const again = await reopened.store(await reopened.open(copy(root, "greeting")), "workerd");
 
     // place each workerd output where node_modules resolves it, and run the converted module
     const reader = await store.contents(stored.manifest);
@@ -102,18 +100,19 @@ test("build an npm unit as installed for Bun and as ESM for workerd, on its depe
         .looseObject({ default: schema.string() })
         .parse(await import(join(placed, "node_modules", "greeting", "index.js")));
 
-    // store Bun's copy minified, record the release with its build, and reuse the stored build
+    // store Bun's copy as installed, record the release with its build, and reuse the stored build
+    const bun = await store.contents(installed.manifest);
     expect({
         package: reader.manifest.package,
-        outputs: Object.keys(reader.manifest.outputs),
-        bun: new TextDecoder().decode(await reader.load("bun/index.js")),
+        outputs: [Object.keys(reader.manifest.outputs), Object.keys(bun.manifest.outputs)],
+        bun: new TextDecoder().decode(await bun.load("bun/index.js")),
         greeting: module.default,
         stored: { ...stored, manifest: "" },
         isReused: again.manifest === stored.manifest,
     }).toEqual({
         package: { name: "greeting", version: "1.0.0", integrity: "sha512-greeting" },
-        outputs: ["bun", "workerd"],
-        bun: 'module.exports=require("word")+`, world`;',
+        outputs: [["workerd"], ["bun"]],
+        bun: 'module.exports = require("word") + ", world";\n',
         greeting: "hello, world",
         stored: { kind: "npm", ...locked["greeting@1.0.0"], manifest: "" },
         isReused: true,
@@ -151,7 +150,7 @@ test("convert for workerd what its conditions import, replacing what a `browser`
     await using store = await LocalPackageStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
-        await installation.store(await installation.open(copy(root, name)), convertHere(files));
+        await installation.store(await installation.open(copy(root, name)), "workerd");
 
     // run the replaced parser on workerd's modules, and build no workerd output of the other
     const replaced = await build("replaced");
@@ -174,8 +173,8 @@ test("convert for workerd what its conditions import, replacing what a `browser`
     }).toEqual({
         parsed: "HELLO",
         lazy: "HELLO",
-        reader: ["bun", "workerd"],
-        detector: ["bun", "workerd"],
+        reader: ["workerd"],
+        detector: ["workerd"],
     });
 
     // fail the unreplaced parser's signal reader once it runs, as workerd lacks the constants module
@@ -207,7 +206,7 @@ test("convert a CommonJS module whose own binding takes the name rolldown gives 
     await using store = await LocalPackageStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const unit = await installation.open(copy(root, "colliding"));
-    const built = await installation.store(unit, convertHere(files));
+    const built = await installation.store(unit, "workerd");
 
     // run workerd's module, exported by name
     await place(store, built.manifest, "colliding", "workerd", join(root, "placed"));
@@ -239,7 +238,7 @@ test("convert a package for workerd past the tsconfig it publishes, which extend
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const built = await installation.store(
         await installation.open(copy(root, "colors")),
-        convertHere(files),
+        "workerd",
     );
 
     // run workerd's converted modules through the re-export
@@ -285,7 +284,7 @@ test("fail an absent optional dependency's require when it runs, and an absent o
         const installation = new NpmInstallation(locked, store, CONTEXT, environment);
         const stored = await installation.store(
             await installation.open(copy(root, name)),
-            convertHere(files),
+            "workerd",
         );
         await place(store, stored.manifest, name, "workerd", placed);
     }
@@ -306,7 +305,7 @@ test("fail an absent optional dependency's require when it runs, and an absent o
     ]);
 });
 
-test("refuse an npm unit with a missing dependency or a cycle, and build Bun's copy alone of a native addon and its importers", async () => {
+test("refuse an npm unit with a missing dependency or a cycle, and a native addon and its importers off Bun", async () => {
     // install a native addon, a unit importing it, a missing dependency and a cycle
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -335,11 +334,18 @@ test("refuse an npm unit with a missing dependency or a cycle, and build Bun's c
     await using store = await LocalPackageStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
-        await installation.store(await installation.open(copy(root, name)), convertHere(files));
+        await installation.store(await installation.open(copy(root, name)), "workerd");
 
-    // build Bun's copy alone of the native addon and its importer, and refuse the others with their exact reasons
-    expect(await runtimesOf(store, (await build("native")).manifest)).toEqual(["bun"]);
-    expect(await runtimesOf(store, (await build("importer")).manifest)).toEqual(["bun"]);
+    // build Bun's copy of the native addon and its importer, and refuse workerd's and the others with their exact reasons
+    const native = await installation.store(await installation.open(copy(root, "native")), "bun");
+    expect(await runtimesOf(store, native.manifest)).toEqual(["bun"]);
+    const unloadable = [
+        "UNPROCESSABLE_CONTENT",
+        "RUNTIME_MODULE_UNSUPPORTED",
+        "native is a native addon, which workerd cannot load",
+    ];
+    expect(await refusal(build("native"))).toEqual(unloadable);
+    expect(await refusal(build("importer"))).toEqual(unloadable);
     expect(await refusal(build("missing"))).toEqual([
         "UNPROCESSABLE_CONTENT",
         "DEPENDENCY_UNRESOLVED",

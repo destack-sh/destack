@@ -1,16 +1,24 @@
-import { Digest, type DigestCrypto, present, schema } from "@destack/schema";
-import type { FileSystem } from "@destack/environment";
-import { join, sep } from "node:path";
+import { Digest, present, schema } from "@destack/schema";
+import { type FileSystem, FileSystemError } from "@destack/environment";
+import { dirname, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { SourceTextModule, SyntheticModule } from "node:vm";
 import { type Plugin, rolldown } from "rolldown";
 import { transform } from "rolldown/utils";
-import { graph, Package, DeclarationDescription } from "@destack/package";
-import type { DeclarationExport, FunctionExport } from "./declaration.ts";
+import {
+    DeclarationDescription,
+    DeclarationSite,
+    graph,
+    Package,
+    PackageJson,
+} from "@destack/package";
+import { DECLARED_MODULE } from "@destack/package/transform";
+import type { FunctionExport } from "./declaration.ts";
 import type { ExampleDeclaration } from "../typescript/example.ts";
-import { type Comparator, Plan } from "@destack/resource";
+import type { ConstructorCatalog, ConstructorKind } from "./catalog.ts";
 import type { PackageSource } from "../source/index.ts";
 import { modulePlugin } from "@destack/package/vite";
+import type { ModuleTransformer } from "@destack/package/transform";
 import { BuildError } from "../error/index.ts";
 import type { DependencyTree } from "../dependency/index.ts";
 import { stringifyInspection } from "../build/serialization.ts";
@@ -18,6 +26,7 @@ import { isHostModule, type PluginOption, runtimeConditions } from "@destack/pac
 import { HOST_RUNTIME, type Runtime, WORKERD_SCHEME } from "@destack/package/runtime";
 import { selectExport } from "../source/source.ts";
 import { loadExtensions, transformPlugins } from "../compile/extension.ts";
+import { assetPlugin } from "../compile/asset.ts";
 
 /** An installed JavaScript module, imported as the host loads it, without a query such as ?url. */
 const INSTALLED_MODULE = /\.[cm]?js$/u;
@@ -25,32 +34,42 @@ const INSTALLED_MODULE = /\.[cm]?js$/u;
 const STYLESHEET = /\.css(?:\?.*)?$/u;
 /** The prefix of the module standing in for a workerd module, which the host lacks. */
 const UNAVAILABLE_PREFIX = "\0destack-unavailable:";
-/** The exports of a module. */
-const Exports = schema.record(schema.string(), schema.unknown());
-
-/** The exports of the generated declaration module, aligned by declaration. */
-const DeclarationExports = schema.object({
-    /** The descriptions each kind's describe function returns. */
-    default: schema.array(schema.unknown()),
-    /** The exported declarations. */
-    declared: schema.array(schema.unknown()),
-    /** The value each declaration's kind inspects, read through the kind's value function. */
-    values: schema.array(schema.unknown()),
-    /** Each declaration's kind comparison, if it has one. */
-    compare: schema.array(schema.unknown()),
-    /** Each declaration's kind vocabulary, if it has one. */
-    vocabulary: schema.array(schema.unknown()),
-    /** Each declaration's kind symbols, if it lists them. */
-    symbols: schema.array(schema.unknown()),
-    /** The properties of each example, as its module evaluates them. */
-    examples: schema.array(schema.jsonObject()),
-});
-
-/** The exports of the evaluated entry. */
-type EvaluatedEntry = schema.Infer<typeof DeclarationExports>;
-
 /** The identifier of the generated entry. */
 const ENTRY = "\0destack-declarations";
+/** The resolved identifier of the declaration recorder inside the evaluation. */
+const RECORDER = `\0${DECLARED_MODULE}`;
+
+/** The recorder collecting each declaration with the site of its constructor's call. */
+const RECORDER_SOURCE = [
+    "export const declared = [];",
+    "export const declare = (value, site) => (declared.push([value, site]), value);",
+    "",
+].join("\n");
+
+/** The exports of the generated entry. */
+const EvaluatedEntry = schema.object({
+    /** The namespace of each export entry, in the order of the package's export paths. */
+    entries: schema.array(schema.record(schema.string(), schema.unknown())),
+    /** Each declaration the package's modules constructed, with its site. */
+    recorded: schema.array(schema.tuple([schema.unknown(), schema.unknown()])),
+    /** The functions of each constructor kind, aligned with the catalog's kinds. */
+    functions: schema.array(
+        schema.object({
+            value: schema.unknown(),
+            describe: schema.unknown(),
+            vocabulary: schema.unknown(),
+            symbols: schema.unknown(),
+        }),
+    ),
+});
+/** The exports of the generated entry. */
+type EvaluatedEntry = schema.Infer<typeof EvaluatedEntry>;
+
+/** The exports of the generated examples entry. */
+const EvaluatedExamples = schema.object({
+    /** The properties of each example, as its module evaluates them. */
+    properties: schema.array(schema.jsonObject()),
+});
 
 /** The name a description gives its declaration. */
 const DescriptionName = schema.looseObject({ name: schema.string() });
@@ -61,131 +80,315 @@ const Terms = schema.record(schema.string(), schema.unknown());
 /** The symbols a kind derives for a declaration. */
 const Symbols = schema.array(graph.MemberSymbol);
 
-/** Evaluated declarations and each kind's compare function. */
-export interface Evaluation {
-    /** The declarations' descriptions, with their terms. */
-    readonly declarations: DeclarationDescription[];
-    /** The function comparing two releases of a kind, by `kindKey`. */
-    readonly compare: ReadonlyMap<string, Comparator>;
-    /** The examples, with the properties their modules evaluate. */
-    readonly examples: ExampleDeclaration[];
+/** A declaration a package exports, described by one of its constructor's kinds. */
+export const EvaluatedDeclaration = schema.object({
+    /** The description. */
+    description: DeclarationDescription,
+    /** The absolute module exporting it. */
+    file: schema.string(),
+    /** The name it is exported under. */
+    export: schema.string(),
+});
+/** A declaration a package exports, described by one of its constructor's kinds. */
+export type EvaluatedDeclaration = schema.Infer<typeof EvaluatedDeclaration>;
+
+/** How an evaluation describes declarations: for a release, or with the symbols an index reads. */
+export interface EvaluationOptions {
+    /** Whether the evaluation derives each declaration's symbols for the module graph. */
+    readonly isIndexing: boolean;
+    /** The build's module transformer, which its compilations reuse. */
+    readonly transformer: ModuleTransformer;
 }
 
-/** Key a kind by its declaring package and name. */
-export function kindKey(declaration: Pick<graph.Declaration, "kind" | "kindPackageId">): string {
-    return JSON.stringify([declaration.kindPackageId, declaration.kind]);
+/** The declarations a package exports. */
+export interface Evaluation {
+    /** The declarations, one per kind their constructors describe them as. */
+    readonly declarations: readonly EvaluatedDeclaration[];
+}
+
+/** A constructor kind with its place among the generated entry's functions. */
+interface CatalogedKind extends ConstructorKind {
+    /** The kind's index among the entry's functions. */
+    readonly index: number;
 }
 
 /** The declarations a build evaluates in its worker. */
 export const Evaluation = {
-    /** Evaluate exported declarations together in the current build worker. */
+    /** Evaluate a package's exports, describing each declaration its constructors made. */
     async evaluate(
-        declarations: readonly DeclarationExport[],
-        examples: readonly Omit<ExampleDeclaration, "properties">[],
-        project: PackageSource,
+        projects: readonly PackageSource[],
+        catalog: ConstructorCatalog,
+        options: EvaluationOptions,
     ): Promise<Evaluation> {
-        if (!declarations.length && !examples.length) {
-            return { declarations: [], compare: new Map(), examples: [] };
+        // list each constructor kind of the package and its dependencies, keyed by package and constructor
+        const [first] = projects;
+        if (first === undefined) {
+            throw BuildError.of("INVARIANT_VIOLATED", "an evaluation needs a project");
         }
+        const listed: { key: string; kind: CatalogedKind }[] = [];
+        const directories = [
+            first.directory,
+            ...Object.values(first.tree.directories),
+            ...(await installedDirectories(first)),
+        ];
+        for (const directory of new Set(directories)) {
+            const location = await catalog.locate(directory);
+            for (const [name, inspected] of await catalog.inspected(location)) {
+                for (const kind of inspected.kinds) {
+                    listed.push({
+                        key: `${location.name}#${name}`,
+                        kind: { ...kind, index: listed.length },
+                    });
+                }
+            }
+        }
+        const kinds = Map.groupBy(listed, (entry) => entry.key);
 
-        // bundle the package's declaring and example modules
-        const source = generateEntry(declarations, examples, project.directory);
-        const namespace = await evaluateEntry(source, project).catch((cause: unknown) => {
-            throw BuildError.of(
-                "INSPECTION_FAILED",
-                `declaration evaluation failed: ${messageOf(cause)}`,
-                { cause },
+        // evaluate each export entry once, in the first project exporting it
+        const declarations: EvaluatedDeclaration[] = [];
+        const described = new Set<string>();
+        const evaluated = new Set<string>();
+        const exported = new Set<string>();
+        const unexported = new Map<string, string>();
+        for (const project of projects) {
+            const entries = Object.entries(project.exports).filter(
+                ([, file]) => !evaluated.has(file),
             );
-        });
-
-        // require every declaration to record the package declaring it
-        for (const [index, declaration] of declarations.entries()) {
-            requireDeclaringPackage(declaration, namespace.declared[index]);
+            for (const [, file] of entries) {
+                evaluated.add(file);
+            }
+            if (entries.length === 0) {
+                continue;
+            }
+            const found = await evaluateProject(
+                project,
+                entries,
+                listed.map((entry) => entry.kind),
+                kinds,
+                options,
+            );
+            for (const site of found.exported) {
+                exported.add(site);
+            }
+            for (const [site, name] of found.unexported) {
+                unexported.set(site, name);
+            }
+            for (const declaration of found.declarations) {
+                const { symbol, kind, name } = declaration.description;
+                const key = JSON.stringify([symbol.symbol.module, symbol.symbol.name, kind, name]);
+                if (!described.has(key)) {
+                    described.add(key);
+                    declarations.push(declaration);
+                }
+            }
         }
 
-        // describe each declaration beside its kind's comparison
-        const described: DeclarationDescription[] = [];
-        const compare = new Map<string, Comparator>();
-        for (const [index, declaration] of declarations.entries()) {
-            const { kind, name } = declaration.description;
-            const description = await describeDeclaration(
-                declaration,
-                index,
-                namespace,
-                compare,
-                project.environment.crypto,
-            ).catch((cause: unknown) => {
+        // refuse a declaration no project exports
+        const owner = first.packageJson.package;
+        for (const [site, name] of unexported) {
+            if (!exported.has(site)) {
                 throw BuildError.of(
-                    "INSPECTION_FAILED",
-                    `declaration evaluation failed: ${kind} ${name} (${declaration.file}): ${messageOf(cause)}`,
-                    { cause },
+                    "DECLARATION_UNEXPORTED",
+                    `declared ${name} is not exported by ${owner.name}`,
                 );
-            });
-            described.push(description);
+            }
         }
 
-        // give each example the properties its module evaluates
-        const evaluated = examples.map((example, index) => ({
-            ...example,
-            properties: present(namespace.examples[index], `the properties of ${example.symbol}`),
-        }));
+        return { declarations };
+    },
 
-        return { declarations: described, compare, examples: evaluated };
+    /** Evaluate the properties each of a package's examples renders with. */
+    async examples(
+        project: PackageSource,
+        examples: readonly Omit<ExampleDeclaration, "properties">[],
+        transformer: ModuleTransformer,
+    ): Promise<ExampleDeclaration[]> {
+        // import each example and export its properties
+        if (examples.length === 0) {
+            return [];
+        }
+        const source = [
+            ...examples.map(
+                (example, index) =>
+                    `import { ${JSON.stringify(example.symbol)} as example${index} } from ${JSON.stringify(join(project.directory, example.source.file))};`,
+            ),
+            `export const properties = [${examples.map((_, index) => `example${index}.properties`).join(", ")}];`,
+        ].join("\n");
+        const { properties } = EvaluatedExamples.parse(
+            await evaluateEntry(source, project, transformer),
+        );
+
+        return examples.map((example, index) => ({
+            ...example,
+            properties: present(properties[index], `the properties of ${example.symbol}`),
+        }));
     },
 };
 
-/** Write the entry importing each declaration and inspector, exporting the kinds' results. */
-function generateEntry(
-    declarations: readonly DeclarationExport[],
-    examples: readonly Omit<ExampleDeclaration, "properties">[],
-    directory: string,
-): string {
+/** Evaluate one output project's exports, describing each declaration its constructors made. */
+async function evaluateProject(
+    project: PackageSource,
+    entries: readonly (readonly [string, string])[],
+    listed: readonly CatalogedKind[],
+    kinds: ReadonlyMap<string, readonly { readonly kind: CatalogedKind }[]>,
+    options: EvaluationOptions,
+): Promise<{
+    readonly declarations: EvaluatedDeclaration[];
+    readonly exported: ReadonlySet<string>;
+    readonly unexported: ReadonlyMap<string, string>;
+}> {
+    // evaluate the export entries beside the kinds' functions
+    const exports = entries.toSorted(([left], [right]) =>
+        left < right ? -1 : Number(left > right),
+    );
+    const source = generateEntry(
+        exports.map(([, file]) => file),
+        listed,
+    );
+    const evaluated = EvaluatedEntry.parse(
+        await evaluateEntry(source, project, options.transformer),
+    );
+
+    // find each exported value a constructor made, once, at its first export
+    const sites = new Map<unknown, DeclarationSite>(
+        evaluated.recorded.map(([value, site]) => [value, DeclarationSite.parse(site)]),
+    );
+    const seen = new Set<unknown>();
+    const declarations: EvaluatedDeclaration[] = [];
+    const owner = project.packageJson.package;
+    for (const [index, [, file]] of exports.entries()) {
+        const namespace = present(evaluated.entries[index], `the namespace of ${file}`);
+        for (const [name, value] of Object.entries(namespace).toSorted(([left], [right]) =>
+            left < right ? -1 : Number(left > right),
+        )) {
+            // leave the declarations in an exported list, which no export of their own declares
+            if (Array.isArray(value)) {
+                for (const element of value) {
+                    seen.add(element);
+                }
+                continue;
+            }
+
+            // leave a value no constructor made, and one found before
+            const site = sites.get(value);
+            if (site === undefined || seen.has(value)) {
+                continue;
+            }
+            seen.add(value);
+
+            // describe it as each kind its constructor describes, refusing another package's
+            requireDeclaringPackage(value, owner, name);
+            for (const { kind } of constructorKinds(kinds, site)) {
+                const located = { owner, name, site, kind };
+                const description = await describeDeclaration(
+                    value,
+                    located,
+                    evaluated,
+                    project,
+                    options,
+                );
+                declarations.push({ description, file, export: name });
+            }
+        }
+    }
+
+    // name each module-level declaration its module does not export, by its first kind's description
+    const exported = new Set(
+        [...seen].flatMap((value) => {
+            const site = sites.get(value);
+
+            return site === undefined ? [] : [siteKey(site)];
+        }),
+    );
+    const unexported = new Map<string, string>();
+    for (const [value, site] of sites) {
+        if (!seen.has(value) && site.binding === "unexported") {
+            const [first] = constructorKinds(kinds, site);
+            const kind = present(first, `a kind of ${site.package}#${site.constructor}`).kind;
+            const located = { owner, name: site.constructor, site, kind };
+            const { name } = await describeDeclaration(value, located, evaluated, project, options);
+            unexported.set(siteKey(site), name);
+        }
+    }
+
+    return { declarations, exported, unexported };
+}
+
+/** List the kinds of a recorded declaration's constructor, which its package declares. */
+function constructorKinds(
+    kinds: ReadonlyMap<string, readonly { readonly kind: CatalogedKind }[]>,
+    site: DeclarationSite,
+): readonly { readonly kind: CatalogedKind }[] {
+    return present(
+        kinds.get(`${site.package}#${site.constructor}`),
+        `the kinds of constructor ${site.package}#${site.constructor}`,
+    );
+}
+
+/** Key a declaration's site by its module and position. */
+function siteKey(site: DeclarationSite): string {
+    return `${site.module}:${site.line}:${site.column}`;
+}
+
+/** List the installed Destack packages a project depends on, outside its dependencies' builds. */
+async function installedDirectories(project: PackageSource): Promise<string[]> {
+    // find each runtime dependency without a build in the nearest node_modules above the project
+    const { files } = project.environment;
+    const directories: string[] = [];
+    for (const name of PackageJson.runtimeDependencies(project.packageJson)) {
+        if (project.tree.directories[name] !== undefined) {
+            continue;
+        }
+        for (let directory = project.directory; ; directory = dirname(directory)) {
+            const installed = join(directory, "node_modules", name);
+            const isInstalled = await files.stat(join(installed, "destack.json")).then(
+                () => true,
+                (error: unknown) => {
+                    if (FileSystemError.is(error, "NOT_FOUND")) {
+                        return false;
+                    }
+                    throw error;
+                },
+            );
+            if (isInstalled) {
+                directories.push(await files.realPath(installed));
+                break;
+            } else if (dirname(directory) === directory) {
+                break;
+            }
+        }
+    }
+
+    return directories;
+}
+
+/** Write the entry importing each export entry, the recorder and every kind's functions. */
+function generateEntry(entries: readonly string[], kinds: readonly CatalogedKind[]): string {
     // select each inspecting module once, as the build worker runs it
     const conditions = new Set(["import", "default", ...runtimeConditions(HOST_RUNTIME)]);
     const modules = new Map<string, number>();
     const locate = (inspector: FunctionExport) => locateFunction(inspector, conditions, modules);
-    const functions = declarations.map(({ inspector }) => ({
-        value: inspector.value && locate(inspector.value),
-        describe: locate(inspector.describe),
-        compare: inspector.compare && locate(inspector.compare),
-        vocabulary: inspector.vocabulary && locate(inspector.vocabulary),
-        symbols: inspector.symbols && locate(inspector.symbols),
-    }));
+    const functions = kinds.map(({ inspector }) => {
+        // name each function of the kind, absent ones as undefined
+        const value = inspector.value && locate(inspector.value);
+        const describe = locate(inspector.describe);
+        const vocabulary = inspector.vocabulary && locate(inspector.vocabulary);
+        const symbols = inspector.symbols && locate(inspector.symbols);
 
-    // import declarations and their inspecting modules into the same module graph
-    const imports = [
-        ...declarations.map(
-            (declaration, index) =>
-                `import { ${JSON.stringify(declaration.export)} as declaration${index} } from ${JSON.stringify(declaration.file)};`,
-        ),
-        ...examples.map(
-            (example, index) =>
-                `import { ${JSON.stringify(example.symbol)} as example${index} } from ${JSON.stringify(join(directory, example.source.file))};`,
-        ),
+        return `{ value: ${value ?? "undefined"}, describe: ${describe}, vocabulary: ${vocabulary ?? "undefined"}, symbols: ${symbols ?? "undefined"} }`;
+    });
+
+    // import the recorder first, then the entries and the inspecting modules
+    return [
+        `import { declared } from ${JSON.stringify(DECLARED_MODULE)};`,
+        ...entries.map((file, index) => `import * as entry${index} from ${JSON.stringify(file)};`),
         ...[...modules].map(
             ([specifier, index]) =>
                 `import * as inspector${index} from ${JSON.stringify(specifier)};`,
         ),
-    ];
-
-    // list each kind's functions, read each kind's value, and describe it
-    const list = (name: "compare" | "vocabulary" | "symbols") =>
-        functions.map((entry) => entry[name] ?? "undefined").join(",\n");
-    const names = functions.map((_, index) => `declaration${index}`);
-    const values = functions.map((entry, index) =>
-        entry.value === undefined ? `declaration${index}` : `${entry.value}(declaration${index})`,
-    );
-    const calls = functions.map((entry, index) => `${entry.describe}(values[${index}])`);
-
-    return [
-        ...imports,
-        `export const declared = [${names.join(", ")}];`,
-        `export const values = [${values.join(", ")}];`,
-        `export const compare = [${list("compare")}];`,
-        `export const vocabulary = [${list("vocabulary")}];`,
-        `export const symbols = [${list("symbols")}];`,
-        `export const examples = [${examples.map((_, index) => `example${index}.properties`).join(", ")}];`,
-        `export default await Promise.all([${calls.join(",\n")}]);`,
+        `export const entries = [${entries.map((_, index) => `entry${index}`).join(", ")}];`,
+        "export const recorded = declared;",
+        `export const functions = [${functions.join(",\n")}];`,
     ].join("\n");
 }
 
@@ -212,23 +415,43 @@ function locateFunction(
     return `inspector${index}[${JSON.stringify(inspector.name)}]`;
 }
 
-/** Bundle the generated entry and evaluate it as a fresh module, past the import cache. */
-async function evaluateEntry(source: string, project: PackageSource): Promise<EvaluatedEntry> {
+/** Evaluate a generated entry, refusing a failed evaluation as an inspection failure. */
+async function evaluateEntry(
+    source: string,
+    project: PackageSource,
+    transformer: ModuleTransformer,
+): Promise<unknown> {
+    return await bundleAndEvaluate(source, project, transformer).catch((cause: unknown) => {
+        throw BuildError.of(
+            "INSPECTION_FAILED",
+            `declaration evaluation failed: ${messageOf(cause)}`,
+            { cause },
+        );
+    });
+}
+
+/** Bundle a generated entry with the modules it imports, then evaluate it as one module. */
+async function bundleAndEvaluate(
+    source: string,
+    project: PackageSource,
+    transformer: ModuleTransformer,
+): Promise<unknown> {
     let bundle: Awaited<ReturnType<typeof rolldown>> | undefined;
     try {
-        // bundle the entry with the declarations it imports
+        // bundle the entry with the modules it imports, recording each declaration
         bundle = await rolldown({
             input: ENTRY,
             cwd: project.directory,
-            tsconfig: project.configuration,
+            ...(project.configuration === undefined ? {} : { tsconfig: project.configuration }),
             platform: "node",
             external: isHostModule,
             resolve: { conditionNames: runtimeConditions(HOST_RUNTIME) },
             treeshake: { moduleSideEffects: true },
             plugins: [
                 entryPlugin(source),
+                assetPlugin(project.environment.files),
                 treePlugin(project.tree, project.runtime, project.environment.files),
-                modulePlugin(project.environment.files, project.versions),
+                modulePlugin(transformer),
                 ...transformPlugins(
                     (
                         await loadExtensions(
@@ -264,7 +487,7 @@ async function evaluateEntry(source: string, project: PackageSource): Promise<Ev
         await module.link(linkHost);
         await module.evaluate();
 
-        return DeclarationExports.parse(module.namespace);
+        return module.namespace;
     } finally {
         await bundle?.close();
     }
@@ -273,7 +496,7 @@ async function evaluateEntry(source: string, project: PackageSource): Promise<Ev
 /** Link an external of the entry as the host loads it: a builtin, a build module or a file. */
 async function linkHost(specifier: string): Promise<SyntheticModule> {
     // expose the host module's exports, which the host caches once per file
-    const exports = Exports.parse(await import(specifier));
+    const exports = schema.record(schema.string(), schema.unknown()).parse(await import(specifier));
     const names = Object.keys(exports);
 
     return new SyntheticModule(names, function () {
@@ -283,23 +506,126 @@ async function linkHost(specifier: string): Promise<SyntheticModule> {
     });
 }
 
+/** Describe one exported declaration as one kind, with its terms and symbols. */
+async function describeDeclaration(
+    declared: unknown,
+    located: {
+        readonly owner: Package;
+        readonly name: string;
+        readonly site: DeclarationSite;
+        readonly kind: CatalogedKind;
+    },
+    evaluated: EvaluatedEntry,
+    project: PackageSource,
+    options: EvaluationOptions,
+): Promise<DeclarationDescription> {
+    // read the kind's value of the declaration and describe it, refusing a failure as the declaration's
+    const { owner, name, site, kind } = located;
+    const functions = present(
+        evaluated.functions[kind.index],
+        `the functions of kind ${kind.kind}`,
+    );
+    let value: unknown;
+    let described: unknown;
+    try {
+        value =
+            typeof functions.value === "function"
+                ? Reflect.apply(functions.value, undefined, [declared])
+                : declared;
+        if (typeof functions.describe !== "function") {
+            throw BuildError.of("INSPECTION_FAILED", `kind ${kind.kind} has no describe function`);
+        }
+        described = await Reflect.apply(functions.describe, undefined, [value]);
+    } catch (cause) {
+        throw BuildError.of(
+            "INSPECTION_FAILED",
+            `declaration evaluation failed: ${kind.kind} ${name} (${site.module}): ${messageOf(cause)}`,
+            { cause },
+        );
+    }
+
+    // serialize the domain description under the declaration's described name
+    const description: unknown = JSON.parse(stringifyInspection(described));
+    const parsed = DeclarationDescription.parse({
+        name: nameOf(description, name),
+        kind: kind.kind,
+        package: kind.package,
+        symbol: { package: owner, symbol: { module: site.module, name } },
+        source: { file: site.module, line: site.line, column: site.column },
+        description,
+    });
+
+    // digest each term's definition the kind's code returns for the declaration
+    const terms =
+        typeof functions.vocabulary === "function"
+            ? Terms.parse(Reflect.apply(functions.vocabulary, undefined, [value]))
+            : undefined;
+    const vocabulary: Record<string, Digest> = {};
+    for (const [term, definition] of Object.entries(terms ?? {})) {
+        vocabulary[`${parsed.kind}/${term}`] = await Digest.json(
+            definition,
+            project.environment.crypto,
+        );
+    }
+
+    // list the symbols the kind's code derives from the declaration, for an index
+    const symbols =
+        options.isIndexing && typeof functions.symbols === "function"
+            ? Symbols.parse(Reflect.apply(functions.symbols, undefined, [value]))
+            : undefined;
+
+    return {
+        ...parsed,
+        ...(terms === undefined ? {} : { vocabulary }),
+        ...(symbols === undefined ? {} : { symbols }),
+    };
+}
+
+/** Read the name a description gives, else the declaration's export name. */
+function nameOf(description: unknown, fallback: string): string {
+    const name = DescriptionName.safeParse(description);
+
+    return name.success ? name.data.name : fallback;
+}
+
+/** Require an exported declaration to record the package that exports it. */
+function requireDeclaringPackage(value: unknown, owner: Package, name: string): void {
+    const stamped = Package.declaring(value);
+    // refuse a declaration without a package
+    if (stamped === undefined) {
+        throw BuildError.of("INSPECTION_FAILED", `${name} declaration has no package`);
+    }
+    // refuse a declaration of another package
+    else if (
+        stamped.id !== owner.id ||
+        stamped.name !== owner.name ||
+        stamped.version !== owner.version
+    ) {
+        throw BuildError.of(
+            "INSPECTION_FAILED",
+            `${name} declaration belongs to a different package`,
+        );
+    }
+}
+
 /** Mark dependencies external: Destack ones at their builds' modules, npm ones at their files. */
 function treePlugin(tree: DependencyTree, runtime: Runtime, files: FileSystem): Plugin {
     return {
         name: "destack-dependency-builds",
         async resolveId(specifier, importer, options) {
-            // import a Destack dependency's module from its build, else the output runtime's
+            // import a Destack dependency's host module from its build, else bundle the output runtime's
             const modules = tree.export(specifier);
-            if (modules !== undefined) {
-                const module = modules[HOST_RUNTIME] ?? modules[runtime];
-                if (module === undefined) {
-                    throw BuildError.of(
-                        "INSPECTION_FAILED",
-                        `${specifier} has no ${[...new Set([HOST_RUNTIME, runtime])].join(" or ")} module`,
-                    );
-                }
-
-                return { id: module, external: true };
+            const host = modules?.[HOST_RUNTIME];
+            const own = modules?.[runtime];
+            if (host !== undefined) {
+                return { id: host, external: true };
+            } else if (own !== undefined) {
+                return { id: own };
+            } else if (modules !== undefined) {
+                throw BuildError.of(
+                    "INSPECTION_FAILED",
+                    `${specifier} has no ${[...new Set([HOST_RUNTIME, runtime])].join(" or ")} module`,
+                );
             }
 
             // load an installed or built package's module from its file
@@ -325,9 +651,11 @@ function entryPlugin(source: string): Plugin {
     return {
         name: "destack-declarations",
         resolveId(specifier, _importer, options) {
-            // resolve the generated entry, and a workerd module as one failing once touched
+            // resolve the generated entry, the recorder, and a workerd module as one failing once touched
             if (specifier === ENTRY) {
                 return ENTRY;
+            } else if (specifier === DECLARED_MODULE) {
+                return RECORDER;
             } else if (WORKERD_SCHEME.test(specifier)) {
                 return `${UNAVAILABLE_PREFIX}${specifier}`;
             }
@@ -341,9 +669,11 @@ function entryPlugin(source: string): Plugin {
             }
         },
         load: (id) => {
-            // load the entry, a stand-in for a workerd module, and a stylesheet as nothing
+            // load the entry, the recorder, a stand-in for a workerd module, and a stylesheet as nothing
             if (id === ENTRY) {
                 return source;
+            } else if (id === RECORDER) {
+                return RECORDER_SOURCE;
             } else if (id.startsWith(UNAVAILABLE_PREFIX)) {
                 const code = unavailableModule(id.slice(UNAVAILABLE_PREFIX.length));
 
@@ -373,89 +703,6 @@ function entryPlugin(source: string): Plugin {
             },
         },
     };
-}
-
-/** Describe one evaluated declaration with its terms and symbols, with its kind's comparison. */
-async function describeDeclaration(
-    declaration: DeclarationExport,
-    index: number,
-    namespace: EvaluatedEntry,
-    compare: Map<string, Comparator>,
-    crypto: DigestCrypto,
-): Promise<DeclarationDescription> {
-    // serialize the domain description under the declaration's described name
-    const description: unknown = JSON.parse(stringifyInspection(namespace.default[index]));
-    const parsed = DeclarationDescription.parse({
-        ...declaration.description,
-        name: nameOf(description, declaration.description.name),
-        description,
-    });
-
-    // digest each term's definition the kind's code returns for the declaration
-    const declared = namespace.values[index];
-    const vocabularyOf = namespace.vocabulary[index];
-    const terms =
-        typeof vocabularyOf === "function"
-            ? Terms.parse(Reflect.apply(vocabularyOf, undefined, [declared]))
-            : undefined;
-    const vocabulary: Record<string, Digest> = {};
-    for (const [term, definition] of Object.entries(terms ?? {})) {
-        vocabulary[`${parsed.kind}/${term}`] = await Digest.json(definition, crypto);
-    }
-
-    // list the symbols the kind's code derives from the declaration
-    const symbolsOf = namespace.symbols[index];
-    const symbols =
-        typeof symbolsOf === "function"
-            ? Symbols.parse(Reflect.apply(symbolsOf, undefined, [declared]))
-            : undefined;
-
-    // take the kind's comparison and check each plan it returns
-    const comparison = namespace.compare[index];
-    if (typeof comparison === "function") {
-        compare.set(
-            kindKey({ kind: parsed.kind, kindPackageId: parsed.package.id }),
-            (before, after) => Plan.parse(Reflect.apply(comparison, undefined, [before, after])),
-        );
-    }
-
-    return {
-        ...parsed,
-        ...(terms === undefined ? {} : { vocabulary }),
-        ...(symbols === undefined ? {} : { symbols }),
-    };
-}
-
-/** Read the name a description gives, else the declaration's symbol name. */
-function nameOf(description: unknown, fallback: string): string {
-    const name = DescriptionName.safeParse(description);
-
-    return name.success ? name.data.name : fallback;
-}
-
-/** Require an evaluated declaration's package to be the one the compiler located. */
-function requireDeclaringPackage(declaration: DeclarationExport, value: unknown): void {
-    const stamped = Package.declaring(value);
-    const owner = declaration.description.symbol.package;
-
-    // refuse a declaration without a package
-    if (stamped === undefined) {
-        throw BuildError.of(
-            "INSPECTION_FAILED",
-            `${declaration.export} declaration has no package: set it in ${declaration.description.constructor.symbol.name}`,
-        );
-    }
-    // refuse a declaration of another package
-    else if (
-        stamped.id !== owner.id ||
-        stamped.name !== owner.name ||
-        stamped.version !== owner.version
-    ) {
-        throw BuildError.of(
-            "INSPECTION_FAILED",
-            `${declaration.export} declaration belongs to a different package`,
-        );
-    }
 }
 
 /** Write the CommonJS module standing in for a runtime module the host lacks, failing once read. */

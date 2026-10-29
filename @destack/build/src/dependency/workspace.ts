@@ -1,3 +1,4 @@
+import type { EvaluatedDeclaration } from "../declaration/evaluation.ts";
 import { dirname, join, resolve } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import type { BunLockfile } from "@destack/check/bun";
@@ -5,10 +6,10 @@ import { DomainError } from "@destack/error";
 import { type DependencyResolution, PackageJson, type graph } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
-import type { History } from "@destack/resource";
-import { Digest, found, nth, Text } from "@destack/schema";
+import type { Runtime } from "@destack/package/runtime";
+import { Digest, found, nth } from "@destack/schema";
 import { Checkout, Identities } from "../cache/index.ts";
-import { type NpmConverter, type NpmDependency, NpmInstallation } from "./npm.ts";
+import { NpmInstallation } from "./npm.ts";
 import { outputsOf, type PackageBuildOptions, PackageBuild } from "../build/build.ts";
 import type { Compiler } from "../build/compiler.ts";
 import type { CompilerPool } from "../build/pool.ts";
@@ -34,28 +35,11 @@ interface WorkspaceUnit {
     readonly npm: ReadonlyMap<string, string>;
 }
 
-/** A unit's stored build, with the npm releases its npm dependencies require. */
-interface StoredUnit {
-    /** The unit's stored build. */
-    readonly build: DependencyBuild;
-    /** The npm releases its npm dependencies require, by `name@version`. */
-    readonly releases: Readonly<Record<string, NpmDependency>>;
-}
+/** A build of a workspace's root, sharing its deadline and versions with its units. */
+export type WorkspaceBuildOptions = Omit<PackageBuildOptions, "directory" | "dependencies">;
 
-/** A build of a workspace's root, sharing its deadline, versions and histories with its units. */
-export interface WorkspaceBuildOptions extends Omit<
-    PackageBuildOptions,
-    "directory" | "dependencies" | "history"
-> {
-    /** What each source package has published, by package name, to plan its upgrade from. */
-    history?: Readonly<Record<string, History>>;
-}
-
-/** What a workspace's units share when stored: cancellation, deadline, versions and histories. */
-export type WorkspaceUnitOptions = Pick<
-    WorkspaceBuildOptions,
-    "signal" | "timeout" | "versions" | "history"
->;
+/** What a workspace's units share when stored: cancellation, deadline and versions. */
+export type WorkspaceUnitOptions = Pick<WorkspaceBuildOptions, "signal" | "timeout" | "versions">;
 
 /** The compilers a workspace builds with, and the store they build into. */
 export type WorkspaceCompilers = Pick<CompilerPool, "store" | "use">;
@@ -134,11 +118,12 @@ export class Workspace {
         await Workspace.#visit(await files.realPath(directory), walk);
 
         // read the toolchain, the checkout and the locked npm releases the units' keys read
-        const identities = Identities.of({}, environment);
+        const identities = Identities.of(environment);
         const toolchain = await identities.toolchain();
         const checkout = await Checkout.list(workspace, environment);
         const locked = readLockedReleases(lockfile);
-        const npm = new NpmInstallation(locked, compilers.store, toolchain, environment);
+        const conversion = await identities.conversion();
+        const npm = new NpmInstallation(locked, compilers.store, conversion, environment);
 
         return new Workspace([...units.values()], compilers, identities, toolchain, checkout, npm);
     }
@@ -217,39 +202,34 @@ export class Workspace {
     /** Build the root on its dependencies' builds with the given outputs, reusing stored units. */
     async build(request: WorkspaceBuildOptions): Promise<PackageBuild> {
         // build the root's dependency units, the root's commit separate
-        const { signal, timeout, versions, history } = request;
+        const { signal, timeout, versions } = request;
         const shared = {
             ...(signal === undefined ? {} : { signal }),
             ...(timeout === undefined ? {} : { timeout }),
             ...(versions === undefined ? {} : { versions }),
-            ...(history === undefined ? {} : { history }),
         };
-        const { dependencies } = await this.#resolve(this.root, await this.#storeEach(shared));
 
-        // restore the root from the store, else build it
+        // build the dependencies, each with every output it ships
+        const stored = await this.#storeEach(shared, this.#dependencies);
+        const dependencies = this.#resolve(this.root, stored);
+
+        // take the root's stored build, relinking or compiling it once when missing, then restore it
         const options = this.#options(this.root, request, dependencies);
         const key = await this.#key(this.root, options);
-        const cached = await this.#store.cached(key);
-        const built =
-            cached?.kind === "build"
-                ? await PackageBuild.restore(
-                      this.#store,
-                      cached.manifest,
-                      await this.#store.environment.files.makeTemporaryDirectory("destack-build-"),
-                  )
-                : await this.#compile(this.root, options);
-
-        // key the build, and root it as the root's latest
-        const manifest = await PackageStore.digest(built.manifest, this.#store.environment.crypto);
-        await this.#store.cache(key, { kind: "build", manifest });
+        const manifest = await this.#store.cachedBuild(key, () => this.#put(this.root, options));
         await this.#rootUnit(this.root, manifest, dependencies);
 
-        return built;
+        return await PackageBuild.restore(
+            this.#store,
+            manifest,
+            await this.#store.environment.files.makeTemporaryDirectory("destack-build-"),
+        );
     }
 
     /** Inspect the root against its dependencies' builds, reusing stored units. */
     async inspect(request: Omit<InspectOptions, "directory">): Promise<PackageInspection> {
         return await this.#against(
+            request.runtime,
             async (compiler, dependencies) =>
                 await compiler.inspect({
                     ...request,
@@ -260,8 +240,11 @@ export class Workspace {
     }
 
     /** Index the root's code against its dependencies' builds, reusing stored units. */
-    async index(request: Omit<InspectOptions, "directory">): Promise<graph.Document[]> {
+    async index(
+        request: Omit<InspectOptions, "directory">,
+    ): Promise<{ code: graph.Document[]; modules: graph.Module[] }> {
         return await this.#against(
+            request.runtime,
             async (compiler, dependencies) =>
                 await compiler.index({ ...request, directory: this.root.directory, dependencies }),
         );
@@ -271,7 +254,8 @@ export class Workspace {
     async storeDependencies(
         shared: WorkspaceUnitOptions,
     ): Promise<Record<string, DependencyResolution>> {
-        const { dependencies } = await this.#resolve(this.root, await this.#storeEach(shared));
+        const stored = await this.#storeEach(shared, this.#dependencies);
+        const dependencies = this.#resolve(this.root, stored);
 
         return dependencies;
     }
@@ -280,30 +264,37 @@ export class Workspace {
     async storeUnits(shared: WorkspaceUnitOptions): Promise<ReadonlyMap<string, DependencyBuild>> {
         const stored = await this.#storeEach(shared, this.units);
 
-        return new Map([...stored].map(([name, unit]) => [name, unit.build]));
+        return stored;
     }
 
     /** Run work with the root's compiler against the builds of its dependencies. */
     async #against<Result>(
+        runtime: Runtime,
         work: (
             compiler: Compiler,
             dependencies: Record<string, DependencyResolution>,
         ) => Promise<Result>,
     ): Promise<Result> {
-        const { dependencies } = await this.#resolve(this.root, await this.#storeEach({}));
+        const stored = await this.#storeEach({}, this.#dependencies);
+        const dependencies = this.#resolve(this.root, stored);
 
         return await this.#compilers.use(this.root.directory, (compiler) =>
             work(compiler, dependencies),
         );
     }
 
-    /** Store some units, by default those before the root, each after the units it requires. */
+    /** The units before the root. */
+    get #dependencies(): readonly WorkspaceUnit[] {
+        return this.units.filter((unit) => unit !== this.root);
+    }
+
+    /** Store some units, each with every output it ships, after the units it requires. */
     async #storeEach(
         shared: WorkspaceUnitOptions,
-        units: readonly WorkspaceUnit[] = this.units.filter((unit) => unit !== this.root),
-    ): Promise<ReadonlyMap<string, StoredUnit>> {
+        units: readonly WorkspaceUnit[],
+    ): Promise<ReadonlyMap<string, DependencyBuild>> {
         // start every unit at once after the units it requires, as the pool leases compilers in turn
-        const started = new Map<string, Promise<StoredUnit>>();
+        const started = new Map<string, Promise<DependencyBuild>>();
         for (const unit of units) {
             started.set(unit.name, this.#storeUnit(unit, started, shared));
         }
@@ -324,17 +315,17 @@ export class Workspace {
     /** Take a unit's stored build of every output it ships, building it first when missing. */
     async #storeUnit(
         unit: WorkspaceUnit,
-        started: ReadonlyMap<string, Promise<StoredUnit>>,
+        started: ReadonlyMap<string, Promise<DependencyBuild>>,
         shared: WorkspaceUnitOptions,
-    ): Promise<StoredUnit> {
+    ): Promise<DependencyBuild> {
         // wait for the units it requires, then resolve its dependencies on their builds
-        const required = new Map<string, StoredUnit>();
+        const required = new Map<string, DependencyBuild>();
         for (const name of this.#requirements(unit)) {
             required.set(name, await found(started, name));
         }
-        const { dependencies, releases } = await this.#resolve(unit, required);
+        const dependencies = this.#resolve(unit, required);
 
-        // build every output the unit ships, its dependencies external but in a browser output
+        // build every output the unit ships
         const outputs = outputsOf(unit.packageJson);
         const options = this.#options(unit, { ...shared, outputs }, dependencies);
         const key = await this.#key(unit, options);
@@ -346,7 +337,7 @@ export class Workspace {
         // root the build as the unit's latest
         await this.#rootUnit(unit, manifest, dependencies);
 
-        return { build: { kind: "destack", package: built, manifest }, releases };
+        return { kind: "destack", package: built, manifest };
     }
 
     /** List the units a unit requires, and theirs, each once. */
@@ -364,71 +355,40 @@ export class Workspace {
         return closure;
     }
 
-    /** Resolve a unit's dependencies on the stored units it requires, with its npm releases. */
-    async #resolve(
+    /** Resolve a unit's dependencies on the stored builds of every unit it requires. */
+    #resolve(
         unit: WorkspaceUnit,
-        stored: ReadonlyMap<string, StoredUnit>,
-    ): Promise<{
-        readonly dependencies: Record<string, DependencyResolution>;
-        readonly releases: Record<string, NpmDependency>;
-    }> {
-        // take the builds of the units it requires, as kinds may come from any, with their npm releases
-        const dependencies: Record<string, DependencyResolution> = {};
-        for (const name of this.#requirements(unit)) {
-            const requirement = found(stored, name);
-            dependencies[name] = requirement.build;
-            Object.assign(dependencies, requirement.releases);
-        }
-
-        // store its npm dependencies, by the names it imports them by and by release
-        const { named, releases } = await this.#storeNpm(unit);
-
-        return { dependencies: { ...dependencies, ...releases, ...named }, releases };
+        stored: ReadonlyMap<string, DependencyBuild>,
+    ): Record<string, DependencyResolution> {
+        return Object.fromEntries(
+            [...this.#requirements(unit)].map((name) => [name, found(stored, name)]),
+        );
     }
 
-    /** Store the npm units a unit's npm dependencies require, by import name and by release. */
-    async #storeNpm(unit: WorkspaceUnit): Promise<{
-        readonly named: Record<string, NpmDependency>;
-        readonly releases: Record<string, NpmDependency>;
-    }> {
-        // store each npm dependency's unit, converting in the unit's compiler
-        const named: Record<string, NpmDependency> = {};
-        const releases: Record<string, NpmDependency> = {};
-        const convert: NpmConverter = (request) =>
-            this.#compilers.use(unit.directory, (compiler) => compiler.convert(request));
-        const sorted = [...unit.npm].toSorted(([left], [right]) => Text.compare(left, right));
-        for (const [name, directory] of sorted) {
-            const opened = await this.#npm.open(directory);
-            named[name] = await this.#npm.store(opened, convert);
-
-            // record every unit it requires by release
-            for (const entry of opened.closure()) {
-                const { name: released, version } = entry.release.package;
-                releases[`${released}@${version}`] = await this.#npm.store(entry, convert);
+    /** List the npm releases a unit's npm dependencies lock, which its build's pins follow. */
+    async #npmReleases(unit: WorkspaceUnit): Promise<string[]> {
+        // open each npm dependency and list its closure's releases by name, version and integrity
+        const releases = new Set<string>();
+        for (const directory of unit.npm.values()) {
+            for (const each of (await this.#npm.open(directory)).closure()) {
+                const { package: released, integrity } = each.release;
+                releases.add(`${released.name}@${released.version} ${integrity}`);
             }
         }
 
-        return { named, releases };
+        return [...releases].toSorted();
     }
 
-    /** Build options of a unit on its dependencies, with its version and history. */
+    /** Build options of a unit on its dependencies. */
     #options(
         unit: WorkspaceUnit,
         request: WorkspaceBuildOptions,
         dependencies: Record<string, DependencyResolution>,
     ): PackageBuildOptions {
-        const { history, ...rest } = request;
-        const published = history?.[unit.name];
-
-        return {
-            ...rest,
-            directory: unit.directory,
-            dependencies,
-            ...(published === undefined ? {} : { history: published }),
-        };
+        return { ...request, directory: unit.directory, dependencies };
     }
 
-    /** Key a unit's build by its checkout, dependencies, toolchain, configuration and release. */
+    /** Key a unit's build by its sources and its dependencies' exact builds. */
     async #key(
         unit: WorkspaceUnit,
         options: Omit<PackageBuildOptions, "signal" | "timeout">,
@@ -436,22 +396,59 @@ export class Workspace {
         return await Digest.json(
             {
                 kind: "unit",
-                toolchain: this.#toolchain,
-                checkout: await this.#checkout.identify(unit.directory),
+                ...(await this.#sources(unit, options)),
                 dependencies: options.dependencies,
-                outputs: options.outputs,
-                configuration:
-                    options.configuration === undefined
-                        ? null
-                        : await this.#identities.file(
-                              resolve(unit.directory, options.configuration),
-                          ),
-                version: options.versions?.[unit.name] ?? null,
-                history: options.history ?? null,
-                commit: options.commit ?? null,
             },
             this.#store.environment.crypto,
         );
+    }
+
+    /** Key a unit's compilation by its sources, dependency interfaces and declarations. */
+    async #compileKey(
+        unit: WorkspaceUnit,
+        options: Omit<PackageBuildOptions, "signal" | "timeout">,
+        declarations: readonly EvaluatedDeclaration[],
+    ): Promise<string> {
+        // read each Destack dependency's interface, and each other dependency whole
+        const interfaces = await Promise.all(
+            Object.entries(options.dependencies).map(
+                async ([name, dependency]): Promise<readonly [string, unknown]> => [
+                    name,
+                    dependency.kind === "destack"
+                        ? (await this.#store.get(dependency.manifest)).interface
+                        : dependency,
+                ],
+            ),
+        );
+
+        return await Digest.json(
+            {
+                kind: "compile",
+                ...(await this.#sources(unit, options)),
+                interfaces: Object.fromEntries(interfaces),
+                declarations,
+            },
+            this.#store.environment.crypto,
+        );
+    }
+
+    /** Read what a unit's build reads of its own: checkout, toolchain, outputs and release. */
+    async #sources(
+        unit: WorkspaceUnit,
+        options: Omit<PackageBuildOptions, "signal" | "timeout">,
+    ): Promise<Record<string, unknown>> {
+        return {
+            toolchain: this.#toolchain,
+            checkout: await this.#checkout.identify(unit.directory),
+            outputs: options.outputs,
+            configuration:
+                options.configuration === undefined
+                    ? null
+                    : await this.#identities.file(resolve(unit.directory, options.configuration)),
+            version: options.versions?.[unit.name] ?? null,
+            commit: options.commit ?? null,
+            npm: await this.#npmReleases(unit),
+        };
     }
 
     /** Root a unit's latest build and its dependencies' builds by its directory. */
@@ -466,28 +463,44 @@ export class Workspace {
         await this.#store.rootDirectory(unit.directory, new Set([manifest, ...released]));
     }
 
-    /** Compile a unit, which puts it into the store, answering its manifest's digest. */
+    /** Build a unit, relinking an earlier build of the same compile inputs. */
     async #put(unit: WorkspaceUnit, options: PackageBuildOptions): Promise<Digest> {
-        await using build = await this.#compile(unit, options);
+        // evaluate the unit's declarations on its dependencies, which run their code
+        const declarations = await this.#use(unit, (compiler) => compiler.evaluate(options));
 
-        return await PackageStore.digest(build.manifest, this.#store.environment.crypto);
+        // relink a build of the same compile inputs under the new pins
+        const key = await this.#compileKey(unit, options, declarations);
+        const cached = await this.#store.cached(key);
+        if (cached?.kind === "build") {
+            return await this.#store.relink(cached.manifest, options.dependencies);
+        }
+
+        // else compile it, and key the build by its compile inputs
+        await using build = await this.#use(unit, (compiler) =>
+            compiler.compile(options, declarations),
+        );
+        const manifest = await PackageStore.digest(build.manifest, this.#store.environment.crypto);
+        await this.#store.cache(key, { kind: "build", manifest });
+
+        return manifest;
     }
 
-    /** Compile a unit with its compiler, which stores the build. */
-    async #compile(unit: WorkspaceUnit, options: PackageBuildOptions): Promise<PackageBuild> {
-        return await this.#compilers
-            .use(unit.directory, (compiler) => compiler.build(options))
-            .catch((cause: unknown) => {
-                // keep a declared failure as it is
-                if (DomainError.is(cause)) {
-                    throw cause;
-                }
-                // report any other as an internal fault of the unit's build
-                else {
-                    throw BuildError.of("INVARIANT_VIOLATED", `building ${unit.name} failed`, {
-                        cause,
-                    });
-                }
-            });
+    /** Run work with a unit's compiler, reporting an undeclared failure as the unit's fault. */
+    async #use<Result>(
+        unit: WorkspaceUnit,
+        work: (compiler: Compiler) => Promise<Result>,
+    ): Promise<Result> {
+        return await this.#compilers.use(unit.directory, work).catch((cause: unknown) => {
+            // keep a declared failure as it is
+            if (DomainError.is(cause)) {
+                throw cause;
+            }
+            // report any other as an internal fault of the unit's build
+            else {
+                throw BuildError.of("INVARIANT_VIOLATED", `building ${unit.name} failed`, {
+                    cause,
+                });
+            }
+        });
     }
 }

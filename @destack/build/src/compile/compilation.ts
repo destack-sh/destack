@@ -1,9 +1,14 @@
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { build, type InlineConfig, type Plugin, type PluginOption } from "vite";
+import { rolldown } from "rolldown";
+import { dynamicImportVarsPlugin, importGlobPlugin } from "rolldown/experimental";
 import type {
     LogLevel,
+    InputOptions,
     LogOrStringHandler,
+    ObjectHook,
     OutputAsset,
+    OutputOptions,
     OutputChunk,
     RolldownOptions,
     RolldownLog,
@@ -30,28 +35,35 @@ import {
     runtimeTarget,
 } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
-import type { ModuleDescription } from "@destack/package/code";
 import { PackageJson, type Sandbox } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { type PackageOutput } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { modulePlugin } from "@destack/package/vite";
+import type { ModuleTransformer } from "@destack/package/transform";
 import { type Runtime } from "@destack/package/runtime";
 import { type PackageSource } from "../source/index.ts";
 import { relativePath } from "../source/dependency.ts";
-import { type DirectoryReference } from "../typescript/index.ts";
+import type { EvaluatedDeclaration } from "../declaration/index.ts";
+import type { BuildDirectory } from "../build/directory.ts";
 import { type ModuleOptions } from "../build/build.ts";
 import { BuildError, extensionFailureOf, bundleFailureOf } from "../error/index.ts";
 import { sourcePlugin, mapSource } from "./source.ts";
 import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts";
-import { directoryPlugin } from "./asset.ts";
+import { assetPlugin, directoryPlugin } from "./asset.ts";
 import { transformPlugins } from "./extension.ts";
+
+/** A stylesheet import, by its extension, with or without a query. */
+const STYLESHEET = /\.css(?:\?.*)?$/u;
+
+/** The empty module standing in for a stylesheet a server output imports. */
+const EMPTY_STYLESHEET = "\0destack-empty-stylesheet";
 
 /** The runtime the compiler's transforms import for lowered code, bundled into each build. */
 const TRANSFORM_HELPERS = "@oxc-project/runtime";
 
-/** The files and descriptions one compiled output adds to its build. */
-export interface CompiledFiles {
+/** One output's build: its files, its description and the npm packages it imports. */
+export interface OutputBuild {
     /** Dependencies, module imports, and generated file membership. */
     inspection: BuildDescription;
     /** The target output description. */
@@ -64,14 +76,16 @@ export interface CompiledFiles {
     paths: string[];
     /** Maps for generated JavaScript. */
     sourceMaps: SourceMapReference[];
+    /** The npm packages the output imports, which the host's link pins for its runtime. */
+    npm: Set<string>;
 }
 
 /** The resolved dependencies, sources, destination and entries one compilation reads. */
 interface CompileInput {
     /** The resolved dependencies, by name. */
     readonly dependencies: Readonly<Record<string, DependencyResolution>>;
-    /** The source bytes the build snapshots, by absolute path. */
-    readonly sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
+    /** The source bytes the build snapshots once each, by package path. */
+    readonly sources: Pick<BuildDirectory, "retained" | "retain">;
     /** The directory the build writes under. */
     readonly destinationRoot: string;
     /** The absolute source modules the output compiles. */
@@ -86,12 +100,10 @@ export class OutputCompilation implements Compilation {
     readonly options: ModuleOptions;
     /** The opened package source. */
     readonly project: PackageSource;
-    /** The declarations of the package and of the dependencies its modules import. */
+    /** The package's declarations. */
     readonly declarations: readonly DeclarationDescription[];
-    /** The package's inspected modules. */
-    readonly modules: readonly ModuleDescription[];
-    /** The directories the package's modules read, by module. */
-    readonly directories: ReadonlyMap<string, readonly DirectoryReference[]>;
+    /** The module and export of each declaration, by its description. */
+    readonly #exported: ReadonlyMap<DeclarationDescription, DeclarationModule>;
     /** The extensions of the package and its dependencies. */
     readonly extensions: readonly BuildExtension[];
     /** Whether an output kind compiles the output in its pass, where extensions emit no entries. */
@@ -100,6 +112,8 @@ export class OutputCompilation implements Compilation {
     readonly cache: TransformCache;
     /** The modules extensions emit, by package entrypoint. */
     readonly #entries = new Map<string, string>();
+    /** The build's module transformer, stamping each module once across its passes. */
+    readonly #transformer: ModuleTransformer;
     /** The host modules the runtime supplies, and those importers replace with nothing. */
     readonly #hosts: HostModules;
 
@@ -108,25 +122,27 @@ export class OutputCompilation implements Compilation {
         name: string,
         options: ModuleOptions,
         project: PackageSource,
-        inspection: {
-            readonly declarations: readonly DeclarationDescription[];
-            readonly modules: readonly ModuleDescription[];
-            readonly directories: ReadonlyMap<string, readonly DirectoryReference[]>;
-        },
+        declarations: readonly EvaluatedDeclaration[],
         extensions: readonly BuildExtension[],
         isLent: boolean,
         cache: TransformCache,
+        transformer: ModuleTransformer,
     ) {
         // store the output's settings, package and inspection
         this.name = name;
         this.options = options;
         this.project = project;
-        this.declarations = inspection.declarations;
-        this.modules = inspection.modules;
-        this.directories = inspection.directories;
+        this.declarations = declarations.map((declaration) => declaration.description);
+        this.#exported = new Map(
+            declarations.map((declaration) => [
+                declaration.description,
+                { file: declaration.file, export: declaration.export },
+            ]),
+        );
         this.extensions = extensions;
         this.isLent = isLent;
         this.cache = cache;
+        this.#transformer = transformer;
         this.#hosts = new HostModules(project.runtime, project.environment.files);
     }
 
@@ -157,17 +173,7 @@ export class OutputCompilation implements Compilation {
 
     /** Locate the module and export of one of the package's declarations. */
     locate(declaration: DeclarationDescription): DeclarationModule {
-        // match the declaring module's export resolving to the declared constant
-        const { module, name } = declaration.symbol.symbol;
-        const exported = this.modules
-            .find((entry) => entry.path === module)
-            ?.exports.find(
-                (entry) =>
-                    !entry.isTypeOnly &&
-                    "module" in entry.symbol &&
-                    entry.symbol.module === module &&
-                    entry.symbol.name === name,
-            );
+        const exported = this.#exported.get(declaration);
         if (exported === undefined) {
             throw BuildError.of(
                 "DECLARATION_INVALID",
@@ -175,7 +181,7 @@ export class OutputCompilation implements Compilation {
             );
         }
 
-        return { file: join(this.project.directory, module), export: exported.name };
+        return exported;
     }
 
     /** Emit a module as a chunk the package exports under an entrypoint. */
@@ -198,12 +204,12 @@ export class OutputCompilation implements Compilation {
     /** Compile the output with Vite and extension plugins, then let the extensions describe it. */
     async compile(
         dependencies: Readonly<Record<string, DependencyResolution>>,
-        sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+        sources: Pick<BuildDirectory, "retained" | "retain">,
         destinationRoot: string,
-    ): Promise<CompiledFiles> {
+    ): Promise<OutputBuild> {
         // collect the extensions' plugins and entries before compiling
         const { project } = this;
-        const compiled = this.#createFiles();
+        const compiled = this.#createBuild();
         const plugins = this.#plugins();
 
         // export each stylesheet as the source file the build ships, compiling the modules alone
@@ -230,15 +236,13 @@ export class OutputCompilation implements Compilation {
         // retain HTML before Vite rewrites its module and asset references
         await retainPages(project, entries, compiled.files);
 
-        // delegate JSX, CSS, assets, and minification to the extensions and standard plugins
+        // compile a browser output with Vite, and a server output's modules with Rolldown alone
         const facades = new Map<string, string>();
-        const configuration = this.#configuration(compiled, facades, plugins, {
-            dependencies,
-            sources,
-            destinationRoot,
-            entries,
-        });
-        const generated = await runVite(configuration);
+        const input = { dependencies, sources, destinationRoot, entries };
+        const generated =
+            project.runtime === "browser"
+                ? await runVite(this.#configuration(compiled, facades, plugins, input))
+                : await runRolldown(await this.#serverOptions(compiled, facades, plugins, input));
 
         // map authored and emitted entries to generated files
         this.#collect(generated, compiled, facades);
@@ -252,7 +256,7 @@ export class OutputCompilation implements Compilation {
     }
 
     /** Create the empty files and descriptions of the output under its output directory. */
-    #createFiles(): CompiledFiles {
+    #createBuild(): OutputBuild {
         const output: PackageOutput = {
             runtime: this.project.runtime,
             emit: true,
@@ -270,11 +274,12 @@ export class OutputCompilation implements Compilation {
             files: new Map(),
             paths: [],
             sourceMaps: [],
+            npm: new Set(),
         };
     }
 
     /** Let each extension describe the compiled output's workloads and views. */
-    #describeOutput(compiled: CompiledFiles, facades: ReadonlyMap<string, string>): void {
+    #describeOutput(compiled: OutputBuild, facades: ReadonlyMap<string, string>): void {
         // expose the exports and the declarations of each entrypoint
         const described: CompiledOutput = {
             exports: compiled.exported,
@@ -288,7 +293,7 @@ export class OutputCompilation implements Compilation {
     }
 
     /** Record each export's emitted file with the dependency specifiers its chunks import. */
-    #recordExports(compiled: CompiledFiles, facades: ReadonlyMap<string, string>): void {
+    #recordExports(compiled: OutputBuild, facades: ReadonlyMap<string, string>): void {
         // walk a module entry's chunks, and record no imports of a stylesheet or a page
         for (const [name, path] of Object.entries(compiled.exported)) {
             const imports = facades.has(name) ? this.#importsOf(name, path, compiled) : [];
@@ -322,7 +327,7 @@ export class OutputCompilation implements Compilation {
 
     /** Configure Vite to compile the output's entries into the build directory. */
     #configuration(
-        compiled: CompiledFiles,
+        compiled: OutputBuild,
         facades: Map<string, string>,
         plugins: readonly PluginOption[],
         input: CompileInput,
@@ -346,16 +351,17 @@ export class OutputCompilation implements Compilation {
             css: runtimeCss(project.runtime),
             ssr: {
                 noExternal: true,
-                target: project.runtime === "workerd" ? "webworker" : "node",
+                // compile both server runtimes as module trees, their dependencies external
+                target: "node",
                 resolve: { conditions },
             },
             plugins: [
                 ...this.#packagePlugins(compiled, facades, input, locations),
                 ...plugins,
-                modulePlugin(project.environment.files, project.versions),
+                modulePlugin(this.#transformer),
             ],
             // give worker bundles their modules' metadata too
-            worker: { plugins: () => [modulePlugin(project.environment.files, project.versions)] },
+            worker: { plugins: () => [modulePlugin(this.#transformer)] },
             build: {
                 emitAssets: true,
                 write: true,
@@ -364,8 +370,8 @@ export class OutputCompilation implements Compilation {
                 ssr: project.runtime !== "browser",
                 // emit current syntax for the server runtimes Destack ships, and baseline syntax for browsers
                 target: runtimeTarget(project.runtime),
-                // minify the server runtimes' modules, which machines load, and the browser's as asked
-                minify: options.minify ?? project.runtime !== "browser",
+                // minify the browser's modules as asked, leaving the server runtimes' as transpiled
+                minify: project.runtime === "browser" && (options.minify ?? false),
                 sourcemap: true,
                 copyPublicDir: false,
                 rolldownOptions: this.#rolldownOptions(compiled, input, destination, locations),
@@ -373,9 +379,52 @@ export class OutputCompilation implements Compilation {
         };
     }
 
+    /** Configure Rolldown to compile a server output's modules into the build. */
+    async #serverOptions(
+        compiled: OutputBuild,
+        facades: Map<string, string>,
+        plugins: readonly PluginOption[],
+        input: CompileInput,
+    ): Promise<RolldownOptions & { readonly output: OutputOptions }> {
+        // order the plugins as Vite does, the pre ones first, and call each as in a server build
+        const { project } = this;
+        const destination = resolve(input.destinationRoot, compiled.output.directory);
+        const locations = new Map<string, ModuleSource>();
+        const flattened = [
+            serverStylePlugin(),
+            assetPlugin(project.environment.files),
+            ...this.#packagePlugins(compiled, facades, input, locations),
+            ...(await flattenPlugins(plugins)),
+            modulePlugin(this.#transformer),
+        ];
+        const ordered = [
+            ...flattened.filter((plugin) => plugin.enforce === "pre"),
+            ...flattened.filter((plugin) => plugin.enforce === undefined),
+            ...flattened.filter((plugin) => plugin.enforce === "post"),
+        ];
+
+        // write the modules with the runtime's syntax and the production environment
+        const options = this.#rolldownOptions(compiled, input, destination, locations);
+
+        return {
+            ...options,
+            // expand template imports into literal ones over the files they match, as Vite's builds do
+            plugins: [
+                ...ordered.map((plugin) => serverPlugin(plugin)),
+                dynamicImportVarsPlugin({ sourcemap: true }),
+                importGlobPlugin(),
+            ],
+            transform: {
+                target: runtimeTarget(project.runtime),
+                define: { "process.env.NODE_ENV": JSON.stringify("production") },
+            },
+            output: { ...options.output, dir: destination, sourcemap: true },
+        };
+    }
+
     /** Create the plugins for the package's directories, sources, dependencies and entries. */
     #packagePlugins(
-        compiled: CompiledFiles,
+        compiled: OutputBuild,
         facades: Map<string, string>,
         input: CompileInput,
         locations: Map<string, ModuleSource>,
@@ -385,13 +434,7 @@ export class OutputCompilation implements Compilation {
         const assets = new Map<string, Uint8Array<ArrayBuffer>>();
 
         return [
-            directoryPlugin(
-                project.directory,
-                compiled.files,
-                this.directories,
-                assets,
-                project.environment,
-            ),
+            directoryPlugin(project.directory, compiled.files, assets, project.environment),
             sourcePlugin(
                 project.directory,
                 compiled.files,
@@ -418,11 +461,11 @@ export class OutputCompilation implements Compilation {
 
     /** Configure Rolldown's resolution, inputs, externals and generated file names. */
     #rolldownOptions(
-        compiled: CompiledFiles,
+        compiled: OutputBuild,
         input: CompileInput,
         destination: string,
         locations: ReadonlyMap<string, ModuleSource>,
-    ): RolldownOptions {
+    ): InputOptions & { readonly output: OutputOptions } {
         // resolve for the runtime's platform
         const { project } = this;
         const directory = compiled.output.directory;
@@ -443,12 +486,14 @@ export class OutputCompilation implements Compilation {
             checks: { pluginTimings: false },
             onLog: failOnWarning,
             external: (specifier, importer) =>
-                this.#isExternal(specifier, importer, input.dependencies, compiled.output),
+                this.#isExternal(specifier, importer, input.dependencies, compiled),
             output: {
                 format: "esm",
                 // preserve function and class names in minified server modules, as error families and telemetry read them
                 keepNames: !isBrowser,
-                entryFileNames: "[name]-[hash].js",
+                // keep each module its own file, as runtimes load them unbundled and browsers by an import map
+                preserveModules: true,
+                entryFileNames: "[name].js",
                 chunkFileNames: "[name]-[hash].js",
                 assetFileNames: "asset/[name]-[hash][extname]",
                 sourcemapPathTransform(source, map) {
@@ -463,7 +508,7 @@ export class OutputCompilation implements Compilation {
     /** Retain generated paths and source maps, and map the package's exports to generated files. */
     #collect(
         generated: readonly (OutputChunk | OutputAsset)[],
-        compiled: CompiledFiles,
+        compiled: OutputBuild,
         facades: Map<string, string>,
     ): void {
         const { project } = this;
@@ -561,65 +606,46 @@ export class OutputCompilation implements Compilation {
         specifier: string,
         importer: string | undefined,
         dependencies: Readonly<Record<string, DependencyResolution>>,
-        output: PackageOutput,
+        compiled: Pick<OutputBuild, "output" | "npm">,
     ): boolean {
         // leave host modules to the host plugin, which keeps, empties or refuses them
         if (isHostModule(specifier)) {
             return false;
         }
 
-        // bundle local modules and what bundled dependencies import
-        if (this.#isBundled(specifier, importer)) {
+        // compile the package's own modules into the output
+        if (this.#isBundled(specifier)) {
             return false;
         }
 
-        // bundle a declared dependency, or mark its registry release external
-        return this.#isExternalRelease(
-            DependencyName.of(specifier),
-            importer,
-            dependencies,
-            output,
-        );
+        // mark a declared dependency's release external
+        return this.#isExternalRelease(specifier, importer, dependencies, compiled);
     }
 
-    /** Report whether the output bundles its dependencies, as a browser has no installed tree. */
-    get #isBundling(): boolean {
-        return this.options.runtime === "browser";
-    }
+    /** Check whether a specifier refers to a module of the package itself. */
+    #isBundled(specifier: string): boolean {
+        const name = DependencyName.of(specifier);
 
-    /** Check whether a specifier refers to a local module or one a bundled dependency imports. */
-    #isBundled(specifier: string, importer: string | undefined): boolean {
-        // bundle relative, absolute, virtual and package-internal modules
-        const { project } = this;
-        if (
+        return (
             specifier.startsWith(".") ||
             specifier.startsWith("/") ||
             specifier.startsWith("\0") ||
             specifier.startsWith("virtual:") ||
             specifier.startsWith("#") ||
-            DependencyName.of(specifier) === project.packageJson.package.name ||
-            DependencyName.of(specifier) === TRANSFORM_HELPERS
-        ) {
-            return true;
-        }
-
-        // bundle what bundled dependencies import
-        return (
-            this.#isBundling &&
-            importer !== undefined &&
-            (importer.split(sep).includes("node_modules") ||
-                relative(project.directory, importer).startsWith(`..${sep}`))
+            name === this.project.packageJson.package.name ||
+            name === TRANSFORM_HELPERS
         );
     }
 
-    /** Require a declared dependency, leaving its registry release external unless bundled. */
+    /** Require a declared dependency, and pin its registry release as external. */
     #isExternalRelease(
-        dependency: string,
+        specifier: string,
         importer: string | undefined,
         dependencies: Readonly<Record<string, DependencyResolution>>,
-        output: PackageOutput,
+        compiled: Pick<OutputBuild, "output" | "npm">,
     ): boolean {
         // require a declared dependency
+        const dependency = DependencyName.of(specifier);
         const { packageJson } = this.project;
         if (!PackageJson.runtimeDependencies(packageJson).includes(dependency)) {
             const by = importer === undefined ? "" : `, imported by ${importer}`;
@@ -629,24 +655,29 @@ export class OutputCompilation implements Compilation {
             );
         }
 
-        // bundle it into a browser output, or mark its release external
-        if (this.#isBundling) {
-            return false;
-        }
+        // pin a Destack dependency's build, refusing an export without a module for the output's runtime
         const selected = dependencies[dependency];
-        if (!selected) {
-            throw BuildError.of(
-                "DEPENDENCY_UNRESOLVED",
-                `unresolved runtime dependency: ${dependency}`,
-            );
+        if (selected?.kind === "destack") {
+            const modules = this.project.tree.export(specifier);
+            if (modules !== undefined && modules[this.runtime] === undefined) {
+                throw BuildError.of(
+                    "RUNTIME_MODULE_UNSUPPORTED",
+                    `unsupported ${this.runtime} dependency: ${specifier}`,
+                );
+            }
+            compiled.output.dependencies[dependency] = DependencyRelease.parse(selected);
         }
-        if (selected.kind === "source") {
+        // leave an npm package to the host's link, which pins its unit for the runtime
+        else if (selected === undefined) {
+            compiled.npm.add(dependency);
+        }
+        // refuse a source snapshot, which no runtime loads
+        else {
             throw BuildError.of(
                 "DEPENDENCY_INVALID",
                 `runtime dependency requires a registry release: ${dependency}`,
             );
         }
-        output.dependencies[dependency] = DependencyRelease.parse(selected);
 
         return true;
     }
@@ -654,7 +685,7 @@ export class OutputCompilation implements Compilation {
     /** Select an entrypoint's module declarations, including ones shaken out of its chunks. */
     #declarationsOf(
         entrypoint: string,
-        compiled: CompiledFiles,
+        compiled: OutputBuild,
         facades: ReadonlyMap<string, string>,
     ): DeclarationDescription[] {
         // require an emitted entrypoint, whose chunks' imports recording its export checked
@@ -689,7 +720,7 @@ export class OutputCompilation implements Compilation {
     }
 
     /** List the dependency specifiers an entry's chunks import, refusing ones nothing provides. */
-    #importsOf(entrypoint: string, emitted: string, compiled: CompiledFiles): string[] {
+    #importsOf(entrypoint: string, emitted: string, compiled: OutputBuild): string[] {
         // walk the entry's chunks from its emitted file
         const { inspection, output } = compiled;
         const chunks = [emitted];
@@ -708,10 +739,9 @@ export class OutputCompilation implements Compilation {
 
             // follow internal imports and check external ones against the runtime and the dependencies
             for (const imported of chunk.imports) {
-                const isDependency = Object.hasOwn(
-                    output.dependencies,
-                    DependencyName.of(imported.path),
-                );
+                const name = DependencyName.of(imported.path);
+                const isDependency =
+                    Object.hasOwn(output.dependencies, name) || compiled.npm.has(name);
                 if (!imported.external) {
                     chunks.push(imported.path);
                 } else if (isDependency) {
@@ -795,6 +825,112 @@ async function runVite(configuration: InlineConfig): Promise<(OutputChunk | Outp
     }
 
     return generated.output;
+}
+
+/** Run Rolldown and return the chunks and assets it writes. */
+async function runRolldown(
+    options: RolldownOptions & { readonly output: OutputOptions },
+): Promise<(OutputChunk | OutputAsset)[]> {
+    // report a bundler failure as a build failure, closing the bundle either way
+    let bundle: Awaited<ReturnType<typeof rolldown>> | undefined;
+    try {
+        bundle = await rolldown(options);
+        const written = await bundle.write(options.output);
+
+        return written.output;
+    } catch (error) {
+        throw bundleFailureOf(error);
+    } finally {
+        await bundle?.close();
+    }
+}
+
+/** Load a server output's stylesheet imports as empty modules, as styles apply in browsers. */
+function serverStylePlugin(): Plugin {
+    return {
+        name: "@destack/build/server-style",
+        enforce: "pre",
+        resolveId: {
+            filter: { id: STYLESHEET },
+            handler: () => EMPTY_STYLESHEET,
+        },
+        load: {
+            filter: { id: /^\0destack-empty-stylesheet$/u },
+            handler: () => "",
+        },
+    };
+}
+
+/** Flatten Vite plugin options into plugins, leaving out the empty ones. */
+async function flattenPlugins(options: readonly PluginOption[]): Promise<Plugin[]> {
+    const plugins: Plugin[] = [];
+    for (const option of options) {
+        const resolved = await option;
+        if (Array.isArray(resolved)) {
+            plugins.push(...(await flattenPlugins(resolved)));
+        } else if (resolved !== false && resolved !== null && resolved !== undefined) {
+            plugins.push(resolved);
+        }
+    }
+
+    return plugins;
+}
+
+/** Call a Vite plugin's resolve, load and transform hooks as a Vite server build calls them. */
+function serverPlugin(plugin: Plugin): Plugin {
+    const { resolveId, load, transform } = plugin;
+
+    return {
+        ...plugin,
+        ...(resolveId === undefined
+            ? {}
+            : {
+                  resolveId: wrapHook(
+                      resolveId,
+                      (handler) =>
+                          function (source, importer, options) {
+                              return handler.call(this, source, importer, {
+                                  ...options,
+                                  ssr: true,
+                              });
+                          },
+                  ),
+              }),
+        ...(load === undefined
+            ? {}
+            : {
+                  load: wrapHook(
+                      load,
+                      (handler) =>
+                          function (id, options) {
+                              return handler.call(this, id, { ...options, ssr: true });
+                          },
+                  ),
+              }),
+        ...(transform === undefined
+            ? {}
+            : {
+                  transform: wrapHook(
+                      transform,
+                      (handler) =>
+                          function (code, id, options) {
+                              return handler.call(this, code, id, {
+                                  moduleType: options?.moduleType ?? "js",
+                                  ...options,
+                                  ssr: true,
+                              });
+                          },
+                  ),
+              }),
+    };
+}
+
+/** Wrap a hook's handler, whether the hook is the handler itself or an object with its filter. */
+function wrapHook<Handler extends (...parameters: never[]) => unknown, Meta>(
+    hook: ObjectHook<Handler, Meta>,
+    wrap: (handler: Handler) => Handler,
+): ObjectHook<Handler, Meta> {
+    return typeof hook === "object" ? { ...hook, handler: wrap(hook.handler) } : wrap(hook);
 }
 
 /** Fail on Rolldown warnings and pass other logs on. */

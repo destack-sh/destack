@@ -68,6 +68,13 @@ export class DeclarationGraph {
         }
     }
 
+    /** List the package's declarations and the members they derive, by moniker. */
+    list(): graph.Declaration[] {
+        return [...this.#declarations.values()]
+            .flat()
+            .toSorted((left, right) => Text.compare(left.moniker, right.moniker));
+    }
+
     /** List a module's declarations by moniker. */
     describe(path: string): graph.Declaration[] {
         return (this.#declarations.get(path) ?? []).toSorted((left, right) =>

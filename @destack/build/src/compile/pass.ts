@@ -12,13 +12,13 @@ import {
 import type { BuildDescription } from "@destack/package/manifest";
 import type { SourceMapReference } from "@destack/package/source";
 import { modulePlugin } from "@destack/package/vite";
+import type { ModuleTransformer } from "@destack/package/transform";
+import type { BuildDirectory } from "../build/directory.ts";
 import { BuildError } from "../error/index.ts";
 import { linkDependencies, type PackageSource } from "../source/index.ts";
-import type { DirectoryReference } from "../typescript/index.ts";
 import { describeAssets, directoryPlugin } from "./asset.ts";
 import { transformPlugins } from "./extension.ts";
 import { dependencyPlugin, type ModuleSource } from "./dependency.ts";
-import { checkRuntime, type RuntimeCompiler } from "./runtime.ts";
 import { mapSource, sourcePlugin } from "./source.ts";
 
 /** One pass of an output kind compiling several outputs. */
@@ -28,15 +28,11 @@ export class OutputPass implements Pass {
     /** The dependency releases the build resolves against. */
     readonly dependencies: Readonly<Record<string, DependencyResolution>>;
     /** The inspected source bytes, by package path. */
-    readonly sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
+    readonly sources: Pick<BuildDirectory, "retained" | "retain">;
     /** The build directory. */
     readonly destination: string;
     /** The outputs the pass compiles, by name. */
     readonly compilations: Readonly<Record<string, Compilation>>;
-    /** The directories the outputs' modules read, by module. */
-    readonly directories: ReadonlyMap<string, readonly DirectoryReference[]>;
-    /** The runtime environments checking each output's globals. */
-    readonly runtimes: RuntimeCompiler;
     /** The extensions of the package's dependency closure. */
     readonly extensions: readonly BuildExtension[];
     /** The build's cache of files the extensions' transforms derive. */
@@ -56,23 +52,19 @@ export class OutputPass implements Pass {
     /** The assets read beside modules, by path. */
     readonly #assets = new Map<string, Uint8Array<ArrayBuffer>>();
 
+    /** The build's module transformer, stamping each module once across its passes. */
+    readonly #transformer: ModuleTransformer;
+
     /** Create one pass from the build's sources, dependencies and compilations. */
     constructor(
         project: PackageSource,
         dependencies: Readonly<Record<string, DependencyResolution>>,
-        sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+        sources: Pick<BuildDirectory, "retained" | "retain">,
         destination: string,
-        compilations: Readonly<
-            Record<
-                string,
-                Compilation & {
-                    readonly directories: ReadonlyMap<string, readonly DirectoryReference[]>;
-                }
-            >
-        >,
-        runtimes: RuntimeCompiler,
+        compilations: Readonly<Record<string, Compilation>>,
         extensions: readonly BuildExtension[],
         cache: TransformCache,
+        transformer: ModuleTransformer,
     ) {
         // store the build's inputs and one inspection per output
         this.project = project;
@@ -80,12 +72,9 @@ export class OutputPass implements Pass {
         this.sources = sources;
         this.destination = destination;
         this.compilations = compilations;
-        this.directories = new Map(
-            Object.values(compilations).flatMap((compilation) => [...compilation.directories]),
-        );
-        this.runtimes = runtimes;
         this.extensions = extensions;
         this.cache = cache;
+        this.#transformer = transformer;
         for (const name of Object.keys(compilations)) {
             this.#inspections.set(name, { packages: {}, inputs: {}, outputs: {} });
         }
@@ -99,13 +88,7 @@ export class OutputPass implements Pass {
     /** Return the plugins retaining sources, directories and module metadata for every output. */
     plugins(): Plugin[] {
         return [
-            directoryPlugin(
-                this.project.directory,
-                this.files,
-                this.directories,
-                this.#assets,
-                this.environment,
-            ),
+            directoryPlugin(this.project.directory, this.files, this.#assets, this.environment),
             sourcePlugin(
                 this.project.directory,
                 this.files,
@@ -114,7 +97,7 @@ export class OutputPass implements Pass {
                 this.paths,
                 this.environment,
             ),
-            modulePlugin(this.environment.files, this.project.versions),
+            modulePlugin(this.#transformer),
         ];
     }
 
@@ -178,23 +161,6 @@ export class OutputPass implements Pass {
         return describeAssets(manifest, root, this.#locations);
     }
 
-    /** Check the modules of an output against its runtime, all of them unless paths select some. */
-    async check(output: string, paths?: readonly string[]): Promise<void> {
-        // require an output of the pass
-        const compilation = this.compilations[output];
-        if (compilation === undefined) {
-            throw BuildError.of("EXTENSION_INVALID", `the pass does not compile output ${output}`);
-        }
-        const inspection = this.inspection(output);
-
-        // check the selected modules against the output's runtime
-        const modules =
-            paths === undefined
-                ? compilation.modules
-                : compilation.modules.filter((module) => paths.includes(module.path));
-        await checkRuntime(inspection, modules, compilation.runtime, this.runtimes);
-    }
-
     /** Stage the package in a temporary directory that resolves its dependencies. */
     async stage(): Promise<AsyncDisposable & { readonly directory: string }> {
         // create the staging directory at its real path
@@ -218,11 +184,13 @@ export class OutputPass implements Pass {
             // resolve dependencies through the nearest installed package tree
             await linkDependencies(this.project.directory, directory, files);
 
-            // retain authored relative paths through the selected absolute compiler configuration
-            await files.writeTextFile(
-                join(directory, "tsconfig.json"),
-                JSON.stringify({ extends: this.project.configuration }),
-            );
+            // retain authored relative paths through the authored configuration's absolute path
+            if (this.project.configuration !== undefined) {
+                await files.writeTextFile(
+                    join(directory, "tsconfig.json"),
+                    JSON.stringify({ extends: this.project.configuration }),
+                );
+            }
         } catch (error) {
             await files.remove(directory, { recursive: true });
             throw error;

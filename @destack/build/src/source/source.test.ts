@@ -63,14 +63,6 @@ test("expand a pattern export into the modules its target matches, nested ones i
     }
 
     // open it, keying each matched module by the text the wildcard stands for
-    await using source = await PackageSource.open(
-        {
-            directory,
-            runtime: "bun",
-            tree: {},
-            roots: "package",
-        },
-        environment,
-    );
+    const source = await PackageSource.open({ directory, runtime: "bun", tree: {} }, environment);
     expect(Object.keys(source.exports).toSorted()).toEqual([".", "./icons/a", "./icons/nested/b"]);
 });

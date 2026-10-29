@@ -1,8 +1,9 @@
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
 import { Digest, type DigestCrypto } from "@destack/schema";
 import MagicString from "magic-string";
-import { type DirectoryReference } from "../typescript/index.ts";
+import { parseAst } from "rolldown/parseAst";
+import { type ESTree, Visitor } from "rolldown/utils";
 import { type Plugin, type Manifest } from "vite";
 import type { EmittedAsset } from "rolldown";
 import { readDirectory } from "../build/directory.ts";
@@ -12,11 +13,32 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { type ModuleSource } from "./dependency.ts";
 import { mapSource } from "./source.ts";
 
+/** An imported file a build emits as an asset: a `?url` import, or a media or font file. */
+const ASSET = /(?:\?url$|\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|mp3|mp4|webm|wav)$)/u;
+
+/** Emit each imported file as an asset whose URL the module exports by default, as Vite does. */
+export function assetPlugin(files: FileSystem): Plugin {
+    return {
+        name: "@destack/build/asset",
+        enforce: "pre",
+        load: {
+            filter: { id: ASSET },
+            async handler(id) {
+                // emit the file's bytes and export the URL its emitted copy has beside the module
+                const [path = id] = id.split("?");
+                const source = await files.readFile(path);
+                const reference = this.emitFile({ type: "asset", name: basename(path), source });
+
+                return `export default import.meta.ROLLUP_FILE_URL_${reference};\n`;
+            },
+        },
+    };
+}
+
 /** Retain literal module-relative directories, including committed database migrations. */
 export function directoryPlugin(
     directory: string,
     files: Map<string, Uint8Array<ArrayBuffer>>,
-    directories: ReadonlyMap<string, readonly DirectoryReference[]>,
     sources: Map<string, Uint8Array<ArrayBuffer>>,
     environment: Environment<"files">,
 ): Plugin {
@@ -33,15 +55,11 @@ export function directoryPlugin(
             return `new URL(${JSON.stringify(path)}, import.meta.url).href`;
         },
         transform: {
-            filter: {
-                id: [...directories.keys()].map(
-                    (path) => new RegExp(`^${RegExp.escape(path.replaceAll("\\", "/"))}$`, "u"),
-                ),
-            },
+            filter: { id: /\.[cm]?[jt]sx?$/u, code: /import\.meta\.url/u },
             async handler(code, id) {
-                // use compiler-resolved references before other plugins transform the source
-                const references = directories.get(id);
-                if (references === undefined || references.length === 0) {
+                // read the module's literal directory URLs before other plugins transform the source
+                const references = directoryReferences(code, id);
+                if (references.length === 0) {
                     return;
                 }
                 const owner = await modulePackage(dirname(id), {}, environment.files);
@@ -85,6 +103,81 @@ export function directoryPlugin(
             },
         },
     };
+}
+
+/** A literal directory URL in a module: `new URL("./dir/", import.meta.url)`. */
+interface DirectoryReference {
+    /** The directory path relative to the module. */
+    readonly path: string;
+    /** The first character of the URL construction. */
+    readonly start: number;
+    /** The character after the URL construction. */
+    readonly end: number;
+}
+
+/** List a module's literal directory URLs, none where the module binds its own `URL`. */
+function directoryReferences(code: string, path: string): DirectoryReference[] {
+    // leave a module importing or declaring its own URL constructor
+    const program = parseAst(code, { lang: /\.[cm]?tsx$/u.test(path) ? "tsx" : "ts" }, path);
+    const bindsUrl = program.body.some(
+        (statement) =>
+            (statement.type === "ImportDeclaration" &&
+                statement.specifiers.some((specifier) => specifier.local.name === "URL")) ||
+            ((statement.type === "ClassDeclaration" || statement.type === "FunctionDeclaration") &&
+                statement.id?.name === "URL") ||
+            (statement.type === "VariableDeclaration" &&
+                statement.declarations.some(
+                    (declaration) =>
+                        declaration.id.type === "Identifier" && declaration.id.name === "URL",
+                )),
+    );
+    if (bindsUrl) {
+        return [];
+    }
+
+    // collect each construction of a relative directory against the module's URL
+    const references: DirectoryReference[] = [];
+    new Visitor({
+        NewExpression(node) {
+            const [location, base] = node.arguments;
+            if (
+                node.callee.type === "Identifier" &&
+                node.callee.name === "URL" &&
+                node.arguments.length === 2 &&
+                isDirectoryLiteral(location) &&
+                isModuleUrl(base)
+            ) {
+                references.push({ path: location.value, start: node.start, end: node.end });
+            }
+        },
+    }).visit(program);
+
+    return references;
+}
+
+/** Report whether an argument is a literal relative directory path, such as `./migration/`. */
+function isDirectoryLiteral(
+    node: ESTree.Argument | undefined,
+): node is ESTree.StringLiteral & { value: string } {
+    return (
+        node?.type === "Literal" &&
+        typeof node.value === "string" &&
+        /^\.{1,2}\//u.test(node.value) &&
+        node.value.endsWith("/")
+    );
+}
+
+/** Report whether an argument is the expression `import.meta.url`. */
+function isModuleUrl(node: ESTree.Argument | undefined): boolean {
+    return (
+        node?.type === "MemberExpression" &&
+        !node.computed &&
+        node.property.type === "Identifier" &&
+        node.property.name === "url" &&
+        node.object.type === "MetaProperty" &&
+        node.object.meta.name === "import" &&
+        node.object.property.name === "meta"
+    );
 }
 
 /** Resolve a directory import inside its package to its real path and its package path. */

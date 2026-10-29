@@ -123,7 +123,7 @@ export const members = family("member");
     expect(await inspectApp(app)).toEqual(["greeting", "made"]);
 });
 
-test("refuse a declaration its module does not export, made by its constructor or a factory", async () => {
+test("refuse a declaration its module does not export, leaving one a factory makes", async () => {
     const app = `import { defineThing } from "@example/owner";
 
 const hidden = defineThing({ name: "hidden" });
@@ -140,16 +140,12 @@ const made = thing("made");
 export const greeting = defineThing({ name: "greeting" });
 void made;
 `;
-    expect([await refusal(inspectApp(app)), await refusal(inspectApp(factory))]).toEqual([
+    expect([await refusal(inspectApp(app)), await inspectApp(factory)]).toEqual([
         [
             "UNPROCESSABLE_CONTENT",
             "DECLARATION_UNEXPORTED",
             "declared hidden is not exported by @example/app",
         ],
-        [
-            "UNPROCESSABLE_CONTENT",
-            "DECLARATION_UNEXPORTED",
-            "declared made is not exported by @example/app",
-        ],
+        ["greeting"],
     ]);
 });
