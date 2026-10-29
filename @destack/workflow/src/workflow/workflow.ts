@@ -494,8 +494,6 @@ function declareTrigger(
             fields: {
                 /** The trigger's name, unique in its space. */
                 name: field.string(schema.string().min(1)).immutable(),
-                /** Whether the workflow's package declares the trigger or a manager created it. */
-                origin: field.enum(["declared", "created"]).immutable().default("created"),
                 /** The kind of event the trigger fires on. */
                 kind: field.enum(TRIGGER_KINDS).immutable().default("schedule"),
                 /** The schedule whose occurrences fire, absent for a change or webhook trigger. */
@@ -539,7 +537,7 @@ function declareTrigger(
             create: method.create("manage", { fields: ["name", "schedule", "input"] }),
             /** Record a trigger the workflow's package declares. */
             declare: method.create("advance", {
-                fields: ["name", "origin", "kind", "schedule"],
+                fields: ["name", "kind", "schedule"],
                 visibility: "package",
             }),
             update: method.update("manage", { fields: ["schedule", "input"] }),

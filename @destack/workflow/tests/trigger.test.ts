@@ -108,7 +108,7 @@ const EVERY_MINUTE = {
     deadline: 10_000,
 } as const;
 
-test("fire a declared schedule's occurrences once each, skipping one that overlaps a running run", async () => {
+test("fire a declared schedule's occurrences once each, skipping one that overlaps a running run, and refuse changing it as a space's manager", async () => {
     // sleep ninety seconds in each run, so the second occurrence overlaps the first run
     const fixture = await openWorkflow(minutely, async (step) => {
         await step.sleep("work", { seconds: 90 });
@@ -119,15 +119,29 @@ test("fire a declared schedule's occurrences once each, skipping one that overla
     const runs = await fixture.until(() => true);
     const [declared] = await fixture.served.database.select().from(minutely.trigger.table);
 
+    // refuse alice changing the declared trigger, which its package's installation manages
+    const changed = fixture.objects(alice).call(minutely.trigger.name, "update", {
+        id: declared?.["id"],
+        schedule: EVERY_MINUTE,
+    });
+
     // start the first and third occurrences, skip the second and fourth as overlapping
     expect({
         inputs: runs.map((row) => row["input"]),
         skipped: declared?.["skipped"],
         lastSkip: declared?.["lastSkip"],
+        manager: declared?.["managerName"],
+        refused: await refusal(changed),
     }).toEqual({
         inputs: [{ at: TEST_START + MINUTE }, { at: TEST_START + 3 * MINUTE }],
         skipped: 2,
         lastSkip: { at: TEST_START + 4 * MINUTE, reason: "overlap" },
+        manager: "minutely-triggers/every-minute",
+        refused: [
+            "CONFLICT",
+            "MANAGED",
+            `${minutely.trigger.name} is managed by its declaration: detach it before changing it`,
+        ],
     });
 });
 

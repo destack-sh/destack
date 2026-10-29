@@ -17,7 +17,6 @@ export const WorkflowError = defineErrorFamily(import.meta.destack.package, {
     TRIGGER_NOT_FOUND: { code: "NOT_FOUND" },
 
     // conflict
-    TRIGGER_DECLARED: { code: "CONFLICT" },
     RUN_STARTED: { code: "CONFLICT" },
 
     // gone

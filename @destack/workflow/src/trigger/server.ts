@@ -24,6 +24,7 @@ import type { Controller, ReconcileController } from "@destack/db";
 import { RequestId, type Call, Scope } from "@destack/sync";
 import type { InstalledServerContext, WebhookHandler } from "@destack/object/workload";
 import { Failure } from "@destack/error";
+import { Manager } from "@destack/access";
 import { canonicalize, present, schema } from "@destack/schema";
 import { LIVE_STATES } from "../run/run.ts";
 import type { TriggerType, Workflow } from "../workflow/workflow.ts";
@@ -129,8 +130,7 @@ export class TriggerServer<Input> {
                     return next(call.with({ input: { ...call.input, schedule } }));
                 },
                 update: (call, next) => {
-                    // refuse changing a declared trigger, and check the changed schedule and input
-                    TriggerServer.#refuseDeclared(call.target);
+                    // check the changed schedule and input
                     const { target, input } = call;
                     const schedule = this.#checked(
                         input.schedule ?? target.schedule,
@@ -138,12 +138,6 @@ export class TriggerServer<Input> {
                     );
 
                     return next(call.with({ input: { ...input, schedule } }));
-                },
-                delete: (call, next) => {
-                    // refuse deleting a declared trigger
-                    TriggerServer.#refuseDeclared(call.target);
-
-                    return next();
                 },
             },
             controller: {
@@ -213,16 +207,6 @@ export class TriggerServer<Input> {
         });
     }
 
-    /** Refuse a manager changing or deleting a trigger its package declares. */
-    static #refuseDeclared(target: TriggerRecord): void {
-        if (target.origin === "declared") {
-            throw WorkflowError.of(
-                "TRIGGER_DECLARED",
-                `trigger ${target.name} is declared by its package: change it there`,
-            );
-        }
-    }
-
     /** Check a created schedule's timing and its runs' input, answering the checked schedule. */
     #checked(schedule: unknown, input: unknown): ScheduleOn {
         // check the timing and the input
@@ -267,7 +251,6 @@ export class TriggerServer<Input> {
                 lastScheduledAt: last,
                 skipped: row.skipped + allSkips.length,
                 lastSkip: latest ?? null,
-                schedule,
             }),
         ]);
 
@@ -310,7 +293,7 @@ export class TriggerServer<Input> {
                       ),
                   ];
         const input =
-            row.origin === "created"
+            row.managerName === null
                 ? workflow.input.parse(row.input)
                 : this.#schedule(row.name).input({ at });
         const event = { key: ScheduleTrigger.key({ at }), at };
@@ -468,37 +451,47 @@ class DeclarationController<Input> implements ReconcileController {
         return [this.#server.scope(this.#store)];
     }
 
-    /** Create missing declared rows, update changed schedules and retire undeclared rows. */
+    /** Create missing declared rows, update changed schedules, retire undeclared attached rows. */
     async reconcile(scope: string): Promise<undefined> {
-        // read the declared rows the space has
+        // read the rows the workflow's installation declared in the space, detached ones too
         const { trigger } = this.#server.workflow;
+        const served = present(this.#store.readServer(trigger), `the server of ${trigger.name}`);
+        const manager = { installationId: served.installation, packageId: trigger.package.id };
         const column = (name: string) => trigger.table[TABLE].column(name);
         const rows = await this.#store.database
             .select()
             .from(trigger.table)
-            .where(and(eq(column("scope"), scope), eq(column("origin"), "declared")));
+            .where(
+                and(
+                    eq(column("scope"), scope),
+                    eq(column("managerInstallationId"), manager.installationId),
+                    eq(column("managerPackageId"), manager.packageId),
+                ),
+            );
 
-        // create each missing declared trigger, and update a declared schedule that changed
-        const calls: Call[] = [];
+        // create each missing declared trigger, and update an attached one's schedule that changed
+        const calls: (readonly [string, Call])[] = [];
         for (const declared of this.#triggers) {
             const { kind } = declared;
             const schedule = declared.kind === "schedule" ? declared.schedule : undefined;
             const row = rows.find((each) => each.name === declared.name);
             if (row === undefined) {
-                calls.push(
+                calls.push([
+                    declared.name,
                     trigger.call("declare", {
                         ...trigger.in(scope),
                         name: declared.name,
-                        origin: "declared",
                         kind,
                         ...(schedule === undefined ? {} : { schedule }),
                     }),
-                );
+                ]);
             } else if (
+                Manager.isManaged(row) &&
                 schedule !== undefined &&
                 canonicalize(schedule) !== canonicalize(row.schedule)
             ) {
-                calls.push(
+                calls.push([
+                    declared.name,
                     trigger.call("record", {
                         ...trigger.target(row),
                         lastScheduledAt: row.lastScheduledAt,
@@ -506,26 +499,38 @@ class DeclarationController<Input> implements ReconcileController {
                         lastSkip: null,
                         schedule,
                     }),
-                );
+                ]);
             }
         }
 
-        // retire the declared rows no declaration has any more
+        // retire the attached rows no declaration has any more
         const retired = rows.filter(
-            (each) => !this.#triggers.some((declared) => declared.name === each.name),
+            (each) =>
+                Manager.isManaged(each) &&
+                !this.#triggers.some((declared) => declared.name === each.name),
         );
-        calls.push(...retired.map((row) => trigger.call("retire", trigger.target(row))));
+        calls.push(
+            ...retired.map(
+                (row) => [row.name, trigger.call("retire", trigger.target(row))] as const,
+            ),
+        );
         if (calls.length === 0) {
             return undefined;
         }
 
-        // record the calls, dropping the retired triggers' log slots in the same commit
+        // record each call as the trigger's manager, dropping the retired triggers' log slots in the same commit
         await Transaction.run(this.#store.database, async (transaction) => {
-            await this.#store.mutate(
-                this.#store.as(trigger),
-                { id: RequestId.create(this.#store.environment), calls },
-                { scope, transaction },
-            );
+            for (const [name, call] of calls) {
+                await this.#store.mutate(
+                    this.#store.as(trigger),
+                    { id: RequestId.create(this.#store.environment), calls: [call] },
+                    {
+                        scope,
+                        transaction,
+                        manager: { ...manager, name: `${trigger.collection}/${name}` },
+                    },
+                );
+            }
             for (const row of retired) {
                 transaction.record((committing) => this.#server.dropSlots(committing, row.name));
             }
