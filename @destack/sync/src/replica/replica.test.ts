@@ -536,8 +536,8 @@ test("follow and wait for each commit of one row in a fixed count of statements,
     controller.abort();
     await following;
 
-    // spend eight statements on each commit, the wait's own read and the position included
-    expect(new Set(costs)).toEqual(new Set([8]));
+    // spend five statements on each commit, the wait's own read and the position included
+    expect(new Set(costs)).toEqual(new Set([5]));
 });
 
 test("capture a space's few dozen rows across many tables as one page applied in one transaction, and a larger one in pages of rows staged before the last", async () => {
@@ -600,7 +600,7 @@ test("capture a space's few dozen rows across many tables as one page applied in
 
     // read each table once per page of its rows, write each table's rows once, prune each table once
     expect({ small, large }).toEqual({
-        small: { pages: [[true, true, 24]], staged: 0, read: 42, written: 61 },
+        small: { pages: [[true, true, 24]], staged: 0, read: 42, written: 59 },
         large: {
             pages: [
                 [true, false, 500],
@@ -608,7 +608,7 @@ test("capture a space's few dozen rows across many tables as one page applied in
             ],
             staged: 1,
             read: 43,
-            written: 63,
+            written: 62,
         },
     });
     expect(await target.select().from(head)).toHaveLength(INSERT_BATCH);

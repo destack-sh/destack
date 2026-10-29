@@ -1195,6 +1195,33 @@ export class Replica {
         );
     }
 
+    /** Build the record a completed run leaves: its registration, position and subscription. */
+    #recorded(
+        record: ReplicaRecord | undefined,
+        page: Page,
+        position: ReplicaPosition,
+        layout: string,
+        options: ApplyOptions,
+    ): ReplicaRecord {
+        const { subscription, audience } = options;
+
+        return {
+            name: this.name,
+            scope: this.scope,
+            scopes: page.scopes ?? record?.scopes ?? null,
+            subjects: page.subjects ?? record?.subjects ?? null,
+            layout,
+            tables: [...this.#replicated.keys()],
+            living: this.#living(),
+            ...position,
+            subscription:
+                subscription === undefined
+                    ? record?.subscription
+                    : Replica.#subscribed(subscription),
+            audience: subscription === undefined ? record?.audience : audience,
+        };
+    }
+
     /** Read a record's source position, absent before a first snapshot or after a layout change. */
     #recordedPosition(
         record: Pick<ReplicaRecord, "log" | "epoch" | "sequence" | "layout"> | undefined,
@@ -1540,6 +1567,7 @@ export class Replica {
         let staged = 0;
         let isSnapshot = false;
         let parameters = options.subscription?.parameters;
+        let record = await this.#record(database);
         let reached: ReplicaPosition | undefined;
         let marks: string | undefined;
         for await (const page of pages) {
@@ -1581,7 +1609,13 @@ export class Replica {
                     Replica.mark(database, this, home);
                 }
             } else if (page.complete) {
-                reached = await this.#complete(database, page, { staged, isSnapshot }, reflected);
+                ({ position: reached, record } = await this.#complete(
+                    database,
+                    page,
+                    { staged, isSnapshot },
+                    record,
+                    reflected,
+                ));
 
                 // announce the run's home position at once
                 const home = this.#home(reached);
@@ -1593,9 +1627,12 @@ export class Replica {
             }
             // stage a page within a run
             else {
-                await database
-                    .insert(replicaPage)
-                    .values({ name: this.name, scope: this.scope, index: staged, page });
+                const order = staged;
+                await database.transaction(async (transaction) => {
+                    await transaction
+                        .insert(replicaPage)
+                        .values({ name: this.name, scope: this.scope, index: order, page });
+                });
                 staged += 1;
             }
             yield page;
@@ -1715,13 +1752,14 @@ export class Replica {
         };
     }
 
-    /** Apply a run's pages in one transaction around reverted local predictions. */
+    /** Apply a run's pages in one transaction around reverted predictions, answering its record. */
     async #complete(
         database: DatabaseConnection,
         page: Page,
         run: Stage,
+        record: ReplicaRecord | undefined,
         options: ApplyOptions,
-    ): Promise<ReplicaPosition> {
+    ): Promise<{ readonly position: ReplicaPosition; readonly record: ReplicaRecord }> {
         // apply after the database's earlier serialized work
         return await database.state.serialize(() =>
             database.transaction(
@@ -1735,7 +1773,6 @@ export class Replica {
                     );
 
                     // require the recorded epoch outside a snapshot
-                    const record = await this.#record(transaction);
                     const layout = await this.#layout(transaction);
                     const recorded = this.#recordedPosition(record, layout);
                     const isContinued =
@@ -1782,7 +1819,10 @@ export class Replica {
                         isSnapshot: run.isSnapshot,
                     });
 
-                    return position;
+                    return {
+                        position,
+                        record: this.#recorded(record, page, position, layout, options),
+                    };
                 },
                 { constraints: "deferred" },
             ),
@@ -2601,14 +2641,18 @@ export class Replica {
             return undefined;
         }
 
-        // rebase onto a snapshot, a staged run, groups, an included mutation or a predicted table
+        // rebase onto a snapshot, a staged run or groups
+        if (run.isSnapshot || run.staged > 0 || (page.results ?? []).length > 0) {
+            return prediction;
+        }
+
+        // rebase onto a page changing a layer's tables or including its mutation, none without layers
+        const layers = await prediction.layers(transaction);
         const tables = new Set(page.changes.map((change) => change.table));
         const isRebased =
-            run.isSnapshot ||
-            run.staged > 0 ||
-            (page.results ?? []).length > 0 ||
-            (await prediction.includes(transaction, page.origin ?? page.position)) ||
-            (tables.size > 0 && (await prediction.touches(transaction, tables)));
+            layers.length > 0 &&
+            (layers.some((read) => read.some((table) => tables.has(table))) ||
+                (await prediction.includes(transaction, page.origin ?? page.position)));
 
         return isRebased ? prediction : undefined;
     }

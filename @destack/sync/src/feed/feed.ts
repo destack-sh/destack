@@ -56,8 +56,8 @@ const CAPTURE_ROWS = 500;
 export class Feed implements Cache {
     /** The database whose log the feed reads. */
     readonly database: DatabaseConnection;
-    /** The logged tables subscribers may read. */
-    readonly tables: readonly Table[];
+    /** The logged tables subscribers may read, more as they are declared. */
+    #tables: readonly Table[];
     /** The subscriber limit. */
     readonly #limit: number;
     /** The requests streams follow, each with its handlers, by its key's name. */
@@ -150,14 +150,7 @@ export class Feed implements Cache {
         // store the logged tables and the limits
         this.database = database;
         this.upstream = options.upstream;
-        this.tables = tables
-            .flatMap((table) => [
-                table,
-                ...(table[TABLE].tree === undefined || this.upstream !== undefined
-                    ? []
-                    : [table[TABLE].tree.ancestors]),
-            ])
-            .filter((table) => describeLog(table) !== undefined);
+        this.#tables = Feed.#loggedTables(tables, this.upstream);
         this.#limit = options.subscribers ?? FEED_SUBSCRIBERS;
         this.capacity = options.capacity ?? CAPACITY;
         this.pageSize = options.pageSize ?? PAGE_SIZE;
@@ -169,6 +162,11 @@ export class Feed implements Cache {
     /** The signal ending caught-up streams' current wait for their heartbeat. */
     get beating(): AbortSignal {
         return this.#beating.signal;
+    }
+
+    /** The logged tables subscribers may read. */
+    get tables(): readonly Table[] {
+        return this.#tables;
     }
 
     /** The beats so far. */
@@ -771,25 +769,61 @@ export class Feed implements Cache {
         return low;
     }
 
+    /** List the logged tables of some tables, with their trees' ancestors when reading locally. */
+    static #loggedTables(tables: readonly Table[], upstream: Upstream | undefined): Table[] {
+        return tables
+            .flatMap((table) => [
+                table,
+                ...(table[TABLE].tree === undefined || upstream !== undefined
+                    ? []
+                    : [table[TABLE].tree.ancestors]),
+            ])
+            .filter((table) => describeLog(table) !== undefined);
+    }
+
     /** Count a subscriber, starting to read with the first. */
     #join(): void {
         this.#subscribers += 1;
         if (this.#reading === undefined) {
-            const reading = new AbortController();
-            this.#reading = reading;
-            this.#failure = undefined;
-            const fail = (error: unknown) => {
-                // report the failure to this reading's subscribers
-                if (this.#reading === reading) {
-                    this.#failure =
-                        error instanceof Error
-                            ? error
-                            : new TypeError("feed reading failed", { cause: error });
-                    this.#wake();
-                }
-            };
-            this.#follow(reading.signal).catch(fail);
-            this.#beat(reading.signal).catch(fail);
+            this.#read();
+        }
+    }
+
+    /** Start reading the tables' changes and beating, replacing a reading under way. */
+    #read(): void {
+        // replace the reading under way
+        this.#reading?.abort();
+        const reading = new AbortController();
+        this.#reading = reading;
+        this.#failure = undefined;
+        const fail = (error: unknown) => {
+            // report the failure to this reading's subscribers
+            if (this.#reading === reading) {
+                this.#failure =
+                    error instanceof Error
+                        ? error
+                        : new TypeError("feed reading failed", { cause: error });
+                this.#wake();
+            }
+        };
+        this.#follow(reading.signal).catch(fail);
+        this.#beat(reading.signal).catch(fail);
+    }
+
+    /** Feed more logged tables, reading every table's changes anew while reading. */
+    declare(tables: readonly Table[]): void {
+        // add the logged tables not fed yet
+        const added = Feed.#loggedTables(tables, this.upstream).filter(
+            (table) => !this.#tables.includes(table),
+        );
+        if (added.length === 0) {
+            return;
+        }
+        this.#tables = [...this.#tables, ...added];
+
+        // read them from now on
+        if (this.#reading !== undefined) {
+            this.#read();
         }
     }
 

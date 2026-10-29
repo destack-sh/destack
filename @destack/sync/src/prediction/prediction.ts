@@ -210,13 +210,11 @@ export class Prediction {
         });
     }
 
-    /** Decide whether a page changing some tables touches a layer. */
-    async touches(database: DatabaseConnection, changed: ReadonlySet<string>): Promise<boolean> {
+    /** List the tables each layer reads or writes, empty without predictions. */
+    async layers(database: DatabaseConnection): Promise<string[][]> {
         const rows = await database.select({ tables: layer.tables }).from(layer);
 
-        return rows.some((row) =>
-            LayerTables.parse(JSON.parse(row.tables)).some((table) => changed.has(table)),
-        );
+        return rows.map((row) => LayerTables.parse(JSON.parse(row.tables)));
     }
 
     /** Read the predicted changes in the order applied. */

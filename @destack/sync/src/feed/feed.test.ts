@@ -199,6 +199,45 @@ test("maintain a query of one scope's matching rows", async () => {
     ]);
 });
 
+test("feed a table declared while reading, its changes reaching a stream from then on", async () => {
+    // read notes for a caught-up stream, then feed tasks as well
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
+    const signal = AbortSignal.timeout(5000);
+    const notes = feed.subscribe({ notes: { table: note, scopes: ["inbox"] } }, undefined, signal);
+    await take(notes, (page) => page.complete);
+    feed.declare([task]);
+
+    // stream a task added after the declaration
+    const query = { tasks: { table: task, scopes: ["inbox"] } };
+    const tasks = feed.subscribe(query, undefined, signal);
+    const snapshot = nth(await take(tasks, (page) => page.complete), 0);
+    const following = feed.subscribe(query, snapshot.position, signal);
+    const next = take(following, (page) => page.changes.length > 0);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(task).values({
+                id: "t",
+                scope: "inbox",
+                projectId: null,
+                state: "open",
+                rank: 1,
+                points: null,
+                title: "Task",
+                isSecret: false,
+            }),
+    );
+    const changes = (await next).flatMap((page) =>
+        page.changes.map((change) => [change.table, change.operation, change.row["id"]]),
+    );
+    expect({ tables: feed.tables.length, snapshot: snapshot.changes, changes }).toEqual({
+        tables: 2,
+        snapshot: [],
+        changes: [[task[TABLE].sqlName, "insert", "t"]],
+    });
+});
+
 test("page a snapshot of more rows than a page and continue after its first page", async () => {
     const simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
