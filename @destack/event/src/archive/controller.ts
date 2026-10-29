@@ -22,6 +22,8 @@ export class ArchiveController implements ReconcileController {
     readonly #clock: Clock;
     /** When this controller last swept each kind and scope for orphaned files, by key. */
     readonly #swept = new Map<string, number>();
+    /** The hot events each kind and scope held at its last reconcile and appended since, by key. */
+    readonly #held = new Map<string, number>();
 
     /** Maintain the segments of kinds. */
     constructor(archive: EventArchive, kinds: readonly EventKind[], clock: Clock) {
@@ -32,12 +34,25 @@ export class ArchiveController implements ReconcileController {
         this.#clock = clock;
     }
 
-    /** Read the kind and scope an appended event belongs to. */
+    /** Count an append, taking its scope at its first hot event or once it fills a flush. */
     keys(change: Change): readonly string[] {
+        // take nothing of other tables or rows without a scope
         const kind = [...this.#kinds.values()].find((each) => Change.of(change, each.table));
         const scope: unknown = Change.image(change)["scope"];
+        if (kind === undefined || typeof scope !== "string") {
+            return [];
+        }
 
-        return kind === undefined || typeof scope !== "string" ? [] : [`${kind.key} ${scope}`];
+        // count the append, taking the scope unreconciled, at its first hot event, or at a flush's worth
+        const key = `${kind.key} ${scope}`;
+        const held = this.#held.get(key);
+        if (held !== undefined) {
+            this.#held.set(key, held + 1);
+        }
+
+        return held === undefined || held === 0 || held + 1 >= kind.policy.flush.maxRows
+            ? [key]
+            : [];
     }
 
     /** List every kind and scope with hot events or segments. */
@@ -64,6 +79,7 @@ export class ArchiveController implements ReconcileController {
         while (due.isDue && (await this.#archive.flush(kind, scope, now))) {
             due = await this.#archive.flushDue(kind, scope, now);
         }
+        this.#held.set(key, due.events);
         await this.#archive.compact(kind, scope, now);
         await this.#archive.expire(kind, scope, now);
 

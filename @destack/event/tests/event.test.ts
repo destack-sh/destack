@@ -186,6 +186,27 @@ test("flush a scope's hot events at the row cap into segments that queries read 
     ]);
 });
 
+test("flush at the row cap across single appends, counting them between reconciles", async () => {
+    const fixture = await open();
+    const { store, database } = fixture;
+
+    // append five readings one at a time, settling after each, an hour before any is due by age
+    const hot: string[][] = [];
+    for (const minute of [1, 2, 3, 4, 5]) {
+        await store.append(reading, [measured(`r${String(minute)}`, minute, "db.bytes", minute)]);
+        await fixture.settle();
+        const rows = await database.database.select({ id: reading.table.id }).from(reading.table);
+        hot.push(rows.map((row) => row.id).toSorted());
+    }
+    const segments = await database.database.select().from(eventSegment);
+
+    // flush the first three once the third arrives, leaving the next two hot
+    expect({ hot, segments: segments.map((segment) => segment.rows) }).toEqual({
+        hot: [["r1"], ["r1", "r2"], [], ["r4"], ["r4", "r5"]],
+        segments: [3],
+    });
+});
+
 test("read the events of several scopes, hot and flushed, in one time order", async () => {
     const fixture = await open();
     const { store } = fixture;

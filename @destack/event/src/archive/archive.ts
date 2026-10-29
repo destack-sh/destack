@@ -89,7 +89,11 @@ export class EventArchive {
         kind: EventKind,
         scope: string,
         now: number,
-    ): Promise<{ readonly isDue: boolean; readonly at: number | undefined }> {
+    ): Promise<{
+        readonly isDue: boolean;
+        readonly at: number | undefined;
+        readonly events: number;
+    }> {
         // read the hot events' count and oldest time
         const [held] = await this.#database
             .select({ events: count(), oldest: min(kind.table.time) })
@@ -97,14 +101,14 @@ export class EventArchive {
             .where(eq(kind.table.scope, scope));
         const oldest = held?.oldest ?? null;
         if (held === undefined || oldest === null) {
-            return { isDue: false, at: undefined };
+            return { isDue: false, at: undefined, events: 0 };
         }
 
         // flush at the age or the count the kind's policy sets
         const { flush } = kind.policy;
         const at = EventTime.milliseconds(oldest) + flush.maxAge;
 
-        return { isDue: held.events >= flush.maxRows || at <= now, at };
+        return { isDue: held.events >= flush.maxRows || at <= now, at, events: held.events };
     }
 
     /** Flush a scope's oldest hot events into a verified, catalogued segment. */

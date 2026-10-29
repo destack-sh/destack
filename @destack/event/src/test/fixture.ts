@@ -129,8 +129,8 @@ export class EventFixture implements AsyncDisposable {
         kinds: readonly EventKind[],
         settings?: SettingRetention,
     ): Promise<EventFixture> {
-        // migrate the kinds' tables on the fixture's clock
-        const tables = eventTables(kinds);
+        // migrate the kinds' tables and the control loop's on the fixture's clock
+        const tables = [...eventTables(kinds), ...ControlLoop.tables];
         const simulation = new Simulation({ seed: 1, start: START });
         const environment = simulation.environment("events");
         const { clock } = simulation;
