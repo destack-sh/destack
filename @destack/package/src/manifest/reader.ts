@@ -26,6 +26,8 @@ export class BuildReader {
     readonly #sourceMaps = new Once<readonly SourceMapReference[]>();
     /** The declarations, read once. */
     readonly #declarations = new Once<readonly Declaration[]>();
+    /** Each kind's declarations parsed once, by the parsing schema, then kind package and kind. */
+    readonly #declared = new WeakMap<schema.Schema, Map<string, Promise<readonly unknown[]>>>();
     /** The listed files by path, read once. */
     readonly #listed = new Once<ReadonlyMap<string, PackageFile>>();
     /** The crypto verifying the files' digests. */
@@ -136,17 +138,30 @@ export class BuildReader {
         kind: DeclarationName,
         item: Item,
     ): Promise<Declared<schema.Output<Item>>[]> {
-        const declarations = await this.declarations();
+        // parse a kind's declarations once per schema, as a build never changes
+        const key = `${kindPackageId} ${kind}`;
+        const parsed = this.#declared.get(item) ?? new Map<string, Promise<readonly unknown[]>>();
+        this.#declared.set(item, parsed);
+        let declared = parsed.get(key);
+        if (declared === undefined) {
+            declared = this.declarations().then((declarations) =>
+                declarations
+                    .filter(
+                        (declaration) =>
+                            declaration.kindPackageId === kindPackageId &&
+                            declaration.kind === kind,
+                    )
+                    .map((declaration) => ({
+                        ...declaration,
+                        description: item.parse(declaration.description),
+                    })),
+            );
+            parsed.set(key, declared);
+            declared.catch(() => parsed.delete(key));
+        }
 
-        return declarations
-            .filter(
-                (declaration) =>
-                    declaration.kindPackageId === kindPackageId && declaration.kind === kind,
-            )
-            .map((declaration) => ({
-                ...declaration,
-                description: item.parse(declaration.description),
-            }));
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- the memo keys each parse by the schema that produced it
+        return [...((await declared) as readonly Declared<schema.Output<Item>>[])];
     }
 
     /** Read a listed JSON file and parse it with a schema. */

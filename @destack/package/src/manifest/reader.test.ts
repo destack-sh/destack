@@ -1,7 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import { dirname, join } from "node:path";
 import { expect, refusal, test } from "@destack/test";
-import { Digest } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { Package } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
 import { MemoryBuild } from "../test/memory.ts";
@@ -241,4 +241,59 @@ test("read a build a directory keeps: its manifest, its file list and each file'
         files: (await build.files()).map((file) => file.path),
         bytes: new TextDecoder().decode(await build.load("output/bun/index.js")),
     }).toEqual({ manifest: written, files: ["output/bun/index.js"], bytes: "export {};\n" });
+});
+
+test("parse a kind's declarations once per schema, however often a reader is asked", async () => {
+    // build a package declaring two settings and a command of its own kinds
+    const { crypto } = testSimulation().environment("test");
+    const owner = Package.parse({
+        id: "package-01996ab0-0000-7000-8000-00000000000a",
+        name: "@example/notes",
+        version: "2026.9.0",
+    });
+    const reader = await MemoryBuild.of(
+        owner,
+        [
+            {
+                kind: "setting",
+                kindPackageId: owner.id,
+                name: "theme",
+                description: { title: "Theme" },
+            },
+            {
+                kind: "setting",
+                kindPackageId: owner.id,
+                name: "locale",
+                description: { title: "Locale" },
+            },
+            {
+                kind: "command",
+                kindPackageId: owner.id,
+                name: "archive",
+                description: { title: "Archive" },
+            },
+        ],
+        crypto,
+    );
+
+    // read the settings twice through one schema, then once through another, counting each parse
+    let parses = 0;
+    const counted = schema.object({ title: schema.string() }).refine(() => {
+        parses += 1;
+
+        return true;
+    });
+    const first = await reader.declared(owner.id, "setting", counted);
+    const second = await reader.declared(owner.id, "setting", counted);
+    const other = await reader.declared(
+        owner.id,
+        "setting",
+        schema.object({ title: schema.string() }),
+    );
+    expect({
+        titles: first.map((entry) => entry.description.title).toSorted(),
+        second: second.map((entry) => entry.name).toSorted(),
+        other: other.length,
+        parses,
+    }).toEqual({ titles: ["Locale", "Theme"], second: ["locale", "theme"], other: 2, parses: 2 });
 });
