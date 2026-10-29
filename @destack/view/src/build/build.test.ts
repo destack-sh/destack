@@ -12,7 +12,7 @@ import { viewPlugins } from "./plugin.ts";
 /** The notebook package, whose view module declares its notebooks view. */
 const NOTEBOOK = fileURLToPath(new URL("../../tests/fixture/notebook/", import.meta.url));
 
-/** The longest a browser build of the notebook package takes: 1.8 s alone, 7 s under load. */
+/** The longest a browser build of the notebook package takes. */
 const NOTEBOOK_BUILD_MILLISECONDS = 60_000;
 
 /** Flatten plugin options into their plugins, refusing pending ones. */
