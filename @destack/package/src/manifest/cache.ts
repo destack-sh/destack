@@ -5,7 +5,7 @@ import type { BuildReader } from "./reader.ts";
 const CAPACITY = 256;
 
 /** Values read once from each build's declarations, kept by the instance serving them. */
-export class BuildCache<Value> {
+export class DeclarationCache<Value> {
     /** Read the value of one build. */
     readonly #read: (reader: BuildReader) => Promise<Value>;
     /** The most builds kept, the least recently read dropped first. */
