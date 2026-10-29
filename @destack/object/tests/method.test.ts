@@ -78,6 +78,8 @@ test("derive routes and describe each method with its permission, input and audi
         accept: "POST /spaces/{spaceId}/tasks/{id}/invitations/{invitationId}/accept",
         withdraw: "DELETE /spaces/{spaceId}/tasks/{id}/invitations/{invitationId}",
         explain: "GET /spaces/{spaceId}/tasks/{id}/access",
+        detach: "POST /spaces/{spaceId}/tasks/{id}/detach",
+        attach: "POST /spaces/{spaceId}/tasks/{id}/attach",
     });
 
     // audit each change with its target, and reads only of read-audited types

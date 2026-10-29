@@ -80,6 +80,16 @@ export interface WorkloadContext {
 /** The context a package's server runs in: a base installation's, or an installed one's. */
 export type ServerContext = BaseServerContext | InstalledServerContext;
 
+/** Tell a base installation's server context from an installed one's. */
+export const ServerContext = {
+    /** Report whether a context is a named installation's, which a base one is not. */
+    isInstalled<Context extends ServerContext>(
+        context: Context,
+    ): context is Extract<Context, InstalledServerContext> {
+        return "name" in context;
+    },
+};
+
 /** An installed package server's context, with its partition's database and blobs. */
 export interface PackageContext extends InstalledServerContext {
     /** The installation's database, with the tables the package declares beside its objects. */
@@ -95,16 +105,14 @@ export const PackageContext = {
         context: ServerContext | undefined,
         blobs: BlobStore,
     ): PackageContext | BaseServerContext | undefined {
-        return context === undefined || context.origin === "base"
-            ? context
-            : { ...context, database: blobs.database, blobs };
+        return context !== undefined && ServerContext.isInstalled(context)
+            ? { ...context, database: blobs.database, blobs }
+            : context;
     },
 };
 
 /** The context of a base installation, born with its scope and shipped with the platform. */
 export interface BaseServerContext {
-    /** The base installation, born with its scope. */
-    readonly origin: "base";
     /** The installation's identifier. */
     readonly installation: Identifier<"installation">;
     /** The installation's partition scope: its space, machine, device or the universe. */
@@ -113,10 +121,8 @@ export interface BaseServerContext {
     readonly capabilities: readonly string[];
 }
 
-/** The context of a declared or installed installation: its build, bindings, keys and egress. */
+/** The context of a named installation: its build, bindings, keys and egress. */
 export interface InstalledServerContext {
-    /** The installation its scope's stack declares, or one someone installed. */
-    readonly origin: "declared" | "installed";
     /** The installation's identifier. */
     readonly installation: Identifier<"installation">;
     /** The installation's name in its scope, its address there as `<name>--<scope>`. */

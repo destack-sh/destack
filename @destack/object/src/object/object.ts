@@ -99,6 +99,7 @@ import {
     type ControlledDefinition,
     type ControlledMethodMap,
 } from "../trait/controlled.ts";
+import { attach, detach } from "../method/manager.ts";
 import { nested, type NestedMethodMap, type NestedDefinition } from "../trait/nested.ts";
 import { transitions, type TransitionMethodMap } from "../trait/transition.ts";
 import {
@@ -1632,15 +1633,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     static #declarationOf(
         definition: ObjectDefinition<string, Readonly<Record<string, Method>>>,
     ): DeclarationHandler | undefined {
-        // declare a durable type from its create input
-        if (
+        return ObjectType.declares(definition) ? {} : undefined;
+    }
+
+    /** Report whether stacks can declare a definition's objects: durable ones with create. */
+    static declares(
+        definition: ObjectDefinition<string, Readonly<Record<string, Method>>>,
+    ): boolean {
+        return (
             definition.methods?.["create"] !== undefined &&
             ObjectType.storageKind(definition.storage) === "durable"
-        ) {
-            return {};
-        }
-
-        return undefined;
+        );
     }
 
     /** Read the schema of one declaration: the create input with its references by name. */
@@ -1805,6 +1808,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
 
         return this.derived.declaredFields;
+    }
+
+    /** The collection declaring the type's records: its declaration's, else its plural. */
+    get collection(): string {
+        return this.declaration?.collection ?? this.plural;
     }
 
     /** Report whether stacks can declare the type's records, which then have manager columns. */
@@ -2002,11 +2010,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             return [this.table];
         }
 
-        return [
-            this.table,
-            ...SYSTEM_TABLES,
-            ...(this.text.length === 0 ? [] : [chunk, chunkRun]),
-        ];
+        return [this.table, ...SYSTEM_TABLES, ...(this.text.length === 0 ? [] : [chunk, chunkRun])];
     }
 
     /** Require valid methods, fields, aggregates, scopes, indexes and traits. */
@@ -2461,32 +2465,42 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             );
         }
 
-        // derive the table
-        const packageId = (definition.represents?.package ?? owner).id;
-        const table = foreign ?? ObjectTable.derive(definition, traits, packageId, module);
-
         // add trait methods, but those the definition declares or removes
         const declared: Readonly<Record<string, Method>> = definition.methods ?? {};
         const derived = traits.map(({ trait, options }) =>
             trait.methods(options, { ...listed, ...declared }),
         );
-        const clash = derived
-            .flatMap(Object.keys)
-            .find((name) => Object.hasOwn(listed ?? {}, name));
-        if (clash !== undefined) {
-            throw new TypeError(
-                `object ${definition.name} declares or removes method ${clash}, but a trait derives it`,
-            );
-        }
-        const methods = Object.fromEntries([
-            ...Object.entries(declared),
-            ...derived
+        const traitMethods = Object.fromEntries(
+            derived
                 .flatMap((each) => Object.entries(each))
                 .map(([name, traitMethod]): [string, Method] => [
                     name,
                     Method.declared(traitMethod),
                 ]),
-        ]);
+        );
+
+        // let a declarable type's managers detach its records from their declarations and attach them again
+        const isDeclarable = ObjectType.declares({
+            ...definition,
+            methods: { ...declared, ...traitMethods },
+        });
+        const managing = isDeclarable
+            ? { detach: Method.declared(detach), attach: Method.declared(attach) }
+            : {};
+        const clash = [...Object.keys(traitMethods), ...Object.keys(managing)].find((name) =>
+            Object.hasOwn(listed ?? {}, name),
+        );
+        if (clash !== undefined) {
+            throw new TypeError(
+                `object ${definition.name} declares or removes method ${clash}, but a trait derives it`,
+            );
+        }
+        const methods = { ...declared, ...traitMethods, ...managing };
+
+        // derive the table
+        const packageId = (definition.represents?.package ?? owner).id;
+        const table =
+            foreign ?? ObjectTable.derive({ ...definition, methods }, traits, packageId, module);
 
         return ObjectType.assemble(owner, {
             ...definition,
@@ -2911,6 +2925,7 @@ export type DefinedType<Definition extends ObjectDefinition, Methods> = ObjectTy
         > &
         ProvisionedMethodsOf<Option<Definition, "provisioned">> &
         SeriesMethodMap<StorageKind<Option<Definition, "storage", "durable">>> &
+        ManagerMethodMap<Definition, Methods> &
         TraitMethods<
             FieldsByColumn<NonNullable<Definition["fields"]>>,
             DefinedTraits<Definition> & {
@@ -2924,7 +2939,7 @@ export type DefinedType<Definition extends ObjectDefinition, Methods> = ObjectTy
                         >;
             }
         >;
-    readonly permissions: DefinedPermissions<Definition>;
+    readonly permissions: DefinedPermissions<Definition> | ManagerPermissionOf<Definition, Methods>;
     readonly scope: DefinedScope<Definition>;
     readonly parent: Option<Definition, "nested"> extends { readonly in: infer Parent }
         ? Parent extends ObjectType
@@ -2961,6 +2976,26 @@ export type TraitPermissionsOf<Traits> =
     | (TraitOf<Traits, "controlled"> extends { readonly approval: true } ? "approve" : never)
     | ([TraitOf<Traits, "expiring">] extends [undefined] ? never : "expire")
     | ([TraitOf<Traits, "bindable">] extends [undefined] ? never : "bind");
+
+/** The permission a durable type declaring create derives for its records' managers. */
+type ManagerPermissionOf<Definition, Methods> =
+    IsDeclarable<Definition, Methods> extends true ? "manage" : never;
+
+/** Whether stacks can declare the objects: durable ones with a declared or written create. */
+type IsDeclarable<Definition, Methods> =
+    StorageKind<Option<Definition, "storage", "durable">> extends "durable"
+        ? Methods extends { readonly create: Method }
+            ? true
+            : ["write"] extends [DeclaredPermissions<Definition>]
+              ? true
+              : false
+        : false;
+
+/** The methods a durable type declaring create gives its records' managers. */
+export type ManagerMethodMap<Definition, Methods> =
+    IsDeclarable<Definition, Methods> extends true
+        ? { readonly detach: typeof detach; readonly attach: typeof attach }
+        : {};
 
 /** The methods an object's traits derive beside its declared ones. */
 export type TraitMethods<Fields, Traits> = TransitionMethodMap<Fields> &

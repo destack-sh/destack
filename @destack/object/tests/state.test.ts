@@ -34,7 +34,7 @@ test("change state fields only through their transitions, with modifiers enforci
     // leave the state out of what callers write, and its transition through the modifier
     expect([article.written, Object.keys(article.methods).toSorted()]).toEqual([
         ["title"],
-        ["approve", "create", "delete", "get", "list", "update"],
+        ["approve", "attach", "create", "delete", "detach", "get", "list", "update"],
     ]);
 });
 

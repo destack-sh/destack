@@ -70,13 +70,13 @@ test("derive create and update from the write permission, leaving removed method
         mutate([{ ...rename, input: { ...rename.input, color: "blue" } }]),
     );
 
-    // the type has create, get, list and update, and the label has its first color
+    // the type has create, get, list, update, detach and attach, and the label has its first color
     expect({
         methods: Object.keys(label.methods).toSorted(),
         label: [renamed.name, renamed.color],
         recolored: recolored[0],
     }).toEqual({
-        methods: ["create", "get", "list", "update"],
+        methods: ["attach", "create", "detach", "get", "list", "update"],
         label: ["Defect", "red"],
         recolored: "BAD_REQUEST",
     });

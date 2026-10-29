@@ -19,6 +19,7 @@ import {
 } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { AccessFixture } from "@destack/access/test";
+import { ServerContext } from "../workload/workload.ts";
 import { connectBunSqlite } from "@destack/db/bun";
 import { TestDatabase } from "@destack/db/test";
 import { Clock, type Environment } from "@destack/environment";
@@ -232,7 +233,9 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         const { environment } = store;
         const ancestors = scope.scope === Scope.universe.id ? [] : [scope.scope];
         const bases = servers.filter(
-            (server) => server.installation === undefined || server.installation.origin === "base",
+            (server) =>
+                server.installation === undefined ||
+                !ServerContext.isInstalled(server.installation),
         );
         const packages = [...new Set(bases.map((server) => server.package))];
         await Transaction.run(store.database, async (transaction) => {

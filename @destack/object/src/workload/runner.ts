@@ -198,7 +198,6 @@ export class WorkloadRunner implements AsyncDisposable {
         const { build, stack, resources, keys } = bound;
 
         return {
-            origin: start.origin,
             installation: start.installation,
             name: start.name,
             scope: start.scope,

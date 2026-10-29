@@ -3,7 +3,11 @@ import type { PackageHandle } from "../declare/package.ts";
 import type { PackageHandler } from "./http.ts";
 import type { RequestContext } from "./context.ts";
 import type { Controller } from "@destack/db";
-import type { BaseServerContext, PackageContext, ServerContext } from "../workload/workload.ts";
+import {
+    type BaseServerContext,
+    type PackageContext,
+    ServerContext,
+} from "../workload/workload.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Follow } from "../replica/shape.ts";
 import type { ExternalStorage } from "./external.ts";
@@ -81,7 +85,7 @@ export function implementPackage<const Handle extends ObjectPackage>(
             return definition;
         } else if (context === undefined) {
             throw new TypeError(`package ${handle.name} can only serve an installation`);
-        } else if (context.origin === "base") {
+        } else if (!ServerContext.isInstalled(context)) {
             throw new TypeError(`package ${handle.name} can only serve an installed installation`);
         }
 

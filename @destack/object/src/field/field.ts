@@ -10,6 +10,7 @@ import {
     blob,
     type BlobOptions,
     blobs,
+    blobMap,
     json,
     real,
     text,
@@ -52,6 +53,7 @@ export const FIELD_TYPES = [
     "file",
     "blob",
     "blobs",
+    "blobMap",
     "state",
     "text",
 ] as const;
@@ -80,6 +82,7 @@ const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
     file: "file",
     blob: "blob",
     blobs: "blobs",
+    blobMap: "blobMap",
     subject: "subject",
     object: "object",
     state: "state",
@@ -141,7 +144,10 @@ export type FieldSource =
     | { readonly builder: "enum"; readonly arguments: readonly [readonly [string, ...string[]]] }
     | { readonly builder: "json"; readonly arguments: readonly [schema.Schema] }
     | { readonly builder: "file"; readonly arguments: readonly [FileBucket] }
-    | { readonly builder: "blob" | "blobs"; readonly arguments: readonly [BlobOptions] }
+    | {
+          readonly builder: "blob" | "blobs" | "blobMap";
+          readonly arguments: readonly [BlobOptions];
+      }
     | { readonly builder: "subject"; readonly arguments: readonly (Policy | ObjectType)[] }
     | { readonly builder: "object"; readonly arguments: readonly (ObjectType | Policy)[] }
     | { readonly builder: "state"; readonly arguments: readonly [StateMachine] }
@@ -1113,6 +1119,13 @@ export const field = {
     blobs(options: Extract<BlobOptions, { onDelete?: "restrict" }> = {}) {
         return Field.required({ builder: "blobs", arguments: [options] }, (name) =>
             blobs(name, options),
+        );
+    },
+
+    /** The digests of blobs in the partition's blob store by key, kept alive by the row. */
+    blobMap(options: Extract<BlobOptions, { onDelete?: "restrict" }> = {}) {
+        return Field.required({ builder: "blobMap", arguments: [options] }, (name) =>
+            blobMap(name, options),
         );
     },
 

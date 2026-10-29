@@ -114,7 +114,7 @@ test("read a declaration's release through its step's database while applying", 
     await expect(applied).rejects.toThrow(new TypeError("no release in this test"));
 });
 
-test("apply declared objects in dependency order, wait, leave detached and retire in reverse", async () => {
+test("apply declared objects in dependency order, wait, leave released and retire in reverse", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -224,7 +224,7 @@ test("apply declared objects in dependency order, wait, leave detached and retir
             { action: "delete", target: "note/one", risk: "destructive", detail: "retire" },
         ],
     });
-    expect(await titles()).toEqual([["two", "second"]]);
+    expect(await titles()).toEqual([[null, "second"]]);
 });
 
 test("plan nothing when a document is applied again unchanged, tags and references included", async () => {
@@ -552,9 +552,88 @@ test("adopt a direct record into a declaration once, rewriting it, release it on
                 "card welcome is both declared and released",
             ],
         ],
-        released: ["welcome", false, "Welcome"],
+        released: [null, true, "Welcome"],
         releasedRevisions: [1, 0],
         readopted: ["welcome", null],
+    });
+});
+
+test("detach a declared note, leave it as its declaration changes, and update it once attached again", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await openSpace(database, world, spaceId);
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 }),
+    );
+    const store = await serve(world, database);
+    let last: JsonObject = {};
+    const apply = async (document: JsonObject) => {
+        // apply the document against the one applied last
+        const plan = await new Stack({
+            database,
+            isHome: false,
+            objects: [note],
+            manager,
+            as: spacePrincipal(spaceId),
+            scope: spaceId,
+            document,
+            applied: last,
+            store,
+        }).apply(world.clock.now());
+        last = document;
+
+        return plan;
+    };
+    const notes = async () =>
+        (await database.select().from(note.table)).map((row) => [
+            row.managerName,
+            row.detachedAt === null,
+            row.title,
+        ]);
+    const call = async (name: "detach" | "attach", id: string) =>
+        await store.mutate(store.as(note), {
+            id: RequestId.create(world),
+            calls: [note.call(name, note.target({ scope: spaceId, id }))],
+        });
+
+    // declare the note, then detach it
+    await apply({ notes: { welcome: { title: "Welcome" } } });
+    const declared = single(await database.select().from(note.table));
+    await call("detach", declared.id);
+    const detached = await notes();
+
+    // leave the detached note as its declaration changes
+    const left = await apply({ notes: { welcome: { title: "Hello" } } });
+    const kept = await notes();
+
+    // attach it again and update it to the declared title on the next apply
+    await call("attach", declared.id);
+    const updated = await apply({ notes: { welcome: { title: "Hello" } } });
+    expect({ detached, left, kept, updated, notes: await notes() }).toEqual({
+        detached: [["welcome", false, "Welcome"]],
+        left: { steps: [] },
+        kept: [["welcome", false, "Welcome"]],
+        updated: {
+            steps: [
+                {
+                    action: "update",
+                    target: "note/welcome",
+                    risk: "safe",
+                    detail: "change declared fields",
+                    fields: { title: { before: "Welcome", after: "Hello" } },
+                },
+            ],
+        },
+        notes: [["welcome", true, "Hello"]],
     });
 });
 
@@ -790,8 +869,8 @@ test("let roles grant every permission of a type but its reserved ones", () => {
     });
 
     expect([vaulted.permissions, vaulted.grantable]).toEqual([
-        ["read", "write", "consume"],
-        ["read", "write"],
+        ["read", "write", "consume", "manage"],
+        ["read", "write", "manage"],
     ]);
 });
 

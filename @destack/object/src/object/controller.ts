@@ -62,6 +62,8 @@ export interface ObjectController<Object extends ObjectType = ObjectType> {
     key?(row: RowImage<Object["table"]>): KeyFields;
     /** The tables whose changed rows select keys beside a changed pending object's key. */
     readonly watches?: readonly ObjectWatch[];
+    /** Report whether an object's own change asks for a reconcile, every change by default. */
+    readonly wakes?: (change: Change<Object["table"]>) => boolean;
     /** The keys reconciled at once, one by default. */
     readonly concurrency?: number;
     /** List the keys a start reconciles with a separate query; changes still match `pending`. */
@@ -153,6 +155,7 @@ export const ObjectController = {
                 Change.of(change, table) &&
                 change.operation !== "delete" &&
                 !ObjectController.isObserved(object, change) &&
+                (declared.wakes?.(change) ?? true) &&
                 Predicate.matches(match, row);
             const selected = isPending ? [...watched, readKey(row)] : watched;
 

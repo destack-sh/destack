@@ -116,8 +116,10 @@ test("remove objects for good once a rule's window passes, as the system, and lo
     // remove the two expired alerts and schedule the third
     const controller = new ExpiringController(store);
     expect(Object.keys(alert.procedures).toSorted()).toEqual([
+        "attach",
         "create",
         "delete",
+        "detach",
         "get",
         "list",
         "update",

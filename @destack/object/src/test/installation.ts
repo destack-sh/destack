@@ -34,7 +34,6 @@ export async function testServerContext(
     environment: Environment,
 ): Promise<InstalledServerContext> {
     return {
-        origin: "installed",
         installation: schema
             .identifier("installation")
             .parse("installation-019f5530-8000-7000-8000-00000000f001"),

@@ -14,7 +14,7 @@ import {
 import type { Package, PackageId } from "@destack/package";
 import { Field } from "../field/field.ts";
 import { Roles } from "../trait/shareable.ts";
-import type { TraitObject, TraitPolicy } from "../trait/trait.ts";
+import { derivePermissions, type TraitObject, type TraitPolicy } from "../trait/trait.ts";
 import { Casing } from "./name.ts";
 import { AccessName, ObjectReference, Scope, Subject } from "@destack/sync";
 import { TABLE, type Table } from "@destack/db";
@@ -48,8 +48,12 @@ export const ObjectPolicy = {
         const policies = type.traits.flatMap(({ trait, options }) =>
             trait.policy === undefined ? [] : [trait.policy(options, object, names)],
         );
+        const managing =
+            type.declaration === undefined ? [] : [derivePermissions(names, ["manage"])];
         const derived = Object.fromEntries(
-            policies.flatMap((policy) => Object.entries(policy.permissions ?? {})),
+            [...policies, ...managing].flatMap((policy) =>
+                Object.entries(policy.permissions ?? {}),
+            ),
         );
 
         // resolve the relations declared, read from fields and enclosing scopes by either kind of permission

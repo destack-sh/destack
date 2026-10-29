@@ -187,11 +187,6 @@ export class Stack {
         });
     }
 
-    /** Read the collection declaring a type's records: its declaration's, else its plural. */
-    static collection(object: ObjectType): string {
-        return object.declaration?.collection ?? object.plural;
-    }
-
     /** Order a stack's declarations, refusing collections no type declares or installs. */
     static #declare(options: StackOptions): Declared {
         // pair each object type with its declaration
@@ -222,7 +217,7 @@ export class Stack {
 
         // order the types the document declares, then those it only retires
         const isDeclared = (entry: TypeDeclaration) =>
-            Object.hasOwn(options.document, Stack.collection(entry.object));
+            Object.hasOwn(options.document, entry.object.collection);
         const ordered = [
             ...Stack.#order(declared.filter(isDeclared), "refuse"),
             ...Stack.#order(
@@ -235,7 +230,7 @@ export class Stack {
         const installing = Object.keys(options.document).filter(
             (key) =>
                 !MANAGEMENT_KEYS.has(key) &&
-                !ordered.some((entry) => Stack.collection(entry.object) === key),
+                !ordered.some((entry) => entry.object.collection === key),
         );
         if (installing.length > 0 && options.installing === undefined) {
             throw ObjectError.of(
@@ -387,7 +382,7 @@ export class Stack {
         } else if (visiting.has(declaration)) {
             throw ObjectError.of(
                 "DECLARATION_CYCLIC",
-                `declarations of ${Stack.collection(declaration.object)} depend on themselves`,
+                `declarations of ${declaration.object.collection} depend on themselves`,
             );
         }
 
@@ -774,7 +769,7 @@ export class StackPlan {
                 const deleting = await this.#deleting(declaration);
                 blocking =
                     deleting.length > 0
-                        ? `${Stack.collection(declaration.object)} ${deleting.join(", ")} finish deleting first`
+                        ? `${declaration.object.collection} ${deleting.join(", ")} finish deleting first`
                         : undefined;
             }
         }
@@ -796,7 +791,7 @@ export class StackPlan {
             .filter(([, row]) => {
                 const values: Row = row;
 
-                return values["deletedAt"] !== null;
+                return Manager.isManaged(row) && values["deletedAt"] !== null;
             })
             .map(([name]) => name);
     }
@@ -814,7 +809,7 @@ export class StackPlan {
         // plan each declaration of a collection one of them declares, waiting for an installation still without its build
         const steps: Step[] = [];
         for (const key of this.stack.installing) {
-            const type = types.find((each) => Stack.collection(each) === key);
+            const type = types.find((each) => each.collection === key);
             if (type === undefined && installed.isPending) {
                 throw new DependencyWait(`${key} wait for an installation's build`);
             } else if (type === undefined) {
@@ -851,17 +846,17 @@ export class StackPlan {
             typeof object === "string" ? entry.object.name === object : entry.object.same(object),
         );
         if (!target && this.stack.installing.length > 0) {
-            const plural = typeof object === "string" ? object : Stack.collection(object);
+            const plural = typeof object === "string" ? object : object.collection;
             throw new DependencyWait(`${plural} wait for the store to serve the installed types`);
         } else if (!target) {
-            const plural = typeof object === "string" ? object : Stack.collection(object);
+            const plural = typeof object === "string" ? object : object.collection;
             throw ObjectError.of("DECLARATION_UNSUPPORTED", `this server cannot apply ${plural}`);
         }
 
         return target;
     }
 
-    /** Read the manager's records of one object type in the scope, by declaration name. */
+    /** Read the manager's records of a type in the scope, detached ones too, by name. */
     async #records(declaration: TypeDeclaration): Promise<Map<string, Select<ManagedTable>>> {
         // read the records the manager declared, leaving out purged ones
         const table = declaration.object.table;
@@ -873,7 +868,6 @@ export class StackPlan {
                 scope: { in: scopes },
                 managerInstallationId: this.stack.manager.installationId,
                 managerPackageId: this.stack.manager.packageId,
-                detachedAt: { isNull: true },
                 ...("purgedAt" in table[TABLE].columns ? { purgedAt: { isNull: true } } : {}),
             },
         });
@@ -896,7 +890,7 @@ export class StackPlan {
     async #manage(declaration: TypeDeclaration): Promise<void> {
         // read the type's adopted and released entries
         const { object } = declaration;
-        const prefix = `${Stack.collection(object)}/`;
+        const prefix = `${object.collection}/`;
         const adopted = Object.entries(ADOPTED.parse(this.stack.document["adopted"] ?? {})).filter(
             ([address]) => address.startsWith(prefix),
         );
@@ -912,7 +906,7 @@ export class StackPlan {
         // read the type's records and its declared names
         const existing = await this.#records(declaration);
         const declared = new Set(
-            Object.keys(DECLARED.parse(this.stack.document[Stack.collection(object)] ?? {})),
+            Object.keys(DECLARED.parse(this.stack.document[object.collection] ?? {})),
         );
 
         // adopt an unmanaged record under its declaration's name, once
@@ -964,7 +958,7 @@ export class StackPlan {
                     `${object.name} ${name} is both declared and released`,
                 );
             } else if (row !== undefined) {
-                await this.#writeManager(object, row, { detachedAt: this.now });
+                await this.#writeManager(object, row, { ...Manager.values(null) });
             }
         }
     }
@@ -1025,7 +1019,13 @@ export class StackPlan {
             if (row === undefined) {
                 const scope = await this.#placed(declaration, name);
                 steps.push(await this.#create(declaration, name, scope, input));
-            } else {
+            }
+            // leave a record detached from its declaration to whoever changes it
+            else if (!Manager.isManaged(row)) {
+                continue;
+            }
+            // update an attached record
+            else {
                 const written = Object.keys(DECLARED.parse(applied[name] ?? {}));
                 steps.push(...(await this.#update(declaration, name, row, input, written)));
             }
@@ -1144,14 +1144,14 @@ export class StackPlan {
             );
         }
 
-        // replace a record whose type does not update a changed field: detach and retire it, then declare anew
+        // replace a record whose type does not update a changed field: release and retire it, then declare anew
         const updatable =
             "update" in object.methods ? InputSchema.fields(object.input("update")).shape : {};
         const target = Address.join(object.name, name);
         if (Object.keys(fields).some((field) => !(field in updatable))) {
-            const detached = { ...row, detachedAt: this.now };
-            await this.#writeManager(object, row, { detachedAt: this.now });
-            await this.#retireRecord(declaration, name, detached, "apply");
+            const released = { ...row, ...Manager.values(null) };
+            await this.#writeManager(object, row, { ...Manager.values(null) });
+            await this.#retireRecord(declaration, name, released, "apply");
             await this.#create(declaration, name, row.scope, input);
 
             // replace destructively unless the type archives or retains what it retires
@@ -1213,7 +1213,7 @@ export class StackPlan {
         // retire each undeclared record, or plan its retirement alone
         const steps: Step[] = [];
         for (const [name, row] of await this.#records(declaration)) {
-            if (!desired.has(name)) {
+            if (Manager.isManaged(row) && !desired.has(name)) {
                 steps.push(...(await this.#retireRecord(declaration, name, row, mode)));
             }
         }
@@ -1280,7 +1280,7 @@ export class StackPlan {
         // parse each entry of the type's collection with its declaration schema
         const { object } = declaration;
         const declarationSchema = object.lifecycle.declarationSchema;
-        const entries = Object.entries(DECLARED.parse(document[Stack.collection(object)] ?? {}));
+        const entries = Object.entries(DECLARED.parse(document[object.collection] ?? {}));
 
         return Object.fromEntries(
             entries.map(([name, value]) => {
@@ -1297,7 +1297,7 @@ export class StackPlan {
         document: JsonObject,
     ): ReadonlyMap<string, StackScope> {
         const entries = Object.entries(
-            DECLARED.parse(document[Stack.collection(declaration.object)] ?? {}),
+            DECLARED.parse(document[declaration.object.collection] ?? {}),
         );
 
         return new Map(

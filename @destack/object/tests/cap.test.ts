@@ -46,7 +46,6 @@ async function serveInstalledNotes(world: Environment) {
 
     // serve them as the notes installation, which sees nothing beyond its database here
     const server: InstalledServerContext = {
-        origin: "installed",
         installation: schema
             .identifier("installation")
             .parse("installation-01996ab0-0000-7000-8000-000000000003"),

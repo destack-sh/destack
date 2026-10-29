@@ -272,7 +272,7 @@ test("authorize an object type that the objects and the policies list several ti
     expect(store.authorizer.requireMapping({ packageId, type: name }).table).toBe(role.table);
 });
 
-test("delete the grants of an installation as the installation is deleted", async () => {
+test("delete the grants of an installation as its uninstall finalizes", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -315,11 +315,11 @@ test("delete the grants of an installation as the installation is deleted", asyn
         {
             id: RequestId.create(world),
             calls: [
-                installation.call("install", {
+                installation.call("create", {
                     ...installation.in(SPACE_ID),
-                    origin: "installed",
                     packageId: DEPLOY_PACKAGE_ID,
                     name: "deploy",
+                    selection: { kind: "release", version: "2026.9.0" },
                 }),
             ],
         },
@@ -349,15 +349,15 @@ test("delete the grants of an installation as the installation is deleted", asyn
                 ]),
     );
 
-    // delete the installation from the store's code
-    await store.mutate(
-        caller,
-        {
-            id: RequestId.create(world),
-            calls: [installation.call("delete", { ...installation.in(SPACE_ID), id: delegate.id })],
-        },
-        { site: CallSite.store },
-    );
+    // uninstall the installation from the store's code, then finalize it as its controller does
+    const target = { ...installation.in(SPACE_ID), id: delegate.id };
+    for (const method of ["delete", "finalize"] as const) {
+        await store.mutate(
+            caller,
+            { id: RequestId.create(world), calls: [installation.call(method, target)] },
+            { site: CallSite.store },
+        );
+    }
 
     // leave only the other delegate's grant
     const remaining = await database.select().from(accessGrant);
@@ -430,7 +430,11 @@ test("make each object a partition when the principal it stands for declares one
         ],
         shared: [shared.policy.definition.partition, shared.isPartition, "grant" in shared.methods],
     }).toEqual({
-        partitioned: [true, true, ["create", "delete", "get", "list", "update"]],
+        partitioned: [
+            true,
+            true,
+            ["attach", "create", "delete", "detach", "get", "list", "update"],
+        ],
         shared: [undefined, false, true],
     });
 });

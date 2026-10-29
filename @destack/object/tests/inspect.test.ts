@@ -15,7 +15,9 @@ test("list the terms a task fixes in stored data: its type, relations, permissio
         withdraw: "withdraw",
         export: "custom",
         archiveAll: "custom",
+        attach: "custom",
         delete: "delete",
+        detach: "custom",
         explain: "explain",
         get: "get",
         grant: "grant",
@@ -36,6 +38,7 @@ test("list the terms a task fixes in stored data: its type, relations, permissio
         ...Object.fromEntries(
             Object.entries(methods).map(([name, kind]) => [`task/method/${name}`, { kind }]),
         ),
+        "task/permission/manage": {},
         "task/permission/plan": {},
         "task/permission/read": {},
         "task/permission/tidy": {},

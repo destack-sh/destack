@@ -26,8 +26,6 @@ export const WorkloadStart = schema.object({
     scope: schema.string().min(1),
     /** The installation the workload runs. */
     installation: schema.identifier("installation"),
-    /** Whether the installation's scope's stack declares it, or someone installed it. */
-    origin: schema.enum(["declared", "installed"]),
     /** The installation's name in its scope. */
     name: InstallationName,
     /** The one partition of the installation's database the instance serves. */

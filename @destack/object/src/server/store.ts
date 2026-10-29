@@ -75,7 +75,7 @@ import {
 import {
     type InstalledServerContext,
     PackageContext,
-    type ServerContext,
+    ServerContext,
 } from "../workload/workload.ts";
 import type { Watermark } from "@destack/sync";
 import { refuseInput } from "../error/error.ts";
@@ -3885,7 +3885,9 @@ export class ObjectStore {
         // run the controllers of a package served at an installed installation once its host activates it, a base one's at once
         const { server } = entry;
         const activation =
-            server === undefined || server.origin === "base" ? undefined : server.activation;
+            server !== undefined && ServerContext.isInstalled(server)
+                ? server.activation
+                : undefined;
 
         return {
             ...implemented,

@@ -56,7 +56,6 @@ const publisher = {
 
 /** Read the fixture installation's server context in a test's world, with its empty build. */
 const serverIn = async (world: Environment): Promise<InstalledServerContext> => ({
-    origin: "installed",
     installation: schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-000000000002"),

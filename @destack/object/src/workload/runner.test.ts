@@ -96,7 +96,6 @@ const start: WorkloadStart = {
     capabilities: [],
     instance: schema.identifier("instance").parse("instance-01996ab0-0000-7000-8000-000000000002"),
     scope: spaceId,
-    origin: "installed",
     installation: schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-000000000003"),

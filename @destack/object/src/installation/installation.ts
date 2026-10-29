@@ -1,18 +1,11 @@
-import {
-    type Authorization,
-    InstallationId,
-    none,
-    principal,
-    Role,
-    self,
-} from "@destack/access";
+import { type Authorization, InstallationId, none, principal, Role, self } from "@destack/access";
 import { type Select, Table } from "@destack/db";
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
-import { type DigestCrypto, type Identifier, Instant, schema } from "@destack/schema";
+import { type DigestCrypto, Instant, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { InstallationName } from "../declare/egress.ts";
+import { InstallationBindings, InstallationSelection } from "./selection.ts";
 import { field } from "../field/field.ts";
-import type { MethodContext } from "../method/context.ts";
 import { defineObject } from "../object/object.ts";
 import type { ObjectPackage } from "../server/implementation.ts";
 import type { BaseServerContext } from "../workload/workload.ts";
@@ -30,20 +23,28 @@ export const InstallationToken = schema.object({
 /** A short-lived access token a scope grants one of its installations. */
 export type InstallationToken = schema.Infer<typeof InstallationToken>;
 
-/** A package installed in a partition scope: born with it, declared by its stack, or installed. */
+/** A package installed in a partition scope: born with it, or installed at a selection. */
 export const installation = defineObject(
     {
         name: "installation",
         plural: "installations",
         scope: [principal.space, principal.machine, principal.device, "universe"],
         represents: principal.installation,
+        // let its controller roll it out, apply its plans once approved, and finalize an uninstall
+        controlled: { approval: true },
         // hand the universe's installations down to every scope, as every space's chain includes them
         inherited: { where: { scope: Scope.universe.id } },
         fields: {
-            /** Whether its scope bore it, its stack declares it, or someone installed it. */
-            origin: field.enum(["base", "declared", "installed"]),
             /** The installed package. */
             packageId: field.string(PackageId),
+            /** What it follows: a release, a repository reference or a checkout. */
+            selection: field.json(InstallationSelection),
+            /** The targets it selects for its package's declarations. */
+            bindings: field.json(InstallationBindings).default({}),
+            /** The stack its package exports for its space, absent for an application. */
+            export: field.string().optional(),
+            /** The arguments of the exported stack, absent for an application. */
+            parameters: field.json(schema.jsonObject()).optional(),
             /** The scope-local address, absent for a base installation, reached by its package. */
             name: field.string(InstallationName).optional(),
             /** Whether the installation should serve requests. */
@@ -88,28 +89,36 @@ export const installation = defineObject(
             // keep a base installation enabled, as its scope bore it
             base: {
                 kind: "check",
-                condition: { OR: [{ origin: { ne: "base" } }, { status: "enabled" }] },
+                condition: { OR: [{ name: { isNotNull: true } }, { status: "enabled" }] },
             },
-            // name every installation but a base one, which its package identifies
-            named: {
+            // evaluate an exported stack with its arguments, one stack per space
+            stack: {
                 kind: "check",
                 condition: {
                     OR: [
-                        { origin: "base", name: { isNull: true } },
-                        { origin: { ne: "base" }, name: { isNotNull: true } },
+                        { export: { isNotNull: true }, parameters: { isNotNull: true } },
+                        { export: { isNull: true }, parameters: { isNull: true } },
                     ],
                 },
+            },
+            scopeStack: {
+                kind: "index",
+                on: ["scope"],
+                unique: true,
+                where: { export: { isNotNull: true } },
             },
         },
     },
     (method) => ({
         list: method.list("list"),
-        install: method.create("install", {
-            visibility: "installation",
+        create: method.create("install", {
             fields: [
-                "origin",
                 "packageId",
                 "name",
+                "selection",
+                "bindings",
+                "export",
+                "parameters",
                 "status",
                 "compute",
                 "capabilities",
@@ -117,10 +126,18 @@ export const installation = defineObject(
             ],
         }),
         update: method.update("update", {
-            visibility: "installation",
-            fields: ["status", "compute", "capabilities", "directories"],
+            fields: [
+                "selection",
+                "bindings",
+                "export",
+                "parameters",
+                "status",
+                "compute",
+                "capabilities",
+                "directories",
+            ],
         }),
-        delete: method.delete("delete", { visibility: "installation" }),
+        delete: method.delete("delete"),
 
         /** Allow one of the package's optional capabilities, as the installation asked for it. */
         allow: method.mutation({
@@ -150,16 +167,6 @@ export type Installation = Select<typeof installation.table>;
 
 /** The installations of a scope: born with it, or installed through a rollout. */
 export const Installation = {
-    /** The fields an install sets: package, name, status, compute, capabilities and directories. */
-    fields: schema.object({
-        packageId: PackageId,
-        name: InstallationName,
-        status: schema.enum(["enabled", "suspended"]).exactOptional(),
-        compute: schema.record(DeclarationName, ComputeDefinition).exactOptional(),
-        capabilities: schema.array(DeclarationName).exactOptional(),
-        directories: schema.array(DirectoryGrant).exactOptional(),
-    }),
-
     /** Receive a scope with its base installations, each born once and bound to its role. */
     async receive(
         authorization: Authorization,
@@ -188,8 +195,8 @@ export const Installation = {
                 const row = Table.complete(installation.table, {
                     id,
                     scope: scope.id,
-                    origin: "base",
                     packageId: handle.id,
+                    selection: { kind: "release", version: handle.version },
                     createdAt: now,
                     updatedAt: now,
                     ...ObjectReference.columns("createdBy", author),
@@ -202,7 +209,12 @@ export const Installation = {
 
             // bind the installation to its package's role in the scope
             const subject = principal.installation.reference(scope.id, id);
-            await Role.applyInherent(scope, Installation.role(scope, handle), subject, authorization);
+            await Role.applyInherent(
+                scope,
+                Installation.role(scope, handle),
+                subject,
+                authorization,
+            );
             contexts.push(based);
         }
 
@@ -221,7 +233,7 @@ export const Installation = {
             .filter(([, capability]) => capability.optional !== true)
             .map(([name]) => name);
 
-        return { origin: "base", installation: installed, scope: scope.id, capabilities };
+        return { installation: installed, scope: scope.id, capabilities };
     },
 
     /** Describe a base installation's role: what its package requests in its scope. */
@@ -243,37 +255,5 @@ export const Installation = {
         return Object.values(description?.capabilities ?? {}).flatMap((capability) =>
             capability.optional === true ? (capability.packages ?? []) : [],
         );
-    },
-
-    /** Install a package in a scope as the calling code, in its call's transaction. */
-    async install(
-        context: MethodContext,
-        scope: string,
-        fields: {
-            readonly origin: "declared" | "installed";
-            readonly packageId: Identifier<"package">;
-            readonly name: string;
-            readonly status?: "enabled" | "suspended";
-            readonly compute?: Installation["compute"];
-            readonly capabilities?: string[];
-            readonly directories?: Installation["directories"];
-        },
-    ): Promise<Identifier<"installation">> {
-        // identify a declared installation by its scope and name, as its stack's readers derive it
-        const declared =
-            fields.origin === "declared"
-                ? {
-                      id: await InstallationId.declared(
-                          { id: scope },
-                          fields.name,
-                          context.environment.crypto,
-                      ),
-                  }
-                : {};
-        const [created] = await context.mutate(context.self, [
-            installation.call("install", { ...installation.in(scope), ...declared, ...fields }),
-        ]);
-
-        return created.id;
     },
 };

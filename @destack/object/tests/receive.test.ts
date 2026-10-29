@@ -68,11 +68,11 @@ test("receive a scope's base installations once each, unnamed whatever their pac
                 .select({
                     packageId: installation.table.packageId,
                     name: installation.table.name,
-                    origin: installation.table.origin,
+                    selection: installation.table.selection,
                 })
                 .from(installation.table)
                 .orderBy(asc(installation.table.packageId))
-        ).map((row) => [row.packageId, row.name, row.origin]),
+        ).map((row) => [row.packageId, row.name, row.selection]),
         roles: (
             await database
                 .select({ name: accessRole.name })
@@ -88,14 +88,16 @@ test("receive a scope's base installations once each, unnamed whatever their pac
     // keep the object package's base, and bear the others' unnamed once received with it
     expect({ first, second }).toEqual({
         first: {
-            installations: [[objectPackage.id, null, "base"]],
+            installations: [
+                [objectPackage.id, null, { kind: "release", version: objectPackage.version }],
+            ],
             roles: ["owner"],
         },
         second: {
             installations: [
-                [fixturePackage.id, null, "base"],
-                [longPackage.id, null, "base"],
-                [objectPackage.id, null, "base"],
+                [fixturePackage.id, null, { kind: "release", version: fixturePackage.version }],
+                [longPackage.id, null, { kind: "release", version: longPackage.version }],
+                [objectPackage.id, null, { kind: "release", version: objectPackage.version }],
             ],
             // bind a base role only for a package requesting permissions in its scope, which none here does
             roles: ["owner"],

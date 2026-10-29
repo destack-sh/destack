@@ -86,7 +86,6 @@ test("act with the space's delegation to its installation, refusing without one,
     const { database } = storage;
     await openSpace(database, world, spaceId);
     const server: InstalledServerContext = {
-        origin: "installed",
         installation: INSTALLATION,
         name: "probes",
         scope: spaceId,
