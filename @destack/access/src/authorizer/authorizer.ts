@@ -1449,7 +1449,7 @@ export class Authorizer {
         }
     }
 
-    /** Decide whether the caller's stated sets grant a permission on an object, ungated and without its row. */
+    /** Decide whether stated sets grant an ungated permission on an object without its row. */
     #isStated(permission: PermissionReference, target: ObjectReference, access: Access): boolean {
         // decide declared permissions alone, leaving others to refuse on the row
         const { permissions } = this.policy(permission).definition;
@@ -1480,7 +1480,17 @@ export class Authorizer {
                 return expression.expressions.every((each) =>
                     Authorizer.#states(each, target, authority),
                 );
-            default:
+            case "contained":
+            case "context":
+            case "exclusion":
+            case "granters":
+            case "none":
+            case "permission":
+            case "readers":
+            case "resource":
+            case "self":
+            case "subjectSet":
+            case "through":
                 return false;
         }
     }

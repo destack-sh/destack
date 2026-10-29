@@ -37,7 +37,7 @@ export const Elevation = {
     /** The schema of an elevation. */
     schema: elevationSchema,
 
-    /** Report whether an authentication at a time meets the elevation's level within its age. */
+    /** Report whether an authentication meets the elevation's level before its age ends. */
     meets(
         elevation: Elevation,
         assurance: AuthenticationAssurance | undefined,
@@ -46,7 +46,7 @@ export const Elevation = {
         return (
             assurance !== undefined &&
             assurance.level >= elevation.assurance &&
-            now - assurance.authenticatedAt <= elevation.maxAge
+            now - assurance.authenticatedAt < elevation.maxAge
         );
     },
 
