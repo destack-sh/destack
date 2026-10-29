@@ -8,6 +8,7 @@ import type {
 } from "vitest/config";
 import type { Plugin, PluginOption } from "vite";
 import { modulePlugin } from "@destack/package/vite";
+import { ModuleTransformer } from "@destack/package/transform";
 import {
     type DirectoryEntry,
     type Environment,
@@ -68,7 +69,7 @@ export function defineConfiguration(
             ...(projects === undefined ? { ...options, ...setup } : { ...options, projects }),
         },
         plugins: [
-            modulePlugin(environment.files),
+            modulePlugin(new ModuleTransformer(environment.files)),
             cachePlugin(environment),
             ...(rest.plugins ?? []).map(withoutServer),
         ],
@@ -84,7 +85,7 @@ export function defineProject(
         ...configuration,
         test: { ...TEST, expect: POLL, ...configuration.test },
         plugins: [
-            modulePlugin(environment.files),
+            modulePlugin(new ModuleTransformer(environment.files)),
             cachePlugin(environment),
             ...(configuration.plugins ?? []).map(withoutServer),
         ],
