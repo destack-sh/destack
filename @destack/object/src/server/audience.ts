@@ -123,15 +123,17 @@ export class ObjectAudience implements Audience {
                 ? []
                 : await ObjectAudience.#relays(store, options.via, reader);
 
-        // authorize the reader as a principal, a contained caller or a remote caller this store serves
+        // authorize the reader now as a principal, a contained caller or a remote caller this store serves
         const reauthorize = async () => {
-            const authorization = await (!AccessContext.isRemote(reader)
-                ? store.authorize(Transaction.reading(store.database), scope, reader, {
+            // decide at the current time
+            const current: AccessContext = { ...reader, now: store.clock.now() };
+            const authorization = await (!AccessContext.isRemote(current)
+                ? store.authorize(Transaction.reading(store.database), scope, current, {
                       within: options.within ?? [],
                   })
                 : isContained
-                  ? store.authorize(Transaction.reading(store.database), scope, reader)
-                  : store.authorizeHere(Transaction.reading(store.database), scope, reader));
+                  ? store.authorize(Transaction.reading(store.database), scope, current)
+                  : store.authorizeHere(Transaction.reading(store.database), scope, current));
 
             // require the follower to replicate the scopes it replicates chains via
             await Promise.all(via.map((relay) => relay.require()));

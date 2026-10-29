@@ -743,6 +743,7 @@ export class ObjectSource {
         const { scope, after, previous } = subscription;
         const { queries, writerId } = EphemeralParameters.parse(subscription.parameters);
         const store = this.store.requireEphemeral();
+        await store.ready();
         const release = store.track(EphemeralStorage.writerKey(context.access(scope), writerId));
         const compiled = ObjectType.queries(store.objects, queries, [scope]);
         const compile = (parameters: JsonObject) =>

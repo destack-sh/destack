@@ -1,13 +1,13 @@
 import { JournalEntry } from "../audit/execution.ts";
 import {
     bucket,
+    ControlLoop,
     defineTable,
     identifier,
     index,
     integer,
     json,
     lease,
-    lock,
     text,
     TABLE,
     uniqueIndex,
@@ -64,7 +64,7 @@ export const SYSTEM_TABLES: readonly Table[] = [
     journal,
     settlement,
     lease,
-    lock,
+    ...ControlLoop.tables,
     bucket,
     followKey,
 ];

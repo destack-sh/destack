@@ -518,7 +518,7 @@ async function serveBoards(world: Environment) {
                             target: spaceId,
                             parameters: {
                                 writerId,
-                                queries: { presences: { object: "presence" } },
+                                queries: { presences: presence.query() },
                             },
                         }),
                         revision: FOLLOWER_REVISION,

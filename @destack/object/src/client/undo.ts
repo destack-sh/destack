@@ -92,10 +92,12 @@ export class UndoStack {
                 ? { ...step, result: results[position] }
                 : step,
         );
-        await this.client.database
-            .update(undoEntry)
-            .set({ steps: schema.json().parse(steps) })
-            .where(eq(undoEntry.id, entry.id));
+        await this.client.database.transaction(async (transaction) => {
+            await transaction
+                .update(undoEntry)
+                .set({ steps: schema.json().parse(steps) })
+                .where(eq(undoEntry.id, entry.id));
+        });
     }
 
     /** Push an undoable mutation onto its party's undo stack and clear the redo stack. */
@@ -168,7 +170,9 @@ export class UndoStack {
             // invert its steps, dropping an entry with nothing to invert
             const calls = await this.#inverseCalls(entry);
             if (calls.length === 0) {
-                await this.client.database.delete(undoEntry).where(eq(undoEntry.id, entry.id));
+                await this.client.database.transaction(async (transaction) => {
+                    await transaction.delete(undoEntry).where(eq(undoEntry.id, entry.id));
+                });
                 continue;
             }
 

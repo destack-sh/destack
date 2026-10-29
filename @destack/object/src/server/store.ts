@@ -621,6 +621,13 @@ export class ObjectStore {
         });
         TrackedHistory.require(this.objects, this.authorizer);
 
+        // declare the tables of the objects and replicas stored in the database, installed ones included
+        this.database.state.declare(
+            [...this.objects, ...this.replicas]
+                .filter((object) => object.storage === "durable" || object.storage === "events")
+                .flatMap((object) => object.tables),
+        );
+
         // store the journal, the audit and the request context
         this.#journal = ObjectStore.#journalOf(this.#declared, options);
         this.origin = { ...options.origin, package: Package.of(options.origin.package) };
@@ -1060,7 +1067,7 @@ export class ObjectStore {
         }
     }
 
-    /** Refuse another principal's local types, and require claims, memory stores and files. */
+    /** Refuse others' local types, require claims and files, store ephemeral types. */
     static #requireStores(
         objects: readonly ObjectType[],
         options: Pick<
@@ -1086,15 +1093,13 @@ export class ObjectStore {
             );
         }
 
-        // require a store for ephemeral objects
-        const unstored = objects.find(
-            (object) =>
-                object.storage === "ephemeral" &&
-                options.ephemeral?.objects.some((stored) => stored.same(object)) !== true,
-        );
-        if (unstored !== undefined) {
+        // require a memory store for ephemeral objects, storing them in it
+        const ephemeral = objects.filter((object) => object.storage === "ephemeral");
+        const [unstored] = ephemeral;
+        if (unstored !== undefined && options.ephemeral === undefined) {
             throw new TypeError(`ephemeral object ${unstored.name} needs a store`);
         }
+        options.ephemeral?.serve(ephemeral);
 
         // require the event log over the store's database for events types
         const unlogged = objects.find(
@@ -1539,7 +1544,10 @@ export class ObjectStore {
     async #databaseOf(object: ObjectType, scope: string): Promise<DatabaseConnection> {
         // read ephemeral objects from memory
         if (object.storage === "ephemeral") {
-            return this.requireEphemeral().database;
+            const ephemeral = this.requireEphemeral();
+            await ephemeral.ready();
+
+            return ephemeral.database;
         }
         // read external objects from the scope's files
         else if (object.storage === "external") {

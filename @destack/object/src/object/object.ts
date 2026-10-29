@@ -1322,11 +1322,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Write a query of the objects as data, as clients and shapes send it. */
     query<Self extends ObjectType>(
         this: Self,
-        options: Omit<ObjectQuery, "object" | "permission"> & {
+        options: Omit<ObjectQuery, "object" | "package" | "permission"> & {
             readonly permission?: PermissionOf<Self>;
         } = {},
     ): ObjectQuery {
-        return { object: this.name, ...options };
+        return { object: this.name, package: this.package.id, ...options };
     }
 
     /** Follow a shape at one key per row of these objects in the follower's database. */
@@ -1340,7 +1340,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** Compile a query or include of the objects. */
     compile(
-        options: Omit<ObjectQuery, "object">,
+        options: Omit<ObjectQuery, "object" | "package">,
         objects: readonly ObjectType[],
     ): Omit<Query, "scopes"> {
         return compile(this, options, objects);

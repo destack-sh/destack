@@ -62,6 +62,8 @@ export class DynamicObjectClient {
     readonly #home: (scope: string) => Client<StoreProcedures>;
     /** The local tables each watch's database has, created once per database. */
     readonly #migrated = new WeakMap<DatabaseConnection, Promise<unknown>>();
+    /** When compacting each database's local log is next due. */
+    readonly #compactions = new WeakMap<DatabaseConnection, number>();
 
     /** Connect to an installation's objects through the package serving them. */
     constructor(options: DynamicObjectClientOptions) {
@@ -198,7 +200,11 @@ export class DynamicObjectClient {
         const { table } = object;
         const { scope } = this.options;
         await this.#migrate(database);
-        const followed = ObjectQuery.parse({ object: object.name, ...query });
+        const followed = ObjectQuery.parse({
+            object: object.name,
+            package: object.package.id,
+            ...query,
+        });
         const name = (await Digest.json(followed, database.state.environment.crypto)).slice(
             0,
             QUERY_NAME_LENGTH,
@@ -264,7 +270,7 @@ export class DynamicObjectClient {
         await replica.register(database);
         try {
             while (!signal.aborted) {
-                // stream from where the replica is, and compact the log after each completed run
+                // stream from where the replica is, and compact the log once due after a completed run
                 const from = await replica.resume(database, subscription);
                 const pages = await this.#store.stream({ ...subscription, ...from }, { signal });
                 for await (const page of replica.apply(database, pages, {
@@ -272,8 +278,12 @@ export class DynamicObjectClient {
                     audience: "caller",
                 })) {
                     if (page.complete) {
-                        const now = this.options.environment.clock.now();
-                        await database.log.compact(now - LOCAL_LOG_MILLISECONDS, now);
+                        const due = await database.log.compactIfDue(
+                            LOCAL_LOG_MILLISECONDS,
+                            this.#compactions.get(database) ?? 0,
+                            this.options.environment.clock.now(),
+                        );
+                        this.#compactions.set(database, due);
                     }
                 }
             }

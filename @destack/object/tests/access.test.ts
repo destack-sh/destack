@@ -105,8 +105,8 @@ test("follow a space's roles and the members bound to them as the owner defines 
                 target: SPACE_ID,
                 parameters: {
                     queries: {
-                        roles: { object: "role" },
-                        members: { object: "relationship" },
+                        roles: role.query(),
+                        members: relationship.query(),
                     },
                 },
             }),

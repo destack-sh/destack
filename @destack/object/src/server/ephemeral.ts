@@ -57,16 +57,20 @@ export interface EphemeralStorageOptions {
 export class EphemeralStorage implements AsyncDisposable {
     /** The memory database with the ephemeral objects' tables. */
     readonly database: DatabaseConnection;
-    /** The ephemeral object types stored. */
-    readonly objects: readonly ObjectType[];
+    /** The ephemeral object types stored, growing as stores serve them. */
+    #objects: readonly ObjectType[];
     /** The tracker of the live instances and the owners they track. */
     readonly tracker: Tracker;
     /** The feed serving every sync of the ephemeral objects. */
     readonly feed: sync.Feed;
     /** The ephemeral tables by SQL name. */
-    readonly #tables: ReadonlyMap<string, Table>;
+    readonly #tables: Map<string, Table>;
     /** The ephemeral object types by table. */
-    readonly #byTable: ReadonlyMap<Table, ObjectType>;
+    readonly #byTable: Map<Table, ObjectType>;
+    /** The writers with an open stream, each with its open streams. */
+    readonly #writers = new Map<string, number>();
+    /** The creation of the stored types' tables, which later additions and every use wait for. */
+    #serving: Promise<void> = Promise.resolve();
     /** Each owner's rows and their last writing instance. */
     readonly #owners = new Map<string, { instance: string; keys: Set<string> }>();
     /** The owner of each row, by row name. */
@@ -92,31 +96,12 @@ export class EphemeralStorage implements AsyncDisposable {
         options: EphemeralStorageOptions,
     ) {
         // require ephemeral objects logging every column and referencing only each other
-        const names = new Set(objects.map((object) => object.table[TABLE].sqlName));
-        for (const object of objects) {
-            const { columns, logged } = object.table[TABLE];
-            const unlogged = Object.keys(columns).find(
-                (property) => !Object.hasOwn(logged, property),
-            );
-            if (object.storage !== "ephemeral") {
-                throw new TypeError(`object ${object.name} is durable, not ephemeral`);
-            } else if (unlogged !== undefined) {
-                throw new TypeError(`ephemeral object ${object.name} does not log ${unlogged}`);
-            }
-            for (const constraint of object.table[TABLE].constraints(database.dialect)) {
-                const [foreign] = constraint.kind === "foreignKey" ? constraint.foreignColumns : [];
-                if (foreign !== undefined && !names.has(foreign.table)) {
-                    throw new TypeError(
-                        `ephemeral object ${object.name} references ${foreign.table} in another database`,
-                    );
-                }
-            }
-        }
+        EphemeralStorage.#require(objects, database);
 
         // serve the tables' changes
         const tables = objects.map((object) => object.table);
         this.database = database;
-        this.objects = objects;
+        this.#objects = objects;
         this.tracker = tracker;
         this.#tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
         this.#byTable = new Map(objects.map((object) => [object.table, object]));
@@ -183,7 +168,8 @@ export class EphemeralStorage implements AsyncDisposable {
         writer: string,
         run: (transaction: DatabaseConnection) => Promise<Value>,
     ): Promise<Value> {
-        // record the last image of each written row under its writer's owner
+        // record the last image of each written row under its writer's owner, once the tables exist
+        await this.#serving;
         const { value, rows } = await this.database.transaction(async (transaction) => {
             // run the writer's work, then read its changes
             const written = await run(transaction);
@@ -221,15 +207,70 @@ export class EphemeralStorage implements AsyncDisposable {
 
     /** Track a writer's rows while one of its streams is open, returning the release. */
     track(writer: string): () => void {
-        for (const object of this.objects) {
+        // count the writer's stream and track its owner of each stored type
+        this.#writers.set(writer, (this.#writers.get(writer) ?? 0) + 1);
+        for (const object of this.#objects) {
             this.tracker.track(EphemeralStorage.owner(writer, object));
         }
 
         return () => {
-            for (const object of this.objects) {
+            // release its owner of each type stored by now, and forget a writer without streams
+            const streams = found(this.#writers, writer) - 1;
+            if (streams === 0) {
+                this.#writers.delete(writer);
+            } else {
+                this.#writers.set(writer, streams);
+            }
+            for (const object of this.#objects) {
                 this.tracker.release(EphemeralStorage.owner(writer, object));
             }
         };
+    }
+
+    /** The ephemeral object types stored. */
+    get objects(): readonly ObjectType[] {
+        return this.#objects;
+    }
+
+    /** Store more ephemeral types as a store serves them, creating their tables in order. */
+    serve(objects: readonly ObjectType[]): void {
+        // take the ephemeral types not stored yet
+        const added = objects.filter(
+            (object) =>
+                object.storage === "ephemeral" &&
+                !this.#objects.some((stored) => stored.same(object)),
+        );
+        if (added.length === 0) {
+            return;
+        }
+
+        // store them at once, the others' tables beside theirs
+        const stored = [...this.#objects, ...added];
+        EphemeralStorage.#require(stored, this.database);
+        this.#objects = stored;
+        for (const object of added) {
+            this.#tables.set(object.table[TABLE].sqlName, object.table);
+            this.#byTable.set(object.table, object);
+        }
+
+        // track the live writers' owners of them
+        for (const writer of this.#writers.keys()) {
+            for (const object of added) {
+                this.tracker.track(EphemeralStorage.owner(writer, object));
+            }
+        }
+
+        // create their tables, feed their changes, and ask the other instances for their rows
+        this.#serving = this.#serving.then(async () => {
+            await this.database.migrate(stored.map((object) => object.table));
+            this.feed.declare(added.map((object) => object.table));
+            this.#send({ kind: "hello" });
+        });
+    }
+
+    /** Wait until the stored types' tables exist. */
+    ready(): Promise<void> {
+        return this.#serving;
     }
 
     /** Wait until every received message is applied. */
@@ -279,8 +320,10 @@ export class EphemeralStorage implements AsyncDisposable {
 
     /** Write another instance's rows into this instance's tables. */
     async #apply(rows: readonly EphemeralChange[], instance: string): Promise<void> {
+        // take the rows of the types stored here, the others arriving again once served
+        const stored = rows.filter((change) => this.#tables.has(change.table));
         await this.database.transaction(async (transaction) => {
-            for (const change of rows) {
+            for (const change of stored) {
                 // upsert a live row and remove a deleted one
                 const table = found(this.#tables, change.table);
                 if (change.row === null) {
@@ -292,7 +335,7 @@ export class EphemeralStorage implements AsyncDisposable {
                 }
             }
         });
-        for (const change of rows) {
+        for (const change of stored) {
             this.#storeChange(change, instance);
         }
     }
@@ -414,6 +457,30 @@ export class EphemeralStorage implements AsyncDisposable {
     #stay(owner: string): void {
         this.#leaving.get(owner)?.abort();
         this.#leaving.delete(owner);
+    }
+
+    /** Require ephemeral objects logging every column and referencing only each other. */
+    static #require(objects: readonly ObjectType[], database: DatabaseConnection): void {
+        const names = new Set(objects.map((object) => object.table[TABLE].sqlName));
+        for (const object of objects) {
+            const { columns, logged } = object.table[TABLE];
+            const unlogged = Object.keys(columns).find(
+                (property) => !Object.hasOwn(logged, property),
+            );
+            if (object.storage !== "ephemeral") {
+                throw new TypeError(`object ${object.name} is durable, not ephemeral`);
+            } else if (unlogged !== undefined) {
+                throw new TypeError(`ephemeral object ${object.name} does not log ${unlogged}`);
+            }
+            for (const constraint of object.table[TABLE].constraints(database.dialect)) {
+                const [foreign] = constraint.kind === "foreignKey" ? constraint.foreignColumns : [];
+                if (foreign !== undefined && !names.has(foreign.table)) {
+                    throw new TypeError(
+                        `ephemeral object ${object.name} references ${foreign.table} in another database`,
+                    );
+                }
+            }
+        }
     }
 
     /** Build the key of an object type within its rows' owners. */

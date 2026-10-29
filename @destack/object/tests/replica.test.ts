@@ -30,10 +30,12 @@ import { ResourceContext } from "@destack/resource/context";
 import { Identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
+    activity,
     defineObject,
     defineShape,
     field,
     Follow,
+    grant,
     QUERIES_PUBLICATION,
     Shape,
 } from "../src/index.ts";
@@ -132,7 +134,7 @@ test("refuse a follow whose caller's credential lapsed before its first page, fo
                 name: "objects",
                 scope: spaceId,
                 target: spaceId,
-                parameters: { queries: { mentions: { object: "mention" } } },
+                parameters: { queries: { mentions: mention.query() } },
             }),
             revision: FOLLOWER_REVISION,
         },
@@ -210,7 +212,7 @@ test("list and follow the mentions a home has as replicas of another space, from
                 name: "objects",
                 scope: spaceId,
                 target: spaceId,
-                parameters: { queries: { mentions: { object: "mention" } } },
+                parameters: { queries: { mentions: mention.query() } },
             }),
             revision: FOLLOWER_REVISION,
         },
@@ -798,7 +800,15 @@ test("replicate only the rows a query's permission allows, drop a row once the f
                         name: "loans",
                         scope: spaceId,
                         target: spaceId,
-                        parameters: { queries: { loans: { object: "loan", permission: "lend" } } },
+                        parameters: {
+                            queries: {
+                                loans: {
+                                    object: "loan",
+                                    package: loan.package.id,
+                                    permission: "lend",
+                                },
+                            },
+                        },
                     }),
                     revision: FOLLOWER_REVISION,
                 },
@@ -850,7 +860,7 @@ test("answer a follow of a type the scope does not install with a complete page 
                 name: "activity",
                 scope: spaceId,
                 target: spaceId,
-                parameters: { queries: { activity: { object: "activity" } } },
+                parameters: { queries: { activity: activity.query() } },
             }),
             revision: FOLLOWER_REVISION,
         },
@@ -900,7 +910,7 @@ test("answer a query follow of a type the store does not serve with a complete p
                 name: spaceId,
                 scope: spaceId,
                 target: spaceId,
-                parameters: { queries: { grants: { object: "grant", scopes: "every" } } },
+                parameters: { queries: { grants: grant.query({ scopes: "every" }) } },
             }),
             revision: FOLLOWER_REVISION,
         },

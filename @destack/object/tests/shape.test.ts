@@ -111,7 +111,7 @@ test("subscribe to a fixed key and to one key per row the follower has as one re
         isScopePublisher: true,
     });
     const plan = followed(Scope.universe.id, {
-        "titled:Plan:0:page": { object: "page", where: { title: "Plan" } },
+        "titled:Plan:0:page": page.query({ where: { title: "Plan" } }),
     });
     const icon = (...glyphs: readonly string[]) =>
         followed(
@@ -119,7 +119,7 @@ test("subscribe to a fixed key and to one key per row the follower has as one re
             Object.fromEntries(
                 glyphs.map((glyph) => [
                     `iconed:${glyph}:0:page`,
-                    { object: "page", where: { icon: glyph } },
+                    page.query({ where: { icon: glyph } }),
                 ]),
             ),
         );

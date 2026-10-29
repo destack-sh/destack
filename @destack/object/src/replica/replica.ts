@@ -1,5 +1,5 @@
 import { present, schema } from "@destack/schema";
-import { Package } from "@destack/package";
+import { Package, PackageId } from "@destack/package";
 import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
 import { eventIterator } from "../procedure/index.ts";
 import {
@@ -87,6 +87,8 @@ export const WriterId = schema.string().min(1).max(64);
 export interface ObjectQuery extends FindOptions {
     /** The object type, by name. */
     readonly object: string;
+    /** The package declaring the type, telling apart packages' types that share a name. */
+    readonly package: PackageId;
     /** Every scope the follower may read, instead of the followed scope's chain. */
     readonly scopes?: "every";
     /** Which trashed rows of a recoverable type to select, none by default. */
@@ -100,6 +102,7 @@ export interface ObjectQuery extends FindOptions {
 /** A query of one object type's rows in the scope a replica follows, or in every scope. */
 export const ObjectQuery: schema.Schema<ObjectQuery> = schema.object({
     object: schema.string().min(1),
+    package: PackageId,
     scopes: schema.literal("every").exactOptional(),
     ...QueryFields,
     permission: schema.string().min(1).exactOptional(),

@@ -7,7 +7,6 @@ import {
     count,
     defineTable,
     eq,
-    gt,
     integer,
     inArray,
     isNotNull,
@@ -412,11 +411,16 @@ export class ObjectClient<
     readonly #pushMutations: number;
     /** Report the follow loop's failures, absent until it follows. */
     #report: ((error: unknown) => void) | undefined;
+    /** The moment after which compacting the local log is due, at once on start. */
+    #compactionDue = 0;
 
     /** Replicate one scope's objects in a local database with existing tables. */
     private constructor(options: ObjectClientOptions<Objects> & { readonly origin: string }) {
-        // store the options, refusing a push larger than the server takes
+        // declare the client's tables to its database
         this.database = options.database;
+        this.database.state.declare(ObjectClient.tables(options.objects));
+
+        // store the options, refusing a push larger than the server takes
         this.#presenter = new TextPresenter();
         this.#pushMutations = ObjectClient.#pushMutationsOf(options.push);
         this.#refresh = options.refresh;
@@ -1133,9 +1137,13 @@ export class ObjectClient<
 
     /** Drop the closed queries whose time to live expired. */
     async #dropExpired(): Promise<void> {
-        await this.database
-            .delete(subscription)
-            .where(lte(sql`${subscription.releasedAt} + ${subscription.ttl}`, this.clock.now()));
+        await this.database.transaction(async (transaction) => {
+            await transaction
+                .delete(subscription)
+                .where(
+                    lte(sql`${subscription.releasedAt} + ${subscription.ttl}`, this.clock.now()),
+                );
+        });
     }
 
     /** Abort a follow once its parameters change, reporting a failed watch. */
@@ -1192,9 +1200,12 @@ export class ObjectClient<
                 this.#rescope(page);
             }
 
-            // compact the local log
-            const now = this.clock.now();
-            await this.database.log.compact(now - this.#logMilliseconds, now);
+            // compact the local log once a change left its window
+            this.#compactionDue = await this.database.log.compactIfDue(
+                this.#logMilliseconds,
+                this.#compactionDue,
+                this.clock.now(),
+            );
 
             // evict once the predicted replica grew
             isGrown ||= page.reset || page.changes.some((change) => change.operation === "insert");
@@ -1271,7 +1282,7 @@ export class ObjectClient<
     /** Follow a query's items live over the local replica with predictions until closed. */
     #live(
         object: ObjectType,
-        query: Omit<ObjectQuery, "object"> = {},
+        query: Omit<ObjectQuery, "object" | "package"> = {},
         options: SubscribeOptions = {},
     ): LiveItems {
         const followed = this.#followed(object, query, options);
@@ -1294,7 +1305,7 @@ export class ObjectClient<
     /** Follow an aggregate query's groups live over the local replica until closed. */
     #measured(
         object: ObjectType,
-        query: Omit<ObjectQuery, "object">,
+        query: Omit<ObjectQuery, "object" | "package">,
         options: SubscribeOptions,
     ): LiveQuery<readonly sync.AggregateGroup[]> {
         // read local groups here, and other groups through their replica
@@ -1321,7 +1332,7 @@ export class ObjectClient<
     /** Follow a query in its open form over the local replica until closed. */
     #followed(
         object: ObjectType,
-        query: Omit<ObjectQuery, "object">,
+        query: Omit<ObjectQuery, "object" | "package">,
         options: SubscribeOptions,
     ): Follow {
         // split the query by storage
@@ -1329,7 +1340,11 @@ export class ObjectClient<
             throw new TypeError(`the client has no object ${object.name}`);
         }
         const split = this.#split(object, query);
-        const whole = ObjectQuery.parse({ object: object.name, ...query });
+        const whole = ObjectQuery.parse({
+            object: object.name,
+            package: object.package.id,
+            ...query,
+        });
         const compiled = this.#compile(whole);
 
         // follow the storage query and its lookups
@@ -1419,7 +1434,10 @@ export class ObjectClient<
     }
 
     /** Stop following a closed query, even one followed forever. */
-    async release(object: ObjectType, query: Omit<ObjectQuery, "object"> = {}): Promise<void> {
+    async release(
+        object: ObjectType,
+        query: Omit<ObjectQuery, "object" | "package"> = {},
+    ): Promise<void> {
         // find the query's closed subscriptions
         const split = this.#split(object, query);
         const name = await ObjectClient.#queryName(split.query, this.environment.crypto);
@@ -1436,9 +1454,11 @@ export class ObjectClient<
 
         // delete them and their lookups
         const ids = closed.map((row) => row.id);
-        await this.database
-            .delete(subscription)
-            .where(or(inArray(subscription.id, ids), inArray(subscription.root, ids)));
+        await this.database.transaction(async (transaction) => {
+            await transaction
+                .delete(subscription)
+                .where(or(inArray(subscription.id, ids), inArray(subscription.root, ids)));
+        });
     }
 
     /** Read the parties with subscriptions or mutations in the shared replica. */
@@ -1453,7 +1473,9 @@ export class ObjectClient<
 
     /** Forget a gone party's subscriptions and unread rejections. */
     async forget(origin: string): Promise<void> {
-        await this.database.delete(subscription).where(eq(subscription.origin, origin));
+        await this.database.transaction(async (transaction) => {
+            await transaction.delete(subscription).where(eq(subscription.origin, origin));
+        });
         await this.prediction.forget(this.database, origin);
     }
 
@@ -1630,11 +1652,11 @@ export class ObjectClient<
     /** Drop the oldest closed followed query while the replica exceeds its budget. */
     async #evict(): Promise<FamilyError<sync.SyncReason> | undefined> {
         // evict only a budgeted replica subscribed to the current queries
+        if (this.#storage === undefined) {
+            return undefined;
+        }
         const subscribed = ObjectClient.#queriesOf(await this.replica.subscribed(this.database));
-        if (
-            this.#storage === undefined ||
-            !ObjectClient.#isSame(subscribed, await this.#subscribed("durable"))
-        ) {
+        if (!ObjectClient.#isSame(subscribed, await this.#subscribed("durable"))) {
             return undefined;
         }
 
@@ -1663,9 +1685,11 @@ export class ObjectClient<
                 `local replica has ${rows} rows, more than ${this.#storage.rows}, for open and forever followed queries`,
             );
         }
-        await this.database
-            .delete(subscription)
-            .where(or(eq(subscription.id, oldest.id), eq(subscription.root, oldest.id)));
+        await this.database.transaction(async (transaction) => {
+            await transaction
+                .delete(subscription)
+                .where(or(eq(subscription.id, oldest.id), eq(subscription.root, oldest.id)));
+        });
 
         return undefined;
     }
@@ -1728,17 +1752,21 @@ export class ObjectClient<
 
     /** Read every party's followed queries of one storage by name. */
     async #subscribed(storage: ObjectStorage): Promise<Record<string, ObjectQuery>> {
-        const rows = await this.database
-            .select({ name: subscription.name, query: subscription.query })
-            .from(subscription)
-            .where(
-                or(
-                    isNull(subscription.releasedAt),
-                    isNull(subscription.ttl),
-                    gt(sql`${subscription.releasedAt} + ${subscription.ttl}`, this.clock.now()),
-                ),
-            )
-            .orderBy(asc(subscription.id));
+        // read every subscription, cached until one changes, keeping the unexpired ones
+        const now = this.clock.now();
+        const rows = (
+            await this.database
+                .select({
+                    name: subscription.name,
+                    query: subscription.query,
+                    releasedAt: subscription.releasedAt,
+                    ttl: subscription.ttl,
+                })
+                .from(subscription)
+                .orderBy(asc(subscription.id))
+        ).filter(
+            (row) => row.releasedAt === null || row.ttl === null || row.releasedAt + row.ttl > now,
+        );
 
         // filter by storage
         const stored = new Set(
@@ -1907,7 +1935,7 @@ export class ObjectClient<
     }
 
     /** Split a query by storage: its storage's query, and key lookups of the other's rows. */
-    #split(object: ObjectType, options: Omit<ObjectQuery, "object">): StorageQuery {
+    #split(object: ObjectType, options: Omit<ObjectQuery, "object" | "package">): StorageQuery {
         // require conditions relating one storage
         const { with: included, extras, columns: _columns, ...query } = options;
         this.#requireOneStorage(object, query.where ?? {}, extras ?? {});
@@ -1938,7 +1966,7 @@ export class ObjectClient<
             const joined = related(object, name, this.objects);
             if (joined.object.storage === object.storage) {
                 const child = this.#split(joined.object, relation);
-                const { object: _object, ...childOptions } = child.query;
+                const { object: _object, package: _package, ...childOptions } = child.query;
                 nested[name] = childOptions;
                 lookups.push(
                     ...child.lookups.map((lookup) => ({ ...lookup, path: [name, ...lookup.path] })),
@@ -1954,6 +1982,7 @@ export class ObjectClient<
             object,
             query: ObjectQuery.parse({
                 object: object.name,
+                package: object.package.id,
                 ...query,
                 ...(Object.keys(sameStorage).length === 0 ? {} : { extras: sameStorage }),
                 ...(Object.keys(nested).length === 0 ? {} : { with: nested }),
@@ -2057,12 +2086,14 @@ export class ObjectClient<
         root: string | undefined,
     ): Promise<string> {
         const name = await ObjectClient.#queryName(split.query, this.environment.crypto);
-        await this.database.insert(subscription).values({
-            id,
-            origin: this.origin,
-            name,
-            root: root ?? null,
-            query: schema.json().parse(split.query),
+        await this.database.transaction(async (transaction) => {
+            await transaction.insert(subscription).values({
+                id,
+                origin: this.origin,
+                name,
+                root: root ?? null,
+                query: schema.json().parse(split.query),
+            });
         });
 
         return name;
@@ -2130,9 +2161,11 @@ export class ObjectClient<
         if (current !== undefined) {
             current.stop.abort();
             await current.subscribed.done;
-            await this.database
-                .delete(subscription)
-                .where(inArray(subscription.id, current.subscribed.ids()));
+            await this.database.transaction(async (transaction) => {
+                await transaction
+                    .delete(subscription)
+                    .where(inArray(subscription.id, current.subscribed.ids()));
+            });
             lookups.delete(lookup);
         }
 
@@ -2493,7 +2526,9 @@ export class ObjectClient<
     /** Compile one object query of the scope its objects live in here. */
     #compile(query: ObjectQuery): sync.Query {
         // compile in the scope of the query's object type
-        const object = this.objects.find((type) => type.name === query.object);
+        const object = this.objects.find(
+            (type) => type.name === query.object && type.package.id === query.package,
+        );
         const chain = [this.#readScope(present(object, `the client's object ${query.object}`))];
         const [compiled] = Object.values(ObjectType.queries(this.objects, { query }, chain));
 

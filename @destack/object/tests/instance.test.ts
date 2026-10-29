@@ -40,7 +40,7 @@ test("follow the changes one instance writes through another instance on a separ
                 scope: spaceId,
                 target: spaceId,
                 parameters: {
-                    queries: { notebooks: { object: "notebook" } },
+                    queries: { notebooks: notebook.query() },
                 },
             }),
             revision: FOLLOWER_REVISION,

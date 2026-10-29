@@ -271,10 +271,7 @@ test("attach remarks to articles and photos, counting them and deleting them wit
                 target: spaceId,
                 parameters: {
                     queries: {
-                        articles: {
-                            object: "article",
-                            with: { remarks: {} },
-                        },
+                        articles: article.query({ with: { remarks: {} } }),
                     },
                 },
             }),

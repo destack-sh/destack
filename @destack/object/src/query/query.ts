@@ -24,19 +24,13 @@ export function compileQueries(
     // compile each query
     return Object.fromEntries(
         Object.entries(named).map(([name, query]): [string, Query] => {
-            // find the object type and require its scope level
-            const { object: objectName, scopes, ...options } = query;
-            const [object, ...rest] = objects.filter((entry) => entry.name === objectName);
-            const others = rest.filter((entry) => entry.package.id !== object?.package.id);
+            // find the object type of the query's package, and require its scope level
+            const { object: objectName, package: packageId, scopes, ...options } = query;
+            const object = objects.find(
+                (entry) => entry.name === objectName && entry.package.id === packageId,
+            );
             if (!object) {
                 throw ObjectError.of("OBJECT_UNKNOWN", `object ${objectName} not found`);
-            }
-            // refuse a name several packages' types share, which a query cannot tell apart
-            else if (others.length > 0) {
-                throw ObjectError.of(
-                    "OBJECT_AMBIGUOUS",
-                    `object ${objectName} is a type of ${[object, ...others].map((each) => each.package.name).join(" and ")}`,
-                );
             }
             // read every scope's rows, each decided by its access
             else if (scopes === "every") {
@@ -61,7 +55,7 @@ export function compileQueries(
 /** Compile one object query: its table, the served types' relations and what it selects. */
 export function compile(
     object: ObjectType,
-    options: Omit<ObjectQuery, "object">,
+    options: Omit<ObjectQuery, "object" | "package">,
     objects: readonly ObjectType[],
 ): Omit<Query, "scopes"> {
     // refuse a permission the type does not declare
@@ -148,11 +142,16 @@ const QueryDerivation = {
                 object.listing !== undefined && (object.scope === Scope.universe.id) === isGlobal,
         );
 
+        // name each query by its type, and by its package too where several packages' types share the name
+        const isShared = (object: ObjectType) =>
+            listed.some((other) => other.name === object.name && !other.same(object));
+
         return Object.fromEntries(
             listed.map((object) => [
-                object.name,
+                isShared(object) ? `${object.package.name}/${object.name}` : object.name,
                 {
                     object: object.name,
+                    package: object.package.id,
                     ...(object.lifecycle.recoverable === undefined
                         ? {}
                         : { deleted: "include" as const }),
@@ -164,7 +163,7 @@ const QueryDerivation = {
     /** Compile what a query or an included relation selects, requiring a listed object type. */
     compileOptions(
         object: ObjectType,
-        options: Omit<ObjectQuery, "object">,
+        options: Omit<ObjectQuery, "object" | "package">,
         objects: readonly ObjectType[],
         isRoot: boolean,
     ): FindOptions {
@@ -223,7 +222,7 @@ const QueryDerivation = {
     /** Select a root query's trashed or live rows of a recoverable type, absent for every row. */
     trashCondition(
         object: ObjectType,
-        options: Omit<ObjectQuery, "object">,
+        options: Omit<ObjectQuery, "object" | "package">,
     ): Condition | undefined {
         const live = { deletedAt: { isNull: true } };
         const deleted = options.deleted ?? "exclude";

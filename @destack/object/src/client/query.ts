@@ -26,13 +26,13 @@ export interface Subscriber {
     /** Follow a query's items live. */
     readonly rows: (
         object: ObjectType,
-        query: Omit<ObjectQuery, "object">,
+        query: Omit<ObjectQuery, "object" | "package">,
         options: SubscribeOptions,
     ) => LiveItems;
     /** Follow an aggregate query's groups live. */
     readonly results: (
         object: ObjectType,
-        query: Omit<ObjectQuery, "object">,
+        query: Omit<ObjectQuery, "object" | "package">,
         options: SubscribeOptions,
     ) => LiveQuery<readonly sync.AggregateGroup[]>;
 }
@@ -58,7 +58,7 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
         options?: Options & { readonly extras?: Computed },
     ): RelationalQuery<readonly FindResult<Object, Objects, Options>[]> {
         // select and nest each item as the options ask
-        const opened: Omit<ObjectQuery, "object"> = options ?? {};
+        const opened: Omit<ObjectQuery, "object" | "package"> = options ?? {};
         const select = RelationalQuery.selecting(opened, (item) =>
             mapValues<NestedItem, FindResult<Object, Objects, Options>>(item, (value) => value),
         );
@@ -80,7 +80,7 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
         options?: Options & { readonly extras?: Computed },
     ): RelationalQuery<FindResult<Object, Objects, Options> | undefined> {
         // select and nest the first item as the options ask
-        const opened: Omit<ObjectQuery, "object"> = options ?? {};
+        const opened: Omit<ObjectQuery, "object" | "package"> = options ?? {};
         const select = RelationalQuery.selecting(opened, (item) =>
             mapValues<NestedItem, FindResult<Object, Objects, Options>>(item, (value) => value),
         );
@@ -119,14 +119,14 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
     /** The queried object type. */
     readonly object: ObjectType;
     /** The query in its open form. */
-    readonly options: Omit<ObjectQuery, "object">;
+    readonly options: Omit<ObjectQuery, "object" | "package">;
     /** Follow the query live over the client's replica, its reads shaped into the query's value. */
     readonly #follow: (options: SubscribeOptions) => LiveQuery<Value>;
 
     /** Describe a query of one object type, followed live with its value shaped from its reads. */
     constructor(
         object: ObjectType,
-        options: Omit<ObjectQuery, "object">,
+        options: Omit<ObjectQuery, "object" | "package">,
         follow: (options: SubscribeOptions) => LiveQuery<Value>,
     ) {
         this.object = object;

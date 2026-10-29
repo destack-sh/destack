@@ -377,9 +377,9 @@ test("create and trash a thousand objects in as many statements as one object", 
     // spend a few statements per batch of rows, PostgreSQL assigning its transaction identity
     const extra = TestDatabase.target() === "postgresql" ? 1 : 0;
     expect(statements).toEqual({
-        createOne: 11 + extra,
-        createThousand: 11 + extra,
-        trashThousand: 13 + extra,
+        createOne: 8 + extra,
+        createThousand: 8 + extra,
+        trashThousand: 10 + extra,
     });
 });
 
