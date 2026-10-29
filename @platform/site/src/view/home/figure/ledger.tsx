@@ -518,7 +518,7 @@ const styles = style.create({
         justifyItems: "end",
     },
     spare: {
-        display: { default: null, [CRAMPED_LEDGER]: "none" },
+        display: { default: "grid", [CRAMPED_LEDGER]: "none" },
     },
     captionLine: {
         display: "flex",
