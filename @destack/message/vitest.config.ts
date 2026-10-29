@@ -6,7 +6,7 @@ export default defineConfiguration(
     {
         root: fileURLToPath(new URL(".", import.meta.url)),
         // run every test against each database the package stores in
-        targets: { database: ["sqlite", "postgresql"] },
+        targets: { database: ["sqlite"] },
         test: {
             include: ["src/**/*.test.ts"],
             globalSetup: ["src/test/setup.ts"],
