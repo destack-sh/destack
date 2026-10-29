@@ -8,7 +8,7 @@ import { textElements } from "../query/statement.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { blobGarbage, blobLease } from "./table.ts";
 import type { BlobStorage } from "@destack/resource";
-import { Digest, schema } from "@destack/schema";
+import { canonicalize, Digest, type JsonValue, schema } from "@destack/schema";
 
 /** How long a store leases what it writes for a row to reference, by default: half an hour. */
 const LEASE_MILLISECONDS = 30 * 60_000;
@@ -57,6 +57,31 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> {
         if ((await this.storage.missing([digest])).length > 0) {
             await this.storage.write(await open(), digest);
         }
+    }
+
+    /** Write bytes as a blob before a row refers to it, answering their digest. */
+    async write(bytes: Uint8Array<ArrayBuffer>): Promise<Digest> {
+        const digest = await Digest.of(bytes, this.environment.crypto);
+        await this.put(digest, async () => chunks(bytes));
+
+        return digest;
+    }
+
+    /** Read a blob's bytes. */
+    read(digest: Digest): Promise<Uint8Array<ArrayBuffer>> {
+        return gathered(this.storage.read(digest));
+    }
+
+    /** Write a JSON value's canonical form as a blob before a row refers to it. */
+    writeJson(value: JsonValue): Promise<Digest> {
+        return this.write(new TextEncoder().encode(canonicalize(value)));
+    }
+
+    /** Read a JSON blob's value. */
+    async readJson(digest: Digest): Promise<JsonValue> {
+        const text = new TextDecoder().decode(await this.read(digest));
+
+        return schema.json().parse(JSON.parse(text));
     }
 
     /** Lease blobs until a moment, rescuing any retired one, waiting out its deletion. */
@@ -250,6 +275,13 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> {
         return sql.join([...references, leased], sql` UNION `);
     }
 
+    /** List the blobs the partition's rows or leases reference, each once. */
+    async list(): Promise<Digest[]> {
+        const rows = await this.database.all(this.referenced(this.environment.clock.now()));
+
+        return [...new Set(rows.map((row) => DigestRow.parse(row).digest))];
+    }
+
     /** List the blob columns doing one thing on delete, each with its table. */
     #blobColumns(
         onDelete: "restrict" | "cascade",
@@ -265,4 +297,16 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> {
                 .map((column) => ({ table, column })),
         );
     }
+}
+
+/** Gather a body's chunks into one array of bytes. */
+export async function gathered(body: AsyncIterable<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
+    const parts = await Array.fromAsync(body);
+
+    return new Blob(parts.map((part) => new Uint8Array(part))).bytes();
+}
+
+/** Read some bytes as one chunk. */
+async function* chunks(bytes: Uint8Array): AsyncIterable<Uint8Array> {
+    yield bytes;
 }

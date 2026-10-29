@@ -1,5 +1,6 @@
 import type { BlobStorage } from "@destack/resource";
 import { Digest, type DigestCrypto } from "@destack/schema";
+import { gathered } from "../blob/store.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { DurableObjectStub } from "./host.ts";
 
@@ -69,11 +70,4 @@ export class DurableObjectBlobStorage implements Pick<BlobStorage, "read" | "wri
 
         return response;
     }
-}
-
-/** Gather a body's chunks into one array of bytes. */
-export async function gathered(body: AsyncIterable<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
-    const chunks = await Array.fromAsync(body);
-
-    return new Blob(chunks.map((chunk) => new Uint8Array(chunk))).bytes();
 }
