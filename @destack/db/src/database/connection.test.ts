@@ -2,7 +2,9 @@ import { asc } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { integer, text } from "../table/column.ts";
-import { defineTable } from "../table/table.ts";
+import { defineTable, TABLE, type Table } from "../table/table.ts";
+import type { WriteOperation } from "./connection.ts";
+import { post, remark, section } from "../dependent/test/fixture.ts";
 import { testSimulation } from "@destack/test/world";
 
 /** The counters one upsert writes and one remove deletes. */
@@ -87,4 +89,76 @@ test("upsert rows as they are, get them and remove them by key in one statement 
     // remove every row but one
     await database.transaction((transaction) => transaction.remove(counter, counters(COUNTERS, 0)));
     expect(await read()).toEqual([bob]);
+});
+
+test("list the tables each write operation changes, with tables declared after opening", async () => {
+    // open posts and their remarks, sections declared later
+    const storage = await TestDatabase.create([remark, post], {
+        environment: testSimulation().environment("test"),
+    });
+    onTestFinished(() => storage.close());
+    const { state } = storage.database;
+    const cascade = (table: Table, operation: WriteOperation) =>
+        [...state.cascade([table[TABLE].sqlName], operation)]
+            .map((name) => name.replace("destack__db__", ""))
+            .toSorted();
+    const before = {
+        insert: cascade(post, "INSERT"),
+        delete: cascade(post, "DELETE"),
+        section: cascade(section, "DELETE"),
+    };
+    state.declare([section]);
+
+    // delete dependents and referencing rows only on a delete, reaching the later sections too
+    expect({
+        before,
+        after: {
+            insert: cascade(post, "INSERT"),
+            update: cascade(post, "UPDATE"),
+            delete: cascade(post, "DELETE"),
+            section: cascade(section, "DELETE"),
+        },
+    }).toEqual({
+        before: {
+            insert: ["dependent_post"],
+            delete: ["dependent_post", "dependent_remark"],
+            section: ["dependent_section"],
+        },
+        after: {
+            insert: ["dependent_post"],
+            update: ["dependent_post"],
+            delete: ["dependent_post", "dependent_remark", "dependent_section"],
+            section: ["dependent_remark", "dependent_section"],
+        },
+    });
+});
+
+test("answer reads of a table declared after opening from memory until it changes", async () => {
+    // open a database knowing no tables, migrate counters, which declares them, and listen to other writers
+    const storage = await TestDatabase.create([], {
+        environment: testSimulation().environment("test"),
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.migrate([counter]);
+    await database.log.listening();
+    await database.transaction(async (transaction) => {
+        await transaction.insert(counter).values(counters(1, 1));
+    });
+
+    // read twice in one statement, then again after a write
+    const counted = async () => {
+        const before = database.state.statements;
+        await database.select().from(counter);
+
+        return database.state.statements - before;
+    };
+    const reads = [await counted(), await counted()];
+    await database.transaction(async (transaction) => {
+        await transaction
+            .insert(counter)
+            .values({ scope: "s", owner: "ada", name: "other", value: 2 });
+    });
+    reads.push(await counted());
+    expect(reads).toEqual([1, 0, 1]);
 });

@@ -56,6 +56,24 @@ const KEY_BYTES_PER_ROW = 512;
 /** The referential actions that write the referencing rows. */
 const WRITING_ACTIONS: ReadonlySet<string> = new Set(["cascade", "set null", "set default"]);
 
+/** The write operations whose cascades differ, as statements' leading verbs have them. */
+const WRITE_OPERATIONS = ["INSERT", "UPDATE", "DELETE"] as const;
+
+/** A write operation, a delete standing in for an unknown one as it cascades furthest. */
+export type WriteOperation = (typeof WRITE_OPERATIONS)[number];
+
+/** A write of one table making a write of another through a trigger or referential action. */
+interface CascadeLink {
+    /** The written table's SQL name. */
+    readonly written: string;
+    /** The operations on it that make the write. */
+    readonly operations: readonly WriteOperation[];
+    /** The changed table's SQL name. */
+    readonly changed: string;
+    /** The operation the changed table takes. */
+    readonly operation: WriteOperation;
+}
+
 /** Queries over one database connection or transaction. */
 export class DatabaseConnection<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
@@ -255,7 +273,7 @@ export class DatabaseConnection<
     /** Execute a script in one round trip: DDL and pragmas alone, or a transaction's writes. */
     async executeScript(script: string): Promise<void> {
         // stamp an enclosing transaction, then commit the script as a write of every table
-        const every = new Set(this.state.cascades.keys());
+        const every = new Set(this.state.declared.keys());
         await this.driver.transaction?.identity.stamp();
         await this.driver.commit(() => this.driver.session.exec(script), every, every);
     }
@@ -328,6 +346,7 @@ export class DatabaseConnection<
         const merged = mergeStates([...(options.states ?? []), others, declared]);
         const plan = await this.plan(merged);
         await this.apply(plan);
+        this.state.declare(tables);
 
         return plan;
     }
@@ -530,8 +549,12 @@ export class ConnectionState {
     readonly durations: OperationDuration;
     /** The SQL names of the tables the database replicates, empty over bare tables. */
     readonly replicated: ReadonlySet<string>;
-    /** The SQL tables a write to each declared table changes, itself first, through cascades. */
-    readonly cascades: ReadonlyMap<string, readonly string[]>;
+    /** The tables each operation on each declared table changes, itself first, through cascades. */
+    #cascades: ReadonlyMap<WriteOperation, ReadonlyMap<string, readonly string[]>> = new Map();
+    /** The SQL names of the declared tables whose writes fire aggregate triggers. */
+    #aggregated: ReadonlySet<string> = new Set();
+    /** The SQL names of the declared tables whose deletes fire dependent triggers. */
+    #dependent: ReadonlySet<string> = new Set();
     /** The commits this connection's readers wait for. */
     readonly commits: CommitWatch;
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
@@ -539,11 +562,17 @@ export class ConnectionState {
     /** The database's namespace in a shared SQLite store, absent for a separate database. */
     readonly namespace: string | undefined;
     /** The searched tables whose full-text rows SQLite writes update, by SQL name. */
-    readonly searched: ReadonlyMap<string, Table>;
+    #searched: ReadonlyMap<string, Table> = new Map();
     /** The declared names of the tables and their columns, by SQL name. */
-    readonly declared: DeclaredNames;
+    #declared: DeclaredNames = new Map();
     /** The SQL names of the tables without change triggers: unlogged ones and the log's tables. */
-    readonly unlogged: ReadonlySet<string>;
+    readonly unlogged = new Set<string>(LOG_TABLES);
+    /** The declared tables, by SQL name. */
+    readonly #tables = new Map<string, Table>();
+    /** The dialect the tables render in. */
+    readonly #dialect: Dialect;
+    /** Whether the database announces its logged tables' commits itself. */
+    readonly #isAnnouncing: boolean;
     /** The cache of live `values` reads, by statement, each at its tables' commit versions. */
     readonly valueCache = new ReadCache<unknown[][]>(CACHED_ROWS, CACHED_READ_ROWS, weigh);
     /** The cache of live `all` reads, by statement, each at its tables' commit versions. */
@@ -589,14 +618,80 @@ export class ConnectionState {
         this.replicated = options.replicated;
         this.openChannel = openChannel;
         this.namespace = options.namespace;
-        this.cascades = listCascades(tables, options.dialect);
-        this.searched = new Map(
-            tables
+        this.#dialect = options.dialect;
+        this.#isAnnouncing = options.announcer === "database";
+
+        // watch commits on the log channel, then declare the tables
+        this.commits = new CommitWatch(
+            openChannel === undefined ? undefined : typedChannel(openChannel(LOG_TOPIC), Commit),
+            this.unlogged,
+        );
+        this.declare(tables);
+    }
+
+    /** The declared tables, in declaration order. */
+    get tables(): readonly Table[] {
+        return [...this.#tables.values()];
+    }
+
+    /** The tables each operation on each declared table changes, itself first, through cascades. */
+    get cascades(): ReadonlyMap<WriteOperation, ReadonlyMap<string, readonly string[]>> {
+        return this.#cascades;
+    }
+
+    /** The SQL names of the declared tables whose writes fire aggregate triggers. */
+    get aggregated(): ReadonlySet<string> {
+        return this.#aggregated;
+    }
+
+    /** The SQL names of the declared tables whose deletes fire dependent triggers. */
+    get dependent(): ReadonlySet<string> {
+        return this.#dependent;
+    }
+
+    /** The searched tables whose full-text rows SQLite writes update, by SQL name. */
+    get searched(): ReadonlyMap<string, Table> {
+        return this.#searched;
+    }
+
+    /** The declared names of the tables and their columns, by SQL name. */
+    get declared(): DeclaredNames {
+        return this.#declared;
+    }
+
+    /** Declare more tables the database stores, such as those an installation migrated. */
+    declare(tables: readonly Table[]): void {
+        // add the new tables
+        const added = tables.filter((table) => !this.#tables.has(table[TABLE].sqlName));
+        if (added.length === 0) {
+            return;
+        }
+        for (const table of added) {
+            this.#tables.set(table[TABLE].sqlName, table);
+        }
+
+        // list what writes to every declared table change, derive, search and name
+        const declared = this.tables;
+        this.#cascades = listCascades(declared, this.#dialect);
+        this.#aggregated = new Set(
+            declared.flatMap((table) =>
+                table[TABLE].aggregates.map(
+                    (aggregate) => ("from" in aggregate ? aggregate.from() : table)[TABLE].sqlName,
+                ),
+            ),
+        );
+        this.#dependent = new Set(
+            declared
+                .filter((table) => table[TABLE].dependents.length > 0)
+                .map((table) => table[TABLE].sqlName),
+        );
+        this.#searched = new Map(
+            declared
                 .filter((table) => table[TABLE].fullText !== undefined)
                 .map((table) => [table[TABLE].sqlName, table]),
         );
-        this.declared = new Map(
-            tables.map((table) => [
+        this.#declared = new Map(
+            declared.map((table) => [
                 table[TABLE].sqlName,
                 {
                     name: table[TABLE].name,
@@ -610,35 +705,33 @@ export class ConnectionState {
             ]),
         );
 
-        // list the tables with change triggers and those without
-        const logged = tables
-            .filter((table) => table[TABLE].retention !== "none")
-            .map((table) => table[TABLE].sqlName);
-        this.unlogged = new Set([
-            ...tables
-                .filter((table) => table[TABLE].retention === "none")
-                .map((table) => table[TABLE].sqlName),
-            ...LOG_TABLES,
-        ]);
+        // add the new tables without change triggers to the unlogged ones
+        for (const table of added.filter((each) => each[TABLE].retention === "none")) {
+            this.unlogged.add(table[TABLE].sqlName);
+        }
 
-        // list the append-only tables, whose deletes go unlogged
-        const appendOnly = new Set(
-            tables
-                .filter((table) => table[TABLE].isAppendOnly)
-                .map((table) => table[TABLE].sqlName),
+        // watch the declared tables, the database announcing the logged ones but append-only ones
+        const announced = added.filter(
+            (table) => table[TABLE].retention !== "none" && !table[TABLE].isAppendOnly,
         );
+        this.commits.declare(
+            [...this.declared.keys()],
+            this.#isAnnouncing ? announced.map((table) => table[TABLE].sqlName) : [],
+        );
+    }
 
-        // watch commits on the log channel, the database announcing the logged tables but append-only ones
-        this.commits = new CommitWatch(
-            openChannel === undefined ? undefined : typedChannel(openChannel(LOG_TOPIC), Commit),
-            new Set(
-                options.announcer === "database"
-                    ? logged.filter((table) => !appendOnly.has(table))
-                    : [],
-            ),
-            [...this.cascades.keys()],
-            this.unlogged,
-        );
+    /** List the tables an operation on some tables changes through triggers and actions. */
+    cascade(tables: readonly string[], operation: WriteOperation): Set<string> {
+        // add a declared table's cascade, and only an undeclared table
+        const cascades = this.cascades.get(operation);
+        const written = new Set<string>();
+        for (const table of tables) {
+            for (const changed of cascades?.get(table) ?? [table]) {
+                written.add(changed);
+            }
+        }
+
+        return written;
     }
 
     /** List the written tables with change triggers, in written order. */
@@ -707,68 +800,108 @@ function weigh(key: string, rows: readonly unknown[]): number {
     return Math.max(1, rows.length) + Math.ceil(key.length / KEY_BYTES_PER_ROW);
 }
 
-/** List the tables a write to each table changes, itself first, through triggers and actions. */
-function listCascades(tables: readonly Table[], dialect: Dialect): Map<string, readonly string[]> {
-    // start each table with no changed table
-    const direct = new Map<string, Set<string>>();
-    for (const table of tables) {
-        direct.set(table[TABLE].sqlName, new Set());
-    }
-
-    // link each written table to the tables its triggers and referential actions write
-    for (const table of tables) {
-        const definition = table[TABLE];
-        for (const [written, changed] of cascadeLinks(table, dialect)) {
-            direct.get(written)?.add(changed);
-        }
-        if (definition.tree !== undefined) {
-            direct.get(definition.sqlName)?.add(definition.tree.ancestors[TABLE].sqlName);
+/** List the tables each operation on each table changes, itself first, through cascades. */
+function listCascades(
+    tables: readonly Table[],
+    dialect: Dialect,
+): ReadonlyMap<WriteOperation, ReadonlyMap<string, readonly string[]>> {
+    // link each operation's write of a table to the writes its triggers and referential actions make
+    const links = new Map<string, CascadeLink[]>();
+    for (const link of tables.flatMap((table) => cascadeLinks(table, dialect))) {
+        for (const operation of link.operations) {
+            const from = `${operation} ${link.written}`;
+            links.set(from, [...(links.get(from) ?? []), link]);
         }
     }
 
-    // close each table's links
-    const cascades = new Map<string, readonly string[]>();
-    for (const name of direct.keys()) {
-        const closure = new Set([name]);
-        for (const next of closure) {
-            for (const changed of direct.get(next) ?? []) {
-                closure.add(changed);
+    // close each table's writes of each operation over the links, keeping each table once
+    const cascades = new Map<WriteOperation, ReadonlyMap<string, readonly string[]>>();
+    for (const operation of WRITE_OPERATIONS) {
+        const closed = new Map<string, readonly string[]>();
+        for (const table of tables) {
+            const name = table[TABLE].sqlName;
+            const reached = new Set([`${operation} ${name}`]);
+            for (const next of reached) {
+                for (const link of links.get(next) ?? []) {
+                    reached.add(`${link.operation} ${link.changed}`);
+                }
             }
+            const changed = [...reached].map((each) => each.slice(each.indexOf(" ") + 1));
+            closed.set(name, [...new Set(changed)]);
         }
-        cascades.set(name, [...closure]);
+        cascades.set(operation, closed);
     }
 
     return cascades;
 }
 
-/** List a table's links from a written table to a table the write changes. */
-function cascadeLinks(table: Table, dialect: Dialect): (readonly [string, string])[] {
-    // link an aggregate's source to its holder
+/** List a table's links from a write of one table to the write it makes in another. */
+function cascadeLinks(table: Table, dialect: Dialect): CascadeLink[] {
+    // update an aggregate's holder at every write of its source
     const definition = table[TABLE];
-    const aggregates = definition.aggregates.map((aggregate) => {
-        const source = "from" in aggregate ? aggregate.from() : table;
-        const holder = "into" in aggregate ? aggregate.into() : table;
+    const aggregates = definition.aggregates.map((aggregate): CascadeLink => ({
+        written: ("from" in aggregate ? aggregate.from() : table)[TABLE].sqlName,
+        operations: WRITE_OPERATIONS,
+        changed: ("into" in aggregate ? aggregate.into() : table)[TABLE].sqlName,
+        operation: "UPDATE",
+    }));
 
-        return [source[TABLE].sqlName, holder[TABLE].sqlName] as const;
-    });
-
-    // link the table to the dependents its deletion deletes
+    // delete the dependents a deletion deletes
     const dependents = definition.dependents
         .filter((dependent) => dependent.onDelete === "cascade")
-        .map((dependent) => [definition.sqlName, dependent.from()[TABLE].sqlName] as const);
+        .map((dependent): CascadeLink => ({
+            written: definition.sqlName,
+            operations: ["DELETE"],
+            changed: dependent.from()[TABLE].sqlName,
+            operation: "DELETE",
+        }));
 
-    // link each referenced table to the table whose rows its writes update or delete
-    const references = definition.constraints(dialect).flatMap((constraint) => {
-        const isWriting =
-            constraint.kind === "foreignKey" &&
-            [constraint.actions.onDelete, constraint.actions.onUpdate].some(
-                (action) => action !== undefined && WRITING_ACTIONS.has(action),
-            );
+    // write the referencing rows a referenced table's deletes and updates write
+    const references = definition.constraints(dialect).flatMap((constraint): CascadeLink[] => {
+        if (constraint.kind !== "foreignKey") {
+            return [];
+        }
+        const { onDelete, onUpdate } = constraint.actions;
+        const deleting: CascadeLink[] =
+            onDelete !== undefined && WRITING_ACTIONS.has(onDelete)
+                ? [
+                      {
+                          written: constraint.references,
+                          operations: ["DELETE"],
+                          changed: definition.sqlName,
+                          operation: onDelete === "cascade" ? "DELETE" : "UPDATE",
+                      },
+                  ]
+                : [];
+        const updating: CascadeLink[] =
+            onUpdate !== undefined && WRITING_ACTIONS.has(onUpdate)
+                ? [
+                      {
+                          written: constraint.references,
+                          operations: ["UPDATE"],
+                          changed: definition.sqlName,
+                          operation: "UPDATE",
+                      },
+                  ]
+                : [];
 
-        return isWriting ? [[constraint.references, definition.sqlName] as const] : [];
+        return [...deleting, ...updating];
     });
 
-    return [...aggregates, ...dependents, ...references];
+    // keep a tree's ancestors at every write of its nodes
+    const tree: CascadeLink[] =
+        definition.tree === undefined
+            ? []
+            : [
+                  {
+                      written: definition.sqlName,
+                      operations: WRITE_OPERATIONS,
+                      changed: definition.tree.ancestors[TABLE].sqlName,
+                      operation: "DELETE",
+                  },
+              ];
+
+    return [...aggregates, ...dependents, ...references, ...tree];
 }
 
 /** Require distinct SQL names across a database's tables and their indexes and keys. */

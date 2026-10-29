@@ -1,6 +1,6 @@
 import type { TransactionState } from "./transaction.ts";
 import type { ReadCache } from "../log/cache.ts";
-import type { ConnectionState } from "./connection.ts";
+import type { ConnectionState, WriteOperation } from "./connection.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DriverStatement } from "../sql/index.ts";
@@ -118,7 +118,9 @@ export class DatabaseDriver {
         // cascade the written tables, every table for unknown ones
         const { tables } = statement;
         const written =
-            tables.length === 0 ? new Set(this.state.cascades.keys()) : this.#cascade(tables);
+            tables.length === 0
+                ? new Set(this.state.declared.keys())
+                : this.state.cascade(tables, writeOperation(statement));
 
         // stamp a write that may log, of tables with triggers or of unknown tables
         const logged = this.state.logged(written);
@@ -144,9 +146,14 @@ export class DatabaseDriver {
         scripted: ReadonlySet<string>,
         statement?: DriverStatement,
     ): Promise<Value> {
-        // record the tables in the enclosing transaction
+        // record the tables in the enclosing transaction, marking a replica's write that derives rows first
         const transaction = this.transaction;
         if (transaction !== undefined) {
+            const mark = transaction.replicaMark;
+            if (mark !== undefined && this.#isDerived([...tables, ...scripted], statement)) {
+                transaction.replicaMark = undefined;
+                await mark();
+            }
             const result = await this.run(operation, statement);
             for (const table of tables) {
                 transaction.written.add(table);
@@ -253,22 +260,17 @@ export class DatabaseDriver {
         return structuredClone(rows);
     }
 
-    /** List the tables writes to some tables change, through triggers and referential actions. */
-    #cascade(tables: readonly string[]): Set<string> {
-        const written = new Set<string>();
-        for (const table of tables) {
-            // add a declared table's cascade, and only an undeclared table
-            const cascade = this.state.cascades.get(table);
-            if (cascade === undefined) {
-                written.add(table);
-            } else {
-                for (const changed of cascade) {
-                    written.add(changed);
-                }
-            }
-        }
+    /** Decide whether a write fires derivations, dependents only on deletes. */
+    #isDerived(tables: readonly string[], statement: DriverStatement | undefined): boolean {
+        const { aggregated, dependent, declared, unlogged } = this.state;
+        const isDeleting = writeOperation(statement) === "DELETE";
 
-        return written;
+        return tables.some(
+            (table) =>
+                aggregated.has(table) ||
+                (isDeleting && dependent.has(table)) ||
+                (!declared.has(table) && !unlogged.has(table)),
+        );
     }
 
     /** Run a write stamped in its transaction, refusing a logged write outside one. */
@@ -316,6 +318,13 @@ async function failing<Value>(
             cause: error,
         });
     }
+}
+
+/** Read a statement's write operation, a delete for an unknown one, as it cascades furthest. */
+function writeOperation(statement: DriverStatement | undefined): WriteOperation {
+    const operation = statement?.operation;
+
+    return operation === "INSERT" || operation === "UPDATE" ? operation : "DELETE";
 }
 
 /** Encode a cached read's parameters as a key, bigints apart from strings. */

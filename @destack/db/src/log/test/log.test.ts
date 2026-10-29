@@ -267,6 +267,29 @@ test("preserve the latest sequence once compaction removes every change", async 
     ]).toEqual([latest, latest, latest]);
 });
 
+test("compact once a change leaves the window, answering when compacting is next due", async () => {
+    const { database, clock } = await open();
+    const window = 60_000;
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
+    const logged = clock.now();
+
+    // compact at once, wait without statements until the change is older than the window, then remove it, none left
+    const counted = async (due: number, now: number) => {
+        const before = database.state.statements;
+        const next = await database.log.compactIfDue(window, due, now);
+
+        return { next, statements: database.state.statements - before };
+    };
+    const compacted = await counted(0, logged);
+    const waiting = await counted(compacted.next, logged + window);
+    const due = await counted(compacted.next, logged + window + 1);
+    expect({ compacted, waiting, due }).toEqual({
+        compacted: { next: logged + window, statements: 2 },
+        waiting: { next: logged + window, statements: 0 },
+        due: { next: logged + 2 * window + 1, statements: 7 },
+    });
+});
+
 test("read one scope's changes with the rows before and after them", async () => {
     const { database } = await open();
     await database.transaction((transaction) => transaction.insert(note).values(first).execute());

@@ -27,7 +27,8 @@ test("compact once the oldest windowed change leaves the window, and a week on w
     const dayLater = await compaction.reconcile();
     clock.set(clock.now() + WEEK_MILLISECONDS);
     const compacted = await compaction.reconcile();
-    expect({ empty, dayLater, compacted, oldest: await database.log.oldestWindowed() }).toEqual({
+    const oldest = await database.log.compact(clock.now(), clock.now());
+    expect({ empty, dayLater, compacted, oldest }).toEqual({
         empty: WEEK_MILLISECONDS,
         dayLater: WEEK_MILLISECONDS - 24 * 60 * 60_000,
         compacted: WEEK_MILLISECONDS,

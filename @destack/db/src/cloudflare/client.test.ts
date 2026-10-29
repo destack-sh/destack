@@ -2,6 +2,7 @@ import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
 import { modulePlugin } from "@destack/package/vite";
+import { ModuleTransformer } from "@destack/package/transform";
 import { rolldown } from "rolldown";
 import { testHost } from "@destack/test/host";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -14,7 +15,7 @@ async function start(): Promise<Miniflare> {
         platform: "browser",
         resolve: { conditionNames: ["workerd", "worker", "browser"] },
         external: [/^node:/u, /^cloudflare:/u],
-        plugins: [modulePlugin(testHost().files)],
+        plugins: [modulePlugin(new ModuleTransformer(testHost().files))],
     });
     const { output } = await bundle.generate({ format: "esm" });
     const [chunk] = output;

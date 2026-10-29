@@ -35,9 +35,8 @@ export class CompactionController implements ReconcileController {
     async reconcile(): Promise<number> {
         // drop the changes older than the window, then read the oldest left
         const now = this.#clock.now();
-        const { log } = this.#database;
-        await log.compact(now - CHANGE_WINDOW_MILLISECONDS, now);
-        const oldest = (await log.oldestWindowed()) ?? now;
+        const oldest =
+            (await this.#database.log.compact(now - CHANGE_WINDOW_MILLISECONDS, now)) ?? now;
 
         return Math.max(oldest + CHANGE_WINDOW_MILLISECONDS - now, RETRY_MILLISECONDS);
     }

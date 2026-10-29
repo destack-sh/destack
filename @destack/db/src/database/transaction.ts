@@ -17,6 +17,8 @@ export class TransactionState {
     readonly scripted: Set<string>;
     /** The outermost transaction's log identity, stamped at its first write. */
     readonly identity: TransactionIdentity;
+    /** Mark the writes a replica's before the first that derives rows, absent once marked. */
+    replicaMark: (() => Promise<unknown>) | undefined = undefined;
 
     /** Create the state, recording its writes and identity as the outermost transaction's. */
     constructor(

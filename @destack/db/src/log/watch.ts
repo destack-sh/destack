@@ -10,9 +10,9 @@ export class CommitWatch {
     /** The channel other writers announce their commits on, absent for a sole writer. */
     readonly #channel: Channel<Commit> | undefined;
     /** The SQL names of the tables whose commits the database announces inside the commit. */
-    readonly #announced: ReadonlySet<string>;
+    readonly #announced: Set<string>;
     /** The SQL names of every declared table, which a commit of unknown tables lists. */
-    readonly #tables: readonly string[];
+    readonly #tables: Set<string>;
     /** The SQL names of the tables without change triggers, which write no log entries. */
     readonly #unlogged: ReadonlySet<string>;
     /** The version each table's cached reads are valid at, by SQL name. */
@@ -47,20 +47,13 @@ export class CommitWatch {
     readonly #own = new Set<string>();
 
     /** Watch the commits announced on a channel, or only this connection's without one. */
-    constructor(
-        channel: Channel<Commit> | undefined,
-        announced: ReadonlySet<string>,
-        tables: readonly string[],
-        unlogged: ReadonlySet<string>,
-    ) {
-        // store the channel, the tables the database announces, the declared and the unlogged tables
+    constructor(channel: Channel<Commit> | undefined, unlogged: ReadonlySet<string>) {
+        // store the channel and the unlogged tables, versioning the log's tables from the start
         this.#channel = channel;
-        this.#announced = announced;
-        this.#tables = tables;
+        this.#announced = new Set();
+        this.#tables = new Set();
         this.#unlogged = unlogged;
-
-        // version every declared and log table from the watch's start
-        this.#versions = new Map([...tables, ...LOG_TABLES].map((table) => [table, 0]));
+        this.#versions = new Map(LOG_TABLES.map((table) => [table, 0]));
 
         // receive a sole writer's commits at once, and other writers' once listening
         const { promise, resolve, reject } = Promise.withResolvers<void>();
@@ -96,6 +89,20 @@ export class CommitWatch {
     /** Whether the watch receives every commit: a sole writer's, or a channel's while delivered. */
     get isComplete(): boolean {
         return this.#channel === undefined || (this.#isListening && this.#failure === undefined);
+    }
+
+    /** Watch declared tables from now on, some of whose commits the database announces itself. */
+    declare(tables: readonly string[], announced: readonly string[]): void {
+        // version each new table at the current version, as no read of it is cached yet
+        for (const table of tables) {
+            this.#tables.add(table);
+            if (!this.#versions.has(table)) {
+                this.#versions.set(table, this.#version);
+            }
+        }
+        for (const table of announced) {
+            this.#announced.add(table);
+        }
     }
 
     /** Read the generation of the latest commit received writing each of some versioned tables. */
@@ -229,7 +236,7 @@ export class CommitWatch {
     catchUp(position: Omit<LogPosition, "log">, tables: readonly string[] | "every"): void {
         // take the position, then wake the written tables and the log's, waking nobody without any
         this.#caughtUp = position;
-        const written = tables === "every" ? this.#tables : tables;
+        const written = tables === "every" ? [...this.#tables] : tables;
         if (written.length > 0) {
             this.#advance(written, [...written, ...LOG_TABLES]);
         }
@@ -247,7 +254,7 @@ export class CommitWatch {
 
     /** Wake the readers of tables here, versioning them, and the log's after a logged write. */
     #wake(tables: readonly string[] | "every"): void {
-        const woken = tables === "every" ? this.#tables : tables;
+        const woken = tables === "every" ? [...this.#tables] : tables;
         const isLogged = woken.some((table) => !this.#unlogged.has(table));
         this.#advance(woken, isLogged ? [...woken, ...LOG_TABLES] : woken);
     }

@@ -1,6 +1,6 @@
 import type { DatabaseConnection } from "../database/index.ts";
 import { DatabaseError } from "../error/index.ts";
-import { Lock } from "../limit/index.ts";
+import { Lock, lock } from "../limit/index.ts";
 import type { Tracker } from "../tracker/index.ts";
 import { type Change, ReadSet, Snapshot } from "../log/index.ts";
 import { TABLE, type Table } from "../table/index.ts";
@@ -137,6 +137,9 @@ interface Work {
 
 /** Run controllers over one database. */
 export class ControlLoop {
+    /** The tables a loop keeps beside its controllers' on a shared database: their locks. */
+    static readonly tables: readonly Table[] = [lock];
+
     /** The database with the log that selects keys. */
     readonly database: DatabaseConnection;
     /** The controllers run. */

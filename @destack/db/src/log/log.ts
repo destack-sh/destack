@@ -466,16 +466,30 @@ export class Log {
 
     /** Write as a replica: log the rows a source already derived, deriving nothing again. */
     async asReplica<Value>(run: () => Promise<Value>): Promise<Value> {
-        // mark the open transaction as a replica's
-        if (!this.database.driver.transaction) {
+        // require an open transaction
+        const transaction = this.database.driver.transaction;
+        if (transaction === undefined) {
             throw new TypeError("cannot write as a replica outside a transaction");
         }
-        const marker = sql.relation(LOG_REPLICA);
-        await this.database.run(sql`INSERT INTO ${marker} (slot) VALUES (1)`);
-        const result = await run();
-        await this.database.run(sql`DELETE FROM ${marker} WHERE slot = 1`);
 
-        return result;
+        // mark the transaction as a replica's at its first write that derives rows
+        const marker = sql.relation(LOG_REPLICA);
+        let isMarked = false;
+        transaction.replicaMark = async () => {
+            isMarked = true;
+            await this.database.run(sql`INSERT INTO ${marker} (slot) VALUES (1)`);
+        };
+        try {
+            // run the writes, then unmark a marked transaction
+            const result = await run();
+            if (isMarked) {
+                await this.database.run(sql`DELETE FROM ${marker} WHERE slot = 1`);
+            }
+
+            return result;
+        } finally {
+            transaction.replicaMark = undefined;
+        }
     }
 
     /** Block the log's other commits until this transaction ends. */
@@ -774,21 +788,22 @@ export class Log {
         await this.database.run(sql`DELETE FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`);
     }
 
-    /** Delete old windowed changes no slot retains, and advance the horizon. */
-    async compact(before: number, now: number): Promise<void> {
-        await this.database.transaction(async (transaction) => {
-            // find the newest removable change
+    /** Delete old windowed changes no slot retains, answering when the oldest one left was made. */
+    async compact(before: number, now: number): Promise<number | undefined> {
+        return await this.database.transaction(async (transaction) => {
+            // find the newest removable change and the oldest windowed one
             const log = sql.relation(LOG);
             const [newestRow] = await transaction.all(sql`
-                SELECT max(sequence) AS sequence
+                SELECT
+                    max(CASE WHEN changed_at < ${before} THEN sequence END) AS sequence,
+                    min(changed_at) AS "changedAt"
                 FROM ${log}
-                WHERE retention = 'window'
-                    AND changed_at < ${before}
-                    AND sequence IS NOT NULL
+                WHERE retention = 'window' AND sequence IS NOT NULL
             `);
             const newest = LogColumn.nullableInteger(newestRow?.["sequence"]);
+            const oldest = LogColumn.nullableInteger(newestRow?.["changedAt"]) ?? undefined;
             if (newest === null) {
-                return;
+                return oldest;
             }
 
             // retain the changes after the earliest live slot
@@ -803,7 +818,7 @@ export class Log {
             };
             const cap = retained.sequence === null ? newest : Math.min(newest, retained.sequence);
             if (cap <= retained.horizon) {
-                return;
+                return oldest;
             }
 
             // stop before a split transaction
@@ -827,18 +842,29 @@ export class Log {
                 UPDATE ${sql.relation(LOG_HORIZON)} SET sequence = ${sequence}
                 WHERE slot = 1 AND sequence < ${sequence}
             `);
+
+            // read when the oldest windowed change left was made
+            const [oldestRow] = await transaction.all(sql`
+                SELECT min(changed_at) AS "changedAt"
+                FROM ${log}
+                WHERE retention = 'window' AND sequence IS NOT NULL
+            `);
+
+            return LogColumn.nullableInteger(oldestRow?.["changedAt"]) ?? undefined;
         });
     }
 
-    /** Read when the oldest windowed change still logged was made, absent with none. */
-    async oldestWindowed(): Promise<number | undefined> {
-        const [row] = await this.database.all(sql`
-            SELECT min(changed_at) AS "changedAt"
-            FROM ${sql.relation(LOG)}
-            WHERE retention = 'window' AND sequence IS NOT NULL
-        `);
+    /** Compact once due, answering the moment after which compacting is due again. */
+    async compactIfDue(window: number, due: number, now: number): Promise<number> {
+        // wait until past due, when the oldest change is older than the window
+        if (now <= due) {
+            return due;
+        }
 
-        return LogColumn.nullableInteger(row?.["changedAt"]) ?? undefined;
+        // compact, then wait for the oldest change left to leave the window, else a whole window
+        const oldest = await this.compact(now - window, now);
+
+        return oldest !== undefined && oldest + window >= now ? oldest + window : now + window;
     }
 
     /** Read the positions and times of a change's transaction. */
