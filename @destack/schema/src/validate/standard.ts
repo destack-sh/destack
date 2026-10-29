@@ -31,6 +31,20 @@ export interface StandardIssue {
     readonly path?: readonly (PropertyKey | { readonly key: PropertyKey })[] | undefined;
 }
 
+/** Describe validation issues, each as its path and its lowercase message. */
+export function describeIssues(issues: readonly StandardIssue[]): string {
+    const described = issues.map((issue) => {
+        const path = (issue.path ?? [])
+            .map((key) => String(typeof key === "object" ? key.key : key))
+            .join(".");
+        const message = issue.message.charAt(0).toLowerCase() + issue.message.slice(1);
+
+        return path === "" ? message : `${path}: ${message}`;
+    });
+
+    return described.join("; ");
+}
+
 /** Validate a Standard Schema validator: its protocol version, vendor and validate function. */
 export function standard(): z.ZodType<StandardSchema> {
     return z.custom<StandardSchema>((value) => {

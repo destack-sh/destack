@@ -88,6 +88,7 @@ export { isOptional } from "./optional.ts";
 export { anyIdentifier, identifier } from "../identifier/identifier.ts";
 export { json, jsonObject } from "./json.ts";
 export {
+    describeIssues,
     standard,
     type StandardIssue,
     type StandardProperties,
