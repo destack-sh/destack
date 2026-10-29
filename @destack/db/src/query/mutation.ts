@@ -254,14 +254,17 @@ export class MutationQuery<
     async #retire(): Promise<void> {
         // retire every blob column of deleted rows, and the written or conditioned ones of updated rows
         const { driver, table, operation, changes, where } = this.state;
-        const blobs = table[TABLE].entries.filter(
-            ([property, column]) =>
-                column.definition.blob !== undefined &&
+        const blobs = table[TABLE].entries.filter(([property, column]) => {
+            const options = column.definition.blob;
+
+            return (
+                options !== undefined &&
                 (operation === "delete" ||
                     (operation === "update" &&
                         (Object.hasOwn(changes, property) ||
-                            column.definition.blob.while !== undefined))),
-        );
+                            (options.onDelete !== "cascade" && options.while !== undefined))))
+            );
+        });
         if (blobs.length === 0) {
             return;
         }

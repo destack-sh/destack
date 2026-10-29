@@ -319,13 +319,20 @@ export function text(name: string): ColumnBuilder<ColumnDefinitionOf<string, "te
     return scalarColumn(name, "text", TEXT_TYPES, schema.string());
 }
 
-/** What keeps a blob column's blobs alive: the row, while a condition on its fields holds. */
-export interface BlobOptions {
-    /** The condition on the row's fields, such as being unexpired, absent for always. */
-    readonly while?: Condition;
-}
+/** What a blob column's row does as its blob is deleted, as SQL's ON DELETE. */
+export type BlobOptions =
+    | {
+          /** Keep the blob alive while the row has it, the default. */
+          readonly onDelete?: "restrict";
+          /** The condition on the row's fields, such as being unexpired, absent for always. */
+          readonly while?: Condition;
+      }
+    | {
+          /** Delete the row with its blob, never keeping the blob alive. */
+          readonly onDelete: "cascade";
+      };
 
-/** Define the digest of a blob in the partition's blob store, kept alive by the row. */
+/** Define the digest of a blob in the partition's blob store, kept alive unless it cascades. */
 export function blob(name: string, options: BlobOptions = {}) {
     const column = text(name).validate(Digest);
 
@@ -333,7 +340,7 @@ export function blob(name: string, options: BlobOptions = {}) {
 }
 
 /** Define the digests of blobs in the partition's blob store, kept alive by the row. */
-export function blobs(name: string, options: BlobOptions = {}) {
+export function blobs(name: string, options: Extract<BlobOptions, { onDelete?: "restrict" }> = {}) {
     const column = json(name, schema.array(Digest));
 
     return new ColumnBuilder({ ...column.definition, blob: options });

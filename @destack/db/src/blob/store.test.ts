@@ -25,11 +25,25 @@ const attachment = defineTable("attachment", {
     renditions: blobs("renditions").notNull().default([]),
 });
 
-/** Open a blob store over memory storage and a test database with an attachments table. */
+/** Bundles of blobs, each record describing its bundle's own blob and going with it. */
+const bundle = defineTable("bundle", {
+    /** The bundle's blob. */
+    digest: blob("digest", { onDelete: "cascade" }).primaryKey(),
+});
+
+/** The blobs each bundle lists: files, or other bundles. */
+const member = defineTable("member", {
+    /** The listing bundle, whose deletion takes the row. */
+    bundle: blob("bundle", { onDelete: "cascade" }).primaryKey(),
+    /** The listed blob, kept while the row lasts. */
+    digest: blob("digest").primaryKey(),
+});
+
+/** Open a blob store over memory storage and a test database with attachments and bundles. */
 async function openBlobs() {
     const simulation = new Simulation({ seed: 1, start: START });
     const environment = simulation.environment("bucket");
-    const opened = await TestDatabase.create([attachment, ...BLOB_TABLES], {
+    const opened = await TestDatabase.create([attachment, bundle, member, ...BLOB_TABLES], {
         environment,
         isMigrated: true,
     });
@@ -134,4 +148,35 @@ test("keep the blobs a JSON array column lists, and delete one once no row lists
         kept: [],
         missing: [large],
     });
+});
+
+test("delete a bundle no row keeps with its records, then the bundles and files only it listed, in one collection", async () => {
+    // record an outer bundle listing a file and an inner bundle, which lists itself and a file an attachment shares
+    const { simulation, environment, store, storage, database } = await openBlobs();
+    const [outer, inner, own, shared] = [
+        await put(store, "outer", environment.crypto),
+        await put(store, "inner", environment.crypto),
+        await put(store, "own", environment.crypto),
+        await put(store, "shared", environment.crypto),
+    ];
+    await database.transaction(async (transaction) => {
+        await transaction.insert(bundle).values([{ digest: outer }, { digest: inner }]);
+        await transaction.insert(member).values([
+            { bundle: outer, digest: own },
+            { bundle: outer, digest: inner },
+            { bundle: inner, digest: shared },
+            { bundle: inner, digest: inner },
+        ]);
+        await transaction.insert(attachment).values({ id: "a", file: shared });
+    });
+
+    // collect past the leases, where only the attachment and the bundles' own leases kept anything
+    simulation.clock.advance(LEASE_MILLISECONDS);
+    await store.collect();
+    const digests = [outer, inner, own, shared];
+    expect({
+        missing: await storage.missing(digests),
+        bundles: await database.select().from(bundle),
+        members: await database.select().from(member),
+    }).toEqual({ missing: [outer, inner, own], bundles: [], members: [] });
 });

@@ -119,26 +119,58 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> {
             });
         }
 
-        // delete each retired blob still unreferenced under its row's lock, so a leasing writer waits
-        const retired = await this.database
-            .select({ digest: blobGarbage.digest })
-            .from(blobGarbage);
-        const digests = retired.map(({ digest }) => digest);
-        for (let start = 0; start < digests.length; start += BATCH_DIGESTS) {
-            const batch = digests.slice(start, start + BATCH_DIGESTS);
-            await this.database.transaction(async (transaction) => {
-                const taken = await transaction
-                    .delete(blobGarbage)
-                    .where(inArray(blobGarbage.digest, batch))
-                    .returning({ digest: blobGarbage.digest });
-                for (const digest of await this.#unreferenced(transaction, taken, now)) {
-                    await this.storage.delete(digest);
-                }
-            });
+        // delete retired blobs until none is left, as deleting one's cascading rows retires what they kept
+        const cascading = this.#blobColumns("cascade");
+        for (
+            let retired = await this.#retired();
+            retired.length > 0;
+            retired = await this.#retired()
+        ) {
+            for (let start = 0; start < retired.length; start += BATCH_DIGESTS) {
+                const batch = retired.slice(start, start + BATCH_DIGESTS);
+                await this.#delete(batch, cascading, now);
+            }
         }
 
         // look again once the next lease ends
         return this.nextLeaseEnd(now);
+    }
+
+    /** List the retired blobs. */
+    async #retired(): Promise<Digest[]> {
+        const rows = await this.database.select({ digest: blobGarbage.digest }).from(blobGarbage);
+
+        return rows.map(({ digest }) => digest);
+    }
+
+    /** Delete each of some retired blobs still unreferenced, with the rows cascading from it. */
+    async #delete(
+        batch: readonly Digest[],
+        cascading: readonly { readonly table: Table; readonly column: Column }[],
+        now: number,
+    ): Promise<void> {
+        await this.database.transaction(async (transaction) => {
+            // take the batch under its rows' lock, so a leasing writer waits, and keep the unreferenced blobs
+            const taken = await transaction
+                .delete(blobGarbage)
+                .where(inArray(blobGarbage.digest, batch))
+                .returning({ digest: blobGarbage.digest });
+            const unreferenced = await this.#unreferenced(transaction, taken, now);
+            if (unreferenced.length === 0) {
+                return;
+            }
+
+            // delete the rows cascading from them, which retires what those rows kept, and not the blobs again
+            for (const { table, column } of cascading) {
+                await transaction.delete(table).where(inArray(column, unreferenced));
+            }
+            await transaction.delete(blobGarbage).where(inArray(blobGarbage.digest, unreferenced));
+
+            // delete the blobs
+            for (const digest of unreferenced) {
+                await this.storage.delete(digest);
+            }
+        });
     }
 
     /** Read when the next lease ending after a moment ends, absent without one. */
@@ -173,58 +205,63 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> {
         if (digests.length === 0) {
             return [];
         }
-        const rows = await transaction.all(this.referenced(now, { among: digests }));
+        const rows = await transaction.all(this.referenced(now, digests));
         const referenced = new Set(rows.map((row) => DigestRow.parse(row).digest));
 
         return digests.filter((digest) => !referenced.has(digest));
     }
 
     /** Select the digests the partition's blob columns and live leases reference, as `digest`. */
-    referenced(
-        now: number,
-        options: {
-            /** The digests to look for, absent for all. */
-            readonly among?: readonly Digest[];
-            /** The tables whose blob columns to leave out, such as a store's own edges. */
-            readonly except?: readonly Table[];
-        } = {},
-    ): SQL {
-        // select from each blob column and the live leases, among the digests when given
-        const { among, except = [] } = options;
+    referenced(now: number, among?: readonly Digest[]): SQL {
+        // select from each restricting blob column and the live leases, among the digests when given
         const within = (column: SQL | Column) =>
             among === undefined ? sql.empty() : sql`AND ${column} IN ${among}`;
-        const references = this.#blobColumns()
-            .filter(({ table }) => !except.includes(table))
-            .map(({ table, column }) => {
-                // reference the blob only while the column's condition holds for the row
-                const condition = column.definition.blob?.while;
-                const holds =
-                    condition === undefined
-                        ? sql.empty()
-                        : sql`AND (${Condition.render(condition, table)})`;
+        const cascading = this.#blobColumns("cascade");
+        const references = this.#blobColumns("restrict").map(({ table, column }) => {
+            // reference the blob only while the column's condition holds for the row
+            const options = column.definition.blob;
+            const condition = options?.onDelete === "cascade" ? undefined : options?.while;
+            const holds =
+                condition === undefined
+                    ? sql.empty()
+                    : sql`AND (${Condition.render(condition, table)})`;
 
-                // reference a scalar column's digest, or each digest of a JSON array column
-                if (column.definition.kind !== "json") {
-                    return sql`SELECT ${column} AS digest FROM ${table}
-                        WHERE ${column} IS NOT NULL ${holds} ${within(column)}`;
-                }
-                const element = sql.raw("element.value");
+            // never keep alive the blob the row cascades from, as a build attached to itself
+            const owners = cascading.filter((each) => each.table === table);
+            const others = (digest: SQL | Column) =>
+                sql.join(
+                    owners.map((owner) => sql`AND ${digest} <> ${owner.column}`),
+                    sql` `,
+                );
 
-                return sql`SELECT ${element} AS digest FROM ${table}, ${textElements(column, "element")}
-                    WHERE ${column} IS NOT NULL ${holds} ${within(element)}`;
-            });
+            // reference a scalar column's digest, or each digest of a JSON array column
+            if (column.definition.kind !== "json") {
+                return sql`SELECT ${column} AS digest FROM ${table}
+                        WHERE ${column} IS NOT NULL ${holds} ${others(column)} ${within(column)}`;
+            }
+            const element = sql.raw("element.value");
+
+            return sql`SELECT ${element} AS digest FROM ${table}, ${textElements(column, "element")}
+                    WHERE ${column} IS NOT NULL ${holds} ${others(element)} ${within(element)}`;
+        });
         const leased = sql`SELECT ${blobLease.digest} AS digest FROM ${blobLease}
             WHERE ${blobLease.until} > ${now} ${within(blobLease.digest)}`;
 
         return sql.join([...references, leased], sql` UNION `);
     }
 
-    /** List the blob columns of the partition's tables, each with its table. */
-    #blobColumns(): { readonly table: Table; readonly column: Column }[] {
+    /** List the blob columns doing one thing on delete, each with its table. */
+    #blobColumns(
+        onDelete: "restrict" | "cascade",
+    ): { readonly table: Table; readonly column: Column }[] {
         return this.database.tables.flatMap((table) =>
             Object.values(table[TABLE].columns)
                 .filter((column): column is Column => Column.is(column))
-                .filter((column) => column.definition.blob !== undefined)
+                .filter((column) => {
+                    const options = column.definition.blob;
+
+                    return options !== undefined && (options.onDelete ?? "restrict") === onDelete;
+                })
                 .map((column) => ({ table, column })),
         );
     }
