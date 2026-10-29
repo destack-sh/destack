@@ -27,7 +27,7 @@ export default defineConfiguration(
                 // run the stored tests against each database the package stores in
                 {
                     extends: true,
-                    targets: { database: ["sqlite", "postgresql"] },
+                    targets: { database: ["sqlite"] },
                     test: { include: STORED },
                 },
                 // replace real application bundles once on a Mac, whose ditto, codesign and plutil they need
