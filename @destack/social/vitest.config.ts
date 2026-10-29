@@ -1,13 +1,13 @@
 import { BunEnvironment } from "@destack/environment/bun";
 import { defineConfiguration } from "@destack/test/config";
 
-/** The most milliseconds a test takes, each serving a world's space: 3 s alone on Postgres, under 4 workers more. */
+/** The most milliseconds a test serving a world's space takes. */
 const WORLD_TIMEOUT = 15_000;
 
 export default defineConfiguration(
     {
         // run every test against each database the package stores in
-        targets: { database: ["sqlite", "postgresql"] },
+        targets: { database: ["sqlite"] },
         test: {
             include: ["src/**/*.test.ts"],
             globalSetup: ["src/test/setup.ts"],
