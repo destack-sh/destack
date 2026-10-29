@@ -1,46 +1,35 @@
 import type { Plugin } from "vite";
-import type { FileSystem } from "@destack/environment";
-import type { Version } from "@destack/schema";
-import { PackageLocator } from "../locator/index.ts";
-import { transformModule } from "../transform/transform.ts";
+import {
+    DECLARED_MODULE,
+    DECLARED_PASSTHROUGH,
+    type ModuleTransformer,
+} from "../transform/transform.ts";
 
-/** Inject module metadata while Vite loads package sources from files, at a build's versions. */
-export function modulePlugin(
-    files: FileSystem,
-    versions: Readonly<Record<string, Version>> = {},
-): Plugin {
-    let packages = new PackageLocator(files, versions);
+/** The resolved id of the declaration recorder, a pass-through outside evaluation. */
+const DECLARED_ID = `\0${DECLARED_MODULE}`;
 
+/** Inject module metadata while Vite loads package sources, each module stamped once per build. */
+export function modulePlugin(transformer: ModuleTransformer): Plugin {
     return {
         name: "destack-module",
         enforce: "pre",
-        buildStart() {
-            // read package definitions afresh for each build of a warm builder
-            packages = new PackageLocator(files, versions);
+        resolveId(specifier) {
+            return specifier === DECLARED_MODULE ? DECLARED_ID : null;
+        },
+        load(id) {
+            return id === DECLARED_ID ? DECLARED_PASSTHROUGH : null;
         },
         transform: {
             filter: { id: /\.[cm]?tsx?$/u },
             async handler(code, id) {
-                // leave virtual modules and files outside Destack packages unchanged
+                // leave virtual modules unchanged, and stamp the others once per text
                 const query = id.indexOf("?");
                 const path = query === -1 ? id : id.slice(0, query);
                 if (id.startsWith("\0")) {
                     return;
                 }
-                const owner = await packages.find(path);
-                if (!owner) {
-                    return;
-                }
 
-                // stamp declarations with a full map
-                const result = await transformModule(code, path, owner, packages);
-
-                return (
-                    result && {
-                        code: result.code,
-                        map: result.source.generateMap({ source: path, hires: true }),
-                    }
-                );
+                return await transformer.transform(code, path);
             },
         },
     };

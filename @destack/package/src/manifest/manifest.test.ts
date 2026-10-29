@@ -24,13 +24,14 @@ const FIELDS = {
             size: 2,
             mediaType: "application/json",
         },
-        graph: {
-            path: "manifest/graph.json",
+        declarations: {
+            path: "manifest/declarations.json",
             digest: "0".repeat(64),
             size: 2,
             mediaType: "application/json",
         },
     },
+    interface: "0".repeat(64),
     outputs: {},
 } as const;
 

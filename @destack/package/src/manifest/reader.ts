@@ -1,10 +1,9 @@
 import type { Crypto, FileSystem } from "@destack/environment";
-import { Digest, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
 import { DependencyResolution } from "../definition/dependency.ts";
 import type { PackageRelease } from "../definition/package.ts";
 import { SourceMapReference } from "../source/map.ts";
-import { Module, Root } from "../graph/module.ts";
 import { Declaration } from "../graph/declaration.ts";
 import { PackageError } from "../error/index.ts";
 import type { DeclarationName, PackageId } from "../definition/package.ts";
@@ -25,10 +24,8 @@ export class BuildReader {
     readonly #files = new Once<readonly PackageFile[]>();
     /** The source map list, read once. */
     readonly #sourceMaps = new Once<readonly SourceMapReference[]>();
-    /** The graph's index root, read once. */
-    readonly #graph = new Once<Root>();
-    /** The graph file of each module, read once. */
-    readonly #modules = new Once<readonly Module[]>();
+    /** The declarations, read once. */
+    readonly #declarations = new Once<readonly Declaration[]>();
     /** The listed files by path, read once. */
     readonly #listed = new Once<ReadonlyMap<string, PackageFile>>();
     /** The crypto verifying the files' digests. */
@@ -116,11 +113,7 @@ export class BuildReader {
 
     /** List the files the manifest lists directly. */
     references(): PackageFile[] {
-        // collect the lists and the upgrade
-        const manifest = this.manifest;
-        const upgrade = manifest.upgrade ? [manifest.upgrade.file] : [];
-
-        return [...Object.values(manifest.lists), ...upgrade];
+        return Object.values(this.manifest.lists);
     }
 
     /** Collect all distributed file records for complete downloads and verification. */
@@ -128,39 +121,13 @@ export class BuildReader {
         return [...this.references(), ...(await this.files())];
     }
 
-    /** Read the index root of the build's graph. */
-    graph(): Promise<Root> {
-        return this.#graph.get(() => this.read(this.manifest.lists.graph, Root));
-    }
-
-    /** Read one module's graph file by its digest. */
-    async module(digest: Digest): Promise<Module> {
-        // verify the content address before parsing the file
-        const path = `graph/${digest}.json`;
-        const bytes = new Uint8Array(await new Response(await this.stream(path)).arrayBuffer());
-        if ((await Digest.of(bytes, this.#crypto)) !== digest) {
-            throw PackageError.of("FILE_INVALID", `file digest mismatch: ${path}`);
-        }
-
-        return Module.parse(decode(bytes));
-    }
-
-    /** Read every module's graph file once. */
-    modules(): Promise<readonly Module[]> {
-        return this.#modules.get(async () => {
-            const root = await this.graph();
-
-            return Promise.all(Object.values(root.modules).map((digest) => this.module(digest)));
-        });
-    }
-
-    /** Read the package's declarations from its graph, without the members they derive. */
+    /** Read the package's declarations, without the members they derive. */
     async declarations(): Promise<Declaration[]> {
-        const modules = await this.modules();
+        const listed = await this.#declarations.get(() =>
+            this.read(this.manifest.lists.declarations, schema.array(Declaration)),
+        );
 
-        return modules
-            .flatMap((module) => module.declarations)
-            .filter((declaration) => !Declaration.isMember(declaration));
+        return listed.filter((declaration) => !Declaration.isMember(declaration));
     }
 
     /** Read one kind's declarations from a package's constructors, parsing each description. */

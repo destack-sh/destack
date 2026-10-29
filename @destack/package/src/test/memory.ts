@@ -1,11 +1,10 @@
 import type { Crypto } from "@destack/environment";
-import { Digest, found } from "@destack/schema";
+import { found } from "@destack/schema";
 import type { Package } from "../definition/package.ts";
 import { Declaration } from "../graph/declaration.ts";
-import type { Module } from "../graph/module.ts";
 import { Moniker } from "../graph/moniker.ts";
 import { BuildReader } from "../manifest/reader.ts";
-import { type BuildContents, BuildWriter } from "../manifest/writer.ts";
+import { type BuildContent, BuildWriter } from "../manifest/writer.ts";
 
 /** The module declarations live in unless they name one, the package's entry. */
 const ENTRY_MODULE = "src/index.ts";
@@ -21,7 +20,7 @@ export const MemoryBuild = {
     /** Write a build into memory from its files by package path and what its manifest records. */
     async write(
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
-        contents: BuildContents,
+        contents: BuildContent,
         crypto: Crypto,
     ): Promise<BuildReader> {
         // write the files, then the format listing them
@@ -58,7 +57,7 @@ export const MemoryBuild = {
             readonly module?: string;
         })[],
         crypto: Crypto,
-        contents: Omit<BuildContents, "package" | "graph"> & {
+        contents: Omit<BuildContent, "package" | "declarations"> & {
             /** Further files by package path. */
             readonly files?: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
         } = {},
@@ -78,26 +77,16 @@ export const MemoryBuild = {
         }
 
         // write each declaring module, describing its declarations at their symbols
-        const graph: Module[] = [];
+        const declarations: Declaration[] = [];
         for (const [path, values] of Map.groupBy(
             declared,
             (value) => value.module ?? ENTRY_MODULE,
         )) {
-            const source = new TextEncoder().encode("export {};\n");
-            files.set(path, source);
-            const symbol = (name: string) =>
-                Moniker.of({ packageId: owner.id, module: path, name });
-            const names = [...new Set(values.map((value) => value.name))];
-            graph.push({
-                path,
-                digest: await Digest.of(source, crypto),
-                imports: [],
-                exports: names.map((name) => ({ name, symbol: symbol(name), isTypeOnly: false })),
-                declarations: values.map(({ module: _module, ...value }) =>
-                    Declaration.at(symbol(value.name), Declared.parse(value)),
-                ),
-                edges: [],
-            });
+            files.set(path, new TextEncoder().encode("export {};\n"));
+            for (const { module: _module, ...value } of values) {
+                const symbol = Moniker.of({ packageId: owner.id, module: path, name: value.name });
+                declarations.push(Declaration.at(symbol, Declared.parse(value)));
+            }
         }
 
         // record the package by its identity, name and version
@@ -105,7 +94,7 @@ export const MemoryBuild = {
 
         return await MemoryBuild.write(
             files,
-            { ...rest, package: { id, name, version }, graph },
+            { ...rest, package: { id, name, version }, declarations },
             crypto,
         );
     },

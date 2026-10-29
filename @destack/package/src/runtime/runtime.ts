@@ -19,8 +19,8 @@ export type ServerRuntime = schema.Infer<typeof ServerRuntime>;
 /** The runtime the toolchain runs on: Bun, which evaluates declarations and loads npm units. */
 export const HOST_RUNTIME = "bun" satisfies Runtime;
 
-/** The runtimes resolving imports from deployed files: Bun, unlike workerd's module list. */
-export const FILE_RESOLVING_RUNTIMES: ReadonlySet<Runtime> = new Set(["bun"]);
+/** The runtimes loading only the modules a deployment lists, which no computed import extends. */
+export const LISTED_MODULE_RUNTIMES: ReadonlySet<Runtime> = new Set(["workerd"]);
 
 /** The runtimes loading native addons: Bun, as workerd runs no native code. */
 export const NATIVE_ADDON_RUNTIMES: ReadonlySet<Runtime> = new Set(["bun"]);

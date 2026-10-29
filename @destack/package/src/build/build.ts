@@ -1,7 +1,6 @@
 import type { Environment } from "@destack/environment";
 import type { Manifest, Plugin, PluginOption } from "vite";
 import { type Digest, schema } from "@destack/schema";
-import type { ModuleDescription } from "../code/index.ts";
 import type { Sandbox } from "../definition/sandbox.ts";
 import type { Package } from "../definition/package.ts";
 import type { DeclarationDescription } from "../definition/declaration.ts";
@@ -98,8 +97,6 @@ export interface Pass {
     readonly mapSource: (source: string, map: string, generated: string) => string;
     /** Describe a Vite asset manifest by package paths instead of paths below a root. */
     readonly describeAssets: (manifest: Manifest, root: string) => Manifest;
-    /** Check the modules of an output against its runtime, all of them unless named. */
-    readonly check: (output: string, paths?: readonly string[]) => Promise<void>;
     /** Stage the package in a temporary directory that resolves its dependencies. */
     readonly stage: () => Promise<AsyncDisposable & { readonly directory: string }>;
     /** Keep a generated file in the build. */
@@ -124,8 +121,6 @@ export interface Compilation {
     readonly sandbox: Sandbox;
     /** The declarations of the package and of the dependencies its modules import. */
     readonly declarations: readonly DeclarationDescription[];
-    /** The package's inspected modules. */
-    readonly modules: readonly ModuleDescription[];
     /** Locate the module and export with one of the package's own declarations. */
     readonly locate: (declaration: DeclarationDescription) => DeclarationModule;
     /** Emit a module as a chunk the package exports under an entrypoint, such as `./view/notes`. */

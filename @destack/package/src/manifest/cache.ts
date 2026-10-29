@@ -10,7 +10,7 @@ export class BuildCache<Value> {
     readonly #read: (reader: BuildReader) => Promise<Value>;
     /** The most builds kept, the least recently read dropped first. */
     readonly #capacity: number;
-    /** The values read so far, by the digest of each build's graph, least recently read first. */
+    /** The values read so far, by each build's declarations digest, least recently read first. */
     readonly #values = new Map<Digest, Promise<Value>>();
 
     /** Keep the values a read takes from builds, up to a capacity of builds. */
@@ -19,10 +19,10 @@ export class BuildCache<Value> {
         this.#capacity = capacity;
     }
 
-    /** Read a build's value once per graph, reading it again after a failed read. */
+    /** Read a build's value once per declarations list, reading it again after a failed read. */
     read(reader: BuildReader): Promise<Value> {
         // keep a value read before as the most recent
-        const key = reader.manifest.lists.graph.digest;
+        const key = reader.manifest.lists.declarations.digest;
         const kept = this.#values.get(key);
         if (kept !== undefined) {
             this.#values.delete(key);

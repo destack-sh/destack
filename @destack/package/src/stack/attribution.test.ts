@@ -34,56 +34,58 @@ test("attribute an in-app frame to its innermost symbol and its declaration, lea
     const { crypto } = simulation.environment("test");
     const bytes = new TextEncoder().encode(SOURCE);
     const digest = await Digest.of(bytes, crypto);
+    const owner = { id: PACKAGE_ID, name: "@example/note", version: "2026.10.0" };
     const build = await MemoryBuild.write(
         new Map([["src/note.ts", bytes]]),
-        {
-            package: { id: PACKAGE_ID, name: "@example/note", version: "2026.10.0" },
-            graph: [
-                {
-                    path: "src/note.ts",
-                    digest,
-                    imports: [],
-                    exports: [],
-                    declarations: [
-                        {
-                            moniker: `${at("Note.rename")}:method`,
-                            symbol: at("Note"),
-                            kind: "method",
-                            kindPackageId: PACKAGE_ID,
-                            name: "rename",
-                            description: {},
-                        },
-                    ],
-                    edges: [],
-                },
-            ],
-        },
+        { package: owner },
         crypto,
     );
-    const rename = SOURCE.indexOf("    rename");
-    const attribution = new Attribution(build, [
+    const modules = [
         {
             path: "src/note.ts",
             digest,
-            symbols: [
+            imports: [],
+            exports: [],
+            declarations: [
                 {
-                    moniker: at("Note"),
-                    kind: "class",
-                    source: range(0, SOURCE.length),
-                    signature: "class Note",
-                    isExported: true,
-                },
-                {
-                    moniker: at("Note.rename"),
+                    moniker: `${at("Note.rename")}:method`,
+                    symbol: at("Note"),
                     kind: "method",
-                    source: range(rename, SOURCE.lastIndexOf("    }") + 5),
-                    signature: "rename(): never",
-                    isExported: true,
+                    kindPackageId: PACKAGE_ID,
+                    name: "rename",
+                    description: {},
                 },
             ],
             edges: [],
         },
-    ]);
+    ];
+    const rename = SOURCE.indexOf("    rename");
+    const attribution = new Attribution(build, {
+        modules,
+        code: [
+            {
+                path: "src/note.ts",
+                digest,
+                symbols: [
+                    {
+                        moniker: at("Note"),
+                        kind: "class",
+                        source: range(0, SOURCE.length),
+                        signature: "class Note",
+                        isExported: true,
+                    },
+                    {
+                        moniker: at("Note.rename"),
+                        kind: "method",
+                        source: range(rename, SOURCE.lastIndexOf("    }") + 5),
+                        signature: "rename(): never",
+                        isExported: true,
+                    },
+                ],
+                edges: [],
+            },
+        ],
+    });
 
     // attribute a frame inside rename, one in a module the index lacks, and a dependency's
     const inside = { file: "workload.js", line: 3, column: 9, isInApp: true, path: "src/note.ts" };

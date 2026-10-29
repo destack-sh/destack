@@ -1,11 +1,9 @@
 import { testSimulation } from "@destack/test/world";
 import { dirname, join } from "node:path";
-import type { Crypto } from "@destack/environment";
 import { expect, refusal, test } from "@destack/test";
 import { Digest } from "@destack/schema";
 import { Package } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
-import * as graph from "../graph/index.ts";
 import { MemoryBuild } from "../test/memory.ts";
 import { BuildReader } from "./reader.ts";
 import { BuildWriter } from "./writer.ts";
@@ -15,53 +13,6 @@ const app = Package.parse({
     id: "package-019f5530-8000-7000-8000-000000000002",
     name: "@example/app",
     version: "2026.9.0",
-});
-
-/** Describe an empty module's graph file. */
-async function module(
-    path: string,
-    source: Uint8Array<ArrayBuffer>,
-    crypto: Crypto,
-): Promise<graph.Module> {
-    return {
-        path,
-        digest: await Digest.of(source, crypto),
-        imports: [],
-        exports: [],
-        declarations: [],
-        edges: [],
-    };
-}
-
-test("refuse a module's graph file whose bytes differ from its digest", async () => {
-    // build a module, then serve another module's graph file under every graph path
-    await using simulation = testSimulation();
-    const { crypto } = simulation.environment("test");
-    const source = new TextEncoder().encode("export {};\n");
-    const build = await MemoryBuild.write(
-        new Map([["src/notes.ts", source]]),
-        {
-            package: app,
-            graph: [await module("src/notes.ts", source, crypto)],
-        },
-        crypto,
-    );
-    const other = await graph.Module.file(await module("src/other.ts", source, crypto), crypto);
-    const tampered = new BuildReader(
-        build.manifest,
-        (path) =>
-            path.startsWith("graph/")
-                ? Promise.resolve(new Blob([other.bytes]).stream())
-                : build.stream(path),
-        crypto,
-    );
-
-    const [digest] = Object.values((await build.graph()).modules);
-    expect(await refusal(tampered.modules())).toEqual([
-        "BAD_REQUEST",
-        "FILE_INVALID",
-        `file digest mismatch: graph/${digest}.json`,
-    ]);
 });
 
 test("refuse a distributed file whose bytes differ from its listing, and an unlisted path", async () => {
@@ -196,7 +147,7 @@ test("list the Destack releases a build resolved, leaving its npm dependencies o
     expect(await build.releases()).toEqual([{ package: vault.package, manifest: vault.manifest }]);
 });
 
-test("read each list and the graph's modules once, and read a list again after a failed read", async () => {
+test("read each list once, and read a list again after a failed read", async () => {
     // build an app declaring one declaration, and fail its first read of the file list
     await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
@@ -240,26 +191,23 @@ test("read each list and the graph's modules once, and read a list again after a
             reader.dependencies(),
             reader.files(),
             reader.sourceMaps(),
-            reader.graph(),
             reader.declarations(),
         ]);
     const first = await read();
     const second = await read();
-    const [digest] = Object.values(first[3].modules);
     expect(loaded.toSorted()).toEqual(
         [
             lists.files.path,
             lists.dependencies.path,
             lists.files.path,
             lists.sourceMaps.path,
-            lists.graph.path,
-            `graph/${digest}.json`,
+            lists.declarations.path,
         ].toSorted(),
     );
 
     // answer the second reads with the first reads' lists, deriving the same declarations
-    const isReused = second.slice(0, 4).map((value, index) => value === first[index]);
-    expect([isReused, second[4]]).toEqual([[true, true, true, true], first[4]]);
+    const isReused = second.slice(0, 3).map((value, index) => value === first[index]);
+    expect([isReused, second[3]]).toEqual([[true, true, true], first[3]]);
 });
 
 test("read a build a directory keeps: its manifest, its file list and each file's bytes", async () => {

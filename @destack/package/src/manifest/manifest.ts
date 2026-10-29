@@ -4,16 +4,6 @@ import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
 import { PackageOutput } from "./output.ts";
 
-/** A description file qualified by the package defining its format. */
-export const DescriptionReference = schema.object({
-    /** The exact defining package. */
-    package: Package,
-    /** The distributed description file. */
-    file: PackageFile,
-});
-/** A description file qualified by its defining package. */
-export type DescriptionReference = schema.Infer<typeof DescriptionReference>;
-
 /** The list files of a build, each read on demand and verified by its digest. */
 export const ManifestLists = schema.object({
     /** The exact dependencies the compiler used. */
@@ -22,8 +12,8 @@ export const ManifestLists = schema.object({
     files: PackageFile,
     /** The source maps of generated files. */
     sourceMaps: PackageFile,
-    /** The index root of the build's graph: the graph file of each module. */
-    graph: PackageFile,
+    /** The declarations the build's evaluation described. */
+    declarations: PackageFile,
 });
 /** The list files of a build. */
 export type ManifestLists = schema.Infer<typeof ManifestLists>;
@@ -38,10 +28,10 @@ const manifest = schema.object({
     language: Language,
     /** The commit the build compiled, absent for a working tree with uncommitted changes. */
     commit: Commit.exactOptional(),
-    /** The upgrade from the previous release, qualified by its format's package. */
-    upgrade: DescriptionReference.exactOptional(),
-    /** The list files of the build's dependencies, files, source maps and graph modules. */
+    /** The list files of the build's dependencies, files, source maps and declarations. */
     lists: ManifestLists,
+    /** The digest of what dependents' compilations read of the build, which their keys include. */
+    interface: Digest,
     /** Named outputs compiled from the package. */
     outputs: schema.record(DeclarationName, PackageOutput),
 });

@@ -16,6 +16,18 @@ const Manifest = schema.looseObject({
 /** The name and version fields of a Destack package's package.json. */
 const ReleasedManifest = schema.looseObject({ name: schema.string(), version: schema.string() });
 
+/** A function the module transform passes the calling module to, as one import reads it. */
+export interface StampedFunction {
+    /** The name of the package exporting it. */
+    readonly owner: string;
+    /** Its export path, such as `defineObject` or `Message.context`. */
+    readonly name: string;
+    /** The parameter position where the transform passes the calling module. */
+    readonly module: number;
+    /** Whether its package's build describes what it returns as a declaration. */
+    readonly isDeclaration: boolean;
+}
+
 /** A package directory and the metadata its modules receive. */
 export interface ModulePackage {
     /** The directory containing destack.json and package.json. */
@@ -34,8 +46,8 @@ export class PackageLocator {
     readonly #names = new Map<string, Promise<string | undefined>>();
     /** The definition of each package directory, absent without a package definition. */
     readonly #definitions = new Map<string, Promise<PackageDefinition | undefined>>();
-    /** The module parameter positions of stamped functions, by package name and directory. */
-    readonly #imported = new Map<string, ReadonlyMap<string, number>>();
+    /** The stamped functions of each import, by package name and directory. */
+    readonly #imported = new Map<string, ReadonlyMap<string, StampedFunction>>();
     /** The versions the build releases its source packages at, by package name. */
     readonly #versions: Readonly<Record<string, Version>>;
     /** The files the packages are read from. */
@@ -105,30 +117,39 @@ export class PackageLocator {
         return (await this.#definition(name, from))?.declarations ?? {};
     }
 
-    /** Map a module specifier's functions to their module parameters, by export path. */
+    /** Read the stamped functions a module specifier imports, by export path. */
     async imported(
         specifier: string,
         path: string,
         metadata: ModuleMetadata,
-    ): Promise<ReadonlyMap<string, number>> {
+    ): Promise<ReadonlyMap<string, StampedFunction>> {
         // read relative imports from the module's own package, and bare imports from the named package
         const owner = specifier.startsWith(".")
             ? metadata.package.name
             : DependencyName.of(specifier);
         const key = `${owner}\0${dirname(path)}`;
-        let stamps = this.#imported.get(key);
-        if (stamps !== undefined) {
-            return stamps;
+        const known = this.#imported.get(key);
+        if (known !== undefined) {
+            return known;
         }
 
-        // keep the stamped functions by parameter position
+        // keep each stamped function's module parameter, and whether it constructs declarations
         const definition = await this.#definition(owner, dirname(path));
-        stamps = new Map(
-            Object.entries(definition?.stamps ?? {}).map(([name, stamp]) => [name, stamp.module]),
+        const constructors = definition?.declarations ?? {};
+        const imported = new Map(
+            Object.entries(definition?.stamps ?? {}).map(([name, stamp]) => [
+                name,
+                {
+                    owner,
+                    name,
+                    module: stamp.module,
+                    isDeclaration: Object.hasOwn(constructors, name),
+                },
+            ]),
         );
-        this.#imported.set(key, stamps);
+        this.#imported.set(key, imported);
 
-        return stamps;
+        return imported;
     }
 
     /** Read a package's destack.json once, resolved by name from a directory, if any. */

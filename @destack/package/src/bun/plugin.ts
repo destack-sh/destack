@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import type { FileSystem } from "@destack/environment";
 import { PackageLocator } from "../locator/index.ts";
-import { transformModule } from "../transform/transform.ts";
+import { DECLARED_MODULE, DECLARED_PASSTHROUGH, transformModule } from "../transform/transform.ts";
 
 /** Inject Destack module metadata while Bun loads package sources, read from files. */
 export function modulePlugin(files: FileSystem): Bun.BunPlugin {
@@ -11,6 +11,9 @@ export function modulePlugin(files: FileSystem): Bun.BunPlugin {
     return {
         name: "destack-module",
         setup(build) {
+            // provide the declaration recorder as its pass-through
+            build.module(DECLARED_MODULE, () => ({ contents: DECLARED_PASSTHROUGH, loader: "js" }));
+
             // stamp package sources, since runtime loads need contents and bundles take the rest
             const isBundling = build.config !== undefined;
             build.onLoad({ filter: /\.[cm]?tsx?$/u }, async ({ path }) => {
@@ -29,9 +32,9 @@ export function modulePlugin(files: FileSystem): Bun.BunPlugin {
                 }
 
                 // map stamped sources back to their authored lines
-                const map = result.source.generateMap({ source: path });
+                const url = result.map.toUrl();
 
-                return { contents: `${result.code}\n//# sourceMappingURL=${map.toUrl()}`, loader };
+                return { contents: `${result.code}\n//# sourceMappingURL=${url}`, loader };
             });
         },
     };

@@ -36,3 +36,16 @@ export const PackageOutput = schema.object({
 
 /** Compiled files for one execution target. */
 export type PackageOutput = schema.Infer<typeof PackageOutput>;
+
+/** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
+export const ImportMap = schema.object({
+    /** The URL of each specifier the page's own modules import. */
+    imports: schema.record(schema.string().min(1), schema.string()),
+    /** The URL of each specifier the modules below a URL prefix import, by prefix. */
+    scopes: schema.record(
+        schema.string().min(1),
+        schema.record(schema.string().min(1), schema.string()),
+    ),
+});
+/** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
+export type ImportMap = schema.Infer<typeof ImportMap>;
