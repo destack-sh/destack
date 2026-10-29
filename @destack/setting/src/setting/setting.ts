@@ -1,7 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { Package, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
-import { DeclarationCache, type BuildReader } from "@destack/package/manifest";
+import type { BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, nth, schema, Version, canonicalize } from "@destack/schema";
 import type { JsonObject, JsonValue } from "@destack/schema";
 import { Expression, Condition, type Table } from "@destack/db";
@@ -175,10 +175,8 @@ export class Setting<
     static declared(
         open: (written: SettingDeclared, view: SettingView) => Promise<BuildReader>,
     ): (written: SettingDeclared, view: SettingView) => Promise<Setting> {
-        const lists = new DeclarationCache((reader) => Setting.list(reader));
-
         return async (written, view) =>
-            Setting.find(await lists.read(await open(written, view)), written);
+            Setting.find(await Setting.list(await open(written, view)), written);
     }
 
     /** The identity its values refer to. */
