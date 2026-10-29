@@ -228,7 +228,7 @@ export class Universe implements AsyncDisposable {
             () => AccessContext.of(Caller.of(Scope.universe), now),
             store.environment,
             (authorization) =>
-                Installation.receive(authorization, Scope.universe, [], UNIVERSE_PACKAGES, store),
+                Installation.receive(authorization, Scope.universe, [], UNIVERSE_PACKAGES),
         );
 
         // apply the definition unless its latest run completed and the operator stays invited
