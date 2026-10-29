@@ -1,5 +1,5 @@
 import { accessRelationship } from "@destack/access";
-import { and, type DatabaseConnection, eq, Snapshot, Table } from "@destack/db";
+import { and, type BlobStore, type DatabaseConnection, eq, Snapshot, Table } from "@destack/db";
 import {
     Address,
     type KindState,
@@ -10,7 +10,7 @@ import {
     type Step,
 } from "@destack/resource";
 import { ResourceError } from "@destack/resource/error";
-import { nth, Digest, Duration, type Identifier, present, zip } from "@destack/schema";
+import { nth, Digest, Duration, type Identifier, present, schema, zip } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
 import {
     ObjectWatch,
@@ -21,7 +21,6 @@ import { type Condition, Observation, type ObservationReport } from "../object/c
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
 import { type ResourceType, type Resource } from "../trait/provisioned.ts";
-import { DesiredState } from "../trait/desired.ts";
 
 /** The condition of a resource waiting for draining consumers to stop before recreation. */
 export const DRAINING = "Draining";
@@ -116,22 +115,22 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             reconciliation,
             {
                 ...this.#options,
-                states: (row, digests) => this.#read(reconciliation.database, row, digests),
+                states: (_row, digests) => this.#read(reconciliation.store.blobs, digests),
             },
         );
     }
 
     /** Read the desired states of some digests a resource lists, each parsed once by the kind. */
-    async #read(
-        database: DatabaseConnection,
-        row: Resource,
-        digests: readonly Digest[],
-    ): Promise<KindState<ResourceKind>[]> {
+    async #read(blobs: BlobStore, digests: readonly Digest[]): Promise<KindState<ResourceKind>[]> {
         // read and parse the states not stored
         const missing = digests.filter((digest) => !this.#states.has(digest));
         if (missing.length > 0) {
             const parsed = this.#kind.states(
-                await DesiredState.read(Snapshot.live(database), row.scope, missing),
+                await Promise.all(
+                    missing.map(async (digest) =>
+                        schema.jsonObject().parse(await blobs.readJson(digest)),
+                    ),
+                ),
             );
             for (const [digest, state] of zip(missing, parsed)) {
                 this.#states.set(digest, state);

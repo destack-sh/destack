@@ -20,7 +20,7 @@ import { unreachablePlan } from "@destack/resource/error";
 import { canonicalize, Digest, present, schema } from "@destack/schema";
 import { Scope, RequestId } from "@destack/sync";
 
-import { CONSUMER, defineObject, DesiredState, desiredState, type Resource } from "../src/index.ts";
+import { CONSUMER, defineObject, type Resource } from "../src/index.ts";
 import { DRAINING } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -238,8 +238,10 @@ async function serve(world: Environment, boxes: Boxes) {
         drainingStates: { size: number }[] = [],
     ) => {
         const row = present(await read(id), `box ${id}`);
+        for (const state of [...states, ...drainingStates]) {
+            await store.blobs.writeJson(state);
+        }
         await Transaction.run(database, async (transaction) => {
-            await DesiredState.upsert(transaction, spaceId, [...states, ...drainingStates]);
             await store.mutate(
                 AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()),
                 {
@@ -315,7 +317,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     const shrunk = present(await read(ids.first), "the shrunk box");
 
     // store the one state the box needs, and refuse a digest of a state the space lacks
-    const stored = await database.select({ state: desiredState.state }).from(desiredState);
+    const stored = await store.blobs.readJson(await Digest.json({ size: 1 }, world.crypto));
     const unknown = await refusal(
         store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
             id: RequestId.create(store.environment),
@@ -364,7 +366,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
         unchanged: waiting,
         shrunk: ["Applied", null, null],
         sizes: [[ids.first, 1]],
-        stored: [{ state: { size: 1 } }],
+        stored: { size: 1 },
         unknown: [
             "BAD_REQUEST",
             "DESIRED_STATE_MISSING",

@@ -9,7 +9,6 @@ export {
     type ResourceType,
     type Resource,
 } from "./provisioned.ts";
-export { DesiredState, desiredState } from "./desired.ts";
 export { tracked, type TrackedDefinition } from "./tracked.ts";
 export { ParentReference } from "./nested.ts";
 export { expiring, type ExpiryRule } from "./expiring.ts";

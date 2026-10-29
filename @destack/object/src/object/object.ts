@@ -156,7 +156,6 @@ import { chunk, chunkRun } from "../text/table.ts";
 import type { GateOf, Gated, Trait } from "../trait/trait.ts";
 import { SYSTEM_TABLES } from "../stack/db.ts";
 import { eventTables } from "@destack/event/stack";
-import { desiredState } from "../trait/desired.ts";
 import type { ObjectController } from "./controller.ts";
 import { Consumer, type ReaderHandler } from "./consumer.ts";
 import type { ObjectStore } from "../server/store.ts";
@@ -2007,7 +2006,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             this.table,
             ...SYSTEM_TABLES,
             ...(this.text.length === 0 ? [] : [chunk, chunkRun]),
-            ...(this.provisioned === undefined ? [] : [desiredState]),
         ];
     }
 

@@ -2,7 +2,7 @@ import { principal, relation, none } from "@destack/access";
 import type { Select, Table } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { ResourcePlacement, ResourceRetention, type ResourceKind } from "@destack/resource";
-import { Digest, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { field, type FieldsByColumn } from "../field/field.ts";
 import { method } from "../method/record.ts";
@@ -74,12 +74,12 @@ function resourceFields(kind: ResourceKind) {
         definitionName: field.string(),
         /** The desired specification. */
         spec: field.json(kind.spec),
-        /** The digests of the states the active consumers need, which the provider applies. */
-        states: field.json(desiredStates(kind)).default([]),
-        /** The digests of the states only draining consumers need, dropped after they stop. */
-        drainingStates: field.json(desiredStates(kind)).default([]),
-        /** The digests of the desired states the provider applied, none before the first apply. */
-        appliedStates: field.json(desiredStates(kind)).default([]),
+        /** The desired states the active consumers need, which the provider applies. */
+        states: field.blobs().default([]),
+        /** The desired states only draining consumers need, until they stop. */
+        drainingStates: field.blobs().default([]),
+        /** The desired states the provider applied, none before the first apply. */
+        appliedStates: field.blobs().default([]),
         /** The space connection whose credential the host lends to every call, if any. */
         connection: field.string(schema.identifier("connection")).optional(),
         /** The requested placement, absent for automatic selection. */
@@ -97,11 +97,6 @@ function resourceFields(kind: ResourceKind) {
         /** The owner application installation, absent for stack resources and after release. */
         owner: field.subject(principal.installation).optional(),
     };
-}
-
-/** Read the schema of a kind's desired states by digest, none for a stateless kind. */
-function desiredStates(kind: ResourceKind) {
-    return kind.isStateful ? schema.array(Digest) : schema.array(Digest).max(0);
 }
 
 /** The fields a definition provisioned as a kind's resources takes, none otherwise. */

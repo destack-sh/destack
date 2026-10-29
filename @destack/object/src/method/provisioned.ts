@@ -1,11 +1,11 @@
 import { Risk } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { DesiredState } from "../trait/desired.ts";
 
+import { ObjectError } from "../error/error.ts";
+import { Execution } from "./execution.ts";
 import { MethodBuilder } from "./record.ts";
 import type { ResourceTable } from "../trait/provisioned.ts";
-import { Execution } from "./execution.ts";
 /** The method declarations of provisioned resources. */
 export const provisionedMethod = new MethodBuilder<ResourceTable<unknown>>();
 
@@ -26,7 +26,7 @@ export const adopt = provisionedMethod
         }),
     );
 
-/** Write the digests of the desired states and the approval threshold of the owner of intent. */
+/** Write the desired states' digests and the approval threshold. */
 export const specify = Execution.handle(
     provisionedMethod.mutation({
         permission: "declare",
@@ -41,21 +41,17 @@ export const specify = Execution.handle(
         }),
     }),
     async (call, execution) => {
-        // require a stored state of each digest
+        // refuse a state without a blob, then write the digests
         const { states, drainingStates } = call.input;
-        const needed = [...new Set([...states, ...drainingStates])];
-        await DesiredState.read(Execution.snapshot(execution), call.scope, needed);
-
-        // write the digests and drop the states no resource of the scope needs any more
-        const target = call.target;
-        const updated = await call.update(call.input);
-        const left = [...target.states, ...target.drainingStates].filter(
-            (digest) => !needed.includes(digest),
-        );
-        if (left.length > 0) {
-            await DesiredState.drop(call, execution, left);
+        const { blobs } = Execution.store(execution, call).store;
+        const missing = await blobs.storage.missing([...new Set([...states, ...drainingStates])]);
+        if (missing.length > 0) {
+            throw ObjectError.of(
+                "DESIRED_STATE_MISSING",
+                `${call.scope} has no desired states ${missing.join(", ")}`,
+            );
         }
 
-        return updated;
+        return await call.update(call.input);
     },
 );
