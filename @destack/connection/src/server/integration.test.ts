@@ -96,7 +96,7 @@ test("let the installation issuing an integration's tokens read it, and refuse a
     const { scope } = issuer.issuer;
     const issuing = principal.installation.reference(
         scope,
-        await InstallationId.declared({ id: scope }, issuer.name, fixture.environment.crypto),
+        await InstallationId.of({ id: scope }, issuer.name, fixture.environment.crypto),
     );
     const other = principal.installation.reference(
         scope,

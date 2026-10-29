@@ -88,7 +88,7 @@ async function relate(
                       relation: "issuer",
                       subject: principal.installation.reference(
                           issuer.issuer.scope,
-                          await InstallationId.declared(
+                          await InstallationId.of(
                               { id: issuer.issuer.scope },
                               issuer.name,
                               context.environment.crypto,
