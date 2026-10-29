@@ -3,12 +3,12 @@ import { Snapshot } from "@destack/db";
 import { message } from "@destack/message";
 import { journal, QueriesParameters, Shape } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { Account, account } from "@destack/account/object";
+import { Account, account, space } from "@destack/account/object";
 import { subjectContext } from "@destack/object/test";
 import { present, schema } from "@destack/schema";
 import { type Page, RequestId, Scope, Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { activityShape, notification } from "../src/index.ts";
+import { activity, activityShape, notification } from "../src/index.ts";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 
@@ -161,7 +161,7 @@ test("follow the spaces of an account once the person owns it, and their activit
     const activities = (spaceId: string) => [
         "activity",
         spaceId,
-        { object: "activity", where: { recipientId } },
+        { object: "activity", package: activity.package.id, where: { recipientId } },
     ];
     const personal = Account.personal(recipientId);
     expect({ guest, owner }).toEqual({
@@ -180,7 +180,12 @@ function accountSpaces(accountId: string): unknown[] {
     return [
         "account-space",
         Scope.universe.id,
-        { object: "space", scopes: "every", where: { scope: accountId } },
+        {
+            object: "space",
+            package: space.package.id,
+            scopes: "every",
+            where: { scope: accountId },
+        },
     ];
 }
 
