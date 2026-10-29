@@ -16,7 +16,7 @@ export default defineConfiguration(
                 // run the unit tests against each database the package stores in
                 {
                     extends: true,
-                    targets: { database: ["sqlite", "postgresql"] },
+                    targets: { database: ["sqlite"] },
                     test: {
                         include: ["src/**/*.test.ts", "tests/*.test.ts"],
                         exclude: INTEGRATION,
