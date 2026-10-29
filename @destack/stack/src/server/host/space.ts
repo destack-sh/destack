@@ -1,5 +1,5 @@
 import { Entitlement, Placement, placement, Space, space } from "@destack/account/object";
-import { and, eq, Snapshot, Transaction } from "@destack/db";
+import { and, type BlobStore, eq, Snapshot, Transaction } from "@destack/db";
 import { IdentityKeystore } from "@destack/account/identity";
 import {
     type ObjectController,
@@ -26,8 +26,10 @@ export type SpaceRole = "primary" | "standby";
 export function implementSpace(options: {
     /** The keystore whose keys of a deleted space the machine forgets. */
     readonly keystore: IdentityKeystore;
-    /** The build store whose root of a deleted space the machine forgets. */
+    /** The space's builds, deleted with the space. */
     readonly builds: BuildStore;
+    /** The space's blobs, deleted with the space. */
+    readonly blobs: BlobStore;
     /** The universe's uplink, receiving the space's status as the space. */
     readonly publisher: Uplink;
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
@@ -122,7 +124,10 @@ async function mirrorSuspension(
 async function remove(
     row: Space,
     reconciliation: Pick<ObjectReconciliation<typeof space>, "database" | "store" | "now">,
-    options: Pick<Parameters<typeof implementSpace>[0], "keystore" | "builds" | "publisher">,
+    options: Pick<
+        Parameters<typeof implementSpace>[0],
+        "keystore" | "builds" | "blobs" | "publisher"
+    >,
 ): Promise<void> {
     // request the uninstall of the unmanaged rollouts not deleting yet as the space itself, the stack deleting what it manages
     const { database, store, now } = reconciliation;
@@ -180,9 +185,10 @@ async function remove(
             .catch(refuseUnlessRemoved);
     }
 
-    // forget its keys and build root, then remove its row at the universe as the space itself, as an earlier look may have
+    // forget its keys and delete its builds and blobs, then remove its row at the universe as the space
     await options.keystore.forget(database, row.id);
-    await options.builds.packages.forget(row.id);
+    await options.builds.clear();
+    await options.blobs.clear();
     await report(options.publisher, row, "finalize", {}, store.environment).catch(
         refuseUnlessRemoved,
     );

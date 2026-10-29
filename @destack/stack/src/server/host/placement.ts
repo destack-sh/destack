@@ -26,7 +26,7 @@ const STACK_INSTALLATION = "stack";
 
 /** The build store, the spaces' main database, and the registry the stacks' releases copy from. */
 export interface PlacementOptions {
-    /** The machine's store of every build. */
+    /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
     /** The registry the stacks' releases copy from. */
     readonly registry: Registry;

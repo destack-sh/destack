@@ -1,5 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
-import type { PackageId, PackageRelease } from "@destack/package";
+import { graph, type PackageId, type PackageRelease } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { type Digest, type JsonObject, JsonValue, schema } from "@destack/schema";
 import { Installation, PackageDescription } from "@destack/object";
@@ -48,18 +48,10 @@ export async function declaredStack(
     settings: Readonly<Record<string, JsonValue>>,
     read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
 ): Promise<JsonObject> {
-    // find the symbols the package exports under the name
-    const modules = await reader.modules();
-    const exported = new Set(
-        modules.flatMap((module) =>
-            module.exports.filter((entry) => entry.name === name).map((entry) => entry.symbol),
-        ),
-    );
-
-    // require the package's stack declared at one of them
+    // require the package's stack declared at the export the name has
     const found = (
         await reader.declared(import.meta.destack.package.id, "stack", StackDefinition)
-    ).find((entry) => exported.has(entry.symbol));
+    ).find((entry) => graph.Moniker.name(entry.symbol) === name);
     if (found === undefined) {
         throw StackError.of("STACK_NOT_FOUND", `stack package declares no stack ${name}`);
     }

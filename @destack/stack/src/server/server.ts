@@ -1,9 +1,9 @@
 import { PROCESS_RUNTIME } from "../object/index.ts";
+import { type BlobStore, type Database, type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { principal } from "@destack/access";
 import { hostname, machine } from "@destack/account/object";
 import type { PackageId, PackageRelease } from "@destack/package";
 import { type Identifier, present, schema } from "@destack/schema";
-import { eq, Snapshot, type Database, type DatabaseConnection } from "@destack/db";
 import { type Publisher, RequestId, type Subject, Scope, type Uplink } from "@destack/sync";
 import { type CallKey, installation } from "@destack/object";
 import type { ObjectPackage } from "@destack/object/server";
@@ -43,13 +43,12 @@ import { implementBucket } from "./resource/bucket.ts";
 import type { Runtime } from "../runtime/index.ts";
 import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
-import type { BaseServerContext } from "@destack/object/workload";
+import { type BaseServerContext, PackageContext } from "@destack/object/workload";
 import settingPackage from "@destack/setting/package";
 import { Rollout, rollout } from "../object/index.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
 import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
-import type { ContentStore } from "@destack/resource";
 import { Bindable, Binder, type ServedBindable } from "./resource/binding.ts";
 import { implementDeployment, implementInstance } from "./deployment/deployment.ts";
 import { implementInstallation, implementInstallations } from "./installation/installation.ts";
@@ -71,7 +70,7 @@ import { AssignmentController } from "./deployment/assignment.ts";
 import { PlacementController } from "./host/placement.ts";
 import { TransferController } from "./host/transfer.ts";
 import { ConsumerController } from "./resource/consumer.ts";
-import { type ExternalGraphStorage, RetentionController } from "./resource/retention.ts";
+import { RetentionController } from "./resource/retention.ts";
 import { hookAdapter } from "./installation/hook.ts";
 import type { SocketRegistry } from "./host/socket.ts";
 import { implementRoute } from "./access/route.ts";
@@ -131,8 +130,8 @@ export interface SpaceOptions {
     readonly publisherAt: ((home: string, partition: string) => Publisher) | null;
     /** The providers with the spaces' resources. */
     readonly providers: readonly SpaceProvider[];
-    /** The space's own content-addressed store of its resources' snapshots. */
-    readonly store: ContentStore;
+    /** The space's blobs, kept while its rows reference them, in the space's database. */
+    readonly blobs: BlobStore;
     /** The keystore of the spaces, wrapping their keys under the machine's keyring. */
     readonly keystore: IdentityKeystore;
     /** The space's other package servers, such as its vaults and messages. */
@@ -145,11 +144,9 @@ export interface SpaceOptions {
     readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
     /** The platform's declaration of every space's main database, with the platform's tables. */
     readonly main: Database;
-    /** The graph indexes of the machine's spaces, swept once their builds go. */
-    readonly graphs: Pick<ExternalGraphStorage, "sweep">;
     /** The host of the spaces' buckets. */
     readonly buckets: CatalogueBucketHost;
-    /** The machine's store of every build. */
+    /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
     /** The kinds of package objects that bindings target other than resources, such as secrets. */
     readonly bindables: readonly ServedBindable[];
@@ -206,6 +203,7 @@ function stackServer(
         // answer moving spaces' targets and installations' hook sessions
         adapters: {
             handoff: handoffAdapter({ ...options, providers }),
+            push: options.builds.adapter(),
             hook: hookAdapter(options.sandboxes),
         },
         // move the space in either role, run the primary's consumers and retention, and the host's own
@@ -239,7 +237,7 @@ function primaryControllers(
                 options,
             ),
         (store) => new ConsumerController(store, providers.objects(), options.main),
-        (store) => new RetentionController(store, options.builds, options.graphs, options.store),
+        (store) => new RetentionController(store, options.builds),
         ...options.providers.flatMap((provider) =>
             (provider.controllers ?? []).map((controller) => () => controller),
         ),
@@ -257,7 +255,7 @@ export function serveSpace(options: SpaceOptions): {
     // serve each other package once, with its resources provisioned next to the stack's
     const others = options.servers.map((server) => {
         // read the package's definition once, serving it as a static one
-        const definition = server.definition(server.installation);
+        const definition = server.definition(PackageContext.of(server.installation, options.blobs));
         const resolved = implementPackage(server.package, definition);
 
         // list the package's types, the handled ones in place, whose resources the stack provisions
@@ -304,6 +302,7 @@ export function serveSpace(options: SpaceOptions): {
         principal: options.principal,
         partitions: options.partitions,
         database: options.database,
+        blobs: options.blobs.storage,
         // know the account's hostnames, which its spaces' routes are declared on, as replicated rows
         policies: [hostname],
         claims: options.claims,
@@ -377,6 +376,7 @@ function ownObjects(
         implementSpace({
             keystore: options.keystore,
             builds,
+            blobs: options.blobs,
             publisher: options.publisher,
             isEnforcingEntitlements: options.isEnforcingEntitlements,
         }),
@@ -386,9 +386,7 @@ function ownObjects(
             builds,
             registry,
             binder,
-            runtimes: options.runtimes.flatMap((runtime) =>
-                runtime.name === PROCESS_RUNTIME ? [] : [runtime.name],
-            ),
+            runtimes: options.runtimes.filter((runtime) => runtime.name !== PROCESS_RUNTIME),
             accounts: options.accounts,
             forge: options.forge,
             issuer: options.keystore.issuer(options.database, options.principal.id),
@@ -437,13 +435,7 @@ function installedSettingsServer(options: SpaceOptions): PackageImplementation {
         });
 
         return following.length > 0 || shipped === undefined
-            ? Rollout.reader(
-                  view,
-                  spaceId,
-                  written.packageId,
-                  written.installation,
-                  options.builds.packages,
-              )
+            ? Rollout.reader(view, spaceId, written.packageId, written.installation, options.builds)
             : options.builds.pull(options.registry, written.packageId, shipped.manifest);
     });
 
@@ -481,7 +473,7 @@ function configureTransfers(options: SpaceOptions, providers: ProviderIndex): Tr
         publisher: options.publisher,
         source: (source, spaceId) => options.handoff(source, spaceId),
         providers,
-        store: options.store,
+        blobs: options.blobs,
         builds: options.builds,
         keystore: options.keystore,
         runtimes: options.runtimes,

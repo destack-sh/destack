@@ -1,4 +1,6 @@
 import { space, account } from "@destack/account/object";
+import { and, type DatabaseConnection, defineDatabase, eq, Transaction } from "@destack/db";
+import { MemoryBlobStorage } from "@destack/resource";
 import { Scope, Subject } from "@destack/sync";
 import {
     AccessContext,
@@ -27,7 +29,6 @@ import {
     S3Signature,
     LEASE_LIFETIME_SECONDS,
 } from "@destack/bucket/s3";
-import { and, defineDatabase, eq, type DatabaseConnection, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier } from "@destack/schema";
@@ -183,6 +184,7 @@ export class BucketFixture implements AsyncDisposable {
         base: BaseServerContext,
     ): ObjectStore {
         return new ObjectStore({
+            blobs: new MemoryBlobStorage(this.environment.crypto),
             chain: async () => undefined,
             environment: this.environment,
             principal: principal.space.reference(Scope.universe.id, this.spaceId),

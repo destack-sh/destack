@@ -1,12 +1,12 @@
 import { PackageStore } from "@destack/build/store";
-import { MemoryBucket } from "@destack/bucket/test";
+import { TestPackageStore } from "@destack/build/test";
 import { testSimulation } from "@destack/object/test";
 import { Package, type PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { Commit, type Digest, present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { fixtureOutputs, TestRegistry, workload } from "../../test/build.ts";
-import { BuildStore } from "./build.ts";
+import { BuildCache, BuildStore } from "./build.ts";
 
 /** The npm release the library's build depends on. */
 const TINY = { name: "tiny", version: "1.0.0", integrity: "sha512-dGlueQ==" };
@@ -32,9 +32,8 @@ test("pull a release with the runtime builds of its runtime closure, finding eac
     // publish a library importing an npm unit, and an application whose workload imports the library
     const environment = testSimulation().environment("test");
     const { crypto } = environment;
-    const registry = new TestRegistry(
-        new PackageStore(new MemoryBucket(environment.clock), environment),
-    );
+    await using registered = await TestPackageStore.create(environment);
+    const registry = new TestRegistry(registered);
     const packageJson = new TextEncoder().encode(JSON.stringify(TINY));
     const unit = await MemoryBuild.write(
         new Map([
@@ -108,21 +107,18 @@ test("pull a release with the runtime builds of its runtime closure, finding eac
             return registry.referrer(packageId, manifest, path);
         },
     };
-    const builds = new BuildStore(
-        new PackageStore(new MemoryBucket(environment.clock), environment),
-        ["bun"],
-        async () => {
-            throw new TypeError("the test leases nothing");
-        },
-    );
+    await using space = await TestPackageStore.create(environment);
+    await using pulled = await TestPackageStore.create(environment);
+    const builds = new BuildStore(space, new BuildCache(pulled, ["bun"]));
     await builds.pull(recording, APPLICATION.id, applicationManifest);
 
     // read the runtime builds the store attached, each naming its dependencies' runtime builds
     const runtimeOf = async (manifest: Digest) =>
-        present(await builds.packages.referrer(manifest, "runtime/bun"), "a runtime build").digest;
+        present(await builds.cache.store.referrer(manifest, "runtime/bun"), "a runtime build")
+            .digest;
     const dependencyOf = async (manifest: Digest, name: string) =>
         present(
-            Object.values((await builds.packages.get(manifest)).outputs)[0]?.dependencies[name],
+            Object.values((await builds.cache.store.get(manifest)).outputs)[0]?.dependencies[name],
             name,
         ).manifest;
     const applicationRuntime = await runtimeOf(applicationManifest);
@@ -138,7 +134,7 @@ test("pull a release with the runtime builds of its runtime closure, finding eac
             unitRuntime,
             libraryManifest,
             unitManifest,
-        ].map((manifest) => builds.packages.contains(manifest)),
+        ].map((manifest) => builds.cache.store.contains(manifest)),
     );
     expect({ located, stored }).toEqual({
         located: [

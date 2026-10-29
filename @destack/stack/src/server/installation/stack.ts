@@ -27,7 +27,7 @@ import type {} from "@destack/package/import-meta";
 
 /** What a machine applies stacks with: its build store and the registry it pulls releases from. */
 export interface StackOptions {
-    /** The machine's store of every build. */
+    /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
     /** The registry of published releases. */
     readonly registry: Registry;
@@ -59,7 +59,7 @@ export async function reconcileStack(
         const pinned = planned?.revisionId === null ? Rollout.pinned(planned) : undefined;
 
         return pinned === undefined
-            ? Rollout.reader(snapshot, spaceId, packageId, installationId, options.builds.packages)
+            ? Rollout.reader(snapshot, spaceId, packageId, installationId, options.builds)
             : options.builds.pull(options.registry, packageId, pinned);
     };
     const objects = declaredTypes(store.objects);

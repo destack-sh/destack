@@ -1,43 +1,48 @@
-import { type FileSystem, FileSystemError } from "@destack/environment";
+import type { FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type DatabaseConnection, type DatabaseEnvironment, TABLE } from "@destack/db";
 import type { ObjectType } from "@destack/object";
+import type { ExternalStorage } from "@destack/object/server";
 import type { PackageStore } from "@destack/build/store";
-import type { ExternalGraphStorage } from "../server/resource/retention.ts";
-import { Digest, nth, Uuid, zip } from "@destack/schema";
+import { LocalBlobStorage } from "@destack/bucket/bun";
+import type { PackageFile } from "@destack/package/file";
+import { Digest } from "@destack/schema";
+import type { BuildStore } from "../server/installation/build.ts";
 import { catalog, declaration, GraphIndex, module, symbol } from "../object/graph.ts";
 
 /** The most parameters SQLite binds to a statement: SQLITE_MAX_VARIABLE_NUMBER since 3.32. */
 const SQLITE_PARAMETERS = 32_766;
 
-/** The graph of each build as external objects. */
-export class BunGraphStorage implements ExternalGraphStorage, AsyncDisposable {
+/** The path a build's graph index is attached to its manifest at. */
+const GRAPH_PATH = "graph";
+
+/** The media type of a graph index: a SQLite database file, as IANA registers it. */
+const SQLITE_MEDIA_TYPE = "application/vnd.sqlite3";
+
+/** The graph of each build as external objects, its index a file attached to the build. */
+export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** The graph's object types. */
     readonly objects: readonly ObjectType[] = [module, declaration, symbol, catalog];
     /** The database with the builds. */
     readonly #database: DatabaseConnection;
-    /** The builds and code indexes the spaces store. */
-    readonly #builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">;
-    /** The directory with one index file per manifest, which every build of it reads. */
-    readonly #directory: string;
-    /** The files the index files live in. */
+    /** The builds and code indexes the space and its machine store. */
+    readonly #builds: Pick<BuildStore, "store" | "contains" | "contents" | "referrer" | "file">;
+    /** The files the indexes are written in before they are stored. */
     readonly #files: FileSystem;
     /** The opened indexes, by build. */
     readonly #opened = new Map<string, Promise<OpenedIndex>>();
 
-    /** Index the builds a database records and their spaces store, in a directory of files. */
+    /** Index the builds a database records, attaching each index to its build where stored. */
     constructor(
         database: DatabaseConnection,
-        builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">,
-        directory: string,
+        builds: Pick<BuildStore, "store" | "contains" | "contents" | "referrer" | "file">,
         files: FileSystem,
     ) {
-        // store the database, the builds and the directory of the index files
+        // store the database, the builds and the files
         this.#database = database;
         this.#builds = builds;
-        this.#directory = directory;
         this.#files = files;
     }
 
@@ -54,42 +59,6 @@ export class BunGraphStorage implements ExternalGraphStorage, AsyncDisposable {
         return (await opened).database;
     }
 
-    /** Delete and close the indexes of the manifests the build store no longer has. */
-    async sweep(): Promise<void> {
-        // close the swept builds' indexes except the failed opens
-        const opened = [...this.#opened];
-        const settled = await Promise.allSettled(opened.map(([, index]) => index));
-        for (const [[scope], index] of zip(opened, settled)) {
-            if (
-                index.status === "fulfilled" &&
-                !(await this.#builds.contains(index.value.manifest))
-            ) {
-                this.#opened.delete(scope);
-                await index.value.database.close();
-            }
-        }
-
-        // delete the index files and pending writes of each manifest the store dropped
-        const entries = await this.#files.readDirectory(this.#directory).catch((error: unknown) => {
-            // read no files of a directory no index wrote yet
-            if (FileSystemError.is(error, "NOT_FOUND")) {
-                return [];
-            }
-
-            throw error;
-        });
-        const names = entries.map((entry) => entry.name);
-        for (const [prefix, kept] of Map.groupBy(names, (name) => nth(name.split("."), 0))) {
-            // delete the files of a build the store no longer has, named by its manifest's digest
-            const manifest = Digest.safeParse(prefix);
-            if (!manifest.success || !(await this.#builds.contains(manifest.data))) {
-                for (const file of kept) {
-                    await this.#files.remove(join(this.#directory, file));
-                }
-            }
-        }
-    }
-
     /** Close the open indexes. */
     async [Symbol.asyncDispose](): Promise<void> {
         // close each index whose open succeeded
@@ -102,22 +71,25 @@ export class BunGraphStorage implements ExternalGraphStorage, AsyncDisposable {
         }
     }
 
-    /** Open a succeeded build's view of its manifest's index, writing the index when absent. */
+    /** Open a succeeded build's view of its manifest's index, attaching the index when absent. */
     async #open(scope: string): Promise<OpenedIndex> {
-        // read the build's place in its manifest's index
+        // read the build's place in its manifest's index, and the store with the build
         const index = await GraphIndex.of(this.#database, scope);
         const { manifest } = index;
-
-        // write the index once per manifest, which every build of it shares
-        const { environment } = this.#database.state;
-        const file = join(this.#directory, `${manifest}.sqlite`);
-        if (!(await this.#files.exists(file))) {
-            await this.#files.mkdir(this.#directory, { recursive: true });
-            await write(index, this.#builds, file, environment, this.#files);
+        const store = await this.#builds.store(manifest);
+        const { storage } = store.blobs;
+        if (!(storage instanceof LocalBlobStorage)) {
+            throw new TypeError(`the store of build ${manifest} keeps no local files`);
         }
 
+        // attach the index once per manifest, which every build of it shares
+        const { environment } = this.#database.state;
+        const attached =
+            (await store.referrer(manifest, GRAPH_PATH)) ??
+            (await this.#attach(index, store, environment));
+
         // read it as the build's rows: in its scope, made when it finished
-        const database = new Database(file, { readonly: true });
+        const database = new Database(storage.path(attached.digest), { readonly: true });
         for (const table of GraphIndex.tables) {
             const { sqlName } = table[TABLE];
             database.run(
@@ -126,34 +98,59 @@ export class BunGraphStorage implements ExternalGraphStorage, AsyncDisposable {
         }
 
         return {
-            manifest,
             database: await connectBunSqlite(database, GraphIndex.tables, { environment }),
         };
+    }
+
+    /** Write a manifest's index into a file, then store it attached to the build. */
+    async #attach(
+        index: GraphIndex,
+        store: PackageStore,
+        environment: DatabaseEnvironment,
+    ): Promise<PackageFile> {
+        // write the index in a private directory, removed once stored
+        const directory = await this.#files.makeTemporaryDirectory("destack-graph-");
+        try {
+            const file = join(directory, "graph.sqlite");
+            await write(index, this.#builds, file, environment);
+
+            // store the file and attach it to the build, which retains it
+            const bytes = await this.#files.readFile(file);
+            const digest = await Digest.of(bytes, environment.crypto);
+            await store.blobs.put(digest, async () => chunks(bytes));
+            const attached = {
+                path: GRAPH_PATH,
+                digest,
+                size: bytes.byteLength,
+                mediaType: SQLITE_MEDIA_TYPE,
+            };
+            await store.attach(index.manifest, attached);
+
+            return attached;
+        } finally {
+            await this.#files.remove(directory, { recursive: true });
+        }
     }
 }
 
 /** A build's opened index. */
 interface OpenedIndex {
-    /** The digest of the build's manifest. */
-    readonly manifest: Digest;
     /** The read-only index database. */
     readonly database: DatabaseConnection & { readonly close: () => Promise<void> };
 }
 
-/** Write a manifest's objects into a new index file as the indexing build's, published whole. */
+/** Write a manifest's objects into a new index file, in the rollback journal mode readers open. */
 async function write(
     index: GraphIndex,
     builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">,
     file: string,
     environment: DatabaseEnvironment,
-    files: FileSystem,
 ): Promise<void> {
     // derive the build's objects
     const rows = await index.rows(builds);
 
-    // write a private file in the rollback journal mode read-only readers open
-    const pending = `${file}.${Uuid.v4(environment.random)}`;
-    const database = await connectBunSqlite(new Database(pending), GraphIndex.tables, {
+    // write them in one transaction
+    const database = await connectBunSqlite(new Database(file), GraphIndex.tables, {
         environment,
     });
     try {
@@ -164,7 +161,9 @@ async function write(
     } finally {
         await database.close();
     }
+}
 
-    // publish the file under its final name
-    await files.rename(pending, file);
+/** Yield some bytes as one chunk. */
+async function* chunks(bytes: Uint8Array): AsyncIterable<Uint8Array> {
+    yield bytes;
 }

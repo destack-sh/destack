@@ -4,6 +4,7 @@ export * from "./build.ts";
 export * from "./gateway.ts";
 export * from "./runtime.ts";
 export * from "./route.ts";
+export * from "./partition.ts";
 export * from "./local.ts";
 export * from "./bucket.ts";
 export * from "./install.ts";

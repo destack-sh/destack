@@ -8,11 +8,10 @@ import {
     type DurableObjectStorage,
     type DurableObjectStub,
 } from "@destack/db/cloudflare";
-import type { Bucket } from "@destack/bucket";
 import type { ObjectType } from "@destack/object";
 import type { PackageStore } from "@destack/build/store";
-import type { ExternalGraphStorage } from "../server/resource/retention.ts";
-import { Digest, schema, zip } from "@destack/schema";
+import type { ExternalStorage } from "@destack/object/server";
+import { Digest, schema } from "@destack/schema";
 import { catalog, declaration, GraphIndex, module, symbol } from "../object/graph.ts";
 
 /** The origin of the requests to an index object, which its stub routes by path alone. */
@@ -24,8 +23,11 @@ const GRAPH_PATH = "/.destack/graph";
 /** The most parameters Durable Object SQLite binds to a statement, as Cloudflare limits it. */
 const OBJECT_PARAMETERS = 100;
 
-/** The prefix of the keys marking each manifest an index object stores, which sweeps list. */
-const INDEXED_PREFIX = "graphs/";
+/** How long an index object keeps an index past its last view: a week, as a build cache does. */
+export const GRAPH_LEASE_MILLISECONDS = 7 * 24 * 60 * 60_000;
+
+/** How often a view renews an index's lease: a seventh of the lease, daily for a week. */
+const RENEW_FRACTION = 7;
 
 /** The table marking a manifest's index complete, written with its rows. */
 const COMPLETE_TABLE = "destack_graph_complete";
@@ -42,12 +44,12 @@ const IndexedBuild = schema.object({
     finishedAt: schema.number().int(),
 });
 
-/** A build's opened view of its manifest's index. */
+/** A build's opened view of its manifest's index, and when the build last viewed it. */
 interface OpenedView {
-    /** The digest of the build's manifest. */
-    readonly manifest: Digest;
     /** The build's view of the index's rows. */
-    readonly database: DatabaseConnection;
+    readonly database: Promise<DatabaseConnection>;
+    /** When the build last viewed the index, renewing its lease. */
+    readonly viewedAt: number;
 }
 
 /** An operation on a manifest's index object. */
@@ -72,10 +74,6 @@ const GraphOperation = schema.discriminatedUnion("operation", [
         /** The build. */
         index: IndexedBuild,
     }),
-    schema.object({
-        /** Delete the index, once retention drops its manifest. */
-        operation: schema.literal("delete"),
-    }),
 ]);
 /** An operation on a manifest's index object. */
 type GraphOperation = schema.Infer<typeof GraphOperation>;
@@ -84,7 +82,7 @@ type GraphOperation = schema.Infer<typeof GraphOperation>;
 const Viewed = schema.object({ isComplete: schema.boolean() });
 
 /** The graph of each build as external objects, one index object per manifest. */
-export class DurableObjectGraphStorage implements ExternalGraphStorage {
+export class DurableObjectGraphStorage implements ExternalStorage {
     /** The graph's object types. */
     readonly objects: readonly ObjectType[] = [module, declaration, symbol, catalog];
     /** The database with the builds. */
@@ -93,75 +91,42 @@ export class DurableObjectGraphStorage implements ExternalGraphStorage {
     readonly #builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">;
     /** The index objects, one per manifest. */
     readonly #indexes: DurableObjectNamespace;
-    /** The bucket marking each manifest an index object stores, which sweeps list. */
-    readonly #indexed: Pick<Bucket, "put" | "list" | "delete">;
-    /** The opened builds' views with their manifests, by build. */
-    readonly #opened = new Map<string, Promise<OpenedView>>();
+    /** How often a build views its index again, renewing the index's lease. */
+    readonly #renewMilliseconds: number;
+    /** The opened builds' views, by build. */
+    readonly #opened = new Map<string, OpenedView>();
 
     /** Index the builds a database records and their spaces store, in one object per manifest. */
     constructor(
         database: DatabaseConnection,
         builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">,
         indexes: DurableObjectNamespace,
-        indexed: Pick<Bucket, "put" | "list" | "delete">,
+        leaseMilliseconds = GRAPH_LEASE_MILLISECONDS,
     ) {
-        // store the database, the builds, the index objects and their marks
+        // store the database, the builds, the index objects and how often a view renews
         this.#database = database;
         this.#builds = builds;
         this.#indexes = indexes;
-        this.#indexed = indexed;
+        this.#renewMilliseconds = leaseMilliseconds / RENEW_FRACTION;
     }
 
-    /** Delete the index objects and marks of the manifests the build store no longer has. */
-    async sweep(): Promise<void> {
-        let cursor: string | undefined;
-        do {
-            // list a page of marked manifests
-            const page = await this.#indexed.list({
-                prefix: INDEXED_PREFIX,
-                ...(cursor === undefined ? {} : { cursor }),
-            });
-            cursor = page.cursor;
-
-            // forget each dropped manifest's views, delete its object, then its mark
-            for (const { key } of page.files) {
-                const manifest = Digest.parse(key.slice(INDEXED_PREFIX.length));
-                if (!(await this.#builds.contains(manifest))) {
-                    await this.#forget(manifest);
-                    const object = this.#indexes.get(this.#indexes.idFromName(manifest));
-                    await send(object, { operation: "delete" });
-                    await this.#indexed.delete(key);
-                }
-            }
-        } while (cursor !== undefined);
-    }
-
-    /** Open a build's graph, indexing its manifest on first use. */
+    /** Open a build's graph, indexing it on first use and viewing it again once renewal is due. */
     async open(scope: string): Promise<DatabaseConnection> {
-        // open the build's view once and forget a failed open
-        let opened = this.#opened.get(scope);
-        if (opened === undefined) {
-            opened = this.#open(scope);
-            this.#opened.set(scope, opened);
-            opened.catch(() => this.#opened.delete(scope));
+        // reuse a recent view, else view the index again, renewing its lease and indexing it after a lapse
+        const now = this.#database.state.environment.clock.now();
+        const known = this.#opened.get(scope);
+        if (known !== undefined && now - known.viewedAt < this.#renewMilliseconds) {
+            return await known.database;
         }
+        const database = this.#open(scope);
+        this.#opened.set(scope, { database, viewedAt: now });
+        database.catch(() => this.#opened.delete(scope));
 
-        return (await opened).database;
-    }
-
-    /** Forget the opened views of a manifest's builds, except the failed opens. */
-    async #forget(manifest: Digest): Promise<void> {
-        const opened = [...this.#opened];
-        const settled = await Promise.allSettled(opened.map(([, view]) => view));
-        for (const [[scope], view] of zip(opened, settled)) {
-            if (view.status === "fulfilled" && view.value.manifest === manifest) {
-                this.#opened.delete(scope);
-            }
-        }
+        return await database;
     }
 
     /** Show a build its manifest's index, writing the index first when it is not complete. */
-    async #open(scope: string): Promise<OpenedView> {
+    async #open(scope: string): Promise<DatabaseConnection> {
         // read the build's place, and its manifest's object
         const index = await GraphIndex.of(this.#database, scope);
         const object = this.#indexes.get(this.#indexes.idFromName(index.manifest));
@@ -175,8 +140,7 @@ export class DurableObjectGraphStorage implements ExternalGraphStorage {
         // index the manifest from the build when no build did, then show the build its rows
         const viewed = Viewed.parse(await send(object, { operation: "view", index: fields }));
         if (!viewed.isComplete) {
-            // mark the manifest for sweeps, then store its rows
-            await this.#indexed.put(`${INDEXED_PREFIX}${index.manifest}`, null);
+            // store its rows
             const { modules, declarations, symbols, catalogs } = await index.rows(this.#builds);
             await send(object, {
                 operation: "index",
@@ -189,15 +153,12 @@ export class DurableObjectGraphStorage implements ExternalGraphStorage {
             await send(object, { operation: "view", index: fields });
         }
 
-        return {
-            manifest: index.manifest,
-            database: DurableObjectReader.connect(
-                object,
-                GraphIndex.tables,
-                this.#database.state.environment,
-                index.build,
-            ),
-        };
+        return DurableObjectReader.connect(
+            object,
+            GraphIndex.tables,
+            this.#database.state.environment,
+            index.build,
+        );
     }
 }
 
@@ -205,10 +166,27 @@ export class DurableObjectGraphStorage implements ExternalGraphStorage {
 export class GraphIndexObject {
     /** The object's database. */
     readonly #host: DurableObjectDatabaseHost;
+    /** The object's storage, whose alarm ends the index's lease. */
+    readonly #storage: IndexStorage;
+    /** How long the object keeps the index past its last view. */
+    readonly #leaseMilliseconds: number;
 
-    /** Open the index in the object's storage. */
-    constructor(state: { readonly storage: DurableObjectStorage }) {
+    /** Open the index in the object's storage, its lease the environment's or a week. */
+    constructor(
+        state: { readonly storage: IndexStorage },
+        environment: { readonly DESTACK_GRAPH_LEASE?: string } = {},
+    ) {
         this.#host = new DurableObjectDatabaseHost(state.storage, Environment.system);
+        this.#storage = state.storage;
+        this.#leaseMilliseconds =
+            environment.DESTACK_GRAPH_LEASE === undefined
+                ? GRAPH_LEASE_MILLISECONDS
+                : schema.number().int().positive().parse(Number(environment.DESTACK_GRAPH_LEASE));
+    }
+
+    /** Delete the index once its lease ends unviewed. */
+    async alarm(): Promise<void> {
+        await this.#storage.deleteAll();
     }
 
     /** Answer an index operation, or a build's read of its view. */
@@ -230,14 +208,10 @@ export class GraphIndexObject {
 
             return Response.json({});
         }
-        // delete every row, view and the completion mark
-        else if (body.operation === "delete") {
-            await this.#host.storage.deleteAll();
-
-            return Response.json({});
-        }
-        // show a build its view
+        // show a build its view, renewing the index's lease
         else {
+            await this.#renew();
+
             return Response.json(this.#view(new GraphIndex(body.index)));
         }
     }
@@ -306,6 +280,19 @@ export class GraphIndexObject {
         return { isComplete: true };
     }
 
+    /** Move the lease's end a lease past now, once a renewal is due. */
+    async #renew(): Promise<void> {
+        // read the lease's end
+        const now = Environment.system.clock.now();
+        const until = now + this.#leaseMilliseconds;
+        const alarm = await this.#storage.getAlarm();
+
+        // set the alarm a lease from now, unless a recent view set it
+        if (alarm === null || until - alarm >= this.#leaseMilliseconds / RENEW_FRACTION) {
+            await this.#storage.setAlarm(until);
+        }
+    }
+
     /** Report whether a write completed the index. */
     #isComplete(): boolean {
         const rows = this.#host.storage.sql
@@ -327,6 +314,14 @@ export class GraphIndexObject {
 
         return rows.map((row) => schema.string().parse(row["name"]));
     }
+}
+
+/** The storage an index object keeps its rows in and its lease's alarm on. */
+interface IndexStorage extends DurableObjectStorage {
+    /** Read when the alarm wakes the object, null for none. */
+    readonly getAlarm: () => Promise<number | null>;
+    /** Wake the object at a time. */
+    readonly setAlarm: (at: number) => Promise<void>;
 }
 
 /** Send an index object an operation, refusing one it fails. */

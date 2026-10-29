@@ -1,7 +1,7 @@
 import { eq, Snapshot } from "@destack/db";
 import { nth, Digest, Identifier } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { Package } from "@destack/package";
+import { Package, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { ids, insertRelease, insertRollout, TestSpace } from "../test/index.ts";
 import { STACKS } from "@destack/account/test";
@@ -82,8 +82,8 @@ test("serve an installation once its targets are bound and the space's main data
         fixture.environment.crypto,
     );
     const builds = await fixture.builds();
-    const open = async (manifest: Digest) =>
-        manifest === release.manifest ? notes : builds.packages.contents(manifest);
+    const open = async (packageId: PackageId, manifest: Digest) =>
+        manifest === release.manifest ? notes : builds.pull(fixture.registry, packageId, manifest);
     const served = async () =>
         (
             await Database.installed(

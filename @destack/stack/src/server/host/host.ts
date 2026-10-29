@@ -113,7 +113,7 @@ export interface SpaceMachine {
     /** Send a request to another origin as it is. */
     readonly send: (request: Request) => Promise<Response>;
     /** The machine's builds, which installations' revisions read. */
-    readonly builds: Pick<BuildStore, "packages">;
+    readonly builds: Pick<BuildStore, "contents">;
     /** The servers the machine runs in process, by their package. */
     readonly servers: readonly PackageImplementation[];
     /** The release the machine ships of each server's package. */
@@ -316,13 +316,15 @@ export class SpaceHost {
 
     /** Follow a partition at its home, where the directory locates it, as each follow's subject. */
     publisherAt(home: string, partition: string): Publisher {
-        // sign as the installation a follow is decided for, else as the space
-        const signer = (subject: Subject | undefined) =>
-            subject !== undefined && principal.installation.is(subject) ? subject : this.principal;
+        // sign as the installation a follow is decided for, else as the space with a universe grant
+        const fetchOf = (subject: Subject | undefined) =>
+            subject !== undefined && principal.installation.is(subject)
+                ? this.source(subject).fetchSigned(objectPackage.id, partition)
+                : this.source(this.principal).fetchGranted(objectPackage.id, partition);
         const at = (subscription: Subscription) =>
             this.machine.directory.publisher(
                 home,
-                this.source(signer(subscription.subject)).fetchSigned(objectPackage.id, partition),
+                fetchOf(subscription.subject),
                 this.machine.environment,
             );
 
@@ -803,7 +805,7 @@ export class SpaceHost {
         const build = await InstallationRevision.reader(
             Snapshot.live(database),
             revisionId,
-            machine.builds.packages,
+            machine.builds,
         );
         const description = await PackageDescription.of(build);
         const identity = present(

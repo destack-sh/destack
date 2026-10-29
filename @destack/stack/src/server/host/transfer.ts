@@ -1,4 +1,30 @@
 import { until } from "@destack/environment";
+import {
+    and,
+    type BlobStore,
+    Change,
+    Condition,
+    type DatabaseConnection,
+    DatabaseHandle,
+    DatabaseState,
+    desc,
+    eq,
+    inArray,
+    isNotNull,
+    isNull,
+    lt,
+    or,
+    type ReconcileController,
+    type Reconciliation,
+    type RowImage,
+    type Select,
+    Snapshot,
+    sql,
+    type SQL,
+    type Table,
+    TABLE,
+    Transaction,
+} from "@destack/db";
 import { appliedStates, type ProviderIndex, type SpaceProvider } from "../resource/resource.ts";
 import {
     RequestId,
@@ -22,29 +48,6 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import {
-    and,
-    Change,
-    type DatabaseConnection,
-    desc,
-    lt,
-    eq,
-    inArray,
-    isNotNull,
-    isNull,
-    or,
-    type Select,
-    sql,
-    type SQL,
-    Transaction,
-    Condition,
-    type RowImage,
-    Snapshot,
-    type Table,
-    TABLE,
-    DatabaseHandle,
-    DatabaseState,
-} from "@destack/db";
 import type { ResourceState } from "@destack/package/declare";
 import { type IdentityKeystore } from "@destack/account/identity";
 import {
@@ -54,9 +57,8 @@ import {
     type SettlementContext,
 } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import type { ResourceId, ResourceRecord, ContentStore } from "@destack/resource";
+import type { ResourceId, ResourceRecord } from "@destack/resource";
 import { Recipient } from "@destack/identity";
-import type { ReconcileController, Reconciliation } from "@destack/db";
 import { AccessContext, Caller, principal } from "@destack/access";
 import {
     Database,
@@ -97,9 +99,9 @@ export interface TransferOptions {
     ) => Promise<Handoff>;
     /** The providers of the space's resources, from the stack and the other modules. */
     readonly providers: ProviderIndex;
-    /** The space's own content-addressed store of its resources' snapshots. */
-    readonly store: ContentStore;
-    /** The machine's store of every build. */
+    /** The space's blobs, which snapshots and restores write into. */
+    readonly blobs: BlobStore;
+    /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
     /** The keystore of the machine's spaces. */
     readonly keystore: IdentityKeystore;
@@ -512,7 +514,7 @@ export class SpaceTransfer {
 
     /** Remove the source's replica of a space its target serves now. */
     async remove(
-        options: Pick<HandoffOptions, "providers" | "builds">,
+        options: Pick<HandoffOptions, "providers" | "builds" | "blobs">,
         store: Pick<ObjectStore, "mutate" | "environment">,
         now: number,
     ): Promise<void> {
@@ -529,9 +531,10 @@ export class SpaceTransfer {
             retireSnapshots(transaction, store, this.spaceId, now),
         );
 
-        // delete the space's rows and its builds' root
+        // delete the space's rows, then its builds and blobs
         await this.space.delete();
-        await options.builds.packages.forget(this.spaceId);
+        await options.builds.clear();
+        await options.blobs.clear();
     }
 
     /** Cut over to this machine. */
@@ -604,23 +607,25 @@ export class SpaceTransfer {
         }
     }
 
-    /** Read the manifests of the builds a space has, compiled or pulled. */
+    /** Read the manifests of the space's own live builds, its releases left out. */
     static async manifests(reader: Snapshot, spaceId: Identifier<"space">): Promise<Set<Digest>> {
-        const built = await reader.read(build.table).findMany({ where: { scope: spaceId } });
+        const built = await reader
+            .read(build.table)
+            .findMany({ where: { scope: spaceId, expiredAt: { isNull: true } } });
+        const own = built.filter((row) => row.source.kind !== "release");
 
-        return new Set(built.flatMap((row) => (row.manifest === null ? [] : [row.manifest])));
+        return new Set(own.flatMap((row) => (row.manifest === null ? [] : [row.manifest])));
     }
 
-    /** Replicate each build the space's builds and revisions run from the source's build store. */
+    /** Copy each of the space's own builds from the source, leaving releases to their registry. */
     async #copyBuilds(source: Handoff, builds: BuildStore, signal: AbortSignal): Promise<void> {
-        // copy each build the space's rows refer to that the store lacks
         const manifests = await SpaceTransfer.manifests(
             Snapshot.live(this.space.database),
             this.spaceId,
         );
         for (const manifest of manifests) {
             const { location, fetch } = source.locate(this.spaceId, manifest);
-            await builds.packages.copy(location, fetch, signal);
+            await builds.space.copy(location, fetch, signal);
         }
     }
 

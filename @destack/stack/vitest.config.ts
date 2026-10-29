@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 /** The most milliseconds a unit test takes, on one package's tables. */
 const UNIT_TIMEOUT = 5000;
 
-/** The most milliseconds a world test takes: 5.5 s alone on Postgres, twice that under 4 workers. */
+/** The most milliseconds a world test takes: 5.5 s alone on Postgres, double at 4 workers. */
 const WORLD_TIMEOUT = 15_000;
 
 /** The tests that open a world of a universe, machines and spaces. */

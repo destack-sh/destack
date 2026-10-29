@@ -1,11 +1,12 @@
 import { startSilentTelemetry } from "@destack/telemetry/test";
 import type { Authentication } from "@destack/access";
-import type { Identifier } from "@destack/schema";
+import type { Identifier, JsonValue } from "@destack/schema";
+import type { BuildReader } from "@destack/package/manifest";
 import { Egress, InstallationMount, CallError, VERSION_HEADER } from "@destack/object";
 import type { Deriver } from "@destack/identity";
 import { type RunnerOptions, WorkloadRunner } from "@destack/object/workload";
-import { bunEphemeral } from "../bun/runner.ts";
 import { InstanceRegistry, InstanceSpec, type Runtime, WorkloadRequest } from "../runtime/index.ts";
+import { callInProcess } from "./runtime.ts";
 
 /** The origin a runner in this process answers forwarded requests at (RFC 6761 6.2). */
 const RUNNER_ORIGIN = "http://runner.test";
@@ -31,7 +32,7 @@ export class LocalRuntime implements Runtime {
     /** Read the identity of a space, which its installations' roots derive from. */
     readonly #identity: (scope: Identifier<"space">) => Promise<Pick<Deriver, "derive">>;
     /** Select the runner options of an instance's workload. */
-    readonly #runner: (spec: InstanceSpec) => Omit<RunnerOptions, "ephemeral">;
+    readonly #runner: (spec: InstanceSpec) => RunnerOptions;
     /** The workloads starting and running. */
     readonly #registry = new InstanceRegistry<Running>();
 
@@ -44,7 +45,7 @@ export class LocalRuntime implements Runtime {
         /** Read the identity of a space, which its installations' roots derive from. */
         readonly identity: (scope: Identifier<"space">) => Promise<Pick<Deriver, "derive">>;
         /** Select the runner options of an instance's workload. */
-        readonly runner: (spec: InstanceSpec) => Omit<RunnerOptions, "ephemeral">;
+        readonly runner: (spec: InstanceSpec) => RunnerOptions;
     }) {
         // set the egress, the space identities and the workloads
         this.#egress = options.egress;
@@ -71,6 +72,16 @@ export class LocalRuntime implements Runtime {
     /** Find the spec of the instance whose workload has a secret. */
     identify(secret: string): InstanceSpec | undefined {
         return this.#registry.identify(secret);
+    }
+
+    /** Call an export of a build's module in this process, as the workspace installs it. */
+    call(
+        build: BuildReader,
+        path: string,
+        name: string,
+        input: readonly JsonValue[],
+    ): Promise<JsonValue> {
+        return callInProcess(build, path, name, input);
     }
 
     /** Stop every instance. */
@@ -108,7 +119,7 @@ export class LocalRuntime implements Runtime {
     }
 
     /** Call an address through the machine's egress as an installation's running instance. */
-    async call(
+    async request(
         installationId: Identifier<"installation">,
         address: string,
         path: string,
@@ -152,7 +163,7 @@ export class LocalRuntime implements Runtime {
 
         // run the workload in this process
         const runner = await WorkloadRunner.start(
-            { ...this.#runner(spec), ephemeral: bunEphemeral },
+            this.#runner(spec),
             start,
             spec.build,
             startSilentTelemetry,

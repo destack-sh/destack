@@ -1,4 +1,4 @@
-import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
+import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
 import { eq } from "@destack/db";
@@ -6,17 +6,20 @@ import { TestDatabase } from "@destack/db/test";
 import type { DurableObjectNamespace } from "@destack/db/cloudflare";
 import { Package } from "@destack/package";
 import { modulePlugin } from "@destack/package/vite";
+import { ModuleTransformer } from "@destack/package/transform";
 import { rolldown } from "rolldown";
 import { testHost } from "@destack/test/host";
 import { testSimulation } from "@destack/object/test";
 import { MemoryBuild } from "@destack/package/test";
 import { Digest, type Identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { MemoryBucket } from "@destack/bucket/test";
 import { build, declaration } from "../object/index.ts";
 import { spaceTables } from "../stack/index.ts";
 import { ids } from "../test/index.ts";
 import { DurableObjectGraphStorage } from "./graph.ts";
+
+/** How long the index objects keep an index past its last view in the test: 300 ms. */
+const LEASE_MILLISECONDS = 300;
 
 /** The two builds of one release the test reads, the second finished later. */
 const builds = [
@@ -24,9 +27,10 @@ const builds = [
     schema.identifier("build").parse("build-01996ab0-0000-7000-8000-0000000000a2"),
 ] as const;
 
-test("index a manifest once in its object, show each build of it the rows in its own scope, and delete the object once retention drops the manifest", async () => {
+test("index a manifest once in its object, show each build of it the rows in its own scope, and delete the object a lease after its last view", async () => {
     // record a release declaring a notification as two builds of the space, in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
     const reader = await MemoryBuild.of(
         Package.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
         [{ kind: "notification", kindPackageId: ids.package, name: "mention", description: {} }],
@@ -63,14 +67,12 @@ test("index a manifest once in its object, show each build of it the rows in its
 
     // read each build's notification through the index objects, counting the builds read
     let opened = 0;
-    let isKept = true;
-    const marks = new MemoryBucket(world.clock);
     const namespace = await indexes();
     const graphs = () =>
         new DurableObjectGraphStorage(
             storage.database,
             {
-                contains: async () => isKept,
+                contains: async () => true,
                 contents: async () => {
                     opened += 1;
 
@@ -80,7 +82,7 @@ test("index a manifest once in its object, show each build of it the rows in its
                 file: () => Promise.reject(new TypeError("the builds carry no code index")),
             },
             namespace,
-            marks,
+            LEASE_MILLISECONDS,
         );
     const first = graphs();
     const rows = [
@@ -88,18 +90,16 @@ test("index a manifest once in its object, show each build of it the rows in its
         await readNotification(first, builds[1]),
     ];
 
-    // retain the index while the build store has the manifest, then delete it with its mark
-    await first.sweep();
-    const kept = (await marks.list()).files.map((file) => file.key);
-    isKept = false;
-    await first.sweep();
-    const swept = (await marks.list()).files.map((file) => file.key);
+    // keep the index through a read within the lease, then let the lease end unviewed
+    await readNotification(first, builds[0]);
+    const kept = opened;
+    await testHost().clock.sleep(LEASE_MILLISECONDS * 2);
 
-    // index it again through the same storage once the store has it again
-    isKept = true;
+    // index it again once a build views the deleted index after its renewal is due
+    simulation.clock.advance(LEASE_MILLISECONDS);
     await readNotification(first, builds[0]);
 
-    expect({ rows, kept, swept, opened }).toEqual({
+    expect({ rows, kept, opened }).toEqual({
         // show each build the one stored row in its own scope and finish
         rows: builds.map((id, index) => ({
             scope: id,
@@ -107,9 +107,8 @@ test("index a manifest once in its object, show each build of it the rows in its
             name: "mention",
             createdAt: 1000 + index,
         })),
-        // mark the manifest while stored, and drop the mark once swept
-        kept: [`graphs/${manifest}`],
-        swept: [],
+        // read the build once while kept
+        kept: 1,
         // read the build once for the first build of the manifest, and again once its object was deleted
         opened: 2,
     });
@@ -139,7 +138,7 @@ async function indexes(): Promise<DurableObjectNamespace> {
         platform: "browser",
         resolve: { conditionNames: ["workerd", "worker", "browser"] },
         external: [/^node:/u, /^cloudflare:/u],
-        plugins: [modulePlugin(testHost().files)],
+        plugins: [modulePlugin(new ModuleTransformer(testHost().files))],
     });
     const { output } = await bundle.generate({ format: "esm" });
     const [chunk] = output;
@@ -151,6 +150,7 @@ async function indexes(): Promise<DurableObjectNamespace> {
         compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
         durableObjects: { GRAPH: { className: "GraphIndexObject", useSQLite: true } },
+        bindings: { DESTACK_GRAPH_LEASE: String(LEASE_MILLISECONDS) },
     });
     onTestFinished(() => worker.dispose());
     const namespace = await worker.getDurableObjectNamespace("GRAPH");

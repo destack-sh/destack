@@ -5,10 +5,10 @@ import { type Digest, type JsonObject, schema } from "@destack/schema";
 import { Package, PackageId } from "@destack/package";
 import { type BuildReader, type OutputExport, PackageOutput } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import type { Upgrade } from "@destack/resource";
 import type { Registry } from "../server/index.ts";
 import type { ReleaseRegistry } from "@destack/account/server";
-import { PackageStore } from "@destack/build/store";
+import { PackageStore, RUNTIME_REFERRER } from "@destack/build/store";
+import { Runtime } from "@destack/package/runtime";
 import { PackageManifest } from "@destack/package/manifest";
 
 /** The releases the fixture's distribution tags point at, as the forge resolves `<name>@<tag>`. */
@@ -25,31 +25,14 @@ export const workload = {
     sandbox: {},
 };
 
-/** The upgrades of the fixture's later releases by release. */
-export const UPGRADES: Readonly<Record<string, Upgrade>> = {
-    "2026.12.0": { from: "2026.12.0", steps: [] },
-    "2026.10.0": {
-        from: "2026.9.0",
-        steps: [
-            {
-                action: "create",
-                target: "api/procedure/count",
-                risk: "safe",
-                detail: "add procedure count",
-            },
-        ],
-    },
-    "2026.11.0": {
-        from: "2026.10.0",
-        steps: [
-            {
-                action: "delete",
-                target: "object/note/relation/editor",
-                risk: "backward-incompatible",
-                detail: "remove: data stored under it no longer applies",
-            },
-        ],
-    },
+/** What each release of the fixture declares beside its archive command, by release. */
+const DECLARED: Readonly<
+    Record<string, readonly { readonly kind: string; readonly name: string }[]>
+> = {
+    "2026.9.0": [{ kind: "relation", name: "editor" }],
+    "2026.10.0": [{ kind: "relation", name: "editor" }],
+    "2026.11.0": [{ kind: "procedure", name: "count" }],
+    "2026.12.0": [{ kind: "procedure", name: "count" }],
 };
 
 /** Complete fixture build outputs with their directory, exporting each workload's entrypoint. */
@@ -126,18 +109,15 @@ export class TestRegistry implements Registry, ReleaseRegistry {
         return manifest;
     }
 
-    /** Receive a stored build with its npm units and their referrers, as its forge does. */
-    async push(store: PackageStore, manifest: Digest): Promise<Digest> {
-        // copy each npm unit, then the build, each before the referrers attached to it
+    /** Receive a stored build with its npm units, deriving its runtime builds as its forge does. */
+    async push(store: Pick<PackageStore, "contents" | "units">, manifest: Digest): Promise<Digest> {
+        // copy each npm unit, then the build with its runtime builds
         const build = await store.contents(manifest);
         const packageId = PackageManifest.package(build.manifest).id;
-        for (const subject of [...(await store.units(manifest, packageId)), manifest]) {
-            await this.#store.put(await store.contents(subject));
-            for (const { subject: referred, file } of await store.attached(subject)) {
-                await this.#store.put(await store.contents(file.digest));
-                await this.#store.attachBuild(referred, file.digest, file.path);
-            }
+        for (const unit of await store.units(manifest, packageId)) {
+            await this.#publish(await store.contents(unit));
         }
+        await this.#publish(build);
 
         // record the build under its release
         const released = PackageManifest.package(build.manifest);
@@ -146,14 +126,10 @@ export class TestRegistry implements Registry, ReleaseRegistry {
         return manifest;
     }
 
-    /** Store a build with the runtime build of each emitted server output. */
+    /** Store a build with the runtime build of each emitted output, as its forge publishes it. */
     async #publish(build: BuildReader): Promise<Digest> {
         const manifest = await this.#store.put(build);
-        for (const output of Object.values(build.manifest.outputs)) {
-            if (output.emit && output.runtime !== "browser") {
-                await this.#store.attachRuntime(manifest, output.runtime);
-            }
-        }
+        await this.#store.attachRuntimes(manifest);
 
         return manifest;
     }
@@ -168,9 +144,14 @@ export class TestRegistry implements Registry, ReleaseRegistry {
         return this.#store.contains(manifest);
     }
 
-    /** Read the build a stored fixture build has attached at a path. */
+    /** Read a fixture build's attachment at a path, deriving runtime builds as a forge does. */
     async referrer(_packageId: PackageId, manifest: Digest, path: string) {
-        return (await this.#store.referrer(manifest, path))?.digest;
+        const [prefix, runtime] = path.split("/");
+        const parsed = Runtime.safeParse(runtime);
+
+        return prefix === RUNTIME_REFERRER && parsed.success
+            ? await this.#store.attachRuntime(manifest, parsed.data)
+            : (await this.#store.referrer(manifest, path))?.digest;
     }
 
     /** Locate a stored fixture build by its manifest's digest, read through the store's fetch. */
@@ -191,24 +172,25 @@ export async function fixtureBuild(
     version: string,
     crypto: Crypto,
 ): Promise<BuildReader> {
-    // build the version with its upgrade
-    const upgrade = UPGRADES[version];
+    // build the version declaring its archive command and the release's own declarations, of the package's kinds
     const built = await MemoryBuild.of(
         Package.parse({ id: packageId, name: "@test/package", version }),
         [
             {
                 kind: "command",
-                kindPackageId: viewPackage,
+                kindPackageId: packageId,
                 module: "src/command.ts",
                 name: "archive",
                 description: ARCHIVE,
             },
+            ...(DECLARED[version] ?? []).map((declared) => ({
+                ...declared,
+                kindPackageId: packageId,
+                description: {},
+            })),
         ],
         crypto,
         {
-            ...(upgrade === undefined
-                ? {}
-                : { upgrade: { package: resourcePackage, description: upgrade } }),
             outputs: fixtureOutputs({
                 browser: {
                     runtime: "browser",
@@ -249,16 +231,6 @@ export const ARCHIVE = {
     type: "note",
     method: "archive",
 };
-
-/** The package declaring commands and views. */
-const viewPackage = PackageId.parse("package-01a0c80b-614f-73f1-896b-bb411e8814d4");
-
-/** The package defining the upgrade file format. */
-const resourcePackage = Package.parse({
-    id: "package-01a0c80b-614f-73eb-9845-7906f2b7cfe0",
-    name: "@destack/resource",
-    version: "2026.9.0",
-});
 
 /** Evaluate a stack module's export into its stack definition. */
 export function evaluateStack(

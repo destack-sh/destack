@@ -33,6 +33,7 @@ import { RetryPolicy } from "@destack/environment";
 import { Scope } from "@destack/sync";
 import { Failure } from "@destack/error";
 import {
+    InstanceExit,
     RUNTIME_SUPPORT,
     type Runtime,
     type WorkloadInstallation,
@@ -70,7 +71,7 @@ export interface DeploymentOptions {
     readonly machine: Identifier<"machine">;
     /** The runtimes running the instances, by server runtime. */
     readonly runtimes: ReadonlyMap<string, Runtime>;
-    /** The machine's store of every build. */
+    /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
     /** The providers of the machine's resource kinds, with the object each kind's resources are. */
     readonly providers: ProviderIndex;
@@ -488,7 +489,7 @@ class Reconcile {
         this.#refuseUnsupported(running);
 
         // start the workload as its installation, by its name, with its captures, and record an unasked exit
-        const reader = await this.#options.builds.packages.contents(manifest);
+        const reader = await this.#options.builds.contents(manifest);
         const installed = present(
             await Snapshot.live(this.#reconciliation.database)
                 .read(installation.table)
@@ -528,7 +529,7 @@ class Reconcile {
                     installation: current.installationId,
                 }),
             },
-            (code) => this.#recordExit(recorded.id, code),
+            (exit) => this.#recordExit(recorded.id, exit),
         );
     }
 
@@ -557,7 +558,7 @@ class Reconcile {
     }
 
     /** Record a running instance failed when its workload exits unasked. */
-    async #recordExit(instanceId: Identifier<"instance">, code: number): Promise<void> {
+    async #recordExit(instanceId: Identifier<"instance">, exit: InstanceExit): Promise<void> {
         const reconciliation = this.#reconciliation;
         const [recorded] = await reconciliation.database
             .select()
@@ -567,7 +568,7 @@ class Reconcile {
             await this.#observe(recorded, {
                 status: "failed",
                 stoppedAt: reconciliation.store.clock.now(),
-                ready: ["false", "Exited", `the workload exited with code ${code}`],
+                ready: ["false", "Exited", InstanceExit.describe(exit)],
             });
         }
     }

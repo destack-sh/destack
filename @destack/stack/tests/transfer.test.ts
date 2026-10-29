@@ -18,7 +18,6 @@ import {
     type DatabaseConnection,
     Snapshot,
     DatabaseState,
-    Lease,
     databaseProvider,
 } from "@destack/db";
 import { BunSqliteDatabaseHost, bunSqliteConnector } from "@destack/db/bun";
@@ -28,14 +27,7 @@ import { Plan, ResourceId } from "@destack/resource";
 import { nth, Digest, Identifier, schema, present } from "@destack/schema";
 import { RequestId, Scope, type Uplink } from "@destack/sync";
 import { Assertion } from "@destack/access/token";
-import {
-    ProviderIndex,
-    serveSpace,
-    sweepSnapshots,
-    SWEEP_LEASE,
-    SpaceTransfer,
-    type Handoff,
-} from "../src/server/index.ts";
+import { ProviderIndex, SpaceTransfer, type Handoff } from "../src/server/index.ts";
 import {
     fixtureBuild,
     ids,
@@ -54,8 +46,6 @@ import { createClient } from "@destack/object/client";
 import stackPackage from "../src/package.ts";
 import type { StackClient } from "../src/client/index.ts";
 import type { Environment } from "@destack/environment";
-import { SimulatedClock } from "@destack/environment/simulation";
-import type { ObjectStore } from "@destack/object/server";
 import type { TestObjectStore } from "@destack/object/test";
 
 /** A day, in milliseconds. */
@@ -322,27 +312,21 @@ test(
         );
         expect(refused).toEqual([]);
 
-        // stop serving the space as its primary, then remove the source's replica as it stands by, and sweep its store a day later
+        // stop serving the space as its primary, then remove the source's replica with its blobs as it stands by
         await serving[Symbol.asyncDispose]();
-        const { store: standing } = await sourceMachine.serve({
+        const standing = await sourceMachine.serve({
             role: "standby",
             providers: [sources, ...(await sourceMachine.options()).providers],
             keystore: sourceKeystore,
         });
-        await reconcile(standing, "transfer", { id: created.id });
-        const sourceStore = sourceMachine.store();
-        const blobs = sourceStore.size;
-        await sweepSnapshots(
-            at(announcing, sourceMachine.machine.clock.now() + 2 * DAY_MILLISECONDS),
-            sourceStore,
-        );
+        await reconcile(standing.store, "transfer", { id: created.id });
         const removed = {
             databases: await source.select().from(object.database.table),
             snapshots: await source.select().from(object.snapshot.table),
             files: (await world.files.readDirectory(join(files, "source", ids.space)))
                 .map((entry) => entry.name)
                 .filter((name) => name.endsWith(".db")),
-            blobs: [blobs > 0, sourceStore.size],
+            blobs: await Array.fromAsync(sourceMachine.blobs.storage.digests()),
         };
 
         // read the space, its notes and its records on the target
@@ -378,7 +362,7 @@ test(
             placement: await placementOf(universe),
             notes: await read.select().from(note).orderBy(note.id),
             completed: [record.completedAt !== null, record.sourceId, record.targetId],
-            moved: await (await target.builds()).packages.contains(manifest),
+            moved: await (await target.builds()).contains(manifest),
             reference: replicated.reference,
             kept: kept.map((entry) => [entry.name, entry.provider]),
             databases: (await world.files.readDirectory(join(files, "target", ids.space)))
@@ -402,7 +386,7 @@ test(
                 databases: [],
                 snapshots: [],
                 files: [`${scratchId}.db`],
-                blobs: [true, 0],
+                blobs: [],
             },
             placement: { id: ids.space, scope: ids.account, machine: targetId, epoch: 2 },
             notes: [
@@ -529,6 +513,8 @@ test("move every table of the space database with rows in spaces, leaving out th
         "destack__stack__dependency",
         "destack__stack__https",
         "destack__stack__shared_note",
+        "destack__object__chunk",
+        "destack__object__chunk_run",
         "destack__account__identity_key",
     ]);
 });
@@ -873,131 +859,53 @@ test(
     SCENARIO_MILLISECONDS,
 );
 
-test("sweep the blobs no snapshot reads while no snapshot is taken and no other sweep has the lease, then retire the expired snapshots", async () => {
-    // serve the fixture's space on the machine that stores the snapshots of it and the home space
+test("collect a stray blob once its lease ends, and a snapshot's blobs once the snapshot expires", async () => {
+    // serve the fixture's space on the machine that stores the snapshots of it
     const fixture = await TestSpace.open({});
-    const served = serveSpace(await fixture.options()).store;
-    const { database } = fixture;
+    const served = await fixture.serve();
+    const { database, blobs } = fixture;
+    const start = fixture.machine.clock.now();
 
-    // add a taken snapshot of a resource of each space with one blob, and a blob none reads
-    const store = fixture.store();
-    const now = fixture.machine.clock.now();
-    const write = (content: string) =>
-        store.write(
+    // put a blob a taken snapshot references, and a stray blob none references
+    const put = async (content: string) => {
+        const bytes = new TextEncoder().encode(content);
+        const digest = await Digest.of(bytes, fixture.environment.crypto);
+        await blobs.put(digest, async () =>
             (async function* () {
-                yield new TextEncoder().encode(content);
+                yield bytes;
             })(),
         );
-    const snapshotOf = async (
-        space: Identifier<"space">,
-        resource: string,
-        blob: Digest | null,
-    ) => {
-        const id = schema
-            .identifier("snapshot")
-            .parse(object.snapshot.generateId(fixture.environment));
-        await database.transaction(
-            async (transaction) =>
-                await transaction.insert(object.snapshot.table).values({
-                    id,
-                    spaceId: space,
-                    resourceId: ResourceId.parse(resource),
-                    recipient: (await Recipient.generate(fixture.environment)).key,
-                    digest: blob,
-                    takenAt: blob === null ? null : now,
-                    blobs: blob === null ? [] : [blob],
-                    createdAt: now,
-                    updatedAt: now,
-                }),
-        );
 
-        return id;
+        return digest;
     };
-    for (const [space, resource] of [
-        [ids.space, "database-01996ab0-0000-7000-8000-0000000000f1"],
-        [fixture.owner.home, "database-01996ab0-0000-7000-8000-0000000000f2"],
-    ] as const) {
-        await snapshotOf(space, resource, await write(resource));
-    }
-    await write("stray");
-
-    // leave every blob while a snapshot is taken
-    const taking = await snapshotOf(
-        ids.space,
-        "database-01996ab0-0000-7000-8000-0000000000f3",
-        null,
-    );
-    await sweepSnapshots(at(served, now), store);
-    const whileTaking = store.size;
-
-    // leave every blob while another sweep has the lease
-    const other = {
-        ...SWEEP_LEASE,
-        holder: "other",
-        duration: 60_000,
-        now: fixture.machine.clock.now(),
-    };
-    await Lease.acquire(database, other);
-    const restoring = schema
-        .identifier("restore")
-        .parse(object.restore.generateId(fixture.environment));
+    const [taken] = [await put("taken"), await put("stray")];
     await database.transaction(
         async (transaction) =>
-            await transaction.insert(object.restore.table).values({
-                id: restoring,
+            await transaction.insert(object.snapshot.table).values({
+                id: schema
+                    .identifier("snapshot")
+                    .parse(object.snapshot.generateId(fixture.environment)),
                 spaceId: ids.space,
-                resourceId: ResourceId.parse("database-01996ab0-0000-7000-8000-0000000000f4"),
-                sourceId: UNKNOWN_MACHINE,
-                sourceEpoch: 1,
-                createdAt: now,
-                updatedAt: now,
+                resourceId: ResourceId.parse("database-01996ab0-0000-7000-8000-0000000000f1"),
+                recipient: (await Recipient.generate(fixture.environment)).key,
+                digest: taken,
+                takenAt: start,
+                blobs: [taken],
+                createdAt: start,
+                updatedAt: start,
             }),
     );
-    const waits = [
-        await reconcile(served, "snapshot", { id: taking }),
-        await reconcile(served, "restore", { id: restoring }),
-    ];
-    await database.transaction(
-        async (transaction) =>
-            await transaction
-                .delete(object.snapshot.table)
-                .where(eq(object.snapshot.table.id, taking)),
-    );
-    await database.transaction(
-        async (transaction) =>
-            await transaction
-                .delete(object.restore.table)
-                .where(eq(object.restore.table.id, restoring)),
-    );
-    await sweepSnapshots(at(served, now), store);
-    const whileLeased = store.size;
-    await Lease.release(database, other);
 
-    // delete the stray blob, then the expired snapshots and their blobs two days later
-    await sweepSnapshots(at(served, now), store);
-    const swept = store.size;
-    await sweepSnapshots(at(served, now + 2 * DAY_MILLISECONDS), store);
+    // collect the stray blob past its lease, then the snapshot's blob once the snapshot expires
+    await fixture.jump(served, start + blobs.leaseMilliseconds + 1);
+    const leased = await Array.fromAsync(blobs.storage.digests());
+    await fixture.jump(served, start + 2 * DAY_MILLISECONDS);
     expect({
-        blobs: [whileTaking, whileLeased, swept, store.size],
-        waits,
+        leased,
+        expired: await Array.fromAsync(blobs.storage.digests()),
         snapshots: await database.select().from(object.snapshot.table),
-    }).toEqual({ blobs: [3, 3, 2, 0], waits: [other.duration, other.duration], snapshots: [] });
+    }).toEqual({ leased: [taken], expired: [], snapshots: [] });
 });
-
-/** Read a store as a sweep at a moment does, on a clock paused there. */
-function at(
-    store: Pick<ObjectStore, "database" | "mutate" | "environment">,
-    time: number,
-): Pick<ObjectStore, "database" | "mutate" | "clock" | "environment"> {
-    const clock = new SimulatedClock(time);
-
-    return {
-        database: store.database,
-        mutate: store.mutate.bind(store),
-        clock,
-        environment: { ...store.environment, clock },
-    };
-}
 
 /** Run a cancellation once just before an uplink's first placement call. */
 function cancelling(publisher: Uplink, cancel: () => Promise<unknown>): Uplink {
@@ -1118,10 +1026,14 @@ async function settleMove(
         before = after;
     }
 
-    // let both machines' directories follow the new placement
-    const head = await universe.log.position();
-    await source.simulation.settle(source.machine.follow(head, FOREVER));
-    await target.simulation.settle(target.machine.follow(head, FOREVER));
+    // let both machines' directories show the settled placement
+    const settled = JSON.stringify(await placementOf(universe));
+    for (const space of [source, target]) {
+        const { snapshot } = space.machine.directory;
+        const isShown = async () =>
+            JSON.stringify((await Placement.find(snapshot, [ids.space]))[0]) === settled;
+        await space.simulation.settle(snapshot.database.log.until(isShown, FOREVER));
+    }
 
     return refused;
 }

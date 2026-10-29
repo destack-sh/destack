@@ -52,16 +52,19 @@ test("assign the machine of an unfinished checkout build in the space, and withd
         fixture.machine.environment,
     );
     const assignments = async () => {
-        // replicate the universe's assignments to the machine, as its replica of them does
+        // wait for the space's replica of the universe's assignments, which the fixture follows
         const rows = await fixture.universe.storage.database.select().from(assignment.table);
-        await database.transaction(
-            async (transaction) => await transaction.delete(assignment.table),
+        const wanted = JSON.stringify(rows.map((row) => row.id).toSorted());
+        const isReplicated = async () => {
+            const replicated = await database
+                .select({ id: assignment.table.id })
+                .from(assignment.table);
+
+            return JSON.stringify(replicated.map((row) => row.id).toSorted()) === wanted;
+        };
+        await fixture.simulation.settle(
+            database.log.until(isReplicated, new AbortController().signal),
         );
-        if (rows.length > 0) {
-            await database.transaction(
-                async (transaction) => await transaction.insert(assignment.table).values(rows),
-            );
-        }
 
         return rows.map((row) => [row.placementId, row.machineId]);
     };

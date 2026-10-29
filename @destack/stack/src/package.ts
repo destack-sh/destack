@@ -1,4 +1,5 @@
 import { principal } from "@destack/access";
+import { PACKAGE_STORE_TABLES } from "@destack/build/table";
 import { defineAdapter, definePackage, installation, role } from "@destack/object";
 import { catalog, declaration, module, symbol } from "./object/graph.ts";
 import {
@@ -20,6 +21,9 @@ import { StackError } from "./error/error.ts";
 
 /** The path of the space-move data plane below the stack package's mount. */
 export const HANDOFF_PATH = "/handoff";
+
+/** The path of runners' build uploads below the stack package's mount. */
+export const PUSH_PATH = "/push";
 
 /** The path of installations' hook sessions below the stack package's mount. */
 export const HOOK_PATH = "/hooks";
@@ -45,8 +49,11 @@ export default definePackage({
         symbol,
         catalog,
     },
+    // the index of the space's builds, beside its objects
+    tables: PACKAGE_STORE_TABLES,
     adapters: {
         handoff: defineAdapter("handoff", { path: HANDOFF_PATH, callers: [principal.machine] }),
+        push: defineAdapter("push", { path: PUSH_PATH, callers: [principal.machine] }),
         hook: defineAdapter("hook", { path: HOOK_PATH, callers: [principal.installation] }),
     },
     permissions: {

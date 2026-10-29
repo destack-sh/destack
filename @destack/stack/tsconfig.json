@@ -29,7 +29,7 @@
             "DOM",
             "DOM.Iterable"
         ],
-        "types": ["node", "@destack/build/browser"]
+        "types": ["bun", "@destack/build/browser"]
     },
     "include": ["src", "tests", "*.config.ts"]
 }

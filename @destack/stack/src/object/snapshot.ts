@@ -24,8 +24,8 @@ export const snapshot = defineObject(
             digest: field.string(Digest).optional(),
             /** The time the replica was taken, in UTC epoch milliseconds. */
             takenAt: field.time().optional(),
-            /** The digests of the store's blobs the replica reads. */
-            blobs: field.json(schema.array(Digest)).default([]),
+            /** The blobs of the space's content the replica reads, its manifest among them. */
+            blobs: field.blobs().default([]),
         },
         // the space a record serves reads and writes it
         permissions: { read: permission("record"), record: relation("space") },

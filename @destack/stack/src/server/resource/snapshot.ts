@@ -1,26 +1,12 @@
 import { appliedStates } from "./resource.ts";
+import { asc, type BlobStore, Condition, isNotNull, lt, Snapshot, Transaction } from "@destack/db";
 import { AccessContext, Caller, principal } from "@destack/access";
-import {
-    Change,
-    Condition,
-    Lease,
-    lease,
-    lt,
-    type DatabaseConnection,
-    Snapshot,
-    Transaction,
-} from "@destack/db";
-import {
-    type ObjectReconciliation,
-    ObjectWatch,
-    type Resource,
-    type ResourceType,
-} from "@destack/object";
+import { type ObjectReconciliation, type Resource, type ResourceType } from "@destack/object";
 import type { space } from "@destack/account/object";
 import type { ObjectStore } from "@destack/object/server";
-import { Plan, type ContentStore } from "@destack/resource";
+import { Plan, type BlobStorage } from "@destack/resource";
 import { Recipient } from "@destack/identity";
-import { type Digest, type Identifier, present, Uuid } from "@destack/schema";
+import { Digest, type Identifier, present } from "@destack/schema";
 import { Scope, RequestId } from "@destack/sync";
 import { Restore, restore, snapshot } from "../../object/snapshot.ts";
 import { SpaceTransfer, type TransferOptions } from "../host/transfer.ts";
@@ -28,12 +14,6 @@ import type { Handoff } from "../host/handoff.ts";
 
 /** How long a snapshot no move retires stays in the store: a day. */
 const SNAPSHOT_RETENTION_MILLISECONDS = 24 * 60 * 60 * 1000;
-
-/** The lease a space's content store sweep takes, which its snapshots and restores wait out. */
-export const SWEEP_LEASE = { name: "snapshot-sweep", key: "store" };
-
-/** How long the sweep's lease lasts, renewed every third while the sweep deletes: a minute. */
-const SWEEP_LEASE_MILLISECONDS = 60 * 1000;
 
 /** The snapshots not taken yet, which write blobs into the store. */
 const TAKING: Condition = { takenAt: { isNull: true } };
@@ -64,19 +44,12 @@ export async function retireSnapshots(
     );
 }
 
-/** Implement snapshots: take each pending one into the space's content store. */
+/** Implement snapshots: take each pending one into the space's blobs. */
 export function implementSnapshot(options: TransferOptions) {
     return snapshot.implement({
         controller: {
             pending: TAKING,
-            watches: [sweepWatch(snapshot.table, TAKING)],
             reconcile: async (reconciliation) => {
-                // wait out a sweep of the store before writing into it
-                const swept = await sweepWait(reconciliation.store.database, reconciliation.now);
-                if (swept !== undefined) {
-                    return swept;
-                }
-
                 // take each pending snapshot
                 for (const row of reconciliation.rows) {
                     // find the resource and the provider that stores it here
@@ -94,8 +67,8 @@ export function implementSnapshot(options: TransferOptions) {
                         resource.provider,
                     );
 
-                    // copy its content into the store and record the copy with its blobs as the space
-                    const { store, blobs } = recording(options.store);
+                    // copy its content into the space's blobs and record the copy with them as the space
+                    const { store, blobs } = recording(options.blobs);
                     const digest = await snapshotter.snapshot(
                         kind.record(resource),
                         kind.states(await appliedStates(reconciliation.store.database, resource)),
@@ -133,14 +106,7 @@ export function implementRestore(options: TransferOptions) {
     return restore.implement({
         controller: {
             pending: RESTORING,
-            watches: [sweepWatch(restore.table, RESTORING)],
             reconcile: async (reconciliation) => {
-                // wait out a sweep of the store before writing into it
-                const swept = await sweepWait(reconciliation.store.database, reconciliation.now);
-                if (swept !== undefined) {
-                    return swept;
-                }
-
                 // restore each pending restore
                 for (const row of reconciliation.rows) {
                     await restoreRow(options, reconciliation, row);
@@ -160,7 +126,7 @@ interface Copy {
     /** The snapshot's digest. */
     readonly digest: Digest;
     /** The space's store, reading blobs through the source's handoff. */
-    readonly store: Pick<ContentStore, "read" | "write" | "fetch">;
+    readonly store: Pick<BlobStorage, "read" | "write" | "fetch">;
     /** The recipient the source encrypted the machine-bound values to. */
     readonly recipient: Recipient;
     /** The resource's applied states. */
@@ -192,7 +158,7 @@ async function restoreRow(
     const digest = await source.snapshot(moving, requested, { signal: reconciliation.signal });
     const copy: Copy = {
         digest,
-        store: relayed(options.store, source, spaceId),
+        store: relayed(options.blobs, source, spaceId),
         recipient,
         desired: await appliedStates(reconciliation.store.database, found.row),
     };
@@ -302,11 +268,10 @@ async function catchUp(
     );
 }
 
-/** Retire a space's expired snapshots and sweep the blobs none reads from its own store. */
-export async function sweepSnapshots(
+/** Delete a space's expired snapshots, which lets their blobs go, answering the next expiry. */
+export async function expireSnapshots(
     objects: Pick<ObjectStore, "database" | "mutate" | "clock" | "environment">,
-    store: ContentStore,
-): Promise<void> {
+): Promise<number | undefined> {
     // delete the snapshots taken before their retention, each as its space
     const { database } = objects;
     const now = objects.clock.now();
@@ -331,156 +296,52 @@ export async function sweepSnapshots(
         }
     });
 
-    // list the stored blobs before taking the lease, so writers stay unblocked while listing
-    const listed = await Array.fromAsync(store.digests());
-    const holder = Uuid.v4(objects.environment.random);
-    try {
-        // take the lease, and leave the store alone while a writer runs
-        if (!(await acquireSweepIfIdle(objects, holder))) {
-            return;
-        }
-
-        // read the blobs the snapshots read once no writer can add to them
-        const snapshots = await database
-            .select({ blobs: snapshot.table.blobs })
-            .from(snapshot.table);
-        const retained = new Set(snapshots.flatMap((row) => row.blobs));
-
-        // renew the lease while deleting, and record a lost lease to stop the deletes
-        const finished = new AbortController();
-        let lost: Error | undefined;
-        const renewal = renewSweep(objects, holder, finished.signal).catch((error: unknown) => {
-            lost = error instanceof Error ? error : new TypeError(String(error));
-        });
-
-        // delete every other blob, stopping once a writer starts or the lease is lost
-        try {
-            for (const digest of listed.filter((kept) => !retained.has(kept))) {
-                if (lost !== undefined) {
-                    throw lost;
-                } else if (await isWriting(database)) {
-                    return;
-                }
-                await store.delete(digest);
-            }
-        } finally {
-            finished.abort();
-            await renewal;
-        }
-    } finally {
-        await Lease.release(database, { holder, ...SWEEP_LEASE });
-    }
-}
-
-/** Renew the sweep's lease every third of it until a signal ends the renewals. */
-async function renewSweep(
-    objects: Pick<ObjectStore, "database" | "clock" | "environment">,
-    holder: string,
-    signal: AbortSignal,
-): Promise<void> {
-    while (!signal.aborted) {
-        // wait a third of the lease, ending quietly once the sweep finished
-        try {
-            await objects.clock.sleep(SWEEP_LEASE_MILLISECONDS / 3, signal);
-        } catch (error) {
-            if (signal.aborted) {
-                return;
-            }
-            throw error;
-        }
-
-        // renew it, refusing a lease another holder took
-        const acquired = await Lease.acquire(objects.database, {
-            ...SWEEP_LEASE,
-            holder,
-            duration: SWEEP_LEASE_MILLISECONDS,
-            now: objects.clock.now(),
-        });
-        if (acquired.kind !== "acquired") {
-            throw new TypeError("the snapshot sweep lost its lease while deleting blobs");
-        }
-    }
-}
-
-/** Take or renew the sweep's lease while no snapshot or restore writes, answering if it may. */
-async function acquireSweepIfIdle(
-    objects: Pick<ObjectStore, "database" | "clock" | "environment">,
-    holder: string,
-): Promise<boolean> {
-    const acquired = await Lease.acquire(objects.database, {
-        ...SWEEP_LEASE,
-        holder,
-        duration: SWEEP_LEASE_MILLISECONDS,
-        now: objects.clock.now(),
-    });
-
-    return acquired.kind === "acquired" && !(await isWriting(objects.database));
-}
-
-/** Read how long a writer waits out a running sweep, until its lease lapses, none without one. */
-async function sweepWait(database: DatabaseConnection, now: number): Promise<number | undefined> {
-    const lapsesAt = await Lease.lapsesAt(database, { ...SWEEP_LEASE, now });
-
-    return lapsesAt === undefined ? undefined : lapsesAt - now;
-}
-
-/** Wake a table's pending writers into the store once the sweep releases its lease. */
-function sweepWatch(
-    table: typeof snapshot.table | typeof restore.table,
-    pending: Condition,
-): ObjectWatch {
-    return ObjectWatch.of(lease, async (row, database, change) => {
-        // leave other leases, and the sweep's takes and renewals
-        const isSweep = row.name === SWEEP_LEASE.name && row.key === SWEEP_LEASE.key;
-        if (!isSweep || Change.after(change) !== null) {
-            return [];
-        }
-
-        // list the pending writers
-        const rows = await database
-            .select({ id: table.id })
-            .from(table)
-            .where(Condition.render(pending, table));
-
-        return rows.map((each) => ({ id: each.id }));
-    });
-}
-
-/** Report whether a snapshot or restore of the machine is writing blobs into its store. */
-async function isWriting(database: DatabaseConnection): Promise<boolean> {
-    const [taking] = await database
-        .select({ id: snapshot.table.id })
+    // read when the next snapshot expires
+    const [oldest] = await database
+        .select({ takenAt: snapshot.table.takenAt })
         .from(snapshot.table)
-        .where(Condition.render(TAKING, snapshot.table))
-        .limit(1);
-    const [restoring] = await database
-        .select({ id: restore.table.id })
-        .from(restore.table)
-        .where(Condition.render(RESTORING, restore.table))
+        .where(isNotNull(snapshot.table.takenAt))
+        .orderBy(asc(snapshot.table.takenAt))
         .limit(1);
 
-    return taking !== undefined || restoring !== undefined;
+    return oldest?.takenAt === null || oldest === undefined
+        ? undefined
+        : oldest.takenAt + SNAPSHOT_RETENTION_MILLISECONDS;
 }
 
-/** Write into a store, collecting the digests of the blobs written or fetched. */
-function recording(store: ContentStore): {
-    readonly store: Pick<ContentStore, "read" | "write" | "fetch">;
+/** Write into a space's blobs, leasing each for a day, collecting what it writes or fetches. */
+function recording(space: BlobStore): {
+    readonly store: Pick<BlobStorage, "read" | "write" | "fetch">;
     readonly blobs: Set<Digest>;
 } {
     const blobs = new Set<Digest>();
+    const until = () => space.environment.clock.now() + SNAPSHOT_RETENTION_MILLISECONDS;
 
     return {
         blobs,
         store: {
-            read: (digest) => store.read(digest),
+            read: (digest) => space.storage.read(digest),
             write: async (body, expected) => {
-                const digest = await store.write(body, expected);
+                // lease the bytes' digest before keeping them, so no collection takes them meanwhile
+                const chunked = await Array.fromAsync(body);
+                const bytes = new Uint8Array(
+                    await new Blob(chunked.map((chunk) => new Uint8Array(chunk))).arrayBuffer(),
+                );
+                const digest = expected ?? (await Digest.of(bytes, space.environment.crypto));
+                await space.lease([digest], until());
+                await space.storage.write(
+                    (async function* () {
+                        yield bytes;
+                    })(),
+                    digest,
+                );
                 blobs.add(digest);
 
                 return digest;
             },
             fetch: async (digests, from) => {
-                await store.fetch(digests, from);
+                await space.lease(digests, until());
+                await space.storage.fetch(digests, from);
                 for (const digest of digests) {
                     blobs.add(digest);
                 }
@@ -489,21 +350,22 @@ function recording(store: ContentStore): {
     };
 }
 
-/** Read through a machine's content store from another machine's store. */
+/** Read through a space's blobs from another machine's, leasing what it fetches for a day. */
 function relayed(
-    store: ContentStore,
+    space: BlobStore,
     source: Handoff,
     spaceId: Identifier<"space">,
-): Pick<ContentStore, "read" | "write" | "fetch"> {
+): Pick<BlobStorage, "read" | "write" | "fetch"> {
     // read a blob from the source machine's store through its relay
     const remote = {
         read: (digest: Digest) => source.read(spaceId, digest),
     };
+    const { store } = recording(space);
 
     return {
         read: async function* (digest) {
             await store.fetch([digest], remote);
-            yield* store.read(digest);
+            yield* space.storage.read(digest);
         },
         write: (body, expected) => store.write(body, expected),
         fetch: (digests, from) => store.fetch(digests, from),

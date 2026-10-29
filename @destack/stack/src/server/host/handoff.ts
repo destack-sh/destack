@@ -1,15 +1,22 @@
 import type { Environment } from "@destack/environment";
+import {
+    type BlobStore,
+    type DatabaseConnection,
+    LogPosition,
+    type Row,
+    Snapshot,
+    type Table,
+} from "@destack/db";
 import { Failure } from "@destack/error";
 import { RequestId, Page, Scope, type Uplink } from "@destack/sync";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { createClient } from "@destack/object/client";
-import { type DatabaseConnection, LogPosition, type Row, Snapshot, type Table } from "@destack/db";
 import { type IdentityKeystore } from "@destack/account/identity";
 import type { MethodContext } from "@destack/object";
 import type { AdapterFetch } from "@destack/object/server";
 import type { Runtime } from "../../runtime/index.ts";
-import { ResourceId, type Rewrapper, type ContentStore } from "@destack/resource";
+import { ResourceId, type Rewrapper, type BlobStorage } from "@destack/resource";
 import { Recipient } from "@destack/identity";
 import { type Fence, snapshot, type Transfer } from "../../object/index.ts";
 import type { BuildStore } from "../installation/build.ts";
@@ -262,9 +269,9 @@ export interface HandoffOptions {
     readonly keystore: IdentityKeystore;
     /** The runtimes running the spaces' instances. */
     readonly runtimes: readonly Runtime[];
-    /** The machine's content-addressed store of its resources' snapshots. */
-    readonly store: Pick<ContentStore, "read">;
-    /** The machine's store of every build. */
+    /** The space's blobs, which a moving space's target reads its snapshots' blobs from. */
+    readonly blobs: BlobStore;
+    /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
 }
 
@@ -316,7 +323,7 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
         // serve the builds the space's rows refer to
         else if (part === "builds" && request.method === "GET") {
             const mount = new URL(`${url.origin}${HandoffPath.of(spaceId, "builds")}/`);
-            const answer = await options.builds.packages.fetch(request, mount, {
+            const answer = await options.builds.space.fetch(request, mount, {
                 authorize: async (_request, manifest) => {
                     await content.requireBuild(record, manifest);
                 },
@@ -344,7 +351,7 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
             const digest = Digest.parse(rest.slice(1));
             await content.requireBlob(record, digest);
 
-            return streamBlob(options.store, digest);
+            return streamBlob(options.blobs.storage, digest);
         }
         // refuse any other request
         else {
@@ -353,8 +360,8 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
     };
 }
 
-/** Stream a blob of the content store. */
-function streamBlob(store: Pick<ContentStore, "read">, digest: Digest): Response {
+/** Stream a blob of the space. */
+function streamBlob(store: Pick<BlobStorage, "read">, digest: Digest): Response {
     const body = streamOf(store.read(digest));
 
     return new Response(body, { headers: { "content-type": "application/octet-stream" } });

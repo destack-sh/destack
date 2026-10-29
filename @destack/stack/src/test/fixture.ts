@@ -4,8 +4,22 @@ import type { Environment, HostCapability } from "@destack/environment";
 import { type Connector, Plan } from "@destack/resource";
 import { TestSpaceDatabaseHost } from "./space.ts";
 import { dirname, join } from "node:path";
-import { LocalBucketHost } from "@destack/bucket/bun";
-import type { Controller, Table, ReconcileController } from "@destack/db";
+import { LocalBlobStorage, LocalBucketHost } from "@destack/bucket/bun";
+import {
+    BlobStore,
+    Change,
+    type Controller,
+    ControlLoop,
+    type DatabaseConnection,
+    defineDatabase,
+    eq,
+    type LogPosition,
+    type ReconcileController,
+    Snapshot,
+    type Table,
+    TABLE,
+    Transaction,
+} from "@destack/db";
 import type { BuildReader } from "@destack/package/manifest";
 import { RequestId, Scope } from "@destack/sync";
 import {
@@ -48,20 +62,8 @@ import {
     Installation,
 } from "@destack/object";
 import { ObjectStore, type PackageImplementation } from "@destack/object/server";
-import {
-    Change,
-    ControlLoop,
-    type DatabaseConnection,
-    defineDatabase,
-    eq,
-    type LogPosition,
-    Snapshot,
-    TABLE,
-    Transaction,
-} from "@destack/db";
-import { MemoryContentStore } from "@destack/resource/test";
 import { connectBunSqlite } from "@destack/db/bun";
-import { graph, Package, PackageId, type PackageRelease } from "@destack/package";
+import { Package, PackageId, type PackageRelease } from "@destack/package";
 import settingPackage from "@destack/setting/package";
 import { describeSetting } from "@destack/setting/inspect";
 import { buildRetention } from "../setting/index.ts";
@@ -71,14 +73,14 @@ import {
     Identifier,
     type JsonObject,
     type JsonValue,
+    nth,
     present,
     schema,
 } from "@destack/schema";
 import objectPackage from "@destack/object/package";
 import { Simulation } from "@destack/environment/simulation";
-import type { StackClient } from "../client/index.ts";
-import { type BuildUpload, Database, Rollout } from "../object/index.ts";
-import { BuildStore } from "../server/installation/build.ts";
+import { Database, Rollout } from "../object/index.ts";
+import { BuildCache, BuildStore } from "../server/installation/build.ts";
 import { REFUSAL_REASONS } from "../server/installation/application.ts";
 import { StackDocument, type StackTypes } from "../declare/stack.ts";
 import { Handoff } from "../server/host/handoff.ts";
@@ -106,7 +108,7 @@ import {
 import type { TestPerson } from "@destack/account/test";
 import type { ClientOf } from "@destack/object/client";
 import { spaceReplicated, spaceTables } from "../stack/index.ts";
-import stackPackage from "../package.ts";
+import stackPackage, { PUSH_PATH } from "../package.ts";
 import type { EventStore } from "@destack/event";
 import { TestRegistry } from "./build.ts";
 import { TestGateway } from "./gateway.ts";
@@ -117,8 +119,8 @@ import { BunGraphStorage } from "../bun/graph.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { StackSource } from "@destack/account/object";
-import { PackageStore } from "@destack/build/store";
-import { MemoryBucket } from "@destack/bucket/test";
+import { PackageClient, PackageStore } from "@destack/build/store";
+import { TestPackageStore } from "@destack/build/test";
 
 /** The main database of a space a test machine serves without other modules. */
 export const spaceDatabase = defineDatabase({
@@ -141,11 +143,6 @@ export interface StackReleases {
     /** The digest of the stack package's release. */
     readonly manifest: Digest;
 }
-
-/** The bucket that stores a test machine's builds. */
-const BUILD_BUCKET = schema
-    .identifier("bucket")
-    .parse("bucket-01996ab0-0000-7000-8000-0000000000bb");
 
 /** The residency a test universe declares, whose home a residency fixture hosts. */
 const RESIDENCY: ResidencyCode = "eu";
@@ -314,13 +311,13 @@ export class TestSpace implements AsyncDisposable {
     readonly #test: TestDatabase;
     /** The closing of the machine's database, absent while open. */
     #closed: Promise<void> | undefined;
-    /** The machine's content store, absent until opened. */
-    #store: MemoryContentStore | undefined;
     /** The machine's bucket host. */
     readonly #buckets: LocalBucketHost;
     /** The directory that stores the space's own databases, such as main. */
     readonly #main: string;
-    /** The machine's build store. */
+    /** The space's blobs, in the machine's files directory, referenced from its database. */
+    readonly blobs: BlobStore<LocalBlobStorage>;
+    /** The space's builds, read through to the machine's cache. */
     readonly #builds: BuildStore;
     /** The packages the space serves in addition to the stack's, with their events and sockets. */
     readonly #packages: readonly Pick<PackageHandle, "objects" | "tables">[];
@@ -362,6 +359,7 @@ export class TestSpace implements AsyncDisposable {
         readonly test: TestDatabase;
         readonly buckets: LocalBucketHost;
         readonly main: string;
+        readonly blobs: BlobStore<LocalBlobStorage>;
         readonly builds: BuildStore;
         readonly packages: readonly Pick<PackageHandle, "objects" | "tables">[];
         readonly connectors: readonly Connector[];
@@ -381,6 +379,7 @@ export class TestSpace implements AsyncDisposable {
         this.releases = fields.releases;
         this.#buckets = fields.buckets;
         this.#main = fields.main;
+        this.blobs = fields.blobs;
         this.#builds = fields.builds;
         this.owner = fields.owner;
         this.machine = fields.machine;
@@ -785,7 +784,7 @@ export class TestSpace implements AsyncDisposable {
         // publish the releases the write published again, from the machine's builds of them
         for (const manifest of restored.releases) {
             if (!(await this.registry.contains(manifest))) {
-                await this.registry.push(this.#builds.packages, manifest);
+                await this.registry.push(this.#builds, manifest);
             }
         }
 
@@ -938,9 +937,9 @@ export class TestSpace implements AsyncDisposable {
         // open the universe opening releases from the world's registry
         const environment = simulation.environment(UNIVERSE_NODE);
         const { source } = await TestSpace.releases(environment.crypto);
-        const registry = new TestRegistry(
-            new PackageStore(new MemoryBucket(environment.clock), environment),
-        );
+        const packages = await TestPackageStore.create(environment);
+        defer(() => packages[Symbol.asyncDispose]());
+        const registry = new TestRegistry(packages);
         const universe = await TestUniverse.open({
             stacks: { person: source, residency: source, account: source, space: source },
             releases: registry,
@@ -972,6 +971,8 @@ export class TestSpace implements AsyncDisposable {
             readonly files: {
                 readonly directory: string;
                 readonly buckets: LocalBucketHost;
+                readonly builds: TestPackageStore;
+                readonly blobs: LocalBlobStorage;
                 readonly main: string;
             };
             /** Run a cleanup once the test or the template's write ends. */
@@ -990,12 +991,15 @@ export class TestSpace implements AsyncDisposable {
             new AbortController().signal,
         );
 
-        // open the machine's build store, shipping the servers the test gives
-        const builds = await BuildStore.of(
-            buckets,
-            { scope: machine.id, bucketId: BUILD_BUCKET },
-            ["bun"],
-            machine.environment,
+        // store the space's builds in its blobs, read through to the machine's cache
+        const blobs = new BlobStore({
+            storage: files.blobs,
+            database: test.database,
+            environment: machine.environment,
+        });
+        const builds = new BuildStore(
+            new PackageStore({ blobs, environment: machine.environment }),
+            new BuildCache(files.builds, ["bun", "browser"]),
         );
         const servers = options.servers ?? [];
         const releases = await TestSpace.releases(machine.environment.crypto);
@@ -1042,6 +1046,7 @@ export class TestSpace implements AsyncDisposable {
             test,
             buckets,
             main,
+            blobs,
             builds,
             packages: options.packages ?? [],
             connectors: [...(options.connectors ?? []), ...(local?.connectors ?? [])],
@@ -1078,6 +1083,8 @@ export class TestSpace implements AsyncDisposable {
     ): Promise<{
         readonly directory: string;
         readonly buckets: LocalBucketHost;
+        readonly builds: TestPackageStore;
+        readonly blobs: LocalBlobStorage;
         readonly main: string;
     }> {
         // store the files below the given directory, else in a temporary one removed with them
@@ -1092,14 +1099,17 @@ export class TestSpace implements AsyncDisposable {
             environment,
             credentials: async () => BUCKET_CREDENTIALS,
         });
+        const builds = await TestPackageStore.open(join(directory, "builds"), environment);
+        const blobs = await LocalBlobStorage.open(join(directory, "blobs"), environment);
         defer(async () => {
             await buckets[Symbol.asyncDispose]();
+            await builds[Symbol.asyncDispose]();
             if (given === undefined) {
                 await files.remove(directory, { recursive: true });
             }
         });
 
-        return { directory, buckets, main };
+        return { directory, buckets, builds, blobs, main };
     }
 
     /** Fill the stack package's options: the host's, then the machine's stores and runtimes. */
@@ -1112,7 +1122,7 @@ export class TestSpace implements AsyncDisposable {
             buildRunner: this.machine.id,
             main: spaceDatabase,
             sandboxes: [],
-            store: this.store(),
+            blobs: this.blobs,
             registry: this.registry,
             buckets: await this.buckets(),
             builds: await this.builds(),
@@ -1122,7 +1132,6 @@ export class TestSpace implements AsyncDisposable {
             sockets: overrides.sockets ?? (await this.sockets()),
             isEnforcingEntitlements: false,
             isServingHostnames: true,
-            graphs: { sweep: async () => (await this.index()).sweep() },
             forge: null,
             follows: [],
             controllers: [],
@@ -1178,7 +1187,7 @@ export class TestSpace implements AsyncDisposable {
         const installed = await Database.installed(
             Snapshot.live(this.database),
             spaceId,
-            (manifest) => builds.packages.contents(manifest),
+            (packageId, manifest) => builds.pull(this.registry, packageId, manifest),
             this.database.state.environment.crypto,
         );
         const revisions = new Map(installed.map((entry) => [entry.rollout.id, entry.revisionId]));
@@ -1263,12 +1272,12 @@ export class TestSpace implements AsyncDisposable {
         );
     }
 
-    /** Settle the universe, its machine and the space to a fixpoint, the chain confirmed since. */
+    /** Settle the universe, its machine and the space to a fixpoint, their replicas caught up. */
     settle(served: TestObjectStore): Promise<void> {
         return this.simulation.settle(this.#settle(served));
     }
 
-    /** Settle in rounds until the universe and the space commit nothing, then confirm the chain. */
+    /** Settle in rounds until the universe and the space commit nothing, then wait for liveness. */
     async #settle(served: TestObjectStore): Promise<void> {
         // settle the universe, the machine following it and the space until a round commits nothing
         const positions = async () =>
@@ -1279,21 +1288,14 @@ export class TestSpace implements AsyncDisposable {
         let before = await positions();
         let isSettled = false;
         for (let round = 0; round < SETTLE_ROUNDS && !isSettled; round += 1) {
-            // settle the universe and the machine, and let the space's replicas of its chain above it catch up with the universe's head
+            // settle the universe and the machine, and let the space's replicas catch up to the universe
             await this.universe.settle();
             await this.machine.settle();
-            const head = await this.universe.storage.database.log.position();
-            const above = (await Scope.chain(Snapshot.live(this.database), this.id))
-                .map((link) => link.object.id)
-                .filter((scope) => scope !== this.id);
-            for (const scope of new Set([Scope.universe.id, ...above])) {
-                // wait for a scope a followed replica reads, leaving one none reads, such as after a cancelled move
-                const watermark = { scope, ...head };
-                const history = await served.store.history(watermark);
-                if (history.kind === "replicated") {
-                    await served.store.wait(watermark, new AbortController().signal);
-                }
-            }
+            await TestObjectStore.settleReplicas([
+                this.universe.universe.store,
+                this.machine.store,
+                served.store,
+            ]);
 
             // settle the space, and stop once a round commits nothing
             await served.settle();
@@ -1307,8 +1309,8 @@ export class TestSpace implements AsyncDisposable {
             throw new Error(`the space's world kept committing after ${SETTLE_ROUNDS} rounds`);
         }
 
-        // wait until a follow hears the home of each replica of the space's chain
-        await served.store.awaitConfirmed(new AbortController().signal);
+        // wait until each replica of the space's chain is live
+        await served.store.untilLive(new AbortController().signal);
         await served.settle();
     }
 
@@ -1350,13 +1352,6 @@ export class TestSpace implements AsyncDisposable {
         await this.settle(served);
     }
 
-    /** Open the machine's content store in memory, once. */
-    store(): MemoryContentStore {
-        this.#store ??= new MemoryContentStore(this.machine.environment.crypto);
-
-        return this.#store;
-    }
-
     /** The machine's buckets. */
     async buckets(): Promise<LocalBucketHost> {
         return this.#buckets;
@@ -1367,18 +1362,15 @@ export class TestSpace implements AsyncDisposable {
         return this.#builds;
     }
 
-    /** Index the space's builds in a temporary directory until the test ends. */
+    /** Index the space's builds, each index attached to its build, until the test ends. */
     index(): Promise<BunGraphStorage> {
         this.#index ??= (async () => {
-            // store the index files in a directory removed with the index once the test ends
-            const { files } = this.environment;
-            const directory = await files.makeTemporaryDirectory("destack-stack-index-");
-            const builds = await this.builds();
-            const index = new BunGraphStorage(this.database, builds.packages, directory, files);
-            this.#defer(async () => {
-                await index[Symbol.asyncDispose]();
-                await files.remove(directory, { recursive: true });
-            });
+            const index = new BunGraphStorage(
+                this.database,
+                await this.builds(),
+                this.environment.files,
+            );
+            this.#defer(() => index[Symbol.asyncDispose]());
 
             return index;
         })();
@@ -1386,55 +1378,66 @@ export class TestSpace implements AsyncDisposable {
         return this.#index;
     }
 
-    /** Store a running build's files as its runner. */
+    /** Push a running build's files and code index as its runner, answering the files uploaded. */
     async storeBuild(
-        runner: StackClient,
+        runner: TestCaller,
         target: { readonly spaceId: Identifier<"space">; readonly id: Identifier<"build"> },
         reader: BuildReader,
-    ): Promise<readonly BuildUpload[]> {
-        // report the files, then put them in the package store as the runner's uploads do
-        const files = [...reader.references(), ...(await reader.files())].map(
-            ({ digest, size, mediaType }) => ({ digest, size, mediaType }),
-        );
-        const { uploads } = await runner.build.progress({
+    ): Promise<readonly Digest[]> {
+        // report storing, then push the build to the space's builds adapter, recording each file uploaded
+        const client = runner.client(stackPackage);
+        await client.build.progress({
             ...target,
             requestId: RequestId.create(this.machine.environment),
-            progress: { phase: "storing", files },
+            progress: { phase: "storing" },
         });
-        const { packages } = await this.builds();
-        await packages.put(reader);
+        const { fetch } = runner.endpoint(stackPackage);
+        const uploaded: Digest[] = [];
+        const pushing = new PackageClient(
+            `${SPACE_URL}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
+            async (request) => {
+                const file = /\/files\/([0-9a-f]{64})$/u.exec(new URL(request.url).pathname);
+                if (request.method === "PUT" && file !== null) {
+                    uploaded.push(Digest.parse(nth(file, 1)));
+                }
 
-        // store an empty code index with it, then finish with the manifest
+                return await fetch(request);
+            },
+            this.machine.environment.crypto,
+        );
+        await pushing.push(reader);
+
+        // upload an empty code index with it, then finish with the manifest
         const bytes = new TextEncoder().encode(JSON.stringify([]));
         const code = {
             digest: await Digest.of(bytes, this.machine.environment.crypto),
             size: bytes.byteLength,
         };
-        await packages.receive(code.digest, bytes, "application/json");
-        await runner.build.finish({
+        await pushing.upload(code.digest, async () => bytes);
+        await client.build.finish({
             ...target,
             requestId: RequestId.create(this.machine.environment),
             end: { kind: "stored", manifest: reader.manifest, code },
         });
 
-        return uploads;
+        return uploaded;
     }
 
     /** Put a build with its code index in the build store, and record it succeeded now. */
     async recordBuild(
         reader: BuildReader,
-        code: readonly graph.Document[] = [],
+        index: object.CodeIndex = { code: [], modules: [] },
     ): Promise<{ readonly kind: "build"; readonly build: Identifier<"build"> }> {
         // put the build in the build store, with its code index attached as its runner's finish does
         const { database } = this;
-        const { packages } = await this.builds();
+        const { space: packages } = await this.builds();
         const manifest = await packages.put(reader);
-        const bytes = new TextEncoder().encode(JSON.stringify(code));
+        const bytes = new TextEncoder().encode(JSON.stringify(index));
         const indexed = {
             digest: await Digest.of(bytes, this.machine.environment.crypto),
             size: bytes.byteLength,
         };
-        await packages.receive(indexed.digest, bytes, "application/json");
+        await packages.receive(indexed.digest, bytes);
         await packages.attach(manifest, object.CodeIndex.file(indexed));
 
         // record the build succeeded now
@@ -1567,17 +1570,22 @@ export class TestSpace implements AsyncDisposable {
         await this.#following?.();
         this.#following = undefined;
 
-        // host the revisions main applied, calling the space's own packages in its served store
+        // host a primary's revisions main applied, calling the space's own packages in its served store
         const { isControlled = true, ...given } = options;
         const providers = [...this.#beside.providers, ...(given.providers ?? [])];
         const serving = Promise.withResolvers<TestObjectStore>();
         const stopping = new AbortController();
-        const installed = await Database.installed(
-            Snapshot.live(this.database),
-            this.id,
-            (manifest) => this.#builds.packages.contents(manifest),
-            this.database.state.environment.crypto,
-        );
+        const role = given.role ?? (await this.host.options()).role;
+        const installed =
+            role === "primary"
+                ? await Database.installed(
+                      Snapshot.live(this.database),
+                      this.id,
+                      (packageId, manifest) =>
+                          this.#builds.pull(this.registry, packageId, manifest),
+                      this.database.state.environment.crypto,
+                  )
+                : [];
         const hosted = await this.host.servers(
             installed,
             {
@@ -1710,7 +1718,7 @@ export class TestSpace implements AsyncDisposable {
         };
         this.#following = stop;
         this.#defer(stop);
-        await this.simulation.settle(store.awaitConfirmed(stopping.signal));
+        await this.simulation.settle(store.untilLive(stopping.signal));
     }
 
     /** Call a served space as a person, carrying the token their client exchanges for it. */

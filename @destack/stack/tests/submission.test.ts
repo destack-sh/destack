@@ -281,6 +281,7 @@ test("install an application from a checkout by submitting its build, following 
     const declared = await owner.declaration.list({ buildId: recorded.build });
     expect(declared.items.map(({ kind, name, description }) => [kind, name, description])).toEqual([
         ["command", "archive", ARCHIVE],
+        ["relation", "editor", {}],
     ]);
 });
 
@@ -339,7 +340,7 @@ test("refuse submitting a build that has not succeeded or that the space does no
     ]);
 });
 
-test("wait for an approval of an application's upgrade across every release since the one it applied, refusing another digest", async () => {
+test("wait for an approval of an application's upgrade planned from the release it applied, refusing another digest", async () => {
     const fixture = await TestSpace.open();
     const owner = (await fixture.serve({ isControlled: false }))
         .as(fixture.owner.subject)
@@ -384,15 +385,15 @@ test("wait for an approval of an application's upgrade across every release sinc
         steps: [
             {
                 action: "create",
-                target: "installation/notes/release/2026.10.0/api/procedure/count",
+                target: "installation/notes/release/2026.11.0/procedure/count",
                 risk: "safe",
-                detail: "add procedure count",
+                detail: "add procedure",
             },
             {
                 action: "delete",
-                target: "installation/notes/release/2026.11.0/object/note/relation/editor",
+                target: "installation/notes/release/2026.11.0/relation/editor",
                 risk: "backward-incompatible",
-                detail: "remove: data stored under it no longer applies",
+                detail: "remove relation: earlier releases still serve it",
             },
         ],
     });
@@ -424,7 +425,7 @@ test("wait for an approval of an application's upgrade across every release sinc
     ]);
 });
 
-test("refuse a build of another package, and block an upgrade from a release that is not earlier", async () => {
+test("refuse a build of another package, and deploy a release that is not later without a plan", async () => {
     // record a checkout build of a fork's package the installation does not install
     const fixture = await TestSpace.open();
     const fork = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f0");
@@ -467,20 +468,27 @@ test("refuse a build of another package, and block an upgrade from a release tha
         await fixture.recordBuild(await fixtureBuild(fork, "2026.9.0", fixture.environment.crypto)),
     );
 
-    // block the release that upgrades from itself until another submission
-    const blocked = await submit(release("2026.12.0"), release("2026.12.0"));
+    // deploy a later release declaring the same, then roll back to the first, each without a plan
+    await submit(release("2026.10.0"), release("2026.10.0"));
     await deploy();
-    const ready = (await read()).conditions["Ready"];
-    expect([deployed, refused, blocked, ready?.reason, ready?.message]).toEqual([
+    const upgraded = await read();
+    await submit(release("2026.9.0"), release("2026.9.0"));
+    await deploy();
+    const rolledBack = await read();
+    expect([
+        deployed,
+        refused,
+        [upgraded.conditions["Ready"]?.reason, upgraded.plan],
+        [rolledBack.conditions["Ready"]?.reason, rolledBack.plan],
+    ]).toEqual([
         "Deployed",
         [
             "BAD_REQUEST",
             "PACKAGE_MISMATCH",
             `notes installs ${ids.package}, but the submitted build is ${fork}`,
         ],
-        "done",
-        "NoUpgrade",
-        "notes 2026.12.0 upgrades from 2026.12.0, which is not earlier",
+        ["Deployed", null],
+        ["Deployed", null],
     ]);
 });
 
@@ -576,13 +584,7 @@ test("open the build each package's installation in a space follows, refusing a 
     // open each package's build and refuse a package the space does not install
     const builds = await fixture.builds();
     const version = (packageId: PackageId) =>
-        Rollout.reader(
-            Snapshot.live(database),
-            ids.space,
-            packageId,
-            undefined,
-            builds.packages,
-        ).then(
+        Rollout.reader(Snapshot.live(database), ids.space, packageId, undefined, builds).then(
             (reader) => reader.manifest.package.version,
             (error: unknown) => (error instanceof Error ? error.message : error),
         );

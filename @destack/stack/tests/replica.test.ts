@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import accountPackage from "@destack/account/package";
 import { CHAIN_PUBLICATION, principal } from "@destack/access";
 import { user } from "@destack/account/object";
@@ -120,6 +121,7 @@ async function serveInstallation() {
                     via: [],
                     between: [],
                 },
+                revision: FOLLOWER_REVISION,
             });
         const changes: Page["changes"][number][] = [];
         for await (const page of pages) {

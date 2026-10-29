@@ -50,6 +50,7 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     BOUND: { code: "CONFLICT" },
     BUILD_EXPIRED: { code: "CONFLICT" },
     BUILD_NOT_READY: { code: "CONFLICT" },
+    BUILD_NOT_STORED: { code: "CONFLICT" },
     BUILD_STATE_CONFLICT: { code: "CONFLICT" },
     CAPTURED: { code: "CONFLICT" },
     INSTALLATIONS_CYCLIC: { code: "CONFLICT" },

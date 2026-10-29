@@ -10,7 +10,6 @@ import { MemoryBuild } from "@destack/package/test";
 import { Digest, found, schema } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { join } from "node:path";
 import { BunGraphStorage } from "../src/bun/index.ts";
 import { build, declaration, module, symbol } from "../src/object/index.ts";
 import stackPackage from "../src/package.ts";
@@ -44,10 +43,12 @@ test("serve a build's modules, declarations and code symbols from its index to t
     const { clock } = simulation;
     clock.resume();
     const served = await fixture.serve();
-    const stored = await writeNotebook();
-    const { build: buildId } = await fixture.recordBuild(stored, notebookCode());
+    const notebook = await writeNotebook();
+    const stored = notebook.reader;
+    const index = { code: notebookCode(), modules: notebook.modules };
+    const { build: buildId } = await fixture.recordBuild(stored, index);
     clock.advance(1);
-    const { build: rebuiltId } = await fixture.recordBuild(stored, notebookCode());
+    const { build: rebuiltId } = await fixture.recordBuild(stored, index);
     const [rebuild] = await fixture.database
         .select({ finishedAt: build.table.finishedAt })
         .from(build.table)
@@ -162,36 +163,36 @@ test("serve a build's modules, declarations and code symbols from its index to t
     ]);
 });
 
-test("sweep the indexes retention drops while an open of an unknown build fails", async () => {
-    // add an empty space database and a graph directory in the test's world
+test("refuse to open the graph of a build the space does not record", async () => {
+    // add an empty space database in the test's world
     const world = testSimulation().environment("test");
     const storage = await TestDatabase.create(spaceTables({}).tables, {
         environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
-    const directory = await world.files.makeTemporaryDirectory("destack-graph-");
-    onTestFinished(() => world.files.remove(directory, { recursive: true }));
     await using graphs = new BunGraphStorage(
         storage.database,
         {
+            store: refuse,
             contains: async () => false,
-            contents: () => Promise.reject(new TypeError("the test stores no builds")),
-            referrer: () => Promise.reject(new TypeError("the test stores no builds")),
-            file: () => Promise.reject(new TypeError("the test stores no builds")),
+            contents: refuse,
+            referrer: refuse,
+            file: refuse,
         },
-        join(directory, "graph"),
         world.files,
     );
 
-    // sweep while the open fails and refuse the open alone
-    const opening = graphs.open(UNKNOWN_BUILD);
-    const swept = graphs.sweep();
-    expect(await Promise.allSettled([swept, opening])).toEqual([
-        { status: "fulfilled", value: undefined },
-        { status: "rejected", reason: new TypeError(`build ${UNKNOWN_BUILD} is missing`) },
-    ]);
+    // refuse the open of an unknown build
+    expect(await graphs.open(UNKNOWN_BUILD).catch((error: unknown) => error)).toEqual(
+        new TypeError(`build ${UNKNOWN_BUILD} is missing`),
+    );
 });
+
+/** Refuse a read of a build, as a store with no builds does. */
+function refuse(): Promise<never> {
+    return Promise.reject(new TypeError("the test stores no builds"));
+}
 
 /** List relationships once each as kind and target, by path in the fixture, else by package. */
 function relations(
@@ -243,8 +244,8 @@ function notebookCode(): graph.Document[] {
     ];
 }
 
-/** Write the notebook's build: an entry, the notebook object, and two procedures serving it. */
-async function writeNotebook(): Promise<BuildReader> {
+/** Write the notebook's build and its module graph: an entry, the object and two procedures. */
+async function writeNotebook(): Promise<{ reader: BuildReader; modules: graph.Module[] }> {
     // name each module's symbols and declarations by moniker
     const monikerOf = (path: string, name?: string) =>
         graph.Moniker.of({
@@ -323,7 +324,7 @@ async function writeNotebook(): Promise<BuildReader> {
         },
     ];
 
-    return MemoryBuild.write(
+    const reader = await MemoryBuild.write(
         sources,
         {
             package: {
@@ -331,8 +332,9 @@ async function writeNotebook(): Promise<BuildReader> {
                 name: "@example/notebook",
                 version: "2026.10.0",
             },
-            graph: written,
         },
         testHost().crypto,
     );
+
+    return { reader, modules: written };
 }

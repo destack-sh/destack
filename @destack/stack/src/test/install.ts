@@ -9,10 +9,6 @@ import { type Call, ObjectReference, RequestId, Scope, type Subject } from "@des
 import { Package, type PackageId } from "@destack/package";
 import {
     build,
-    module,
-    declaration,
-    symbol,
-    catalog,
     deployment,
     installationRevision,
     instance,
@@ -27,57 +23,8 @@ import { residency, space } from "@destack/account/object";
 import { PackageStore } from "@destack/build/store";
 import { ids, spaceDatabase } from "./fixture.ts";
 import { onTestFinished } from "@destack/test";
-import { BunGraphStorage } from "../bun/graph.ts";
-import type { ObjectStore, PackageImplementation } from "@destack/object/server";
-import { serversOf } from "@destack/object/test";
+import type { ObjectStore } from "@destack/object/server";
 import { workload } from "./build.ts";
-
-/** Serve the index of the builds a test installs, as a space's stack does, until the test ends. */
-export async function buildIndexServers(
-    database: DatabaseConnection,
-    builds: readonly BuildReader[],
-    environment: Environment<"files">,
-): Promise<PackageImplementation[]> {
-    return serversOf([build, module, declaration, symbol, catalog], {
-        external: await buildIndex(database, builds, environment),
-    });
-}
-
-/** Index the builds a test installs, in a temporary directory until the test ends. */
-async function buildIndex(
-    database: DatabaseConnection,
-    builds: readonly BuildReader[],
-    environment: Environment<"files">,
-): Promise<BunGraphStorage> {
-    // open each build by the manifest its installation records
-    const { files, crypto } = environment;
-    const byManifest = new Map(
-        await Promise.all(
-            builds.map(async (each) => [await manifestOf(each, crypto), each] as const),
-        ),
-    );
-    const directory = await files.makeTemporaryDirectory("destack-stack-index-");
-    const index = new BunGraphStorage(
-        database,
-        {
-            contains: async (manifest) => byManifest.has(manifest),
-            contents: async (manifest) =>
-                present(byManifest.get(manifest), `the build ${manifest}`),
-            referrer: async () => undefined,
-            file: () => Promise.reject(new TypeError("the installed builds carry no code index")),
-        },
-        directory,
-        files,
-    );
-
-    // close the index and remove its files once the test ends
-    onTestFinished(async () => {
-        await index[Symbol.asyncDispose]();
-        await files.remove(directory, { recursive: true });
-    });
-
-    return index;
-}
 
 /** Read the manifest digest a test installation records for a build, as a store records it. */
 function manifestOf(reader: BuildReader, crypto: Environment["crypto"]): Promise<Digest> {

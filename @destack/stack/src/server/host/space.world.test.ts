@@ -1,24 +1,25 @@
 import accountPackage from "@destack/account/package";
 import { identityKey } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
+import { PackageStore } from "@destack/build/store";
 import { eq } from "@destack/db";
 import { RequestId, type Uplink } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import * as object from "../../object/index.ts";
 import { fixtureBuild, ids, reconcile, TestSpace } from "../../test/index.ts";
 
-test("delete a space at its home once its installations are gone, forgetting its build root", async () => {
-    // serve the space its universe placed here, with an application installed
+test("delete a space at its home once its installations are gone, clearing its builds", async () => {
+    // serve the space its universe placed here, with an application installed and a build of its own
     const fixture = await TestSpace.open();
     const served = await fixture.serve();
-    await fixture.install(
-        served,
-        await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto),
-    );
+    const reader = await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto);
+    await fixture.install(served, reader);
+    await fixture.recordBuild(reader);
+    const manifest = await PackageStore.digest(reader.manifest, fixture.environment.crypto);
 
-    // root the space's builds, then request the deletion at the universe as the owner stepped up, and settle the space removing itself
+    // request the deletion at the universe as the owner stepped up, and settle the space removing itself
     const builds = await fixture.builds();
-    const rooted = await builds.packages.rootedAt(ids.space);
+    const isStored = await builds.space.contains(manifest);
     const owner = await fixture.universe.elevate(fixture.owner);
     const accounts = owner.client(accountPackage);
     await accounts.space.delete({
@@ -43,13 +44,13 @@ test("delete a space at its home once its installations are gone, forgetting its
         ids.space,
     ]);
     const listed = await accounts.space.list({ accountId: ids.account, limit: 10 });
-    const forgotten = await builds.packages.rootedAt(ids.space);
+    const isCleared = !(await builds.space.contains(manifest));
     expect({
         removed: [installations, keys, replicas, placed, listed.items.map((item) => item.id)],
-        root: [rooted !== undefined, forgotten],
+        builds: [isStored, isCleared],
     }).toEqual({
         removed: [[], [], [], [], [accountObject.Account.home(ids.account)]],
-        root: [true, undefined],
+        builds: [true, true],
     });
 });
 

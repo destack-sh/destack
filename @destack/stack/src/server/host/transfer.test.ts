@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import type { Environment } from "@destack/environment";
 import { testSimulation } from "@destack/object/test";
 import { accountDatabase } from "@destack/account/stack";
@@ -153,12 +154,15 @@ test("hand a space's database to another machine and send its clients there", as
         const { source: served } = serve(source.database);
 
         return served.relayed(
-            served.queriesPublication.subscription({
-                name: "objects",
-                scope: spaceId,
-                target: spaceId,
-                parameters: {},
-            }),
+            {
+                ...served.queriesPublication.subscription({
+                    name: "objects",
+                    scope: spaceId,
+                    target: spaceId,
+                    parameters: {},
+                }),
+                revision: FOLLOWER_REVISION,
+            },
             reader(AbortSignal.timeout(4000)),
         );
     };

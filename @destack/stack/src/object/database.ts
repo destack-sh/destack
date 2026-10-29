@@ -14,7 +14,7 @@ import {
     rollout,
     type NamedInstallation,
 } from "./rollout.ts";
-import type { graph } from "@destack/package";
+import type { graph, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 
 /** The provider that stores a space's main database in the space's own storage. */
@@ -58,7 +58,10 @@ export const Database = {
     async installed(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
-        open: (manifest: Digest) => Promise<Pick<BuildReader, "declarations">>,
+        open: (
+            packageId: PackageId,
+            manifest: Digest,
+        ) => Promise<Pick<BuildReader, "declarations">>,
         crypto: DigestCrypto,
     ): Promise<
         {
@@ -96,13 +99,21 @@ export const Database = {
         const declared = new Map(
             await Promise.all(
                 revisions.map(async (revision) => {
-                    // open the revision's build by its manifest
+                    // open the revision's build by its installation's package and its manifest
                     const built = present(
                         builds.find((each) => each.id === revision.buildId),
                         `the build of revision ${revision.id}`,
                     );
                     const manifest = Build.manifest(built);
-                    const reader = await open(manifest);
+                    const installed = present(
+                        installations.find(
+                            (entry) =>
+                                entry.revisionId === revision.id ||
+                                entry.appliedRevisionId === revision.id,
+                        ),
+                        `the installation of revision ${revision.id}`,
+                    );
+                    const reader = await open(installed.installation.packageId, manifest);
 
                     return [
                         revision.id,

@@ -23,7 +23,7 @@ test("serve a moving space's target only the blobs the space's snapshots read", 
     });
 
     // write a blob a snapshot of the space reads and one no snapshot reads
-    const store = fixture.store();
+    const store = fixture.blobs.storage;
     const write = (text: string) =>
         store.write(
             (async function* () {

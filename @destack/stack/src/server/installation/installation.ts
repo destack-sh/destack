@@ -262,7 +262,7 @@ function handleRollouts(options: InstallationOptions) {
                             `the build of ${row.installation.name}`,
                         ),
                     );
-                    const reader = await options.builds.packages.contents(manifest);
+                    const reader = await options.builds.contents(manifest);
                     const description = await PackageDescription.of(reader);
                     const needed = Rollout.needed(row.installation, revision, description);
                     if (
@@ -327,7 +327,7 @@ async function submit(
 
     // resolve the submitted build and require a build of the installation's package
     const resolved = await resolveBuild(context, target, submission.build, prepared.release);
-    const reader = await options.builds.packages.contents(resolved.manifest);
+    const reader = await options.builds.contents(resolved.manifest);
     const built = PackageManifest.package(reader.manifest).id;
     if (built !== target.installation.packageId) {
         throw StackError.of(
@@ -688,7 +688,7 @@ async function open(
 
     // read the revision's build and the view it mounts
     const built = await Build.require(context, target.scope, revision.buildId);
-    const reader = await options.builds.packages.contents(built.manifest);
+    const reader = await options.builds.contents(built.manifest);
     const mounted = ViewDescription.list(reader.manifest)[view];
     if (mounted === undefined) {
         throw StackError.of(

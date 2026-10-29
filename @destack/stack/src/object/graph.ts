@@ -32,8 +32,6 @@ export const module = defineObject({
         path: field.string(),
         /** The digest of the source bytes. */
         digest: field.string(Digest),
-        /** The digest of the module's graph file. */
-        file: field.string(Digest),
         /** The relationships of the module's code outside its symbols, by kind and target. */
         relationships: field.json(schema.array(Relationship)),
     },
@@ -121,30 +119,40 @@ export const catalog = defineObject({
 /** The path a build's code index is attached to its manifest at. */
 const CODE_INDEX_PATH = "code.json";
 
-/** A build's code index: one document per module, attached to its manifest. */
-export const CodeIndex = Object.assign(schema.array(graph.Document), {
-    /** Describe a stored code index as the file attached to its manifest. */
-    file(stored: Pick<PackageFile, "digest" | "size">): PackageFile {
-        return { ...stored, path: CODE_INDEX_PATH, mediaType: "application/json" };
+/** A build's code index: each module's code and its graph, attached to its manifest. */
+export const CodeIndex = Object.assign(
+    schema.object({
+        /** The code of each module: its symbols and their occurrences. */
+        code: schema.array(graph.Document),
+        /** The graph of each module: its imports, exports, declarations and edges. */
+        modules: schema.array(graph.Module),
+    }),
+    {
+        /** Describe a stored code index as the file attached to its manifest. */
+        file(stored: Pick<PackageFile, "digest" | "size">): PackageFile {
+            return { ...stored, path: CODE_INDEX_PATH, mediaType: "application/json" };
+        },
+
+        /** Read the code index attached to a build, empty for a release pulled without one. */
+        async read(
+            packages: Pick<PackageStore, "referrer" | "file">,
+            manifest: Digest,
+        ): Promise<CodeIndex> {
+            // read an empty index of a build without one
+            const attached = await packages.referrer(manifest, CODE_INDEX_PATH);
+            if (attached === undefined) {
+                return { code: [], modules: [] };
+            }
+
+            // read and verify the attached file
+            const bytes = await packages.file(attached);
+
+            return CodeIndex.parse(JSON.parse(new TextDecoder().decode(bytes)));
+        },
     },
-
-    /** Read the code index attached to a build, empty for a release pulled without one. */
-    async read(
-        packages: Pick<PackageStore, "referrer" | "file">,
-        manifest: Digest,
-    ): Promise<readonly graph.Document[]> {
-        // read no documents of a build without a code index
-        const attached = await packages.referrer(manifest, CODE_INDEX_PATH);
-        if (attached === undefined) {
-            return [];
-        }
-
-        // read and verify the attached file
-        const bytes = await packages.file(attached);
-
-        return CodeIndex.parse(JSON.parse(new TextDecoder().decode(bytes)));
-    },
-});
+);
+/** A build's code index: each module's code and its graph. */
+export type CodeIndex = schema.Infer<typeof CodeIndex>;
 
 /** A build's view of its manifest's graph index: the build, its manifest and when it finished. */
 export class GraphIndex {
@@ -234,10 +242,9 @@ export class GraphIndex {
     }> {
         // read the build and its code index
         const reader = await packages.contents(this.manifest);
-        const code = await CodeIndex.read(packages, this.manifest);
+        const { code, modules: graphs } = await CodeIndex.read(packages, this.manifest);
 
-        // derive the module and declaration objects of every module file
-        const root = await reader.graph();
+        // derive the module and declaration objects of every module
         const packageId = PackageManifest.package(reader.manifest).id;
         const record = {
             scope: this.build,
@@ -246,10 +253,40 @@ export class GraphIndex {
         };
         const modules: Insert<typeof module.table>[] = [];
         const declarations: Insert<typeof declaration.table>[] = [];
-        for (const digest of Object.values(root.modules)) {
-            const indexed = indexModule(await reader.module(digest), digest, packageId, record);
+        for (const graphed of graphs) {
+            const indexed = indexModule(graphed, packageId, record);
             modules.push(indexed.module);
             declarations.push(...indexed.declarations);
+        }
+
+        // add each core declaration the index lacks at its module, its source by the build's file
+        const indexed = new Set(declarations.map((entry) => entry.id));
+        const known = new Set(modules.map((entry) => entry.id));
+        const digests = new Map((await reader.files()).map((file) => [file.path, file.digest]));
+        for (const each of await reader.declarations()) {
+            if (indexed.has(each.moniker)) {
+                continue;
+            }
+            const path = graph.Moniker.module(each.symbol);
+            const moduleId = graph.Moniker.of({ packageId, module: path });
+            if (!known.has(moduleId)) {
+                known.add(moduleId);
+                const digest = present(digests.get(path), `the build's file ${path}`);
+                modules.push({ ...record, id: moduleId, path, digest, relationships: [] });
+            }
+            declarations.push({
+                ...record,
+                id: each.moniker,
+                moduleId,
+                kind: each.kind,
+                name: each.name,
+                enclosing: each.symbol,
+                kindPackageId: each.kindPackageId,
+                isExported: true,
+                description: each.description,
+                vocabulary: each.vocabulary ?? null,
+                relationships: [],
+            });
         }
 
         // derive the code symbols of the code index
@@ -289,10 +326,9 @@ export class GraphIndex {
 /** The scope and times every row of a build's index has. */
 type IndexRecord = Pick<Insert<typeof module.table>, "scope" | "createdAt" | "updatedAt">;
 
-/** Derive one module file's module object and its declaration objects. */
+/** Derive one module's module object and its declaration objects. */
 function indexModule(
     file: graph.Module,
-    digest: Digest,
     packageId: string,
     record: IndexRecord,
 ): { module: Insert<typeof module.table>; declarations: Insert<typeof declaration.table>[] } {
@@ -333,7 +369,6 @@ function indexModule(
             id: moniker,
             path: file.path,
             digest: file.digest,
-            file: digest,
             relationships: outgoing(moniker),
         },
         declarations,

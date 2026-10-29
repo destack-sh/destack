@@ -12,7 +12,6 @@ import { none, relation, through, union } from "@destack/access";
 import { defineObject, defineShape, field } from "@destack/object";
 import { PackageFile } from "@destack/package/file";
 import { PackageManifest } from "@destack/package/manifest";
-import { Lease } from "@destack/resource";
 import { PackageId } from "@destack/package";
 import type { ResultsOf } from "@destack/object";
 import type { Call } from "@destack/sync";
@@ -72,29 +71,7 @@ export const BuildSource = schema.discriminatedUnion("kind", [
 /** The source a build has. */
 export type BuildSource = schema.Infer<typeof BuildSource>;
 
-/** A file a runner stores among a space's builds: its content's digest and size. */
-export const BuildFile = schema.object({
-    /** The digest of the file's content, which keys it. */
-    digest: Digest,
-    /** The file's size in bytes. */
-    size: schema.number().int().nonnegative(),
-    /** The file's media type. */
-    mediaType: schema.string().min(1),
-});
-/** A file a runner stores among a space's builds. */
-export type BuildFile = schema.Infer<typeof BuildFile>;
-
-/** A file a runner uploads to a space's builds: its digest, written through a lease. */
-export const BuildUpload = schema.object({
-    /** The digest of the file's content. */
-    digest: Digest,
-    /** The lease writing it. */
-    lease: Lease,
-});
-/** A file a runner uploads to a space's builds. */
-export type BuildUpload = schema.Infer<typeof BuildUpload>;
-
-/** The progress a runner reports: compiling the outputs, or storing files through write leases. */
+/** The progress a runner reports: compiling the outputs, or storing the compiled build. */
 export const BuildProgress = schema.discriminatedUnion("phase", [
     schema.object({
         /** Compiling the source's outputs. */
@@ -105,10 +82,8 @@ export const BuildProgress = schema.discriminatedUnion("phase", [
         commit: Commit.exactOptional(),
     }),
     schema.object({
-        /** Storing the compiled build. */
+        /** Storing the compiled build through the space's builds adapter. */
         phase: schema.literal("storing"),
-        /** The files the build stores, each leased for writing unless the space has it already. */
-        files: schema.array(BuildFile),
     }),
 ]);
 
@@ -167,8 +142,8 @@ export const build = defineObject(
             commit: field.string(Commit).optional(),
             /** The repository, directory and commit of a commit build, absent for a release. */
             checkout: field.string().optional(),
-            /** The digest of the stored build's manifest, once succeeded. */
-            manifest: field.string(Digest).optional(),
+            /** The stored build's manifest once succeeded, kept until retention expires it. */
+            manifest: field.blob({ while: { expiredAt: { isNull: true } } }).optional(),
             /** Why the build failed, once failed. */
             failure: field.json(Failure).optional(),
             /** The start of the build's run, in UTC epoch milliseconds. */
@@ -298,8 +273,7 @@ export const build = defineObject(
         progress: method.mutation({
             permission: "run",
             input: schema.object({ progress: BuildProgress }),
-            output: schema.object({ uploads: schema.array(BuildUpload) }),
-            prepared: schema.object({ uploads: schema.array(BuildUpload) }),
+            output: schema.object({}),
         }),
         finish: method.mutation({
             permission: "run",

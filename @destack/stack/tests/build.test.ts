@@ -58,13 +58,14 @@ async function implementBuild() {
         served,
         owner: client(fixture.owner.id),
         runner: client(fixture.machine.id),
+        machine: served.as(fixture.machine.id),
         create,
     };
 }
 
 test("run a checkout's build as its machine and read it back from the build store", async () => {
     // create the build, naming the checkout's machine its runner
-    const { fixture, runner, create } = await implementBuild();
+    const { fixture, runner, machine, create } = await implementBuild();
     const created = await create();
     const target = { spaceId: ids.space, id: created.id };
 
@@ -79,27 +80,25 @@ test("run a checkout's build as its machine and read it back from the build stor
         progress: { phase: "building", outputs: OUTPUTS, commit: COMMIT },
     });
 
-    // lease every file the build store lacks in addition to the space's stack build, store them and finish
+    // push every file into the space's empty builds, and the empty code index, then finish
     const reader = await writeBuild();
-    const stored = new Set(await digests(fixture.releases.space));
-    const lacking = [...new Set(await digests(reader))]
-        .filter((digest) => !stored.has(digest))
-        .toSorted();
-    const uploads = await fixture.storeBuild(runner, target, reader);
+    const index = await Digest.of(JSON.stringify([]), testHost().crypto);
+    const lacking = [...new Set([...(await digests(reader)), index])].toSorted();
+    const uploaded = await fixture.storeBuild(machine, target, reader);
     const finished = await runner.build.get(target);
     const manifest = present(finished.manifest, "the stored manifest");
 
     // read the build back from the build store
-    const readBack = await (await fixture.builds()).packages.contents(manifest);
+    const readBack = await (await fixture.builds()).space.contents(manifest);
 
     expect({
         runner: ObjectReference.at("runner", created),
-        leased: uploads.map((upload) => upload.digest).toSorted(),
+        uploaded: [...uploaded].toSorted(),
         finished: [finished.state, finished.commit, manifest],
         read: [readBack.manifest, await readBack.files()],
     }).toEqual({
         runner: principal.machine.reference(Scope.universe.id, fixture.machine.id),
-        leased: lacking,
+        uploaded: lacking,
         finished: [
             "succeeded",
             COMMIT,
@@ -111,7 +110,7 @@ test("run a checkout's build as its machine and read it back from the build stor
 
 test("push a succeeded build to the registry as its space's owner, refusing its runner and an unfinished build", async () => {
     // create a build and push it unfinished
-    const { fixture, owner, runner, create } = await implementBuild();
+    const { fixture, owner, runner, machine, create } = await implementBuild();
     const created = await create();
     const target = { spaceId: ids.space, id: created.id };
     const unfinished = await refusal(
@@ -128,7 +127,7 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
         requestId: RequestId.create(fixture.machine.environment),
         progress: { phase: "building", outputs: OUTPUTS, commit: COMMIT },
     });
-    await fixture.storeBuild(runner, target, await writeBuild());
+    await fixture.storeBuild(machine, target, await writeBuild());
     const manifest = present((await runner.build.get(target)).manifest, "the stored manifest");
 
     // push it as the runner and as the owner

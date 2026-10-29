@@ -21,7 +21,7 @@ export function implementInstallationRevision(builds: BuildStore, registry: Regi
 
                 // read the space's build from the build store
                 const built = await Build.require(call, space.identifier(call.scope), buildId);
-                const reader = await builds.packages.contents(built.manifest);
+                const reader = await builds.contents(built.manifest);
 
                 // read the installable packages it depends on, at the releases it compiled against, without storing them
                 const read = (dependency: PackageId, manifest: Digest) =>

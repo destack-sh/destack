@@ -42,7 +42,7 @@ export interface Forge {
 export interface RepositoryFollowOptions {
     /** The repositories the installations select. */
     readonly forge: Forge;
-    /** The machine's store of every build. */
+    /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
     /** The registry of the releases a stack's build depends on. */
     readonly registry: Pick<Registry, "locate" | "referrer">;
@@ -210,7 +210,7 @@ async function evaluate(
     }
 
     // read the stack the build declares at the export
-    const reader = await options.builds.packages.contents(Build.manifest(built));
+    const reader = await options.builds.contents(Build.manifest(built));
     const definition = await declaredStack(reader, exported, {}, (packageId, manifest) =>
         options.builds.pull(options.registry, packageId, manifest),
     );

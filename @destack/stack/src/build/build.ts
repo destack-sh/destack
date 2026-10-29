@@ -15,7 +15,7 @@ import type {
 } from "@destack/package/build";
 import { DeclarationReference } from "@destack/package/declare";
 import { WorkloadDefinition, WorkloadDescription } from "@destack/package/manifest";
-import { WORKLOAD_EXPORT } from "@destack/object/cloudflare";
+import { WORKLOAD_EXPORT } from "@destack/object/workload";
 import { PackageDescription } from "@destack/object";
 import { StackError } from "../error/index.ts";
 import { HOOK_WORKLOAD } from "../workload/hook.ts";
@@ -247,9 +247,8 @@ function runModule(
             : 'import { hostWorkload } from "@destack/stack/cloudflare";',
         ...resources.map(({ module }, index) => importModule(module, `resource${index}`)),
         ...lines,
-        runtime === "bun"
-            ? `await hostWorkload(${workload}, ${bound});`
-            : `export const ${WORKLOAD_EXPORT} = hostWorkload(${workload}, ${bound});`,
+        `export const ${WORKLOAD_EXPORT} = hostWorkload(${workload}, ${bound});`,
+        ...(runtime === "bun" ? [`if (import.meta.main) await ${WORKLOAD_EXPORT}.run();`] : []),
     ].join("\n");
 }
 

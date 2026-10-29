@@ -18,8 +18,8 @@ import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
 import type { DeploymentRuntime } from "../object/deployment.ts";
 
-/** The bytes of an instance's secret: 256 bits, beyond guessing. */
-const SECRET_BYTES = 32;
+/** The bytes of an instance's or a call's secret: 256 bits, beyond guessing. */
+export const SECRET_BYTES = 32;
 
 /** What each runtime grants its workloads. */
 export const RUNTIME_SUPPORT: Readonly<
@@ -33,12 +33,40 @@ export const RUNTIME_SUPPORT: Readonly<
     process: { hasFilesystem: false, hasCertificates: true },
 };
 
+/** How an instance's workload ended unasked: its exit code, its signal or its runtime's failure. */
+export type InstanceExit =
+    | { readonly code: number }
+    | { readonly signal: string }
+    | { readonly failure: string };
+
+/** Describe an instance's exit, as a condition states it. */
+export const InstanceExit = {
+    /** Describe an exit in one line. */
+    describe(exit: InstanceExit): string {
+        // describe a code, a signal, or a failure
+        if ("code" in exit) {
+            return `the workload exited with code ${exit.code}`;
+        }
+        // describe a signal
+        else if ("signal" in exit) {
+            return `the workload was killed by ${exit.signal}`;
+        }
+        // describe a failure
+        else {
+            return `the workload's runtime failed: ${exit.failure}`;
+        }
+    },
+};
+
 /** The instances a machine runs on one server runtime. */
 export interface Runtime {
     /** The runtime, such as bun, or the machine's process. */
     readonly name: DeploymentRuntime;
     /** Start an instance's workload unless it serves, and resolve once it serves. */
-    readonly start: (spec: InstanceSpec, exited: (code: number) => Promise<void>) => Promise<void>;
+    readonly start: (
+        spec: InstanceSpec,
+        exited: (exit: InstanceExit) => Promise<void>,
+    ) => Promise<void>;
     /** Stop an instance, draining it first. */
     readonly stop: (instanceId: Identifier<"instance">) => Promise<void>;
     /** Report whether an instance serves now. */
@@ -53,6 +81,13 @@ export interface Runtime {
         authentication: Authentication,
         partition?: string,
     ) => Promise<Response>;
+    /** Call an export of a build's module once with JSON arguments, as it runs package code. */
+    readonly call: (
+        build: BuildReader,
+        path: string,
+        name: string,
+        input: readonly JsonValue[],
+    ) => Promise<JsonValue>;
     /** Hand an instance a webhook delivery or socket event from its machine. */
     readonly deliver: (
         instanceId: Identifier<"instance">,

@@ -27,6 +27,8 @@ import {
     Sandbox,
     DeclarationName,
     type DirectoryGrant,
+    graph,
+    PackageDefinition,
     type PackageId,
     type PackageRelease,
 } from "@destack/package";
@@ -34,11 +36,12 @@ import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { ServerRuntime } from "@destack/package/runtime";
 import {
     Address,
-    type Plan,
+    Plan,
     RESOURCE_DECLARATION,
     ResourceDescription,
     type Step,
     Upgrade,
+    Vocabulary,
 } from "@destack/resource";
 import {
     canonicalize,
@@ -50,6 +53,7 @@ import {
 } from "@destack/schema";
 import { ObjectTypeReference, RequestId, Scope } from "@destack/sync";
 import { StackError } from "../../error/index.ts";
+import type { Runtime } from "../../runtime/runtime.ts";
 import {
     binding,
     Binding,
@@ -80,12 +84,12 @@ const OtherDescription = schema.object({ name: DeclarationName }).catchall(schem
 export interface ApplicationOptions {
     /** The kinds of objects bindings target and deployments capture. */
     readonly binder: Binder;
-    /** The machine's store of every build. */
+    /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
     /** The registry of published releases. */
     readonly registry: Registry;
     /** The server runtimes the machine runs, in preference order. */
-    readonly runtimes: readonly ServerRuntime[];
+    readonly runtimes: readonly Runtime[];
     /** Whether the machine checks capabilities' features against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
     /** The space's database, with the replicas of its account's entitlements. */
@@ -146,7 +150,6 @@ export const REFUSAL_REASONS = [
     "UninstalledDependency",
     "DeclaredDatabase",
     "MissingBinding",
-    "NoUpgrade",
 ] as const;
 
 /** Why an application refuses to deploy a build, as its ready condition reports it. */
@@ -395,7 +398,7 @@ export class Application {
     ): Refusal | undefined {
         // refuse a build with an unrunnable workload
         if (stranded.length > 0) {
-            const runtimes = this.#options.runtimes.join(", ");
+            const runtimes = this.#options.runtimes.map((runtime) => runtime.name).join(", ");
             const message = `workloads ${stranded.join(", ")} have no output on ${runtimes}`;
 
             return { reason: "NoRuntime", message };
@@ -541,7 +544,7 @@ export class Application {
         });
     }
 
-    /** Stop the deploy for a refused or unapproved upgrade, observing why, and report the stop. */
+    /** Stop the deploy for an unapproved upgrade, observing why, and report the stop. */
     async #holdForUpgrade(revision: InstallationRevision, build: BuildReader): Promise<boolean> {
         // pass a first deploy and a redeploy of the applied revision
         const call = this.#context;
@@ -558,13 +561,6 @@ export class Application {
             present(applied, `revision ${target.appliedRevisionId}`),
             build,
         );
-
-        // refuse a broken upgrade chain
-        if (upgrade.kind === "refused") {
-            await this.#refuse(upgrade.refusal);
-
-            return true;
-        }
 
         // observe the upgrade waiting for approval
         const waiting = await Approval.waiting(call, target, upgrade.plan, call.environment.crypto);
@@ -703,61 +699,118 @@ export class Application {
 
     /** Open the build a revision evaluated from the build store. */
     #open(revision: Pick<InstallationRevision, "id">): Promise<BuildReader> {
-        return InstallationRevision.reader(
-            this.#context,
-            revision.id,
-            this.#options.builds.packages,
-        );
+        return InstallationRevision.reader(this.#context, revision.id, this.#options.builds);
     }
 
-    /** Plan the upgrade steps from an applied build to the next, or refuse a gap in its chain. */
+    /** Plan the upgrade steps from an applied build to the next by its kinds' comparisons. */
     async #planUpgrade(
         applied: Pick<InstallationRevision, "id">,
         next: BuildReader,
-    ): Promise<
-        | { readonly kind: "planned"; readonly plan: Plan }
-        | { readonly kind: "refused"; readonly refusal: Refusal }
-    > {
+    ): Promise<{ readonly kind: "planned"; readonly plan: Plan }> {
         // skip rollbacks
-        const target = this.#target;
-        const from = (await this.#open(applied)).manifest.package.version;
-        if (Version.compare(next.manifest.package.version, from) <= 0) {
+        const previous = await this.#open(applied);
+        const from = previous.manifest.package.version;
+        const release = next.manifest.package.version;
+        if (Version.compare(release, from) <= 0) {
             return { kind: "planned", plan: { steps: [] } };
         }
 
-        // walk each release's upgrade back to the applied release
-        const steps: Step[] = [];
-        let reader = next;
-        while (reader.manifest.package.version !== from) {
-            const release = reader.manifest.package.version;
-            const reference = reader.manifest.upgrade;
-            const upgrade = reference && (await reader.read(reference.file, Upgrade));
-            // refuse a gap in the chain
-            if (upgrade === undefined || Version.compare(upgrade.from, from) < 0) {
-                const message = `${target.installation.name} has no upgrade from ${from} to ${release}`;
+        // compare each kept declaration its kind compares, then plan the rest from the applied release
+        const declarations = await previous.declarations();
+        const history = {
+            release: from,
+            declarations,
+            vocabulary: Vocabulary.advance({}, declarations, from),
+        };
+        const compared = await this.#compare(declarations, from, next);
+        const owner = PackageManifest.package(next.manifest);
+        const upgrade = Upgrade.plan(history, owner, await next.declarations(), (declaration) => {
+            const plan = compared.get(Address.join(declaration.kind, declaration.name));
 
-                return { kind: "refused", refusal: { reason: "NoUpgrade", message } };
-            }
-            // refuse an upgrade from a release that is not earlier
-            else if (Version.compare(upgrade.from, release) >= 0) {
-                const message = `${target.installation.name} ${release} upgrades from ${upgrade.from}, which is not earlier`;
+            return plan === undefined ? undefined : () => plan;
+        });
 
-                return { kind: "refused", refusal: { reason: "NoUpgrade", message } };
-            }
-            const { name } = target.installation;
-            const prefix = Address.join("installation", name, "release", release);
-            steps.unshift(
-                ...upgrade.steps.map((step) => ({
-                    ...step,
-                    target: Address.join(prefix, step.target),
-                })),
-            );
-            const { builds, registry } = this.#options;
-            const earlier = await registry.find(target.installation.packageId, upgrade.from);
-            reader = await builds.pull(registry, target.installation.packageId, earlier);
-        }
+        // address each step below the installation's release
+        const { name } = this.#target.installation;
+        const prefix = Address.join("installation", name, "release", release);
+        const steps: Step[] = upgrade.steps.map((step) => ({
+            ...step,
+            target: Address.join(prefix, step.target),
+        }));
 
         return { kind: "planned", plan: { steps } };
+    }
+
+    /** Compare the declarations a next build keeps by their kinds' compare, by address. */
+    async #compare(
+        declarations: readonly graph.Declaration[],
+        from: string,
+        next: BuildReader,
+    ): Promise<ReadonlyMap<string, Plan>> {
+        // pair the applied declarations with the next build's by kind and name
+        const kept = new Map(
+            declarations.map((each) => [Address.join(each.kind, each.name), each] as const),
+        );
+        // find each kind's package among the Destack builds the next build's outputs import
+        const releases = Object.values(next.manifest.outputs).flatMap((output) =>
+            Object.values(output.dependencies).flatMap((dependency) =>
+                dependency.kind === "destack" ? [dependency] : [],
+            ),
+        );
+        const owner = PackageManifest.package(next.manifest);
+        const [runtime] = this.#options.runtimes;
+        const compared = new Map<string, Plan>();
+        for (const after of await next.declarations()) {
+            // find the kind's compare function in its package's build, the next build's own or a release's
+            const address = Address.join(after.kind, after.name);
+            const before = kept.get(address);
+            if (before === undefined) {
+                continue;
+            }
+            const kind =
+                after.kindPackageId === owner.id
+                    ? next
+                    : await this.#pullRelease(releases, after.kindPackageId);
+            const reference = await kindCompare(kind, after.kind);
+            if (reference === undefined) {
+                continue;
+            }
+
+            // call it on the machine's preferred server runtime, as it runs the kind's package code
+            const machine = present(runtime, "a server runtime of the machine");
+            const output = present(
+                Object.values(kind.manifest.outputs).find((each) => each.runtime === machine.name),
+                `the ${machine.name} output of ${kind.manifest.package.name}`,
+            );
+            const exported = present(
+                output.exports[reference.subpath],
+                `the export ${reference.subpath} of ${kind.manifest.package.name}`,
+            );
+            const entry = (declaration: graph.Declaration, version: string) => ({
+                description: declaration.description,
+                symbol: { package: { ...owner, version } },
+            });
+            const plan = await machine.call(kind, exported.path, reference.name, [
+                entry(before, from),
+                entry(after, owner.version),
+            ]);
+            compared.set(address, Plan.parse(plan));
+        }
+
+        return compared;
+    }
+
+    /** Bring a release a build depends on into the machine's cache by its package. */
+    async #pullRelease(
+        releases: readonly PackageRelease[],
+        packageId: PackageId,
+    ): Promise<BuildReader> {
+        const release = present(
+            releases.find((each) => "id" in each.package && each.package.id === packageId),
+            `the release of ${packageId}`,
+        );
+
+        return await this.#options.builds.pull(this.#options.registry, packageId, release.manifest);
     }
 
     /** Describe the workload of a shipped server, which the machine serves in its process. */
@@ -815,7 +868,7 @@ export class Application {
         );
 
         // pick each workload's output by the machine's runtime preference
-        const runtimes = this.#options.runtimes;
+        const runtimes: readonly string[] = this.#options.runtimes.map((runtime) => runtime.name);
         const workloads: BuildWorkload[] = [];
         const stranded: string[] = [];
         for (const [name, outputs] of Map.groupBy(offered, (entry) => entry.name)) {
@@ -1031,7 +1084,7 @@ async function chainInstallations(
 export async function reconcileApplication(
     target: Rollout & { readonly installation: NamedInstallation },
     reconciliation: ObjectReconciliation,
-    builds: Pick<BuildStore, "packages">,
+    builds: Pick<BuildStore, "contents">,
 ): Promise<undefined> {
     // deploy the application of a served space
     const [served] = await reconciliation.database
@@ -1050,7 +1103,7 @@ export async function reconcileApplication(
     const build =
         deployed?.revisionId === null || deployed === undefined
             ? undefined
-            : await InstallationRevision.reader(snapshot, deployed.revisionId, builds.packages);
+            : await InstallationRevision.reader(snapshot, deployed.revisionId, builds);
     const description = build === undefined ? undefined : await PackageDescription.of(build);
     const set = Rollout.permissions((deployed ?? target).installation, description, "installation");
 
@@ -1186,4 +1239,30 @@ function describeNeed(
     const { name, ...spec } = described;
 
     return { package: owner, name, kind: declaration.kind, spec, state: {} };
+}
+
+/** Find the compare function a kind's package declares for a kind, as its export and name. */
+async function kindCompare(
+    build: BuildReader,
+    kind: string,
+): Promise<{ readonly subpath: string; readonly name: string } | undefined> {
+    // read the package's declaration constructors and the kinds they describe
+    const definition = PackageDefinition.parse(
+        JSON.parse(new TextDecoder().decode(await build.load("destack.json"))),
+    );
+    const described = Object.values(definition.declarations ?? {}).flatMap(
+        (constructor) => constructor.describes,
+    );
+    const compare = described.find(
+        (each) => each.kind === kind && "function" in each && each.compare !== undefined,
+    );
+    const reference = compare !== undefined && "compare" in compare ? compare.compare : undefined;
+    if (reference === undefined) {
+        return undefined;
+    }
+
+    // split the reference into its export subpath and the function's name
+    const [subpath = "", name = ""] = reference.split("#");
+
+    return { subpath, name };
 }

@@ -1,8 +1,6 @@
-import type { Environment } from "@destack/environment";
+import type { PackageFile } from "@destack/package/file";
 import { principal } from "@destack/access";
-import { BucketLease, type BucketReference, type BucketLeaseRequest } from "@destack/bucket/s3";
-import type { CatalogueBucketHost } from "@destack/bucket/provider";
-import type { Lease } from "@destack/resource";
+import { and, eq } from "@destack/db";
 import {
     type ManifestRead,
     PackageStore,
@@ -11,9 +9,14 @@ import {
 } from "@destack/build/store";
 import type { Runtime } from "@destack/package/runtime";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
-import type { ObjectStore } from "@destack/object/server";
-import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
-import type { PackageId } from "@destack/package";
+import type { AdapterFetch, ObjectStore } from "@destack/object/server";
+import {
+    BuildReader,
+    type ImportMap,
+    type PackageLocation,
+    PackageManifest,
+} from "@destack/package/manifest";
+import { PackageId } from "@destack/package";
 import { Digest, type Identifier, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import {
@@ -21,8 +24,6 @@ import {
     Build,
     BuildOutcome,
     BuildEnd,
-    type BuildFile,
-    type BuildUpload,
     BuildSource,
     CodeIndex,
 } from "../../object/index.ts";
@@ -39,8 +40,12 @@ export type CommitSource = Extract<BuildSource, { readonly kind: "commit" }>;
 export interface Registry {
     /** Find the digest of a package release's manifest, by its version or a distribution tag. */
     readonly find: (packageId: PackageId, release: string) => Promise<Digest>;
-    /** Push a stored build with its npm units and referrers to its forge, answering its digest. */
-    readonly push: (store: PackageStore, manifest: Digest, signal?: AbortSignal) => Promise<Digest>;
+    /** Push a stored build with its npm units to its forge, answering its digest. */
+    readonly push: (
+        store: Pick<PackageStore, "contents" | "units">,
+        manifest: Digest,
+        signal?: AbortSignal,
+    ) => Promise<Digest>;
     /** Read the build a published build attached at a path, such as its runtime build. */
     readonly referrer: (
         packageId: PackageId,
@@ -61,64 +66,58 @@ export interface Registry {
 export interface BuildOptions {
     /** The machine running the spaces' commit builds. */
     readonly buildRunner: Identifier<"machine"> | null;
-    /** The machine's store of every build. */
+    /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
     /** The registry the space's builds are pushed to. */
     readonly registry: Registry;
 }
 
-/** A machine's store of its spaces' builds and its pulled releases, by manifest digest. */
-export class BuildStore {
-    /** The builds and releases by their manifests' digests. */
-    readonly packages: PackageStore;
-    /** Presign writing one file into the store. */
-    readonly lease: (request: BucketLeaseRequest, now: number) => Promise<Lease>;
-    /** The server runtimes the machine runs instances on, whose runtime builds a pull brings. */
+/** A machine's cache of the builds it runs: pulled releases and copies of its spaces' builds. */
+export class BuildCache {
+    /** The store keeping the cached builds. */
+    readonly store: PackageStore;
+    /** The runtimes the machine serves: its instances' server runtime and its views' browser. */
     readonly runtimes: readonly Runtime[];
 
-    /** Store builds for the machine's runtimes in a package store, presigning writes. */
-    constructor(
-        packages: PackageStore,
-        runtimes: readonly Runtime[],
-        lease: (request: BucketLeaseRequest, now: number) => Promise<Lease>,
-    ) {
-        this.packages = packages;
+    /** Cache builds in a store for the runtimes the machine serves. */
+    constructor(store: PackageStore, runtimes: readonly Runtime[]) {
+        this.store = store;
         this.runtimes = runtimes;
-        this.lease = lease;
     }
 
-    /** Open a machine's build store in a bucket at a host, created once, leasing writes into it. */
-    static async of(
-        host: CatalogueBucketHost,
-        reference: BucketReference,
-        runtimes: readonly Runtime[],
-        environment: Pick<Environment, "compression" | "crypto">,
-    ): Promise<BuildStore> {
-        const bucket = await host.open(reference, reference.scope);
-        const packages = new PackageStore(bucket, environment);
-
-        return new BuildStore(packages, runtimes, (request, now) =>
-            BucketLease.presign(host, reference, request, now, environment.crypto),
-        );
-    }
-
-    /** Pull a published build into the store once, with the closure of each machine runtime. */
+    /** Bring a published build into the cache with the runtime builds its registry attached. */
     async pull(
         registry: Pick<Registry, "locate" | "referrer">,
         packageId: PackageId,
         manifest: Digest,
     ): Promise<BuildReader> {
-        // copy a build the store lacks from where the registry locates it
-        if (!(await this.packages.contains(manifest))) {
+        // copy the build from where the registry locates it, unless cached
+        if (!(await this.store.contains(manifest))) {
             const { location, fetch } = await registry.locate(packageId, manifest);
-            await this.packages.copy(location, fetch);
+            await this.store.copy(location, fetch);
         }
 
         // pull the runtime build of each emitted output the machine runs
-        const reader = await this.packages.contents(manifest);
+        const reader = await this.store.contents(manifest);
         for (const output of Object.values(reader.manifest.outputs)) {
             if (output.emit && this.runtimes.includes(output.runtime)) {
                 await this.#pullRuntime(registry, packageId, manifest, output.runtime);
+            }
+        }
+
+        return reader;
+    }
+
+    /** Copy a build of a space into the cache, deriving the runtime builds the machine runs. */
+    async adopt(source: BuildReader, manifest: Digest): Promise<BuildReader> {
+        // copy the build unless cached, then derive each runtime build it needs here
+        if (!(await this.store.contains(manifest))) {
+            await this.store.put(source);
+        }
+        const reader = await this.store.contents(manifest);
+        for (const output of Object.values(reader.manifest.outputs)) {
+            if (output.emit && this.runtimes.includes(output.runtime)) {
+                await this.store.attachRuntime(manifest, output.runtime);
             }
         }
 
@@ -134,7 +133,7 @@ export class BuildStore {
     ): Promise<void> {
         // take a runtime build attached here, which the store attaches once its closure is stored
         const path = `${RUNTIME_REFERRER}/${runtime}`;
-        if ((await this.packages.referrer(manifest, path)) !== undefined) {
+        if ((await this.store.referrer(manifest, path)) !== undefined) {
             return;
         }
 
@@ -148,11 +147,11 @@ export class BuildStore {
         }
 
         // read its closure, opening the builds the store lacks where the registry locates them
-        const { crypto } = this.packages.environment;
+        const { crypto } = this.store.environment;
         const served = new Map<Digest, BuildReader>();
         const read: ManifestRead = async (digest, located) => {
-            if (await this.packages.contains(digest)) {
-                return this.packages.get(digest);
+            if (await this.store.contains(digest)) {
+                return this.store.get(digest);
             }
             const { location, fetch } = await registry.locate(located, digest);
             const opened = await BuildReader.open(location, fetch, crypto);
@@ -160,11 +159,11 @@ export class BuildStore {
 
             return opened.manifest;
         };
-        const closure = await this.packages.closure(built, packageId, read);
+        const closure = await this.store.closure(built, packageId, read);
 
         // store each opened build after the builds it records, then attach the runtime build
         await this.#store(built, served, closure, new Set());
-        await this.packages.attachBuild(manifest, built, path);
+        await this.store.attachBuild(manifest, built, path);
     }
 
     /** Store the opened builds of a closure after the builds they record, visiting each once. */
@@ -180,7 +179,7 @@ export class BuildStore {
         }
         stored.add(manifest);
         const reader = served.get(manifest);
-        const recorded = reader?.manifest ?? (await this.packages.get(manifest));
+        const recorded = reader?.manifest ?? (await this.store.get(manifest));
         for (const output of Object.values(recorded.outputs)) {
             for (const dependency of Object.values(output.dependencies)) {
                 if (closure.has(dependency.manifest)) {
@@ -191,64 +190,209 @@ export class BuildStore {
 
         // store an opened build, leaving one already in the store
         if (reader !== undefined) {
-            await this.packages.put(reader);
+            await this.store.put(reader);
         }
     }
+}
 
-    /** Lease writing each file the store lacks. */
-    async leaseMissing(files: readonly BuildFile[], now: number): Promise<BuildUpload[]> {
-        // look up each distinct file at once, and lease those the store lacks
-        const distinct = [...new Map(files.map((file) => [file.digest, file])).values()];
-        const leased = await Promise.all(
-            distinct.map(async (file): Promise<BuildUpload | undefined> => {
-                // skip a file the store has
-                const key = PackageStore.fileKey(file.digest);
-                if ((await this.packages.bucket.head(key)) !== null) {
-                    return undefined;
-                }
+/** A build's browser closure: the import map of its modules and the builds the map reaches. */
+export interface BrowserClosure {
+    /** The import map of the build's browser modules and its dependencies'. */
+    readonly map: ImportMap;
+    /** The builds the map's URLs reach: the browser runtime build and its dependencies'. */
+    readonly builds: ReadonlySet<Digest>;
+}
 
-                // bind the file's size, type and digest into a write lease
-                const headers = new Headers({
-                    "content-length": String(file.size),
-                    "content-type": file.mediaType,
-                    "if-none-match": "*",
-                    "x-amz-checksum-sha256": Uint8Array.fromHex(file.digest).toBase64(),
-                });
-                const written = await this.lease({ mode: "write", key, headers }, now);
+/** A space's builds: its runners' pushes, read through to its machine's cache. */
+export class BuildStore {
+    /** The space's own builds, kept while its build rows reference them. */
+    readonly space: PackageStore;
+    /** The machine's cache of what it runs. */
+    readonly cache: BuildCache;
+    /** The browser closure of each build served so far, by build and base path. */
+    readonly #browsers = new Map<string, Promise<BrowserClosure>>();
 
-                return { digest: file.digest, lease: written };
-            }),
-        );
-        const uploads = leased.filter((upload) => upload !== undefined);
-
-        return uploads;
+    /** Keep a space's builds in its blobs, read through to the machine's cache. */
+    constructor(space: PackageStore, cache: BuildCache) {
+        this.space = space;
+        this.cache = cache;
     }
 
-    /** Store the manifest a stored build ends with. */
+    /** Report whether the space or the machine stores a build. */
+    async contains(manifest: Digest): Promise<boolean> {
+        return (await this.space.contains(manifest)) || (await this.cache.store.contains(manifest));
+    }
+
+    /** Open a build the space stores, else the machine's copy of it. */
+    async contents(manifest: Digest): Promise<BuildReader> {
+        return (await this.store(manifest)).contents(manifest);
+    }
+
+    /** Read a build's manifest from the space, else from the machine. */
+    async get(manifest: Digest): Promise<PackageManifest> {
+        return (await this.store(manifest)).get(manifest);
+    }
+
+    /** Read the file a build attached at a path, from the space, else from the machine. */
+    async referrer(manifest: Digest, path: string): Promise<PackageFile | undefined> {
+        return (await this.store(manifest)).referrer(manifest, path);
+    }
+
+    /** Read one complete stored file, from the space, else from the machine. */
+    async file(file: PackageFile): Promise<Uint8Array<ArrayBuffer>> {
+        const store = (await this.space.has(file.digest)) ? this.space : this.cache.store;
+
+        return store.file(file);
+    }
+
+    /** List the npm units a build depends on, reading each from the space or the machine. */
+    units(manifest: Digest, packageId: PackageId): Promise<Digest[]> {
+        return this.cache.store.units(manifest, packageId, (digest) => this.get(digest));
+    }
+
+    /** Serve the adapter taking the files and manifest a running build's runner pushes. */
+    adapter(): AdapterFetch {
+        return async (request, admitted, _context, store) => {
+            // read the build below the adapter, refusing a caller acting for none of its runners
+            const url = new URL(request.url);
+            const [, space = "", built = ""] = url.pathname.split("/");
+            const spaceId = schema.identifier("space").parse(space);
+            const buildId = schema.identifier("build").parse(built);
+            const [row] = await store.database
+                .select({
+                    id: build.table.id,
+                    state: build.table.state,
+                    runnerId: build.table.runnerId,
+                })
+                .from(build.table)
+                .where(and(eq(build.table.scope, spaceId), eq(build.table.id, buildId)));
+            const acting = [admitted.subject, ...admitted.actors].map((subject) => subject.id);
+            if (
+                row?.runnerId === undefined ||
+                row.runnerId === null ||
+                !acting.includes(row.runnerId)
+            ) {
+                throw StackError.of("BUILD_NOT_FOUND", `no build ${buildId} runs for the caller`);
+            }
+            requireRunning(row);
+
+            // take uploads of its files and its manifest into the space's builds, reading nothing back
+            const mount = new URL(`${url.origin}/${spaceId}/${buildId}/`);
+
+            return await this.space.fetch(request, mount, {
+                authorize: async () => {
+                    throw StackError.of("BUILD_NOT_FOUND", "a runner pushes builds and reads none");
+                },
+                upload: async () => {},
+            });
+        };
+    }
+
+    /** Map a browser output's imports to its dependencies' files below a base path. */
+    browser(manifest: Digest, base: string): Promise<BrowserClosure> {
+        // map each build once, as builds never change
+        const key = `${manifest} ${base}`;
+        let found = this.#browsers.get(key);
+        if (found === undefined) {
+            found = this.#browser(manifest, base);
+            this.#browsers.set(key, found);
+            found.catch(() => this.#browsers.delete(key));
+        }
+
+        return found;
+    }
+
+    /** Walk a build's browser runtime build and its pinned dependencies, mapping their exports. */
+    async #browser(manifest: Digest, base: string): Promise<BrowserClosure> {
+        // start from the browser runtime build a pull attached
+        const runtime = await this.referrer(manifest, `${RUNTIME_REFERRER}/browser`);
+        if (runtime === undefined) {
+            throw StackError.of("RUNTIME_BUILD_MISSING", `${manifest} has no browser build here`);
+        }
+
+        // map each pinned dependency's exports in its dependent's scope, visiting each build once
+        const map: ImportMap = { imports: {}, scopes: {} };
+        const builds = new Set<Digest>([runtime.digest]);
+        const pending = [{ digest: runtime.digest, scope: map.imports }];
+        for (const { digest, scope } of pending) {
+            for (const output of Object.values((await this.get(digest)).outputs)) {
+                for (const [name, release] of Object.entries(output.dependencies)) {
+                    // map the dependency's exports to its files below its build's prefix
+                    const prefix = `${base}${release.manifest}/`;
+                    const dependency = await this.get(release.manifest);
+                    for (const each of Object.values(dependency.outputs)) {
+                        for (const [subpath, exported] of Object.entries(each.exports)) {
+                            const specifier = subpath === "." ? name : `${name}${subpath.slice(1)}`;
+                            scope[specifier] = `${prefix}${exported.path}`;
+                        }
+                    }
+
+                    // map the dependency's own imports in its scope
+                    if (!builds.has(release.manifest)) {
+                        builds.add(release.manifest);
+                        map.scopes[prefix] = {};
+                        pending.push({ digest: release.manifest, scope: map.scopes[prefix] });
+                    }
+                }
+            }
+        }
+
+        return { map, builds };
+    }
+
+    /** Bring a build into the machine's cache to run it: the space's own, else a published one. */
+    async pull(
+        registry: Pick<Registry, "locate" | "referrer">,
+        packageId: PackageId,
+        manifest: Digest,
+    ): Promise<BuildReader> {
+        // pull a published build with its runtime closure
+        if (!(await this.space.contains(manifest))) {
+            return await this.cache.pull(registry, packageId, manifest);
+        }
+
+        // bring the builds the space's own build pins first, its npm units under its package, then adopt it
+        const own = await this.space.contents(manifest);
+        for (const output of Object.values(own.manifest.outputs)) {
+            for (const dependency of Object.values(output.dependencies)) {
+                const owner = dependency.kind === "destack" ? dependency.package.id : packageId;
+                await this.pull(registry, PackageId.parse(owner), dependency.manifest);
+            }
+        }
+
+        return await this.cache.adopt(own, manifest);
+    }
+
+    /** Take the build a stored build ends with, which its runner pushed. */
     async adopt(end: schema.Infer<typeof BuildEnd>): Promise<schema.Infer<typeof BuildOutcome>> {
         // store nothing of a failed build
         if (end.kind === "failed") {
             return end;
         }
 
-        // store the manifest's bytes under their digest, then attach its code index
+        // require the build its runner pushed, then attach its code index
         const bytes = encodeManifest(PackageManifest.parse(end.manifest));
-        const digest = await Digest.of(bytes, this.packages.environment.crypto);
-        await this.packages.adopt(digest, bytes);
-        await this.packages.attach(digest, CodeIndex.file(end.code));
+        const digest = await Digest.of(bytes, this.space.environment.crypto);
+        if (!(await this.space.contains(digest))) {
+            throw StackError.of("BUILD_NOT_STORED", `build ${digest} was not pushed to the space`);
+        }
+        await this.space.attach(digest, CodeIndex.file(end.code));
 
         return { kind: "stored", digest };
     }
 
-    /** Expire the space's dropped builds, and root the retained ones under the space. */
+    /** Delete the space's builds as it leaves the machine, with their attached graph indexes. */
+    async clear(): Promise<void> {
+        await this.space.clear();
+    }
+
+    /** Expire the space's builds its retention drops, leaving their blobs to the collection. */
     async retain(
-        objects: Pick<ObjectStore, "database" | "principal" | "as" | "mutate" | "environment">,
+        objects: Pick<ObjectStore, "database" | "as" | "mutate" | "environment">,
         retention: (space: string) => Promise<number>,
         now: number,
     ): Promise<void> {
-        // expire the dropped builds as the space's store
-        const { database } = objects;
-        const { retained, expired } = await Build.retention(database, retention);
+        const { expired } = await Build.retention(objects.database, retention);
         if (expired.length > 0) {
             await objects.mutate(
                 objects.as(build),
@@ -261,9 +405,11 @@ export class BuildStore {
                 { component: "retention" },
             );
         }
+    }
 
-        // root the retained builds under the space
-        await this.packages.root(objects.principal.id, retained, new Date(now));
+    /** Pick the store with a build: the space's when it has it, else the machine's cache. */
+    async store(manifest: Digest): Promise<PackageStore> {
+        return (await this.space.contains(manifest)) ? this.space : this.cache.store;
     }
 }
 
@@ -290,13 +436,13 @@ export function implementBuild(options: BuildOptions) {
                     const source = BuildSource.parse(context.input.source);
                     if (source.kind === "release") {
                         const { manifest } = source;
-                        if (!(await options.builds.packages.contains(manifest))) {
+                        if (!(await options.builds.cache.store.contains(manifest))) {
                             throw StackError.of(
                                 "RELEASE_NOT_PULLED",
                                 `pull release ${manifest} into the build store before creating its build`,
                             );
                         }
-                        const pulled = await options.builds.packages.get(manifest);
+                        const pulled = await options.builds.cache.store.get(manifest);
                         const built = PackageManifest.package(pulled);
                         if (built.id !== source.package || built.version !== source.version) {
                             throw StackError.of(
@@ -353,35 +499,22 @@ export function implementBuild(options: BuildOptions) {
                 // push a succeeded build with its npm units and referrers to its package's forge before the transaction
                 prepare: async (context) => ({
                     manifest: await options.registry.push(
-                        options.builds.packages,
+                        options.builds,
                         Build.manifest(context.target),
                     ),
                 }),
                 handle: async (context) => context.prepared,
             },
-            progress: {
-                // lease the files a storing build's space lacks before the transaction
-                prepare: async (context) => ({
-                    uploads:
-                        context.input.progress.phase === "storing"
-                            ? await options.builds.leaseMissing(
-                                  context.input.progress.files,
-                                  context.now,
-                              )
-                            : [],
-                }),
-                handle: async (context) => {
-                    // record the phase the runner reports
-                    const { target, prepared } = context;
-                    requireRunning(target);
-                    const { progress } = context.input;
-                    await context.update(reported(target, progress));
+            progress: async (context) => {
+                // record the phase the runner reports
+                const { target } = context;
+                requireRunning(target);
+                await context.update(reported(target, context.input.progress));
 
-                    return { uploads: prepared.uploads };
-                },
+                return {};
             },
             finish: {
-                // store a succeeded build's manifest before the transaction
+                // take a succeeded build's pushed manifest before the transaction
                 prepare: (context) => options.builds.adopt(context.input.end),
                 handle: async (context) => {
                     // finish a running build with its stored manifest or its failure
