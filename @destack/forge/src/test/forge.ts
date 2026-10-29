@@ -35,8 +35,10 @@ import { binding } from "@destack/stack/object";
 import { TestPackage, TestSpace } from "@destack/stack/test";
 import { RequestId, type Subject } from "@destack/sync";
 import { defineVault } from "@destack/vault/declare";
+import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
 import { secret, vault } from "@destack/vault/object";
 import vaultPackage from "@destack/vault/package";
+import { TestVault } from "@destack/vault/test";
 import { vaultProvider } from "@destack/vault/provider";
 import vaultServer, { secretBindable } from "@destack/vault/server";
 import { onTestFinished } from "@destack/test";
@@ -119,6 +121,18 @@ export const FORGE: TestPackage = {
                 name: github.name,
                 description: describeSetting(github),
             },
+            ...Object.values(forgePackage.resources).map((resource) => ({
+                kind: RESOURCE_DECLARATION,
+                kindPackageId: RESOURCE_KIND_PACKAGE_ID,
+                name: resource.name,
+                description: {
+                    name: resource.name,
+                    kind: resource.kind,
+                    spec: resource.spec,
+                    ...resource.state(),
+                },
+            })),
+            ...TestVault.declarations([], Object.values(forgePackage.secrets)),
         ],
         testHost().crypto,
     ),
