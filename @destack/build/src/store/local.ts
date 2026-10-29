@@ -10,7 +10,7 @@ import { packageStoreDatabase } from "./table.ts";
 import { BuildError } from "../error/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { STAGING_DIRECTORY } from "../dependency/tree.ts";
-import { Digest } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 
 /** The directory below a store's directory with its blobs, by digest. */
 const FILES_DIRECTORY = "files";
@@ -29,6 +29,12 @@ const STORE_LOCK = "store.lock";
 
 /** The file a store's directory locks while one process opens and collects the store. */
 const OPEN_LOCK = "open.lock";
+
+/** The file with the time an idle open last collected the store, in milliseconds. */
+const COLLECTED_FILE = "collected";
+
+/** How often an idle open collects the store: daily, as Cargo's gc.auto.frequency defaults to. */
+const COLLECT_MILLISECONDS = 24 * 60 * 60_000;
 
 /** How long a store retains an unrooted build past its last use: a week, as Nx keeps its cache. */
 const CACHE_MILLISECONDS = 7 * 24 * 60 * 60_000;
@@ -162,8 +168,8 @@ export class LocalPackageStore
         await files.remove(join(this.trees, STAGING_DIRECTORY), { recursive: true, force: true });
         await this.blobs.storage.clean();
 
-        // unrecord the builds no root or lease retains, and delete the blobs they let go
-        await this.collect();
+        // drop the unused cache entries, then delete the builds and blobs nothing keeps
+        await this.expire();
         await this.blobs.collect();
 
         // delete the trees of the builds the store no longer has
@@ -179,7 +185,23 @@ export class LocalPackageStore
         }
     }
 
-    /** Open the store in a directory, collecting it first when no other process has it open. */
+    /** Collect an idle store a day after its last collection, recording when it did. */
+    async #collectIdleIfDue(path: string): Promise<void> {
+        // read when the store last collected, never for a new store
+        const { files, clock } = this.environment;
+        const now = clock.now();
+        const collected = (await files.exists(path))
+            ? schema.int().parse(Number(await files.readTextFile(path)))
+            : undefined;
+
+        // collect once the day since passed, and record it
+        if (collected === undefined || now - collected >= COLLECT_MILLISECONDS) {
+            await this.#collectIdle();
+            await files.writeTextFile(path, String(now));
+        }
+    }
+
+    /** Open the store in a directory, collecting it daily when no other process has it open. */
     static async open(
         directory: string,
         environment: Environment<"files" | "process" | "host">,
@@ -204,7 +226,7 @@ export class LocalPackageStore
                 disposables,
             );
             if (idle !== undefined) {
-                await store.#collectIdle();
+                await store.#collectIdleIfDue(join(location, COLLECTED_FILE));
             }
 
             return store;

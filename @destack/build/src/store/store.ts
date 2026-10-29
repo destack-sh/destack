@@ -1,16 +1,7 @@
 import type { Environment } from "@destack/environment";
-import { Digest, type DigestCrypto, present, schema } from "@destack/schema";
+import { Digest, type DigestCrypto, present } from "@destack/schema";
 import type { BlobStorage } from "@destack/resource";
-import {
-    and,
-    asc,
-    type BlobStore,
-    type DatabaseConnection,
-    eq,
-    inArray,
-    lte,
-    sql,
-} from "@destack/db";
+import { and, asc, type BlobStore, type DatabaseConnection, eq, inArray, lte } from "@destack/db";
 import {
     DependencyName,
     DependencyRelease,
@@ -32,9 +23,6 @@ import { comparePath } from "../build/serialization.ts";
 import type { CacheEntry } from "../cache/entry.ts";
 import { type PackageAccess, serveStore } from "./http.ts";
 import { buildCache, buildManifest, buildReference, buildReferrer, buildRoot } from "./table.ts";
-
-/** A row of one blob, as a raw statement answers it. */
-const DigestRow = schema.object({ digest: Digest });
 
 /** The concurrent uploads of one store. */
 const CONCURRENT_UPLOADS = 8;
@@ -65,14 +53,6 @@ export type ManifestRead = (
     manifest: Digest,
     packageId: PackageId,
 ) => Promise<PackageManifest | undefined>;
-
-/** What a collection unrecorded, and when the next lease or cache entry ends. */
-export interface Collection {
-    /** The builds deleted. */
-    readonly manifests: readonly Digest[];
-    /** When the next collection can delete more, in UTC epoch milliseconds, absent for never. */
-    readonly next: number | undefined;
-}
 
 /** The blobs a store keeps builds in, and the environment it runs in. */
 export interface PackageStoreOptions<StoreEnvironment, Storage extends BlobStorage> {
@@ -334,17 +314,20 @@ export class PackageStore<
     }
 
     /** Open a stored build for selective reads, one reader per build, as its files never change. */
-    contents(digest: Digest): Promise<BuildReader> {
+    async contents(digest: Digest): Promise<BuildReader> {
+        // refuse a build the store no longer records, whose reader may outlive it
+        await this.head(digest);
+
         // reuse the build's reader, forgetting one whose opening failed
         const known = this.#readers.get(digest);
         if (known !== undefined) {
-            return known;
+            return await known;
         }
         const opening = this.#open(digest);
         this.#readers.set(digest, opening);
         opening.catch(() => this.#readers.delete(digest));
 
-        return opening;
+        return await opening;
     }
 
     /** Open a stored build's reader over its manifest's listed files. */
@@ -482,23 +465,11 @@ export class PackageStore<
         return roots;
     }
 
-    /** Read the stored builds the roots, leases and cache entries retain, directly or in turn. */
-    async retained(): Promise<ReadonlySet<string>> {
-        // read what the references retain, then keep the stored builds among it
-        const retained = new Set(await this.#retained(this.database, this.environment.clock.now()));
-        const stored = await this.database
-            .select({ digest: buildManifest.digest })
-            .from(buildManifest);
-
-        return new Set(stored.map(({ digest }) => digest).filter((digest) => retained.has(digest)));
-    }
-
-    /** Unrecord the builds nothing retains, retiring their blobs, answering what went. */
-    async collect(): Promise<Collection> {
-        // drop unused cache entries and unrecord unretained builds, retiring what they referenced
+    /** Drop cache entries unused for a week with their roots, answering the next one's end. */
+    async expire(): Promise<number | undefined> {
+        // drop the unused entries and their roots, which retires what only they kept
         const now = this.environment.clock.now();
-        const manifests = await this.database.transaction(async (transaction) => {
-            // drop the cache entries unused for a lifetime with their roots
+        await this.database.transaction(async (transaction) => {
             const unused = await transaction
                 .delete(buildCache)
                 .where(lte(buildCache.usedAt, now - CACHE_MILLISECONDS))
@@ -509,45 +480,20 @@ export class PackageStore<
                     unused.map(({ key }) => `${CACHE_ROOT_PREFIX}${key}`),
                 ),
             );
-
-            // unrecord the builds nothing retains
-            const retained = new Set(await this.#retained(transaction, now));
-            const stored = await transaction
-                .select({ digest: buildManifest.digest })
-                .from(buildManifest);
-            const dropped = stored
-                .map(({ digest }) => digest)
-                .filter((digest) => !retained.has(digest));
-            await PackageStore.#unrecord(transaction, dropped);
-
-            return dropped;
         });
 
-        // forget the deleted builds' readers
-        for (const digest of manifests) {
-            this.#readers.delete(digest);
-        }
-
-        // look again once the next lease or cache entry ends
+        // look again once the oldest entry left ends
         const [oldest] = await this.database
             .select({ usedAt: buildCache.usedAt })
             .from(buildCache)
             .orderBy(asc(buildCache.usedAt))
             .limit(1);
-        const ends = [
-            await this.blobs.nextLeaseEnd(now),
-            oldest === undefined ? undefined : oldest.usedAt + CACHE_MILLISECONDS,
-        ].filter((end) => end !== undefined);
 
-        return { manifests, next: ends.length === 0 ? undefined : Math.min(...ends) };
+        return oldest === undefined ? undefined : oldest.usedAt + CACHE_MILLISECONDS;
     }
 
-    /** Delete every build's index, as the partition leaves its host, answering the builds. */
-    async clear(): Promise<readonly Digest[]> {
-        // read the builds, then delete their index
-        const stored = await this.database
-            .select({ digest: buildManifest.digest })
-            .from(buildManifest);
+    /** Delete every build's index, as the partition leaves its host. */
+    async clear(): Promise<void> {
         await this.database.transaction(async (transaction) => {
             for (const table of [
                 buildReference,
@@ -560,8 +506,6 @@ export class PackageStore<
             }
         });
         this.#readers.clear();
-
-        return stored.map(({ digest }) => digest);
     }
 
     /** Attach the runtime build of each emitted output of a stored build. */
@@ -947,23 +891,6 @@ export class PackageStore<
         });
     }
 
-    /** Read the blobs other rows or leases reference at a moment, and what those reference. */
-    async #retained(database: DatabaseConnection, now: number): Promise<Digest[]> {
-        const seeds = this.blobs.referenced(now, {
-            except: [buildManifest, buildReference, buildReferrer],
-        });
-        const rows = await database.all(sql`WITH RECURSIVE retained(digest) AS (
-                SELECT seed.digest FROM (${seeds}) AS seed
-                UNION SELECT edge.digest FROM (
-                    SELECT ${buildReference.manifest} AS source, ${buildReference.digest} AS digest FROM ${buildReference}
-                    UNION ALL SELECT ${buildReferrer.subject}, ${buildReferrer.digest} FROM ${buildReferrer}
-                ) AS edge JOIN retained ON edge.source = retained.digest
-            )
-            SELECT digest FROM retained`);
-
-        return rows.map((row) => DigestRow.parse(row).digest);
-    }
-
     /** Replace the blobs a root retains. */
     static async #replaceRoot(
         transaction: DatabaseConnection,
@@ -988,19 +915,6 @@ export class PackageStore<
             await transaction
                 .delete(buildRoot)
                 .where(and(eq(buildRoot.name, name), inArray(buildRoot.digest, batch)));
-        }
-    }
-
-    /** Delete the rows of some builds: their references, their referrers and their records. */
-    static async #unrecord(
-        transaction: DatabaseConnection,
-        manifests: readonly Digest[],
-    ): Promise<void> {
-        for (let start = 0; start < manifests.length; start += BATCH_ROWS) {
-            const batch = manifests.slice(start, start + BATCH_ROWS);
-            await transaction.delete(buildReference).where(inArray(buildReference.manifest, batch));
-            await transaction.delete(buildReferrer).where(inArray(buildReferrer.subject, batch));
-            await transaction.delete(buildManifest).where(inArray(buildManifest.digest, batch));
         }
     }
 

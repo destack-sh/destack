@@ -13,8 +13,8 @@ import { CacheEntry } from "../cache/entry.ts";
 
 /** The builds a store has, each present once every blob it references is stored. */
 export const buildManifest = defineTable("manifest", {
-    /** The digest of the manifest's bytes, which are a blob too. */
-    digest: blob("digest").primaryKey(),
+    /** The digest of the manifest's bytes, a blob the record goes with. */
+    digest: blob("digest", { onDelete: "cascade" }).primaryKey(),
     /** The manifest's byte count. */
     size: integer("size").notNull(),
 });
@@ -23,8 +23,8 @@ export const buildManifest = defineTable("manifest", {
 export const buildReference = defineTable(
     "reference",
     {
-        /** The build. */
-        manifest: text("manifest").validate(Digest).primaryKey(),
+        /** The build, whose deletion takes the reference. */
+        manifest: blob("manifest", { onDelete: "cascade" }).primaryKey(),
         /** The referenced blob, a file or another build's manifest. */
         digest: blob("digest").primaryKey(),
     },
@@ -35,8 +35,8 @@ export const buildReference = defineTable(
 export const buildReferrer = defineTable(
     "referrer",
     {
-        /** The build the blob is attached to. */
-        subject: text("subject").validate(Digest).primaryKey(),
+        /** The build the blob is attached to, whose deletion takes the attachment. */
+        subject: blob("subject", { onDelete: "cascade" }).primaryKey(),
         /** The attachment's path, such as `runtime/bun` or `maps`. */
         path: text("path").primaryKey(),
         /** The attached blob. */

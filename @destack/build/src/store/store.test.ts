@@ -12,14 +12,13 @@ import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { CallError } from "@destack/object";
 import { Digest, found, present } from "@destack/schema";
 import {
-    type Collection,
     MAPS_REFERRER,
     type PackageAccess,
     PackageClient,
     PackageStore,
     RUNTIME_REFERRER,
 } from "./index.ts";
-import { packageStoreDatabase } from "./table.ts";
+import { buildManifest, packageStoreDatabase } from "./table.ts";
 
 /** The mount the tests serve stores below. */
 const MOUNT = new URL("https://packages.test/packages/");
@@ -394,7 +393,7 @@ test("attach a code index to a build, retain it with the build, and collect it w
     });
 });
 
-test("open one reader per stored build, and forget a collected build's reader", async () => {
+test("open one reader per stored build, and refuse a collected build", async () => {
     // store a build and open it twice
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -796,7 +795,8 @@ test("retain the union of every root's builds, and collect a forgotten root's bu
     simulation.clock.advance(LEASE_MILLISECONDS);
     await store.root("space-a", new Set([first]));
     await store.root("space-b", new Set([second]));
-    const both = await store.retained();
+    await collect(store);
+    const both = await recorded(store);
 
     // forget one root and collect its build, leaving the other's retained
     await store.forget("space-a");
@@ -981,18 +981,32 @@ test("retain a rooted build's runtime build and its maps, passing over a depende
     const runtime = await store.attachRuntime(served, "bun");
     const maps = present(await store.referrer(runtime, MAPS_REFERRER), "the maps build");
 
-    // retain both builds, the runtime build and its maps, passing over the lacking library
-    expect([...(await store.retained())].toSorted()).toEqual(
-        [served, runtime, maps.digest, importing].toSorted(),
-    );
+    // retain both builds, the runtime build and its maps past their leases, passing over the lacking library
+    simulation.clock.advance(LEASE_MILLISECONDS);
+    await collect(store);
+    expect(await recorded(store)).toEqual([served, runtime, maps.digest, importing].toSorted());
 });
 
-/** Unrecord a store's unretained builds, then delete the blobs they let go, as a partition does. */
-async function collect(store: PackageStore): Promise<Collection> {
-    // unrecord the builds, then delete the blobs, looking again at the earlier deadline
-    const { manifests, next } = await store.collect();
+/** Expire the cache and collect blobs, answering the deleted builds and the next deadline. */
+async function collect(
+    store: PackageStore,
+): Promise<{ readonly manifests: readonly Digest[]; readonly next: number | undefined }> {
+    // expire and collect, looking again at the earlier deadline
+    const before = await recorded(store);
+    const expiring = await store.expire();
     const leased = await store.blobs.collect();
-    const ends = [next, leased].filter((end) => end !== undefined);
+    const after = new Set(await recorded(store));
+    const ends = [expiring, leased].filter((end) => end !== undefined);
 
-    return { manifests, next: ends.length === 0 ? undefined : Math.min(...ends) };
+    return {
+        manifests: before.filter((digest) => !after.has(digest)),
+        next: ends.length === 0 ? undefined : Math.min(...ends),
+    };
+}
+
+/** List the builds a store records. */
+async function recorded(store: PackageStore): Promise<Digest[]> {
+    const rows = await store.database.select({ digest: buildManifest.digest }).from(buildManifest);
+
+    return rows.map(({ digest }) => digest).toSorted();
 }

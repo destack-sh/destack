@@ -10,6 +10,7 @@ import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { testSimulation } from "../test/world.ts";
 import { LocalPackageStore } from "./local.ts";
+import { STAGING_DIRECTORY } from "../dependency/tree.ts";
 
 /** A day, in milliseconds. */
 const DAY_MILLISECONDS = 24 * 60 * 60_000;
@@ -70,7 +71,7 @@ test("keep one store in a directory, which a later open of any toolchain reads",
             .toSorted(),
         isStored: await reopened.has(marker),
     }).toEqual({
-        entries: ["files", "open.lock", "store.db", "store.lock", "trees"],
+        entries: ["collected", "files", "open.lock", "store.db", "store.lock", "trees"],
         isStored: true,
     });
 });
@@ -120,6 +121,31 @@ test("retain a build's files while another process opens the store twice before 
     // retain every file the build put before its manifest
     const stored = await Promise.all(distributed.map((file) => building.has(file.digest)));
     expect(stored).toEqual(distributed.map(() => true));
+});
+
+test("collect an idle store at most daily, keeping what a crashed materialization staged until then", async () => {
+    // open the store idle, then leave a staged tree behind, as a crashed materialization does
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    const { clock } = simulation;
+    const staged = async () => {
+        await using store = await LocalPackageStore.open(directory, environment);
+        const staging = join(store.trees, STAGING_DIRECTORY);
+        const isStaged = await files.exists(staging);
+        await files.mkdir(staging, { recursive: true });
+
+        return isStaged;
+    };
+    await staged();
+
+    // keep it through idle opens within the day, and delete it on the first idle open a day on
+    const within = [await staged()];
+    clock.set(clock.now() + DAY_MILLISECONDS - 1);
+    within.push(await staged());
+    clock.set(clock.now() + 1);
+    expect({ within, after: await staged() }).toEqual({ within: [true, true], after: false });
 });
 
 test("collect an unrooted build and its tree on the first idle open a week after storing it", async () => {
