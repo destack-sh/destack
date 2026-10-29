@@ -384,6 +384,7 @@ function ownObjects(
         implementInstallation({
             resources: providers.objects(),
             builds,
+            blobs: options.blobs,
             registry,
             binder,
             runtimes: options.runtimes.filter((runtime) => runtime.name !== PROCESS_RUNTIME),

@@ -3,6 +3,7 @@ import { MAIN_DATABASE } from "../../declare/index.ts";
 import { AccessContext, Caller, principal } from "@destack/access";
 import {
     and,
+    type BlobStore,
     type DatabaseConnection,
     DatabaseKind,
     DatabaseState,
@@ -66,9 +67,11 @@ import {
     instance,
     Rollout,
     rollout,
+    type DeploymentPreparation,
     type NamedInstallation,
+    type ResourceNeed,
 } from "../../object/index.ts";
-import type { Binder, ResourceNeed } from "../resource/binding.ts";
+import type { Binder } from "../resource/binding.ts";
 import { BuildStore, type Registry } from "./build.ts";
 import { Approval } from "./approval.ts";
 import { HOOK_WORKLOAD } from "../../workload/hook.ts";
@@ -96,6 +99,8 @@ export interface ApplicationOptions {
     readonly database: DatabaseConnection;
     /** The release the machine serves in process of each package it ships, by package. */
     readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
+    /** The space's blobs, storing the states a deploy binds and captures. */
+    readonly blobs: BlobStore;
 }
 
 /** What a revision deploys: its build, workloads, replaced deployments and needs. */
@@ -110,6 +115,8 @@ interface DeploymentPlan {
     readonly replaced: readonly Deployment[];
     /** The declarations the installation's workloads bind. */
     readonly needs: readonly ResourceNeed[];
+    /** The callee release of each installation need, as a blob, by key. */
+    readonly pins: Readonly<Record<string, Digest>>;
     /** The package its build declares: requests and capabilities, absent for workloads alone. */
     readonly description: PackageDescription | undefined;
 }
@@ -118,8 +125,8 @@ interface DeploymentPlan {
 interface Releases {
     /** The release the build serves and the oldest caller release its package serves. */
     readonly served: Awaited<ReturnType<typeof servedRelease>>;
-    /** The callee release of each installation need. */
-    readonly pins: ReadonlyMap<string, InstallationBindingState>;
+    /** The callee release of each installation need, as a blob. */
+    readonly pins: ReadonlyMap<string, Digest>;
 }
 
 /** One workload of a build's server output. */
@@ -162,8 +169,8 @@ interface Refusal {
 
 /** An application installation one deploy call deploys, drains and relates. */
 export class Application {
-    /** The deploy call. */
-    readonly #context: MethodContextOf<typeof rollout, "deploy">;
+    /** The deploy call, or its preparation before the transaction. */
+    readonly #context: MethodContextOf<typeof rollout, "deploy", DeploymentPreparation | undefined>;
     /** The rollout deploying, with its installation's fields. */
     readonly #target: Rollout & { readonly installation: NamedInstallation };
     /** What the machine deploys with. */
@@ -171,13 +178,49 @@ export class Application {
 
     /** Create an application of the installation a deploy call deploys. */
     constructor(
-        context: MethodContextOf<typeof rollout, "deploy">,
+        context: MethodContextOf<typeof rollout, "deploy", DeploymentPreparation | undefined>,
         target: Rollout & { readonly installation: NamedInstallation },
         options: ApplicationOptions,
     ) {
         this.#context = context;
         this.#target = target;
         this.#options = options;
+    }
+
+    /** Write the states a deploy binds and pins as blobs, before its transaction. */
+    async prepare(): Promise<DeploymentPreparation> {
+        // prepare nothing for a deleted or suspended application, or one following no revision
+        const target = this.#target;
+        const revision =
+            target.revisionId === null
+                ? undefined
+                : await this.#context
+                      .read(installationRevision)
+                      .findFirst({ where: { id: target.revisionId } });
+        if (
+            revision === undefined ||
+            target.deletedAt !== null ||
+            target.installation.status !== "enabled"
+        ) {
+            return { revisionId: null, needs: [], pins: {} };
+        }
+
+        // prepare nothing for a build its deploy refuses
+        const { blobs } = this.#options;
+        const selected = await this.#select(revision);
+        if ((await this.#describeRefusals(revision, selected)) !== undefined) {
+            return { revisionId: revision.id, needs: [], pins: {} };
+        }
+
+        // write the needs' states and the pinned releases of the build's workloads
+        const { build, workloads, description } = selected;
+        const needs = await this.#readNeeds(revision, build, workloads, description);
+        const pins = await pinnedReleases(build, needs);
+        const pinned = await Promise.all(
+            [...pins].map(async ([key, state]) => [key, await blobs.writeJson(state)] as const),
+        );
+
+        return { revisionId: revision.id, needs, pins: Object.fromEntries(pinned) };
     }
 
     /** Deploy the revision of an enabled application, and drain a suspended one. */
@@ -242,29 +285,23 @@ export class Application {
 
     /** Deploy each new workload output of a revision's build and drain the replaced deployments. */
     async #deploy(revision: InstallationRevision, live: readonly Deployment[]): Promise<void> {
+        // deploy only the prepared revision
+        const prepared = present(this.#context.prepared, "the deploy's preparation");
+        if (prepared.revisionId !== revision.id) {
+            return;
+        }
+
         // read the workloads the machine runs
         const target = this.#target;
-        const build = await this.#open(revision);
-        const description = await PackageDescription.of(build);
-        const built = await Build.require(
-            { read: (table) => this.#context.read(table) },
-            revision.scope,
-            revision.buildId,
-        );
-
-        // serve a shipped server's release in the machine's process, else select its build's workloads
-        const isShipped =
-            this.#options.bundled.get(target.installation.packageId)?.manifest === built.manifest;
-        const { workloads, stranded } = isShipped
-            ? { workloads: [this.#processWorkload(description)], stranded: [] }
-            : this.#selectWorkloads(build, description);
+        const { build, built, description, workloads, stranded } = await this.#select(revision);
 
         // refuse an unrunnable workload, an undeclared or unentitled capability or directory, or a database
-        const refusal =
-            this.#describeRefusal(built.manifest, build, stranded, description) ??
-            (await this.#describeUnentitled(description)) ??
-            (await this.#describeUninstalled(revision, description)) ??
-            (await this.#describeDatabases(build));
+        const refusal = await this.#describeRefusals(revision, {
+            build,
+            built,
+            description,
+            stranded,
+        });
         if (refusal !== undefined) {
             await this.#refuse(refusal);
 
@@ -289,7 +326,7 @@ export class Application {
         }
 
         // refuse installation needs without a bound address
-        const needs = await this.#readNeeds(revision, build, workloads, description);
+        const { needs } = prepared;
         const unbound = await this.#describeUnboundInstallations(needs);
         if (unbound !== undefined) {
             await this.#refuse(unbound);
@@ -298,7 +335,16 @@ export class Application {
         }
 
         // attach, drain the replaced deployments and activate the fresh ones
-        await this.#deployPlan(revision, { build, workloads, fresh, replaced, needs, description });
+        const { pins } = prepared;
+        await this.#deployPlan(revision, {
+            build,
+            workloads,
+            fresh,
+            replaced,
+            needs,
+            pins,
+            description,
+        });
     }
 
     /** Attach the application's needs, wait for its space, grant, drain and activate. */
@@ -306,7 +352,7 @@ export class Application {
         // wait for a provider of each kind no provider here serves yet
         const call = this.#context;
         const target = this.#target;
-        const { build, workloads, fresh, replaced, needs, description } = plan;
+        const { build, workloads, fresh, replaced, needs, pins, description } = plan;
         const unprovided = this.#options.binder.unprovided(needs);
         if (unprovided.length > 0) {
             const message = `waiting for a provider of ${unprovided.join(", ")} resources`;
@@ -359,7 +405,7 @@ export class Application {
         // activate each fresh workload's deployment with its bindings captured
         const releases = {
             served: await servedRelease(build),
-            pins: await pinnedReleases(build, needs),
+            pins: new Map(Object.entries(pins)),
         };
         for (const workload of fresh) {
             await this.#activate(revision, workload, releases);
@@ -381,6 +427,26 @@ export class Application {
                 approvedPlan: null,
             },
         });
+    }
+
+    /** Describe why a revision's build cannot deploy, none for a deployable one. */
+    async #describeRefusals(
+        revision: InstallationRevision,
+        selected: {
+            readonly build: BuildReader;
+            readonly built: { readonly manifest: Digest };
+            readonly description: PackageDescription | undefined;
+            readonly stranded: readonly string[];
+        },
+    ): Promise<Refusal | undefined> {
+        const { build, built, description, stranded } = selected;
+
+        return (
+            this.#describeRefusal(built.manifest, build, stranded, description) ??
+            (await this.#describeUnentitled(description)) ??
+            (await this.#describeUninstalled(revision, description)) ??
+            (await this.#describeDatabases(build))
+        );
     }
 
     /** Describe why a build cannot deploy. */
@@ -599,11 +665,13 @@ export class Application {
             },
         });
 
-        // list the unbound installation needs that have no address of their own
+        // list the installation needs with no address of their own that no binding or stack selection binds
+        const selected = this.#target.bindings;
         const unbound = needs.filter(
             (need) =>
                 need.kind === InstallationKind.name &&
                 InstallationBindingSpec.parse(need.spec).address === undefined &&
+                selected[need.package.id]?.[need.name] === undefined &&
                 !bound.some(
                     (entry) => entry.packageId === need.package.id && entry.name === need.name,
                 ),
@@ -689,6 +757,28 @@ export class Application {
 
             return !isSame;
         });
+    }
+
+    /** Read a revision's build, its package and the workloads the machine runs of it. */
+    async #select(revision: InstallationRevision) {
+        // read the build and its package
+        const target = this.#target;
+        const build = await this.#open(revision);
+        const description = await PackageDescription.of(build);
+        const built = await Build.require(
+            { read: (table) => this.#context.read(table) },
+            revision.scope,
+            revision.buildId,
+        );
+
+        // serve a shipped server's release in the machine's process, else select its build's workloads
+        const isShipped =
+            this.#options.bundled.get(target.installation.packageId)?.manifest === built.manifest;
+        const { workloads, stranded } = isShipped
+            ? { workloads: [this.#processWorkload(description)], stranded: [] }
+            : this.#selectWorkloads(build, description);
+
+        return { build, built, description, workloads, stranded };
     }
 
     /** Open the build a revision evaluated from the build store. */
@@ -940,9 +1030,10 @@ export class Application {
         );
 
         // describe each of its declarations the binder binds, which its servers and workloads open
-        const needs = declarations
+        const needs = await Promise.all(declarations
             .filter((declaration) => this.#options.binder.binds(declaration.kind))
-            .map((declaration) => describeNeed(build, declaration));
+            .map((declaration) => describeNeed(build, declaration, this.#options.blobs)),
+        );
 
         // require a description of every used declaration
         const missing = [...used].filter((name) => !needs.some((entry) => entry.name === name));
@@ -1015,7 +1106,9 @@ export class Application {
                 .filter((type) => type.storage === "durable")
                 .flatMap((type) => type.tables),
         );
-        const state = DatabaseState.of([...tables], { package: packageId });
+        const state = await this.#options.blobs.writeJson(
+            DatabaseState.of([...tables], { package: packageId }),
+        );
 
         return [
             {
@@ -1212,11 +1305,12 @@ async function pinnedReleases(
     return pins;
 }
 
-/** Describe a declaration as a need. */
-function describeNeed(
+/** Describe a declaration as a need, writing its required state as a blob. */
+async function describeNeed(
     build: BuildReader,
     declaration: Awaited<ReturnType<BuildReader["declarations"]>>[number],
-): ResourceNeed {
+    blobs: BlobStore,
+): Promise<ResourceNeed> {
     // split a resource's description into its kind, specification and required state
     const owner = PackageManifest.package(build.manifest);
     if (declaration.kind === RESOURCE_DECLARATION) {
@@ -1225,14 +1319,14 @@ function describeNeed(
         );
         const { name, kind, spec, ...state } = described;
 
-        return { package: owner, name, kind, spec, state };
+        return { package: owner, name, kind, spec, state: await blobs.writeJson(state) };
     }
 
     // take another kind's description as its specification
     const described = OtherDescription.parse(declaration.description);
     const { name, ...spec } = described;
 
-    return { package: owner, name, kind: declaration.kind, spec, state: {} };
+    return { package: owner, name, kind: declaration.kind, spec, state: await blobs.writeJson({}) };
 }
 
 /** Find the compare function a kind's package declares for a kind, as its export and name. */

@@ -71,7 +71,7 @@ export function implementSnapshot(options: TransferOptions) {
                     const { store, blobs } = recording(options.blobs);
                     const digest = await snapshotter.snapshot(
                         kind.record(resource),
-                        kind.states(await appliedStates(reconciliation.store.database, resource)),
+                        kind.states(await appliedStates(reconciliation.store.blobs, resource)),
                         store,
                         Recipient.of(row.recipient, reconciliation.store.environment),
                     );
@@ -160,7 +160,7 @@ async function restoreRow(
         digest,
         store: relayed(options.blobs, source, spaceId),
         recipient,
-        desired: await appliedStates(reconciliation.store.database, found.row),
+        desired: await appliedStates(reconciliation.store.blobs, found.row),
     };
 
     // provision and restore a resource or catch the restored one up

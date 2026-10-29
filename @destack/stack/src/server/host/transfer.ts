@@ -51,7 +51,6 @@ import {
 import type { ResourceState } from "@destack/package/declare";
 import { type IdentityKeystore } from "@destack/account/identity";
 import {
-    DesiredState,
     type Resource,
     type ResourceType,
     type SettlementContext,
@@ -112,8 +111,11 @@ export interface TransferOptions {
 /** The space's object store a move runs its calls through as its principal. */
 export type TransferStore = Pick<
     ObjectStore,
-    "database" | "as" | "mutate" | "clock" | "environment"
+    "database" | "blobs" | "as" | "mutate" | "clock" | "environment"
 >;
+
+/** The space's database and the blobs its main database's states live in. */
+export type TransferSpace = Pick<ObjectStore, "database" | "blobs">;
 
 /** A resource of the space whose provider fences its content, with its record. */
 interface ResourceFence {
@@ -217,7 +219,7 @@ export function implementTransfer(options: TransferOptions) {
                         const id = schema.identifier("transfer").parse(context.id);
                         const record = await SpaceTransfer.read(context.database, id);
                         const cancelled = await SpaceTransfer.of(
-                            context.database,
+                            { database: context.database, blobs: options.blobs },
                             settled.prepared,
                             record.targetId,
                         );
@@ -331,7 +333,7 @@ async function advance(
         const machine = record.sourceId;
         const source = { ...located, machine, epoch: record.sourceEpoch };
         const target = record.targetId;
-        const moved = await SpaceTransfer.of(reconciliation.database, source, target);
+        const moved = await SpaceTransfer.of(reconciliation.store, source, target);
         await moved.remove(options, reconciliation.store, reconciliation.now);
     }
 
@@ -354,33 +356,36 @@ export class SpaceTransfer {
 
     /** Plan a space's move with its main database's tables, by default those applied here. */
     static async of(
-        database: DatabaseConnection,
+        space: TransferSpace,
         placed: Placement,
         target: Identifier<"machine">,
         tables?: readonly Table[],
     ): Promise<SpaceTransfer> {
         const added =
             tables ??
-            SpaceTransfer.tables(database, await SpaceTransfer.states(database, placed.id));
+            SpaceTransfer.tables(space.database, await SpaceTransfer.states(space, placed.id));
 
         return new SpaceTransfer({
             placement: placed,
             target,
-            space: await SpaceReplica.of(database, placed.id, added),
+            space: await SpaceReplica.of(space.database, placed.id, added),
         });
     }
 
     /** Read the states the space's main database applied, none while absent or unprovisioned. */
     static async states(
-        database: DatabaseConnection,
+        space: TransferSpace,
         spaceId: Identifier<"space">,
     ): Promise<ResourceState[]> {
-        const view = Snapshot.live(database);
-        const main = await Database.mainMaybe(view, spaceId);
+        const main = await Database.mainMaybe(Snapshot.live(space.database), spaceId);
 
         return main === undefined || main.reference === null
             ? []
-            : DesiredState.read(view, main.scope, main.appliedStates);
+            : await Promise.all(
+                  main.appliedStates.map(async (digest) =>
+                      schema.jsonObject().parse(await space.blobs.readJson(digest)),
+                  ),
+              );
     }
 
     /** Describe the tables some main database states declare in addition to a database's own. */
@@ -396,7 +401,7 @@ export class SpaceTransfer {
 
     /** Plan the steps of a transfer while its source still serves its space. */
     static async plan(
-        options: Pick<HandoffOptions, "database">,
+        options: Pick<HandoffOptions, "database" | "blobs">,
         record: Transfer,
     ): Promise<SpaceTransfer> {
         // refuse a space placed elsewhere now
@@ -413,10 +418,10 @@ export class SpaceTransfer {
         const states =
             main === undefined || main.reference === null
                 ? []
-                : await appliedStates(options.database, main);
+                : await appliedStates(options.blobs, main);
 
         return SpaceTransfer.of(
-            options.database,
+            options,
             located,
             record.targetId,
             SpaceTransfer.tables(options.database, states),
@@ -547,9 +552,10 @@ export class SpaceTransfer {
         // follow the source's rows up to its fence, restoring resources and builds meanwhile
         const fenced = await this.#followToFence(source, signal, options, store);
 
-        // capture the space's rows and copy the builds they added
+        // capture the space's rows and copy the builds and blobs they added
         await this.#captureRows(source, fenced, options);
         await this.#copyBuilds(source, options.builds, signal);
+        await this.#copyBlobs(source, options.blobs, signal);
 
         // catch each resource up on what changed since its snapshot
         await this.#catchUp(signal, options, store, store.clock.now());
@@ -585,9 +591,10 @@ export class SpaceTransfer {
             )
             .catch((error: unknown) => halted.abort(error));
         try {
-            // restore each resource and copy each build once the replica took its first complete run
+            // copy the rows' blobs once the replica took its first complete run, then restore each resource and copy each build
             await Promise.race([isSynced.promise, until(following)]);
             following.throwIfAborted();
+            await this.#copyBlobs(source, options.blobs, signal);
             await this.#prepare(signal, options, store);
 
             await this.#copyBuilds(source, options.builds, signal);
@@ -627,6 +634,14 @@ export class SpaceTransfer {
             const { location, fetch } = source.locate(this.spaceId, manifest);
             await builds.space.copy(location, fetch, signal);
         }
+    }
+
+    /** Copy the blobs the space's rows reference that the source stores and this machine lacks. */
+    async #copyBlobs(source: Handoff, blobs: BlobStore, signal: AbortSignal): Promise<void> {
+        const missing = await blobs.storage.missing(await source.blobs(this.spaceId, { signal }));
+        await blobs.storage.fetch(missing, {
+            read: (digest) => source.read(this.spaceId, digest, { signal }),
+        });
     }
 
     /** List the resource kinds whose tables the replica moves. */
@@ -1039,7 +1054,7 @@ export class SpaceTransfer {
 
     /** Find the latest move to a machine of a space it has in a state. */
     static async latest(
-        database: DatabaseConnection,
+        space: TransferSpace,
         spaceId: Identifier<"space">,
         machine: Identifier<"machine">,
         state: "abandoned" | "fenced",
@@ -1049,7 +1064,7 @@ export class SpaceTransfer {
             state === "abandoned"
                 ? SpaceTransfer.abandoned(machine)
                 : SpaceTransfer.fenced(machine);
-        const [latest] = await database
+        const [latest] = await space.database
             .select({
                 account: Scope.table.parent,
                 source: transfer.table.sourceId,
@@ -1078,17 +1093,17 @@ export class SpaceTransfer {
             epoch: latest.epoch,
         };
 
-        return SpaceTransfer.of(database, served, machine);
+        return SpaceTransfer.of(space, served, machine);
     }
 
     /** Find the latest move of a space away from a machine, which a later placement superseded. */
     static async away(
-        database: DatabaseConnection,
+        space: TransferSpace,
         moving: Placement,
         machine: Identifier<"machine">,
     ): Promise<SpaceTransfer | undefined> {
         // read the latest uncancelled move away from the machine before the space's current epoch
-        const [latest] = await database
+        const [latest] = await space.database
             .select({ target: transfer.table.targetId, epoch: transfer.table.sourceEpoch })
             .from(transfer.table)
             .where(
@@ -1106,7 +1121,7 @@ export class SpaceTransfer {
         return latest === undefined
             ? undefined
             : SpaceTransfer.of(
-                  database,
+                  space,
                   { ...moving, machine, epoch: latest.epoch },
                   latest.target,
               );
@@ -1121,7 +1136,7 @@ export class SpaceTransfer {
     ): Promise<void> {
         // find whether this machine replicates the space still or an earlier attempt took it over at this epoch
         const { database } = store;
-        const move = await SpaceTransfer.of(database, moving, options.machine);
+        const move = await SpaceTransfer.of(store, moving, options.machine);
         const [replicated] = await database
             .select({ id: Scope.table.scope })
             .from(Scope.table)
@@ -1135,12 +1150,12 @@ export class SpaceTransfer {
         // abort the takeover of a cancelled move here, remove the fenced rows of a move away, and fail on others
         if (replicated !== undefined && !isReplicating && !isTakenOver) {
             const earlier = await SpaceTransfer.latest(
-                database,
+                store,
                 move.spaceId,
                 options.machine,
                 "fenced",
             );
-            const away = await SpaceTransfer.away(database, moving, options.machine);
+            const away = await SpaceTransfer.away(store, moving, options.machine);
             if (earlier !== undefined) {
                 await earlier.abort(options.providers, database);
             } else if (away !== undefined) {
@@ -1162,7 +1177,7 @@ export class SpaceTransfer {
             const source = await options.source(moving.machine, move.spaceId);
             const tables = SpaceTransfer.tables(database, await source.states(move.spaceId));
             await database.migrate(tables, { others: "retain" });
-            const moved = await SpaceTransfer.of(database, moving, options.machine, tables);
+            const moved = await SpaceTransfer.of(store, moving, options.machine, tables);
 
             // cut over to this machine and place the space here
             await moved.cutover(source, signal, options, store);
@@ -1240,12 +1255,12 @@ export class TransferController implements ReconcileController {
         }
         // place a space whose replica here is fenced still, once primary
         else if (role === "primary" && row?.machineId === machine) {
-            const move = await SpaceTransfer.latest(database, spaceId, machine, "fenced");
+            const move = await SpaceTransfer.latest(this.#store, spaceId, machine, "fenced");
             await move?.place(this.#options, database, this.#store.environment);
         }
         // abort the latest move here the placement no longer targets, on a standby
         else if (role === "standby") {
-            const move = await SpaceTransfer.latest(database, spaceId, machine, "abandoned");
+            const move = await SpaceTransfer.latest(this.#store, spaceId, machine, "abandoned");
             await move?.abort(providers, database);
         }
 

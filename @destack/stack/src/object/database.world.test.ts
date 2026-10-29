@@ -64,6 +64,7 @@ test("serve an installation once its targets are bound and the space's main data
                 .set({ revisionId: revision })
                 .where(eq(rollout.table.id, ids.notes)),
     );
+    const state = await fixture.blobs.writeJson(STATE);
     await connection.transaction(
         async (transaction) =>
             await transaction.insert(binding.table).values({
@@ -73,7 +74,7 @@ test("serve an installation once its targets are bound and the space's main data
                 packageId: ids.package,
                 name: "main",
                 target: main.id,
-                state: STATE,
+                state,
             }),
     );
     const notes = await MemoryBuild.of(
@@ -90,7 +91,6 @@ test("serve an installation once its targets are bound and the space's main data
                 Snapshot.live(connection),
                 ids.space,
                 open,
-                connection.state.environment.crypto,
             )
         )
             .map((entry) => [entry.rollout.id, entry.declarations.map((each) => each.name)])

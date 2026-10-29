@@ -41,8 +41,6 @@ export const StackBinding = schema.object({
     target: StackBindingTarget,
     /** An exact version or generation to run with, else the target's current one. */
     version: schema.number().int().positive().exactOptional(),
-    /** The state the declaration requires of the target, such as a database's tables. */
-    state: schema.jsonObject(),
 });
 /** A binding of one declaration to an object the space has. */
 export type StackBinding = schema.Infer<typeof StackBinding>;

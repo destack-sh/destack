@@ -10,13 +10,11 @@ import {
     type Table,
     type TableState,
     Condition,
-    Transaction,
 } from "@destack/db";
-import { DesiredState, type Resource, type ResourceType } from "@destack/object";
+import { type Resource, type ResourceType } from "@destack/object";
 import { DRAINING, type ObjectStore } from "@destack/object/server";
 import type { ResourceState } from "@destack/package/declare";
-import { Digest, type DigestCrypto, nth, present } from "@destack/schema";
-import type { ResourceKind } from "@destack/resource";
+import { Digest, present } from "@destack/schema";
 import type { ReconcileController } from "@destack/db";
 import { binding, capture, database, Deployment, deployment } from "../../object/index.ts";
 import { RequestId } from "@destack/sync";
@@ -28,7 +26,10 @@ export class ConsumerController implements ReconcileController {
     /** The tables of the consumers, the spaces and their placements, and every kind's resources. */
     readonly watches: readonly Table[];
     /** The object store writing the resources and stopping deployments as its principal. */
-    readonly #store: Pick<ObjectStore, "database" | "as" | "mutate" | "clock" | "environment">;
+    readonly #store: Pick<
+        ObjectStore,
+        "database" | "blobs" | "as" | "mutate" | "clock" | "environment"
+    >;
     /** The objects of every kind whose resources the spaces use, stored here or replicated. */
     readonly #objects: readonly ResourceType<typeof space>[];
     /** The main database declaring the platform's tables in every space's main database. */
@@ -38,7 +39,7 @@ export class ConsumerController implements ReconcileController {
 
     /** Reconcile the resources of some kinds in the spaces a machine serves. */
     constructor(
-        store: Pick<ObjectStore, "database" | "as" | "mutate" | "clock" | "environment">,
+        store: Pick<ObjectStore, "database" | "blobs" | "as" | "mutate" | "clock" | "environment">,
         objects: readonly ResourceType<typeof space>[],
         main: Database,
     ) {
@@ -132,12 +133,12 @@ export class ConsumerController implements ReconcileController {
         const platform =
             object === database && row.name === MAIN_DATABASE
                 ? await this.#platformState(await this.#bound(row.id))
-                : new Map();
+                : new Map<Digest, ResourceState>();
         const { active, draining } = await desiredStates(connection, object, row, platform);
         const input = {
             id: row.id,
-            states: [...active.keys()],
-            drainingStates: [...draining.keys()],
+            states: active,
+            drainingStates: draining,
             approval: served.approval,
         };
 
@@ -147,20 +148,18 @@ export class ConsumerController implements ReconcileController {
             input.drainingStates.join() !== row.drainingStates.join() ||
             input.approval !== row.approval;
         if (isChanged) {
-            await Transaction.run(connection, async (transaction) => {
-                await DesiredState.upsert(transaction, row.scope, [
-                    ...active.values(),
-                    ...draining.values(),
-                ]);
-                await this.#store.mutate(
-                    this.#store.as(object),
-                    {
-                        id: RequestId.create(this.#store.environment),
-                        calls: [object.call("specify", input)],
-                    },
-                    { scope: row.scope, component: this.name, transaction },
-                );
-            });
+            // write the platform's state as a blob, as the deploys wrote the others
+            for (const state of platform.values()) {
+                await this.#store.blobs.writeJson(state);
+            }
+            await this.#store.mutate(
+                this.#store.as(object),
+                {
+                    id: RequestId.create(this.#store.environment),
+                    calls: [object.call("specify", input)],
+                },
+                { scope: row.scope, component: this.name },
+            );
         }
 
         // stop the draining deployments that captured a draining resource
@@ -272,14 +271,11 @@ async function desiredStates(
     object: ResourceType<typeof space>,
     row: Resource,
     platform: ReadonlyMap<Digest, ResourceState>,
-): Promise<{
-    readonly active: ReadonlyMap<Digest, ResourceState>;
-    readonly draining: ReadonlyMap<Digest, ResourceState>;
-}> {
+): Promise<{ readonly active: Digest[]; readonly draining: Digest[] }> {
     // write no states for a kind without a state
     const { kind } = present(object.provisioned, `the kind of ${object.name}`);
     if (!kind.isStateful) {
-        return { active: new Map(), draining: new Map() };
+        return { active: [], draining: [] };
     }
 
     // read the bindings' states and the states the serving deployments run with
@@ -299,51 +295,17 @@ async function desiredStates(
             ),
         );
 
-    // check each stored state once, along with the platform's
-    const active = sorted(
-        new Map([
-            ...platform,
-            ...(await checked(
-                kind,
-                [
-                    ...bound.map((entry) => entry.state),
-                    ...captured
-                        .filter((entry) => entry.status === "active")
-                        .map((entry) => entry.state),
-                ],
-                connection.state.environment.crypto,
-            )),
-        ]),
+    // list each active state once, then the draining states no active consumer needs
+    const active = new Set([
+        ...platform.keys(),
+        ...bound.map((entry) => entry.state),
+        ...captured.filter((entry) => entry.status === "active").map((entry) => entry.state),
+    ]);
+    const draining = new Set(
+        captured
+            .filter((entry) => entry.status === "draining" && !active.has(entry.state))
+            .map((entry) => entry.state),
     );
 
-    // leave out the draining states an active consumer needs
-    const draining = await checked(
-        kind,
-        captured.filter((entry) => entry.status === "draining").map((entry) => entry.state),
-        connection.state.environment.crypto,
-    );
-
-    return {
-        active,
-        draining: sorted(new Map([...draining].filter(([digest]) => !active.has(digest)))),
-    };
-}
-
-/** Check each distinct stored state by its kind, keyed by its digest. */
-async function checked(
-    kind: ResourceKind,
-    stored: readonly ResourceState[],
-    crypto: DigestCrypto,
-): Promise<Map<Digest, ResourceState>> {
-    // key the stored states by digest, then refuse a distinct one its kind does not accept
-    const digests = await Promise.all(stored.map((state) => Digest.json(state, crypto)));
-    const byDigest = new Map(digests.map((digest, index) => [digest, nth(stored, index)]));
-    kind.states([...byDigest.values()]);
-
-    return byDigest;
-}
-
-/** Order states by their digests. */
-function sorted(states: ReadonlyMap<Digest, ResourceState>): Map<Digest, ResourceState> {
-    return new Map([...states].toSorted(([left], [right]) => (left < right ? -1 : 1)));
+    return { active: [...active].toSorted(), draining: [...draining].toSorted() };
 }

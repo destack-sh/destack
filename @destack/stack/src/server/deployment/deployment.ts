@@ -366,10 +366,15 @@ class Reconcile {
             );
 
         // serve while one caller is pinned to a release the replacement no longer serves
-        return pinned.every(
-            (entry) =>
-                Version.compare(InstallationBindingState.parse(entry.state).release, since) >= 0,
+        const { blobs } = this.#reconciliation.store;
+        const releases = await Promise.all(
+            pinned.map(
+                async (entry) =>
+                    InstallationBindingState.parse(await blobs.readJson(entry.state)).release,
+            ),
         );
+
+        return releases.every((release) => Version.compare(release, since) >= 0);
     }
 
     /** Record a new instance of the deployment on this machine. */

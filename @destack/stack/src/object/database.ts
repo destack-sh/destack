@@ -3,7 +3,7 @@ import { MAIN_DATABASE } from "../declare/index.ts";
 import { defineObject, OBJECT_DECLARATION, Observation } from "@destack/object";
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
-import { Digest, type DigestCrypto, type Identifier, present } from "@destack/schema";
+import { Digest, type Identifier, present } from "@destack/schema";
 import { RESOURCE_DECLARATION } from "@destack/resource";
 import { binding } from "./binding.ts";
 import { Build, build } from "./build.ts";
@@ -62,7 +62,6 @@ export const Database = {
             packageId: PackageId,
             manifest: Digest,
         ) => Promise<Pick<BuildReader, "declarations">>,
-        crypto: DigestCrypto,
     ): Promise<
         {
             readonly rollout: Rollout & { readonly installation: NamedInstallation };
@@ -146,7 +145,7 @@ export const Database = {
                     isBound &&
                     (!latest.some((each) => each.kind === OBJECT_DECLARATION) ||
                         (tables !== undefined &&
-                            applied.has(await Digest.json(tables.state, crypto))));
+                            applied.has(tables.state)));
                 const revisionId = isApplied ? entry.revisionId : entry.appliedRevisionId;
 
                 return revisionId === null ? [] : [{ rollout: entry, revisionId }];

@@ -43,12 +43,12 @@ import type { ObjectStore } from "@destack/object/server";
 import {
     DeclarationName,
     PackageId,
-    type Package,
+    Package,
     PackageRelease,
     Sandbox,
 } from "@destack/package";
 import { type BuildReader, ViewDescription } from "@destack/package/manifest";
-import { Plan } from "@destack/resource";
+import { Plan, ResourceDescription } from "@destack/resource";
 import {
     canonicalize,
     Digest,
@@ -80,6 +80,28 @@ export const SubmissionPreparation = schema.object({
 });
 /** What a submission reads before its transaction. */
 export type SubmissionPreparation = schema.Infer<typeof SubmissionPreparation>;
+
+/** A resource declaration of an installation's package, its required state as a blob. */
+export const ResourceNeed = ResourceDescription.extend({
+    /** The package declaring the resource. */
+    package: Package,
+    /** The state the declaration requires, such as a database's tables, as a blob. */
+    state: Digest,
+});
+/** A resource declaration of an installation's package, its required state as a blob. */
+export type ResourceNeed = schema.Infer<typeof ResourceNeed>;
+
+/** What a deploy writes as blobs before its transaction: its revision's needs and their states. */
+export const DeploymentPreparation = schema.object({
+    /** The revision prepared, null for a rollout deploying none. */
+    revisionId: schema.identifier("installation-revision").nullable(),
+    /** The needs of the revision's build. */
+    needs: schema.array(ResourceNeed),
+    /** The state of each installation the build pins to the release it compiled against, by key. */
+    pins: schema.record(schema.string(), Digest),
+});
+/** What a deploy writes as blobs before its transaction. */
+export type DeploymentPreparation = schema.Infer<typeof DeploymentPreparation>;
 
 /** A view of an installation's revision, as a client opens it. */
 export const InstallationView = schema.object({
@@ -270,6 +292,7 @@ export const rollout = defineObject(
             permission: "deploy",
             visibility: "package",
             output: schema.object({}),
+            prepared: DeploymentPreparation,
         }),
 
         /** Point an installation at the revision it follows, as its controller does. */

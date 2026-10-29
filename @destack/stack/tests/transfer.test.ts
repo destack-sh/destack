@@ -22,7 +22,6 @@ import {
 } from "@destack/db";
 import { BunSqliteDatabaseHost, bunSqliteConnector } from "@destack/db/bun";
 import { SqliteDatabase } from "@destack/db/sqlite";
-import { desiredState } from "@destack/object";
 import { Plan, ResourceId } from "@destack/resource";
 import { nth, Digest, Identifier, schema, present } from "@destack/schema";
 import { RequestId, Scope, type Uplink } from "@destack/sync";
@@ -167,10 +166,7 @@ test(
             states: [digest],
             appliedStates: [digest],
         };
-        await source.transaction(
-            async (transaction) =>
-                await transaction.insert(desiredState).values({ scope: ids.space, digest, state }),
-        );
+        await sourceMachine.blobs.writeJson(state);
         await source.transaction(
             async (transaction) => await transaction.insert(object.database.table).values(resource),
         );
@@ -221,7 +217,7 @@ test(
                     packageId: ids.package,
                     name: "notes",
                     target: declared.id,
-                    state,
+                    state: digest,
                     createdAt: now,
                     updatedAt: now,
                 }),
@@ -476,9 +472,8 @@ test("move every table of the space database with rows in spaces, leaving out th
     const fixture = await TestSpace.open({
         packages: [{ objects: { note: sharedNote }, tables: [] }],
     });
-    const { database } = fixture;
     const moving = { id: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
-    const steps = await SpaceTransfer.of(database, moving, UNKNOWN_MACHINE);
+    const steps = await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE);
     // list the transfer table first, then the logged space tables in declaration order,
     //  leaving out the space's row from the universe
     expect(steps.space.tables.map((table) => table[TABLE].sqlName)).toEqual([
@@ -508,7 +503,6 @@ test("move every table of the space database with rows in spaces, leaving out th
         "destack__stack__route",
         "destack__setting__setting",
         "destack__stack__database",
-        "destack__object__desired_state",
         "destack__stack__bucket",
         "destack__stack__dependency",
         "destack__stack__https",
@@ -525,12 +519,7 @@ test("move the tables a space's main database applied in addition to the space d
     const { database } = fixture;
     const pinState = DatabaseState.of([pin]);
     const digest = await Digest.json(pinState, fixture.environment.crypto);
-    await database.transaction(
-        async (transaction) =>
-            await transaction
-                .insert(desiredState)
-                .values({ scope: ids.space, digest, state: pinState }),
-    );
+    await fixture.blobs.writeJson(pinState);
     const main = and(
         eq(object.database.table.scope, ids.space),
         eq(object.database.table.name, MAIN_DATABASE),
@@ -550,17 +539,17 @@ test("move the tables a space's main database applied in addition to the space d
 
     // plan the move with the pins and the space's tables, and read their state at the handoff
     const moving = { id: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
-    const states = await SpaceTransfer.states(database, ids.space);
-    const moved = names(await SpaceTransfer.of(database, moving, UNKNOWN_MACHINE));
-    const own = names(await SpaceTransfer.of(database, moving, UNKNOWN_MACHINE, []));
+    const states = await SpaceTransfer.states(fixture, ids.space);
+    const moved = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE));
+    const own = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE, []));
 
     // read only the applied states while the main database waits to apply its desired ones
     await database.transaction(
         async (transaction) =>
             await transaction.update(object.database.table).set({ appliedStates: [] }).where(main),
     );
-    const waiting = await SpaceTransfer.states(database, ids.space);
-    const pending = names(await SpaceTransfer.of(database, moving, UNKNOWN_MACHINE));
+    const waiting = await SpaceTransfer.states(fixture, ids.space);
+    const pending = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE));
 
     // move the space's own tables and then the pins, a plan waiting or not
     expect({ states, moved, waiting, pending }).toEqual({
@@ -585,7 +574,7 @@ test("stop the instances of a moving space running on its machine once its fence
 
     // fence the moving space on the machine running it
     const moving = { id: ids.space, scope: ids.account, machine: space.machine.id, epoch: 1 };
-    const transfer = await SpaceTransfer.of(space.database, moving, UNKNOWN_MACHINE);
+    const transfer = await SpaceTransfer.of(space, moving, UNKNOWN_MACHINE);
     await transfer.fence(
         { providers: new ProviderIndex(space.machine.id, []), runtimes: [runtime] },
         space.machine.clock.now(),
@@ -896,15 +885,24 @@ test("collect a stray blob once its lease ends, and a snapshot's blobs once the 
             }),
     );
 
-    // collect the stray blob past its lease, then the snapshot's blob once the snapshot expires
+    // collect the stray blob past its lease, then the snapshot's blob once the snapshot expires, leaving the states main refers to
     await fixture.jump(served, start + blobs.leaseMilliseconds + 1);
     const leased = await Array.fromAsync(blobs.storage.digests());
     await fixture.jump(served, start + 2 * DAY_MILLISECONDS);
+    const [main] = await database
+        .select({ states: object.database.table.states })
+        .from(object.database.table)
+        .where(eq(object.database.table.name, MAIN_DATABASE));
+    const states = present(main, "the main database").states;
     expect({
-        leased,
-        expired: await Array.fromAsync(blobs.storage.digests()),
+        leased: leased.toSorted(),
+        expired: (await Array.fromAsync(blobs.storage.digests())).toSorted(),
         snapshots: await database.select().from(object.snapshot.table),
-    }).toEqual({ leased: [taken], expired: [], snapshots: [] });
+    }).toEqual({
+        leased: [taken, ...states].toSorted(),
+        expired: [...states].toSorted(),
+        snapshots: [],
+    });
 });
 
 /** Run a cancellation once just before an uplink's first placement call. */

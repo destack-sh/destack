@@ -155,7 +155,7 @@ export function install<
             continue;
         }
 
-        // bind a resource declaration to a resource of the stack with the state it requires, by its key alone
+        // bind a resource declaration to a resource of the stack by its key alone
         if (resource !== undefined) {
             if (typeof selection !== "string") {
                 throw StackError.of(
@@ -166,7 +166,6 @@ export function install<
             const packageBindings = (bound[resource.package.id] ??= {});
             packageBindings[resource.name] = {
                 target: { type: resource.kind, name: selection },
-                state: resource.state(),
             };
         }
         // bind a secret declaration to a secret of the stack pinned to a version when selected
@@ -179,7 +178,6 @@ export function install<
             packageBindings[secret.name] = {
                 target: { type: SECRET_TARGET, name: target.secret },
                 ...("version" in target ? { version: target.version } : {}),
-                state: {},
             };
         }
         // refuse a name the package declares nothing under

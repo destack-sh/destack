@@ -27,12 +27,43 @@ export const workload = {
 
 /** What each release of the fixture declares beside its archive command, by release. */
 const DECLARED: Readonly<
-    Record<string, readonly { readonly kind: string; readonly name: string }[]>
+    Record<
+        string,
+        (packageId: PackageId) => readonly {
+            readonly kind: string;
+            readonly name: string;
+            readonly description?: Readonly<Record<string, unknown>>;
+        }[]
+    >
 > = {
-    "2026.9.0": [{ kind: "relation", name: "editor" }],
-    "2026.10.0": [{ kind: "relation", name: "editor" }],
-    "2026.11.0": [{ kind: "procedure", name: "count" }],
-    "2026.12.0": [{ kind: "procedure", name: "count" }],
+    "2026.9.0": () => [{ kind: "relation", name: "editor" }],
+    "2026.9.1": () => [
+        { kind: "relation", name: "editor" },
+        ...["ledger", "archive"].map((name) => ({
+            kind: "resource",
+            name,
+            description: { name, kind: "bucket", spec: {} },
+        })),
+    ],
+    "2026.9.2": () => [
+        { kind: "relation", name: "editor" },
+        {
+            kind: "resource",
+            name: "files",
+            description: { name: "files", kind: "bucket", spec: {} },
+        },
+    ],
+    "2026.9.3": (packageId) => [
+        { kind: "relation", name: "editor" },
+        {
+            kind: "resource",
+            name: "tasks",
+            description: { name: "tasks", kind: "installation", spec: { package: packageId } },
+        },
+    ],
+    "2026.10.0": () => [{ kind: "relation", name: "editor" }],
+    "2026.11.0": () => [{ kind: "procedure", name: "count" }],
+    "2026.12.0": () => [{ kind: "procedure", name: "count" }],
 };
 
 /** Complete fixture build outputs with their directory, exporting each workload's entrypoint. */
@@ -183,10 +214,10 @@ export async function fixtureBuild(
                 name: "archive",
                 description: ARCHIVE,
             },
-            ...(DECLARED[version] ?? []).map((declared) => ({
+            ...(DECLARED[version]?.(packageId) ?? []).map((declared) => ({
+                description: {},
                 ...declared,
                 kindPackageId: packageId,
-                description: {},
             })),
         ],
         crypto,

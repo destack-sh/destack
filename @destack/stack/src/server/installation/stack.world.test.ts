@@ -60,8 +60,7 @@ import {
     ids,
 } from "../../test/index.ts";
 import { gauge, meter } from "../../test/schema.ts";
-import { principal } from "@destack/access";
-import { ObjectReference, RequestId } from "@destack/sync";
+import { RequestId } from "@destack/sync";
 import { Simulation } from "@destack/environment/simulation";
 
 /** A database a stack declares for its own use, in addition to the space's main database. */
@@ -395,11 +394,11 @@ test("replace an installation's own binding once its stack binds the declaration
     const fixture = await TestSpace.open();
     const { database } = fixture;
 
-    // administer a space with a stack that declares a role and installs notes without binding its files
+    // administer a space with a stack that declares a role and installs notes, whose deploy owns a bucket for its files
     const notes = {
         kind: "package" as const,
         packageId: ids.package,
-        selection: { kind: "release", version: "2026.9.0" },
+        selection: { kind: "release", version: "2026.9.2" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -429,43 +428,10 @@ test("replace an installation's own binding once its stack binds the declaration
     const store = await serve(fixture);
     await submit(fixture, store, stack, submission);
 
-    // bind a bucket of notes to its files declaration, as its deploy does
-    const [installed] = await database
-        .select()
-        .from(installation.table)
-        .where(eq(installation.table.name, "notes"));
-    const owner = principal.installation.reference(ids.space, present(installed, "notes").id);
-    const ownedId = object.bucket.generateId(fixture.environment);
-    await store.mutate(
-        store.as(object.bucket),
-        {
-            id: RequestId.create(fixture.machine.environment),
-            calls: [
-                object.bucket.call("create", {
-                    id: ownedId,
-                    name: "notes.files",
-                    definitionPackageId: ids.package,
-                    definitionVersion: "2026.9.0",
-                    definitionName: "files",
-                    spec: {},
-                    ...ObjectReference.columns("owner", owner),
-                }),
-                binding.call("create", {
-                    installationId: present(installed, "notes").id,
-                    packageId: ids.package,
-                    name: "files",
-                    target: ownedId,
-                    state: {},
-                }),
-            ],
-        },
-        { scope: ids.space },
-    );
-
     // bind the declaration in the stack to replace the owned binding and release its bucket
     const before = await database.log.position();
     const bindings = {
-        [ids.package]: { files: { target: { type: "bucket", name: "files" }, state: {} } },
+        [ids.package]: { files: { target: { type: "bucket", name: "files" } } },
     };
     await submit(fixture, store, stack, {
         ...submission,
@@ -513,11 +479,11 @@ test("bind a declaration to an installation of another space by name, unpinned, 
     const acme = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-00000000003a");
     const board = "board";
     const applied = async (target: JsonValue, version?: number) => {
-        const tasks = { target, ...(version === undefined ? {} : { version }), state: {} };
+        const tasks = { target, ...(version === undefined ? {} : { version }) };
         const notes = {
             kind: "package" as const,
             packageId: ids.package,
-            selection: { kind: "release", version: "2026.9.0" },
+            selection: { kind: "release", version: "2026.9.3" },
             status: "enabled",
             name: "notes",
             bindings: { [ids.package]: { tasks } },

@@ -217,10 +217,15 @@ function handleRollouts(options: InstallationOptions) {
                 handle: async (context) =>
                     submit(context, await Rollout.of(context), context.prepared, options),
             },
-            deploy: async (call) => {
-                await new Application(call, await Rollout.of(call), options).deploy();
+            deploy: {
+                // write the states the deploy binds and captures as blobs before the transaction
+                prepare: async (context) =>
+                    new Application(context, await Rollout.of(context), options).prepare(),
+                handle: async (call) => {
+                    await new Application(call, await Rollout.of(call), options).deploy();
 
-                return {};
+                    return {};
+                },
             },
             delete: async (call, next) => {
                 // list the live rollouts outside the target's stack following a revision

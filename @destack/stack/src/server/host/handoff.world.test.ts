@@ -1,6 +1,8 @@
 import { Recipient } from "@destack/identity";
 import { ResourceId } from "@destack/resource";
-import { type Digest, schema } from "@destack/schema";
+import { type Digest, present, schema } from "@destack/schema";
+import { eq } from "@destack/db";
+import { MAIN_DATABASE } from "@destack/stack/declare";
 import { RequestId } from "@destack/sync";
 import { createClient } from "@destack/object/client";
 import { expect, refusal, test } from "@destack/test";
@@ -8,7 +10,7 @@ import * as object from "../../object/index.ts";
 import stackPackage from "../../package.ts";
 import { ids, TestSpace } from "../../test/index.ts";
 
-test("serve a moving space's target only the blobs the space's snapshots read", async () => {
+test("serve a moving space's target only the blobs the space's rows reference and its machine stores", async () => {
     // enroll the target as a machine of the space's account and let the owner move the space there
     const fixture = await TestSpace.open();
     const now = fixture.machine.clock.now();
@@ -22,7 +24,7 @@ test("serve a moving space's target only the blobs the space's snapshots read", 
         targetId: target.id,
     });
 
-    // write a blob a snapshot of the space reads and one no snapshot reads
+    // write a blob a snapshot of the space reads and one no row references
     const store = fixture.blobs.storage;
     const write = (text: string) =>
         store.write(
@@ -48,7 +50,7 @@ test("serve a moving space's target only the blobs the space's snapshots read", 
             }),
     );
 
-    // read the snapshot's blob as the target, and refuse the other blob and another machine
+    // list and read the snapshot's blob as the target, and refuse the other blob and another machine
     const read = async (caller: string, digest: Digest) => {
         const chunks: Uint8Array[] = [];
         for await (const chunk of fixture
@@ -59,13 +61,24 @@ test("serve a moving space's target only the blobs the space's snapshots read", 
 
         return new TextDecoder().decode(Buffer.concat(chunks));
     };
+    const listed = await fixture.handoff(served, served.as(target.id)).blobs(ids.space);
+    const [main] = await fixture.database
+        .select({ states: object.database.table.states })
+        .from(object.database.table)
+        .where(eq(object.database.table.name, MAIN_DATABASE));
     expect([
+        listed.toSorted(),
         await read(target.id, taken),
         await refusal(read(target.id, other)),
         await refusal(read(ids.machine, taken)),
     ]).toEqual([
+        [taken, ...present(main, "the main database").states].toSorted(),
         "taken",
-        ["NOT_FOUND", "BLOB_NOT_FOUND", `no snapshot of ${ids.space} references blob ${other}`],
+        [
+            "NOT_FOUND",
+            "BLOB_NOT_FOUND",
+            `no row of ${ids.space} references a blob ${other} stored here`,
+        ],
         [
             "NOT_FOUND",
             "TRANSFER_TO_CALLER_MISSING",

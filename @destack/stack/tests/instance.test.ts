@@ -536,7 +536,7 @@ test("bind an application's tables to the space's main database, start its insta
     const applied = nth(await database.select().from(object.database.table), 0);
     const attached = nth(await database.select().from(object.binding.table), 0);
     const running = nth(await database.select().from(object.instance.table), 0);
-    const bound = DatabaseState.parse(attached.state);
+    const bound = DatabaseState.parse(await fixture.blobs.readJson(attached.state));
     expect({
         main: [applied.name, applied.ownerId, applied.conditions["Ready"]?.reason],
         binding: [attached.installationId, attached.name, attached.target],
@@ -1147,6 +1147,7 @@ test("refuse to deploy an installation binding without an address, then run the 
     await database.transaction(
         async (transaction) => await transaction.insert(object.dependency.table).values(declared),
     );
+    const tasksState = await fixture.blobs.writeJson({});
     await database.transaction(
         async (transaction) =>
             await transaction.insert(object.binding.table).values({
@@ -1158,7 +1159,7 @@ test("refuse to deploy an installation binding without an address, then run the 
                 packageId: ids.package,
                 name: "tasks",
                 target: declared.id,
-                state: {},
+                state: tasksState,
             }),
     );
 
@@ -1206,6 +1207,7 @@ test("bind a workload to an installation another space grants", async () => {
     const acme = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
     const board = "board";
     const now = fixture.machine.clock.now();
+    const boardState = await fixture.blobs.writeJson({});
     await database.transaction(
         async (transaction) =>
             await transaction.insert(object.binding.table).values({
@@ -1220,7 +1222,7 @@ test("bind a workload to an installation another space grants", async () => {
                 name: "tasks",
                 target: board,
                 targetSpaceId: acme,
-                state: {},
+                state: boardState,
             }),
     );
 
@@ -1480,6 +1482,7 @@ test("serve a release while a caller is pinned to it, and retire it once the cal
     await database.transaction(
         async (transaction) => await transaction.insert(object.deployment.table).values(caller),
     );
+    const pinState = await fixture.blobs.writeJson({ release: "2026.9.0" });
     await database.transaction(
         async (transaction) =>
             await transaction.insert(object.capture.table).values({
@@ -1492,7 +1495,7 @@ test("serve a release while a caller is pinned to it, and retire it once the cal
                 name: "notes",
                 target: dependency.id,
                 version: 1,
-                state: { release: "2026.9.0" },
+                state: pinState,
             }),
     );
 

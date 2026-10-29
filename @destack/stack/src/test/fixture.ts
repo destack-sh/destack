@@ -1188,7 +1188,6 @@ export class TestSpace implements AsyncDisposable {
             Snapshot.live(this.database),
             spaceId,
             (packageId, manifest) => builds.pull(this.registry, packageId, manifest),
-            this.database.state.environment.crypto,
         );
         const revisions = new Map(installed.map((entry) => [entry.rollout.id, entry.revisionId]));
 
@@ -1583,7 +1582,6 @@ export class TestSpace implements AsyncDisposable {
                       this.id,
                       (packageId, manifest) =>
                           this.#builds.pull(this.registry, packageId, manifest),
-                      this.database.state.environment.crypto,
                   )
                 : [];
         const hosted = await this.host.servers(
@@ -2085,7 +2083,7 @@ export async function reconcile(
 export async function reconcileResources(
     store: Pick<
         ObjectStore,
-        "controllers" | "database" | "objects" | "as" | "mutate" | "clock" | "environment"
+        "controllers" | "database" | "blobs" | "objects" | "as" | "mutate" | "clock" | "environment"
     >,
     spaceId: string,
 ): Promise<void> {

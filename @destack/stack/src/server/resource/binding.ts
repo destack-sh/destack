@@ -16,11 +16,8 @@ import {
 import { AccessContext, Caller, principal } from "@destack/access";
 import type { Row, Select, Snapshot, Table } from "@destack/db";
 import type { ObjectStore, StackPlan } from "@destack/object/server";
-import { type Package, PackageId } from "@destack/package";
-import type { ResourceState } from "@destack/package/declare";
 import {
     RESOURCE_DECLARATION,
-    type ResourceDescription,
     type ResourceKind,
 } from "@destack/resource";
 import { canonicalize, Digest, type Identifier, nth, present, schema } from "@destack/schema";
@@ -36,15 +33,8 @@ import {
     Rollout,
     rollout,
     type NamedInstallation,
+    type ResourceNeed,
 } from "../../object/index.ts";
-
-/** A resource declaration of an installation's package, with the state it requires. */
-export type ResourceNeed = ResourceDescription & {
-    /** The package declaring the resource. */
-    readonly package: Package;
-    /** The state the declaration requires, such as a database's tables. */
-    readonly state: ResourceState;
-};
 
 /** A kind of object a binding targets, and the version a deployment captures of it. */
 export interface Bindable<Object extends ObjectType = ObjectType> {
@@ -239,7 +229,7 @@ export class Binder {
     async capture(
         context: MethodContext,
         created: Select<typeof deployment.table>,
-        required: ReadonlyMap<string, ResourceState> = new Map(),
+        required: ReadonlyMap<string, Digest> = new Map(),
     ): Promise<Select<typeof capture.table>[]> {
         // read the installation's bindings
         const bindings = await context.read(binding.table).findMany({
@@ -296,7 +286,7 @@ export class Binder {
         created: Select<typeof deployment.table>,
         entry: Binding,
         at: { readonly version: number | null } | { readonly targetSpaceId: Identifier<"space"> },
-        required: ReadonlyMap<string, ResourceState>,
+        required: ReadonlyMap<string, Digest>,
     ) {
         return capture.call("create", {
             deploymentId: created.id,
@@ -338,19 +328,21 @@ export class Binder {
             ]),
         );
 
-        // bind each declaration the installation selects a target for, replacing an owned binding of it
+        // bind each needed declaration the installation selects a target for, replacing an owned binding of it
         const selected = Object.entries(target.bindings).flatMap(([packageId, names]) =>
             Object.entries(names).map(([name, declared]) => ({ packageId, name, declared })),
         );
-        for (const { packageId, name, declared } of selected) {
-            await this.#bindSelected(
-                context,
-                target,
-                packageId,
-                name,
-                declared,
-                bound.get(Binding.key(packageId, name)),
-            );
+        for (const need of needs) {
+            const declared = target.bindings[need.package.id]?.[need.name];
+            if (declared !== undefined) {
+                await this.#bindSelected(
+                    context,
+                    target,
+                    need,
+                    declared,
+                    bound.get(Binding.key(need.package.id, need.name)),
+                );
+            }
         }
         const isSelected = (need: ResourceNeed) =>
             target.bindings[need.package.id]?.[need.name] !== undefined;
@@ -427,18 +419,18 @@ export class Binder {
         return this.#resources.get(type)?.object ?? plan.object(type);
     }
 
-    /** Bind a declaration to the target its installation selects, releasing an owned binding. */
+    /** Bind a need to the target its installation selects, releasing an owned binding. */
     async #bindSelected(
         context: MethodContext,
         target: Rollout & { readonly installation: NamedInstallation },
-        packageId: string,
-        name: string,
+        need: ResourceNeed,
         declared: StackBinding,
         existing:
             | { readonly binding: Select<typeof binding.table>; readonly owned?: unknown }
             | undefined,
     ): Promise<void> {
         // read the selected target: another space's installation by name, or a record here
+        const { name, state } = need;
         const selected =
             "spaceId" in declared.target
                 ? { target: declared.target.name, targetSpaceId: declared.target.spaceId }
@@ -461,9 +453,9 @@ export class Binder {
             current.targetSpaceId === selected.targetSpaceId &&
             current.version === version
         ) {
-            if (canonicalize(current.state) !== canonicalize(declared.state)) {
+            if (current.state !== state) {
                 await context.mutate(context.self, [
-                    binding.call("update", { ...binding.target(current), state: declared.state }),
+                    binding.call("update", { ...binding.target(current), state }),
                 ]);
             }
 
@@ -481,11 +473,11 @@ export class Binder {
         await context.mutate(context.self, [
             binding.call("create", {
                 installationId: target.id,
-                packageId: PackageId.parse(packageId),
+                packageId: need.package.id,
                 name,
                 ...selected,
                 version,
-                state: declared.state,
+                state,
             }),
         ]);
     }
@@ -787,7 +779,7 @@ export class Binder {
             ]);
         }
         // follow the tables the installation's objects have now
-        else if (canonicalize(bound.state) !== canonicalize(need.state)) {
+        else if (bound.state !== need.state) {
             await context.mutate(context.self, [
                 binding.call("update", { id: bound.id, state: need.state }),
             ]);
@@ -858,7 +850,7 @@ export class Binder {
         need: ResourceNeed,
     ): Promise<void> {
         // update the binding's state and the resource's release and specification
-        if (canonicalize(bound.state) !== canonicalize(need.state)) {
+        if (bound.state !== need.state) {
             await context.mutate(context.self, [
                 binding.call("update", { id: bound.id, state: need.state }),
             ]);

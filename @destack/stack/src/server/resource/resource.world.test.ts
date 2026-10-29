@@ -207,7 +207,11 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
         },
         now,
     );
-    const bind = async (tables: readonly Table[]) =>
+    const bind = async (tables: readonly Table[]) => {
+        // write the tables' state as a blob, then bind it
+        const state = await fixture.blobs.writeJson(
+            defineDatabase({ name: "archive", tables }).state(),
+        );
         await database.transaction(
             async (transaction) =>
                 await transaction
@@ -219,23 +223,13 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
                         packageId: ids.package,
                         name: "archive",
                         target: named.kept,
-                        state: defineDatabase({
-                            name: "archive",
-                            tables,
-                        }).state(),
+                        state,
                         createdAt: now,
                         updatedAt: now,
                     })
-                    .onConflictDoUpdate({
-                        target: binding.table.id,
-                        set: {
-                            state: defineDatabase({
-                                name: "archive",
-                                tables,
-                            }).state(),
-                        },
-                    }),
+                    .onConflictDoUpdate({ target: binding.table.id, set: { state } }),
         );
+    };
     const store = serveSpace(
         await fixture.options({
             providers: providers(directory, fixture.environment),
@@ -255,8 +249,8 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
     await reconcileResources(store, ids.space);
     expect((await read()).conditions["Ready"]?.reason).toBe("Applied");
     const [bound] = await database.select().from(binding.table);
-    expect(await appliedStates(database, await read())).toEqual([
-        present(bound, "the binding").state,
+    expect(await appliedStates(store.blobs, await read())).toEqual([
+        await fixture.blobs.readJson(present(bound, "the binding").state),
     ]);
 
     // wait for approval of a plan dropping a column and record the plan for review
@@ -281,7 +275,7 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
     expect(await read()).toEqual(waiting);
 
     // refuse reading the applied states while the plan waits
-    expect(await refusal(appliedStates(database, waiting))).toEqual([
+    expect(await refusal(appliedStates(store.blobs, waiting))).toEqual([
         "PRECONDITION_FAILED",
         "PLAN_UNAPPLIED",
         `resource ${named.kept} has not applied its desired states: approve or reject its plan first`,
@@ -301,8 +295,12 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
     expect([
         applied.conditions["Ready"]?.reason,
         applied.approvedPlan,
-        await appliedStates(database, applied),
-    ]).toEqual(["Applied", null, [present(rebound, "the rebound binding").state]]);
+        await appliedStates(store.blobs, applied),
+    ]).toEqual([
+        "Applied",
+        null,
+        [await fixture.blobs.readJson(present(rebound, "the rebound binding").state)],
+    ]);
 });
 
 test("retry a provisioning that failed, and retain a deleted resource while its installation consumes it through a live deployment", async () => {
@@ -443,6 +441,9 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
                 updatedAt: now,
             }),
     );
+    const removedState = await fixture.blobs.writeJson(
+        defineDatabase({ name: "removed", tables: [] }).state(),
+    );
     await database.transaction(
         async (transaction) =>
             await transaction.insert(capture.table).values({
@@ -455,7 +456,7 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
                 name: "removed",
                 target: named.removed,
                 version: 1,
-                state: defineDatabase({ name: "removed", tables: [] }).state(),
+                state: removedState,
                 createdAt: now,
                 updatedAt: now,
             }),

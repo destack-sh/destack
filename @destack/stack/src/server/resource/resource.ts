@@ -1,14 +1,13 @@
 import { space } from "@destack/account/object";
 import { canonicalize, nth, type Identifier, present, schema } from "@destack/schema";
 import {
-    type DatabaseConnection,
+    type BlobStore,
     type DatabaseHandle,
     type Row,
     Snapshot,
     type Table,
 } from "@destack/db";
 import {
-    DesiredState,
     type ObjectType,
     Provisioned,
     type ResourceType,
@@ -282,7 +281,7 @@ export class ProviderIndex {
 
 /** Read the desired states a resource applied, refusing a resource that has not applied them. */
 export async function appliedStates(
-    database: DatabaseConnection,
+    blobs: BlobStore,
     row: Resource,
 ): Promise<ResourceState[]> {
     // require its applied states to be its desired ones, blocking a transfer while a plan waits for approval
@@ -295,5 +294,7 @@ export async function appliedStates(
         );
     }
 
-    return DesiredState.read(Snapshot.live(database), row.scope, desired);
+    return await Promise.all(
+        desired.map(async (digest) => schema.jsonObject().parse(await blobs.readJson(digest))),
+    );
 }

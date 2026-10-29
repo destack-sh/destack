@@ -18,8 +18,8 @@ const boundFields = {
     target: field.string(),
     /** The other space of the target installation, null for this space. */
     targetSpaceId: field.string(schema.identifier("space")).optional(),
-    /** The state the declaration requires of the target. */
-    state: field.json(schema.jsonObject()),
+    /** The state the declaration requires of the target, as a blob. */
+    state: field.blob(),
 };
 
 /** An installation's binding of a package declaration to a bindable object in the space. */
