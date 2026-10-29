@@ -155,10 +155,15 @@ export class Compiler {
             return sql`false`;
         }
 
-        // evaluate another type's permission through roles
+        // evaluate another type's permission through roles and the chain sets it grants
         return this.#target(target, access, (mapping, row, compilation) => {
+            // match another type's permission by its role bindings, or a chain set its expression grants
             if (!isSameType) {
-                return this.#bound(permission, mapping, row, compilation);
+                const held = this.#authorizer
+                    .chainSets(permission)
+                    .map((set) => Compiler.#subjectSet(set, mapping, row, compilation));
+
+                return sql`(${sql.join([this.#bound(permission, mapping, row, compilation), ...held], sql` OR `)})`;
             }
 
             // evaluate the target's permission where the credential allows it
@@ -554,13 +559,48 @@ export class Compiler {
         source: Table,
         compilation: Compilation,
     ): SQL {
-        return compilation.authority.match({
-            packageId: sql`${expression.object.packageId}`,
-            type: sql`${expression.object.type}`,
-            scope: TableMapping.scopeColumn(source, mapping),
-            id: sql`${expression.id}`,
-            relation: sql`${expression.relation}`,
-        });
+        // list the scopes the authority has the set in, matching nothing for none
+        const { object, id, relation } = expression;
+        const scopes = compilation.authority.subjects
+            .filter(
+                (subject) =>
+                    subject.relation === relation &&
+                    subject.packageId === object.packageId &&
+                    subject.type === object.type &&
+                    subject.id === id,
+            )
+            .map((subject) => subject.scope);
+        const row = TableMapping.scopeColumn(source, mapping);
+        const inRow = sql`${row} IN (${sql.join(
+            scopes.map((scope) => sql`${scope}`),
+            sql`, `,
+        )})`;
+        const { chain } = compilation;
+        // match nothing without the set, and the row's scope alone for a row set
+        if (scopes.length === 0) {
+            return sql`false`;
+        } else if (expression.scope === "row") {
+            return inRow;
+        }
+        // match every row for a set in the universe, which encloses every scope
+        else if (scopes.includes(Scope.universe.id)) {
+            return sql`true`;
+        }
+        // match a known chain by its objects
+        else if (chain.kind === "known") {
+            const isEnclosing = chain.objects.some((link) => scopes.includes(link.id));
+
+            return isEnclosing ? sql`true` : sql`false`;
+        }
+
+        // match the row's scope, or one its scope row lists as an ancestor
+        const here = alias(Scope.table, `access_scope_${compilation.aliases.next++}`);
+        const ancestors = scopes.map((scope) => listed(sql`${scope}`, here.ancestors));
+
+        return sql`(${inRow} OR EXISTS (
+            SELECT 1 FROM ${from(here)}
+            WHERE ${here.scope} = ${row} AND (${sql.join(ancestors, sql` OR `)})
+        ))`;
     }
 
     /** Match the principal a row represents, a global one by its universe reference. */

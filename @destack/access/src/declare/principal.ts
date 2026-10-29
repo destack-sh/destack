@@ -58,6 +58,13 @@ export const principal = {
     }),
 };
 
+/** Packages as the sets of their installations in a scope, the code serving their types. */
+export const installedPackage = new Policy(OWNER, {
+    name: "package",
+    relations: { installation: { subjects: [principal.installation] } },
+    permissions: {},
+});
+
 /** The subject of every caller who proves no identity. */
 export const ANONYMOUS: Subject = principal.anonymous.reference(Scope.universe.id, "anonymous");
 
@@ -102,10 +109,7 @@ export const role = new Policy(OWNER, {
         update: none(),
         delete: none(),
         share: none(),
-        inherit: none(),
     },
-    // let only the code that declares it write a code-owned role
-    reserved: ["inherit"],
 });
 
 /** A relation or role binding between a subject and an object. */

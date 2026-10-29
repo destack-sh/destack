@@ -33,7 +33,7 @@ const note = new Policy(module1.package, {
     relations: { owner: { subjects: [principal.user] } },
     permissions: {
         read: relation("owner"),
-        pin: union(permission("read"), subjectSet(installed, PINNING, "installation")),
+        pin: union(permission("read"), subjectSet(installed, PINNING, "installation", "row")),
     },
 });
 

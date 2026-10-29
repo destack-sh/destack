@@ -43,6 +43,7 @@ export const AccessExpressionDescription: schema.Schema<AccessExpression> = sche
             object: ObjectTypeReference,
             id: schema.string().min(1),
             relation: AccessName,
+            scope: schema.enum(["row", "chain"]),
         }),
         schema.object({
             kind: schema.literal("readers"),

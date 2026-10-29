@@ -70,8 +70,12 @@ export type AccessExpression =
           readonly object: ObjectTypeReference;
           readonly id: string;
           readonly relation: string;
+          readonly scope: SubjectSetScope;
       }
     | { readonly kind: "self" };
+
+/** Where a subject set counts: in the row's scope alone, or in any scope of the row's chain. */
+export type SubjectSetScope = "row" | "chain";
 
 /** The relation of the subject set of the principals inside a scope. */
 export const CONTAINED = "contained";
@@ -147,9 +151,20 @@ export function contained(...principals: readonly Policy[]): AccessExpression {
           };
 }
 
-/** Permit the members of one object's subject set in the row's scope, such as its installations. */
-export function subjectSet(type: Policy, id: string, set: string): AccessExpression {
-    return { kind: "subjectSet", object: type.typeReference, id, relation: AccessName.parse(set) };
+/** Permit the members of an object's subject set in the row's scope or chain. */
+export function subjectSet(
+    type: Policy,
+    id: string,
+    set: string,
+    scope: SubjectSetScope,
+): AccessExpression {
+    return {
+        kind: "subjectSet",
+        object: type.typeReference,
+        id,
+        relation: AccessName.parse(set),
+        scope,
+    };
 }
 
 /** Permit the principal the object represents, acting on its row. */

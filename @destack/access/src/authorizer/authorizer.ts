@@ -37,9 +37,16 @@ import {
     type AttributeType,
     CONTAINED,
     type ConditionExpression,
+    subjectSet,
+    union,
 } from "../declare/expression.ts";
 import { accepts, type RelationDescription, type SubjectType } from "../declare/subject.ts";
-import { ACCESS_PACKAGE_ID, anyone, INTRINSIC_POLICIES } from "../declare/principal.ts";
+import {
+    ACCESS_PACKAGE_ID,
+    anyone,
+    installedPackage,
+    INTRINSIC_POLICIES,
+} from "../declare/principal.ts";
 import { ACCESS_MAPPINGS } from "../replica/replica.ts";
 import { AccessContext, Caller } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
@@ -158,6 +165,12 @@ export class Authorizer {
     readonly #reached = new Map<string, ObjectTypeReference[]>();
     /** The one partition whose scopes' access this database stores, none when absent. */
     readonly partition: string | undefined;
+    /** The package serving each type, by type key. */
+    readonly #servers: ReadonlyMap<string, PackageId>;
+    /** Whether the database stores installations, whose packages' types they act on. */
+    readonly #isInstalled: boolean;
+    /** The effective expression of each permission read so far, by permission key. */
+    readonly #expressions = new Map<string, AccessExpression>();
     /** The tables the database stores rows of, every mapped one when absent. */
     readonly #tables: ReadonlySet<Table> | undefined;
     /** The object types whose access rows live in this database, rather than as replicas. */
@@ -190,9 +203,13 @@ export class Authorizer {
             readonly partition?: string;
             /** The mappings of the subject set types that permissions grant. */
             readonly sets?: readonly TableMapping[];
+            /** The package serving each type, by type key. */
+            readonly servers?: ReadonlyMap<string, PackageId>;
         } = {},
     ) {
-        // start with empty state
+        // start with empty state, the installations first, as every permission's expression reads them
+        this.#servers = options.servers ?? new Map();
+        this.#isInstalled = (options.sets ?? []).some((set) => set.policy === installedPackage);
         this.fields = [];
         this.memberships = [];
         this.#implied = new Map<string, string[]>();
@@ -205,8 +222,9 @@ export class Authorizer {
         this.#contributions = new Map<string, SubjectType[]>();
         this.#mappings = new Map<string, TableMapping>();
 
-        // register every policy the declared policies reference, by type
-        const types = Authorizer.#collectPolicies(policies);
+        // register every policy the declared policies reference, by type, the installed packages where installations live
+        const installed = this.#isInstalled ? [installedPackage] : [];
+        const types = Authorizer.#collectPolicies([...policies, ...installed]);
         for (const type of types) {
             this.#policies.set(Authorizer.#policyKey(type), type);
         }
@@ -448,8 +466,11 @@ export class Authorizer {
                       ],
             );
 
-        // collect the sets the permissions grant to their members
+        // collect the sets the permissions grant to their members, the packages' installations among them
         const granted = this.policies().flatMap((policy) => policy.memberSets());
+        if (this.#isInstalled) {
+            granted.push({ ...installedPackage.typeReference, name: "installation" });
+        }
 
         return new Map(
             [...accepted, ...granted].map((set) => [PermissionReference.key(set), set] as const),
@@ -689,6 +710,20 @@ export class Authorizer {
 
     /** Resolve a permission without accepting inherited JavaScript properties. */
     expression(reference: PermissionReference): AccessExpression {
+        // read the expression once per permission
+        const key = PermissionReference.key(reference);
+        const known = this.#expressions.get(key);
+        if (known !== undefined) {
+            return known;
+        }
+        const effective = this.#effective(reference);
+        this.#expressions.set(key, effective);
+
+        return effective;
+    }
+
+    /** Read a permission's expression, given to the installations of its type's packages too. */
+    #effective(reference: PermissionReference): AccessExpression {
         // read the permission's declaration
         const definition = this.policy(reference).definition;
         const expression = Object.hasOwn(definition.permissions, reference.name)
@@ -698,7 +733,50 @@ export class Authorizer {
             throw AccessError.of("DECLARATION_INVALID", `unknown permission: ${reference.name}`);
         }
 
-        return expression;
+        // give an unreserved permission to the installations of the packages declaring and serving its type
+        if (!this.#isInstalled || definition.reserved?.includes(reference.name) === true) {
+            return expression;
+        }
+        const server = this.#servers.get(ObjectTypeReference.key(reference));
+        const packages = new Set([this.policy(reference).package.id, ...(server === undefined ? [] : [server])]);
+
+        return union(
+            expression,
+            ...[...packages].map((id) => subjectSet(installedPackage, id, "installation", "chain")),
+        );
+    }
+
+    /** List the chain subject sets a permission grants on its type's objects in their chain. */
+    chainSets(
+        reference: PermissionReference,
+    ): Extract<AccessExpression, { kind: "subjectSet" }>[] {
+        // grant no sets for a permission no policy here declares, as a role may name one
+        const policy = this.find(reference);
+        if (policy === undefined || !Object.hasOwn(policy.definition.permissions, reference.name)) {
+            return [];
+        }
+
+        // follow the permission's unions and the named permissions of its type once each
+        const sets: Extract<AccessExpression, { kind: "subjectSet" }>[] = [];
+        const seen = new Set<string>([reference.name]);
+        const pending = [this.expression(reference)];
+        for (let expression = pending.pop(); expression !== undefined; expression = pending.pop()) {
+            // take a chain set
+            if (expression.kind === "subjectSet" && expression.scope === "chain") {
+                sets.push(expression);
+            }
+            // follow a union's operands
+            else if (expression.kind === "union") {
+                pending.push(...expression.expressions);
+            }
+            // follow a named permission of the type once
+            else if (expression.kind === "permission" && !seen.has(expression.name)) {
+                seen.add(expression.name);
+                pending.push(this.expression({ ...reference, name: expression.name }));
+            }
+        }
+
+        return sets;
     }
 
     /** Resolve a declared relation without accepting inherited JavaScript properties. */
@@ -2059,8 +2137,8 @@ export class Authorizer {
                 seen.add(expression.name);
                 pending.push(this.expression(policy.permission(expression.name)));
             }
-            // skip a named permission followed before
-            else if (expression.kind === "permission") {
+            // skip a named permission followed before, and a subject set, which grants the scope's own row alone
+            else if (expression.kind === "permission" || expression.kind === "subjectSet") {
                 continue;
             }
             // follow the scope enclosing the object

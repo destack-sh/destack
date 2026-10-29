@@ -189,9 +189,26 @@ export class TupleReader {
             rows.map(async (row) =>
                 isSameType
                     ? this.#permission(permission, mapping, row, trail)
-                    : TupleTree.any(await this.#bound(permission, mapping, row, trail)),
+                    : this.#held(permission, mapping, row, trail),
             ),
         );
+    }
+
+    /** Collect the tree of another type's permission on a row: its bindings and chain sets. */
+    async #held(
+        permission: PermissionReference,
+        mapping: TableMapping,
+        row: Row,
+        trail: Trail,
+    ): Promise<TupleTree> {
+        const bound = TupleTree.any(await this.#bound(permission, mapping, row, trail));
+        const sets = await Promise.all(
+            this.#authorizer
+                .chainSets(permission)
+                .map((set) => this.#subjectSet(set, mapping, row, trail)),
+        );
+
+        return TupleTree.some([bound, ...sets]);
     }
 
     /** Read the relationships of rows, tree ancestors and scope chains, one query per chunk. */
@@ -332,20 +349,20 @@ export class TupleReader {
             case "contained":
                 return await this.#contained(expression, mapping, row, trail);
             case "subjectSet":
-                return TupleReader.#subjectSet(expression, mapping, row, trail);
+                return await this.#subjectSet(expression, mapping, row, trail);
             case "self":
                 return TupleReader.#self(mapping, row, trail);
         }
     }
 
     /** Grant a row to the members of one object's subject set in the row's scope. */
-    static #subjectSet(
+    async #subjectSet(
         expression: Extract<AccessExpression, { kind: "subjectSet" }>,
         mapping: TableMapping,
         row: Row,
         trail: Trail,
-    ): TupleTree {
-        // read the row's object and the set in its scope
+    ): Promise<TupleTree> {
+        // read the row's object and the scopes the set counts in: its own, or its chain's and the universe
         const definition = mapping.policy.definition;
         const scope = TableMapping.scope(mapping, row);
         const object = {
@@ -354,14 +371,34 @@ export class TupleReader {
             scope,
             id: TableMapping.text(row, mapping.id),
         };
-        const subject = {
+        const chain =
+            expression.scope === "row"
+                ? [scope]
+                : [
+                      scope,
+                      ...(await this.#chain(scope)).map((link) => link.id),
+                      Scope.universe.id,
+                  ];
+
+        // grant to the set in each scope once
+        const subjects = [...new Set(chain)].map((at) => ({
             ...expression.object,
-            scope,
+            scope: at,
             id: expression.id,
             relation: expression.relation,
-        };
+        }));
 
-        return TupleTree.any([{ subject, arrows: trail.arrows, object, path: trail.path }]);
+        return TupleTree.any(
+            subjects.map((subject) => ({
+                subject,
+                arrows: trail.arrows,
+                object,
+                path: [
+                    ...trail.path,
+                    `set ${subject.relation} of ${subject.type} ${subject.id} in ${subject.scope}`,
+                ],
+            })),
+        );
     }
 
     /** Grant a row to the principal it represents, a global one by its universe reference. */
