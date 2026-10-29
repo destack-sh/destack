@@ -14,7 +14,7 @@ const destacked: Form = {
         definition: "unified into one standardised stack",
         highlight: ["unified", "standardised"],
         sentence: "Integrate every app into one account, one database, and one interface.",
-        gloss: "snapped together like LEGO, every app into every other",
+        gloss: "snapped together like LEGO",
     },
 };
 

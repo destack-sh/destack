@@ -32,8 +32,8 @@ export function Participle(properties: {
             <Entry form={participle} />
             <Tally
                 number={6}
-                stacked="your tools, fragmented"
-                destacked="your tools, in one space"
+                stacked="your apps, fragmented"
+                destacked="your apps, in one space"
                 isOpen={properties.isOpen}
                 picks={properties.picks}
                 onPick={properties.onPick}

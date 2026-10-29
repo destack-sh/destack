@@ -146,8 +146,8 @@ export function Noun(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={2}
                 isOpen={properties.isOpen}
-                stacked="one live app, nine services"
-                destacked="one live app, one engine"
+                stacked="one app, nine services"
+                destacked="one app, one engine"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>

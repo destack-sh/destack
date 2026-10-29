@@ -57,8 +57,8 @@ const verb: Form = {
     pronunciation: "/diːˈstak/",
     partOfSpeech: "verb",
     sense: {
-        definition: "to reconquer your software",
-        highlight: ["reconquer"],
+        definition: "to make your software yours",
+        highlight: ["yours"],
         sentence: "Own your stack, make custom apps, empower your agents, in one open platform.",
         gloss: "to standardise how software is made, shipped, and changed",
     },
