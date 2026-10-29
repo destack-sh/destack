@@ -1,4 +1,5 @@
 import { DeclarationName } from "@destack/package";
+import type { ImportMap } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { ViewError } from "../error/error.ts";
@@ -81,10 +82,11 @@ export const ViewContext = Object.assign(viewContext, {
         return found;
     },
 
-    /** Write the document mounting a view with its context and entry module. */
-    document(context: ViewContext, entrypoint: string): Response {
-        // escape the context for a script element
+    /** Write the document mounting a view with its context, import map and entry. */
+    document(context: ViewContext, entrypoint: string, map: ImportMap): Response {
+        // escape the context and the import map for script elements
         const json = JSON.stringify(viewContext.parse(context)).replaceAll("<", "\\u003c");
+        const imports = JSON.stringify(map).replaceAll("<", "\\u003c");
         const html = `<!doctype html>
 <html>
 <head>
@@ -92,6 +94,7 @@ export const ViewContext = Object.assign(viewContext, {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <script type="application/json" id="${CONTEXT_ELEMENT}">${json}</script>
+<script type="importmap">${imports}</script>
 <script type="module" src="/${entrypoint}"></script>
 </head>
 <body></body>

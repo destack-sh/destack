@@ -1,5 +1,4 @@
 import { testBrowser } from "./browser.ts";
-import { onTestFinished } from "@destack/test";
 import type { Counters, Driver } from "@destack/test";
 import type { Clock } from "@destack/environment";
 import type { Given, SetStep } from "@destack/package/declare";
@@ -48,21 +47,30 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
     readonly clock: Clock;
     /** The rendered examples, by name. */
     readonly #examples: ReadonlyMap<string, Rendered>;
+    /** The unmounting of the examples and the container, last mounted first. */
+    readonly #mounted: DisposableStack;
 
-    /** Hold the examples rendered into a container. */
-    constructor(container: HTMLElement, examples: ReadonlyMap<string, Rendered>) {
+    /** Create a driver over the examples rendered into a container. */
+    constructor(
+        container: HTMLElement,
+        examples: ReadonlyMap<string, Rendered>,
+        mounted: DisposableStack,
+    ) {
+        // set the container, the browser clock, the examples and their unmounting
         this.container = container;
         this.clock = testBrowser().clock;
         this.#examples = examples;
+        this.#mounted = mounted;
     }
 
-    /** Render a scenario's examples into the document for the test's duration. */
+    /** Render a scenario's examples into the document until the driver is disposed. */
     static start(given: Given<JSX.Element, Globals>): ViewDriver {
-        // mount into the document until the test ends
+        // mount into the document until the driver is disposed
         stubPopovers();
+        const mounted = new DisposableStack();
         const container = document.createElement("div");
         document.body.append(container);
-        onTestFinished(() => container.remove());
+        mounted.defer(() => container.remove());
 
         // render each example over properties a set step changes
         const examples = new Map<string, Rendered>();
@@ -80,7 +88,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
             const element = document.createElement("div");
             container.append(element);
             const globals = given.globals === undefined ? {} : { globals: given.globals };
-            onTestFinished(
+            mounted.defer(
                 renderExample(element, { example, properties, ...globals }, testBrowser()),
             );
             examples.set(example.name, {
@@ -89,7 +97,12 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
             });
         }
 
-        return new ViewDriver(container, examples);
+        return new ViewDriver(container, examples, mounted);
+    }
+
+    /** Unmount the examples and remove their container. */
+    async [Symbol.asyncDispose](): Promise<void> {
+        this.#mounted.dispose();
     }
 
     /** Take one step, letting the rendered examples follow. */

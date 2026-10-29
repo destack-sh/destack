@@ -35,6 +35,12 @@ function frameworkPlugin(): Plugin {
     return {
         name: `${VIEW_PACKAGE}/framework`,
         enforce: "pre",
+        options(options) {
+            // take the project from the bundler's working directory, which Vite's root replaces below
+            if (options.cwd !== undefined) {
+                project = join(options.cwd, "package.json");
+            }
+        },
         configResolved(configuration) {
             isDevelopment = configuration.command === "serve";
             project = join(configuration.root, "package.json");

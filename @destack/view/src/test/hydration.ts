@@ -3,6 +3,7 @@ import { loadTransforms } from "@destack/build/local";
 import { BrowserEnvironment } from "@destack/environment/browser";
 import { testHost } from "@destack/test/host";
 import { modulePlugin } from "@destack/package/vite";
+import { ModuleTransformer } from "@destack/package/transform";
 import { createServer } from "vite";
 
 /** Render each component a module of the tested package exports on a server. */
@@ -18,7 +19,7 @@ export async function renderOnServer(module: string): Promise<Record<string, str
         server: { middlewareMode: true, hmr: false, ws: false },
         optimizeDeps: { noDiscovery: true },
         plugins: [
-            modulePlugin(host.files),
+            modulePlugin(new ModuleTransformer(host.files)),
             loadTransforms({
                 directory: root,
                 runtime: "bun",

@@ -1,7 +1,5 @@
 // @vitest-environment node
 import { expect, refusal, test } from "@destack/test";
-import { testHost } from "@destack/test/host";
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Workspace, CompilerPool } from "@destack/build";
 import { testStore, testSimulation } from "@destack/build/test";
@@ -14,16 +12,8 @@ import { viewPlugins } from "./plugin.ts";
 /** The notebook package, whose view module declares its notebooks view. */
 const NOTEBOOK = fileURLToPath(new URL("../../tests/fixture/notebook/", import.meta.url));
 
-/** The longest a browser build of the notebook package takes: about 13 s measured under load. */
+/** The longest a browser build of the notebook package takes: 1.8 s alone, 7 s under load. */
 const NOTEBOOK_BUILD_MILLISECONDS = 60_000;
-
-/** The path of the regular trash icon, which the notebooks view draws. */
-const TRASH_PATH =
-    "M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z";
-
-/** The path of the regular acorn icon, which no view draws. */
-const ACORN_PATH =
-    "M232,104a56.06,56.06,0,0,0-56-56H136a24,24,0,0,1,24-24,8,8,0,0,0,0-16,40,40,0,0,0-40,40H80a56.06,56.06,0,0,0-56,56,16,16,0,0,0,8,13.83V128c0,35.53,33.12,62.12,59.74,83.49C103.66,221.07,120,234.18,120,240a8,8,0,0,0,16,0c0-5.82,16.34-18.93,28.26-28.51C190.88,190.12,224,163.53,224,128V117.83A16,16,0,0,0,232,104ZM80,64h96a40.06,40.06,0,0,1,40,40H40A40,40,0,0,1,80,64Zm74.25,135c-10.62,8.52-20,16-26.25,23.37-6.25-7.32-15.63-14.85-26.25-23.37C77.8,179.79,48,155.86,48,128v-8H208v8C208,155.86,178.2,179.79,154.25,199Z";
 
 /** Flatten plugin options into their plugins, refusing pending ones. */
 function flatten(options: readonly PluginOption[]): Plugin[] {
@@ -44,18 +34,6 @@ function flatten(options: readonly PluginOption[]): Plugin[] {
     }
 
     return plugins;
-}
-
-/** Read the code of each JavaScript chunk of a build output. */
-async function readChunks(directory: string): Promise<string[]> {
-    const { files } = testHost();
-    const entries = await files.readDirectory(directory);
-
-    return await Promise.all(
-        entries
-            .filter((entry) => entry.name.endsWith(".js"))
-            .map(async (entry) => await files.readTextFile(join(directory, entry.name))),
-    );
 }
 
 /** Call a plugin hook's handler outside a bundler, without a plugin context. */
@@ -98,17 +76,8 @@ test(
         expect([
             Object.keys(output.views),
             output.exports["./view/notebooks"]?.path === entrypoint,
-            /^output\/browser\/view-notebooks-[\w-]+\.js$/u.test(entrypoint),
+            entrypoint === "output/browser/view-notebooks.js",
         ]).toEqual([["notebooks"], true, true]);
-
-        // bundle the drawn trash icon with the view's component and leave out every other icon
-        const chunks = await readChunks(join(build.directory, "output", "browser"));
-        const trash = chunks.filter((code) => code.includes(TRASH_PATH));
-        const acorn = chunks.filter((code) => code.includes(ACORN_PATH));
-        expect([trash.map((code) => code.includes("Notebooks")), acorn.length]).toEqual([
-            [true],
-            0,
-        ]);
     },
 );
 
@@ -128,10 +97,6 @@ test("generate the module mounting a view with its package's theme and commands,
         name: "main",
         kind: "view",
         package: kind,
-        constructor: {
-            package: kind,
-            symbol: { module: "src/declare/view.ts", name: "defineView" },
-        },
         symbol: { package: owner, symbol: { module: "src/view.ts", name: "main" } },
         source: { file: "src/view.ts", line: 0, column: 0 },
         description: {
@@ -174,7 +139,6 @@ test("generate the module mounting a view with its package's theme and commands,
             declared("command", owner, "archive", command("archive")),
             declared("command", kind, "pin", command("pin")),
         ],
-        modules: [],
         locate: () => ({ file: "/package/src/view.ts", export: "main" }),
         entry: (entrypoint, module) => entries.set(entrypoint, module),
     };

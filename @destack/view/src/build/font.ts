@@ -1,13 +1,28 @@
 import type { FileSystem } from "@destack/environment";
 import { basename } from "node:path";
 import { createFontStack } from "@capsizecss/core";
-import arial from "@capsizecss/metrics/arial";
-import timesNewRoman from "@capsizecss/metrics/timesNewRoman";
 import { fromBuffer } from "@capsizecss/unpack";
 import type { Plugin } from "@destack/package/build";
 
-/** The local fonts a fallback adjusts to a font's metrics. */
-const LOCAL_FONTS = { Arial: arial, "Times New Roman": timesNewRoman } as const;
+/** The local fallback fonts' metrics, as @capsizecss/metrics 4.3.0 lists them. */
+const LOCAL_FONTS = {
+    Arial: {
+        familyName: "Arial",
+        ascent: 1854,
+        descent: -434,
+        lineGap: 67,
+        unitsPerEm: 2048,
+        xWidthAvg: 913,
+    },
+    "Times New Roman": {
+        familyName: "Times New Roman",
+        ascent: 1825,
+        descent: -443,
+        lineGap: 87,
+        unitsPerEm: 2048,
+        xWidthAvg: 832,
+    },
+} as const;
 
 /** The query an import adds to read a font file with its metrics. */
 const FONT_QUERY = "?font";
