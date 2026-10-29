@@ -1,5 +1,5 @@
 import type { FileSystem } from "@destack/environment";
-import { join, relative, resolve, sep } from "node:path";
+import { join, relative, sep } from "node:path";
 import { createBuilder, type InlineConfig } from "vite";
 import {
     type ExpandedOutput,
@@ -101,16 +101,23 @@ export const webOutput: OutputKind = {
             requireSite(application);
         }
 
-        // inspect the framework entries beside the application
-        const files = frameworkFiles(application);
+        // inspect the framework entries each runtime runs beside the application
         const entries = { ".": application.app };
-        const browser: ExpandedOutput = { runtime: "browser", entries, files };
+        const browser: ExpandedOutput = {
+            runtime: "browser",
+            entries,
+            files: frameworkFiles(application, "browser"),
+        };
 
         // expand into the browser output and the server output rendering it
         if (application.ssr === false) {
             return { [`${name}-browser`]: browser };
         } else {
-            const server = { runtime: application.ssr.runtime, entries, files };
+            const server = {
+                runtime: application.ssr.runtime,
+                entries,
+                files: frameworkFiles(application, "server"),
+            };
 
             return { [`${name}-browser`]: browser, [`${name}-server`]: server };
         }
@@ -142,15 +149,6 @@ export const webOutput: OutputKind = {
         const build = { name, application, pass, directory, stage: stage.directory, temporary };
         const builder = await createBuilder(builderConfiguration(build));
         await builder.buildApp();
-
-        // check the server entrypoints against their runtime and the browser code entirely
-        if (server !== undefined) {
-            const entrypoints = [application.entryServer, application.middleware]
-                .filter((path) => path !== undefined)
-                .map((path) => relative(directory, resolve(directory, path)).split(sep).join("/"));
-            await pass.check(server, entrypoints);
-        }
-        await pass.check(browser);
 
         // keep prerendered pages and site files beside the browser assets for static or hybrid hosting
         if (application.prerender !== undefined) {
@@ -206,14 +204,14 @@ interface WebBuild {
     readonly temporary: string;
 }
 
-/** List the framework modules an application names beside its root component. */
-function frameworkFiles(application: WebOptions): string[] {
-    return [
-        application.document,
-        application.entryClient,
-        application.entryServer,
-        application.middleware,
-    ].filter((path): path is string => typeof path === "string");
+/** List the framework modules an application names for the browser or its server. */
+function frameworkFiles(application: WebOptions, side: "browser" | "server"): string[] {
+    const files =
+        side === "browser"
+            ? [application.document, application.entryClient]
+            : [application.document, application.entryServer, application.middleware];
+
+    return files.filter((path): path is string => typeof path === "string");
 }
 
 /** Read an application's server runtime, Bun when it renders nothing on a server. */

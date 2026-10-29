@@ -36,4 +36,7 @@ function isServerModule(module: unknown): module is { readonly handleRequest: Pa
     );
 }
 
-await renderPlan(BunEnvironment.system);
+// render only as the process's entry, as importing the export runs nothing
+if (import.meta.main) {
+    await renderPlan(BunEnvironment.system);
+}

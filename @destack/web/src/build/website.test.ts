@@ -154,13 +154,13 @@ test(
         );
         await HOST.files.writeTextFile(join(source.source, "client.ts"), "export {};\n");
 
-        // refuse the build before framework compilation or rendering
+        // refuse the checked build before framework compilation or rendering
         const application = {
             ...requests.static,
             entryServer: "server.ts",
             entryClient: "client.ts",
         };
-        expect(await refusal(source.build({ outputs: { website: application } }))).toEqual([
+        expect(await refusal(source.check({ outputs: { website: application } }))).toEqual([
             "UNPROCESSABLE_CONTENT",
             "RUNTIME_API_UNSUPPORTED",
             "unsupported bun API: document.title at server.ts:76",

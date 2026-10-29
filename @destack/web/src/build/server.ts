@@ -6,6 +6,7 @@ import type { Plugin } from "@destack/package/build";
 import { runtimeConditions, runtimeCss, runtimeTarget } from "@destack/package/build";
 import { PackageLocator } from "@destack/package/locator";
 import { modulePlugin } from "@destack/package/vite";
+import { ModuleTransformer } from "@destack/package/transform";
 import { SolidApplication, VIEW_PACKAGE } from "@destack/view/build";
 import { entryPlugin } from "./entry.ts";
 import { writeMetadata } from "./metadata/index.ts";
@@ -23,8 +24,6 @@ export class DevelopmentServer implements AsyncDisposable {
     #restarting: Promise<void> = Promise.resolve();
     /** Whether network listeners and watchers have closed. */
     #isClosed = false;
-    /** Whether compiler configuration files have been removed. */
-    #isReleased = false;
 
     /** Retain the server and package until shutdown. */
     private constructor(
@@ -57,18 +56,14 @@ export class DevelopmentServer implements AsyncDisposable {
             }
         };
 
-        // release both resources if configuration or startup fails
+        // listen, closing the server if startup fails
         try {
             vite = await serve(options, source, options.server, follow);
             server = new DevelopmentServer(vite, options, source);
 
             return server;
         } catch (error) {
-            try {
-                await vite?.close();
-            } finally {
-                await source[Symbol.asyncDispose]();
-            }
+            await vite?.close();
             throw error;
         }
     }
@@ -82,22 +77,13 @@ export class DevelopmentServer implements AsyncDisposable {
         return restarted;
     }
 
-    /** Close network listeners, watchers, and compiler configuration. */
+    /** Close network listeners and watchers. */
     async close(): Promise<void> {
         // stop further restarts and close the listeners and watchers once after a pending restart
-        const isClosing = !this.#isClosed;
-        this.#isClosed = true;
-        try {
-            if (isClosing) {
-                await this.#restarting;
-                await this.#vite.close();
-            }
-        } finally {
-            // remove the compiler configuration once
-            if (!this.#isReleased) {
-                this.#isReleased = true;
-                await this.#source[Symbol.asyncDispose]();
-            }
+        if (!this.#isClosed) {
+            this.#isClosed = true;
+            await this.#restarting;
+            await this.#vite.close();
         }
     }
 
@@ -120,10 +106,7 @@ export class DevelopmentServer implements AsyncDisposable {
         await this.#vite.close();
 
         // reopen the package source, which reads the application's own definition anew
-        await this.#source[Symbol.asyncDispose]();
-        this.#isReleased = true;
         this.#source = await open(this.#options);
-        this.#isReleased = false;
 
         // listen again with fresh plugins, which read every dependency's definition anew
         this.#vite = await serve(this.#options, this.#source, settings, () => this.#follow());
@@ -166,7 +149,6 @@ async function open(options: DevelopmentServerOptions): Promise<PackageSource> {
                 : { configuration: options.configuration }),
             entries: { ".": options.application.app },
             tree: {},
-            roots: "package",
         },
         options.environment,
     );
@@ -189,7 +171,7 @@ async function serve(
         publicDir: application.publicDirectory ?? "public",
         base: application.base ?? "/",
         plugins: [
-            modulePlugin(options.environment.files),
+            modulePlugin(new ModuleTransformer(options.environment.files)),
             definitionPlugin(source.directory, options.environment.files, onDefinitionChange),
             metadataPlugin(application, options.environment.clock),
             ...(await loadTransforms({
