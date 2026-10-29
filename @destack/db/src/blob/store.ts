@@ -4,7 +4,7 @@ import { sql, type SQL } from "../sql/sql.ts";
 import { Column } from "../table/column.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { Condition } from "../query/condition.ts";
-import { textElements } from "../query/statement.ts";
+import { textValues } from "../query/statement.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { blobGarbage, blobLease } from "./table.ts";
 import type { BlobStorage } from "@destack/resource";
@@ -259,14 +259,14 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> {
                     sql` `,
                 );
 
-            // reference a scalar column's digest, or each digest of a JSON array column
+            // reference a scalar column's digest, or each digest of a list or map column
             if (column.definition.kind !== "json") {
                 return sql`SELECT ${column} AS digest FROM ${table}
                         WHERE ${column} IS NOT NULL ${holds} ${others(column)} ${within(column)}`;
             }
             const element = sql.raw("element.value");
 
-            return sql`SELECT ${element} AS digest FROM ${table}, ${textElements(column, "element")}
+            return sql`SELECT ${element} AS digest FROM ${table}, ${textValues(column, "element")}
                     WHERE ${column} IS NOT NULL ${holds} ${others(element)} ${within(element)}`;
         });
         const leased = sql`SELECT ${blobLease.digest} AS digest FROM ${blobLease}

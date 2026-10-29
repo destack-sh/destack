@@ -1,5 +1,5 @@
 import { Simulation } from "@destack/environment/simulation";
-import { blob, blobs, text } from "../table/column.ts";
+import { blob, blobMap, blobs, text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { eq } from "../sql/operator.ts";
 import { TestDatabase } from "../test/index.ts";
@@ -23,6 +23,8 @@ const attachment = defineTable("attachment", {
     file: blob("file").notNull(),
     /** The renditions' blobs, such as thumbnails. */
     renditions: blobs("renditions").notNull().default([]),
+    /** The captions' blobs by language. */
+    captions: blobMap("captions").notNull().default({}),
 });
 
 /** Bundles of blobs, each record describing its bundle's own blob and going with it. */
@@ -147,6 +149,35 @@ test("keep the blobs a JSON array column lists, and delete one once no row lists
     expect({ kept, missing: [...(await storage.missing([file, small, large]))] }).toEqual({
         kept: [],
         missing: [large],
+    });
+});
+
+test("keep the blobs a map column lists by key, and delete one once no row lists it", async () => {
+    // list two captions on a row, past their writes' leases
+    const { simulation, environment, store, storage, database } = await openBlobs();
+    const file = await put(store, "file", environment.crypto);
+    const english = await put(store, "english", environment.crypto);
+    const german = await put(store, "german", environment.crypto);
+    await database.transaction(async (transaction) => {
+        await transaction
+            .insert(attachment)
+            .values({ id: "c", file, captions: { en: english, de: german } });
+    });
+    simulation.clock.advance(LEASE_MILLISECONDS);
+    await store.collect();
+    const kept = [...(await storage.missing([file, english, german]))];
+
+    // drop the German caption from the row, and collect
+    await database.transaction(async (transaction) => {
+        await transaction
+            .update(attachment)
+            .set({ captions: { en: english } })
+            .where(eq(attachment.id, "c"));
+    });
+    await store.collect();
+    expect({ kept, missing: [...(await storage.missing([file, english, german]))] }).toEqual({
+        kept: [],
+        missing: [german],
     });
 });
 

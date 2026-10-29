@@ -17,7 +17,7 @@ import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
 import { mapValues } from "@destack/schema";
 import { blobGarbage } from "../blob/table.ts";
-import { textElements } from "./statement.ts";
+import { textValues } from "./statement.ts";
 
 /** The values of an insert or update: values, fragments or placeholders, undefined as default. */
 export type InsertValue<Definition extends Table> = {
@@ -274,7 +274,7 @@ export class MutationQuery<
             );
         }
 
-        // select a scalar column's digest, or each digest of a JSON array column, of the matched rows
+        // select a scalar column's digest, or each digest of a list or map column, of the matched rows
         const filter = where === undefined ? sql.empty() : sql`AND (${where})`;
         const selects = retired.map((column) => {
             if (column.definition.kind !== "json") {
@@ -282,7 +282,7 @@ export class MutationQuery<
             }
             const element = sql.raw("element.value");
 
-            return sql`SELECT ${element} AS digest FROM ${table}, ${textElements(column, "element")}
+            return sql`SELECT ${element} AS digest FROM ${table}, ${textValues(column, "element")}
                 WHERE ${column} IS NOT NULL ${filter}`;
         });
 

@@ -102,15 +102,22 @@ export class Column<
         return PLAIN_KINDS.has(column.definition.kind);
     }
 
-    /** List the blobs a value of the column references: one, a list, or none for other columns. */
+    /** List the blobs a column's value references: one, a list or a map, else none. */
     digests(value: unknown): Digest[] {
+        // reference no blob from another column or an absent value
         if (this.definition.blob === undefined || value === null || value === undefined) {
             return [];
         }
+        // reference each digest of a list
+        else if (Array.isArray(value)) {
+            return value.map((digest) => Digest.parse(digest));
+        }
+        // reference each digest of a map
+        else if (typeof value === "object") {
+            return Object.values(value).map((digest) => Digest.parse(digest));
+        }
 
-        return Array.isArray(value)
-            ? value.map((digest) => Digest.parse(digest))
-            : [Digest.parse(value)];
+        return [Digest.parse(value)];
     }
 
     /** Embed the column, qualified by its table. */
@@ -342,6 +349,16 @@ export function blob(name: string, options: BlobOptions = {}) {
 /** Define the digests of blobs in the partition's blob store, kept alive by the row. */
 export function blobs(name: string, options: Extract<BlobOptions, { onDelete?: "restrict" }> = {}) {
     const column = json(name, schema.array(Digest));
+
+    return new ColumnBuilder({ ...column.definition, blob: options });
+}
+
+/** Define the digests of blobs in the partition's blob store by key, kept alive by the row. */
+export function blobMap(
+    name: string,
+    options: Extract<BlobOptions, { onDelete?: "restrict" }> = {},
+) {
+    const column = json(name, schema.record(schema.string(), Digest));
 
     return new ColumnBuilder({ ...column.definition, blob: options });
 }

@@ -87,6 +87,14 @@ export function textElements(array: SQLWrapper, name: string): SQL {
     });
 }
 
+/** Select the strings of a flat JSON array or object as rows of a `value` column. */
+export function textValues(json: SQLWrapper, name: string): SQL {
+    return dialectSQL({
+        sqlite: sql`json_each(${json}) AS ${sql.identifier(name)}`,
+        postgresql: sql`LATERAL (SELECT found #>> '{}' AS value FROM jsonb_path_query(${json}::jsonb, 'strict $.** ? (@.type() == "string")') AS found) AS ${sql.identifier(name)}`,
+    });
+}
+
 /** Read a JSON element's value at a position as a column's type, the element named `wanted`. */
 export function elementValue(column: Column, index: number, dialect: Dialect): SQL {
     // read a JSON column's element as JSON, a JSON null as SQL NULL, and any other or sealed element as its text
