@@ -28,6 +28,8 @@ export class Registry {
     readonly #find: (packageId: PackageId) => Promise<ForgeEndpoint>;
     /** The environment the forge's clients run in. */
     readonly #environment: Environment;
+    /** The reader of each build opened so far, by package and manifest, as builds never change. */
+    readonly #readers = new Map<string, Promise<BuildReader>>();
 
     /** Read releases from the forge each package's publisher stores them in, in an environment. */
     constructor(find: (packageId: PackageId) => Promise<ForgeEndpoint>, environment: Environment) {
@@ -153,7 +155,21 @@ export class Registry {
     }
 
     /** Open the build of a package's published release by its manifest's digest, file by file. */
-    async read(packageId: PackageId, manifest: Digest): Promise<BuildReader> {
+    read(packageId: PackageId, manifest: Digest): Promise<BuildReader> {
+        // open each build once, forgetting a failed open
+        const key = `${packageId} ${manifest}`;
+        let reader = this.#readers.get(key);
+        if (reader === undefined) {
+            reader = this.#open(packageId, manifest);
+            this.#readers.set(key, reader);
+            reader.catch(() => this.#readers.delete(key));
+        }
+
+        return reader;
+    }
+
+    /** Open the build the forge serves by its digest, refusing another package's build. */
+    async #open(packageId: PackageId, manifest: Digest): Promise<BuildReader> {
         // read the build the forge serves by its manifest's digest
         const { location, fetch } = await this.locate(packageId, manifest);
         const reader = await BuildReader.open(location, fetch, this.#environment.crypto);
