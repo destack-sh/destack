@@ -228,7 +228,6 @@ export class TestRelay implements AsyncDisposable {
                     instance,
                     scope: home,
                     installation: schema.identifier("installation").parse(installation.id),
-                    origin: "declared",
                     name: NAME,
                     ...(partition === undefined ? {} : { partition }),
                     bindings: {},
