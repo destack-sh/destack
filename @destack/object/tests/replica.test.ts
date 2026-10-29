@@ -561,8 +561,8 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
     // refuse the parameters as the follower's bad input, listing the missing fields
     expect(await refusal(pages.next())).toEqual([
         "BAD_REQUEST",
-        "INPUT_INVALID",
-        "invalid input: scopes: invalid input: expected array, received undefined; replicated: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined",
+        "PARAMETERS_INVALID",
+        "invalid parameters of publication chain: scopes: invalid input: expected array, received undefined; replicated: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined",
     ]);
 });
 

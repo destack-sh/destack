@@ -1110,7 +1110,7 @@ export const field = {
     },
 
     /** The digests of blobs in the partition's blob store, kept alive by the row. */
-    blobs(options: BlobOptions = {}) {
+    blobs(options: Extract<BlobOptions, { onDelete?: "restrict" }> = {}) {
         return Field.required({ builder: "blobs", arguments: [options] }, (name) =>
             blobs(name, options),
         );

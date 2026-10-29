@@ -1,6 +1,5 @@
 import { defineErrorFamily, type FamilyError, type ReasonOf } from "@destack/error";
 import { ValidationError, type SchemaIssue } from "@orpc/contract";
-import { describeIssues } from "./call.ts";
 import {
     ApprovalRefusal,
     GrantRefusal,
@@ -10,6 +9,7 @@ import {
     ScopeMove,
 } from "./detail.ts";
 import type {} from "@destack/package/import-meta";
+import { schema } from "@destack/schema";
 
 /** The object package's failures, each reason with the call error code it answers. */
 export const ObjectError = defineErrorFamily(import.meta.destack.package, {
@@ -198,7 +198,7 @@ export function refuseInput(
     input: unknown,
     issues: readonly SchemaIssue[],
 ): FamilyError<"INPUT_INVALID"> {
-    const message = describeIssues(issues);
+    const message = `invalid input: ${schema.describeIssues(issues)}`;
 
     return ObjectError.of("INPUT_INVALID", message, {
         data: Issues.of(issues),

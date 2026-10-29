@@ -26,7 +26,6 @@ import {
 
 import { canonicalize, Duration, present, schema } from "@destack/schema";
 import { CallError } from "../error/call.ts";
-import { refuseInput } from "../error/error.ts";
 import { type RequestContext } from "./context.ts";
 import { withEventMeta } from "../procedure/index.ts";
 import * as sync from "@destack/sync";
@@ -167,12 +166,10 @@ export class ObjectSource {
     }
 
     /** Stream a publication's replica to the caller its audience allows. */
-    async *relayed(
-        subscription: sync.Subscription,
-        context: RequestContext,
-    ): AsyncGenerator<sync.Page> {
-        // allow the caller by the publication's audience, serving its request until it closes or lapses
-        const publication = this.publication(subscription);
+    async *relayed(request: sync.Subscription, context: RequestContext): AsyncGenerator<sync.Page> {
+        // read the subscription by its publication, refusing invalid parameters, and allow the caller by its audience
+        const publication = this.publication(request);
+        const subscription = publication.read(request);
         const follower = await this.#authorizeFollower(publication, subscription, context);
         // refuse a session whose credential lapsed already, for the follower to resume with a fresh one
         const credential = context.authentication?.credential;
@@ -280,22 +277,13 @@ export class ObjectSource {
         }
     }
 
-    /** Read a chain request's parameters, absent for other publications, refusing bad ones. */
+    /** Read a chain request's parameters, absent for other publications. */
     static #chainParameters(
         request: Pick<sync.Subscription, "publication" | "parameters">,
     ): ChainParameters | undefined {
-        // read no chain parameters for other publications
-        if (request.publication !== CHAIN_PUBLICATION) {
-            return undefined;
-        }
-
-        // parse them, refusing malformed parameters as a bad request
-        const parsed = ChainParameters.safeParse(request.parameters);
-        if (!parsed.success) {
-            throw refuseInput(request.parameters, parsed.error.issues);
-        }
-
-        return parsed.data;
+        return request.publication === CHAIN_PUBLICATION
+            ? ChainParameters.parse(request.parameters)
+            : undefined;
     }
 
     /** Decide who a relayed replica is for: a served object's principal, or the caller. */
@@ -1024,13 +1012,13 @@ export class ObjectSource {
 
     /** Record an authenticated caller's request of its own stream. */
     async requestFrom(subscription: sync.Subscription, context: RequestContext): Promise<void> {
-        // require a known publication and an authenticated caller, whose key the request carries
-        this.publication(subscription);
+        // read the subscription by its publication, refusing invalid parameters, and require an authenticated caller
+        const read = this.publication(subscription).read(subscription);
         const caller = ObjectSource.#caller(context);
         if (caller === undefined) {
             throw ObjectError.of("CREDENTIAL_MISSING", "missing caller credential");
         }
-        await this.request(subscription, caller);
+        await this.request(read, caller);
     }
 
     /** Read the key of an authenticated caller, absent for an anonymous one. */

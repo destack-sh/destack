@@ -7,7 +7,6 @@ import {
 } from "@orpc/client";
 import { type MaybeOptionalOptions, resolveMaybeOptionalOptions } from "@orpc/shared";
 
-import type { SchemaIssue } from "@orpc/contract";
 import { JsonValue, schema } from "@destack/schema";
 import {
     DomainError,
@@ -248,20 +247,6 @@ export function conceal(denial: Error, message: string): CallError<"NOT_FOUND", 
         message,
         cause: denial,
     });
-}
-
-/** Describe invalid input by its issues, each as its path and its lowercase message. */
-export function describeIssues(issues: readonly SchemaIssue[]): string {
-    const described = issues.map((issue) => {
-        const path = (issue.path ?? [])
-            .map((key) => (typeof key === "object" ? key.key : key))
-            .join(".");
-        const message = issue.message.charAt(0).toLowerCase() + issue.message.slice(1);
-
-        return path === "" ? message : `${path}: ${message}`;
-    });
-
-    return `invalid input: ${described.join("; ")}`;
 }
 
 /** Read the denial of a failure: itself for a 401 or 403, the cause of a concealed one. */
