@@ -6,7 +6,7 @@ import { treeTriggers } from "../tree/trigger.ts";
 import { FullTextIndex } from "../search/search.ts";
 import { aggregateTriggers, recomputeAggregate } from "../aggregate/trigger.ts";
 import { dependentTriggers } from "../dependent/trigger.ts";
-import { createState, deleteState, coversState, type TableState } from "./state.ts";
+import { createStamp, createState, deleteState, coversState, type TableState } from "./state.ts";
 import * as statement from "./statement.ts";
 import { quote } from "../dialect/quote.ts";
 import { bridgeTriggers } from "./bridge.ts";
@@ -503,6 +503,7 @@ function reinstallTriggers(
         after: [
             ...createLog(dialect, namespace),
             createState(namespace),
+            createStamp(namespace),
             ...declared.flatMap((state) =>
                 TRIGGERS.flatMap((triggers) => triggers.install(state, dialect, namespace)),
             ),

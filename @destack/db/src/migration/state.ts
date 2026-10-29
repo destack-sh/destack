@@ -21,6 +21,9 @@ import { DatabaseError } from "../error/error.ts";
 /** The SQL name of the applied state table. */
 export const STATE = "__destack_state";
 
+/** The table with the stamp of the declaration the database applied last: its digest. */
+export const STAMP = "__destack_stamp";
+
 /** A managed table as declared or applied. */
 export const TableState = schema.object({
     /** The package release declaring the table. */
@@ -294,6 +297,14 @@ function renameState(state: TableState, name: (relation: string) => string): Tab
     };
 }
 
+/** Create the stamp table within a database's namespace. */
+export function createStamp(namespace?: string): string {
+    return `CREATE TABLE IF NOT EXISTS ${quote(relation(STAMP, namespace))} (
+        slot INTEGER PRIMARY KEY,
+        digest TEXT NOT NULL
+    )`;
+}
+
 /** Create the state table within a database's namespace. */
 export function createState(namespace?: string): string {
     return `CREATE TABLE IF NOT EXISTS ${quote(relation(STATE, namespace))} (
@@ -340,6 +351,47 @@ export async function readEmpty(
     );
 
     return new Set(rows.map((row) => row.name));
+}
+
+/** The stamp of a database's last declaration: its digest, none before stamps, or none yet. */
+export type Stamp =
+    | { readonly kind: "stamped"; readonly digest: string }
+    | { readonly kind: "unstamped" }
+    | { readonly kind: "new" };
+
+/** Read the stamp of the declaration a database applied last. */
+export async function readStamp(database: DatabaseConnection): Promise<Stamp> {
+    // read a database migrated before stamps, whose stamp table an applied plan creates, apart from a new one
+    const tables = await readTables(database);
+    if (!tables.includes(relation(STAMP, database.state.namespace))) {
+        return tables.includes(relation(STATE, database.state.namespace))
+            ? { kind: "unstamped" }
+            : { kind: "new" };
+    }
+
+    // read the one stamp
+    const [row] = await database.execute(
+        sql`SELECT digest FROM ${sql.relation(STAMP)} WHERE slot = 1`,
+        schema.object({ digest: schema.string() }),
+    );
+
+    return row === undefined ? { kind: "new" } : { kind: "stamped", digest: row.digest };
+}
+
+/** Record the stamp of a database's applied declaration, creating a missing stamp table first. */
+export async function writeStamp(
+    database: DatabaseConnection,
+    digest: string,
+    isUnstamped: boolean,
+): Promise<void> {
+    // create the table a database migrated before stamps lacks, then record the digest
+    if (isUnstamped) {
+        await database.executeScript(createStamp(database.state.namespace));
+    }
+    await database.run(
+        sql`INSERT INTO ${sql.relation(STAMP)} (slot, digest) VALUES (1, ${digest})
+            ON CONFLICT (slot) DO UPDATE SET digest = excluded.digest`,
+    );
 }
 
 /** Read every managed table's applied state. */

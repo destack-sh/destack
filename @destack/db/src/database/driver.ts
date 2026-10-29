@@ -238,7 +238,7 @@ export class DatabaseDriver {
         );
     }
 
-    /** Read a statement once per version of its tables, answering each caller a copy. */
+    /** Read a statement once per version of its tables, every caller sharing its frozen rows. */
     async #cached<Row>(
         statement: DriverStatement,
         cache: ReadCache<Row[]>,
@@ -255,9 +255,8 @@ export class DatabaseDriver {
         // key the read by its text and parameters, at its tables' versions before it runs
         const versions = commits.versions(statement.tables);
         const key = `${statement.text} ${JSON.stringify(statement.parameters, encodeKey)}`;
-        const rows = await cache.get(key, versions, read);
 
-        return structuredClone(rows);
+        return await cache.get(key, versions, async () => freeze(await read()));
     }
 
     /** Decide whether a write fires derivations, dependents only on deletes. */
@@ -330,4 +329,15 @@ function writeOperation(statement: DriverStatement | undefined): WriteOperation 
 /** Encode a cached read's parameters as a key, bigints apart from strings. */
 function encodeKey(_key: string, value: unknown): unknown {
     return typeof value === "bigint" ? { bigint: String(value) } : value;
+}
+
+/** Freeze rows and each row, so callers share them and a write to one fails loudly. */
+function freeze<Row>(rows: Row[]): Row[] {
+    for (const row of rows) {
+        Object.freeze(row);
+    }
+
+    Object.freeze(rows);
+
+    return rows;
 }

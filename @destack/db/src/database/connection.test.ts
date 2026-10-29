@@ -162,3 +162,44 @@ test("answer reads of a table declared after opening from memory until it change
     reads.push(await counted());
     expect(reads).toEqual([1, 0, 1]);
 });
+
+test("share one frozen copy of a cached read with every reader", async () => {
+    // migrate counters, listen to other writers, and write one
+    const storage = await TestDatabase.create([], {
+        environment: testSimulation().environment("test"),
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.migrate([counter]);
+    await database.log.listening();
+    await database.transaction(async (transaction) => {
+        await transaction.insert(counter).values(counters(1, 1));
+    });
+
+    // read the same raw rows twice, the second from memory
+    const statement = database.select().from(counter);
+    const [first, second] = [await database.all(statement), await database.all(statement)];
+    expect({
+        isShared: first === second,
+        isFrozen: Object.isFrozen(first) && first.every((row) => Object.isFrozen(row)),
+    }).toEqual({ isShared: true, isFrozen: true });
+});
+
+test("skip planning a declaration the database applied last, by its stamp", async () => {
+    // migrate counters, then migrate the same declaration again
+    const storage = await TestDatabase.create([], {
+        environment: testSimulation().environment("test"),
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const applied = await database.migrate([counter]);
+    const before = database.state.statements;
+    const again = await database.migrate([counter]);
+
+    // plan the first, then read only the table list and the stamp the second time
+    expect({
+        applied: applied.steps.length > 0,
+        again: again.steps,
+        statements: database.state.statements - before,
+    }).toEqual({ applied: true, again: [], statements: 2 });
+});

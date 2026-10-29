@@ -1,5 +1,5 @@
 import type { Clock, Environment } from "@destack/environment";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { exists, fill, render, type SQL, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError, type DeclaredNames } from "../error/error.ts";
 import { DatabaseDriver, OperationDuration } from "./driver.ts";
@@ -18,6 +18,9 @@ import {
     unappliedTables,
     type DeclareOptions,
     type TableState,
+    readStamp,
+    STAMP,
+    writeStamp,
 } from "../migration/state.ts";
 import { applyPlan } from "../migration/apply.ts";
 import { changedTables, planTables, type TablePlan } from "../migration/plan.ts";
@@ -332,6 +335,25 @@ export class DatabaseConnection<
             ...options,
         });
 
+        // skip a declaration the database applied last, by the stamp of the declared and given states
+        const stamp = await Digest.json(
+            { declared, states: options.states ?? [], others: options.others ?? "drop" },
+            this.state.environment.crypto,
+        );
+        const stamped = await readStamp(this);
+        if (stamped.kind === "stamped" && stamped.digest === stamp) {
+            this.state.declare(tables);
+
+            return {
+                steps: [],
+                dialect: this.dialect,
+                before: [],
+                after: [],
+                state: [],
+                dropped: [],
+            };
+        }
+
         // retain the other applied tables as they are when asked, as their declarations had them
         const { namespace } = this.state;
         const names = new Set(declared.map((entry) => namespaceState(entry, namespace).table.name));
@@ -342,10 +364,11 @@ export class DatabaseConnection<
                       .map((applied) => localState(applied, namespace))
                 : [];
 
-        // plan the declared, given and retained tables, then apply the plan
+        // plan the declared, given and retained tables, then apply the plan and stamp the declaration
         const merged = mergeStates([...(options.states ?? []), others, declared]);
         const plan = await this.plan(merged);
         await this.apply(plan);
+        await writeStamp(this, stamp, stamped.kind === "unstamped" && plan.steps.length === 0);
         this.state.declare(tables);
 
         return plan;
@@ -566,7 +589,7 @@ export class ConnectionState {
     /** The declared names of the tables and their columns, by SQL name. */
     #declared: DeclaredNames = new Map();
     /** The SQL names of the tables without change triggers: unlogged ones and the log's tables. */
-    readonly unlogged = new Set<string>(LOG_TABLES);
+    readonly unlogged = new Set<string>([...LOG_TABLES, STAMP]);
     /** The declared tables, by SQL name. */
     readonly #tables = new Map<string, Table>();
     /** The dialect the tables render in. */
