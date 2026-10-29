@@ -1,5 +1,6 @@
 import { schema, Uuid } from "@destack/schema";
 import { modulePlugin } from "@destack/package/vite";
+import { ModuleTransformer } from "@destack/package/transform";
 import { BunEnvironment } from "@destack/environment/bun";
 import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
@@ -53,7 +54,7 @@ const bundle = await rolldown({
     platform: "browser",
     resolve: { conditionNames: ["workerd", "worker", "browser"] },
     external: ["node:assert/strict"],
-    plugins: [modulePlugin(environment.files)],
+    plugins: [modulePlugin(new ModuleTransformer(environment.files))],
 });
 /** The bundle's single worker script. */
 const {

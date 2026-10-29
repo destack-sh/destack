@@ -1,5 +1,6 @@
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { modulePlugin } from "@destack/package/vite";
+import { ModuleTransformer } from "@destack/package/transform";
 import { testHost } from "@destack/test/host";
 import { rolldown } from "rolldown";
 import { Miniflare } from "miniflare";
@@ -15,7 +16,7 @@ export async function runR2(name: string): Promise<void> {
         platform: "browser",
         resolve: { conditionNames: ["workerd", "worker", "browser"] },
         external: [/^node:/u, /^cloudflare:/u],
-        plugins: [modulePlugin(testHost().files)],
+        plugins: [modulePlugin(new ModuleTransformer(testHost().files))],
     })
         .then(async (bundle) => {
             await using _bundle = bundle;

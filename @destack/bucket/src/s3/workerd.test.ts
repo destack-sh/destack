@@ -1,4 +1,5 @@
 import { modulePlugin } from "@destack/package/vite";
+import { ModuleTransformer } from "@destack/package/transform";
 import { testHost } from "@destack/test/host";
 import { rolldown } from "rolldown";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
@@ -12,7 +13,7 @@ test("sign, presign and verify the documented S3 examples in workerd without Nod
         input: fileURLToPath(new URL("./test/worker.ts", import.meta.url)),
         platform: "browser",
         resolve: { conditionNames: ["workerd", "worker", "browser"] },
-        plugins: [modulePlugin(testHost().files)],
+        plugins: [modulePlugin(new ModuleTransformer(testHost().files))],
     });
     const { output } = await bundle.generate({ format: "esm" });
     await bundle.close();
