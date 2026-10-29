@@ -17,9 +17,7 @@ import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
 import { mapValues } from "@destack/schema";
 import { blobGarbage } from "../blob/table.ts";
-
-/** The digests one retiring insert binds: 500, far under SQLite's 32,766 parameters. */
-const BATCH_ROWS = 500;
+import { textElements } from "./statement.ts";
 
 /** The values of an insert or update: values, fragments or placeholders, undefined as default. */
 export type InsertValue<Definition extends Table> = {
@@ -218,21 +216,22 @@ export class MutationQuery<
 
     /** Run the mutation, returning the changed rows when asked. */
     async execute(): Promise<Result> {
-        // retire the blobs the changed rows may let go, in the mutation's transaction
-        await this.#retire();
-
-        // run the mutation
+        // render the mutation
         const state = this.state;
-        const statement = fill(
-            render(
-                this.#sql(),
-                state.driver.dialect,
-                state.driver.state.namespace,
-                state.driver.state.cipher,
-            ),
-        );
+        const { driver } = state;
+        const { namespace, cipher } = driver.state;
+        const rendered = (statement: SQL) =>
+            fill(render(statement, driver.dialect, namespace, cipher));
 
-        return state.finish(state.driver, statement);
+        // send the retirement of the blobs the changed rows let go right before the mutation
+        const retirement = this.#retirement();
+        const retired = retirement === undefined ? undefined : driver.execute(rendered(retirement));
+        const [, result] = await Promise.all([
+            retired,
+            state.finish(driver, rendered(this.#sql())),
+        ]);
+
+        return result;
     }
 
     /** Run the mutation and return the first changed row. */
@@ -250,23 +249,23 @@ export class MutationQuery<
         return this.execute().then(fulfilled, rejected);
     }
 
-    /** Retire the blobs the matched rows reference before a delete or blob update lets them go. */
-    async #retire(): Promise<void> {
+    /** Write the retirement of the blobs the matched rows reference. */
+    #retirement(): SQL | undefined {
         // retire every blob column of deleted rows, and the written or conditioned ones of updated rows
         const { driver, table, operation, changes, where } = this.state;
-        const blobs = table[TABLE].entries.filter(([property, column]) => {
+        const retired = table[TABLE].entries.flatMap(([property, column]) => {
             const options = column.definition.blob;
-
-            return (
+            const isRetired =
                 options !== undefined &&
                 (operation === "delete" ||
                     (operation === "update" &&
                         (Object.hasOwn(changes, property) ||
-                            (options.onDelete !== "cascade" && options.while !== undefined))))
-            );
+                            (options.onDelete !== "cascade" && options.while !== undefined))));
+
+            return isRetired ? [column] : [];
         });
-        if (blobs.length === 0) {
-            return;
+        if (retired.length === 0) {
+            return undefined;
         }
         if (driver.transaction === undefined) {
             throw DatabaseError.of(
@@ -275,35 +274,21 @@ export class MutationQuery<
             );
         }
 
-        // read the blobs the matched rows reference
-        const { dialect } = driver;
-        const { namespace, cipher } = driver.state;
-        const projection = new Projection(unqualified(Object.fromEntries(blobs)));
-        const filter = where === undefined ? sql`` : sql` WHERE ${where}`;
-        const statement = fill(
-            render(
-                sql`SELECT ${projection.sql()} FROM ${table}${filter}`,
-                dialect,
-                namespace,
-                cipher,
-            ),
-        );
-        const rows = projection.decode(await driver.values(statement), dialect, new Set(), cipher);
-        const digests = [
-            ...new Set(
-                rows.flatMap((row) =>
-                    blobs.flatMap(([property, column]) => column.digests(row[property])),
-                ),
-            ),
-        ];
+        // select a scalar column's digest, or each digest of a JSON array column, of the matched rows
+        const filter = where === undefined ? sql.empty() : sql`AND (${where})`;
+        const selects = retired.map((column) => {
+            if (column.definition.kind !== "json") {
+                return sql`SELECT ${column} AS digest FROM ${table} WHERE ${column} IS NOT NULL ${filter}`;
+            }
+            const element = sql.raw("element.value");
 
-        // retire them, which a collection checks again for references
-        for (let start = 0; start < digests.length; start += BATCH_ROWS) {
-            const batch = digests.slice(start, start + BATCH_ROWS);
-            await MutationQuery.of(driver, blobGarbage, "insert")
-                .values(batch.map((digest) => ({ digest })))
-                .onConflictDoNothing();
-        }
+            return sql`SELECT ${element} AS digest FROM ${table}, ${textElements(column, "element")}
+                WHERE ${column} IS NOT NULL ${filter}`;
+        });
+
+        // retire them, with `WHERE true` so SQLite parses the upsert
+        return sql`INSERT INTO ${blobGarbage} (digest) SELECT digest FROM (${sql.join(selects, sql` UNION `)}) AS retired WHERE true
+            ON CONFLICT DO NOTHING`;
     }
 
     /** Write the mutation as SQL. */
