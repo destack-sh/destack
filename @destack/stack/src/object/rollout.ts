@@ -1,16 +1,12 @@
 import { DeclarationReference } from "@destack/package/declare";
-import {
-    InstallationBindings,
-    InstallationSelection,
-    type RepositorySelection,
-    StackDefinition,
-} from "../declare/index.ts";
+import { installableReleases, MAIN_DATABASE, StackDefinition } from "../declare/index.ts";
 import { ViewPath } from "@destack/view/declare";
 import {
     AccessContext,
     Caller,
     Grant,
     type GrantPermission,
+    Manager,
     none,
     PermissionReference,
     type PermissionRequest,
@@ -18,10 +14,11 @@ import {
     PermissionSet,
     principal,
 } from "@destack/access";
-import { type PackageDescription } from "@destack/object";
 import {
     and,
+    type BlobStore,
     type DatabaseConnection,
+    DatabaseState,
     eq,
     isNull,
     Snapshot,
@@ -34,74 +31,78 @@ import {
     grant,
     Installation,
     installation,
+    InstallationBindingSpec,
+    type InstallationBindingState,
+    InstallationKind,
+    type InstallationSelection,
     type MethodContext,
+    ObjectDescription,
     type ObjectOf,
-    Observation,
+    type ObjectReconciliation,
+    type ObjectType,
+    ObjectTypePool,
+    PackageDescription,
     role,
 } from "@destack/object";
-import type { ObjectStore } from "@destack/object/server";
-import {
-    DeclarationName,
-    PackageId,
-    Package,
-    PackageRelease,
-    Sandbox,
-} from "@destack/package";
-import { type BuildReader, ViewDescription } from "@destack/package/manifest";
-import { Plan, ResourceDescription } from "@destack/resource";
+import { ObjectStore } from "@destack/object/server";
+import { DeclarationName, PackageId, Package, PackageRelease, Sandbox } from "@destack/package";
+import { type BuildReader, PackageManifest, ViewDescription } from "@destack/package/manifest";
+import { Plan, RESOURCE_DECLARATION, ResourceDescription } from "@destack/resource";
 import {
     canonicalize,
     Digest,
     type DigestCrypto,
-    type Identifier,
+    Identifier,
     type JsonValue,
     present,
     schema,
+    type Uuid,
+    Version,
 } from "@destack/schema";
-import { type Call, ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
+import {
+    type Call,
+    ObjectReference,
+    ObjectTypeReference,
+    RequestId,
+    Scope,
+    type Subject,
+} from "@destack/sync";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
-import { build, Build } from "./build.ts";
+import { build, Build, type BuildSource } from "./build.ts";
+import accountPackage from "@destack/account/package";
+import type { BuildStore, Registry } from "../server/installation/build.ts";
+import type { Forge } from "../server/installation/follow.ts";
 import type { PackageStore } from "@destack/build/store";
 import { residency, space, Space } from "@destack/account/object";
 import { Submission } from "./stack.ts";
-import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
 
 /** The name under which an installation manages its permissions binding and space grant. */
 const GRANT_NAME = "permissions";
 
-/** What a submission prepares: the repository's account and the pulled release. */
+/** The revision namespace: the DNS namespace's UUIDv8 of installation-revision.destack.app. */
+const REVISION_NAMESPACE: Uuid = "472ed1a0-20d1-8e8e-b9d9-c6879123e146";
+
+/** What a submission prepares: the pulled release, and the revision's dependencies and states. */
 export const SubmissionPreparation = schema.object({
-    /** The account with the repository a new selection selects, null for any other selection. */
-    owner: schema.identifier("account").nullable(),
     /** The pulled release a tag or version selects, null for a space build. */
     release: schema.object({ manifest: Digest, version: schema.string() }).nullable(),
+    /** The installable packages the selected build depends on, at their compiled releases. */
+    dependencies: schema.array(PackageRelease),
+    /** The state each declaration of the selected build requires of its target, as a blob. */
+    states: schema.record(schema.string(), Digest),
 });
 /** What a submission reads before its transaction. */
 export type SubmissionPreparation = schema.Infer<typeof SubmissionPreparation>;
 
-/** A resource declaration of an installation's package, its required state as a blob. */
+/** A resource declaration of an installation's package. */
 export const ResourceNeed = ResourceDescription.extend({
     /** The package declaring the resource. */
     package: Package,
-    /** The state the declaration requires, such as a database's tables, as a blob. */
-    state: Digest,
 });
-/** A resource declaration of an installation's package, its required state as a blob. */
+/** A resource declaration of an installation's package. */
 export type ResourceNeed = schema.Infer<typeof ResourceNeed>;
-
-/** What a deploy writes as blobs before its transaction: its revision's needs and their states. */
-export const DeploymentPreparation = schema.object({
-    /** The revision prepared, null for a rollout deploying none. */
-    revisionId: schema.identifier("installation-revision").nullable(),
-    /** The needs of the revision's build. */
-    needs: schema.array(ResourceNeed),
-    /** The state of each installation the build pins to the release it compiled against, by key. */
-    pins: schema.record(schema.string(), Digest),
-});
-/** What a deploy writes as blobs before its transaction. */
-export type DeploymentPreparation = schema.Infer<typeof DeploymentPreparation>;
 
 /** A view of an installation's revision, as a client opens it. */
 export const InstallationView = schema.object({
@@ -125,26 +126,17 @@ export const InstallationView = schema.object({
 /** A view of an installation's revision, as a client opens it. */
 export type InstallationView = schema.Infer<typeof InstallationView>;
 
-/** How an installation follows its package: its selection, revisions and bindings. */
+/** How an installation rolls out its package: the revisions it targets, applies and serves. */
 export const rollout = defineObject(
     {
         name: "rollout",
         plural: "rollouts",
         identity: "installation",
         scope: space,
-        controlled: { approval: true },
         fields: {
-            /** Whether the rollout follows the space's stack or another package. */
-            kind: field.enum(["stack", "package"]).default("package"),
-            /** The release, repository reference or checkout the installation follows. */
-            selection: field.json(InstallationSelection),
-            /** The exported stack definition or parameterised function, for stacks. */
-            export: field.string().optional(),
-            /** Arguments supplied to the exported definition function, for stacks. */
-            parameters: field.json(schema.jsonObject()).optional(),
             /** The revision to apply, absent before the first submission. */
             revision: field.reference(() => installationRevision).optional(),
-            /** The principal submitting the followed revision, absent before the first one. */
+            /** The principal submitting the targeted revision, absent before the first one. */
             submittedBy: field.subject().optional(),
             /** The digest of the space's stack the installation last submitted, absent for none. */
             spaceStack: field.string(Digest).optional(),
@@ -152,10 +144,8 @@ export const rollout = defineObject(
             appliedRevision: field.reference(() => installationRevision).optional(),
             /** The revision the space serves, absent before it serves one. */
             servedRevision: field.reference(() => installationRevision).optional(),
-            /** The revision applied before the applied one, which a rollback follows again. */
+            /** The revision applied before the applied one, which a rollback targets again. */
             previousRevision: field.reference(() => installationRevision).optional(),
-            /** The targets the installation selects for its package's declarations. */
-            bindings: field.json(InstallationBindings).default({}),
             /** The digest of the objects the installation last related as their consumer. */
             consumption: field.string(Digest).optional(),
         },
@@ -164,10 +154,9 @@ export const rollout = defineObject(
             list: none(),
             create: none(),
             update: none(),
-            delete: none(),
             apply: none(),
             open: none(),
-            follow: none(),
+            target: none(),
             deploy: none(),
         },
         constraints: {
@@ -184,7 +173,6 @@ export const rollout = defineObject(
                 onDelete: "cascade",
             },
             scopeId: { kind: "unique", on: ["scope", "id"] },
-            stack: { kind: "index", on: ["scope"], unique: true, where: { kind: "stack" } },
             revisionInstallation: {
                 kind: "foreignKey",
                 on: ["id", "revisionId"],
@@ -209,46 +197,21 @@ export const rollout = defineObject(
                 references: { object: () => installationRevision, on: ["installationId", "id"] },
                 onDelete: "no action",
             },
-            stackExport: {
-                kind: "check",
-                condition: {
-                    OR: [
-                        {
-                            kind: "stack",
-                            export: { isNotNull: true },
-                            parameters: { isNotNull: true },
-                        },
-                        {
-                            kind: { ne: "stack" },
-                            OR: [{ export: { isNull: true } }, { parameters: { isNull: true } }],
-                        },
-                    ],
-                },
-            },
         },
     },
     (method) => ({
         list: method.list("list"),
-        create: method.create("create", {
-            fields: ["selection", "bindings"],
-            variants: { kind: { stack: ["export", "parameters"], package: [] } },
-            input: Installation.fields,
-        }),
+        create: method.create("create", { visibility: "installation" }),
+        /** Record the revisions the installation applied and serves, and what it consumes. */
         update: method.update("update", {
-            fields: ["selection", "bindings"],
-            input: Installation.fields.pick({
-                status: true,
-                compute: true,
-                capabilities: true,
-                directories: true,
-            }),
+            visibility: "installation",
+            fields: ["appliedRevisionId", "previousRevisionId", "servedRevisionId", "consumption"],
         }),
-        delete: method.delete("delete"),
 
         /** Read the plan waiting for approval. */
         plan: method.query({ permission: "read", output: Plan }),
 
-        /** Follow a submitted build. */
+        /** Target a submitted build's revision. */
         submit: method.mutation({
             permission: "apply",
             input: Submission,
@@ -278,35 +241,28 @@ export const rollout = defineObject(
             output: InstallationView,
         }),
 
-        /** Follow the revision applied before the current one again. */
+        /** Target the revision applied before the current one again. */
         rollBack: method.mutation({
             permission: "apply",
             output: schema.object({
-                /** The revision the installation follows again. */
+                /** The revision the installation targets again. */
                 revisionId: schema.identifier("installation-revision"),
             }),
         }),
 
-        /** Deploy the revision an application follows, and drain a suspended one. */
+        /** Deploy the revision an application targets, and drain a suspended one. */
         deploy: method.mutation({
             permission: "deploy",
             visibility: "package",
             output: schema.object({}),
-            prepared: DeploymentPreparation,
         }),
 
-        /** Point an installation at the revision it follows, as its controller does. */
-        follow: method.mutation({
-            permission: "follow",
+        /** Target a revision for an installation, as its controller does. */
+        target: method.mutation({
+            permission: "target",
             visibility: "package",
             input: schema.object({
-                /** The release, repository reference or checkout the revision evaluated. */
-                selection: InstallationSelection.exactOptional(),
-                /** The exported definition or parameterised function, for stacks. */
-                export: schema.string().min(1).exactOptional(),
-                /** Arguments for a parameterised definition, for stacks. */
-                parameters: schema.jsonObject().exactOptional(),
-                /** The revision to follow. */
+                /** The revision to target. */
                 revisionId: schema.identifier("installation-revision"),
             }),
         }),
@@ -344,15 +300,19 @@ export const rollout = defineObject(
                 );
             }
 
-            // follow it and select its release
-            await call.update({
-                revisionId: previous.id,
-                selection: { kind: "release", version: built.source.version },
-            });
+            // target it and select its release on the installation
+            await call.update({ revisionId: previous.id });
+            await call.mutate(call.self, [
+                installation.call("update", {
+                    ...installation.in(call.target.scope),
+                    id: call.target.id,
+                    selection: { kind: "release", version: built.source.version },
+                }),
+            ]);
 
             return { revisionId: previous.id };
         },
-        follow: (call) => call.update(call.input),
+        target: (call) => call.update(call.input),
     },
 });
 
@@ -376,6 +336,8 @@ export const installationRevision = defineObject(
             }),
             /** The installable packages its build depends on, at their compiled releases. */
             dependencies: field.json(schema.array(PackageRelease)),
+            /** The state each declaration requires, such as main's tables, by name. */
+            states: field.blobMap(),
             /** The evaluated stack definition, for stacks. */
             definition: field.json(StackDefinition).optional(),
             /** The SHA-256 digest of the canonical build, parameters and definition. */
@@ -394,7 +356,7 @@ export const installationRevision = defineObject(
     (method) => ({
         create: method.create("record", {
             visibility: "package",
-            fields: ["installationId", "buildId", "definition", "digest"],
+            fields: ["installationId", "buildId", "dependencies", "states", "definition", "digest"],
             input: schema.object({
                 /** The package whose build the revision evaluates. */
                 packageId: PackageId,
@@ -422,74 +384,74 @@ export interface RolloutActor {
     readonly now: number;
 }
 
-/** An installation a rollout follows: declared or installed, never base, with its name. */
-export type NamedInstallation = Installation & {
-    /** Whether the space's stack declares it or someone installed it. */
-    readonly origin: "declared" | "installed";
-    /** Its name in its space. */
-    readonly name: string;
+/** An installation's rollout joined with the installation, never a base one, so with its name. */
+export type InstallationRollout = Rollout & {
+    /** The installation the rollout rolls out, with its name in its space. */
+    readonly installation: Installation & { readonly name: string };
 };
+
+/** What targeting and describing revisions read: builds, the registry, blobs and the forge. */
+export interface RevisionOptions {
+    /** The space's builds, read through to the machine's cache. */
+    readonly builds: BuildStore;
+    /** The registry of published releases. */
+    readonly registry: Registry;
+    /** The space's blobs, storing the states its revisions require. */
+    readonly blobs: BlobStore;
+    /** The forge whose references and tags installations select, null without one. */
+    readonly forge: Forge | null;
+}
+
+/** The build a selection resolves to: the space's build, its manifest and source. */
+interface SelectedBuild {
+    /** The space's build. */
+    readonly build: Identifier<"build">;
+    /** The digest of the build's manifest. */
+    readonly manifest: Digest;
+    /** Where the build comes from. */
+    readonly source: BuildSource;
+}
 
 /** The verbs of rollouts and their installations: reads, access, relations and releases. */
 export const Rollout = {
-    /** Read a rollout as its declaration lists it, with its installation's declared fields. */
-    declared(
-        joined: Rollout & { readonly installation: NamedInstallation },
-    ): Rollout &
-        Pick<
-            Installation,
-            | "origin"
-            | "packageId"
-            | "name"
-            | "status"
-            | "compute"
-            | "capabilities"
-            | "allowed"
-            | "directories"
-        > {
-        const { installation: installed, ...row } = joined;
-        const { origin, packageId, name, status, compute, capabilities, allowed, directories } =
-            installed;
+    /** Read the rollouts of some installations joined with them, none of a base installation. */
+    async installed(
+        snapshot: Pick<Snapshot, "read">,
+        installed: readonly Installation[],
+    ): Promise<InstallationRollout[]> {
+        const rows = await snapshot
+            .read(rollout.table)
+            .findMany({ where: { id: { in: installed.map((entry) => entry.id) } } });
 
-        return {
-            ...row,
-            origin,
-            packageId,
-            name,
-            status,
-            compute,
-            capabilities,
-            allowed,
-            directories,
-        };
+        return rows.map((row) =>
+            Rollout.join(
+                row,
+                present(
+                    installed.find((entry) => entry.id === row.id),
+                    `the installation of rollout ${row.id}`,
+                ),
+            ),
+        );
     },
 
     /** Join a rollout with its installation, refusing a base installation. */
-    join(
-        row: Rollout,
-        installed: Installation,
-    ): Rollout & { readonly installation: NamedInstallation } {
-        return { ...row, installation: Rollout.named(installed) };
-    },
-
-    /** Read a rollout's installation with its origin and name, refusing a base one. */
-    named(installed: Installation): NamedInstallation {
+    join(row: Rollout, installed: Installation): InstallationRollout {
         // refuse a base installation, which its scope bore without a rollout or a name
-        const { origin, name } = installed;
-        if (origin === "base" || name === null) {
+        const { name } = installed;
+        if (name === null) {
             throw new TypeError(
                 `installation ${installed.id} is a base installation without a rollout`,
             );
         }
 
-        return { ...installed, origin, name };
+        return { ...row, installation: { ...installed, name } };
     },
 
     /** Read rollouts' installations and join them, refusing a rollout without its installation. */
     async read(
         snapshot: Pick<Snapshot, "read">,
         rows: readonly Rollout[],
-    ): Promise<(Rollout & { readonly installation: NamedInstallation })[]> {
+    ): Promise<InstallationRollout[]> {
         // read the installations of the rollouts at once
         const installed = await snapshot
             .read(installation.table)
@@ -504,7 +466,7 @@ export const Rollout = {
     /** Read the rollout a call targets with its installation's fields. */
     async of(
         context: Pick<MethodContext, "read"> & { readonly target: Rollout },
-    ): Promise<Rollout & { readonly installation: NamedInstallation }> {
+    ): Promise<InstallationRollout> {
         const [joined] = await Rollout.read({ read: (table) => context.read(table) }, [
             context.target,
         ]);
@@ -512,36 +474,41 @@ export const Rollout = {
         return present(joined, `the rollout ${context.target.id}`);
     },
 
-    /** List the installations selecting a matching repository reference, in one space or all. */
+    /** List the live installations with a matching selection, in one space or all. */
     async selecting(
         database: DatabaseConnection,
         spaceId: Identifier<"space"> | undefined,
-        matches: (selection: RepositorySelection) => boolean,
+        matches: (selection: InstallationSelection) => boolean,
     ): Promise<
         {
             readonly id: Identifier<"installation">;
             readonly scope: string;
-            readonly kind: Rollout["kind"];
-            readonly selection: RepositorySelection;
+            readonly packageId: PackageId;
+            readonly managerInstallationId: Identifier<"installation"> | null;
+            readonly selection: InstallationSelection;
         }[]
     > {
-        // read the live rollouts, of the space if given
-        const live = isNull(rollout.table.deletedAt);
+        // read the live rollouts with their installations' selections, of the space if given
+        const live = isNull(installation.table.deletedAt);
         const rows = await database
             .select({
                 id: rollout.table.id,
                 scope: rollout.table.scope,
-                kind: rollout.table.kind,
-                selection: rollout.table.selection,
+                packageId: installation.table.packageId,
+                managerInstallationId: installation.table.managerInstallationId,
+                selection: installation.table.selection,
             })
             .from(rollout.table)
+            .innerJoin(
+                installation.table,
+                and(
+                    eq(installation.table.id, rollout.table.id),
+                    eq(installation.table.scope, rollout.table.scope),
+                ),
+            )
             .where(spaceId === undefined ? live : and(eq(rollout.table.scope, spaceId), live));
 
-        return rows.flatMap((each) =>
-            each.selection.kind === "repository" && matches(each.selection)
-                ? [{ ...each, selection: each.selection }]
-                : [],
-        );
+        return rows.filter((each) => matches(each.selection));
     },
 
     /** Read the build a space's installation of a package follows from a store of builds. */
@@ -580,8 +547,10 @@ export const Rollout = {
     },
 
     /** Read the manifest of an installation's release selection, none for another selection. */
-    pinned(row: Pick<Rollout, "selection">): Digest | undefined {
-        return row.selection.kind === "release" ? row.selection.manifest : undefined;
+    pinned(installed: Pick<Installation, "selection">): Digest | undefined {
+        const { selection } = installed;
+
+        return selection.kind === "release" ? selection.manifest : undefined;
     },
 
     /** List the optional capabilities an installation allows: declared ones and requested ones. */
@@ -717,12 +686,7 @@ export const Rollout = {
 
             return row.servedRevisionId === served
                 ? []
-                : [
-                      Observation.call(rollout, row, {
-                          conditions: {},
-                          fields: { servedRevisionId: served },
-                      }),
-                  ];
+                : [rollout.call("update", { ...rollout.target(row), servedRevisionId: served })];
         });
         if (calls.length > 0) {
             const now = store.clock.now();
@@ -743,7 +707,7 @@ export const Rollout = {
     /** Upsert an installation's roles in its space and its space's grant, each as its caller. */
     async upsertAccess(
         context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         description: PackageDescription | undefined,
     ): Promise<void> {
         // make each change as its caller, with the code running the call as the actor
@@ -760,7 +724,7 @@ export const Rollout = {
     /** Build the calls upserting an installation's roles and space grant, with their callers. */
     async access(
         reader: Pick<Snapshot, "read">,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         description: PackageDescription | undefined,
         actor: RolloutActor,
     ): Promise<RolloutAccess[]> {
@@ -831,11 +795,11 @@ export const Rollout = {
     /** Build the calls relating a residency home's declared installation, or unrelating it. */
     async relate(
         reader: Pick<Snapshot, "read">,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         set: PermissionSet,
     ): Promise<Call[]> {
-        // relate only the declared installations, and only those of a residency's home
-        if (target.installation.origin !== "declared") {
+        // relate only the installations its stack manages, and only those of a residency's home
+        if (!Manager.isManaged(target.installation)) {
             return [];
         }
         const [homed] = await reader
@@ -847,8 +811,8 @@ export const Rollout = {
 
         // unrelate one asking for nothing there
         const at = residency.target({ scope: Scope.universe.id, id: homed.id });
-        const { id: installed, selection } = target;
-        const { name, packageId } = target.installation;
+        const { id: installed } = target;
+        const { name, packageId, selection } = target.installation;
         if ((set.universe ?? []).length === 0) {
             return [residency.call("revoke", { ...at, installation: installed, name })];
         }
@@ -944,7 +908,7 @@ export const Rollout = {
     async findServed(
         database: DatabaseConnection,
         id: Identifier<"installation">,
-    ): Promise<(Rollout & { readonly installation: NamedInstallation }) | undefined> {
+    ): Promise<InstallationRollout | undefined> {
         const [joined] = await database
             .select({ rollout: rollout.table, installation: installation.table })
             .from(rollout.table)
@@ -983,7 +947,7 @@ export const Rollout = {
     async requireServed(
         database: DatabaseConnection,
         installed: { readonly spaceId: string; readonly installation: string },
-    ): Promise<Rollout & { readonly installation: NamedInstallation }> {
+    ): Promise<InstallationRollout> {
         // take the installation served in the call's space, by its identifier or its name
         const id = await identify(database, installed);
         const served = id === undefined ? undefined : await Rollout.findServed(database, id);
@@ -1023,7 +987,7 @@ export const Rollout = {
         database: DatabaseConnection,
         spaceId: Identifier<"space">,
         name: string,
-    ): Promise<(Rollout & { readonly installation: NamedInstallation }) | undefined> {
+    ): Promise<InstallationRollout | undefined> {
         const [found] = await database
             .select({ rollout: rollout.table, installation: installation.table })
             .from(rollout.table)
@@ -1039,7 +1003,7 @@ export const Rollout = {
         spaceId: Identifier<"space">,
     ): Promise<
         {
-            rollout: Rollout & { readonly installation: NamedInstallation };
+            rollout: InstallationRollout;
             revision: InstallationRevision;
         }[]
     > {
@@ -1062,6 +1026,81 @@ export const Rollout = {
             rollout: Rollout.join(row.rollout, row.installation),
             revision: row.revision,
         }));
+    },
+
+    /** Target each installation's selected build in one transaction, described before it. */
+    async target(
+        reconciliation: ObjectReconciliation,
+        rows: readonly InstallationRollout[],
+        options: RevisionOptions,
+    ): Promise<void> {
+        // read the revisions the installations target and their builds
+        const { database, store } = reconciliation;
+        const snapshot = Snapshot.live(database);
+        const targetedIds = rows.flatMap((row) =>
+            row.revisionId === null ? [] : [row.revisionId],
+        );
+        const targeted = await snapshot
+            .read(installationRevision.table)
+            .findMany({ where: { id: { in: targetedIds } } });
+        const built = (
+            await snapshot
+                .read(build.table)
+                .findMany({ where: { id: { in: targeted.map((each) => each.buildId) } } })
+        ).map((each) => Build.of(each));
+
+        // describe the revision of each one whose target is not its selected build, before the transaction
+        const { crypto } = store.environment;
+        const changed: {
+            readonly row: InstallationRollout;
+            readonly selected: SelectedBuild;
+            readonly digest: Digest;
+            readonly described: Pick<InstallationRevision, "dependencies" | "states">;
+        }[] = [];
+        for (const row of rows) {
+            // leave one whose selected build is not built yet, or whose target is already it
+            const revision = targeted.find((each) => each.id === row.revisionId);
+            const current = built.find((each) => each.id === revision?.buildId);
+            const selected = await selectBuild(reconciliation, row, current, options);
+            if (selected === undefined) {
+                continue;
+            }
+            const digest = await InstallationRevision.digest(selected.manifest, undefined, crypto);
+            if (revision?.digest === digest) {
+                continue;
+            }
+
+            // describe its revision from its build
+            const reader = await options.builds.contents(selected.manifest);
+            const described = await InstallationRevision.describe(
+                row.installation,
+                reader,
+                store.objects,
+                options,
+            );
+            changed.push({ row, selected, digest, described });
+        }
+        if (changed.length === 0) {
+            return;
+        }
+
+        // record each missing revision and target each revision in one transaction
+        const calls: Call[] = [];
+        for (const { row, selected, digest, described } of changed) {
+            // retain the revision of the build once, and target it
+            const revisionId = await InstallationRevision.id(row.id, digest, crypto);
+            calls.push(
+                await InstallationRevision.create(
+                    row.installation,
+                    { id: selected.build, manifest: selected.manifest },
+                    described,
+                    undefined,
+                    crypto,
+                ),
+            );
+            calls.push(rollout.call("target", { ...rollout.target(row), revisionId }));
+        }
+        await reconciliation.mutate(calls);
     },
 };
 
@@ -1124,10 +1163,55 @@ export const InstallationRevision = {
         );
     },
 
+    /** Identify an installation's revision of a digest, the same everywhere, as git its objects. */
+    id(
+        installationId: Identifier<"installation">,
+        digest: Digest,
+        crypto: DigestCrypto,
+    ): Promise<Identifier<"installation-revision">> {
+        const name = `${installationId}/${digest}`;
+
+        return Identifier.hash("installation-revision", REVISION_NAMESPACE, name, crypto);
+    },
+
+    /** Describe a build's revision of an installation: its dependencies and required states. */
+    async describe(
+        target: Pick<Installation, "name" | "capabilities" | "allowed">,
+        reader: BuildReader,
+        objects: readonly ObjectType[],
+        options: Pick<RevisionOptions, "builds" | "registry" | "blobs">,
+    ): Promise<Pick<InstallationRevision, "dependencies" | "states">> {
+        // read the installable packages it depends on, at the releases it compiled against
+        const { builds, registry, blobs } = options;
+        const read = (dependency: PackageId, manifest: Digest) =>
+            builds.pull(registry, dependency, manifest);
+        const dependencies = await installableReleases(reader, read);
+
+        // describe the state each declaration requires: main's tables, an installation's pinned release, a resource's own
+        const required = new Map<string, JsonValue>();
+        const tables = await mainTables(target, reader, { dependencies }, objects, options);
+        if (tables !== undefined) {
+            required.set(MAIN_DATABASE, tables);
+        }
+        for (const [name, state] of await declaredStates(reader)) {
+            required.set(name, state);
+        }
+
+        // write each state as a blob, keyed by its declaration
+        const states = await Promise.all(
+            [...required].map(
+                async ([name, state]) => [name, await blobs.writeJson(state)] as const,
+            ),
+        );
+
+        return { dependencies, states: Object.fromEntries(states) };
+    },
+
     /** Describe the call that records a space's build and its stack evaluation as a revision. */
     async create(
         target: Pick<Installation, "id" | "scope" | "packageId">,
         evaluated: { readonly id: Identifier<"build">; readonly manifest: Digest },
+        described: Pick<InstallationRevision, "dependencies" | "states">,
         evaluation: Submission["evaluation"] | undefined,
         crypto: DigestCrypto,
     ) {
@@ -1136,6 +1220,8 @@ export const InstallationRevision = {
             installationId: target.id,
             packageId: target.packageId,
             buildId: evaluated.id,
+            dependencies: described.dependencies,
+            states: described.states,
             ...(evaluation === undefined ? {} : { definition: evaluation.definition }),
             digest: await InstallationRevision.digest(evaluated.manifest, evaluation, crypto),
         });
@@ -1144,7 +1230,7 @@ export const InstallationRevision = {
 
 /** Match the installations a machine launches: enabled, and their rollouts not being deleted. */
 function launchable(): SQL {
-    return and(eq(installation.table.status, "enabled"), isNull(rollout.table.deletedAt));
+    return and(eq(installation.table.status, "enabled"), isNull(installation.table.deletedAt));
 }
 
 /** Join a rollout's installation, which shares its identifier and scope. */
@@ -1185,4 +1271,222 @@ async function identify(
     else {
         return undefined;
     }
+}
+
+/** Resolve a selection to its build now, recording a pulled release, none until built. */
+async function selectBuild(
+    reconciliation: ObjectReconciliation,
+    row: InstallationRollout,
+    current: Build | undefined,
+    options: RevisionOptions,
+): Promise<SelectedBuild | undefined> {
+    // resolve a release or tag to its version, keeping the targeted release build of that version
+    const { selection, packageId } = row.installation;
+    const snapshot = Snapshot.live(reconciliation.database);
+    if (selection.kind === "release" || selection.kind === "tag") {
+        const version = await selectedVersion(reconciliation, row, current, options);
+        if (version === undefined) {
+            return undefined;
+        }
+        const source = current?.source;
+        if (source?.kind === "release" && source.version === version && current !== undefined) {
+            return { manifest: Build.manifest(current), source, build: current.id };
+        }
+
+        // pull the release and record it as the space's build once
+        const { builds, registry } = options;
+        const manifest =
+            selection.kind === "release" && selection.manifest !== undefined
+                ? selection.manifest
+                : await registry.find(packageId, version);
+        await builds.pull(registry, packageId, manifest);
+        const released = { kind: "release" as const, package: packageId, version, manifest };
+        const recorded = await Build.release(
+            snapshot,
+            (calls) => reconciliation.mutate(calls),
+            row.scope,
+            released,
+        );
+
+        return { build: recorded.id, manifest, source: released };
+    }
+    // take the succeeded build of the commit a repository reference points at
+    else if (selection.kind === "repository") {
+        const { forge } = options;
+        const commit =
+            forge === null
+                ? undefined
+                : await forge.commit(
+                      reconciliation.database,
+                      selection.repository,
+                      selection.reference,
+                  );
+        if (commit === undefined) {
+            return undefined;
+        }
+        const source = {
+            kind: "commit" as const,
+            repository: selection.repository,
+            commit,
+            directory: selection.directory,
+        };
+        const found = await Build.find(snapshot, row.scope, source);
+
+        return found?.state === "succeeded"
+            ? { manifest: Build.manifest(found), source, build: found.id }
+            : undefined;
+    }
+    // take the checkout's newest succeeded build
+    else {
+        const newest = (
+            await snapshot.read(build.table).findMany({
+                where: { scope: row.scope, state: "succeeded", expiredAt: { isNull: true } },
+            })
+        )
+            .map((entry) => Build.of(entry))
+            .filter(
+                (entry) =>
+                    entry.source.kind === "checkout" &&
+                    entry.source.machine === selection.machine &&
+                    entry.source.checkout === selection.checkout &&
+                    entry.source.directory === selection.directory,
+            )
+            .toSorted((left, right) => right.createdAt - left.createdAt)
+            .at(0);
+
+        return newest === undefined
+            ? undefined
+            : { manifest: Build.manifest(newest), source: newest.source, build: newest.id };
+    }
+}
+
+/** Read the version a release or tag selects now, none before a followed tag replicates. */
+async function selectedVersion(
+    reconciliation: ObjectReconciliation,
+    row: InstallationRollout,
+    current: Build | undefined,
+    options: RevisionOptions,
+): Promise<string | undefined> {
+    // take a release's version
+    const { selection, packageId } = row.installation;
+    const { forge, builds, registry } = options;
+    if (selection.kind === "release") {
+        return selection.version;
+    }
+    // take the version a tag points at in the forge's replica
+    else if (selection.kind === "tag" && forge !== null) {
+        return await forge.version(reconciliation.database, packageId, selection.tag);
+    }
+    // keep the targeted release of a tag on a machine following no forge
+    else if (selection.kind === "tag" && current?.source.kind === "release") {
+        return current.source.version;
+    }
+    // resolve a tag at the registry once, on a machine following no forge
+    else if (selection.kind === "tag") {
+        const manifest = await registry.find(packageId, selection.tag);
+
+        return (await builds.pull(registry, packageId, manifest)).manifest.package.version;
+    }
+    // follow nothing else here
+    else {
+        return undefined;
+    }
+}
+
+/** Describe the tables a build's types keep in the space's main database, none without types. */
+async function mainTables(
+    target: Pick<Installation, "name" | "capabilities" | "allowed">,
+    reader: BuildReader,
+    revision: Pick<InstallationRevision, "dependencies">,
+    objects: readonly ObjectType[],
+    options: Pick<RevisionOptions, "builds" | "registry">,
+): Promise<DatabaseState | undefined> {
+    // declare no tables for a package declaring no object types
+    const packageId = PackageManifest.package(reader.manifest).id;
+    const owned = ObjectDescription.installed(await reader.declarations());
+    if (owned.length === 0) {
+        return undefined;
+    }
+
+    // read the types the builds of the packages it needs declare, pulling none of a package the pool knows
+    const pooled = ObjectStore.known(objects, Object.values(accountPackage.objects));
+    const known = new Set(objects.map((type) => ObjectTypeReference.key(type.typeReference)));
+    const pooledPackages = new Set(pooled.map((type) => type.package.id));
+    const description = await PackageDescription.of(reader);
+    const needed = new Set(
+        Rollout.needed(target, revision, description).map((entry) => entry.package.id),
+    );
+    const depended = await Promise.all(
+        revision.dependencies
+            .filter(
+                (dependency) =>
+                    needed.has(dependency.package.id) && !pooledPackages.has(dependency.package.id),
+            )
+            .map(async (dependency) => {
+                const { id } = dependency.package;
+                const pulled = await options.builds.pull(options.registry, id, dependency.manifest);
+
+                return ObjectDescription.installed(await pulled.declarations());
+            }),
+    );
+    const unserved = depended.flat().filter((each) => !known.has(ObjectDescription.key(each)));
+
+    // declare the package's own types against the served ones and those of its dependencies
+    const declared = ObjectTypePool.of(pooled).declare([...unserved, ...owned]);
+
+    // describe its durable objects' tables, placing the other packages' they refer to
+    const others = objects.filter((type) => type.package.id !== packageId);
+    const tables = new Set(
+        [...others, ...declared]
+            .filter((type) => type.storage === "durable")
+            .flatMap((type) => type.tables),
+    );
+
+    return DatabaseState.of([...tables], { package: packageId });
+}
+
+/** Describe the state each resource declaration of a build requires of its target, by name. */
+async function declaredStates(reader: BuildReader): Promise<Map<string, JsonValue>> {
+    // read the build's resource declarations and its exact dependencies once an installation of another package is declared
+    const own = PackageManifest.package(reader.manifest);
+    const resources = (await reader.declarations())
+        .filter((declaration) => declaration.kind === RESOURCE_DECLARATION)
+        .map((declaration) =>
+            ResourceDescription.catchall(schema.json()).parse(declaration.description),
+        );
+    const callees = resources
+        .filter((resource) => resource.kind === InstallationKind.name)
+        .map((resource) => InstallationBindingSpec.parse(resource.spec).package);
+    const dependencies = callees.some((callee) => callee !== own.id)
+        ? Object.values(await reader.dependencies())
+        : [];
+
+    // pin an installation to the release of its package the reader compiled against, else take a resource's own state
+    const states = new Map<string, JsonValue>();
+    for (const { name, kind, spec, ...state } of resources) {
+        // pin an installation's callee release
+        if (kind === InstallationKind.name) {
+            const callee = InstallationBindingSpec.parse(spec).package;
+            const release =
+                callee === own.id
+                    ? own.version
+                    : dependencies.find(
+                          (entry) => "id" in entry.package && entry.package.id === callee,
+                      )?.package.version;
+            if (release === undefined) {
+                throw StackError.of(
+                    "DEFINITION_INVALID",
+                    `the reader binds installation ${name} of ${callee} without depending on it`,
+                );
+            }
+            const pinned: InstallationBindingState = { release: Version.parse(release) };
+            states.set(name, pinned);
+        }
+        // take the state another resource requires, none for a stateless one
+        else if (Object.keys(state).length > 0) {
+            states.set(name, state);
+        }
+    }
+
+    return states;
 }

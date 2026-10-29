@@ -78,6 +78,7 @@ test("retain each source's latest builds and every build a revision applies", as
                 installationId: ids.notes,
                 buildId: oldest,
                 dependencies: [],
+                states: {},
                 digest: Digest.parse("f".repeat(64)),
                 createdAt: now,
                 updatedAt: now,

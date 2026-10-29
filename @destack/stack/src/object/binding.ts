@@ -18,8 +18,6 @@ const boundFields = {
     target: field.string(),
     /** The other space of the target installation, null for this space. */
     targetSpaceId: field.string(schema.identifier("space")).optional(),
-    /** The state the declaration requires of the target, as a blob. */
-    state: field.blob(),
 };
 
 /** An installation's binding of a package declaration to a bindable object in the space. */
@@ -73,7 +71,6 @@ export const binding = defineObject(
     },
     (method) => ({
         create: method.create("record", { visibility: "package" }),
-        update: method.update("record", { visibility: "package", fields: ["state"] }),
         delete: method.delete("record", { visibility: "package" }),
         /** Delete a binding with the owned resource of its installation. */
         release: method.delete("record", { visibility: "package" }),

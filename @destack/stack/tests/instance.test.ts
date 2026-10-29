@@ -19,10 +19,11 @@ import {
     type DatabaseConnection,
     databaseProvider,
     DatabaseState,
+    and,
     eq,
     Expression,
     type LogPosition,
-    ne,
+    isNotNull,
     Snapshot,
 } from "@destack/db";
 import { Digest, nth, Identifier, present, schema } from "@destack/schema";
@@ -50,7 +51,9 @@ import type { BuildReader } from "@destack/package/manifest";
 import * as object from "../src/object/index.ts";
 import * as accountObject from "@destack/account/object";
 import { Approval, serveSpace, type SpaceOptions } from "../src/server/index.ts";
+import { Rollout } from "../src/object/index.ts";
 import {
+    readInstalled,
     fixtureBuild,
     fixtureOutputs,
     ids,
@@ -267,6 +270,14 @@ async function submitRevision(
     const now = fixture.machine.clock.now();
     const reader = build ?? (await notesBuild([main], fixture.environment.crypto));
     const built = await fixture.recordBuild(reader);
+    const [installed] = await database
+        .select()
+        .from(installation.table)
+        .where(eq(installation.table.id, installationId));
+    const described = await fixture.describeRevision(
+        present(installed, `installation ${installationId}`),
+        reader,
+    );
     const revision = nth(
         await database.transaction(
             async (transaction) =>
@@ -279,7 +290,7 @@ async function submitRevision(
                         id: Identifier.create("installation-revision", fixture.machine.environment),
                         installationId,
                         buildId: built.build,
-                        dependencies: [],
+                        ...described,
                         digest: Digest.parse(character.repeat(64)),
                     })
                     .returning(),
@@ -385,9 +396,7 @@ async function serveControllers(
         uninstall: (id: Identifier<"installation">) =>
             store.mutate(store.as(object.rollout), {
                 id: RequestId.create(fixture.machine.environment),
-                calls: [
-                    object.rollout.call("delete", object.rollout.target({ scope: ids.space, id })),
-                ],
+                calls: [installation.call("delete", installation.target({ scope: ids.space, id }))],
             }),
     };
 }
@@ -395,9 +404,9 @@ async function serveControllers(
 /** Read an installation's ready condition as its reason and message. */
 async function readiness(database: DatabaseConnection, id: Identifier<"installation">) {
     const [row] = await database
-        .select({ conditions: object.rollout.table.conditions })
-        .from(object.rollout.table)
-        .where(eq(object.rollout.table.id, id));
+        .select({ conditions: installation.table.conditions })
+        .from(installation.table)
+        .where(eq(installation.table.id, id));
     const condition = present(row, "the installation").conditions["Ready"];
 
     return [condition?.reason, condition?.message];
@@ -410,12 +419,16 @@ async function approvePlan(
     id: Identifier<"installation">,
 ) {
     // read the plan the installation waits on
-    const target = nth(
+    const [target] = await Rollout.read(
+        Snapshot.live(database),
         await database.select().from(object.rollout.table).where(eq(object.rollout.table.id, id)),
-        0,
     );
     const resources = [object.database, object.dependency];
-    const approval = await Approval.of(Snapshot.live(database), resources, target);
+    const approval = await Approval.of(
+        Snapshot.live(database),
+        resources,
+        present(target, "the installation's rollout"),
+    );
     const digest = await Plan.digest(approval.plan(), database.state.environment.crypto);
 
     // approve it as the system
@@ -423,7 +436,7 @@ async function approvePlan(
         id: RequestId.create(store.environment),
         calls: [
             object.rollout.call("approve", {
-                ...object.rollout.target(target),
+                ...object.rollout.target(present(target, "the installation's rollout")),
                 plan: digest,
             }),
         ],
@@ -445,13 +458,7 @@ test("deploy each workload with its bound resources, and drain and retire it onc
     const deployed = await database.select().from(object.deployment.table);
     await instances.reconcile(nth(deployed, 0).id);
     const running = nth(await database.select().from(object.instance.table), 0);
-    const installed = nth(
-        await database
-            .select()
-            .from(object.rollout.table)
-            .where(eq(object.rollout.table.id, notes.id)),
-        0,
-    );
+    const installed = await readInstalled(database, notes.id);
     const captured = await database
         .select({ name: object.capture.table.name })
         .from(object.capture.table);
@@ -500,7 +507,7 @@ test("deploy each workload with its bound resources, and drain and retire it onc
     ]);
 });
 
-test("bind an application's tables to the space's main database, start its instance once main applies them, and retain them for approval once it uninstalls", async () => {
+test("apply an application's tables from its revision to the space's main database, start its instance once main applies them, and retain them for approval once it uninstalls", async () => {
     // install notes without a stack and deploy it
     const fixture = await TestSpace.open();
     const { database } = fixture;
@@ -510,21 +517,18 @@ test("bind an application's tables to the space's main database, start its insta
 
     // activate nothing while the space does not serve the revision, main not applying its tables yet
     const mainDatabase = nth(await database.select().from(object.database.table), 0);
-    const [waiting] = await database
-        .select()
-        .from(object.rollout.table)
-        .where(eq(object.rollout.table.id, notes.id));
+    const waiting = await readInstalled(database, notes.id);
     expect({
         started: runtime.started.length,
         deployments: await database.select().from(object.deployment.table),
-        ready: [waiting?.conditions["Ready"]?.reason, waiting?.conditions["Ready"]?.message],
+        ready: [
+            waiting.installation.conditions["Ready"]?.reason,
+            waiting.installation.conditions["Ready"]?.message,
+        ],
     }).toEqual({
         started: 0,
         deployments: [],
-        ready: [
-            "WaitingForSpace",
-            `waiting for the space to serve revision ${waiting?.revisionId}`,
-        ],
+        ready: ["WaitingForSpace", `waiting for the space to serve revision ${waiting.revisionId}`],
     });
 
     // provision and apply main, deploy once the space serves the bound revision, and start the instance
@@ -534,18 +538,26 @@ test("bind an application's tables to the space's main database, start its insta
     await instances.settle(provisioned);
     const deployed = nth(await database.select().from(object.deployment.table), 0);
     const applied = nth(await database.select().from(object.database.table), 0);
-    const attached = nth(await database.select().from(object.binding.table), 0);
+    const captured = nth(await database.select().from(object.capture.table), 0);
     const running = nth(await database.select().from(object.instance.table), 0);
-    const bound = DatabaseState.parse(await fixture.blobs.readJson(attached.state));
+    const [revision] = await database
+        .select({ states: object.installationRevision.table.states })
+        .from(object.installationRevision.table)
+        .where(eq(object.installationRevision.table.id, deployed.revisionId));
+    const required = present(
+        present(revision, "the deployed revision").states["main"],
+        "main's tables",
+    );
+    const bound = DatabaseState.parse(await fixture.blobs.readJson(required));
     expect({
         main: [applied.name, applied.ownerId, applied.conditions["Ready"]?.reason],
-        binding: [attached.installationId, attached.name, attached.target],
+        capture: [captured.deploymentId, captured.name, captured.target],
         tables: bound.tables.sqlite.map((state) => state.table.name),
         instance: [running.deploymentId, running.status],
         resources: present(runtime.started.at(-1), "the started run").resources,
     }).toEqual({
         main: ["main", null, "Applied"],
-        binding: [notes.id, "main", mainDatabase.id],
+        capture: [deployed.id, "main", mainDatabase.id],
         tables: ["example__notes__note"],
         instance: [deployed.id, "running"],
         resources: [],
@@ -555,9 +567,9 @@ test("bind an application's tables to the space's main database, start its insta
     await database.transaction(
         async (transaction) =>
             await transaction
-                .update(object.rollout.table)
+                .update(installation.table)
                 .set({ deletedAt: fixture.machine.clock.now() })
-                .where(eq(object.rollout.table.id, notes.id)),
+                .where(eq(installation.table.id, notes.id)),
     );
     await deployments.reconcile(notes.id);
     await instances.reconcile(deployed.id);
@@ -568,7 +580,7 @@ test("bind an application's tables to the space's main database, start its insta
     const remaining = await database
         .select({ name: installation.table.name })
         .from(installation.table)
-        .where(ne(installation.table.origin, "base"))
+        .where(isNotNull(installation.table.name))
         .orderBy(installation.table.name);
     expect({
         installations: remaining,
@@ -721,13 +733,7 @@ test("deploy a submitted revision next to the previous one, serve the previous o
         .select()
         .from(object.instance.table)
         .orderBy(object.instance.table.createdAt, object.instance.table.id);
-    const installed = nth(
-        await database
-            .select()
-            .from(object.rollout.table)
-            .where(eq(object.rollout.table.id, notes.id)),
-        0,
-    );
+    const installed = await readInstalled(database, notes.id);
     // serve the first revision until its replacement runs
     expect({
         serving: serving.status,
@@ -777,26 +783,36 @@ test("redeploy the revision an application follows once the outputs its machine 
 });
 
 test("redeploy an application once a binding its deployment captured targets another resource", async () => {
-    // deploy notes with the database of its installation
+    // deploy notes with the bucket it owns for its files
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    const notes = await installNotes(fixture);
+    const files: Declared = {
+        definer: objectPackage,
+        name: "files",
+        description: { name: "files", kind: "bucket", spec: {} },
+    };
+    const notes = await installNotes(
+        fixture,
+        ids.notes,
+        await notesBuild([main, files], fixture.environment.crypto),
+    );
     const { deployments, resources } = await serveControllers(fixture);
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const owned = nth(await database.select().from(object.database.table), 0);
+    await deployments.reconcile(notes.id);
+    const owned = nth(await database.select().from(object.bucket.table), 0);
 
-    // rebind main a millisecond later to a second database of the same declaration
+    // rebind the files a millisecond later to a second bucket of the same declaration
     await fixture.simulation.run({ to: fixture.simulation.clock.now() + 1 });
     const now = fixture.machine.clock.now();
     const second = nth(
         await database.transaction(
             async (transaction) =>
                 await transaction
-                    .insert(object.database.table)
+                    .insert(object.bucket.table)
                     .values({
                         ...owned,
-                        id: Identifier.create("database", fixture.environment),
+                        id: Identifier.create("bucket", fixture.environment),
                         name: "notes.archive",
                         ...ObjectReference.columns("owner", undefined),
                         createdAt: now,
@@ -811,7 +827,12 @@ test("redeploy an application once a binding its deployment captured targets ano
             await transaction
                 .update(object.binding.table)
                 .set({ target: second.id })
-                .where(eq(object.binding.table.installationId, notes.id)),
+                .where(
+                    and(
+                        eq(object.binding.table.installationId, notes.id),
+                        eq(object.binding.table.name, "files"),
+                    ),
+                ),
     );
 
     // deploy again with the new target and drain the deployment that captured the old one
@@ -823,6 +844,7 @@ test("redeploy an application once a binding its deployment captured targets ano
     const captured = await database
         .select()
         .from(object.capture.table)
+        .where(eq(object.capture.table.name, "files"))
         .orderBy(object.capture.table.createdAt, object.capture.table.id);
     expect({
         deployments: deployed.map((entry) => entry.status),
@@ -851,16 +873,10 @@ test("deploy nothing of a build whose workloads have no output on a runtime the 
 
     // deploy it on a workerd machine
     await deployments.reconcile(notes.id);
-    const installed = nth(
-        await database
-            .select()
-            .from(object.rollout.table)
-            .where(eq(object.rollout.table.id, notes.id)),
-        0,
-    );
+    const installed = await readInstalled(database, notes.id);
     expect({
         deployments: await database.select().from(object.deployment.table),
-        ready: installed.conditions["Ready"],
+        ready: installed.installation.conditions["Ready"],
         applied: installed.appliedRevisionId,
     }).toEqual({
         deployments: [],
@@ -868,8 +884,8 @@ test("deploy nothing of a build whose workloads have no output on a runtime the 
             status: "false",
             reason: "NoRuntime",
             message: "workloads main have no output on workerd",
-            observedGeneration: installed.generation,
-            lastTransitionAt: installed.conditions["Ready"]?.lastTransitionAt,
+            observedGeneration: installed.installation.generation,
+            lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
         },
         applied: null,
     });
@@ -893,16 +909,10 @@ test("deploy nothing of a build declaring its own database, and report why", asy
 
     // deploy it
     await deployments.reconcile(notes.id);
-    const installed = nth(
-        await database
-            .select()
-            .from(object.rollout.table)
-            .where(eq(object.rollout.table.id, notes.id)),
-        0,
-    );
+    const installed = await readInstalled(database, notes.id);
     expect({
         deployments: await database.select().from(object.deployment.table),
-        ready: installed.conditions["Ready"],
+        ready: installed.installation.conditions["Ready"],
         applied: installed.appliedRevisionId,
     }).toEqual({
         deployments: [],
@@ -910,8 +920,8 @@ test("deploy nothing of a build declaring its own database, and report why", asy
             status: "false",
             reason: "DeclaredDatabase",
             message: `${ids.package} declares the databases archive: the space's main database keeps every installation's tables`,
-            observedGeneration: installed.generation,
-            lastTransitionAt: installed.conditions["Ready"]?.lastTransitionAt,
+            observedGeneration: installed.installation.generation,
+            lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
         },
         applied: null,
     });
@@ -947,24 +957,18 @@ test("deploy nothing of a build routing hooks without serving them, and report w
 
     // deploy it
     await deployments.reconcile(notes.id);
-    const installed = nth(
-        await database
-            .select()
-            .from(object.rollout.table)
-            .where(eq(object.rollout.table.id, notes.id)),
-        0,
-    );
+    const installed = await readInstalled(database, notes.id);
     expect({
         deployments: await database.select().from(object.deployment.table),
-        ready: installed.conditions["Ready"],
+        ready: installed.installation.conditions["Ready"],
     }).toEqual({
         deployments: [],
         ready: {
             status: "false",
             reason: "NoHooks",
             message: `${notesPackage.name} routes hooks, but nothing serves them: declare @destack/stack`,
-            observedGeneration: installed.generation,
-            lastTransitionAt: installed.conditions["Ready"]?.lastTransitionAt,
+            observedGeneration: installed.installation.generation,
+            lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
         },
     });
 });
@@ -1121,9 +1125,9 @@ test("refuse to deploy an installation binding without an address, then run the 
     const condition = async () =>
         nth(
             await database
-                .select({ conditions: object.rollout.table.conditions })
-                .from(object.rollout.table)
-                .where(eq(object.rollout.table.id, notes.id)),
+                .select({ conditions: installation.table.conditions })
+                .from(installation.table)
+                .where(eq(installation.table.id, notes.id)),
             0,
         ).conditions["Ready"];
     const refused = await condition();
@@ -1147,7 +1151,6 @@ test("refuse to deploy an installation binding without an address, then run the 
     await database.transaction(
         async (transaction) => await transaction.insert(object.dependency.table).values(declared),
     );
-    const tasksState = await fixture.blobs.writeJson({});
     await database.transaction(
         async (transaction) =>
             await transaction.insert(object.binding.table).values({
@@ -1159,7 +1162,6 @@ test("refuse to deploy an installation binding without an address, then run the 
                 packageId: ids.package,
                 name: "tasks",
                 target: declared.id,
-                state: tasksState,
             }),
     );
 
@@ -1207,7 +1209,6 @@ test("bind a workload to an installation another space grants", async () => {
     const acme = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
     const board = "board";
     const now = fixture.machine.clock.now();
-    const boardState = await fixture.blobs.writeJson({});
     await database.transaction(
         async (transaction) =>
             await transaction.insert(object.binding.table).values({
@@ -1222,7 +1223,6 @@ test("bind a workload to an installation another space grants", async () => {
                 name: "tasks",
                 target: board,
                 targetSpaceId: acme,
-                state: boardState,
             }),
     );
 
@@ -1351,7 +1351,7 @@ test("recreate over a draining release whose values a conversion narrows: stop i
     const original = nth(await database.select().from(object.deployment.table), 0);
     await instances.reconcile(original.id);
 
-    // deploy the narrowing revision next to it a millisecond later, and plan a recreation that waits for approval
+    // follow the narrowing revision a millisecond later, and plan a recreation that waits for approval
     await fixture.simulation.run({ to: fixture.simulation.clock.now() + 1 });
     declared = [narrowed];
     const second = await submitRevision(
@@ -1387,6 +1387,9 @@ test("recreate over a draining release whose values a conversion narrows: stop i
     await instances.reconcile(original.id);
     await resources.reconcile(ids.space);
     const converted = await read();
+
+    // deploy the replacement once main applied its converted tables
+    await deployments.reconcile(notes.id);
     const replacement = nth(
         await database
             .select()
@@ -1460,6 +1463,21 @@ test("serve a release while a caller is pinned to it, and retire it once the cal
         provider: "http",
         reference: "notes",
     };
+    const [built] = await database
+        .select({ buildId: object.installationRevision.table.buildId })
+        .from(object.installationRevision.table)
+        .where(eq(object.installationRevision.table.id, first.revisionId));
+    const pinned = {
+        ...record,
+        id: schema
+            .identifier("installation-revision")
+            .parse("installation-revision-01996ab0-0000-7000-8000-000000000034"),
+        installationId: first.installationId,
+        buildId: present(built, "the first revision").buildId,
+        dependencies: [],
+        states: { notes: await fixture.blobs.writeJson({ release: "2026.9.0" }) },
+        digest: Digest.parse("c".repeat(64)),
+    };
     const caller = {
         ...record,
         id: schema
@@ -1467,7 +1485,7 @@ test("serve a release while a caller is pinned to it, and retire it once the cal
             .parse("deployment-01996ab0-0000-7000-8000-000000000032"),
         installationId: first.installationId,
         packageId: ids.package,
-        revisionId: first.revisionId,
+        revisionId: pinned.id,
         output: "server",
         workload: "caller",
         runtime: "bun" as const,
@@ -1479,10 +1497,10 @@ test("serve a release while a caller is pinned to it, and retire it once the cal
     await database.transaction(
         async (transaction) => await transaction.insert(object.dependency.table).values(dependency),
     );
-    await database.transaction(
-        async (transaction) => await transaction.insert(object.deployment.table).values(caller),
-    );
-    const pinState = await fixture.blobs.writeJson({ release: "2026.9.0" });
+    await database.transaction(async (transaction) => {
+        await transaction.insert(object.installationRevision.table).values(pinned);
+        await transaction.insert(object.deployment.table).values(caller);
+    });
     await database.transaction(
         async (transaction) =>
             await transaction.insert(object.capture.table).values({
@@ -1495,7 +1513,6 @@ test("serve a release while a caller is pinned to it, and retire it once the cal
                 name: "notes",
                 target: dependency.id,
                 version: 1,
-                state: pinState,
             }),
     );
 
@@ -1611,9 +1628,9 @@ test("grant an applied application exactly the space permissions its package req
     await database.transaction(
         async (transaction) =>
             await transaction
-                .update(object.rollout.table)
+                .update(installation.table)
                 .set({ deletedAt: fixture.machine.clock.now() })
-                .where(eq(object.rollout.table.id, notes.id)),
+                .where(eq(installation.table.id, notes.id)),
     );
     await deployments.reconcile(notes.id);
     await instances.reconcile(deployed.id);

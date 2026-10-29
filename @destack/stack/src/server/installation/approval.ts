@@ -1,6 +1,7 @@
 import { space } from "@destack/account/object";
 import type { Snapshot } from "@destack/db";
 import {
+    installation,
     MethodContext,
     type ObservationReport,
     type ResourceType,
@@ -11,18 +12,25 @@ import { principal } from "@destack/access";
 import { ObjectReference } from "@destack/sync";
 import type { Crypto } from "@destack/environment";
 import { canonicalize, present, schema } from "@destack/schema";
-import { binding, rollout, type Rollout } from "../../object/index.ts";
+import { MAIN_DATABASE } from "../../declare/index.ts";
+import {
+    binding,
+    Database,
+    installationRevision,
+    type InstallationRollout,
+    Rollout,
+} from "../../object/index.ts";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../../error/index.ts";
 
 /** One waiting plan and the object accepting it. */
 type PendingPlan =
     | {
-          /** A rollout's own plan. */
-          readonly kind: "rollout";
-          /** The rollout accepting its own plan. */
-          readonly object: typeof rollout;
-          /** The rollout. */
+          /** An installation's own plan. */
+          readonly kind: "installation";
+          /** The installation accepting its own plan. */
+          readonly object: typeof installation;
+          /** The installation. */
           readonly id: string;
           /** The plan as its controller planned it. */
           readonly plan: Plan;
@@ -54,13 +62,13 @@ export class Approval {
     static async of(
         view: Pick<Snapshot, "read">,
         resources: readonly ResourceType<typeof space>[],
-        target: Rollout,
+        target: InstallationRollout,
     ): Promise<Approval> {
         // walk the installation and those it manages and take each resource's plan once
         const waiting: PendingPlan[] = [];
         const seen = new Set<string>();
         const walked = new Set<string>();
-        const queue: Rollout[] = [target];
+        const queue: InstallationRollout[] = [target];
         for (const entry of queue) {
             // refuse a manager cycle, which the managed installations' tree forbids
             if (walked.has(entry.id)) {
@@ -69,13 +77,11 @@ export class Approval {
             walked.add(entry.id);
 
             // take its own waiting plan
-            if (entry.plan !== null && entry.conditions["Ready"]?.reason === "AwaitingApproval") {
-                waiting.push({
-                    kind: "rollout",
-                    object: rollout,
-                    id: entry.id,
-                    plan: entry.plan,
-                });
+            const installed = entry.installation;
+            const isAwaiting = installed.conditions["Ready"]?.reason === "AwaitingApproval";
+            if (installed.plan !== null && isAwaiting) {
+                const { plan } = installed;
+                waiting.push({ kind: "installation", object: installation, id: entry.id, plan });
             }
 
             // take the waiting plans of its managed, owned or bound resources
@@ -89,15 +95,11 @@ export class Approval {
                 }
             }
 
-            // queue the rollouts it manages
-            queue.push(
-                ...(await view.read(rollout.table).findMany({
-                    where: {
-                        scope: entry.scope,
-                        managerInstallationId: entry.id,
-                    },
-                })),
-            );
+            // queue the installations it manages
+            const managed = await view.read(installation.table).findMany({
+                where: { scope: entry.scope, managerInstallationId: entry.id },
+            });
+            queue.push(...(await Rollout.installed(view, managed)));
         }
 
         return new Approval(waiting);
@@ -166,7 +168,7 @@ export class Approval {
     /** Describe an installation's own plan waiting for approval. */
     static async waiting(
         snapshot: Pick<Snapshot, "read">,
-        target: Rollout,
+        target: InstallationRollout,
         plan: Plan,
         crypto: Pick<Crypto, "digest">,
     ): Promise<ObservationReport | undefined> {
@@ -178,7 +180,7 @@ export class Approval {
         const digest = await Plan.digest(plan, crypto);
         if (
             !Plan.isAtLeast(plan, scoped.approval) ||
-            target.approvedPlan === digest ||
+            target.installation.approvedPlan === digest ||
             (await Approval.#isResumed(target, plan, crypto))
         ) {
             return undefined;
@@ -195,13 +197,13 @@ export class Approval {
 
     /** Decide whether a plan resumes an approved plan of the installation, each step approved. */
     static async #isResumed(
-        target: Rollout,
+        target: InstallationRollout,
         plan: Plan,
         crypto: Pick<Crypto, "digest">,
     ): Promise<boolean> {
         // require the stored plan to be the approved one
-        const kept = target.plan;
-        if (kept === null || target.approvedPlan !== (await Plan.digest(kept, crypto))) {
+        const { plan: kept, approvedPlan } = target.installation;
+        if (kept === null || approvedPlan !== (await Plan.digest(kept, crypto))) {
             return false;
         }
 
@@ -212,7 +214,7 @@ export class Approval {
     }
 }
 
-/** Read the managed, owned or bound resources of every kind of an installation. */
+/** Read the resources an installation manages, owns or binds, main when it keeps tables there. */
 async function readResources(
     view: Pick<Snapshot, "read">,
     resources: readonly ResourceType<typeof space>[],
@@ -225,7 +227,20 @@ async function readResources(
             installationId: target.id,
         },
     });
-    const targets = bound.map((entry) => entry.target);
+    const revision =
+        target.revisionId === null
+            ? undefined
+            : await view
+                  .read(installationRevision.table)
+                  .findFirst({ where: { id: target.revisionId } });
+    const main =
+        revision?.states[MAIN_DATABASE] === undefined
+            ? undefined
+            : await Database.mainMaybe(view, schema.identifier("space").parse(target.scope));
+    const targets = [
+        ...bound.map((entry) => entry.target),
+        ...(main === undefined ? [] : [main.id]),
+    ];
 
     // read each kind's managed, owned or bound resources in name order
     const found: { readonly object: ResourceType<typeof space>; readonly row: Resource }[] = [];

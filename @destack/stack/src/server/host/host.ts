@@ -54,7 +54,7 @@ import {
     InstallationRevision,
     Rollout,
     rollout,
-    type NamedInstallation,
+    type InstallationRollout,
 } from "../../object/index.ts";
 import type { ServedBindable } from "../resource/binding.ts";
 import type { ServedProvider, SpaceProvider } from "../resource/resource.ts";
@@ -142,7 +142,7 @@ export interface SpaceStart {
     readonly egress: (caller: EgressCaller, request: Request) => Promise<Response>;
     /** Run the hooks of an installation whose package the machine ships no server of. */
     readonly sandbox: (
-        row: Rollout & { readonly installation: NamedInstallation },
+        row: InstallationRollout,
         server: InstalledServerContext,
         declarations: readonly graph.Declaration[],
     ) => HookSandbox;
@@ -440,7 +440,7 @@ export class SpaceHost {
 
     /** Activate an installation once it applied its revision and has any grant it borrows by. */
     async #activate(
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         revisionId: Identifier<"installation-revision">,
         isLent: boolean,
         signal: AbortSignal,
@@ -455,7 +455,7 @@ export class SpaceHost {
 
     /** Wait until an installation applied a revision and the grant it borrows by arrived. */
     async #applied(
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         revisionId: Identifier<"installation-revision">,
         isLent: boolean,
         signal: AbortSignal,
@@ -480,10 +480,7 @@ export class SpaceHost {
     }
 
     /** Find the server the machine ships for an installation, refusing an unshipped release. */
-    #shipped(
-        row: Rollout & { readonly installation: NamedInstallation },
-        manifest: Digest,
-    ): PackageImplementation | undefined {
+    #shipped(row: InstallationRollout, manifest: Digest): PackageImplementation | undefined {
         // find the server the machine runs for the installation's package
         const { servers, bundled } = this.machine;
         const server = servers.find((each) => each.package.id === row.installation.packageId);
@@ -508,7 +505,7 @@ export class SpaceHost {
 
     /** Bind a package's declared resources and secrets to the host's clients for it. */
     async #resources(
-        row: Rollout & { readonly installation: NamedInstallation },
+        row: InstallationRollout,
         handle: Pick<PackageHandle, "resources" | "secrets">,
         start: SpaceStart,
         caller: () => Promise<EgressCaller>,
@@ -530,7 +527,7 @@ export class SpaceHost {
 
     /** Open a declaration an installation binds in this process, through what opens its kind. */
     async #open(
-        row: Rollout & { readonly installation: NamedInstallation },
+        row: InstallationRollout,
         declaration: ResourceDeclaration<unknown>,
         start: SpaceStart,
         caller: () => Promise<EgressCaller>,
@@ -636,7 +633,7 @@ export class SpaceHost {
 
     /** Build an installation's in-store caller once per start, at its first call. */
     #callerOnce(
-        row: Rollout & { readonly installation: NamedInstallation },
+        row: InstallationRollout,
         handle: Pick<PackageHandle, "resources">,
         start: SpaceStart,
     ): () => Promise<EgressCaller> {
@@ -647,7 +644,7 @@ export class SpaceHost {
 
     /** Read an in-store installation as its egress's caller, with what it binds. */
     async #caller(
-        row: Rollout & { readonly installation: NamedInstallation },
+        row: InstallationRollout,
         handle: Pick<PackageHandle, "resources">,
         start: SpaceStart,
     ): Promise<EgressCaller> {
@@ -734,7 +731,7 @@ export class SpaceHost {
 
     /** Connect a resource where its provider placed it, through the machine's connector for it. */
     async #connect(
-        row: Rollout & { readonly installation: NamedInstallation },
+        row: InstallationRollout,
         declaration: ResourceDeclaration<unknown>,
         provider: SpaceProvider,
         target: string,
@@ -773,7 +770,7 @@ export class SpaceHost {
 
     /** Describe an installation to its code serving in the store, calling the platform as it. */
     async #context(
-        row: Rollout & { readonly installation: NamedInstallation },
+        row: InstallationRollout,
         revisionId: Identifier<"installation-revision">,
         resources: ResourceContext,
         start: SpaceStart,
@@ -820,7 +817,6 @@ export class SpaceHost {
             machine.environment;
 
         return {
-            origin: named.origin,
             installation: id,
             name: named.name,
             scope,

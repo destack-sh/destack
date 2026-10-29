@@ -1,3 +1,4 @@
+import { schema } from "@destack/schema";
 import { AccessContext, Caller, Permission, principal } from "@destack/access";
 import { account, residency, space, user } from "@destack/account/object";
 import { Snapshot, Table } from "@destack/db";
@@ -100,9 +101,7 @@ test("bind an installation's requests on other packages' types on its consenter'
             // grant the account-scoped request and the universe-scoped one in every scope as the space
             { caller: delegator, calls: [lent] },
         ],
-        removed: [
-            { caller: consenter, calls: [binding([])] },
-        ],
+        removed: [{ caller: consenter, calls: [binding([])] }],
     });
 });
 
@@ -125,7 +124,11 @@ test("relate a residency home's declared installation for its universe-scoped re
     const snapshot = Snapshot.live(database);
     const rows = await snapshot.read(rollout.table).findMany({ where: { id: ids.notes } });
     const read = nth(await Rollout.read(snapshot, rows), 0);
-    const target = { ...read, installation: { ...read.installation, origin: "declared" as const } };
+    const stack = schema
+        .identifier("installation")
+        .parse("installation-01996ab0-0000-7000-8000-00000000000d");
+    const managed = { ...read.installation, managerInstallationId: stack };
+    const target = { ...read, installation: managed };
 
     // relate it while it asks for the universe's permissions, and unrelate it once it goes
     const set = { universe: [user.permission("recipient")] };

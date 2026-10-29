@@ -9,15 +9,16 @@ import {
     type DatabaseConnection,
     type Table,
     Transaction,
+    isNotNull,
     isNull,
 } from "@destack/db";
-import { Installation } from "@destack/object";
+import { Installation, installation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { SPACE_KERNEL } from "../server.ts";
 import { Digest, type Identifier, type JsonObject, present } from "@destack/schema";
 import type { ReconcileController } from "@destack/db";
 import { Scope, RequestId } from "@destack/sync";
-import { database, rollout, type Rollout, SPACE_PROVIDER } from "../../object/index.ts";
+import { database, rollout, SPACE_PROVIDER } from "../../object/index.ts";
 import { BuildStore, type Registry } from "../installation/build.ts";
 import type { PackageId } from "@destack/package";
 
@@ -117,9 +118,13 @@ export class PlacementController implements ReconcileController {
                 ),
             )
             .leftJoin(
-                rollout.table,
-                and(eq(rollout.table.scope, placement.table.id), eq(rollout.table.kind, "stack")),
+                installation.table,
+                and(
+                    eq(installation.table.scope, placement.table.id),
+                    isNotNull(installation.table.export),
+                ),
             )
+            .leftJoin(rollout.table, eq(rollout.table.id, installation.table.id))
             .where(
                 and(
                     eq(placement.table.id, this.#space),
@@ -186,16 +191,24 @@ export class PlacementController implements ReconcileController {
 
         // submit the space's stack once it changed since its last submission
         const [received] = await this.#database
-            .select({ stack: space.table.stack, installed: rollout.table })
+            .select({
+                stack: space.table.stack,
+                installed: installation.table.id,
+                submitted: rollout.table.spaceStack,
+            })
             .from(space.table)
             .leftJoin(
-                rollout.table,
-                and(eq(rollout.table.scope, space.table.id), eq(rollout.table.kind, "stack")),
+                installation.table,
+                and(
+                    eq(installation.table.scope, space.table.id),
+                    isNotNull(installation.table.export),
+                ),
             )
+            .leftJoin(rollout.table, eq(rollout.table.id, installation.table.id))
             .where(eq(space.table.id, spaceId));
-        const { stack, installed } = present(received, `the row of ${spaceId}`);
+        const { stack, installed, submitted } = present(received, `the row of ${spaceId}`);
         const digest = await Digest.json(stack, this.#database.state.environment.crypto);
-        if (digest !== installed?.spaceStack) {
+        if (digest !== submitted) {
             await this.#install(spaceId, stack, digest, installed);
         }
 
@@ -266,7 +279,7 @@ export class PlacementController implements ReconcileController {
         spaceId: Identifier<"space">,
         stack: StackSource,
         digest: Digest,
-        installed: Rollout | null,
+        installed: Identifier<"installation"> | null,
     ): Promise<void> {
         // read the space the stack declares at its pinned build
         const { package: stacked, manifest } = stack;
@@ -280,10 +293,9 @@ export class PlacementController implements ReconcileController {
                 ? await this.#store.mutate(this.#store.as(rollout), {
                       id: RequestId.create(this.#store.environment),
                       calls: [
-                          rollout.call("create", {
-                              ...rollout.in(spaceId),
+                          installation.call("create", {
+                              ...installation.in(spaceId),
                               packageId: stacked.id,
-                              kind: "stack",
                               selection,
                               export: stack.export,
                               parameters: {},
@@ -291,14 +303,17 @@ export class PlacementController implements ReconcileController {
                           }),
                       ],
                   })
-                : [installed];
+                : [{ id: installed }];
 
         // submit its pinned build in a mutation of its own, whose preparation reads the created stack
         await this.#store.mutate(this.#store.as(rollout), {
             id: RequestId.create(this.#store.environment),
             calls: [
                 rollout.call("submit", {
-                    ...rollout.target(present(created, `the stack of ${spaceId}`)),
+                    ...rollout.target({
+                        scope: spaceId,
+                        id: present(created, `the stack of ${spaceId}`).id,
+                    }),
                     selection,
                     build,
                     evaluation: { export: stack.export, parameters: {}, definition },

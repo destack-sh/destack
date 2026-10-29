@@ -47,8 +47,8 @@ function control(options: Parameters<typeof implementSpace>[0]): ObjectControlle
         watches: [
             ...Scheduler.watches,
             ...(isEnforcingEntitlements ? Entitlement.watches() : []),
-            // look again at a deleting space as each of its deleting rollouts changes
-            ObjectWatch.of(rollout.table, (row) =>
+            // look again at a deleting space as each of its uninstalling installations changes
+            ObjectWatch.of(installation.table, (row) =>
                 row.deletedAt === null ? [] : [{ id: row.scope }],
             ),
         ],
@@ -137,8 +137,8 @@ async function remove(
             id: rollout.table.id,
             scope: rollout.table.scope,
             packageId: installation.table.packageId,
-            deletedAt: rollout.table.deletedAt,
-            managerInstallationId: rollout.table.managerInstallationId,
+            deletedAt: installation.table.deletedAt,
+            managerInstallationId: installation.table.managerInstallationId,
             dependencies: installationRevision.table.dependencies,
         })
         .from(rollout.table)
@@ -163,7 +163,7 @@ async function remove(
             {
                 id: RequestId.create(store.environment),
                 calls: Rollout.dependentsFirst(live).map((entry) =>
-                    rollout.call("delete", rollout.target(entry)),
+                    installation.call("delete", installation.target(entry)),
                 ),
             },
             { component: space.name },

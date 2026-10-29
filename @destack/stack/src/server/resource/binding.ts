@@ -1,12 +1,10 @@
 import { type space } from "@destack/account/object";
-import {
-    type InstallationBindings,
-    MAIN_DATABASE,
-    type StackBinding,
-    type StackBindingTarget,
-} from "../../declare/index.ts";
+import { MAIN_DATABASE } from "../../declare/index.ts";
 import { ObjectReference, Subject } from "@destack/sync";
 import {
+    type BindingSelection,
+    type BindingTarget,
+    type InstallationBindings,
     type MethodContext,
     type ObjectType,
     Provisioned,
@@ -16,10 +14,7 @@ import {
 import { AccessContext, Caller, principal } from "@destack/access";
 import type { Row, Select, Snapshot, Table } from "@destack/db";
 import type { ObjectStore, StackPlan } from "@destack/object/server";
-import {
-    RESOURCE_DECLARATION,
-    type ResourceKind,
-} from "@destack/resource";
+import { RESOURCE_DECLARATION, type ResourceKind } from "@destack/resource";
 import { canonicalize, Digest, type Identifier, nth, present, schema } from "@destack/schema";
 import { StackError } from "../../error/index.ts";
 import {
@@ -32,7 +27,8 @@ import {
     deployment,
     Rollout,
     rollout,
-    type NamedInstallation,
+    type InstallationRollout,
+    installationRevision,
     type ResourceNeed,
 } from "../../object/index.ts";
 
@@ -72,7 +68,7 @@ export interface ServedBindable<
     readonly provision: (
         context: MethodContext,
         declarer: AccessContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         need: ResourceNeed,
         bindings: readonly Binding[],
     ) => Promise<string | undefined>;
@@ -92,7 +88,7 @@ export interface ServedBindable<
     /** Connect an in-process installation to a binding's target at its captured version. */
     readonly connect: (
         store: Promise<ObjectStore>,
-        row: Rollout & { readonly installation: NamedInstallation },
+        row: InstallationRollout,
         bound: Binding,
     ) => Promise<Client>;
 }
@@ -189,7 +185,7 @@ export class Binder {
     }
 
     /** Resolve a binding's target to another space's installation or a record of the space. */
-    async #resolveTarget(declared: StackBinding, plan: StackPlan): Promise<StackBindingTarget> {
+    async #resolveTarget(declared: BindingSelection, plan: StackPlan): Promise<BindingTarget> {
         // take an installation of another space by its name as it stands there, unpinned
         const { target } = declared;
         if ("spaceId" in target) {
@@ -225,11 +221,10 @@ export class Binder {
         }
     }
 
-    /** Capture what a new deployment runs with. */
+    /** Capture a new deployment's bindings, and main when its revision keeps tables there. */
     async capture(
         context: MethodContext,
         created: Select<typeof deployment.table>,
-        required: ReadonlyMap<string, Digest> = new Map(),
     ): Promise<Select<typeof capture.table>[]> {
         // read the installation's bindings
         const bindings = await context.read(binding.table).findMany({
@@ -247,14 +242,7 @@ export class Binder {
         const captures = bindings.flatMap((entry) =>
             entry.targetSpaceId === null
                 ? []
-                : [
-                      Binder.#captureCall(
-                          created,
-                          entry,
-                          { targetSpaceId: entry.targetSpaceId },
-                          required,
-                      ),
-                  ],
+                : [Binder.#captureCall(created, entry, { targetSpaceId: entry.targetSpaceId })],
         );
 
         // resolve each binding in the deployment's space to the version of its target it runs with
@@ -274,8 +262,24 @@ export class Binder {
                     );
                 }
                 const at = { version: kind.version(target, entry.version) };
-                captures.push(Binder.#captureCall(created, entry, at, required));
+                captures.push(Binder.#captureCall(created, entry, at));
             }
+        }
+
+        // capture the space's main database at its generation when the revision keeps tables there
+        const revision = await context
+            .read(installationRevision)
+            .findFirst({ where: { id: created.revisionId } });
+        if (revision?.states[MAIN_DATABASE] !== undefined) {
+            const main = await Database.main(context, created.scope);
+            const kind = Binder.#kind(main.id, this.#kinds);
+            captures.push(
+                Binder.#captureCall(
+                    created,
+                    { packageId: created.packageId, name: MAIN_DATABASE, target: main.id },
+                    { version: kind.version(main, null) },
+                ),
+            );
         }
 
         return [...(await context.mutate(context.self, captures))];
@@ -284,9 +288,8 @@ export class Binder {
     /** Describe what a deployment runs with for one binding. */
     static #captureCall(
         created: Select<typeof deployment.table>,
-        entry: Binding,
+        entry: Pick<Binding, "packageId" | "name" | "target">,
         at: { readonly version: number | null } | { readonly targetSpaceId: Identifier<"space"> },
-        required: ReadonlyMap<string, Digest>,
     ) {
         return capture.call("create", {
             deploymentId: created.id,
@@ -294,7 +297,6 @@ export class Binder {
             name: entry.name,
             target: entry.target,
             ...at,
-            state: required.get(Binding.key(entry.packageId, entry.name)) ?? entry.state,
         });
     }
 
@@ -310,7 +312,7 @@ export class Binder {
     /** Bind each declaration no stack binding satisfies to an owned target of the installation. */
     async attach(
         context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         needs: readonly ResourceNeed[],
     ): Promise<void> {
         // read the installation's bindings by declaration with their owned resources
@@ -329,11 +331,12 @@ export class Binder {
         );
 
         // bind each needed declaration the installation selects a target for, replacing an owned binding of it
-        const selected = Object.entries(target.bindings).flatMap(([packageId, names]) =>
-            Object.entries(names).map(([name, declared]) => ({ packageId, name, declared })),
+        const selected = Object.entries(target.installation.bindings).flatMap(
+            ([packageId, names]) =>
+                Object.entries(names).map(([name, declared]) => ({ packageId, name, declared })),
         );
         for (const need of needs) {
-            const declared = target.bindings[need.package.id]?.[need.name];
+            const declared = target.installation.bindings[need.package.id]?.[need.name];
             if (declared !== undefined) {
                 await this.#bindSelected(
                     context,
@@ -345,7 +348,7 @@ export class Binder {
             }
         }
         const isSelected = (need: ResourceNeed) =>
-            target.bindings[need.package.id]?.[need.name] !== undefined;
+            target.installation.bindings[need.package.id]?.[need.name] !== undefined;
 
         // create an owned resource for each unbound declaration, and update owned ones to follow their declaration
         const resources = needs.filter(
@@ -353,12 +356,8 @@ export class Binder {
         );
         for (const need of resources) {
             const existing = bound.get(Binding.key(need.package.id, need.name));
-            // bind the installation's tables to the space's main database
-            if (need.name === MAIN_DATABASE) {
-                await Binder.#bindMain(context, target, need, existing?.binding);
-            }
             // create an owned resource for an unbound declaration
-            else if (existing === undefined) {
+            if (existing === undefined) {
                 await this.#own(context, target, need);
             }
             // update an owned resource to follow its declaration
@@ -385,7 +384,6 @@ export class Binder {
         );
         const contained = unneeded.filter(
             (entry) =>
-                entry.binding.name !== MAIN_DATABASE &&
                 ![...this.#resources.values()].some((kind) =>
                     kind.object.identifies(entry.binding.target),
                 ),
@@ -397,20 +395,9 @@ export class Binder {
             );
         }
 
-        // then release the owned resources no declaration needs, and delete a main binding no table needs
-        for (const entry of unneeded) {
-            // release an owned resource
-            if (entry.owned !== undefined) {
-                await context.mutate(context.self, [
-                    binding.call("release", { id: entry.binding.id }),
-                ]);
-            }
-            // delete the binding to the main database
-            else if (entry.binding.name === MAIN_DATABASE) {
-                await context.mutate(context.self, [
-                    binding.call("delete", { id: entry.binding.id }),
-                ]);
-            }
+        // then release the owned resources no declaration needs
+        for (const entry of unneeded.filter((each) => each.owned !== undefined)) {
+            await context.mutate(context.self, [binding.call("release", { id: entry.binding.id })]);
         }
     }
 
@@ -422,15 +409,15 @@ export class Binder {
     /** Bind a need to the target its installation selects, releasing an owned binding. */
     async #bindSelected(
         context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         need: ResourceNeed,
-        declared: StackBinding,
+        declared: BindingSelection,
         existing:
             | { readonly binding: Select<typeof binding.table>; readonly owned?: unknown }
             | undefined,
     ): Promise<void> {
         // read the selected target: another space's installation by name, or a record here
-        const { name, state } = need;
+        const { name } = need;
         const selected =
             "spaceId" in declared.target
                 ? { target: declared.target.name, targetSpaceId: declared.target.spaceId }
@@ -445,7 +432,7 @@ export class Binder {
         }
         const version = declared.version ?? null;
 
-        // reuse a binding to the selected target, refreshing its state
+        // reuse a binding to the selected target
         const current = existing?.binding;
         if (
             current !== undefined &&
@@ -453,12 +440,6 @@ export class Binder {
             current.targetSpaceId === selected.targetSpaceId &&
             current.version === version
         ) {
-            if (current.state !== state) {
-                await context.mutate(context.self, [
-                    binding.call("update", { ...binding.target(current), state }),
-                ]);
-            }
-
             return;
         }
 
@@ -477,7 +458,6 @@ export class Binder {
                 name,
                 ...selected,
                 version,
-                state,
             }),
         ]);
     }
@@ -485,7 +465,7 @@ export class Binder {
     /** Make every bound target of an installation's needs ready to capture where it can. */
     async ready(
         context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         needs: readonly ResourceNeed[],
     ): Promise<boolean> {
         // read the installation's bindings
@@ -609,7 +589,7 @@ export class Binder {
     /** Relate an installation as consumer of exactly the objects its live deployments captured. */
     async relate(
         context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         related: Digest | null,
     ): Promise<Digest> {
         // read the captures of the installation's live deployments of targets in its own space
@@ -687,7 +667,7 @@ export class Binder {
     /** Bind a declaration to an owned resource of the installation, reusing a retained one. */
     async #own(
         context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         need: ResourceNeed,
     ): Promise<void> {
         // require a served kind of the declaration's resource
@@ -753,43 +733,14 @@ export class Binder {
                 packageId: need.package.id,
                 name: need.name,
                 target: ownedId,
-                state: need.state,
             }),
         ]);
-    }
-
-    /** Bind an installation's tables to its space's main database, following their state. */
-    static async #bindMain(
-        context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
-        need: ResourceNeed,
-        bound: Binding | undefined,
-    ): Promise<void> {
-        // bind the tables to the main database the space has from its birth
-        if (bound === undefined) {
-            const main = await Database.main(context, target.scope);
-            await context.mutate(context.self, [
-                binding.call("create", {
-                    installationId: target.id,
-                    packageId: need.package.id,
-                    name: need.name,
-                    target: main.id,
-                    state: need.state,
-                }),
-            ]);
-        }
-        // follow the tables the installation's objects have now
-        else if (bound.state !== need.state) {
-            await context.mutate(context.self, [
-                binding.call("update", { id: bound.id, state: need.state }),
-            ]);
-        }
     }
 
     /** Bind a declaration of another kind to the target its kind provides for it. */
     async #ownOther(
         context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         need: ResourceNeed,
     ): Promise<void> {
         // require a kind binding the declaration's kind
@@ -812,7 +763,6 @@ export class Binder {
                     packageId: need.package.id,
                     name: need.name,
                     target: provisioned,
-                    state: need.state,
                 }),
             ]);
         }
@@ -821,7 +771,7 @@ export class Binder {
     /** Read who declares an installation's resource: itself for its kind, else its consenter. */
     static #declarer(
         context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         object: ObjectType,
     ): AccessContext {
         const owner = principal.installation.reference(target.scope, target.id);
@@ -834,7 +784,7 @@ export class Binder {
     /** Read an installation's bindings. */
     static async #bindings(
         snapshot: Pick<Snapshot, "read">,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
     ): Promise<Binding[]> {
         return snapshot
             .read(binding.table)
@@ -844,17 +794,12 @@ export class Binder {
     /** Update an owned resource and its binding to a declaration. */
     async #follow(
         context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         bound: Binding,
         owned: Resource,
         need: ResourceNeed,
     ): Promise<void> {
-        // update the binding's state and the resource's release and specification
-        if (bound.state !== need.state) {
-            await context.mutate(context.self, [
-                binding.call("update", { id: bound.id, state: need.state }),
-            ]);
-        }
+        // update the resource's release and specification
         await this.#upgrade(
             context,
             target,
@@ -867,7 +812,7 @@ export class Binder {
     /** Update an owned resource to its declaration's release and specification. */
     async #upgrade(
         context: MethodContext,
-        target: Rollout & { readonly installation: NamedInstallation },
+        target: InstallationRollout,
         object: ObjectType,
         owned: Resource,
         need: ResourceNeed,

@@ -15,7 +15,7 @@ import {
     Transaction,
 } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
-import { nth, schema, present, Digest } from "@destack/schema";
+import { nth, schema, present, Digest, Identifier } from "@destack/schema";
 import { appliedStates, ConsumerController, ProviderIndex, serveSpace } from "../index.ts";
 import { testHost } from "@destack/test/host";
 import {
@@ -207,28 +207,51 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
         },
         now,
     );
+    const pulled = await insertRelease(
+        database,
+        ids.space,
+        { package: ids.package, version: "2026.9.0", manifest: Digest.parse("d".repeat(64)) },
+        [],
+        fixture.machine.environment,
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(binding.table).values({
+                id: named.binding,
+                scope: ids.space,
+                installationId: named.installation,
+                packageId: ids.package,
+                name: "archive",
+                target: named.kept,
+                createdAt: now,
+                updatedAt: now,
+            }),
+    );
     const bind = async (tables: readonly Table[]) => {
-        // write the tables' state as a blob, then bind it
-        const state = await fixture.blobs.writeJson(
-            defineDatabase({ name: "archive", tables }).state(),
-        );
-        await database.transaction(
-            async (transaction) =>
-                await transaction
-                    .insert(binding.table)
-                    .values({
-                        id: named.binding,
-                        scope: ids.space,
-                        installationId: named.installation,
-                        packageId: ids.package,
-                        name: "archive",
-                        target: named.kept,
-                        state,
-                        createdAt: now,
-                        updatedAt: now,
-                    })
-                    .onConflictDoUpdate({ target: binding.table.id, set: { state } }),
-        );
+        // follow a revision requiring the tables' state of the archive
+        const state = defineDatabase({ name: "archive", tables }).state();
+        const digest = await fixture.blobs.writeJson(state);
+        const revisionId = Identifier.create("installation-revision", fixture.environment);
+        const revisionDigest = await Digest.json({ revisionId }, fixture.environment.crypto);
+        await database.transaction(async (transaction) => {
+            await transaction.insert(installationRevision.table).values({
+                id: revisionId,
+                scope: ids.space,
+                installationId: named.installation,
+                buildId: pulled.id,
+                dependencies: [],
+                states: { archive: digest },
+                digest: revisionDigest,
+                createdAt: now,
+                updatedAt: now,
+            });
+            await transaction
+                .update(object.rollout.table)
+                .set({ revisionId })
+                .where(eq(object.rollout.table.id, named.installation));
+        });
+
+        return state;
     };
     const store = serveSpace(
         await fixture.options({
@@ -245,16 +268,13 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
         );
 
     // create the bound table of a safe plan without approval
-    await bind([noteOne]);
+    const bound = await bind([noteOne]);
     await reconcileResources(store, ids.space);
     expect((await read()).conditions["Ready"]?.reason).toBe("Applied");
-    const [bound] = await database.select().from(binding.table);
-    expect(await appliedStates(store.blobs, await read())).toEqual([
-        await fixture.blobs.readJson(present(bound, "the binding").state),
-    ]);
+    expect(await appliedStates(store.blobs, await read())).toEqual([bound]);
 
     // wait for approval of a plan dropping a column and record the plan for review
-    await bind([noteTwo]);
+    const rebound = await bind([noteTwo]);
     await reconcileResources(store, ids.space);
     const waiting = await read();
     const plan = present(waiting.plan, "the waiting plan");
@@ -291,16 +311,11 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
     );
     await reconcileResources(store, ids.space);
     const applied = await read();
-    const [rebound] = await database.select().from(binding.table);
     expect([
         applied.conditions["Ready"]?.reason,
         applied.approvedPlan,
         await appliedStates(store.blobs, applied),
-    ]).toEqual([
-        "Applied",
-        null,
-        [await fixture.blobs.readJson(present(rebound, "the rebound binding").state)],
-    ]);
+    ]).toEqual(["Applied", null, [rebound]]);
 });
 
 test("retry a provisioning that failed, and retain a deleted resource while its installation consumes it through a live deployment", async () => {
@@ -399,6 +414,9 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
         [],
         fixture.machine.environment,
     );
+    const removed = await fixture.blobs.writeJson(
+        defineDatabase({ name: "removed", tables: [] }).state(),
+    );
     await database.transaction(
         async (transaction) =>
             await transaction.insert(installationRevision.table).values({
@@ -407,6 +425,7 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
                 installationId: named.installation,
                 buildId: pulled.id,
                 dependencies: [],
+                states: { removed },
                 digest: Digest.parse("e".repeat(64)),
                 createdAt: now,
                 updatedAt: now,
@@ -441,9 +460,6 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
                 updatedAt: now,
             }),
     );
-    const removedState = await fixture.blobs.writeJson(
-        defineDatabase({ name: "removed", tables: [] }).state(),
-    );
     await database.transaction(
         async (transaction) =>
             await transaction.insert(capture.table).values({
@@ -456,7 +472,6 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
                 name: "removed",
                 target: named.removed,
                 version: 1,
-                state: removedState,
                 createdAt: now,
                 updatedAt: now,
             }),

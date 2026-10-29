@@ -1,35 +1,25 @@
 import type { Environment } from "@destack/environment";
-import { type InstallationSelection } from "../declare/index.ts";
-import { type DatabaseConnection, eq, Snapshot, Table } from "@destack/db";
+import { type DatabaseConnection, eq, isNotNull, Snapshot, Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Digest, Identifier, present, schema } from "@destack/schema";
-import { type Call, ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
+import { ObjectReference, Scope, type Subject } from "@destack/sync";
 import { Package, type PackageId } from "@destack/package";
 import {
     build,
     deployment,
     installationRevision,
     instance,
+    type InstallationRollout,
     Rollout,
     rollout,
 } from "../object/index.ts";
 import stackPackage from "../package.ts";
-import { Installation, installation, PackageDescription } from "@destack/object";
-import { accessRelationship, principal } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
-import { residency, space } from "@destack/account/object";
-import { PackageStore } from "@destack/build/store";
+import { installation, type InstallationSelection } from "@destack/object";
+import { space } from "@destack/account/object";
 import { ids, spaceDatabase } from "./fixture.ts";
 import { onTestFinished } from "@destack/test";
-import type { ObjectStore } from "@destack/object/server";
 import { workload } from "./build.ts";
-
-/** Read the manifest digest a test installation records for a build, as a store records it. */
-function manifestOf(reader: BuildReader, crypto: Environment["crypto"]): Promise<Digest> {
-    return PackageStore.digest(reader.manifest, crypto);
-}
 
 /** Open a migrated space database with the space's scope and row, in a world of its own. */
 export async function openSpaceDatabase(): Promise<{
@@ -77,7 +67,7 @@ export async function openSpaceDatabase(): Promise<{
     return { database, crypto: world.crypto, now };
 }
 
-/** Record an installed package and its rollout following a selection, as installing one does. */
+/** Record an installed package following a selection and its rollout, as installing one does. */
 export async function insertRollout(
     database: DatabaseConnection,
     installed: {
@@ -87,22 +77,12 @@ export async function insertRollout(
         readonly name: string;
         readonly selection: InstallationSelection;
         readonly installer: Subject;
-        readonly origin?: "declared" | "installed";
         readonly capabilities?: readonly string[];
     },
     now: number,
 ): Promise<Rollout> {
     // write the installation, then the rollout following its selection under the same identifier, both by the installer
-    const {
-        id,
-        scope,
-        packageId,
-        name,
-        selection,
-        installer,
-        origin = "installed",
-        capabilities = [],
-    } = installed;
+    const { id, scope, packageId, name, selection, installer, capabilities = [] } = installed;
     const record = {
         id,
         scope,
@@ -115,14 +95,40 @@ export async function insertRollout(
     return await database.transaction(async (transaction) => {
         await transaction
             .insert(installation.table)
-            .values({ ...record, origin, packageId, name, capabilities: [...capabilities] });
-        const [inserted] = await transaction
-            .insert(rollout.table)
-            .values({ ...record, selection })
-            .returning();
+            .values({ ...record, packageId, name, selection, capabilities: [...capabilities] });
+        const [inserted] = await transaction.insert(rollout.table).values(record).returning();
 
         return present(inserted, `the rollout ${id}`);
     });
+}
+
+/** Read an installation with its rollout. */
+export async function readInstalled(
+    database: DatabaseConnection,
+    id: Identifier<"installation">,
+): Promise<InstallationRollout> {
+    const [row] = await Rollout.installed(
+        Snapshot.live(database),
+        await database.select().from(installation.table).where(eq(installation.table.id, id)),
+    );
+
+    return present(row, `the installation ${id}`);
+}
+
+/** Read the space's one stack installation with its rollout, the one its birth gives it. */
+export async function readStack(database: DatabaseConnection): Promise<InstallationRollout> {
+    // read the installation exporting the space's stack, with its rollout
+    const [stacked] = await database
+        .select({ id: installation.table.id })
+        .from(installation.table)
+        .where(isNotNull(installation.table.export));
+    const rows = await database
+        .select()
+        .from(rollout.table)
+        .where(eq(rollout.table.id, present(stacked, "the space's stack").id));
+    const [stack] = await Rollout.read(Snapshot.live(database), rows);
+
+    return present(stack, "the space's stack");
 }
 
 /** Record a release as a space's build, pulled and succeeded, as creating a release build does. */
@@ -181,154 +187,6 @@ export async function insertBuildScope(
     );
 }
 
-/** Install a build in a space as a stack does: its installation, release, revision and access. */
-export async function installBuild(
-    store: ObjectStore,
-    scope: Identifier<"space">,
-    reader: BuildReader,
-    installer: Subject,
-    options: {
-        /** The optional capabilities the space's stack allows the installation. */
-        readonly capabilities?: readonly string[];
-    } = {},
-): Promise<Identifier<"installation">> {
-    // insert the installation under its package's name, at the world's time
-    const { database, environment } = store;
-    const now = environment.clock.now();
-    const owner = PackageManifest.package(reader.manifest);
-    const installationId = Identifier.create("installation", environment);
-    const revisionId = Identifier.create("installation-revision", environment);
-    const manifest = await manifestOf(reader, environment.crypto);
-    const name = owner.name.slice(owner.name.indexOf("/") + 1);
-    const selection = { kind: "release" as const, version: owner.version };
-
-    // declare it in a residency's home, whose stack declares its installations, else install it
-    const [homed] = database.replicates(residency.table)
-        ? await Snapshot.live(database)
-              .read(residency.table)
-              .findMany({ where: { space: scope }, limit: 1 })
-        : [];
-    const origin = homed === undefined ? "installed" : "declared";
-    await insertRollout(
-        database,
-        {
-            id: installationId,
-            scope,
-            packageId: owner.id,
-            name,
-            selection,
-            installer,
-            origin,
-            capabilities: options.capabilities ?? [],
-        },
-        now,
-    );
-
-    // record the release as the space's build, and the revision with the build's translations
-    const release = { package: owner.id, version: owner.version, manifest };
-    const pulled = await insertRelease(
-        database,
-        scope,
-        release,
-        Object.keys(reader.manifest.outputs),
-        environment,
-    );
-    await database.transaction(
-        async (transaction) =>
-            await transaction.insert(installationRevision.table).values({
-                id: revisionId,
-                scope,
-                installationId,
-                buildId: pulled.id,
-                dependencies: [],
-                digest: manifest,
-                createdAt: now,
-                updatedAt: now,
-            }),
-    );
-    // follow the revision
-    await database.transaction(
-        async (transaction) =>
-            await transaction
-                .update(rollout.table)
-                .set({ revisionId, appliedRevisionId: revisionId })
-                .where(eq(rollout.table.id, installationId)),
-    );
-
-    // grant what the package requests as the space's stack does, on the installer's authority
-    const snapshot = Snapshot.live(database);
-    const [row] = await snapshot.read(rollout.table).findMany({ where: { id: installationId } });
-    const [target] = await Rollout.read(snapshot, [present(row, `rollout ${installationId}`)]);
-    const served = principal.space.reference(Scope.universe.id, scope);
-    const stack = await Installation.base(served, stackPackage, environment.crypto);
-    const subject = principal.installation.reference(scope, stack.installation);
-    const installed = present(target, `rollout ${installationId}`);
-    const description = await PackageDescription.of(reader);
-    const changes = await Rollout.access(snapshot, installed, description, { subject, now });
-    for (const change of changes) {
-        await store.mutate(change.caller, {
-            id: RequestId.create(environment),
-            calls: change.calls,
-        });
-    }
-
-    // relate a residency home's declared installation, answering the residency as the universe does
-    const set = Rollout.permissions(installed.installation, description, "installation");
-    for (const call of await Rollout.relate(snapshot, installed, set)) {
-        await answerResidency(database, scope, call, environment);
-    }
-
-    return installationId;
-}
-
-/** Answer a residency's touch or revoke as its universe does, on the home's replica. */
-async function answerResidency(
-    database: DatabaseConnection,
-    scope: Identifier<"space">,
-    call: Call,
-    environment: Pick<Environment, "clock" | "crypto" | "random">,
-): Promise<void> {
-    // find the installation's standing relation to the residency
-    const { id, installation: installed } = ResidencyCall.parse(call.input);
-    const object = residency.reference(Scope.universe.id, id);
-    const subject = principal.installation.reference(scope, installed);
-    const standing = await Snapshot.live(database)
-        .read(accessRelationship)
-        .findFirst({
-            where: {
-                objectKey: ObjectReference.key(object),
-                relation: "installation",
-                ...ObjectReference.columns("subject", subject),
-            },
-        });
-
-    // relate a touched installation once
-    if (call.method === "touch" && standing === undefined) {
-        await new AccessFixture(database, environment).replicateRelationship(
-            object,
-            "installation",
-            subject,
-        );
-    }
-    // unrelate a revoked one
-    else if (call.method === "revoke" && standing !== undefined) {
-        await database.transaction(
-            async (transaction) =>
-                await transaction
-                    .delete(accessRelationship)
-                    .where(eq(accessRelationship.id, standing.id)),
-        );
-    }
-}
-
-/** The residency and installation of a residency's touch or revoke. */
-const ResidencyCall = schema.looseObject({
-    /** The residency. */
-    id: schema.string().min(1),
-    /** The installation the home declares. */
-    installation: schema.identifier("installation"),
-});
-
 /** The notes installation's one running instance. */
 export const NOTES_INSTANCE = schema
     .identifier("instance")
@@ -373,6 +231,7 @@ async function installNotes(
                 installationId: ids.notes,
                 buildId: release.id,
                 dependencies: [],
+                states: {},
                 digest: Digest.parse("e".repeat(64)),
             }),
     );

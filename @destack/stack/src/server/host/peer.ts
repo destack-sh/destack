@@ -3,7 +3,7 @@ import { Bearer } from "@destack/access/token";
 import { Identity, space } from "@destack/account/object";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
-import { Rollout, type NamedInstallation } from "../../object/index.ts";
+import { Rollout, type InstallationRollout } from "../../object/index.ts";
 import stackPackage from "../../package.ts";
 import type { SpaceHost, SpaceMachine } from "./host.ts";
 
@@ -37,7 +37,7 @@ export class PeerCall {
         },
         installed: { readonly spaceId: string; readonly installation: string },
     ): Promise<{
-        readonly rollout: Rollout & { readonly installation: NamedInstallation };
+        readonly rollout: InstallationRollout;
         readonly authentication: Authentication;
     }> {
         // verify the token for the stack package receiving calls to the space's installations, before reading any

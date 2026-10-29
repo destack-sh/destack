@@ -60,6 +60,7 @@ import {
     PackageMount,
     Provisioned,
     Installation,
+    installation,
 } from "@destack/object";
 import { ObjectStore, type PackageImplementation } from "@destack/object/server";
 import { connectBunSqlite } from "@destack/db/bun";
@@ -78,8 +79,9 @@ import {
     schema,
 } from "@destack/schema";
 import objectPackage from "@destack/object/package";
+import { ServerContext } from "@destack/object/workload";
 import { Simulation } from "@destack/environment/simulation";
-import { Database, Rollout } from "../object/index.ts";
+import { Database, InstallationRevision, Rollout } from "../object/index.ts";
 import { BuildCache, BuildStore } from "../server/installation/build.ts";
 import { REFUSAL_REASONS } from "../server/installation/application.ts";
 import { StackDocument, type StackTypes } from "../declare/stack.ts";
@@ -1422,6 +1424,17 @@ export class TestSpace implements AsyncDisposable {
         return uploaded;
     }
 
+    /** Describe a build's revision of an installation as its submission does. */
+    async describeRevision(
+        target: Pick<Installation, "name" | "capabilities" | "allowed">,
+        reader: BuildReader,
+    ): Promise<Pick<object.InstallationRevision, "dependencies" | "states">> {
+        const { store } = serveSpace(await this.options());
+        const options = { builds: await this.builds(), registry: this.registry, blobs: this.blobs };
+
+        return InstallationRevision.describe(target, reader, store.objects, options);
+    }
+
     /** Put a build with its code index in the build store, and record it succeeded now. */
     async recordBuild(
         reader: BuildReader,
@@ -1474,8 +1487,11 @@ export class TestSpace implements AsyncDisposable {
         const { installations } = StackDefinition.collections(definition);
         const pinned = await Promise.all(
             Object.entries(installations).map(async ([key, installed]) => {
-                // find the manifest of the installed release
+                // pin an installed release to its manifest
                 const { packageId, selection } = installed;
+                if (selection.kind !== "release") {
+                    return [key, installed] as const;
+                }
                 const manifest = await this.registry.find(packageId, selection.version);
 
                 return [key, { ...installed, selection: { ...selection, manifest } }] as const;
@@ -1634,7 +1650,11 @@ export class TestSpace implements AsyncDisposable {
         const born = [
             ...SPACE_KERNEL,
             ...own
-                .filter((server) => server.installation?.origin === "base")
+                .filter(
+                    (server) =>
+                        server.installation !== undefined &&
+                        !ServerContext.isInstalled(server.installation),
+                )
                 .map((server) => server.package),
         ];
         await Transaction.run(store.database, async (transaction) => {
@@ -1858,8 +1878,9 @@ export class TestSpace implements AsyncDisposable {
         this.#stack = { ...this.#stack, ...StackDocument.of(types, collections) };
         await served.settle();
         const owner = served.as(this.owner.subject).client(stackPackage);
-        const listed = await owner.rollout.list({ spaceId: this.id });
-        const stack = single(listed.items.filter((entry) => entry.kind === "stack"));
+        const installed = served.as(this.owner.subject).client(objectPackage);
+        const listed = await installed.installation.list({ scope: this.id });
+        const stack = single(listed.items.filter((entry) => entry.export !== null));
 
         // submit the stack's build evaluated to the definition
         const definition = await this.resolve(this.#stack);
@@ -1874,7 +1895,7 @@ export class TestSpace implements AsyncDisposable {
 
         // approve a plan waiting for its approval as the owner
         let failures = await TestSpace.#failures(served.settle());
-        const submitted = await owner.rollout.get({ spaceId: this.id, id: stack.id });
+        const submitted = await installed.installation.get({ scope: this.id, id: stack.id });
         if (submitted.conditions["Ready"]?.reason === "AwaitingApproval") {
             const waiting = await owner.rollout.plan({ spaceId: this.id, id: stack.id });
             await owner.rollout.approve({
@@ -1887,7 +1908,7 @@ export class TestSpace implements AsyncDisposable {
         }
 
         // read how the controllers left it
-        const applied = await owner.rollout.get({ spaceId: this.id, id: stack.id });
+        const applied = await installed.installation.get({ scope: this.id, id: stack.id });
 
         return { ready: applied.conditions["Ready"], generation: applied.generation, failures };
     }
@@ -1938,8 +1959,7 @@ export class TestSpace implements AsyncDisposable {
 
         // declare it after the earlier installations
         const name = released.name.slice(released.name.lastIndexOf("/") + 1);
-        const installation = {
-            kind: "package" as const,
+        const declared = {
             packageId: released.id,
             selection: { kind: "release" as const, version: released.version },
             status: "enabled" as const,
@@ -1951,7 +1971,7 @@ export class TestSpace implements AsyncDisposable {
             tags: {},
         };
         const { installations } = StackDefinition.collections(this.#stack);
-        await this.apply(served, [], { installations: { ...installations, [name]: installation } });
+        await this.apply(served, [], { installations: { ...installations, [name]: declared } });
 
         // serve the revision the stack applied, as the machine does on the change
         await this.serveInstalled(served.store, this.id);
@@ -1964,10 +1984,10 @@ export class TestSpace implements AsyncDisposable {
             .installation.list({ scope: this.id, where: { name } });
         const { id } = single(listed.items);
         const [deployed] = await this.database
-            .select({ conditions: object.rollout.table.conditions })
-            .from(object.rollout.table)
-            .where(eq(object.rollout.table.id, id));
-        const ready = present(deployed, `the rollout of ${name}`).conditions["Ready"];
+            .select({ conditions: installation.table.conditions })
+            .from(installation.table)
+            .where(eq(installation.table.id, id));
+        const ready = present(deployed, `the installation ${name}`).conditions["Ready"];
         const isRefused = REFUSAL_REASONS.some((reason) => reason === ready?.reason);
         if (ready?.status === "false" && isRefused) {
             throw new Error(`the installation ${name} is ${ready.reason}: ${ready.message}`);

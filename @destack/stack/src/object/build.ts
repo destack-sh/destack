@@ -1,4 +1,4 @@
-import { PackageDirectory } from "../declare/index.ts";
+import { PackageDirectory } from "@destack/object";
 import {
     and,
     desc,

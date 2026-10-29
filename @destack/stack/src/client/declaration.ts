@@ -3,13 +3,13 @@ import type { ClientOf } from "@destack/object/client";
 import type objectPackage from "@destack/object/package";
 import type { PackageId } from "@destack/package";
 import { type Identifier, present } from "@destack/schema";
-import { Rollout, type NamedInstallation } from "../object/rollout.ts";
+import { Rollout, type InstallationRollout } from "../object/rollout.ts";
 import type { StackClient } from "./client.ts";
 
 /** A declaration in the build an installation applies. */
 export interface Declaration {
     /** The rollout applying the build, with its installation's fields. */
-    readonly rollout: Rollout & { readonly installation: NamedInstallation };
+    readonly rollout: InstallationRollout;
     /** The declaration in the build's graph index. */
     readonly declaration: Awaited<ReturnType<StackClient["declaration"]["list"]>>["items"][number];
 }

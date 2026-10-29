@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { type StackBinding } from "../../declare/index.ts";
+import { type BindingSelection, installation } from "@destack/object";
 import { AccessContext, Authorization, Authorizer, Caller, principal } from "@destack/access";
 import { Identifier, present, schema } from "@destack/schema";
 import * as object from "../../object/index.ts";
@@ -51,13 +51,13 @@ test("deploy an installation capturing each binding at its target's generation o
     await database.transaction(
         async (transaction) =>
             await transaction
-                .update(object.rollout.table)
+                .update(installation.table)
                 .set({
                     bindings: {
                         [ids.package]: { ledger: bound(ledger.id), archive: bound(archive.id, 4) },
                     },
                 })
-                .where(eq(object.rollout.table.id, ids.notes)),
+                .where(eq(installation.table.id, ids.notes)),
     );
 
     // follow the release, bind its declared targets, and deploy it once the space serves it, capturing the bindings
@@ -113,7 +113,7 @@ test("deploy an installation capturing each binding at its target's generation o
 });
 
 /** Bind a declaration to a bucket of the space, at a pinned version when given. */
-function bound(target: string, version?: number): StackBinding {
+function bound(target: string, version?: number): BindingSelection {
     return {
         target: { type: "bucket", id: schema.anyIdentifier().parse(target) },
         ...(version === undefined ? {} : { version }),

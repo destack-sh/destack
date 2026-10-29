@@ -51,7 +51,11 @@ import stackPackage from "../package.ts";
 import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
 import { Bindable, Binder, type ServedBindable } from "./resource/binding.ts";
 import { implementDeployment, implementInstance } from "./deployment/deployment.ts";
-import { implementInstallation, implementInstallations } from "./installation/installation.ts";
+import {
+    type InstallationOptions,
+    implementInstallations,
+    implementRollouts,
+} from "./installation/installation.ts";
 import { InstallationAssertion } from "./installation/token.ts";
 import { implementInstallationRevision } from "./installation/revision.ts";
 import {
@@ -154,7 +158,7 @@ export interface SpaceOptions {
     readonly runtimes: readonly Runtime[];
     /** The events of the spaces, recording their finished runs. */
     readonly events: EventStore;
-    /** The repositories installations select and follow, null on a machine following none. */
+    /** The forge whose references and tags installations select, null without one. */
     readonly forge: Forge | null;
     /** The shapes the machine follows with the space's own, such as its repository references. */
     readonly follows: readonly Follow[];
@@ -171,18 +175,11 @@ export interface SpaceOptions {
 /** Serve the stack package over the spaces' objects, next to the other packages' resources. */
 function stackServer(
     options: SpaceOptions,
-    others: readonly {
-        readonly objects: readonly ObjectType[];
-        readonly providers?: ImplementationInput["providers"];
-    }[],
+    providers: ProviderIndex,
+    binder: Binder,
 ): PackageImplementation {
-    // index the machine's providers and bindable kinds, and the moves' options
-    const listed = spaceProviders(options);
-    const providers = new ProviderIndex(options.machine, listed, others);
-    const binder = new Binder(
-        providers.objects().map((type) => Bindable.resource(providers.kind(type), type)),
-        options.bindables,
-    );
+    // configure the moves
+    const listed = providers.own;
     const transfers = configureTransfers(options, providers);
 
     // serve the space's objects with the external types, a standby only those its moves write
@@ -273,18 +270,24 @@ export function serveSpace(options: SpaceOptions): {
         };
     });
 
-    // serve the stack with its access objects, then settings and packages, a standby the stack and access only
-    const stack = stackServer(
-        options,
+    // index the machine's providers and bindable kinds, which the stack and the installations bind with
+    const providers = new ProviderIndex(
+        options.machine,
+        spaceProviders(options),
         others.map((each) => each.served),
     );
+    const binder = new Binder(
+        providers.objects().map((type) => Bindable.resource(providers.kind(type), type)),
+        options.bindables,
+    );
+
+    // serve the stack with its access objects, then settings and packages, a standby the stack and access only
+    const stack = stackServer(options, providers, binder);
     const access = implementPackage(objectPackage, {
         objects: [
             implementRole(),
             implementRelationship(),
-            implementInstallations({
-                issuer: options.keystore.issuer(options.database, options.principal.id),
-            }),
+            implementInstallations(installationOptions(options, providers, binder)),
         ],
     });
     const base = (handle: Pick<ObjectPackage, "id" | "name">) =>
@@ -369,7 +372,7 @@ function ownObjects(
     transfers: TransferOptions,
 ) {
     // serve the space's types with their behaviour
-    const { builds, registry } = options;
+    const { builds } = options;
     const served = [
         implementSnapshot(transfers),
         implementRestore(transfers),
@@ -381,21 +384,8 @@ function ownObjects(
             isEnforcingEntitlements: options.isEnforcingEntitlements,
         }),
         ...providers.provided(),
-        implementInstallation({
-            resources: providers.objects(),
-            builds,
-            blobs: options.blobs,
-            registry,
-            binder,
-            runtimes: options.runtimes.filter((runtime) => runtime.name !== PROCESS_RUNTIME),
-            accounts: options.accounts,
-            forge: options.forge,
-            issuer: options.keystore.issuer(options.database, options.principal.id),
-            isEnforcingEntitlements: options.isEnforcingEntitlements,
-            database: options.database,
-            bundled: options.bundled,
-        }),
-        implementInstallationRevision(builds, registry),
+        implementRollouts(installationOptions(options, providers, binder)),
+        implementInstallationRevision(),
         binder.serve(),
         implementDeployment({
             providers,
@@ -411,6 +401,28 @@ function ownObjects(
     ];
 
     return stackObjects(served);
+}
+
+/** Read what the space's installations run with on this machine. */
+function installationOptions(
+    options: SpaceOptions,
+    providers: ProviderIndex,
+    binder: Binder,
+): InstallationOptions {
+    return {
+        resources: providers.objects(),
+        builds: options.builds,
+        blobs: options.blobs,
+        registry: options.registry,
+        binder,
+        runtimes: options.runtimes.filter((runtime) => runtime.name !== PROCESS_RUNTIME),
+        accounts: options.accounts,
+        forge: options.forge,
+        issuer: options.keystore.issuer(options.database, options.principal.id),
+        isEnforcingEntitlements: options.isEnforcingEntitlements,
+        database: options.database,
+        bundled: options.bundled,
+    };
 }
 
 /** Serve the stack's stored types, each implemented one in place, then the other served types. */

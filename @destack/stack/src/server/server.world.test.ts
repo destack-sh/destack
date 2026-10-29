@@ -7,7 +7,7 @@ import { Scope } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import stackPackage from "../package.ts";
 import { serveSpace } from "./server.ts";
-import { ids, TestSpace } from "../test/index.ts";
+import { ids, readStack, TestSpace } from "../test/index.ts";
 
 test("follow the served space's own rows as its machine serves them", async () => {
     // serve a space its universe placed on the machine
@@ -44,8 +44,9 @@ test("serve a person calling the space with the token their client exchanges for
     const refused = await refusal(listing(fixture.person(served, stranger)));
 
     // list the space's stack to its owner, and conceal the space from the stranger
-    expect([owned.items.map((item) => item.kind), refused]).toEqual([
-        ["stack"],
+    const stack = await readStack(fixture.database);
+    expect([owned.items.map((item) => item.id), refused]).toEqual([
+        [stack.id],
         ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${fixture.id} not found`],
     ]);
 });

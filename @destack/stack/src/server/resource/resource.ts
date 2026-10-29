@@ -1,12 +1,6 @@
 import { space } from "@destack/account/object";
 import { canonicalize, nth, type Identifier, present, schema } from "@destack/schema";
-import {
-    type BlobStore,
-    type DatabaseHandle,
-    type Row,
-    Snapshot,
-    type Table,
-} from "@destack/db";
+import { type BlobStore, type DatabaseHandle, type Row, Snapshot, type Table } from "@destack/db";
 import {
     type ObjectType,
     Provisioned,
@@ -32,13 +26,7 @@ import {
 import type { ResourceState } from "@destack/package/declare";
 import { StackError } from "../../error/index.ts";
 import type { Controller } from "@destack/db";
-import {
-    type Binding,
-    dependency,
-    https,
-    type Rollout,
-    type NamedInstallation,
-} from "../../object/index.ts";
+import { type Binding, dependency, https, type InstallationRollout } from "../../object/index.ts";
 import type {} from "@destack/package/import-meta";
 
 /** A provider of a space's resources. */
@@ -56,7 +44,7 @@ export type ServedProvider<Client = unknown> = Pick<SpaceProvider, "kind" | "cod
     /** Connect an in-process installation to a binding's resource. */
     readonly connect: (
         store: Promise<ObjectStore>,
-        row: Rollout & { readonly installation: NamedInstallation },
+        row: InstallationRollout,
         bound: Binding,
     ) => Promise<Client>;
 };
@@ -104,6 +92,8 @@ export type RestoreProvider = SnapshotProvider & {
 export class ProviderIndex {
     /** The machine serving the providers' resources. */
     readonly machine: Identifier<"machine">;
+    /** The machine's own providers, as given. */
+    readonly own: readonly SpaceProvider[];
     /** The providers by kind, in preference order. */
     readonly byKind: ReadonlyMap<string, readonly SpaceProvider[]>;
     /** The resource types the space's other packages provision. */
@@ -119,6 +109,7 @@ export class ProviderIndex {
         }[] = [],
     ) {
         // take the other packages' provisioned objects and their providers
+        this.own = providers;
         const packaged = packages
             .flatMap((entry) => entry.objects)
             .filter((type) => Provisioned.is(type));
@@ -280,10 +271,7 @@ export class ProviderIndex {
 }
 
 /** Read the desired states a resource applied, refusing a resource that has not applied them. */
-export async function appliedStates(
-    blobs: BlobStore,
-    row: Resource,
-): Promise<ResourceState[]> {
+export async function appliedStates(blobs: BlobStore, row: Resource): Promise<ResourceState[]> {
     // require its applied states to be its desired ones, blocking a transfer while a plan waits for approval
     const desired = [...row.states, ...row.drainingStates];
     const isApplied = canonicalize(row.appliedStates) === canonicalize(desired);

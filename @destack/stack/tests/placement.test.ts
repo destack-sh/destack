@@ -1,5 +1,6 @@
 import { MAIN_DATABASE } from "@destack/stack/declare";
-import { eq } from "@destack/db";
+import { eq, isNotNull } from "@destack/db";
+import { installation } from "@destack/object";
 import { Package } from "@destack/package";
 import { PackageStore } from "@destack/build/store";
 import { MemoryBuild } from "@destack/package/test";
@@ -87,7 +88,8 @@ test("give birth to placed spaces from their replicated rows with main in their 
     const stacks = await home.database
         .select({ scope: rollout.table.scope, revisionId: rollout.table.revisionId })
         .from(rollout.table)
-        .where(eq(rollout.table.kind, "stack"));
+        .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
+        .where(isNotNull(installation.table.export));
     expect({
         mains: mains.map((entry) => entry.placement),
         stacks: stacks.map((entry) => [entry.scope, entry.revisionId !== null]),

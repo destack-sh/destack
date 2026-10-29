@@ -1,5 +1,5 @@
 import { space } from "@destack/account/object";
-import { type InstallationSelection } from "../../declare/index.ts";
+import { type InstallationSelection } from "@destack/object";
 import type { Snapshot } from "@destack/db";
 import { type Identifier, schema } from "@destack/schema";
 import type { Forge } from "./follow.ts";

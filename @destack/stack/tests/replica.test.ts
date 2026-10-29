@@ -1,4 +1,5 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
+import objectPackage from "@destack/object/package";
 import accountPackage from "@destack/account/package";
 import { CHAIN_PUBLICATION, principal } from "@destack/access";
 import { user } from "@destack/account/object";
@@ -60,12 +61,11 @@ async function serveInstallation() {
     // install notes in the space as its owner, and create the account's other space at the universe
     const fixture = await TestSpace.open();
     const served = await fixture.serve();
-    const owner = served.as(fixture.owner.subject).client(stackPackage);
-    const installed = await owner.rollout.create({
-        spaceId: ids.space,
+    const installer = served.as(fixture.owner.subject).client(objectPackage);
+    const installed = await installer.installation.create({
+        scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        kind: "package",
         selection: { kind: "release", version: "2026.9.0" },
         name: "notes",
     });

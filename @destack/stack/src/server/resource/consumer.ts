@@ -10,13 +10,25 @@ import {
     type Table,
     type TableState,
     Condition,
+    isNotNull,
+    isNull,
+    ne,
+    or,
 } from "@destack/db";
-import { type Resource, type ResourceType } from "@destack/object";
+import { installation, type Resource, type ResourceType } from "@destack/object";
 import { DRAINING, type ObjectStore } from "@destack/object/server";
 import type { ResourceState } from "@destack/package/declare";
 import { Digest, present } from "@destack/schema";
 import type { ReconcileController } from "@destack/db";
-import { binding, capture, database, Deployment, deployment } from "../../object/index.ts";
+import {
+    binding,
+    capture,
+    database,
+    Deployment,
+    deployment,
+    installationRevision,
+    rollout,
+} from "../../object/index.ts";
 import { RequestId } from "@destack/sync";
 
 /** Write each resource's specification from its space and consumers where the resource lives. */
@@ -50,6 +62,7 @@ export class ConsumerController implements ReconcileController {
 
         // watch the consumers, the spaces and the resources
         this.watches = [
+            rollout.table,
             binding.table,
             capture.table,
             deployment.table,
@@ -63,8 +76,30 @@ export class ConsumerController implements ReconcileController {
     async keys(change: Change): Promise<readonly string[]> {
         const connection = this.#store.database;
 
+        // select the space's main database and the resources an installation targeting another revision binds
+        if (Change.of(change, rollout.table)) {
+            const changed = Change.image(change);
+            const main = await connection
+                .select({ id: database.table.id })
+                .from(database.table)
+                .where(
+                    and(
+                        eq(database.table.scope, changed.scope),
+                        eq(database.table.name, MAIN_DATABASE),
+                    ),
+                );
+            const bound = await connection
+                .selectDistinct({ target: binding.table.target })
+                .from(binding.table)
+                .where(eq(binding.table.installationId, changed.id));
+
+            return [
+                ...main.map((entry) => entry.id),
+                ...this.#targets(bound.map((entry) => entry.target)),
+            ];
+        }
         // select the resource a changed binding or capture targets
-        if (Change.of(change, binding.table) || Change.of(change, capture.table)) {
+        else if (Change.of(change, binding.table) || Change.of(change, capture.table)) {
             return this.#targets([
                 Change.image<typeof binding.table | typeof capture.table>(change).target,
             ]);
@@ -129,12 +164,13 @@ export class ConsumerController implements ReconcileController {
             return undefined;
         }
 
-        // read the states its consumers need by digest, the platform's for the main database
-        const platform =
-            object === database && row.name === MAIN_DATABASE
-                ? await this.#platformState(await this.#bound(row.id))
-                : new Map<Digest, ResourceState>();
-        const { active, draining } = await desiredStates(connection, object, row, platform);
+        // read the states its consumers need by digest, the platform's beside them for the main database
+        const isMain = object === database && row.name === MAIN_DATABASE;
+        const consumed = await consumedStates(connection, object, row, isMain);
+        const platform = isMain
+            ? await this.#platformState(new Set(consumed.targeted.map((entry) => entry.packageId)))
+            : new Map<Digest, ResourceState>();
+        const { active, draining } = desiredStates(consumed, platform);
         const input = {
             id: row.id,
             states: active,
@@ -148,7 +184,7 @@ export class ConsumerController implements ReconcileController {
             input.drainingStates.join() !== row.drainingStates.join() ||
             input.approval !== row.approval;
         if (isChanged) {
-            // write the platform's state as a blob, as the deploys wrote the others
+            // write the platform's state as a blob, as the revisions wrote the others
             for (const state of platform.values()) {
                 await this.#store.blobs.writeJson(state);
             }
@@ -168,16 +204,6 @@ export class ConsumerController implements ReconcileController {
         }
 
         return undefined;
-    }
-
-    /** Read the packages bound to a database, which are the owners of their tables there. */
-    async #bound(id: string): Promise<ReadonlySet<string>> {
-        const rows = await this.#store.database
-            .selectDistinct({ packageId: binding.table.packageId })
-            .from(binding.table)
-            .where(eq(binding.table.target, id));
-
-        return new Set(rows.map((row) => row.packageId));
     }
 
     /** Read the platform's tables' state, without the replicated tables of a bound package. */
@@ -213,16 +239,28 @@ export class ConsumerController implements ReconcileController {
 
     /** Stop the draining deployments that captured a resource. */
     async #stopDraining(row: Pick<Resource, "id" | "scope">): Promise<void> {
-        // find the draining deployments capturing the resource
+        // find the deployments capturing the resource on their way out: draining, or active on a revision their installation no longer targets
         const draining = await this.#store.database
             .selectDistinct({ deployment: deployment.table })
             .from(capture.table)
             .innerJoin(deployment.table, eq(deployment.table.id, capture.table.deploymentId))
+            .innerJoin(rollout.table, eq(rollout.table.id, deployment.table.installationId))
+            .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
             .where(
                 and(
                     eq(capture.table.scope, row.scope),
                     eq(capture.table.target, row.id),
-                    eq(deployment.table.status, "draining"),
+                    or(
+                        eq(deployment.table.status, "draining"),
+                        and(
+                            eq(deployment.table.status, "active"),
+                            or(
+                                isNotNull(installation.table.deletedAt),
+                                isNull(rollout.table.revisionId),
+                                ne(deployment.table.revisionId, rollout.table.revisionId),
+                            ),
+                        ),
+                    ),
                 ),
             );
         await this.#store.mutate(
@@ -265,28 +303,67 @@ export class ConsumerController implements ReconcileController {
     }
 }
 
-/** Read the distinct desired states of a resource, active and draining, by digest in order. */
-async function desiredStates(
+/** The states a resource's consumers require: targeted revisions' and deployed revisions'. */
+interface ConsumedStates {
+    /** The state each installation's targeted revision requires, with its package. */
+    readonly targeted: readonly { readonly packageId: string; readonly state: Digest }[];
+    /** The state each deployment's revision requires, current while its revision is targeted. */
+    readonly captured: readonly { readonly isCurrent: boolean; readonly state: Digest }[];
+}
+
+/** Read the states consumers require of a resource: all installations for main, else binders. */
+async function consumedStates(
     connection: DatabaseConnection,
     object: ResourceType<typeof space>,
     row: Resource,
-    platform: ReadonlyMap<Digest, ResourceState>,
-): Promise<{ readonly active: Digest[]; readonly draining: Digest[] }> {
-    // write no states for a kind without a state
+    isMain: boolean,
+): Promise<ConsumedStates> {
+    // require no states of a kind without a state
     const { kind } = present(object.provisioned, `the kind of ${object.name}`);
     if (!kind.isStateful) {
-        return { active: [], draining: [] };
+        return { targeted: [], captured: [] };
     }
 
-    // read the bindings' states and the states the serving deployments run with
-    const bound = await connection
-        .select({ state: binding.table.state })
-        .from(binding.table)
-        .where(and(eq(binding.table.scope, row.scope), eq(binding.table.target, row.id)));
+    // read the revisions the consuming installations target, under the declaration they require the state for
+    const targeted = isMain
+        ? await connection
+              .select({
+                  packageId: installation.table.packageId,
+                  revisionId: rollout.table.revisionId,
+              })
+              .from(rollout.table)
+              .innerJoin(
+                  installation.table,
+                  and(
+                      eq(installation.table.id, rollout.table.id),
+                      eq(installation.table.scope, rollout.table.scope),
+                  ),
+              )
+              .where(and(eq(rollout.table.scope, row.scope), isNull(installation.table.deletedAt)))
+              .then((rows) => rows.map((entry) => ({ ...entry, name: MAIN_DATABASE })))
+        : await connection
+              .select({
+                  packageId: binding.table.packageId,
+                  name: binding.table.name,
+                  revisionId: rollout.table.revisionId,
+              })
+              .from(binding.table)
+              .innerJoin(rollout.table, eq(rollout.table.id, binding.table.installationId))
+              .where(and(eq(binding.table.scope, row.scope), eq(binding.table.target, row.id)));
+
+    // read the revisions the available deployments capturing it run, and the ones their installations target
     const captured = await connection
-        .select({ state: capture.table.state, status: deployment.table.status })
+        .select({
+            name: capture.table.name,
+            revisionId: deployment.table.revisionId,
+            status: deployment.table.status,
+            targetedId: rollout.table.revisionId,
+            deletedAt: installation.table.deletedAt,
+        })
         .from(capture.table)
         .innerJoin(deployment.table, eq(deployment.table.id, capture.table.deploymentId))
+        .innerJoin(rollout.table, eq(rollout.table.id, deployment.table.installationId))
+        .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
         .where(
             and(
                 eq(capture.table.scope, row.scope),
@@ -295,15 +372,56 @@ async function desiredStates(
             ),
         );
 
-    // list each active state once, then the draining states no active consumer needs
+    // read each revision's states once, and take the state each consumer's declaration requires
+    const ids = [...targeted, ...captured].flatMap((entry) =>
+        entry.revisionId === null ? [] : [entry.revisionId],
+    );
+    const revisions = new Map<string, Readonly<Record<string, Digest>>>(
+        (
+            await connection
+                .select({
+                    id: installationRevision.table.id,
+                    states: installationRevision.table.states,
+                })
+                .from(installationRevision.table)
+                .where(inArray(installationRevision.table.id, [...new Set(ids)]))
+        ).map((entry) => [entry.id, entry.states]),
+    );
+    const required = <Entry extends { readonly revisionId: string | null; readonly name: string }>(
+        entry: Entry,
+    ) => {
+        const state =
+            entry.revisionId === null ? undefined : revisions.get(entry.revisionId)?.[entry.name];
+
+        return state === undefined ? [] : [{ ...entry, state }];
+    };
+
+    // count a deployment current while it is active on the revision its live installation targets
+    const current = captured.map((entry) => ({
+        ...entry,
+        isCurrent:
+            entry.status === "active" &&
+            entry.deletedAt === null &&
+            entry.revisionId === entry.targetedId,
+    }));
+
+    return { targeted: targeted.flatMap(required), captured: current.flatMap(required) };
+}
+
+/** List the distinct desired states of a resource, active and draining, by digest in order. */
+function desiredStates(
+    consumed: ConsumedStates,
+    platform: ReadonlyMap<Digest, ResourceState>,
+): { readonly active: Digest[]; readonly draining: Digest[] } {
+    // list each targeted or current state once, then the states of deployments on their way out as draining
     const active = new Set([
         ...platform.keys(),
-        ...bound.map((entry) => entry.state),
-        ...captured.filter((entry) => entry.status === "active").map((entry) => entry.state),
+        ...consumed.targeted.map((entry) => entry.state),
+        ...consumed.captured.filter((entry) => entry.isCurrent).map((entry) => entry.state),
     ]);
     const draining = new Set(
-        captured
-            .filter((entry) => entry.status === "draining" && !active.has(entry.state))
+        consumed.captured
+            .filter((entry) => !entry.isCurrent && !active.has(entry.state))
             .map((entry) => entry.state),
     );
 

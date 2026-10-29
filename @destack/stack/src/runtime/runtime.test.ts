@@ -139,7 +139,6 @@ test("bind a workload's own provisioned resources by name, refusing another pack
         installationId: schema
             .identifier("installation")
             .parse("installation-01996ab0-0000-7000-8000-0000000000f1"),
-        origin: "installed",
         name: "notes",
         deploymentId: schema
             .identifier("deployment")

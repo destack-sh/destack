@@ -63,6 +63,8 @@ export default definePackage({
                 installation.permission("install"),
                 installation.permission("update"),
                 installation.permission("delete"),
+                installation.permission("control"),
+                installation.permission("approve"),
             ],
         },
     },

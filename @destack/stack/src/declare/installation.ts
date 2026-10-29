@@ -1,67 +1,15 @@
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
-import { PackagePath } from "@destack/package/file";
-import { Digest, schema, Version } from "@destack/schema";
-import { SECRET_TARGET, StackBinding } from "./binding.ts";
-import { InstallationName, type PackageHandle } from "@destack/object";
-import { StackError } from "../error/index.ts";
-
-/** A package directory within a repository or checkout, or its root. */
-export const PackageDirectory = schema.union([schema.literal("."), PackagePath]);
-
-/** A published registry release by version. */
-const Release = schema.object({
-    /** A published registry release. */
-    kind: schema.literal("release"),
-    /** The released package version. */
-    version: Version,
-});
-
-/** A published release by version, pinned to its manifest where the selector pinned it. */
-const PinnedRelease = Release.extend({
-    /** The digest of the release manifest, absent to resolve the version at the registry. */
-    manifest: Digest.exactOptional(),
-});
-
-/** The release a distribution tag points at. */
-const Tag = schema.object({
-    /** The release a distribution tag points at. */
-    kind: schema.literal("tag"),
-    /** The distribution tag, such as latest. */
-    tag: schema.string().min(1),
-});
-
-/** A release by version, or the one a distribution tag points at now. */
-export type ReleaseReference = schema.Infer<typeof Release> | schema.Infer<typeof Tag>;
-
-/** The release, repository reference or checkout an installation follows. */
-export const InstallationSelection = schema.discriminatedUnion("kind", [
+import { schema, } from "@destack/schema";
+import { SECRET_TARGET } from "./binding.ts";
+import {
+    InstallationBindings,
+    InstallationName,
+    InstallationSelection,
+    type PackageHandle,
     PinnedRelease,
     Tag,
-    schema.object({
-        /** Follow committed repository history. */
-        kind: schema.literal("repository"),
-        /** The registered repository. */
-        repository: schema.identifier("repository"),
-        /** The full branch or tag reference. */
-        reference: schema.string().regex(/^refs\/(heads|tags)\/.+$/u),
-        /** The package directory within the repository. */
-        directory: PackageDirectory,
-    }),
-    schema.object({
-        /** Follow a local working directory, including unpublished changes. */
-        kind: schema.literal("checkout"),
-        /** The machine administering the checkout. */
-        machine: schema.identifier("machine"),
-        /** The checkout registered on that machine. */
-        checkout: schema.identifier("checkout"),
-        /** The package directory within the checkout. */
-        directory: PackageDirectory,
-    }),
-]);
-/** The release, repository reference or checkout an installation follows. */
-export type InstallationSelection = schema.Infer<typeof InstallationSelection>;
-/** An installation's selection of a repository reference. */
-export type RepositorySelection = Extract<InstallationSelection, { readonly kind: "repository" }>;
+} from "@destack/object";
+import { StackError } from "../error/index.ts";
 
 /** The build a submission selects. */
 export const BuildReference = schema.discriminatedUnion("kind", [
@@ -77,22 +25,12 @@ export const BuildReference = schema.discriminatedUnion("kind", [
 /** The build a submission selects. */
 export type BuildReference = schema.Infer<typeof BuildReference>;
 
-/** The bindings of a package's declarations, by package ID and declaration name. */
-export const InstallationBindings = schema.record(
-    PackageId,
-    schema.record(DeclarationName, StackBinding),
-);
-/** The bindings of a package's declarations, by package ID and declaration name. */
-export type InstallationBindings = schema.Infer<typeof InstallationBindings>;
-
 /** An application installation as a stack declares it: its create input. */
 export const InstallationDefinition = schema.object({
-    /** The installation's kind: a package's, since a stack declares no stacks. */
-    kind: schema.literal("package"),
     /** The installed package. */
     packageId: PackageId,
-    /** The release the installation follows, pinned to its manifest where the stack pinned it. */
-    selection: PinnedRelease,
+    /** The release, repository reference or checkout the installation follows. */
+    selection: InstallationSelection,
     /** Whether this installation should serve requests. */
     status: schema.enum(["enabled", "suspended"]),
     /** Space-local URL name, independent of the stable installation key. */
@@ -187,7 +125,6 @@ export function install<
     }
 
     return InstallationDefinition.parse({
-        kind: "package",
         packageId: handle.id,
         selection: { kind: "release", version: handle.version },
         status: options.status ?? "enabled",

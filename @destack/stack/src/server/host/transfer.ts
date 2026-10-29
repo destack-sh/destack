@@ -50,11 +50,7 @@ import {
 } from "@destack/schema";
 import type { ResourceState } from "@destack/package/declare";
 import { type IdentityKeystore } from "@destack/account/identity";
-import {
-    type Resource,
-    type ResourceType,
-    type SettlementContext,
-} from "@destack/object";
+import { type Resource, type ResourceType, type SettlementContext } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import type { ResourceId, ResourceRecord } from "@destack/resource";
 import { Recipient } from "@destack/identity";
@@ -1120,11 +1116,7 @@ export class SpaceTransfer {
         // plan it from the placement the machine served before
         return latest === undefined
             ? undefined
-            : SpaceTransfer.of(
-                  space,
-                  { ...moving, machine, epoch: latest.epoch },
-                  latest.target,
-              );
+            : SpaceTransfer.of(space, { ...moving, machine, epoch: latest.epoch }, latest.target);
     }
 
     /** Receive one space moving to this machine. */

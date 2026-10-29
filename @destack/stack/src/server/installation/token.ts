@@ -70,7 +70,7 @@ export const InstallationAssertion = {
                       and(
                           eq(installationKey.table.id, keyId.data),
                           eq(installation.table.status, "enabled"),
-                          isNull(rollout.table.deletedAt),
+                          isNull(installation.table.deletedAt),
                       ),
                   );
 

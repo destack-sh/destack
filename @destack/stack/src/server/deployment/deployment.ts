@@ -353,10 +353,14 @@ class Reconcile {
             `the name of installation ${current.installationId}`,
         );
         const pinned = await database
-            .select({ state: capture.table.state })
+            .select({ name: capture.table.name, states: installationRevision.table.states })
             .from(capture.table)
             .innerJoin(dependency.table, eq(dependency.table.id, capture.table.target))
             .innerJoin(deployment.table, eq(deployment.table.id, capture.table.deploymentId))
+            .innerJoin(
+                installationRevision.table,
+                eq(installationRevision.table.id, deployment.table.revisionId),
+            )
             .where(
                 and(
                     eq(dependency.table.scope, current.scope),
@@ -365,13 +369,17 @@ class Reconcile {
                 ),
             );
 
-        // serve while one caller is pinned to a release the replacement no longer serves
+        // serve while one caller is pinned to a release the replacement no longer serves, as its revision records
         const { blobs } = this.#reconciliation.store;
         const releases = await Promise.all(
-            pinned.map(
-                async (entry) =>
-                    InstallationBindingState.parse(await blobs.readJson(entry.state)).release,
-            ),
+            pinned.map(async (entry) => {
+                const state = present(
+                    entry.states[entry.name],
+                    `the pinned release of ${entry.name}`,
+                );
+
+                return InstallationBindingState.parse(await blobs.readJson(state)).release;
+            }),
         );
 
         return releases.every((release) => Version.compare(release, since) >= 0);
@@ -505,15 +513,13 @@ class Reconcile {
                 }),
             `the installation ${current.installationId}`,
         );
-        const { origin } = installed;
-        if (origin === "base") {
+        if (installed.name === null) {
             throw new TypeError(`base installation ${installed.id} deploys no workloads`);
         }
         await running.start(
             {
                 instanceId: recorded.id,
                 installationId: current.installationId,
-                origin,
                 name: present(installed.name, `the name of installation ${installed.id}`),
                 scope: current.scope,
                 deploymentId: current.id,

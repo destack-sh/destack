@@ -1,38 +1,22 @@
-import type { Digest } from "@destack/schema";
-import { installableReleases } from "../../declare/index.ts";
-import type { PackageId } from "@destack/package";
-import { space } from "@destack/account/object";
-import { Build, installationRevision } from "../../object/index.ts";
-import { type BuildStore, type Registry } from "./build.ts";
+import { InstallationRevision, installationRevision } from "../../object/index.ts";
 
-/** Implement revisions with the installable packages their builds depend on. */
-export function implementInstallationRevision(builds: BuildStore, registry: Registry) {
+/** Implement revisions, reusing the revision of the same digest. */
+export function implementInstallationRevision() {
     return installationRevision.implement({
         methods: {
             create: async (call, next) => {
-                // reuse the revision of the same digest
-                const { buildId, installationId, digest } = call.input;
+                // identify the revision by its installation and digest, reusing it once recorded
+                const { installationId, digest } = call.input;
+                const id = await InstallationRevision.id(
+                    installationId,
+                    digest,
+                    call.environment.crypto,
+                );
                 const [existing] = await call
                     .read(installationRevision)
-                    .findMany({ where: { installationId, digest } });
-                if (existing !== undefined) {
-                    return existing;
-                }
+                    .findMany({ where: { id } });
 
-                // read the space's build from the build store
-                const built = await Build.require(call, space.identifier(call.scope), buildId);
-                const reader = await builds.contents(built.manifest);
-
-                // read the installable packages it depends on, at the releases it compiled against, without storing them
-                const read = (dependency: PackageId, manifest: Digest) =>
-                    builds.pull(registry, dependency, manifest);
-                const dependencies = await installableReleases(reader, read);
-
-                return next(
-                    call.with({
-                        input: { ...call.input, dependencies },
-                    }),
-                );
+                return existing ?? (await next(call.identify(id)));
             },
         },
     });

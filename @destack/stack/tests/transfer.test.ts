@@ -37,6 +37,10 @@ import {
     TestSpace,
 } from "../src/test/index.ts";
 import { sharedNote } from "../src/test/schema.ts";
+import { installation } from "@destack/object";
+import { Package } from "@destack/package";
+import { MemoryBuild } from "@destack/package/test";
+import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
 import objectPackage from "@destack/object/package";
 import * as object from "../src/object/index.ts";
 import * as accountObject from "@destack/account/object";
@@ -201,11 +205,67 @@ test(
                 scope: ids.space,
                 packageId: ids.package,
                 name: "notes",
-                selection: { kind: "release", version: "2026.9.0" },
+                selection: {
+                    kind: "checkout",
+                    machine: ids.machine,
+                    checkout: ids.checkout,
+                    directory: ".",
+                },
                 installer: sourceMachine.owner.subject,
             },
             now,
         );
+
+        // suspend notes at a build declaring the notes database, keeping its data, and bind the declaration to the database
+        const declaring = await MemoryBuild.of(
+            Package.parse({ id: ids.package, name: "@test/package", version: "2026.9.0" }),
+            [
+                {
+                    kind: RESOURCE_DECLARATION,
+                    kindPackageId: RESOURCE_KIND_PACKAGE_ID,
+                    name: "notes",
+                    description: {
+                        name: "notes",
+                        kind: "database",
+                        spec: { replicated: [] },
+                        ...state,
+                    },
+                },
+            ],
+            world.crypto,
+        );
+        const notesBuild = await sourceMachine.recordBuild(declaring);
+        const [installed] = await source
+            .select()
+            .from(installation.table)
+            .where(eq(installation.table.id, ids.notes));
+        const described = await sourceMachine.describeRevision(
+            present(installed, "the notes installation"),
+            declaring,
+        );
+        const revisionId = schema
+            .identifier("installation-revision")
+            .parse("installation-revision-01996ab0-0000-7000-8000-00000000000f");
+        await source.transaction(async (transaction) => {
+            await transaction.insert(object.installationRevision.table).values({
+                id: revisionId,
+                scope: ids.space,
+                installationId: ids.notes,
+                buildId: notesBuild.build,
+                ...described,
+                digest: Digest.parse("e".repeat(64)),
+                createdAt: now,
+                updatedAt: now,
+            });
+            await transaction
+                .update(object.rollout.table)
+                .set({ revisionId })
+                .where(eq(object.rollout.table.id, ids.notes));
+            await transaction
+                .update(installation.table)
+                .set({ status: "suspended" })
+                .where(eq(installation.table.id, ids.notes));
+        });
         await source.transaction(
             async (transaction) =>
                 await transaction.insert(object.binding.table).values({
@@ -217,7 +277,6 @@ test(
                     packageId: ids.package,
                     name: "notes",
                     target: declared.id,
-                    state: digest,
                     createdAt: now,
                     updatedAt: now,
                 }),
@@ -764,8 +823,8 @@ test(
         // ask a store of the target for a token as the installation, and the abandoned target for the installation as the owner
         const grant = async (served: TestObjectStore) => {
             // ask as the installation by an assertion its key signs
-            const installation = principal.installation.reference(ids.space, ids.notes);
-            const signing = { id: key.id, subject: installation, publicKey: key.publicKey };
+            const subject = principal.installation.reference(ids.space, ids.notes);
+            const signing = { id: key.id, subject, publicKey: key.publicKey };
             const assertion = await Assertion.sign(
                 pair.privateKey,
                 signing,

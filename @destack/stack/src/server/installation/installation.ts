@@ -1,19 +1,21 @@
-import type { ObjectReconciliation } from "@destack/object";
-import { type InstallationSelection } from "../../declare/index.ts";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { ObjectReference, Subject } from "@destack/sync";
-import { canonicalize, type Digest, type Identifier, nth, present, schema } from "@destack/schema";
-import { principal } from "@destack/access";
-import { and, eq, inArray, Snapshot } from "@destack/db";
+import { canonicalize, type Digest, type Identifier, present, schema } from "@destack/schema";
+import { InstallationId, principal } from "@destack/access";
+import { and, type Change, eq, inArray, isNotNull, isNull, Snapshot } from "@destack/db";
 import {
+    installation,
     type MethodContext,
     type MethodContextOf,
+    ObjectController,
+    ObjectError,
+    type ObjectReconciliation,
     ObjectWatch,
+    PackageDescription,
     type ResourceType,
     type ResultOf,
 } from "@destack/object";
-import { Installation, installation, PackageDescription } from "@destack/object";
 import { entitlement, Space, space } from "@destack/account/object";
 import {
     binding,
@@ -26,93 +28,89 @@ import {
     type SubmissionPreparation,
     Build,
     type Submission,
-    type NamedInstallation,
+    type InstallationRollout,
 } from "../../object/index.ts";
 import { PackageManifest, ViewDescription } from "@destack/package/manifest";
-import {
-    Application,
-    type ApplicationOptions,
-    finalizeApplication,
-    reconcileApplication,
-} from "./application.ts";
+import { type ApplicationOptions, ApplicationInstallation } from "./application.ts";
 import { Approval } from "./approval.ts";
 import { SelectedRepository } from "./selection.ts";
-import { followRepository, type Forge } from "./follow.ts";
+import { CommitBuild, type Forge } from "./follow.ts";
 import type { SpaceAccounts } from "../server.ts";
-import { reconcileStack, type StackOptions } from "./stack.ts";
+import { StackInstallation, type StackOptions } from "./stack.ts";
 import type { TokenIssuer } from "@destack/access/token";
 import { InstallationAssertion } from "./token.ts";
-import type {} from "@destack/package/import-meta";
 import { StackError } from "../../error/index.ts";
 
 /** The options a machine serves installations with. */
 export interface InstallationOptions extends StackOptions, ApplicationOptions {
     /** The objects of the resource kinds the machine serves. */
     readonly resources: readonly ResourceType<typeof space>[];
-    /** The repositories installations select and follow, null on a machine following none. */
-    readonly forge: Forge | null;
     /** The account package, reading the home a person opens views in. */
     readonly accounts: Pick<SpaceAccounts, "user">;
     /** The space's token issuer, signing the tokens installations are granted. */
     readonly issuer: TokenIssuer;
 }
 
-/** Implement rollouts: apply stacks and deploy applications. */
-export function implementInstallation(options: InstallationOptions) {
-    return handleRollouts(options).implement({
-        controller: {
-            pending: {},
-            // apply a space's one stack under its space and deploy each application under its own key
-            key: rolloutKey,
-            watches: [
-                ...rolloutWatches(options.resources),
-                ...(options.forge === null ? [] : repositoryWatches(options.forge)),
-            ],
-            reconcile: async (reconciliation) => {
-                // apply the space's stack, or deploy the application at the release it selects
-                const rows = await Rollout.read(
-                    Snapshot.live(reconciliation.database),
-                    reconciliation.rows,
-                );
-                const target = nth(rows, 0);
-                const { selection } = target;
-                const applied =
-                    target.kind === "stack"
-                        ? await reconcileStack(target.scope, reconciliation, options)
-                        : await reconcileApplication(
-                              selection.kind === "release"
-                                  ? await followRelease(
-                                        { ...target, selection },
-                                        reconciliation,
-                                        options,
-                                    )
-                                  : target,
-                              reconciliation,
-                              options.builds,
-                          );
+/** Implement installations: create, update and delete them, allow capabilities, grant tokens. */
+export function implementInstallations(options: InstallationOptions) {
+    return installation.implement({
+        // make the name other installations address a declared one by immutable, and resolve its bindings' targets
+        declaration: {
+            // follow the types its bindings target, retired before them
+            after: options.binder.targets(),
+            immutable: ["name"],
+            resolve: async (_name, declared, plan) => {
+                const { bindings } = declared;
 
-                // then build and submit the commit each repository selection's reference resolves to
-                const { forge } = options;
-                for (const row of rows) {
-                    const followed = row.selection;
-                    if (forge !== null && followed.kind === "repository") {
-                        await followRepository({ ...row, selection: followed }, reconciliation, {
-                            ...options,
-                            forge,
-                        });
-                    }
-                }
-
-                return applied;
+                return bindings === undefined
+                    ? declared
+                    : { ...declared, bindings: await options.binder.resolve(bindings, plan) };
             },
         },
-    });
-}
-
-/** Implement the installations' own methods: allowing capabilities and granting tokens. */
-export function implementInstallations(options: Pick<InstallationOptions, "issuer">) {
-    return installation.implement({
         methods: {
+            create: async (call, next) => {
+                // refuse an installation without a name, which only a scope's base installations lack
+                const { selection, name } = call.input;
+                if (name === undefined || name === null) {
+                    throw ObjectError.of("FIELD_MISSING", "an installation needs a name");
+                }
+
+                // refuse another account's repository
+                const owner = await SelectedRepository.owner(options.forge, selection);
+                await SelectedRepository.require(call, call.scope, selection, owner);
+
+                // identify it by its scope and name, as readers derive it, then roll it out as its installer
+                const id = await InstallationId.of(
+                    { id: call.scope },
+                    name,
+                    call.environment.crypto,
+                );
+                const created = await next(call.identify(id));
+                await call.mutate(call.caller, [
+                    rollout.call("create", { ...rollout.in(call.scope), id: created.id }),
+                ]);
+
+                return created;
+            },
+            update: async (call, next) => {
+                // refuse another account's repository
+                const { selection } = call.input;
+                if (selection !== undefined) {
+                    const owner = await SelectedRepository.owner(options.forge, selection);
+                    await SelectedRepository.require(call, call.scope, selection, owner);
+                }
+
+                return next(call);
+            },
+            delete: async (call, next) => {
+                // refuse uninstalling one another installation needs, then mark it uninstalling for its controller to drain
+                const [rolled] = await Rollout.installed(call, [call.target]);
+                if (rolled !== undefined) {
+                    await requireUnneeded(call, rolled, options);
+                }
+
+                return next(call);
+            },
             token: (call) => InstallationAssertion.token(call, options.issuer),
             allow: (call) =>
                 call.update({
@@ -126,75 +124,113 @@ export function implementInstallations(options: Pick<InstallationOptions, "issue
     });
 }
 
-/** Handle rollouts: install, uninstall, refuse other accounts' repositories, record submissions. */
-function handleRollouts(options: InstallationOptions) {
-    return rollout.implement({
-        // make the name other installations address a declared one by immutable, and resolve its bindings' targets
-        declaration: {
-            // follow the types its bindings target, retired before them
-            after: options.binder.targets(),
-            immutable: ["name"],
-            // name the collection after what users declare: installations of packages
-            collection: "installations",
-            resolve: async (_name, declared, plan) => {
-                const { bindings } = declared;
+/** Roll out each installation: apply the space's stack, or deploy an application. */
+function rolloutController(options: InstallationOptions) {
+    return {
+        pending: {},
+        key: rolloutKey,
+        // reconcile a new rollout and a moved target or served revision, past its own applied and consumed records
+        wakes: (change: Change<typeof rollout.table>) =>
+            change.operation !== "update" ||
+            change.before.revisionId !== change.after.revisionId ||
+            change.before.servedRevisionId !== change.after.servedRevisionId,
+        watches: [
+            ...rolloutWatches(options.resources),
+            ...(options.forge === null ? [] : forgeWatches(options.forge)),
+        ],
+        reconcile: async (reconciliation: ObjectReconciliation<typeof rollout>) => {
+            // read the rollout with its installation, none once uninstalled
+            const rows = await Rollout.read(
+                Snapshot.live(reconciliation.database),
+                reconciliation.rows,
+            );
+            const [target] = rows;
+            if (target === undefined) {
+                return undefined;
+            }
 
-                return bindings === undefined
-                    ? declared
-                    : { ...declared, bindings: await options.binder.resolve(bindings, plan) };
-            },
-            // read a declared rollout with its installation's fields, as its declaration lists them
-            read: async (row, reader) =>
-                Rollout.declared(nth(await Rollout.read(reader, [row]), 0)),
+            // apply the space's stack, or deploy the application at the release it selects
+            const applied =
+                target.installation.export !== null
+                    ? await new StackInstallation(target, options).reconcile(reconciliation)
+                    : await new ApplicationInstallation(target, options).reconcile(reconciliation);
+
+            // then build the commit a repository selection's reference resolves to, submitting an unmanaged installation's
+            const { forge } = options;
+            const { selection } = target.installation;
+            if (forge !== null && selection.kind === "repository") {
+                await new CommitBuild(target, selection, { ...options, forge }).reconcile(
+                    reconciliation,
+                );
+            }
+
+            return applied;
         },
+    };
+}
+
+/** Refuse uninstalling an installation another live installation of its space needs. */
+async function requireUnneeded(
+    call: MethodContext,
+    target: InstallationRollout,
+    options: Pick<InstallationOptions, "builds">,
+): Promise<void> {
+    // list the live rollouts outside the target's stack targeting a revision
+    const rows = await Rollout.read(
+        { read: (table) => call.read(table) },
+        await call.read(rollout.table).findMany({ where: { scope: target.scope } }),
+    );
+    const others = rows.filter(
+        (row) =>
+            row.id !== target.id &&
+            row.installation.deletedAt === null &&
+            row.revisionId !== null &&
+            (row.installation.managerInstallationId === null ||
+                row.installation.managerInstallationId !==
+                    target.installation.managerInstallationId),
+    );
+
+    // read their revisions and builds, two reads for the space
+    const revisionIds = others.map((row) =>
+        present(row.revisionId, `the revision of ${row.installation.name}`),
+    );
+    const revisions = await call
+        .read(installationRevision.table)
+        .findMany({ where: { id: { in: revisionIds } } });
+    const built = await call
+        .read(build.table)
+        .findMany({ where: { id: { in: revisions.map((each) => each.buildId) } } });
+
+    // refuse removing a package one of them needs
+    for (const row of others) {
+        const revision = present(
+            revisions.find((each) => each.id === row.revisionId),
+            `the revision of ${row.installation.name}`,
+        );
+        const manifest = Build.manifest(
+            present(
+                built.find((each) => each.id === revision.buildId),
+                `the build of ${row.installation.name}`,
+            ),
+        );
+        const reader = await options.builds.contents(manifest);
+        const description = await PackageDescription.of(reader);
+        const needed = Rollout.needed(row.installation, revision, description);
+        if (needed.some((entry) => entry.package.id === target.installation.packageId)) {
+            throw StackError.of(
+                "NEEDED_BY_DEPENDENT",
+                `cannot uninstall ${target.installation.name}: ${row.installation.name} needs it`,
+            );
+        }
+    }
+}
+
+/** Implement rollouts: open views, plans and approvals, submissions, roll back and deploy. */
+export function implementRollouts(options: InstallationOptions) {
+    return rollout.implement({
+        // apply a space's stack and deploy each application
+        controller: rolloutController(options),
         methods: {
-            create: async (call, next) => {
-                // refuse another account's repository
-                const { selection } = call.input;
-                const owner = await SelectedRepository.owner(options.forge, selection);
-                await SelectedRepository.require(call, call.scope, selection, owner);
-
-                // install the package as declared by the space's stack or by the caller, then follow it
-                const { packageId, name, status, compute, capabilities, directories, ...followed } =
-                    call.input;
-                const id = await Installation.install(call, call.scope, {
-                    origin: call.manager === null ? "installed" : "declared",
-                    packageId,
-                    name,
-                    ...(status === undefined ? {} : { status }),
-                    ...(compute === undefined ? {} : { compute }),
-                    ...(capabilities === undefined ? {} : { capabilities }),
-                    ...(directories === undefined ? {} : { directories }),
-                });
-
-                return next(call.with({ ...followed, id }));
-            },
-            update: async (call, next) => {
-                // refuse another account's repository
-                const { selection } = call.input;
-                const owner = await SelectedRepository.owner(options.forge, selection);
-                await SelectedRepository.require(call, call.scope, selection, owner);
-
-                // update the installation's fields through the installation, the rest on the rollout
-                const { status, compute, capabilities, directories } = call.input;
-                const fields = {
-                    ...(status === undefined ? {} : { status }),
-                    ...(compute === undefined ? {} : { compute }),
-                    ...(capabilities === undefined ? {} : { capabilities }),
-                    ...(directories === undefined ? {} : { directories }),
-                };
-                if (Object.keys(fields).length > 0) {
-                    await call.mutate(call.self, [
-                        installation.call("update", {
-                            ...installation.in(call.target.scope),
-                            id: call.target.id,
-                            ...fields,
-                        }),
-                    ]);
-                }
-
-                return next(call);
-            },
             open: async (call) => open(call, await Rollout.of(call), options),
             plan: async (call) => {
                 // join the plans the installation and its managed, owned or bound resources wait on
@@ -203,98 +239,44 @@ function handleRollouts(options: InstallationOptions) {
                 return (await Approval.of(call, options.resources, target)).plan();
             },
             submit: {
-                // read the owner of a repository the submission selects anew, and pull a release it selects
-                prepare: async (context) => ({
-                    owner: await SelectedRepository.owner(
-                        options.forge,
-                        canonicalize(context.input.selection) ===
-                            canonicalize(context.target.selection)
-                            ? undefined
-                            : context.input.selection,
-                    ),
-                    release: await pull(await Rollout.of(context), context.input.build, options),
-                }),
+                // refuse a foreign repository, then pull the selected release and describe its revision
+                prepare: async (context) => {
+                    // refuse another account's repository the submission selects anew
+                    const target = await Rollout.of(context);
+                    const { build: submitted, selection } = context.input;
+                    const isReselected =
+                        canonicalize(selection) !== canonicalize(target.installation.selection);
+                    if (isReselected) {
+                        const owner = await SelectedRepository.owner(options.forge, selection);
+                        await SelectedRepository.require(context, context.scope, selection, owner);
+                    }
+
+                    // pull a selected release, and describe the submitted build's revision
+                    const release = await pull(target, submitted, options);
+                    const manifest =
+                        submitted.kind === "build"
+                            ? (await Build.require(context, target.scope, submitted.build)).manifest
+                            : present(release, `the pulled release of ${target.installation.name}`)
+                                  .manifest;
+                    const reader = await options.builds.contents(manifest);
+
+                    return {
+                        release,
+                        ...(await InstallationRevision.describe(
+                            target.installation,
+                            reader,
+                            context.objects,
+                            options,
+                        )),
+                    };
+                },
                 handle: async (context) =>
                     submit(context, await Rollout.of(context), context.prepared, options),
             },
-            deploy: {
-                // write the states the deploy binds and captures as blobs before the transaction
-                prepare: async (context) =>
-                    new Application(context, await Rollout.of(context), options).prepare(),
-                handle: async (call) => {
-                    await new Application(call, await Rollout.of(call), options).deploy();
+            deploy: async (call) => {
+                await new ApplicationInstallation(await Rollout.of(call), options).deploy(call);
 
-                    return {};
-                },
-            },
-            delete: async (call, next) => {
-                // list the live rollouts outside the target's stack following a revision
-                const target = await Rollout.of(call);
-                const rows = await Rollout.read(
-                    { read: (table) => call.read(table) },
-                    await call
-                        .read(rollout.table)
-                        .findMany({ where: { scope: target.scope, deletedAt: { isNull: true } } }),
-                );
-                const others = rows.filter(
-                    (row) =>
-                        row.id !== target.id &&
-                        row.revisionId !== null &&
-                        (row.managerInstallationId === null ||
-                            row.managerInstallationId !== target.managerInstallationId),
-                );
-
-                // read their revisions and builds, two reads for the space
-                const revisionIds = others.map((row) =>
-                    present(row.revisionId, `the revision of ${row.installation.name}`),
-                );
-                const revisions = await call
-                    .read(installationRevision.table)
-                    .findMany({ where: { id: { in: revisionIds } } });
-                const built = await call
-                    .read(build.table)
-                    .findMany({ where: { id: { in: revisions.map((each) => each.buildId) } } });
-
-                // refuse removing a package one of them needs
-                for (const row of others) {
-                    const revision = present(
-                        revisions.find((each) => each.id === row.revisionId),
-                        `the revision of ${row.installation.name}`,
-                    );
-                    const manifest = Build.manifest(
-                        present(
-                            built.find((each) => each.id === revision.buildId),
-                            `the build of ${row.installation.name}`,
-                        ),
-                    );
-                    const reader = await options.builds.contents(manifest);
-                    const description = await PackageDescription.of(reader);
-                    const needed = Rollout.needed(row.installation, revision, description);
-                    if (
-                        needed.some((entry) => entry.package.id === target.installation.packageId)
-                    ) {
-                        throw StackError.of(
-                            "NEEDED_BY_DEPENDENT",
-                            `cannot uninstall ${target.installation.name}: ${row.installation.name} needs it`,
-                        );
-                    }
-                }
-
-                return next(call);
-            },
-            finalize: async (call, next) => {
-                // remove an application's deployments, resources and grants, then its installation
-                const target = await Rollout.of(call);
-                await finalizeApplication(call, target, options);
-                const finished = await next();
-                await call.mutate(call.self, [
-                    installation.call("delete", {
-                        ...installation.in(target.scope),
-                        id: target.id,
-                    }),
-                ]);
-
-                return finished;
+                return {};
             },
             approve: async (call) => {
                 // accept each plan waiting as the approver reviewed them
@@ -307,20 +289,16 @@ function handleRollouts(options: InstallationOptions) {
     });
 }
 
-/** Record a submitted build as the installation's revision and follow it. */
+/** Record a submitted build as the installation's revision and target it. */
 async function submit(
     context: MethodContextOf<typeof rollout, "submit">,
-    target: Rollout & { readonly installation: NamedInstallation },
+    target: InstallationRollout,
     prepared: SubmissionPreparation,
     options: InstallationOptions,
 ): Promise<Rollout> {
-    // refuse another account's repository
-    const { input: submission } = context;
-    await SelectedRepository.require(context, context.scope, submission.selection, prepared.owner);
-
     // require a stack's evaluation for a stack and none for an application
-    const { selection, evaluation } = submission;
-    const isStack = target.kind === "stack";
+    const { selection, evaluation, build: submitted, spaceStack } = context.input;
+    const isStack = target.installation.export !== null;
     if (isStack !== (evaluation !== undefined)) {
         throw StackError.of(
             "SUBMISSION_KIND_MISMATCH",
@@ -331,7 +309,7 @@ async function submit(
     }
 
     // resolve the submitted build and require a build of the installation's package
-    const resolved = await resolveBuild(context, target, submission.build, prepared.release);
+    const resolved = await resolveBuild(context, target, submitted, prepared.release);
     const reader = await options.builds.contents(resolved.manifest);
     const built = PackageManifest.package(reader.manifest).id;
     if (built !== target.installation.packageId) {
@@ -355,42 +333,55 @@ async function submit(
         await InstallationRevision.create(
             target.installation,
             resolved,
+            { dependencies: prepared.dependencies, states: prepared.states },
             evaluation,
             context.environment.crypto,
         ),
     ]);
 
-    // point the installation at the selection, arguments, revision and space's stack submitted
-    const { spaceStack } = submission;
-    const followed = {
+    // select the submitted build and arguments on the installation
+    const selected = {
         selection,
         ...(evaluation === undefined
             ? {}
             : { export: evaluation.export, parameters: evaluation.parameters }),
-        revisionId: revision.id,
-        ...(spaceStack === undefined ? {} : { spaceStack }),
     };
+    const { installation: installed } = target;
     const current = {
-        selection: target.selection,
+        selection: installed.selection,
         ...(evaluation === undefined
             ? {}
-            : { export: target.export, parameters: target.parameters }),
-        revisionId: target.revisionId,
-        ...(spaceStack === undefined ? {} : { spaceStack: target.spaceStack }),
+            : { export: installed.export, parameters: installed.parameters }),
     };
-    if (canonicalize(followed) === canonicalize(current)) {
-        return context.target;
+    if (canonicalize(selected) !== canonicalize(current)) {
+        await context.mutate(context.self, [
+            installation.call("update", {
+                ...installation.in(target.scope),
+                id: target.id,
+                ...selected,
+            }),
+        ]);
     }
 
-    // record its submitter, who consents to what it requests
+    // target the revision and the space's stack submitted, recording the submitter, who consents to what it requests
+    const isTargeted =
+        target.revisionId === revision.id &&
+        (spaceStack === undefined || target.spaceStack === spaceStack);
+    if (isTargeted) {
+        return context.target;
+    }
     const submittedBy = ObjectReference.columns("submittedBy", context.caller.subject);
 
-    return context.update({ ...followed, ...submittedBy });
+    return context.update({
+        revisionId: revision.id,
+        ...(spaceStack === undefined ? {} : { spaceStack }),
+        ...submittedBy,
+    });
 }
 
 /** Pull the release a submission selects by tag or version, none for a space's build. */
 async function pull(
-    target: Rollout & { readonly installation: NamedInstallation },
+    target: InstallationRollout,
     reference: Submission["build"],
     options: Pick<InstallationOptions, "builds" | "registry">,
 ): Promise<SubmissionPreparation["release"]> {
@@ -423,7 +414,7 @@ async function pull(
 /** Resolve a submitted build: a succeeded build of the space, or the pulled release. */
 async function resolveBuild(
     context: MethodContext,
-    target: Rollout & { readonly installation: NamedInstallation },
+    target: InstallationRollout,
     reference: Submission["build"],
     release: SubmissionPreparation["release"],
 ): Promise<{ readonly id: Identifier<"build">; readonly manifest: Digest }> {
@@ -442,18 +433,38 @@ async function resolveBuild(
     });
 }
 
-/** Key a stack's rollout under its space and an application's rollout by itself. */
-function rolloutKey(row: {
-    readonly id: Identifier<"installation">;
-    readonly scope: string;
-    readonly kind: Rollout["kind"];
-}) {
-    return row.kind === "stack" ? { scope: row.scope, kind: "stack" } : { id: row.id };
+/** Key a rollout by its installation. */
+function rolloutKey(row: { readonly id: Identifier<"installation"> }) {
+    return { id: row.id };
 }
 
-/** Wake the installations a moved reference or a finished commit build selects. */
-function repositoryWatches(forge: Forge) {
+/** Key an installation following a source and its manager, which targets a managed one's build. */
+function followerKeys(row: {
+    readonly id: Identifier<"installation">;
+    readonly managerInstallationId: Identifier<"installation"> | null;
+}) {
     return [
+        { id: row.id },
+        ...(row.managerInstallationId === null ? [] : [{ id: row.managerInstallationId }]),
+    ];
+}
+
+/** Wake the installations a moved tag, a moved reference or a finished commit build selects. */
+function forgeWatches(forge: Forge) {
+    return [
+        // wake the installations of every served space selecting a moved tag of its package
+        ObjectWatch.of(forge.tags, async (row, database) => {
+            const tagged = forge.tag(row);
+            const selecting = await Rollout.selecting(
+                database,
+                undefined,
+                (selection) => selection.kind === "tag" && selection.tag === tagged.name,
+            );
+
+            return selecting
+                .filter((each) => each.packageId === tagged.package)
+                .flatMap(followerKeys);
+        }),
         // wake the installations of every served space selecting a moved reference
         ObjectWatch.of(forge.references, async (row, database) => {
             const { repository, name } = forge.reference(row);
@@ -461,10 +472,13 @@ function repositoryWatches(forge: Forge) {
             const selecting = await Rollout.selecting(
                 database,
                 undefined,
-                (selection) => selection.repository === repository && selection.reference === name,
+                (selection) =>
+                    selection.kind === "repository" &&
+                    selection.repository === repository &&
+                    selection.reference === name,
             );
 
-            return selecting.map(rolloutKey);
+            return selecting.flatMap(followerKeys);
         }),
         // wake the installations of the space selecting the directory a finished commit build compiled
         ObjectWatch.of(build.table, async (row, database) => {
@@ -479,13 +493,41 @@ function repositoryWatches(forge: Forge) {
                 database,
                 row.scope,
                 (selection) =>
+                    selection.kind === "repository" &&
                     selection.repository === source.repository &&
                     selection.directory === source.directory,
             );
 
-            return selecting.map(rolloutKey);
+            return selecting.flatMap(followerKeys);
         }),
+        checkoutWatch(),
     ];
+}
+
+/** Wake the managers of the installations selecting a checkout a finished build compiled. */
+function checkoutWatch() {
+    return ObjectWatch.of(build.table, async (row, database) => {
+        // leave unfinished builds and builds of other sources
+        const { source } = row;
+        if (source.kind !== "checkout" || !Build.isFinished(row)) {
+            return [];
+        }
+
+        // key the managers of the space's installations selecting its directory
+        const selecting = await Rollout.selecting(
+            database,
+            row.scope,
+            (selection) =>
+                selection.kind === "checkout" &&
+                selection.machine === source.machine &&
+                selection.checkout === source.checkout &&
+                selection.directory === source.directory,
+        );
+
+        return selecting.flatMap((entry) =>
+            entry.managerInstallationId === null ? [] : [{ id: entry.managerInstallationId }],
+        );
+    });
 }
 
 /** Wake rollouts on the changes of their resources, deployments, bindings and placement. */
@@ -501,10 +543,14 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
 
                 // find the waiting stack
                 const [stack] = await database
-                    .select({ conditions: rollout.table.conditions })
+                    .select({ id: rollout.table.id, conditions: installation.table.conditions })
                     .from(rollout.table)
+                    .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
                     .where(
-                        and(eq(rollout.table.scope, row.scope), eq(rollout.table.kind, "stack")),
+                        and(
+                            eq(rollout.table.scope, row.scope),
+                            isNotNull(installation.table.export),
+                        ),
                     );
                 const isWaiting = stack?.conditions["Ready"]?.reason === "WaitingForResources";
 
@@ -517,16 +563,21 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                     );
 
                 return [
-                    ...(isWaiting ? [{ scope: row.scope, kind: "stack" }] : []),
+                    ...(stack !== undefined && isWaiting ? [{ id: stack.id }] : []),
                     ...bound.map((entry) => ({ id: entry.id })),
                 ];
             }),
         ),
-        // wake the stack once a rollout it manages goes, since its teardown waits for that rollout
-        ObjectWatch.of(rollout.table, (row) =>
-            row.managerInstallationId === null || row.deletedAt === null
+        // wake an installation's rollout and its stack once it comes, goes or changes, past its observed status
+        ObjectWatch.of(installation.table, (row, _database, change) =>
+            ObjectController.isObserved(installation, change)
                 ? []
-                : [{ scope: row.scope, kind: "stack" }],
+                : [
+                      { id: row.id },
+                      ...(row.managerInstallationId === null
+                          ? []
+                          : [{ id: row.managerInstallationId }]),
+                  ],
         ),
         // wake the applications waiting for their space to serve an installation's revision
         ObjectWatch.of(rollout.table, async (row, database) => {
@@ -537,9 +588,10 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
 
             // find the space's applications waiting for it to serve them or what they need
             const rollouts = await database
-                .select({ id: rollout.table.id, conditions: rollout.table.conditions })
+                .select({ id: rollout.table.id, conditions: installation.table.conditions })
                 .from(rollout.table)
-                .where(and(eq(rollout.table.scope, row.scope), eq(rollout.table.kind, "package")));
+                .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
+                .where(and(eq(rollout.table.scope, row.scope), isNull(installation.table.export)));
 
             return rollouts
                 .filter((entry) => entry.conditions["Ready"]?.reason === "WaitingForSpace")
@@ -551,11 +603,11 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
         ObjectWatch.of(entitlement.table, async (row, database) => {
             const spaces = await Space.within(database, row.scope);
             const refused = await database
-                .select({ id: rollout.table.id, conditions: rollout.table.conditions })
-                .from(rollout.table)
+                .select({ id: installation.table.id, conditions: installation.table.conditions })
+                .from(installation.table)
                 .where(
                     inArray(
-                        rollout.table.scope,
+                        installation.table.scope,
                         spaces.map((each) => schema.string().parse(each["id"])),
                     ),
                 );
@@ -576,10 +628,11 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
             const refused = await database
                 .select({
                     id: rollout.table.id,
-                    conditions: rollout.table.conditions,
+                    conditions: installation.table.conditions,
                     dependencies: installationRevision.table.dependencies,
                 })
                 .from(rollout.table)
+                .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
                 .innerJoin(
                     installationRevision.table,
                     eq(installationRevision.table.id, rollout.table.revisionId),
@@ -599,11 +652,7 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
         // wake the space's stack and applications once its placement changes
         Space.watch(async (spaceId, database) => {
             const rows = await database
-                .select({
-                    id: rollout.table.id,
-                    scope: rollout.table.scope,
-                    kind: rollout.table.kind,
-                })
+                .select({ id: rollout.table.id })
                 .from(rollout.table)
                 .where(eq(rollout.table.scope, spaceId));
 
@@ -612,68 +661,10 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
     ];
 }
 
-/** Follow the release an application selects, answering the installation as it follows it. */
-async function followRelease(
-    row: Rollout & {
-        readonly installation: NamedInstallation;
-        readonly selection: Extract<InstallationSelection, { readonly kind: "release" }>;
-    },
-    reconciliation: ObjectReconciliation<typeof rollout>,
-    options: InstallationOptions,
-): Promise<Rollout & { readonly installation: NamedInstallation }> {
-    // resolve the release's manifest, and leave a release whose revision the installation follows
-    const { version } = row.selection;
-    const manifest =
-        row.selection.manifest ??
-        (await options.registry.find(row.installation.packageId, version));
-    const { database } = reconciliation;
-    const followed =
-        row.revisionId === null
-            ? undefined
-            : await Snapshot.live(database)
-                  .read(installationRevision.table)
-                  .findFirst({ where: { id: row.revisionId } });
-    if (
-        followed?.digest ===
-        (await InstallationRevision.digest(
-            manifest,
-            undefined,
-            reconciliation.store.environment.crypto,
-        ))
-    ) {
-        return row;
-    }
-
-    // pull the release before the transactions, then record it as the space's build, retain its revision once, and follow it
-    await options.builds.pull(options.registry, row.installation.packageId, manifest);
-    const pulled = await Build.release(
-        Snapshot.live(database),
-        (calls) => reconciliation.mutate(calls),
-        row.scope,
-        { package: row.installation.packageId, version, manifest },
-    );
-    const [{ id }] = await reconciliation.mutate([
-        await InstallationRevision.create(
-            row.installation,
-            pulled,
-            undefined,
-            reconciliation.store.environment.crypto,
-        ),
-    ]);
-    if (row.revisionId === id) {
-        return row;
-    }
-    const [following] = await reconciliation.mutate([
-        rollout.call("follow", { ...rollout.target(row), revisionId: id }),
-    ]);
-
-    return { ...row, ...following };
-}
-
 /** Open a view the installation's applied revision declares at a location, in the opener's home. */
 async function open(
     context: MethodContextOf<typeof rollout, "open">,
-    target: Rollout & { readonly installation: NamedInstallation },
+    target: InstallationRollout,
     options: Pick<InstallationOptions, "accounts" | "builds">,
 ): Promise<ResultOf<typeof rollout, "open">> {
     // require the revision the installation applies, whose build serves its views

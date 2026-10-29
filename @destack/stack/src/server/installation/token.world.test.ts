@@ -40,11 +40,15 @@ test("grant an installation tokens of its space as it asks by assertions its key
                 served.as(fixture.owner.subject).endpoint(stackPackage),
                 environment,
             );
-            const { id: notes } = await owner.rollout.create({
-                spaceId: ids.space,
+            const installer = createClient(
+                objectPackage,
+                served.as(fixture.owner.subject).endpoint(objectPackage),
+                environment,
+            );
+            const { id: notes } = await installer.installation.create({
+                scope: ids.space,
                 requestId: RequestId.create(fixture.machine.environment),
                 packageId: ids.package,
-                kind: "package",
                 selection: { kind: "release", version: "2026.9.0" },
                 name: "notes",
             });

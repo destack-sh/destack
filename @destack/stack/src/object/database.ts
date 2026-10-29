@@ -12,7 +12,7 @@ import {
     installationRevision,
     Rollout,
     rollout,
-    type NamedInstallation,
+    type InstallationRollout,
 } from "./rollout.ts";
 import type { graph, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
@@ -64,7 +64,7 @@ export const Database = {
         ) => Promise<Pick<BuildReader, "declarations">>,
     ): Promise<
         {
-            readonly rollout: Rollout & { readonly installation: NamedInstallation };
+            readonly rollout: InstallationRollout;
             readonly revisionId: InstallationRevision["id"];
             readonly manifest: Digest;
             readonly declarations: graph.Declaration[];
@@ -131,21 +131,20 @@ export const Database = {
                     entry.revisionId === null
                         ? undefined
                         : declared.get(entry.revisionId)?.declarations;
-                const tables = bindings.find(
-                    (each) =>
-                        each.installationId === entry.id &&
-                        each.name === MAIN_DATABASE &&
-                        each.target === main.id,
-                );
+                const tables =
+                    entry.revisionId === null
+                        ? undefined
+                        : revisions.find((each) => each.id === entry.revisionId)?.states[
+                              MAIN_DATABASE
+                          ];
                 const isBound =
-                    Observation.isCurrent(entry, "Bound") &&
-                    entry.conditions["Bound"]?.status === "true";
+                    Observation.isCurrent(entry.installation, "Bound") &&
+                    entry.installation.conditions["Bound"]?.status === "true";
                 const isApplied =
                     latest !== undefined &&
                     isBound &&
                     (!latest.some((each) => each.kind === OBJECT_DECLARATION) ||
-                        (tables !== undefined &&
-                            applied.has(tables.state)));
+                        (tables !== undefined && applied.has(tables)));
                 const revisionId = isApplied ? entry.revisionId : entry.appliedRevisionId;
 
                 return revisionId === null ? [] : [{ rollout: entry, revisionId }];

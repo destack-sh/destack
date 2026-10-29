@@ -31,35 +31,45 @@ import stackPackage from "../../package.ts";
 /** How long a failed pass gets to retry: 30 s, inside the minute before its failures report. */
 const RETRY_MILLISECONDS = 30_000;
 
-test("install an application into a space as its owner, and refuse a stranger whether its name is taken or free", async () => {
+test("install an application into a space as its owner, refuse one without a name, and refuse a stranger whether its name is taken or free", async () => {
     const fixture = await TestSpace.open();
     const served = await fixture.serve();
-    const create = (user: string | Subject, name = "notes") =>
+    const create = (user: string | Subject, name: string | null = "notes") =>
         served
             .as(user)
-            .client(stackPackage)
-            .rollout.create({
-                spaceId: ids.space,
+            .client(objectPackage)
+            .installation.create({
+                scope: ids.space,
                 requestId: RequestId.create(fixture.machine.environment),
                 packageId: ids.package,
-                kind: "package",
                 selection: { kind: "release", version: "2026.9.0" },
-                name,
+                ...(name === null ? {} : { name }),
             });
 
-    // install the package as an application under its name, the installation installed by the owner
+    // install the package as an unmanaged application under its name, rolled out from the start
     const created = await create(fixture.owner.id);
     const [installed] = await fixture.database
         .select()
         .from(installation.table)
         .where(eq(installation.table.id, created.id));
+    const [rolled] = await fixture.database
+        .select({ id: rollout.table.id })
+        .from(rollout.table)
+        .where(eq(rollout.table.id, created.id));
     expect([
-        created.kind,
-        installed?.origin,
+        installed?.managerInstallationId,
         installed?.name,
         installed?.packageId,
         installed?.status,
-    ]).toEqual(["package", "installed", "notes", ids.package, "enabled"]);
+        rolled?.id,
+    ]).toEqual([null, "notes", ids.package, "enabled", created.id]);
+
+    // refuse an installation without a name, which only a scope's base installations lack
+    expect(await refusal(create(fixture.owner.id, null))).toEqual([
+        "BAD_REQUEST",
+        "FIELD_MISSING",
+        "an installation needs a name",
+    ]);
 
     // refuse a caller with no role in the space alike for a free and a taken name
     for (const name of ["tasks", "notes"]) {
@@ -113,6 +123,7 @@ test("find and list only the enabled installations not being deleted, as a machi
                     installationId: id,
                     buildId: pulled.id,
                     dependencies: [],
+                    states: {},
                     digest: Digest.parse("e".repeat(64)),
                     createdAt: now,
                     updatedAt: now,
@@ -122,12 +133,16 @@ test("find and list only the enabled installations not being deleted, as a machi
         await database.transaction(async (transaction) => {
             await transaction
                 .update(rollout.table)
-                .set({ revisionId, ...(deletedAt === undefined ? {} : { deletedAt }) })
+                .set({ revisionId })
                 .where(eq(rollout.table.id, id));
-            if (status !== undefined) {
+            const changed = {
+                ...(status === undefined ? {} : { status }),
+                ...(deletedAt === undefined ? {} : { deletedAt }),
+            };
+            if (Object.keys(changed).length > 0) {
                 await transaction
                     .update(installation.table)
-                    .set({ status })
+                    .set(changed)
                     .where(eq(installation.table.id, id));
             }
         });
@@ -153,11 +168,11 @@ test("roll an installation back to the revision applied before, a reused one too
     const fixture = await TestSpace.open();
     const served = await fixture.serve({ isControlled: false });
     const owner = served.as(fixture.owner.subject).client(stackPackage);
-    const installed = await owner.rollout.create({
-        spaceId: ids.space,
+    const installer = served.as(fixture.owner.subject).client(objectPackage);
+    const installed = await installer.installation.create({
+        scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        kind: "package",
         selection: { kind: "release", version: "2026.9.2" },
         name: "notes",
     });
@@ -173,6 +188,7 @@ test("roll an installation back to the revision applied before, a reused one too
                     installationId: installed.id,
                     buildId: built.id,
                     dependencies: [],
+                    states: {},
                     digest: Digest.parse(version.replaceAll(".", "").padEnd(64, "0")),
                     createdAt: now,
                     updatedAt: now,
@@ -217,7 +233,12 @@ test("roll an installation back to the revision applied before, a reused one too
     await apply(second);
     await apply(third);
     const back = await rollBack();
-    const { revisionId, selection } = await read();
+    const { revisionId } = await read();
+    const [reselected] = await fixture.database
+        .select({ selection: installation.table.selection })
+        .from(installation.table)
+        .where(eq(installation.table.id, installed.id));
+    const { selection } = present(reselected, "the installation");
 
     // follow a newer revision again after the older one is applied again
     await apply(second);
@@ -251,7 +272,7 @@ test("identify a residency home's declared installation by its name, and forward
         { relation: "installation" },
     );
     const { name } = PackageManifest.package(build.manifest);
-    const declared = await InstallationId.declared(
+    const declared = await InstallationId.of(
         { id: home.id },
         name.slice(name.lastIndexOf("/") + 1),
         home.environment.crypto,

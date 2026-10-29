@@ -102,8 +102,6 @@ export interface InstanceSpec {
     readonly instanceId: Identifier<"instance">;
     /** The installation the workload runs for. */
     readonly installationId: Identifier<"installation">;
-    /** Whether the installation's scope's stack declares it, or someone installed it. */
-    readonly origin: "declared" | "installed";
     /** The installation's name in its space, its address there. */
     readonly name: string;
     /** The space the installation serves. */
@@ -209,7 +207,6 @@ export const InstanceSpec = {
             instance: spec.instanceId,
             scope: spec.scope,
             installation: spec.installationId,
-            origin: spec.origin,
             name: spec.name,
             bindings: bindings(spec, options.egress, secret),
             settings: spec.settings,

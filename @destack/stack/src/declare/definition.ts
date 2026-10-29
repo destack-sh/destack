@@ -130,7 +130,10 @@ export async function declaredStack(
         }
         transitive[installed.name] = {
             ...installed,
-            selection: { ...installed.selection, manifest: release.manifest },
+            selection:
+                installed.selection.kind === "release"
+                    ? { ...installed.selection, manifest: release.manifest }
+                    : installed.selection,
         };
     }
 

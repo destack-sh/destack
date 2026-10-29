@@ -1,6 +1,6 @@
 # @destack/stack
 
-`defineStack` declares a space's resources and package installations, each followed by a `rollout` applying revisions with a plan and an approval.
+`defineStack` declares a space's resources and package installations, each rolled out by its `rollout`, which targets, applies and serves its revisions with a plan and an approval.
 
 ```ts
 // a stack, as Pulumi and CloudFormation declare one
@@ -24,6 +24,8 @@ await client.rollout.rollBack({ spaceId, id, requestId }); // the release applie
 await asserted.installation.token({ scope: spaceId, id, requestId, audience });
 // the revision the space serves each rollout at, the status its host records as Kubernetes' Pod.status
 await Rollout.serve(store, spaceId, revisions); // rollout.servedRevision
+// the stack targets the revisions of every installation it manages in one transaction, as a Deployment its ReplicaSets
+await reconciliation.mutate([rollout.call("target", { ...rollout.target(managed), revisionId })]);
 ```
 
 ## Declarations
@@ -175,11 +177,10 @@ const fixture = await StackFixture.open();
 const host = fixture.host(store, ids.space); // a controller recording rollout.servedRevision, as a host would
 const owner = (await fixture.serve())(ids.owner);
 // install a package: its installation and the rollout following its selection, in one call
-await owner.rollout.create({
-    spaceId: ids.space,
+await installer.installation.create({
+    scope: ids.space,
     requestId,
     packageId,
-    kind: "package",
     selection,
     name: "pages",
 });
