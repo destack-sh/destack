@@ -1,11 +1,12 @@
 import { FOLLOWER_REVISION } from "../test/index.ts";
 import { schema } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import type { Call } from "../call/call.ts";
 import type { Page } from "../query/index.ts";
 import { Simulation } from "@destack/environment/simulation";
-import { openReplica } from "../test/fixture.ts";
-import { Subscription, Uplink } from "./publication.ts";
+import { note, openReplica } from "../test/fixture.ts";
+import { definePublication, Subscription, Uplink } from "./publication.ts";
+import { Replica } from "./replica.ts";
 
 /** The package of the notes the scenarios send. */
 const PACKAGE_ID = schema
@@ -103,6 +104,44 @@ test("record a follower's request at its source, keeping its latest revision of 
         [reshaped.parameters, "first", 3],
         [subscription.parameters, "restored", 1],
     ]);
+});
+
+test("refuse a subscription whose parameters its publication rejects, reading valid ones as parsed", async () => {
+    // declare a publication of notes by a required folder
+    const publication = definePublication({
+        name: "folder",
+        parameters: schema.object({ folder: schema.string().min(1) }),
+        audience: "caller",
+        replica: ({ name, scope }) => new Replica({ name, scope, tables: [note] }),
+    });
+    const subscription = {
+        name: "folder",
+        publication: "folder",
+        scope: "inbox",
+        target: "inbox",
+        revision: FOLLOWER_REVISION,
+    };
+
+    // read valid parameters, and refuse missing ones as the caller's mistake
+    expect({
+        read: publication.read({ ...subscription, parameters: { folder: "inbox" } }).parameters,
+        missing: await refusal(() => publication.read({ ...subscription, parameters: {} })),
+        replica: await refusal(() =>
+            publication.replica({ ...subscription, parameters: { folder: "" } }),
+        ),
+    }).toEqual({
+        read: { folder: "inbox" },
+        missing: [
+            "BAD_REQUEST",
+            "PARAMETERS_INVALID",
+            "invalid parameters of publication folder: folder: invalid input: expected string, received undefined",
+        ],
+        replica: [
+            "BAD_REQUEST",
+            "PARAMETERS_INVALID",
+            "invalid parameters of publication folder: folder: too small: expected string to have >=1 characters",
+        ],
+    });
 });
 
 /** Build a follower's log position in an epoch. */

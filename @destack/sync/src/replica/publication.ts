@@ -14,6 +14,7 @@ import {
     text,
 } from "@destack/db";
 import { canonicalize, Duration, schema } from "@destack/schema";
+import { SyncError } from "../error/index.ts";
 import type { Call, Mutation } from "../call/call.ts";
 import { Subject } from "../call/subject.ts";
 import type { Page } from "../query/index.ts";
@@ -164,6 +165,8 @@ export interface Publication {
     readonly audience: PublicationAudience;
     /** Build the replica a subscription follows. */
     readonly replica: (subscription: SubscriptionRecord) => Replica;
+    /** Read a subscription's parameters by the publication's schema, refusing invalid ones. */
+    readonly read: <Requested extends SubscriptionRecord>(subscription: Requested) => Requested;
 }
 
 /** A declared publication, with the typed subscriptions of its parameters. */
@@ -192,6 +195,12 @@ export function definePublication<Parameters extends object>(definition: {
         readonly parameters: Parameters;
     }) => Replica;
 }): PublicationOf<Parameters> {
+    // read a subscription's parameters into their canonical form, refusing invalid ones
+    const read = <Requested extends SubscriptionRecord>(subscription: Requested): Requested => ({
+        ...subscription,
+        parameters: PARAMETERS.parse(parseParameters(definition, subscription.parameters)),
+    });
+
     return {
         name: definition.name,
         audience: definition.audience,
@@ -200,14 +209,27 @@ export function definePublication<Parameters extends object>(definition: {
                 name: request.name,
                 scope: request.scope,
                 target: request.target,
-                parameters: definition.parameters.parse(request.parameters),
+                parameters: parseParameters(definition, request.parameters),
             }),
-        subscription: (subscription) => ({
-            ...subscription,
-            publication: definition.name,
-            parameters: PARAMETERS.parse(definition.parameters.parse(subscription.parameters)),
-        }),
+        subscription: (subscription) => read({ ...subscription, publication: definition.name }),
+        read,
     };
+}
+
+/** Parse a subscription's parameters by its publication, refusing invalid ones as the caller's. */
+function parseParameters<Parameters>(
+    definition: { readonly name: string; readonly parameters: schema.Schema<Parameters> },
+    parameters: unknown,
+): Parameters {
+    const parsed = definition.parameters.safeParse(parameters);
+    if (!parsed.success) {
+        throw SyncError.of(
+            "PARAMETERS_INVALID",
+            `invalid parameters of publication ${definition.name}: ${schema.describeIssues(parsed.error.issues)}`,
+        );
+    }
+
+    return parsed.data;
 }
 
 /** Serves a replica's subscriptions one step closer to its rows' home. */

@@ -3,6 +3,9 @@ import type {} from "@destack/package/import-meta";
 
 /** The sync package's failures, each reason with the call error code it answers. */
 export const SyncError = defineErrorFamily(import.meta.destack.package, {
+    // bad request
+    PARAMETERS_INVALID: { code: "BAD_REQUEST" },
+
     // not found
     NOT_FOUND: { code: "NOT_FOUND" },
 
