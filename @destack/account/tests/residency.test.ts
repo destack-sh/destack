@@ -112,7 +112,15 @@ async function accounts(caller: TestCaller, space: string): Promise<string[]> {
             scope: Scope.universe.id,
             target: space,
             publication: QUERIES_PUBLICATION,
-            parameters: { queries: { account: { object: ACCOUNT_TYPE.type, scopes: "every" } } },
+            parameters: {
+                queries: {
+                    account: {
+                        object: ACCOUNT_TYPE.type,
+                        package: ACCOUNT_TYPE.packageId,
+                        scopes: "every",
+                    },
+                },
+            },
             revision: FOLLOWER_REVISION,
         },
         { signal: controller.signal },

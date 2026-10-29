@@ -1241,7 +1241,6 @@ export class TestAccountStore implements AsyncDisposable {
                         Scope.universe,
                         [],
                         UNIVERSE_PACKAGES,
-                        store,
                     ),
             );
             await Residency.apply(store, RESIDENCIES);
