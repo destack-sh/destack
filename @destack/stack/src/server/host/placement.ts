@@ -220,7 +220,7 @@ export class PlacementController implements ReconcileController {
                 this.#store.environment,
             );
             const scope = space.reference(replicated.scope, spaceId);
-            await Installation.receive(authorization, scope, ancestors, SPACE_KERNEL, this.#store);
+            await Installation.receive(authorization, scope, ancestors, SPACE_KERNEL);
         });
     }
 

@@ -8,7 +8,6 @@ import {
 import { ViewPath } from "@destack/view/declare";
 import {
     AccessContext,
-    type Authorizer,
     Caller,
     Grant,
     type GrantPermission,
@@ -18,7 +17,6 @@ import {
     PermissionScope,
     PermissionSet,
     principal,
-    type RoleRequest,
 } from "@destack/access";
 import { type PackageDescription } from "@destack/object";
 import {
@@ -387,20 +385,18 @@ export type Rollout = Select<typeof rollout.table>;
 
 /** One change to an installation's access: the calls one caller makes. */
 export interface RolloutAccess {
-    /** The caller making the calls: the code, the consenter, or the space lending its authority. */
+    /** The caller making the calls: the consenter, or the space lending its authority. */
     readonly caller: AccessContext;
     /** The calls upserting the role or the grant. */
     readonly calls: readonly Call[];
 }
 
-/** Who builds an installation's access, when, and the types its space serves. */
+/** Who builds an installation's access, and when. */
 export interface RolloutActor {
     /** The code making the changes. */
     readonly subject: Subject;
     /** The time of the changes. */
     readonly now: number;
-    /** The authorizer knowing the policies of the served types. */
-    readonly authorizer: Pick<Authorizer, "policies">;
 }
 
 /** An installation a rollout follows: declared or installed, never base, with its name. */
@@ -732,67 +728,10 @@ export const Rollout = {
         const changes = await Rollout.access(reader, target, description, {
             subject: context.self.subject,
             now: context.now,
-            authorizer: context.authorizer,
         });
         for (const change of changes) {
             await context.mutate(change.caller, change.calls);
         }
-    },
-
-    /** Build the call that gives an installation's own types' permissions to its code's role. */
-    inherent(
-        target: Rollout & { readonly installation: NamedInstallation },
-        description: Pick<PackageDescription, "permissions" | "capabilities"> | undefined,
-        actor: RolloutActor,
-    ): RolloutAccess {
-        // give them to a role of its code, upserted as the code itself
-        const request = Rollout.role(target.installation, description, actor.authorizer);
-        const call = role.call("applyInherent", {
-            ...role.in(target.scope),
-            ...request,
-            permissions: [...request.permissions],
-            subject: principal.installation.reference(target.scope, target.id),
-        });
-
-        return { caller: AccessContext.of(Caller.of(actor.subject), actor.now), calls: [call] };
-    },
-
-    /** Describe an installation's code role: its served types' permissions and its requests. */
-    role(
-        target: Pick<Installation, "id" | "name" | "packageId" | "capabilities" | "allowed">,
-        description: Pick<PackageDescription, "permissions" | "capabilities"> | undefined,
-        authorizer: Pick<Authorizer, "policies">,
-    ): RoleRequest {
-        // take every unreserved permission of the package's served types, none once it goes
-        const isOwn = (packageId: string) =>
-            description !== undefined && packageId === target.packageId;
-        const served = authorizer
-            .policies()
-            .filter((policy) => isOwn(policy.definition.packageId))
-            .flatMap((policy) => {
-                const reserved = new Set<string>(policy.definition.reserved ?? []);
-
-                return Object.keys(policy.definition.permissions)
-                    .filter((name) => !reserved.has(name))
-                    .map((name) => policy.permission(name));
-            });
-
-        // add its requested permissions on its own types once each, for its code to use before they are served
-        const requested = Rollout.permissions(target, description, "installation").space ?? [];
-        const asked = requested.filter((permission) => isOwn(permission.packageId));
-        const permissions = [...served, ...asked].filter(
-            (permission, index, all) =>
-                all.findIndex(
-                    (other) =>
-                        PermissionReference.key(other) === PermissionReference.key(permission),
-                ) === index,
-        );
-
-        return {
-            name: `package:${target.id}`,
-            description: `What ${target.name} does on its own types in this space`,
-            permissions,
-        };
     },
 
     /** Build the calls upserting an installation's roles and space grant, with their callers. */
@@ -806,7 +745,7 @@ export const Rollout = {
         const { subject, now } = actor;
         const consenter = Caller.acting(Rollout.consenter(target), subject);
 
-        // give its package's own types' permissions to its code, and ask consent for the rest
+        // ask consent for its requests on other packages' types, its own types going by their policies
         const set = Rollout.permissions(target.installation, description, "installation");
         const installed = principal.installation.reference(target.scope, target.id);
         const requested = set.space ?? [];
@@ -859,7 +798,6 @@ export const Rollout = {
         const lending = Caller.acting(delegator, subject);
 
         return [
-            Rollout.inherent(target, description, actor),
             { caller: AccessContext.of(consenter, now), calls: [binding] },
             ...(granting.length === 0
                 ? []

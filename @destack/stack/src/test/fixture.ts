@@ -1658,7 +1658,6 @@ export class TestSpace implements AsyncDisposable {
                 space.reference(this.account, this.id),
                 [this.account],
                 born,
-                store,
             );
         });
 

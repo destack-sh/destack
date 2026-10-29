@@ -504,7 +504,6 @@ export class BucketFixture implements AsyncDisposable {
                 space.reference(this.accountId, spaceId),
                 [this.accountId],
                 [stackPackage],
-                this.#store,
             );
         });
     }

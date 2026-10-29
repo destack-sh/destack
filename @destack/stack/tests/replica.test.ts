@@ -14,32 +14,10 @@ test("relay the access deciding a space's objects to each of its installations a
     // serve the space below its account with an installation, next to another space of the account
     const { snapshot, notes, other } = await serveInstallation();
 
-    // relay the space's row, its base roles and bindings, and the permissions on the build and space
-    const base = ["object", "setting", "stack"].map((name) => `base:@destack/${name}`);
+    // relay the space's row and the stack's base role with its binding, its own types going by their policies
     expect(described(await snapshot(notes, ids.space))).toEqual([
-        ...base.map((name) => ["destack__access__relationship", `${name} space`]),
-        ...["cancel", "create", "push", "read", "record"].map((name) => [
-            "destack__access__role_permission",
-            `base:@destack/stack build.${name}`,
-        ]),
-        // include every unreserved permission of the space type the stack serves
-        ...[
-            "analyze",
-            "comment",
-            "control",
-            "create",
-            "delete",
-            "list",
-            "manage",
-            "member",
-            "observe",
-            "read",
-            "rotate",
-            "unmask",
-            "update",
-            "write",
-        ].map((name) => ["destack__access__role_permission", `base:@destack/stack space.${name}`]),
-        ...base.map((name) => ["destack__access__role", name]),
+        ["destack__access__relationship", "base:@destack/stack space"],
+        ["destack__access__role", "base:@destack/stack"],
         ["destack__sync__scope", ids.space],
     ]);
     expect(located(await snapshot(notes, ids.account))).toEqual([

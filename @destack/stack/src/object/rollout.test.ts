@@ -7,7 +7,6 @@ import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import stackPackage from "../package.ts";
 import { ids, insertRollout, openSpaceDatabase } from "../test/index.ts";
-import { note } from "../test/schema.ts";
 import { Rollout, rollout } from "./index.ts";
 
 /** The description of a notes release requesting reading the space and its own notes. */
@@ -58,7 +57,7 @@ async function installNotes(): ReturnType<typeof openSpaceDatabase> {
     return opened;
 }
 
-test("give an installation's own types' permissions to a role of its code, bind the others on its consenter's authority, and drop both once it goes", async () => {
+test("bind an installation's requests on other packages' types on its consenter's authority, and drop them once it goes", async () => {
     // install notes in the space as its owner
     const { database, crypto, now } = await installNotes();
     const installer = INSTALLER;
@@ -71,19 +70,11 @@ test("give an installation's own types' permissions to a role of its code, bind 
     const stack = await Installation.base(scope, stackPackage, crypto);
     const subject = principal.installation.reference(ids.space, stack.installation);
     const installation = principal.installation.reference(ids.space, ids.notes);
-    const actor = { subject, now, authorizer: { policies: () => [space.policy, note.policy] } };
+    const actor = { subject, now };
     const installed = await Rollout.access(snapshot, target, DESCRIPTION, actor);
     const removed = await Rollout.access(snapshot, target, undefined, actor);
 
-    // run the code-owned role as the code itself and the consented one for the installer
-    const inherent = (permissions: readonly Permission[]) =>
-        role.call("applyInherent", {
-            ...role.in(ids.space),
-            name: `package:${ids.notes}`,
-            description: "What notes does on its own types in this space",
-            permissions: [...permissions],
-            subject: installation,
-        });
+    // run the consented role for the installer
     const binding = (permissions: readonly Permission[]) =>
         role.call("upsertBinding", {
             ...role.in(ids.space),
@@ -105,17 +96,11 @@ test("give an installation's own types' permissions to a role of its code, bind 
     const consenter = AccessContext.of(Caller.acting(installer, subject), now);
     expect({ installed, removed }).toEqual({
         installed: [
-            // give every permission of the package's own note type to the role of its code
-            {
-                caller: AccessContext.of(Caller.of(subject), now),
-                calls: [inherent([note.permission("read"), note.permission("write")])],
-            },
             { caller: consenter, calls: [binding([space.permission("read")])] },
             // grant the account-scoped request and the universe-scoped one in every scope as the space
             { caller: delegator, calls: [lent] },
         ],
         removed: [
-            { caller: AccessContext.of(Caller.of(subject), now), calls: [inherent([])] },
             { caller: consenter, calls: [binding([])] },
         ],
     });

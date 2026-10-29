@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { PACKAGE_STORE_TABLES } from "@destack/build/table";
-import { defineAdapter, definePackage, installation, role } from "@destack/object";
+import { defineAdapter, definePackage, installation } from "@destack/object";
 import { catalog, declaration, module, symbol } from "./object/graph.ts";
 import {
     binding,
@@ -63,7 +63,6 @@ export default definePackage({
                 installation.permission("install"),
                 installation.permission("update"),
                 installation.permission("delete"),
-                role.permission("inherit"),
             ],
         },
     },

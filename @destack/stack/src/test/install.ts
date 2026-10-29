@@ -264,11 +264,7 @@ export async function installBuild(
     const subject = principal.installation.reference(scope, stack.installation);
     const installed = present(target, `rollout ${installationId}`);
     const description = await PackageDescription.of(reader);
-    const changes = await Rollout.access(snapshot, installed, description, {
-        subject,
-        now,
-        authorizer: store.authorizer,
-    });
+    const changes = await Rollout.access(snapshot, installed, description, { subject, now });
     for (const change of changes) {
         await store.mutate(change.caller, {
             id: RequestId.create(environment),

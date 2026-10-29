@@ -320,13 +320,7 @@ export class Application {
             return;
         }
 
-        // give the package's code the permissions it requests on its own types, then attach the resources it needs
-        const owning = Rollout.inherent(target, description, {
-            subject: call.self.subject,
-            now: call.now,
-            authorizer: call.authorizer,
-        });
-        await call.mutate(owning.caller, owning.calls);
+        // attach the resources it needs
         await this.#options.binder.attach(call, target, needs);
         if (!(await this.#options.binder.ready(call, target, needs))) {
             const message = "bound targets wait for their resources";
