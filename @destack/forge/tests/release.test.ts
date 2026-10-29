@@ -170,21 +170,21 @@ test("store a pushed build in the forge's store by digest as its release's manif
     ]);
 });
 
-test("publish releases in order, each planned from the latest release", async () => {
-    // refuse a release planned from one the package never published and publish both in order
+test("publish releases in version order", async () => {
+    // publish the later release, then refuse the earlier one
     const forge = await TestForge.open();
-    const next = await fixtureBuild("answer", "2026.9.1");
-    const early = await refusal(forge.publish(next.reader));
-    const first = await forge.publish((await fixtureBuild("answer")).reader);
-    const second = await forge.publish(next.reader);
+    const later = await forge.publish((await fixtureBuild("answer", "2026.9.1")).reader);
+    const earlier = await refusal(forge.publish((await fixtureBuild("answer")).reader));
     const owner = forge.client(forge.owner);
-    const published = await owner.package.get({ spaceId: forge.space, id: first.packageId });
+    const published = await owner.package.get({ spaceId: forge.space, id: later.packageId });
 
-    // record the upgrade on the later release, and the terms neither release fixes
-    expect([early, first.release.upgrade, second.release.upgrade, published.vocabulary]).toEqual([
-        ["CONFLICT", "FIRST_RELEASE_UPGRADE", "the first release cannot have an upgrade"],
-        null,
-        { from: "2026.9.0", steps: [] },
+    // refuse the earlier version, and fix no terms the release does not declare
+    expect([earlier, published.vocabulary]).toEqual([
+        [
+            "CONFLICT",
+            "VERSION_ORDER",
+            "publish releases in version order: 2026.9.0 precedes 2026.9.1",
+        ],
         {},
     ]);
 });

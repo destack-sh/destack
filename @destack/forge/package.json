@@ -27,7 +27,6 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/bucket": "workspace:*",
         "@destack/build": "workspace:*",
         "@destack/connection": "workspace:*",
         "@destack/db": "workspace:*",

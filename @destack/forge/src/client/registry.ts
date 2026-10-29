@@ -86,7 +86,11 @@ export class Registry {
     }
 
     /** Push a stored build and its npm units to its package's forge. */
-    async push(store: PackageStore, manifest: Digest, signal?: AbortSignal): Promise<Digest> {
+    async push(
+        store: Pick<PackageStore, "contents" | "units">,
+        manifest: Digest,
+        signal?: AbortSignal,
+    ): Promise<Digest> {
         // upload below the package, which its forge authorizes to the package's publishers
         const build = await store.contents(manifest);
         const packageId = PackageManifest.package(build.manifest).id;

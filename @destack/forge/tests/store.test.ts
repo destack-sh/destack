@@ -1,14 +1,12 @@
 import objectPackage from "@destack/object/package";
 import type { TestPerson } from "@destack/account/test";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { join } from "node:path";
-import { LocalBucket } from "@destack/bucket/bun";
+import { expect, refusal, test } from "@destack/test";
 import { encodeManifest, PackageStore } from "@destack/build/store";
+import { TestPackageStore } from "@destack/build/test";
 import { PackageManifest } from "@destack/package/manifest";
 import { Commit, Digest } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { UNRELEASED_MILLISECONDS } from "../src/server/index.ts";
-import { SWEEP_INTERVAL_MILLISECONDS } from "../src/server/sweep-controller.ts";
 import { account } from "@destack/account/object";
 import forgePackage from "../src/package.ts";
 import { ACCOUNT_ID, TestForge } from "../src/test/index.ts";
@@ -36,10 +34,7 @@ test("serve a release's build by its digest to its package's readers only, yanke
     const forge = await TestForge.open();
     const published = await forge.publish((await fixtureBuild("answer")).reader);
     const { environment } = forge.home;
-    const directory = await environment.files.makeTemporaryDirectory("destack-forge-copy-");
-    onTestFinished(() => environment.files.remove(directory, { recursive: true }));
-    await using bucket = await LocalBucket.open(join(directory, "copy"), "host-test", environment);
-    const copied = new PackageStore(bucket, environment);
+    await using copied = await TestPackageStore.create(environment);
     const location = (digest: Digest) => ({
         manifest: digest,
         url: `${forge.origin}${forgePackage.adapters.builds.path}/${digest}/`,
@@ -176,7 +171,7 @@ test("authorize a manifest push from the forge's replica of the account, followi
     });
 });
 
-test("sweep a pushed but unreleased build once the window passes, leaving released builds and archives", async () => {
+test("collect a pushed but unreleased build once its lease ends, leaving released builds and archives", async () => {
     // publish one build and push the next without releasing it
     const forge = await TestForge.open();
     const published = await forge.publish((await fixtureBuild("answer")).reader, "public");
@@ -184,51 +179,47 @@ test("sweep a pushed but unreleased build once the window passes, leaving releas
     const store = await forge.store();
     const stored = async () => ({
         released: await store.contains(published.manifest),
-        archive: (await store.bucket.head(`files/${published.release.distribution.digest}`))?.size,
+        archive: await store.has(published.release.distribution.digest),
         unreleased: await store.contains(unreleased),
     });
 
-    // leave the unreleased build within the window, mark it after and drop it an interval later
+    // retain the unreleased build within its lease, and collect it once the lease ends
     const { clock } = forge.environment;
-    await forge.sweep(clock.now());
+    await forge.jump(clock.now());
     const within = await stored();
-    const after = clock.now() + UNRELEASED_MILLISECONDS + 1000;
-    await forge.sweep(after);
-    await forge.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
+    await forge.jump(clock.now() + UNRELEASED_MILLISECONDS + 1000);
     expect({ within, after: await stored() }).toEqual({
         within: {
             released: true,
-            archive: published.release.distribution.size,
+            archive: true,
             unreleased: true,
         },
         after: {
             released: true,
-            archive: published.release.distribution.size,
+            archive: true,
             unreleased: false,
         },
     });
 
-    // read and verify every file of the released build after the sweep
+    // read and verify every file of the released build after the collection
     const files = await (await store.contents(published.manifest)).distributed();
     const sizes = await Promise.all(files.map(async (file) => (await store.file(file)).length));
     expect(sizes).toEqual(files.map((file) => file.size));
 });
 
-test("retain the build of a release created after a sweep marked it through the next sweep", async () => {
-    // push a build, and mark it in a sweep after the window
+test("retain a pushed build once a release lists it, past its lease", async () => {
+    // push a build, then release it as the owner signed in again
     const forge = await TestForge.open();
     await forge.publish((await fixtureBuild("answer")).reader);
     const build = await fixtureBuild("answer", "2026.9.1");
     const manifest = await forge.push(build.reader);
-    const after = forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000;
-    await forge.sweep(after);
-
-    // release the marked build as the owner signed in again, and sweep an interval later
     await forge.signOwnerIn();
     const released = await forge.publish(build.reader);
-    await forge.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
 
-    // read and verify every file of the released build after the sweep
+    // wake past its lease
+    await forge.jump(forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000);
+
+    // read and verify every file of the released build after the collection
     const store = await forge.store();
     const files = await (await store.contents(manifest)).distributed();
     const sizes = await Promise.all(files.map(async (file) => (await store.file(file)).length));
@@ -238,7 +229,7 @@ test("retain the build of a release created after a sweep marked it through the 
     });
 });
 
-test("serve a release's npm units and runtime builds by digest to its readers only, and keep them through sweeps", async () => {
+test("serve a release's npm units and runtime builds by digest to its readers only, and retain them past their leases", async () => {
     // keep a build whose Bun output imports an npm unit, beside the unit, with their runtime builds
     const forge = await TestForge.open();
     const { environment } = forge.home;
@@ -279,18 +270,14 @@ test("serve a release's npm units and runtime builds by digest to its readers on
             },
         },
     });
-    const directory = await environment.files.makeTemporaryDirectory("destack-forge-unit-");
-    onTestFinished(() => environment.files.remove(directory, { recursive: true }));
-    await using local = await LocalBucket.open(join(directory, "local"), "host-test", environment);
-    const published = new PackageStore(local, environment);
+    await using published = await TestPackageStore.create(environment);
     await published.put(unit);
     const buildManifest = await published.put(build);
     const runtime = await published.attachRuntime(buildManifest, "bun");
 
     // publish the build with its unit and runtime builds, then copy the unit and the runtime build as the owner
     await forge.publish(build, "private", published);
-    await using bucket = await LocalBucket.open(join(directory, "copy"), "host-test", environment);
-    const copied = new PackageStore(bucket, environment);
+    await using copied = await TestPackageStore.create(environment);
     const builds = `${forge.origin}${forgePackage.adapters.builds.path}`;
     const owner = as(forge, forge.owner);
     const referred = await owner(new URL(`${builds}/${buildManifest}/referrers/runtime%2Fbun`), {});
@@ -304,11 +291,9 @@ test("serve a release's npm units and runtime builds by digest to its readers on
     const refused = await as(forge, stranger)(new URL(`${builds}/${runtime}/manifest.json`), {});
     await refused.body?.cancel();
 
-    // keep both past the unreleased window, as the release lists them
+    // retain both past their leases, as the release lists them
     const store = await forge.store();
-    const after = forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000;
-    await forge.sweep(after);
-    await forge.sweep(after + SWEEP_INTERVAL_MILLISECONDS);
+    await forge.jump(forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000);
     expect({
         referred: described,
         copied: [await copied.contains(unitManifest), await copied.contains(runtime)],

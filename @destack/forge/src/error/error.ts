@@ -52,11 +52,9 @@ export const ForgeError = defineErrorFamily(import.meta.destack.package, {
     VERSION_NOT_FOUND: { code: "NOT_FOUND" },
 
     // conflict
-    FIRST_RELEASE_UPGRADE: { code: "CONFLICT" },
     INSTALLATION_CLAIMED: { code: "CONFLICT" },
     FOREIGN_BUILD: { code: "CONFLICT" },
     NPM_NAME_TAKEN: { code: "CONFLICT" },
-    BASE_RELEASE_STALE: { code: "CONFLICT" },
     REVISION_STALE: { code: "CONFLICT" },
     UNCOMMITTED_CHANGES: { code: "CONFLICT" },
     VERSION_ORDER: { code: "CONFLICT" },

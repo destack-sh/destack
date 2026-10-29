@@ -1,6 +1,6 @@
 import { type PackageStore } from "@destack/build/store";
 import { type MethodContextOf, type NextOf, type ResultOf } from "@destack/object";
-import { Upgrade, Vocabulary } from "@destack/resource";
+import { Vocabulary } from "@destack/resource";
 import { present, Version, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { Forge } from "./forge.ts";
@@ -8,6 +8,9 @@ import { ForgeError } from "../error/index.ts";
 import { LATEST_TAG, packageObject, release, tag, TagName, unit } from "../object/index.ts";
 import type { Pack } from "../pack/index.ts";
 import { PackageArchive } from "../pack/index.ts";
+
+/** The path a release's npm archive is attached to its build at. */
+const ARCHIVE_REFERRER = "npm";
 
 /** What releases pack with: the store of pushed builds and the forge's space. */
 export interface ReleaseOptions {
@@ -22,7 +25,7 @@ export const ReleaseMethod = {
         context: MethodContextOf<typeof release, "create", Pack | undefined>,
         options: ReleaseOptions,
     ): Promise<Pack> {
-        // refuse a tag a range reads, and lease the build against sweeps while its request may still retry
+        // refuse a tag a range reads, and lease the build while its request may still retry
         const store = options.store;
         TagName.require(context.input.tag ?? LATEST_TAG);
         const { parentId, manifest } = context.input;
@@ -65,9 +68,10 @@ export const ReleaseMethod = {
             throw ForgeError.of("NPM_NAME_TAKEN", "the npm name belongs to another package");
         }
 
-        // lease and store the archive under its digest before any release refers to it
+        // store the archive and attach it to the build, retained while a release refers to the build
         await store.lease(archive.file.digest, until);
-        await store.putFile(archive.file, async () => archive.open());
+        await store.blobs.put(archive.file.digest, async () => archive.open());
+        await store.attach(manifest, { ...archive.file, path: ARCHIVE_REFERRER });
 
         // derive the runtime builds of the build and the npm units it depends on, then lease all of them, which its readers read with it
         const npm = await store.units(manifest, parentId);
@@ -83,9 +87,7 @@ export const ReleaseMethod = {
             await store.lease(each, until);
         }
 
-        // read the build's declarations and the upgrade it planned
-        const upgrade = contents.manifest.upgrade;
-
+        // read the build's declarations
         return {
             manifest,
             ...(commit === undefined ? {} : { commit }),
@@ -94,9 +96,6 @@ export const ReleaseMethod = {
             metadata: archive.metadata,
             dependencies: archive.dependencies,
             units,
-            ...(upgrade === undefined
-                ? {}
-                : { upgrade: await contents.read(upgrade.file, Upgrade) }),
             declarations: await contents.declarations(),
         };
     },
@@ -112,7 +111,7 @@ export const ReleaseMethod = {
         await ReleaseMethod.advance(context, packed);
 
         // insert the release
-        const { manifest, commit, version, distribution, metadata, upgrade } = packed;
+        const { manifest, commit, version, distribution, metadata } = packed;
         const created = await next(
             context.with({
                 input: {
@@ -122,7 +121,6 @@ export const ReleaseMethod = {
                     version,
                     distribution,
                     metadata,
-                    ...(upgrade === undefined ? {} : { upgrade }),
                 },
             }),
         );
@@ -239,20 +237,6 @@ export const ReleaseMethod = {
             throw ForgeError.of(
                 "VERSION_ORDER",
                 `publish releases in version order: ${packed.version} precedes ${latest}`,
-            );
-        }
-        // refuse an upgrade on the first release
-        else if (latest === undefined && packed.upgrade !== undefined) {
-            throw ForgeError.of(
-                "FIRST_RELEASE_UPGRADE",
-                "the first release cannot have an upgrade",
-            );
-        }
-        // require an upgrade planned from the latest release
-        else if (latest !== undefined && packed.upgrade?.from !== latest) {
-            throw ForgeError.of(
-                "BASE_RELEASE_STALE",
-                `the release must build against the latest release ${latest}`,
             );
         }
     },

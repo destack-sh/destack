@@ -7,7 +7,6 @@ import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Digest, schema } from "@destack/schema";
 import { ForgeError } from "../error/index.ts";
 import { valid } from "semver";
-import { Upgrade } from "@destack/resource";
 
 /** The runtimes in the order their export conditions load. */
 const CONDITION_ORDER = ["browser", "workerd", "bun"] as const satisfies readonly Runtime[];
@@ -123,8 +122,6 @@ export const Pack = schema.object({
         .readonly(),
     /** The manifests of the npm units the build depends on, directly or through other units. */
     units: schema.array(Digest).readonly(),
-    /** The steps from the package's previous release, absent for its first. */
-    upgrade: Upgrade.exactOptional(),
     /** The build's declarations, with their terms. */
     declarations: schema.array(graph.Declaration).readonly(),
 });

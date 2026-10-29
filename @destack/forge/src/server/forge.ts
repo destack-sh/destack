@@ -1,7 +1,8 @@
 import { Caller, principal } from "@destack/access";
 import { connectionShape, Runner } from "@destack/connection/server";
 import { PackageStore } from "@destack/build/store";
-import { eq, inArray, sql, type DatabaseConnection, Snapshot, Transaction } from "@destack/db";
+import type { Environment } from "@destack/environment";
+import { BlobStore, eq, Snapshot, Transaction } from "@destack/db";
 import { Directory } from "@destack/account/address";
 import { account, claimShape, spaceRecordShape } from "@destack/account/object";
 import {
@@ -20,7 +21,7 @@ import { PackageId, PackageName } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { type Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { PackageContext } from "@destack/object/workload";
 import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
 import { packageObject, reference, release, repository, unit } from "../object/index.ts";
 import forgePackage from "../package.ts";
@@ -29,7 +30,6 @@ import {
     credentialVault,
     githubPrivateKey,
     githubWebhookSecret,
-    packageBucket,
     repositoryStorage,
 } from "../stack/index.ts";
 import type { GitStorage } from "../storage/index.ts";
@@ -38,22 +38,23 @@ import { NpmServer } from "./npm-server.ts";
 import { implementPackageObject } from "./package.ts";
 import { implementRelease } from "./release.ts";
 import { implementRepository } from "./repository.ts";
-import { SWEEP_INTERVAL_MILLISECONDS, SweepController } from "./sweep-controller.ts";
 import { implementTag } from "./tag.ts";
 import { implementIssuer } from "./issuer.ts";
 
 /** How long the forge follows a read name: an hour, at most 2 renewals and 300 B per name. */
 const CLAIM_TTL = { hours: 1 } as const;
 
-/** How long an unreleased pushed build survives sweeps: two weeks, Git's gc.pruneExpire. */
+/** How long the forge leases an unreleased pushed build: two weeks, as Git's gc.pruneExpire. */
 export const UNRELEASED_MILLISECONDS = 14 * 24 * 60 * 60 * 1000;
 
 /** The home, stores, URL and GitHub App the forge serves with. */
 export interface ForgeOptions {
     /** The residency home the forge serves, which stores every package of its residency. */
     readonly home: Identifier<"space">;
-    /** The store of builds and npm archives. */
-    readonly store: PackageStore;
+    /** The home's blobs, with the store's tables beside the forge's objects. */
+    readonly blobs: BlobStore;
+    /** The environment the store of builds runs in. */
+    readonly environment: Environment;
     /** The URL clients call the forge at, below which npm reads its endpoints and builds. */
     readonly endpoint: URL;
     /** The storage of platform repositories. */
@@ -100,7 +101,7 @@ export class Forge {
     constructor(options: ForgeOptions) {
         // take the options and the server of published builds
         this.#options = options;
-        this.store = options.store;
+        this.store = Forge.openStore(options);
 
         // open GitHub repositories through the replicas of their connections
         const hosting =
@@ -117,7 +118,7 @@ export class Forge {
             }),
             reference,
             implementPackageObject(),
-            implementRelease({ store: options.store }),
+            implementRelease({ store: this.store }),
             implementTag(),
             unit,
             implementIssuer(options.github),
@@ -144,7 +145,7 @@ export class Forge {
     }
 
     /** Serve the forge as its installation: its bound storages, its GitHub App, and its URL. */
-    static of(context: InstalledServerContext): Forge {
+    static of(context: PackageContext): Forge {
         // open the GitHub App the installation's setting selects
         const fetch = (request: Request) => context.fetch(request);
         const app = github.read(context.settings);
@@ -163,7 +164,8 @@ export class Forge {
         // serve npm and builds below the forge's package on the installation's URL
         return new Forge({
             home: schema.identifier("space").parse(context.scope),
-            store: new PackageStore(context.resources.get(packageBucket), context.environment),
+            blobs: context.blobs,
+            environment: context.environment,
             endpoint: new URL(`${context.url}${PackageMount.path(forgePackage.id)}`),
             storage: context.resources.get(repositoryStorage),
             ...(hosting === undefined ? {} : { github: hosting }),
@@ -173,14 +175,12 @@ export class Forge {
         });
     }
 
-    /** Define the forge's server: its objects, follows, controllers and adapters. */
+    /** Define the forge's server: its objects, follows and adapters. */
     definition(): ImplementationInput<typeof forgePackage> {
         return {
             objects: this.handled,
             follows: [this.#connectionFollow(), claimFollow],
             standing: [standingFollow],
-            // sweep the store
-            controllers: [(store) => new SweepController(this, store)],
             // answer npm reads, builds and the GitHub App's deliveries
             adapters: {
                 npm: (request, _caller, context, store) =>
@@ -204,40 +204,17 @@ export class Forge {
         });
     }
 
-    /** Delete the pushed builds and archives no release in a database lists. */
-    async sweep(now: number, database: DatabaseConnection): Promise<void> {
-        // read the manifests and archives releases reference, by the digests the store lists
-        const table = release.table;
-        const archive = sql<string>`${table.distribution} ->> 'digest'`;
-        const manifests = async (digests: readonly string[]) => {
-            const released = await database
-                .select({ digest: table.manifest })
-                .from(table)
-                .where(inArray(table.manifest, digests));
-            const units = await database
-                .select({ digest: unit.table.manifest })
-                .from(unit.table)
-                .where(inArray(unit.table.manifest, digests));
+    /** Open the store of builds and npm archives in the home's blobs. */
+    static openStore(options: Pick<ForgeOptions, "blobs" | "environment">): PackageStore {
+        const { storage, database } = options.blobs;
+        const blobs = new BlobStore({
+            storage,
+            database,
+            environment: options.environment,
+            leaseMilliseconds: UNRELEASED_MILLISECONDS,
+        });
 
-            return new Set([...released, ...units].map((row) => row.digest));
-        };
-        const archives = async (digests: readonly string[]) => {
-            const rows = await database
-                .select({ digest: archive })
-                .from(table)
-                .where(inArray(archive, digests));
-
-            return new Set(rows.map((row) => row.digest));
-        };
-
-        // delete the rest stored before the window and marked an interval ago, and mark what is newly dropped
-        await this.store.sweep(
-            manifests,
-            new Date(now - UNRELEASED_MILLISECONDS),
-            archives,
-            new Date(now),
-            new Date(now - SWEEP_INTERVAL_MILLISECONDS),
-        );
+        return new PackageStore({ blobs, environment: options.environment });
     }
 
     /** Find the package claiming a global name in a forge's home, following the claims it needs. */

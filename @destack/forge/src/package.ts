@@ -1,3 +1,4 @@
+import { PACKAGE_STORE_TABLES } from "@destack/build/table";
 import { defineAdapter, definePackage } from "@destack/object";
 import {
     appInstallation,
@@ -13,7 +14,6 @@ import {
     credentialVault,
     githubPrivateKey,
     githubWebhookSecret,
-    packageBucket,
     repositoryStorage,
 } from "./stack/index.ts";
 import { ForgeError } from "./error/error.ts";
@@ -33,13 +33,14 @@ export default definePackage({
         issuer,
         appInstallation,
     },
+    // the store of pushed builds and npm archives, indexed beside the forge's objects
+    tables: PACKAGE_STORE_TABLES,
     adapters: {
         npm: defineAdapter("npm", { path: "/npm" }),
         builds: defineAdapter("builds", { path: "/builds" }),
         github: defineAdapter("github", { path: "/github" }),
     },
     resources: {
-        packages: packageBucket,
         repositories: repositoryStorage,
         credentials: credentialVault,
     },

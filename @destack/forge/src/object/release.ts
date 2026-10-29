@@ -3,7 +3,6 @@ import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
-import { Upgrade } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
 import { Distribution, Pack, PackageMetadata } from "../pack/index.ts";
 import { packageObject, TagName } from "./package.ts";
@@ -25,15 +24,13 @@ export const release = defineObject(
             /** The immutable calendar version. */
             version: field.string(),
             /** The SHA-256 digest of the published manifest. */
-            manifest: field.string(Digest),
+            manifest: field.blob(),
             /** The full Git SHA-1 or SHA-256 commit identifier, absent for some prereleases. */
             commit: field.string().optional(),
             /** The npm archive installers download. */
             distribution: field.json(Distribution),
             /** The npm declaration installers read. */
             metadata: field.json(PackageMetadata),
-            /** The steps from the package's previous release, absent for its first. */
-            upgrade: field.json(Upgrade).optional(),
             /** The warning installers show for the release, absent while it is not deprecated. */
             deprecation: field.string(DeprecationMessage).optional(),
             /** When the release was yanked: new installs skip it, exact pins still resolve it. */

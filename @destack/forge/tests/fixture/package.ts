@@ -4,8 +4,7 @@ import { CompilerPool, outputsOf, PackageBuild, type PackageBuildOptions } from 
 import { readPackageJson } from "@destack/build/local";
 import type { DependencyResolution } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
-import { History, Vocabulary } from "@destack/resource";
-import { nth, Commit, Digest, schema, Version } from "@destack/schema";
+import { Commit, Digest, schema, Version } from "@destack/schema";
 import { PackageArchive } from "../../src/pack/index.ts";
 import { testHost } from "@destack/test/host";
 
@@ -38,10 +37,8 @@ export class FixtureSource {
     readonly directory: string;
     /** The compilers building the copy into the store. */
     readonly #compilers: CompilerPool;
-    /** The outputs and dependencies the last build compiled, and what it published. */
-    #compiled:
-        | (Pick<PackageBuildOptions, "outputs" | "dependencies"> & { history: History })
-        | undefined;
+    /** The outputs and dependencies the last build compiled. */
+    #compiled: Pick<PackageBuildOptions, "outputs" | "dependencies"> | undefined;
 
     /** Take a copy and the compilers building it. */
     private constructor(name: FixturePackage, directory: string, compilers: CompilerPool) {
@@ -86,33 +83,16 @@ export class FixtureSource {
             ),
         );
 
-        // build each version, planned from the version before
+        // build each version
         const builds: PackageBuild[] = [];
-        let vocabulary: Vocabulary = {};
         for (const version of versions) {
             await testHost().files.writeTextFile(
                 join(this.directory, "package.json"),
                 JSON.stringify({ ...declaration, version }),
             );
-            const latest = builds.at(-1);
-            const history =
-                latest === undefined ? undefined : await History.read(latest.reader, vocabulary);
-            const build = await this.#build({
-                outputs,
-                dependencies,
-                commit: Commit.parse(COMMIT),
-                ...(history === undefined ? {} : { history }),
-            });
-            vocabulary = Vocabulary.advance(vocabulary, await build.reader.declarations(), version);
-            builds.push(build);
+            builds.push(await this.#build({ outputs, dependencies, commit: Commit.parse(COMMIT) }));
         }
-
-        const latest = nth(builds, -1);
-        this.#compiled = {
-            outputs,
-            dependencies,
-            history: await History.read(latest.reader, vocabulary),
-        };
+        this.#compiled = { outputs, dependencies };
 
         return builds;
     }
@@ -124,12 +104,12 @@ export class FixtureSource {
         }
 
         // build the last version again
-        const { outputs, dependencies, history } = this.#compiled;
+        const { outputs, dependencies } = this.#compiled;
         if (prerelease === undefined) {
             return await this.#build({ outputs, dependencies });
         }
 
-        // author the next version, and build its prerelease planned from the last version
+        // author the next version, and build its prerelease
         const path = join(this.directory, "package.json");
         const declaration = schema.jsonObject().parse(await readJson(path));
         const version = Version.next(Version.parse(declaration["version"]));
@@ -139,7 +119,6 @@ export class FixtureSource {
         return await this.#build({
             outputs,
             dependencies,
-            history,
             versions: { [name]: prerelease },
         });
     }

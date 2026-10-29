@@ -2,7 +2,7 @@ import { BunEnvironment } from "@destack/environment/bun";
 import { defineConfiguration } from "@destack/test/config";
 import { fileURLToPath } from "node:url";
 
-/** The tests running real package managers against a loopback registry, which need npm, bun and deno. */
+/** The tests running npm, bun and deno against a loopback registry. */
 const INTEGRATION = ["tests/install.test.ts"];
 
 export default defineConfiguration(

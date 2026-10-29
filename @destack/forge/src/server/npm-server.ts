@@ -180,14 +180,14 @@ export class NpmServer {
         }
 
         // stream the archive
-        const object = await this.#forge.store.open({
+        const archive = this.#forge.store.open({
             path: "package.tgz",
             digest,
             size,
             mediaType: "application/gzip",
         });
 
-        return new Response(object.body, { headers });
+        return new Response(archive, { headers });
     }
 
     /** Answer a package's packument, or the version a tag or an exact version selects. */

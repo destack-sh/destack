@@ -1,3 +1,4 @@
+import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { expect, refusal, test } from "@destack/test";
 import { and, eq, inArray, isNull, Snapshot } from "@destack/db";
 import { secret } from "@destack/vault/object";
@@ -5,7 +6,14 @@ import { RequestId, Scope } from "@destack/sync";
 import { principal } from "@destack/access";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Claim, ClaimLookup, claimTable, QUERIES_PUBLICATION, settlement } from "@destack/object";
+import {
+    Claim,
+    ClaimLookup,
+    claimTable,
+    QUERIES_PUBLICATION,
+    settlement,
+    Shape,
+} from "@destack/object";
 import { nth, Identifier } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { reference, referenceShape, repository } from "../src/object/index.ts";
@@ -252,7 +260,8 @@ test("sync a repository's references to its readers and none to strangers", asyn
                 publication: QUERIES_PUBLICATION,
                 scope: forge.space,
                 target: forge.space,
-                parameters: { queries: { references: { object: "reference" } } },
+                parameters: { queries: { references: reference.query() } },
+                revision: FOLLOWER_REVISION,
             },
             { signal: controller.signal },
         );
@@ -304,10 +313,19 @@ test("stream the references a space inside the account selects to the space, and
         const pages = await forge
             .as(principal.space.reference(Scope.universe.id, space))
             .store.stream(
-                referenceShape.subscription(
-                    { scope: forge.space, repository: site.id, name: "refs/heads/main" },
-                    target,
-                ),
+                {
+                    ...Shape.subscription(
+                        forge.space,
+                        [
+                            {
+                                shape: referenceShape,
+                                keys: [{ repository: site.id, name: "refs/heads/main" }],
+                            },
+                        ],
+                        target,
+                    ),
+                    revision: FOLLOWER_REVISION,
+                },
                 { signal: controller.signal },
             );
         const page = await pages[Symbol.asyncIterator]().next();

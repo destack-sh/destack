@@ -7,6 +7,7 @@ import connectionServer, { connectionShape } from "@destack/connection/server";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
 import { PackageClient, PackageStore } from "@destack/build/store";
+import { Forge } from "../server/forge.ts";
 import { Snapshot, type Select } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import {
@@ -45,7 +46,7 @@ import { issuer, packageObject, type Release } from "../object/index.ts";
 import forgePackage, { FORGE_INSTALLATION } from "../package.ts";
 import forgeServer from "../server.ts";
 import { claimFollow, standingFollow } from "../server/index.ts";
-import { credentialVault, github, packageBucket, repositoryStorage } from "../stack/index.ts";
+import { credentialVault, github, repositoryStorage } from "../stack/index.ts";
 import { gitStorage } from "../storage/index.ts";
 import { GITHUB_API } from "../github/index.ts";
 import { APP_ID, GITHUB_HOST, GitHubStandIn, githubPrivateKey, WEBHOOK_SECRET } from "./github.ts";
@@ -176,7 +177,6 @@ const HOME_TYPES = [vaultPackage, forgePackage, gitStorage] as const;
 /** The home's stack, as the residency's declares it: the forge with its resources and issuer. */
 const HOME_STACK = {
     vaults: { platform: PLATFORM_VAULT.declare(), credentials: credentialVault.declare() },
-    buckets: { packages: packageBucket.declare() },
     gitStorages: { repositories: repositoryStorage.declare() },
     issuers: { github: {} },
     secrets: {
@@ -187,7 +187,6 @@ const HOME_STACK = {
         forge: install(
             forgePackage,
             {
-                packages: "packages",
                 repositories: "repositories",
                 credentials: "credentials",
                 "github-webhook": "github-webhook",
@@ -490,13 +489,13 @@ export class TestForge {
         return { installation, tenants };
     }
 
-    /** Read the forge's installation in the home from its binding of the package bucket. */
+    /** Read the forge's installation in the home from its binding of the repository storage. */
     static async #installation(served: TestObjectStore): Promise<Identifier<"installation">> {
         const rows = await Snapshot.live(served.database)
             .read(binding.table)
-            .findMany({ where: { packageId: forgePackage.id, name: packageBucket.name } });
+            .findMany({ where: { packageId: forgePackage.id, name: repositoryStorage.name } });
 
-        return present(rows[0], "the forge's bucket binding").installationId;
+        return present(rows[0], "the forge's repository storage binding").installationId;
     }
 
     /** Call the forge as a person with their client's token, or anonymously. */
@@ -584,20 +583,9 @@ export class TestForge {
         );
     }
 
-    /** Open the store of builds and npm archives the forge keeps in its bound bucket. */
+    /** Open the store of builds and npm archives in the forge home's blobs. */
     async store(): Promise<PackageStore> {
-        // read the bucket the forge's binding targets, and open it from the home's buckets
-        const rows = await Snapshot.live(this.served.database)
-            .read(binding.table)
-            .findMany({ where: { installationId: this.installation, name: packageBucket.name } });
-        const target = present(rows[0], "the forge's bucket binding").target;
-        const buckets = await this.home.buckets();
-        const bucket = await buckets.open(
-            { bucketId: schema.identifier("bucket").parse(target) },
-            this.space,
-        );
-
-        return new PackageStore(bucket, this.environment);
+        return Forge.openStore({ blobs: this.served.store.blobs, environment: this.environment });
     }
 
     /** Sign a person in at the universe, such as a stranger to the account. */
@@ -812,8 +800,8 @@ export class TestForge {
         return this.home.settle(this.served);
     }
 
-    /** Jump the home's world to a time, waking the forge's sweep once it is due. */
-    sweep(to: number): Promise<void> {
+    /** Jump the home's world to a time, waking the blob collection once a lease ends. */
+    jump(to: number): Promise<void> {
         return this.home.jump(this.served, to);
     }
 
