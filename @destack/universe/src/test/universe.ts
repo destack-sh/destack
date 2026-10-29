@@ -528,7 +528,7 @@ export class TestUniverse implements AsyncDisposable {
             const snapshot = Snapshot.live(this.storage.database);
             const home = await Scope.object(snapshot, await Residency.space(snapshot, residencyId));
             const crypto = this.universe.store.environment.crypto;
-            const id = await InstallationId.declared(home, BILLING_INSTALLATION, crypto);
+            const id = await InstallationId.of(home, BILLING_INSTALLATION, crypto);
             const installed = principal.installation.reference(home.id, id);
 
             // relate it to the residency as the universe's operator, an owner of the platform organization
@@ -831,7 +831,7 @@ export class TestUniverse implements AsyncDisposable {
         // derive the installation the home's stack declares under the relay's name
         const snapshot = Snapshot.live(this.storage.database);
         const home = await Scope.object(snapshot, await Residency.space(snapshot, code));
-        const id = await InstallationId.declared(home, RESIDENCY_RELAY, this.environment.crypto);
+        const id = await InstallationId.of(home, RESIDENCY_RELAY, this.environment.crypto);
 
         return principal.installation.reference(home.id, id);
     }
