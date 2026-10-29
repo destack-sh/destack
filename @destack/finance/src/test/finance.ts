@@ -32,6 +32,7 @@ import { install } from "@destack/stack/declare";
 import { TestPackage, TestSpace } from "@destack/stack/test";
 import { defineVault } from "@destack/vault/declare";
 import vaultPackage from "@destack/vault/package";
+import { TestVault } from "@destack/vault/test";
 import { vaultProvider } from "@destack/vault/provider";
 import vaultServer, { secretBindable } from "@destack/vault/server";
 import { RequestId, Scope, Subject } from "@destack/sync";
@@ -108,7 +109,7 @@ export interface FinanceFixtureOptions {
     readonly start?: number;
 }
 
-/** Finance's build, declaring its package and notifications, as its home installs it. */
+/** Finance's build, declaring its package, notifications and secrets, as its home installs it. */
 const FINANCE: TestPackage = {
     handle: financePackage,
     build: await MemoryBuild.of(
@@ -126,6 +127,7 @@ const FINANCE: TestPackage = {
                 name: usageLimit.name,
                 description: usageLimit.describe(),
             },
+            ...TestVault.declarations([], Object.values(financePackage.secrets)),
         ],
         testHost().crypto,
     ),
