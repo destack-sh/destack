@@ -2,7 +2,7 @@ import { eq, asc } from "@destack/db";
 import { announcement } from "@destack/notification";
 import { installation } from "@destack/object";
 import { present } from "@destack/schema";
-import stackPackage from "@destack/stack/package";
+import objectPackage from "@destack/object/package";
 import { ids } from "@destack/stack/test";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
@@ -219,15 +219,16 @@ test("refuse a rule calling an installation's method from an editor who does not
 test("refuse a rule calling an installation once the space's owner withdraws observability's respond capability", async () => {
     await using kit = await TestObservability.open();
 
-    // let the owner withdraw the capability through the space's stack, and serve the space again
-    const owner = kit.space.person(kit.served, kit.space.owner).client(stackPackage);
+    // let the owner detach observability's installation from the space's stack and withdraw the capability, then serve the space again
+    const owner = kit.space.person(kit.served, kit.space.owner).client(objectPackage);
     const [installed] = await kit.served.database
         .select()
         .from(installation.table)
         .where(eq(installation.table.packageId, observabilityPackage.id));
-    await owner.rollout.update({
-        spaceId: ids.space,
-        id: present(installed, "observability's installation").id,
+    const target = { scope: ids.space, id: present(installed, "observability's installation").id };
+    await owner.installation.detach({ ...target, requestId: RequestId.create(kit.environment) });
+    await owner.installation.update({
+        ...target,
         capabilities: [],
         requestId: RequestId.create(kit.environment),
     });
