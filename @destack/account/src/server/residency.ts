@@ -43,9 +43,9 @@ async function touch(
     context: MethodContextOf<typeof residency, "touch">,
     releases: ReleaseRegistry,
 ): Promise<ResultOf<typeof residency, "touch">> {
-    // require the installation its home declares under the name
+    // require the installation its home has under the name
     const { packageId, release } = context.input;
-    await requireDeclared(context, context.input);
+    await requireInstallation(context, context.input);
 
     // require the release to declare its package, asking for exactly what the relation gives in the universe
     const description = await PackageDescription.of(await releases.open(packageId, release));
@@ -75,8 +75,8 @@ async function touch(
 async function revoke(
     context: MethodContextOf<typeof residency, "revoke">,
 ): Promise<ResultOf<typeof residency, "revoke">> {
-    // require the installation its home declares under the name
-    await requireDeclared(context, context.input);
+    // require the installation its home has under the name
+    await requireInstallation(context, context.input);
 
     // revoke its relationship once, as its home converges on each pass
     const fields = residencyInstallation(context.target, context.input);
@@ -89,8 +89,8 @@ async function revoke(
     return context.target;
 }
 
-/** Refuse an installation other than the one the residency's space declares under its name. */
-async function requireDeclared(
+/** Refuse an installation other than the one the residency's space has under its name. */
+async function requireInstallation(
     context: MethodContextOf<typeof residency, "touch" | "revoke">,
     input: Pick<ResidencyInstallation, "installation" | "name">,
 ): Promise<void> {
@@ -101,10 +101,10 @@ async function requireDeclared(
 
     // derive the installation from the space and its name
     const crypto = context.environment.crypto;
-    const declared = await InstallationId.declared(served, input.name, crypto);
-    if (declared !== input.installation) {
+    const expected = await InstallationId.of(served, input.name, crypto);
+    if (expected !== input.installation) {
         throw AccountError.of(
-            "INSTALLATION_NOT_DECLARED",
+            "INSTALLATION_NAME_MISMATCH",
             `installation ${input.installation} is not ${input.name} of the space ${spaceId}`,
         );
     }

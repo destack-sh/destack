@@ -26,10 +26,10 @@ const LIFETIME_MILLISECONDS = 366 * 24 * 60 * 60 * 1000;
 
 /** Implement clients. */
 export function implementClient(): typeof client {
-    return client.implement({ methods: { create, issue, attach, subscribe, revoke } });
+    return client.implement({ methods: { create, issue, link, subscribe, revoke } });
 }
 
-/** Register a client as active now, attaching a calling session that runs on no client yet. */
+/** Register a client as active now, linking a calling session that runs on no client yet. */
 async function create(
     context: MethodContextOf<typeof client, "create">,
     next: NextOf<typeof client, "create">,
@@ -39,7 +39,7 @@ async function create(
         context.with({ input: { ...context.input, lastActiveAt: context.now } }),
     );
 
-    // attach the calling session, none for a client the issuer's pages register for a device
+    // link the calling session, none for a client the issuer's pages register for a device
     const { credential } = context.caller;
     const sessionId =
         credential?.kind === "session" ? session.identifier(credential.id) : undefined;
@@ -49,7 +49,7 @@ async function create(
             : await context.read(session).findFirst({ where: { id: sessionId } });
     if (sessionId !== undefined && calling?.clientId === null) {
         await context.mutate(context.self, [
-            session.call("attach", { id: sessionId, clientId: created.id }),
+            session.call("link", { id: sessionId, clientId: created.id }),
         ]);
     }
 
@@ -82,9 +82,9 @@ async function issue(
 }
 
 /** Attach the calling session to a client by a proof of one of its keys. */
-async function attach(
-    context: MethodContextOf<typeof client, "attach">,
-): Promise<ResultOf<typeof client, "attach">> {
+async function link(
+    context: MethodContextOf<typeof client, "link">,
+): Promise<ResultOf<typeof client, "link">> {
     // find the client's authenticating key the proof was signed with
     const { target } = context;
     Revocation.requireUnrevoked(target, "client");
@@ -105,11 +105,11 @@ async function attach(
         );
     }
 
-    // verify the proof and attach the calling session
+    // verify the proof and link the calling session
     await proof.verify(found.publicKey, target.id, context.now, context.environment.crypto);
     await Key.spend(context, proof);
     await context.mutate(context.self, [
-        session.call("attach", { id: callingSession(context), clientId: target.id }),
+        session.call("link", { id: callingSession(context), clientId: target.id }),
     ]);
 
     return context.update({ lastActiveAt: context.now });

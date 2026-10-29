@@ -130,7 +130,7 @@ export function emailGrant(options: EmailOptions): TokenGrant {
         await options.objects.mutate(options.objects.as(session), {
             id: RequestId.create(options.objects.environment),
             calls: [
-                session.call("attach", {
+                session.call("link", {
                     ...session.target({ scope: userId, id: signedIn.id }),
                     clientId: party.clientId,
                 }),

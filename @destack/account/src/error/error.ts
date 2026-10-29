@@ -60,7 +60,7 @@ export const AccountError = defineErrorFamily(import.meta.destack.package, {
     CLIENT_FOREIGN: { code: "FORBIDDEN" },
     IDENTITY_START_FOREIGN: { code: "FORBIDDEN" },
     INSTALLATION_FOREIGN: { code: "FORBIDDEN" },
-    INSTALLATION_NOT_DECLARED: { code: "FORBIDDEN" },
+    INSTALLATION_NAME_MISMATCH: { code: "FORBIDDEN" },
     KEY_PROOF_REFUSED: { code: "FORBIDDEN" },
     MACHINE_ASSERTION_REQUIRED: { code: "FORBIDDEN" },
     ACTIVE_ACCOUNT_MISSING: { code: "FORBIDDEN" },

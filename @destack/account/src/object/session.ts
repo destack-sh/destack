@@ -45,7 +45,7 @@ export const session = defineObject(
             /** The time access was revoked. */
             revokedAt: field.time().optional(),
         },
-        permissions: ["read", "revoke", "attach"],
+        permissions: ["read", "revoke", "link"],
         constraints: {
             token: { kind: "unique", on: ["token"] },
             user: { kind: "index", on: ["userId"] },
@@ -69,7 +69,7 @@ export const session = defineObject(
     (method) => ({
         revoke: method.mutation({ permission: "revoke" }),
         revokeOthers: method.mutation({ permission: "revoke" }),
-        attach: method.update("attach", { visibility: "package", fields: ["clientId"] }),
+        link: method.update("link", { visibility: "package", fields: ["clientId"] }),
     }),
 ).implement({
     methods: {
@@ -84,8 +84,8 @@ export const session = defineObject(
 
             return call.target;
         },
-        attach: async (call, next) => {
-            // refuse attaching a revoked session
+        link: async (call, next) => {
+            // refuse linking a revoked session
             Revocation.requireUnrevoked(call.target, call.object.name);
 
             return next();

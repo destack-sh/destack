@@ -137,8 +137,8 @@ export const client = defineObject(
         update: method.update("update", {
             fields: ["name", "platform", "platformVersion", "architecture", "model", "version"],
         }),
-        /** Attach the calling session to a client by a proof of one of its keys. */
-        attach: method.mutation({
+        /** Link the calling session to a client by a proof of one of its keys. */
+        link: method.mutation({
             permission: "update",
             input: schema.object({ proof: CompactProof }),
         }),

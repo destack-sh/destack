@@ -481,7 +481,7 @@ export class Platform {
             const served = residency.reference(Scope.universe.id, entry.id);
             const subject = principal.space.reference(Scope.universe.id, spaceId);
             const residencySpace = space.reference(accountId, spaceId);
-            const relayId = await InstallationId.declared(
+            const relayId = await InstallationId.of(
                 residencySpace,
                 RESIDENCY_RELAY,
                 this.store.environment.crypto,

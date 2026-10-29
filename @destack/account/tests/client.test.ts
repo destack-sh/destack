@@ -34,7 +34,7 @@ function prove(
     return Proof.sign(pair.privateKey, pair.publicKey, subject, now, world);
 }
 
-test("register clients with proven keys and revoke them with the sessions attached to them", async () => {
+test("register clients with proven keys and revoke them with the sessions linked to them", async () => {
     await using fixture = await TestAccountStore.open();
     fixture.clock.pause();
     const owner = await fixture.signIn("person@example.com");
@@ -73,7 +73,7 @@ test("register clients with proven keys and revoke them with the sessions attach
         lastActiveAt: laptop.createdAt,
         revokedAt: null,
     });
-    const attached = async () =>
+    const linked = async () =>
         (
             await fixture.storage.database
                 .select({ clientId: session.table.clientId })
@@ -82,7 +82,7 @@ test("register clients with proven keys and revoke them with the sessions attach
         )
             .map((row) => String(row.clientId))
             .toSorted((left, right) => left.localeCompare(right));
-    expect(await attached()).toEqual(sortIds([owner.clientId, again.clientId]));
+    expect(await linked()).toEqual(sortIds([owner.clientId, again.clientId]));
 
     // register a browser profile
     const browser = await owner.client(accountPackage).client.create({
@@ -91,7 +91,7 @@ test("register clients with proven keys and revoke them with the sessions attach
         name: "Firefox",
         kind: "browser",
     });
-    expect(await attached()).toEqual(sortIds([owner.clientId, again.clientId]));
+    expect(await linked()).toEqual(sortIds([owner.clientId, again.clientId]));
 
     // register a key the client proves it has
     const pair = (await KeyPair.generate(fixture.environment.crypto)).pair;
@@ -154,9 +154,9 @@ test("register clients with proven keys and revoke them with the sessions attach
         "key proof is for another subject or time",
     ]);
 
-    // attach the second session with a proof by the registered key
-    const attach = async (proof: string) =>
-        again.client(accountPackage).client.attach({
+    // link the second session with a proof by the registered key
+    const link = async (proof: string) =>
+        again.client(accountPackage).client.link({
             userId: owner.id,
             id: laptop.id,
             requestId: RequestId.create(fixture.store.environment),
@@ -164,7 +164,7 @@ test("register clients with proven keys and revoke them with the sessions attach
         });
     expect(
         await refusal(
-            attach(await prove(other, laptop.id, fixture.store.clock.now(), fixture.environment)),
+            link(await prove(other, laptop.id, fixture.store.clock.now(), fixture.environment)),
         ),
     ).toEqual([
         "FORBIDDEN",
@@ -172,11 +172,11 @@ test("register clients with proven keys and revoke them with the sessions attach
         "key proof does not match an active key of the client",
     ]);
     const proof = await prove(pair, laptop.id, fixture.store.clock.now(), fixture.environment);
-    await attach(proof);
-    expect(await attached()).toEqual(sortIds([owner.clientId, laptop.id]));
+    await link(proof);
+    expect(await linked()).toEqual(sortIds([owner.clientId, laptop.id]));
 
     // refuse the same proof a second time
-    expect(await refusal(attach(proof))).toEqual([
+    expect(await refusal(link(proof))).toEqual([
         "BAD_REQUEST",
         "PROOF_INVALID",
         "key proof was already used",
@@ -228,8 +228,8 @@ test("register clients with proven keys and revoke them with the sessions attach
         [null],
     ]);
 
-    // revoke the computer, its key and the session attached to it
-    const attachedLaptop = await owner.client(accountPackage).client.get({
+    // revoke the computer, its key and the session linked to it
+    const linkedLaptop = await owner.client(accountPackage).client.get({
         userId: owner.id,
         id: laptop.id,
     });
@@ -250,8 +250,8 @@ test("register clients with proven keys and revoke them with the sessions attach
         ),
     }).toEqual({
         revoked: {
-            ...attachedLaptop,
-            revision: attachedLaptop.revision + 1,
+            ...linkedLaptop,
+            revision: linkedLaptop.revision + 1,
             updatedAt: now,
             revokedAt: now,
         },

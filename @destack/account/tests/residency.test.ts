@@ -520,7 +520,7 @@ test("relate an installation its residency's space declares once its release ask
     const snapshot = Snapshot.live(fixture.storage.database);
     const homeSpace = await Scope.object(snapshot, homeId);
     const crypto = fixture.environment.crypto;
-    const installation = await InstallationId.declared(homeSpace, "billing", crypto);
+    const installation = await InstallationId.of(homeSpace, "billing", crypto);
     const target = () => ({ id: "eu", requestId: RequestId.create(fixture.store.environment) });
     const touch = (caller: TestCaller, input: Partial<ResidencyInstallation> = {}) =>
         refusal(
@@ -564,7 +564,7 @@ test("relate an installation its residency's space declares once its release ask
             ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: install"],
             [
                 "FORBIDDEN",
-                "INSTALLATION_NOT_DECLARED",
+                "INSTALLATION_NAME_MISMATCH",
                 `installation ${other} is not billing of the space ${homeId}`,
             ],
             [
@@ -622,7 +622,7 @@ test("let an installation its residency's home declares provide entitlements in 
     const home = await homeOf(fixture, "eu");
     const homeId = schema.identifier("space").parse(home.subject.id);
     const homeSpace = await Scope.object(Snapshot.live(fixture.storage.database), homeId);
-    const installation = await InstallationId.declared(
+    const installation = await InstallationId.of(
         homeSpace,
         "billing",
         fixture.environment.crypto,

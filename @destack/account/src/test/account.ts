@@ -924,7 +924,7 @@ export class TestAccountStore implements AsyncDisposable {
             // derive the installation the residency's space declares for billing
             const snapshot = Snapshot.live(this.database);
             const home = await Scope.object(snapshot, await this.residencySpace(residencyId));
-            const id = await InstallationId.declared(
+            const id = await InstallationId.of(
                 home,
                 BILLING_INSTALLATION,
                 this.environment.crypto,
@@ -953,7 +953,7 @@ export class TestAccountStore implements AsyncDisposable {
         // derive the installation the home's stack declares under the relay's name
         const snapshot = Snapshot.live(this.database);
         const home = await Scope.object(snapshot, await this.residencySpace(residencyId));
-        const id = await InstallationId.declared(home, RESIDENCY_RELAY, this.environment.crypto);
+        const id = await InstallationId.of(home, RESIDENCY_RELAY, this.environment.crypto);
 
         return principal.installation.reference(home.id, id);
     }
@@ -1236,12 +1236,7 @@ export class TestAccountStore implements AsyncDisposable {
                 () => AccessContext.of(Caller.of(Scope.universe), clock.now()),
                 store.environment,
                 (authorization) =>
-                    Installation.receive(
-                        authorization,
-                        Scope.universe,
-                        [],
-                        UNIVERSE_PACKAGES,
-                    ),
+                    Installation.receive(authorization, Scope.universe, [], UNIVERSE_PACKAGES),
             );
             await Residency.apply(store, RESIDENCIES);
             await new Platform(store, platform, options.stacks.residency).apply(clock.now());
