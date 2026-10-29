@@ -6,7 +6,7 @@ import * as view from "@destack/view/test";
 /** The host the tests build and run on. */
 const environment = BunEnvironment.system;
 
-/** The most milliseconds a server test takes, each serving a world's spaces: about 2 s alone on Postgres, under 4 workers more. */
+/** The most milliseconds a server test serving a world's spaces takes. */
 const WORLD_TIMEOUT = 15_000;
 
 export default defineConfiguration(
