@@ -37,6 +37,15 @@ test("start each copy of a template's image from its rows and value, every copy'
     });
 });
 
+test("keep the log position the image left in every copy, so followers recorded in it resume", async () => {
+    // copy the template twice, writing nothing
+    const first = await copy();
+    const second = await copy();
+
+    // read the same log, epoch and sequence in both
+    expect(await first.database.log.position()).toEqual(await second.database.log.position());
+});
+
 test("copy a template's databases as one set, each with the rows its write left in it", async () => {
     // copy the pair template, whose write counts one database's rows into the other
     const { simulation, databases, value } = await TestDatabase.copy(pairTemplate, {

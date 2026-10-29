@@ -318,7 +318,13 @@ export class TestDatabase<
         };
 
         // open the file the template writes into, in the template's environment
-        const storage = await TestDatabase.#sqliteAt(file, tables, async () => {}, environment);
+        const storage = await TestDatabase.#sqliteAt(
+            file,
+            tables,
+            async () => {},
+            environment,
+            "renew",
+        );
 
         return { storage, source };
     }
@@ -338,7 +344,7 @@ export class TestDatabase<
             );
         }
 
-        return TestDatabase.#sqliteAt(file, tables, async () => {}, environment);
+        return TestDatabase.#sqliteAt(file, tables, async () => {}, environment, "renew");
     }
 
     /** Drop the expired schemas no test claims and the images of runs that ended long ago. */
@@ -424,12 +430,13 @@ export class TestDatabase<
             await clock.trackHost(HOST.files.copyFile(source, file));
         }
 
-        // open it in the store's environment
+        // open it, a world's copy keeping its log epoch
         return TestDatabase.#sqliteAt(
             file,
             tables,
             () => clock.trackHost(HOST.files.remove(directory, { recursive: true })),
             environment,
+            template === undefined ? "renew" : "keep",
         );
     }
 
@@ -439,6 +446,7 @@ export class TestDatabase<
         tables: declaration.Database<Models> | readonly Table[],
         remove: () => Promise<void>,
         environment: DatabaseEnvironment,
+        epoch: "renew" | "keep",
     ): Promise<TestDatabase<Models>> {
         // share each named channel through one hub
         const hubs = new Map<string, () => Channel<unknown>>();
@@ -459,12 +467,12 @@ export class TestDatabase<
             return keyed(opened);
         };
 
-        // start a new epoch for a logged copy, as a restore does
+        // start a new epoch for a new logged database
         const database = await open(tables);
         const [log] = await database.all(
             sql`SELECT name FROM sqlite_master WHERE name = ${LOG_EPOCH}`,
         );
-        if (log !== undefined) {
+        if (log !== undefined && epoch === "renew") {
             await database.log.renew();
         }
 
@@ -637,7 +645,7 @@ class TestSchema {
         );
     }
 
-    /** Replace the rows with a template's and start a new epoch, in one statement batch. */
+    /** Replace the rows with a template's and its log identity, or start a new epoch. */
     async #reset(
         state: readonly TableState[],
         environment: DatabaseEnvironment,
@@ -662,14 +670,20 @@ class TestSchema {
                   )
                 : this.#copy(template);
 
-        // run the batch as one implicit transaction without triggers, in a new epoch
+        // take the template's log and epoch, else start a new epoch
+        const epoch =
+            template === undefined
+                ? `UPDATE ${quoted(LOG_EPOCH)} SET epoch = '${Uuid.v7(environment)}' WHERE slot = 1;`
+                : `UPDATE ${quoted(LOG_EPOCH)} SET (log, epoch) = (SELECT log, epoch FROM "${template.schema}"."${LOG_EPOCH}" WHERE slot = 1) WHERE slot = 1;`;
+
+        // run the batch as one implicit transaction without triggers
         await this.server.session.unsafe(`SET LOCAL session_replication_role = replica;
             SET LOCAL search_path = "${this.name}";
             ${emptied.map((table) => `DELETE FROM ${quoted(table.name)};`).join("\n")}
             ${sequences.map((sequence) => `ALTER SEQUENCE ${quoted(sequence.name)} RESTART;`).join("\n")}
             UPDATE ${quoted(LOG_HORIZON)} SET sequence = 0 WHERE slot = 1;
             ${copied.join("\n")}
-            UPDATE ${quoted(LOG_EPOCH)} SET epoch = '${Uuid.v7(environment)}' WHERE slot = 1;`);
+            ${epoch}`);
     }
 
     /** Write the statements copying a template's rows, sequences and horizon into the schema. */
