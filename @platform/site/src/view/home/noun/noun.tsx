@@ -34,9 +34,6 @@ import { StackSwitch } from "../entry/switch";
 import { screen } from "../../layout/screen.stylex";
 import { createReducedMotion } from "@destack/view/motion";
 
-/** The milliseconds between the steps of the figure's switch, one per service. */
-const stepTime = 40;
-
 /** The milliseconds a row holds its service before the next row turns to its next one. */
 const turnTime = 2500;
 
@@ -60,7 +57,7 @@ export function Noun(properties: { isOpen: boolean }) {
     const isReduced = createReducedMotion(section);
 
     // switch each service and its ledger row in order, after the space itself
-    const steps = createSteps(() => properties.isOpen, serviceCount + 1, stepTime, isReduced);
+    const steps = createSteps(() => properties.isOpen, serviceCount + 1, isReduced);
     const isOpenAt = steps.isOpenAt;
 
     // read the bill for an app with as many users as the reader dials

@@ -1,6 +1,9 @@
 import { createEffect, createSignal, untrack, useEnvironment } from "@destack/view";
 import { makeTimer } from "@destack/view/primitives/timer";
 
+/** The milliseconds a figure's switch takes to reach its last step, the medium motion duration. */
+const WALK_TIME = 300;
+
 /** Whether the stack is open at a numbered step of a figure's switch. */
 export type Stagger = (step: number) => boolean;
 
@@ -8,12 +11,7 @@ export type Stagger = (step: number) => boolean;
 type Steps = { isOpenAt: Stagger; toggle: (step: number) => void };
 
 /** Follow the stack's state step by step. */
-export function createSteps(
-    isOpen: () => boolean,
-    last: number,
-    interval: number,
-    isReduced: () => boolean,
-): Steps {
+export function createSteps(isOpen: () => boolean, last: number, isReduced: () => boolean): Steps {
     // hold whether each step is open, seeded once from the state at creation and mirrored for the walk to read
     let current: readonly boolean[] = Array.from({ length: last + 1 }, () => untrack(isOpen));
     const { clock } = useEnvironment();
@@ -36,7 +34,7 @@ export function createSteps(
                 return undefined;
             }
 
-            // reach the next step on every interval until the last
+            // reach the next step on every interval until the last, so every walk ends together
             let step = 0;
             const reach = () => set(current.map((state, index) => (index === step ? open : state)));
             reach();
@@ -48,7 +46,7 @@ export function createSteps(
                         clear();
                     }
                 },
-                interval,
+                WALK_TIME / last,
                 "interval",
                 clock,
             );

@@ -14,9 +14,6 @@ import { createSteps } from "../figure/stagger";
 import type { Tool } from "../tool/tool";
 import { lineCount, tallyOf, ToolWall } from "./wall";
 
-/** The milliseconds between the steps of the bill's switch, one per line. */
-const stepTime = 30;
-
 /** Draw the tools you pick beside their bill, rented per seat or paid by usage, as a figure. */
 export function Tally(properties: {
     number: number;
@@ -29,7 +26,7 @@ export function Tally(properties: {
     // follow the motion the figure shows, and step the bill's lines in order as the stack switches
     const [stage, setStage] = createSignal<HTMLElement>();
     const isReduced = createReducedMotion(stage);
-    const { isOpenAt } = createSteps(() => properties.isOpen, lineCount, stepTime, isReduced);
+    const { isOpenAt } = createSteps(() => properties.isOpen, lineCount, isReduced);
 
     // read the bill for a team of the size the reader dials
     const [people, setPeople] = createSignal<number>(5);
