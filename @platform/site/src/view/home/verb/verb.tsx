@@ -59,8 +59,7 @@ const verb: Form = {
     sense: {
         definition: "to reconquer your software",
         highlight: ["reconquer"],
-        sentence:
-            "Own the apps you use, the apps you make, and the agents you run, in one open stack.",
+        sentence: "Own your stack, make custom apps, empower your agents, in one open platform.",
         gloss: "to standardise how software is made, shipped, and changed",
     },
 };
@@ -260,7 +259,7 @@ export function Verb(properties: {
         >
             <Entry form={verb} />
             <FigureLabel
-                number={2}
+                number={1}
                 isOpen={properties.isOpen}
                 stacked="twelve apps, twelve silos"
                 destacked="twelve apps, one space"

@@ -24,8 +24,8 @@ import { requestIdle } from "@destack/view/primitives/scheduled";
 
 /** The figures' entries in page order, each the anchor of the section it heads. */
 const FIGURES = [
-    "noun",
     "verb",
+    "noun",
     "past-participle",
     "adjective",
     "imperative",
@@ -125,9 +125,9 @@ export function Home() {
     return (
         <>
             <Metadata alternates={{ canonical: "/" }} />
-            <Noun isOpen={isOpenAt(0)} />
+            <Verb isOpen={isOpenAt(0)} picks={picks()} onChoose={choose} />
             <Interval />
-            <Verb isOpen={isOpenAt(1)} picks={picks()} onChoose={choose} />
+            <Noun isOpen={isOpenAt(1)} />
             <Interval />
             <PastParticiple isOpen={isOpenAt(2)} onChange={setIsOpen} />
             <Interval />
