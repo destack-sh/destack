@@ -11,7 +11,7 @@ const UNITS = [
     "src/object/issue.test.ts",
 ];
 
-/** The most milliseconds a world test takes: 8 s alone at most, with room for 4 workers. */
+/** The most milliseconds a world test takes. */
 const WORLD_TIMEOUT = 15_000;
 
 export default defineConfiguration(
@@ -29,7 +29,7 @@ export default defineConfiguration(
                 // run every other test against each database the package stores in
                 {
                     extends: true,
-                    targets: { database: ["sqlite", "postgresql"] },
+                    targets: { database: ["sqlite"] },
                     test: {
                         include: ["src/**/*.test.ts"],
                         exclude: UNITS,

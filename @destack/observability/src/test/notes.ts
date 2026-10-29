@@ -63,27 +63,6 @@ export const TestNotes = {
             ],
         ]);
 
-        // declare the `note` object at `Note` and the `rename` method it derives
-        const object = graph.Declaration.at(symbol("Note"), {
-            kind: OBJECT_DECLARATION,
-            kindPackageId: objectPackage.id,
-            name: note.name,
-            description: ObjectDescription.of(note),
-        });
-        const rename = graph.Declaration.member(object, {
-            kind: "method",
-            name: "rename",
-            description: {},
-        });
-        const module = {
-            path: NOTE_MODULE,
-            digest: await Digest.of(encode(NOTE_SOURCE), testHost().crypto),
-            imports: [],
-            exports: [],
-            declarations: [object, rename],
-            edges: [],
-        };
-
         return MemoryBuild.write(
             files,
             {
@@ -91,7 +70,7 @@ export const TestNotes = {
                 sourceMaps: [
                     { generated: "output/bun/workload.js", map: "output/bun/workload.js.map" },
                 ],
-                graph: [module],
+                declarations: (await notesModule()).declarations,
             },
             testHost().crypto,
         );
@@ -99,12 +78,39 @@ export const TestNotes = {
 
     /** Attribute the frames of a `Note.rename` failure, as the machine forwards them. */
     async frames(build: BuildReader): Promise<string> {
+        // symbolize the stack, then attribute it by the note module's code and graph
         const symbolized = await new Symbolicator(build).frames(StackFrame.read(RENAME_STACK));
-        const attributed = await new Attribution(build, [await notesCode()]).frames(symbolized);
+        const index = { code: [await notesCode()], modules: [await notesModule()] };
+        const attributed = await new Attribution(build, index).frames(symbolized);
 
         return JSON.stringify(attributed);
     },
 };
+
+/** Index the note module: its `note` object at `Note` and the `rename` method it derives. */
+async function notesModule(): Promise<graph.Module> {
+    // declare the `note` object at `Note` and the `rename` method it derives
+    const object = graph.Declaration.at(symbol("Note"), {
+        kind: OBJECT_DECLARATION,
+        kindPackageId: objectPackage.id,
+        name: note.name,
+        description: ObjectDescription.of(note),
+    });
+    const rename = graph.Declaration.member(object, {
+        kind: "method",
+        name: "rename",
+        description: {},
+    });
+
+    return {
+        path: NOTE_MODULE,
+        digest: await Digest.of(encode(NOTE_SOURCE), testHost().crypto),
+        imports: [],
+        exports: [],
+        declarations: [object, rename],
+        edges: [],
+    };
+}
 
 /** Index the note module's code: the `Note` class and its `rename` method, by source range. */
 async function notesCode(): Promise<graph.Document> {
