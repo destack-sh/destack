@@ -587,7 +587,7 @@ test("bind a secret the stack declares at a fixed version, and trash it once the
         {
             bindings: {
                 [CONSUMER.id]: {
-                    token: { target: { type: "secret", name: "github" }, version: 1, state: {} },
+                    token: { target: { type: "secret", name: "github" }, version: 1 },
                 },
             },
         },

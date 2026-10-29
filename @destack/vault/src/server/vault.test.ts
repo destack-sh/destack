@@ -43,7 +43,7 @@ async function installConsumer(
     const name = isVault ? CONSUMER_VAULT.name : CONSUMER_SECRET.name;
 
     return kit.space.install(kit.served, build, {
-        bindings: { [CONSUMER.id]: { [name]: { target, state: {} } } },
+        bindings: { [CONSUMER.id]: { [name]: { target } } },
     });
 }
 
@@ -215,7 +215,7 @@ test("let installations bound to a vault put and rotate their own secrets there,
         {
             bindings: {
                 [STRANGER.id]: {
-                    token: { target: { type: "secret", id: declared.key.id }, state: {} },
+                    token: { target: { type: "secret", id: declared.key.id } },
                 },
             },
         },

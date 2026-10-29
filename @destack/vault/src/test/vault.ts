@@ -8,7 +8,7 @@ import { SimulatedClock } from "@destack/environment/simulation";
 import type { TestCaller, TestObjectStore } from "@destack/object/test";
 import { type BuildReader, Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
-import { RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
+import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import { binding } from "@destack/stack/object";
 import { fixtureOutputs, ids, TestSpace, workload } from "@destack/stack/test";
@@ -162,25 +162,30 @@ export class TestVault {
         });
 
         // declare the vaults and secrets
-        return MemoryBuild.of(
-            released,
-            [
-                ...vaults.map((declared) => ({
-                    kind: "resource",
-                    kindPackageId: RESOURCE_KIND_PACKAGE_ID,
-                    name: declared.name,
-                    description: describeVault(declared),
-                })),
-                ...secrets.map((declared) => ({
-                    kind: SECRET_DECLARATION,
-                    kindPackageId: vaultPackage.id,
-                    name: declared.name,
-                    description: describeSecret(declared),
-                })),
-            ],
-            crypto,
-            { outputs },
-        );
+        return MemoryBuild.of(released, TestVault.declarations(vaults, secrets), crypto, {
+            outputs,
+        });
+    }
+
+    /** Describe some vaults and secrets as a build declares them, through vault's describers. */
+    static declarations(
+        vaults: readonly VaultDeclaration[],
+        secrets: readonly SecretDeclaration[],
+    ) {
+        return [
+            ...vaults.map((declared) => ({
+                kind: RESOURCE_DECLARATION,
+                kindPackageId: RESOURCE_KIND_PACKAGE_ID,
+                name: declared.name,
+                description: describeVault(declared),
+            })),
+            ...secrets.map((declared) => ({
+                kind: SECRET_DECLARATION,
+                kindPackageId: vaultPackage.id,
+                name: declared.name,
+                description: describeSecret(declared),
+            })),
+        ];
     }
 
     /** Call the space as a person just stepped up with a second factor, the owner by default. */
