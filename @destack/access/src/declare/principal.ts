@@ -197,8 +197,8 @@ export const InstallationId = {
         );
     },
 
-    /** Identify the installation a scope's stack declares under a name. */
-    declared(
+    /** Identify a scope's installation by its name, as readers derive it. */
+    of(
         scope: Pick<ObjectReference, "id">,
         name: DeclarationName,
         crypto: DigestCrypto,
@@ -206,7 +206,7 @@ export const InstallationId = {
         return Identifier.hash(
             "installation",
             INSTALLATION_NAMESPACE,
-            `${scope.id}/declared/${name}`,
+            `${scope.id}/${name}`,
             crypto,
         );
     },

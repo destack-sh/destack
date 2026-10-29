@@ -10,7 +10,7 @@ const STACK = PackageId.parse("package-01996ab0-0000-7000-8000-000000000001");
 /** Another package. */
 const FORGE = PackageId.parse("package-01996ab0-0000-7000-8000-000000000002");
 
-test("name each scope's base installation of a package and its declared installations apart, the same every time", async () => {
+test("derive each scope's base installation ids by package and its other installation ids by name, the same every time", async () => {
     // name installations in the universe and in a space
     await using simulation = testSimulation();
     const { crypto } = simulation.environment("access");
@@ -23,7 +23,7 @@ test("name each scope's base installation of a package and its declared installa
         await InstallationId.base(Scope.universe, STACK, crypto),
         await InstallationId.base(space, STACK, crypto),
         await InstallationId.base(space, FORGE, crypto),
-        await InstallationId.declared(space, "forge", crypto),
+        await InstallationId.of(space, "forge", crypto),
     ];
 
     // name one installation per scope and package or name, each a UUIDv8 installation identifier
@@ -32,6 +32,6 @@ test("name each scope's base installation of a package and its declared installa
         "installation-80b408be-76e7-8a29-9f28-28e197dfe7f6",
         "installation-09835d9a-c231-80dd-80b6-28f94e0a336a",
         "installation-950fbc12-0095-83b7-8e74-b368806f598b",
-        "installation-cc140a49-3002-8494-9d08-b92a64cf9fc2",
+        "installation-c6412782-d076-82c0-9a4f-a332d35320b7",
     ]);
 });

@@ -60,6 +60,7 @@ export const AccessError = defineErrorFamily(import.meta.destack.package, {
     REPLICATED_TYPE_MISSING: { code: "NOT_FOUND" },
     STALE: { code: "SERVICE_UNAVAILABLE" },
     MANAGED: { code: "CONFLICT" },
+    UNMANAGED: { code: "CONFLICT" },
 
     // roles and relationships
     ROLE_NOT_FOUND: { code: "NOT_FOUND" },

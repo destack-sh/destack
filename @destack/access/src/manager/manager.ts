@@ -117,10 +117,7 @@ export const Manager = {
             }),
             uniqueIndex(`${name}_manager`)
                 .on(columns.managerInstallationId, columns.managerPackageId, columns.managerName)
-                .where({
-                    managerInstallationId: { isNotNull: true },
-                    detachedAt: { isNull: true },
-                }),
+                .where({ managerInstallationId: { isNotNull: true } }),
         ];
     },
 
