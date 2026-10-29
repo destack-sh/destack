@@ -207,7 +207,7 @@ test("leave the expired rows a database replicates to the deletes their home sen
     ]);
 });
 
-test("grant expiry of a space type and a universe type to no one, leaving it to the serving installation's role", () => {
+test("grant expiry of a space type and a universe type to no one, leaving it to the installations implementing them", () => {
     // declare one expiring type in spaces and one in the universe alone, neither declaring expire
     const universal = defineObject({
         name: "token",

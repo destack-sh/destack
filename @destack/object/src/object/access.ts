@@ -131,6 +131,8 @@ export const ObjectPolicy = {
             readonly partition?: string | undefined;
             /** The mappings of subject set types, registered once a policy grants their sets. */
             readonly sets?: readonly TableMapping[];
+            /** The package serving each type, by type key. */
+            readonly servers?: ReadonlyMap<string, PackageId>;
         } = {},
     ): Authorizer {
         // collect each object type once and the types they relate to
@@ -170,6 +172,7 @@ export const ObjectPolicy = {
                 tables: new Set([...replicated, ...objects.map((object) => object.table)]),
                 ...(options.partition === undefined ? {} : { partition: options.partition }),
                 ...(options.sets === undefined ? {} : { sets: options.sets }),
+                ...(options.servers === undefined ? {} : { servers: options.servers }),
             },
         );
     },

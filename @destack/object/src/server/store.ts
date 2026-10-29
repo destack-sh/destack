@@ -945,7 +945,7 @@ export class ObjectStore {
     /** Build the authorizer over the objects, their scope types and other policies. */
     static #authorizer(
         objects: readonly ObjectType[],
-        options: Pick<ComposedOptions, "database" | "policies" | "environment"> & {
+        options: Pick<ComposedOptions, "database" | "policies" | "environment" | "installed"> & {
             readonly partition?: string;
         },
     ): Authorizer {
@@ -961,16 +961,20 @@ export class ObjectStore {
             }
         }
 
-        // map packages onto their installations where the database stores them
-        const sets = stored.has(installation.table[TABLE].sqlName)
-            ? [mapInstalledPackages(installation.table)]
-            : [];
+        // map packages onto their installations where the database stores them, each serving its types there
+        const isInstalled = stored.has(installation.table[TABLE].sqlName);
+        const sets = isInstalled ? [mapInstalledPackages(installation.table)] : [];
+        const servers = new Map(
+            isInstalled
+                ? [...(options.installed ?? [])].map(([key, served]) => [key, served.packageId])
+                : [],
+        );
 
         return ObjectPolicy.authorizer(
             [...objects, ...attached],
             options.policies ?? [],
             new Set(options.database.tables.filter((table) => options.database.replicates(table))),
-            { partition: options.partition, sets },
+            { partition: options.partition, sets, servers },
         );
     }
 

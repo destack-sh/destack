@@ -12,6 +12,7 @@ import { implementPackage } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, spacePrincipal, space } from "./fixture/space.ts";
+import { installedPackage } from "@destack/access";
 import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the pages. */
@@ -132,7 +133,7 @@ test("subscribe to a fixed key and to one key per row the follower has as one re
             target: spaceId,
             parameters: {
                 scopes: [spaceId, Scope.universe.id],
-                local: [page.typeReference],
+                local: [page.typeReference, installedPackage.typeReference],
                 replicated: [spaceId, Scope.universe.id].map((scope) => ({ scope, types: [] })),
                 via: [],
                 between: [],

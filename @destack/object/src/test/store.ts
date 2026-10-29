@@ -242,7 +242,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
                 () => AccessContext.of(Caller.of(store.principal), environment.clock.now()),
                 environment,
             );
-            await Installation.receive(authorization, scope, ancestors, packages, store);
+            await Installation.receive(authorization, scope, ancestors, packages);
         });
     }
 

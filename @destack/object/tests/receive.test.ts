@@ -60,7 +60,7 @@ test("receive a scope's base installations once each, unnamed whatever their pac
                 () => AccessContext.of(Caller.of(scope), world.clock.now()),
                 world,
             );
-            await Installation.receive(authorization, scope, [], packages, store);
+            await Installation.receive(authorization, scope, [], packages);
         });
     const rows = async () => ({
         installations: (
@@ -89,7 +89,7 @@ test("receive a scope's base installations once each, unnamed whatever their pac
     expect({ first, second }).toEqual({
         first: {
             installations: [[objectPackage.id, null, "base"]],
-            roles: ["base:@destack/object", "owner"],
+            roles: ["owner"],
         },
         second: {
             installations: [
@@ -97,8 +97,8 @@ test("receive a scope's base installations once each, unnamed whatever their pac
                 [longPackage.id, null, "base"],
                 [objectPackage.id, null, "base"],
             ],
-            // bind no role for a package whose base holds no permission
-            roles: ["base:@destack/object", "owner"],
+            // bind a base role only for a package requesting permissions in its scope, which none here does
+            roles: ["owner"],
         },
     });
 });

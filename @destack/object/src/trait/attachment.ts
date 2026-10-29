@@ -3,7 +3,7 @@ import { permission, subjectSet, union, type AccessExpression } from "@destack/a
 
 import type { Attachment } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
-import { installedPackage } from "../installation/package.ts";
+import { installedPackage } from "@destack/access";
 
 /** Objects taking attachments of other types. */
 export const attachments: Trait<readonly Attachment[]> = {
@@ -85,7 +85,7 @@ export const attachments: Trait<readonly Attachment[]> = {
                 const { packageId } = attachment.object.policy.definition;
                 attaching[receive] = union(
                     permission(attachment.by),
-                    subjectSet(installedPackage, packageId, "installation"),
+                    subjectSet(installedPackage, packageId, "installation", "row"),
                 );
             }
         }

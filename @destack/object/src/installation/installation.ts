@@ -2,7 +2,6 @@ import {
     type Authorization,
     InstallationId,
     none,
-    PermissionReference,
     principal,
     Role,
     self,
@@ -14,9 +13,8 @@ import { ObjectReference, Scope } from "@destack/sync";
 import { InstallationName } from "../declare/egress.ts";
 import { field } from "../field/field.ts";
 import type { MethodContext } from "../method/context.ts";
-import { defineObject, type ObjectType } from "../object/object.ts";
+import { defineObject } from "../object/object.ts";
 import type { ObjectPackage } from "../server/implementation.ts";
-import type { ObjectStore } from "../server/store.ts";
 import type { BaseServerContext } from "../workload/workload.ts";
 import type { PackageDescription } from "../declare/description.ts";
 
@@ -168,7 +166,6 @@ export const Installation = {
         scope: ObjectReference,
         ancestors: readonly string[],
         packages: readonly ObjectPackage[],
-        store: Pick<ObjectStore, "objects" | "readServer">,
     ): Promise<BaseServerContext[]> {
         // write the scope's row once, which the universe has without storing it
         const { transaction, environment } = authorization;
@@ -205,16 +202,7 @@ export const Installation = {
 
             // bind the installation to its package's role in the scope
             const subject = principal.installation.reference(scope.id, id);
-            await Role.applyInherent(
-                scope,
-                Installation.role(
-                    scope,
-                    handle,
-                    store.objects.filter((type) => store.readServer(type)?.installation === id),
-                ),
-                subject,
-                authorization,
-            );
+            await Role.applyInherent(scope, Installation.role(scope, handle), subject, authorization);
             contexts.push(based);
         }
 
@@ -236,30 +224,12 @@ export const Installation = {
         return { origin: "base", installation: installed, scope: scope.id, capabilities };
     },
 
-    /** Describe a base installation's role: its served types' permissions and its requests. */
-    role(scope: ObjectReference, handle: ObjectPackage, objects: readonly ObjectType[]) {
-        // take every unreserved permission of the types it serves, which its code acts on
-        const owned = objects.flatMap((type) => {
-            const reserved = new Set<string>(type.definition.reserved ?? []);
-
-            return type.permissions
-                .filter((name) => !reserved.has(name))
-                .map((name) => type.policy.permission(name));
-        });
-
-        // add what the package's installations request in their scope
+    /** Describe a base installation's role: what its package requests in its scope. */
+    role(scope: ObjectReference, handle: ObjectPackage) {
+        // take what the package's installations request in their scope, its own types going by its policies
         const requested = handle.permissions.installation ?? {};
-        const asked =
+        const permissions =
             scope.id === Scope.universe.id ? (requested.universe ?? []) : (requested.space ?? []);
-
-        // keep each permission once, which a package may both own and request
-        const permissions = [...owned, ...asked].filter(
-            (permission, index, all) =>
-                all.findIndex(
-                    (other) =>
-                        PermissionReference.key(other) === PermissionReference.key(permission),
-                ) === index,
-        );
 
         return {
             name: `base:${handle.name}`,

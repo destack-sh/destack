@@ -2,14 +2,14 @@ import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { and, eq, isNull } from "@destack/db";
+import { isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { Package } from "@destack/package";
 import { present, schema, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/object/client";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
-import { accessRole, anyone, LinkSecret, principal, Role } from "@destack/access";
+import { anyone, LinkSecret, principal, Role } from "@destack/access";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
@@ -113,7 +113,7 @@ test("share page trees with members and links, and move pages within them", asyn
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const { as, connect, database } = await servePages(world);
+    const { as, connect } = await servePages(world);
     const alice = as(users.alice).client(pagesPackage);
     const bob = as(users.bob).client(pagesPackage);
     const carol = as(users.carol).client(pagesPackage);
@@ -234,20 +234,18 @@ test("share page trees with members and links, and move pages within them", asyn
         ),
     ).toEqual(["UNAUTHORIZED", "CREDENTIAL_MISSING", "missing caller credential"]);
 
-    // explain to the owner why a reader may not write, beside the role of the pages' base installation
-    const [base] = await database
-        .select({ id: accessRole.id })
-        .from(accessRole)
-        .where(
-            and(eq(accessRole.scope, spaceId), eq(accessRole.name, `base:${pagesPackage.name}`)),
-        );
-    const baseRole = present(base, "the pages' base role").id;
+    // explain to the owner why a reader may not write, beside the pages' installations
     const why = await alice.page.explain({
         spaceId,
         id: onboarding.id,
         permission: "write",
         subject: principal.user.reference("universe", users.carol),
     });
+    const parent = `page write / through parent to page ${handbook.id} / page write-direct`;
+    const installed = (prefix: string) => [
+        [`${prefix} / set installation of package ${pagesPackage.id} in ${spaceId}`, "subject"],
+        [`${prefix} / set installation of package ${pagesPackage.id} in universe`, "subject"],
+    ];
     expect([
         why.isAllowed,
         why.tuples.map((tuple) => [tuple.path.join(" / "), tuple.failure]),
@@ -255,32 +253,17 @@ test("share page trees with members and links, and move pages within them", asyn
         false,
         [
             ["page write / page write-direct / field ownerId holding relation owner", "subject"],
+            ...installed("page write / page write-direct"),
             [
                 `page write / page write-direct / role ${Role.OWNER} bound on space ${spaceId}`,
                 "subject",
             ],
-            [
-                `page write / page write-direct / role ${baseRole} bound on space ${spaceId}`,
-                "subject",
-            ],
-            [
-                `page write / through parent to page ${handbook.id} / page write-direct / field ownerId holding relation owner`,
-                "subject",
-            ],
-            [
-                `page write / through parent to page ${handbook.id} / page write-direct / relation editor`,
-                "subject",
-            ],
-            [
-                `page write / through parent to page ${handbook.id} / page write-direct / role ${Role.OWNER} bound on space ${spaceId}`,
-                "subject",
-            ],
-            [
-                `page write / through parent to page ${handbook.id} / page write-direct / role ${baseRole} bound on space ${spaceId}`,
-                "subject",
-            ],
+            [`${parent} / field ownerId holding relation owner`, "subject"],
+            [`${parent} / relation editor`, "subject"],
+            ...installed(parent),
+            [`${parent} / role ${Role.OWNER} bound on space ${spaceId}`, "subject"],
+            ...installed("page write"),
             [`page write / role ${Role.OWNER} bound on space ${spaceId}`, "subject"],
-            [`page write / role ${baseRole} bound on space ${spaceId}`, "subject"],
         ],
     ]);
 
