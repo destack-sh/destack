@@ -1,7 +1,9 @@
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
-import { defineObject, field } from "@destack/object";
+import { defineObject, defineShape, field } from "@destack/object";
+import { PackageId } from "@destack/package";
+import { schema } from "@destack/schema";
 import { packageObject, TagName } from "./package.ts";
 import { release } from "./release.ts";
 
@@ -38,3 +40,16 @@ export const tag = defineObject(
 
 /** A persisted tag record. */
 export type Tag = Select<typeof tag.table>;
+
+/** The shape replicating a package's distribution tag from its publisher's forge home. */
+export const tagShape = defineShape({
+    name: "tag",
+    parameters: schema.object({
+        /** The package. */
+        package: PackageId,
+        /** The distribution tag, such as latest. */
+        name: TagName,
+    }),
+    objects: [tag],
+    queries: ({ package: parentId, name }) => [tag.query({ where: { parentId, name } })],
+});
