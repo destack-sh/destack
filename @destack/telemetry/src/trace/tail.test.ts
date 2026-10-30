@@ -102,8 +102,8 @@ async function exportThroughTail(
 
     // run the work and export what the sampler keeps
     try {
-        await simulation.drive(work(TelemetryScope.of(source, telemetry), environment.clock));
-        await simulation.drive(telemetry.flush());
+        await work(TelemetryScope.of(source, telemetry), environment.clock);
+        await telemetry.flush();
     } finally {
         await telemetry.shutdown();
     }
