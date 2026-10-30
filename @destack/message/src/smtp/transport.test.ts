@@ -55,7 +55,7 @@ async function send(
     void sending.finally(() => {
         isSettled = true;
     });
-    await world.simulation.run({ until: () => isSettled });
+    await world.simulation.until(() => isSettled);
 
     return sending;
 }

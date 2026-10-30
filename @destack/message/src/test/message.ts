@@ -216,9 +216,7 @@ export class TestMessage {
         this.simulation = fields.simulation;
         this.clock = fields.simulation.clock;
         this.installation = fields.installation;
-        this.owner = fields.space
-            .person(fields.served, fields.space.owner)
-            .driven((work) => fields.simulation.drive(work));
+        this.owner = fields.space.person(fields.served, fields.space.owner);
         this.mails = fields.mails;
         this.hooks = fields.hooks;
         this.pushes = fields.pushes;
@@ -362,9 +360,7 @@ export class TestMessage {
         // reach it, at least a moment on, and run until the attempt it was due for, then settle what it changed
         const tried = (await this.sending(id)).attempts.length;
         await this.space.advance(this.served, Math.max(retryAt, this.clock.now() + 1));
-        await this.simulation.run({
-            until: async () => (await this.sending(id)).attempts.length > tried,
-        });
+        await this.simulation.until(async () => (await this.sending(id)).attempts.length > tried);
         await this.settle();
     }
 
@@ -402,18 +398,14 @@ export class TestMessage {
         const { owner } = this.space;
         const clients = owner.client(accountPackage).client;
         const requestId = () => RequestId.create(this.environment);
-        const created = await this.simulation.drive(
-            clients.create({
-                userId: owner.id,
-                requestId: requestId(),
-                name: "Firefox",
-                kind: "browser",
-            }),
-        );
+        const created = await clients.create({
+            userId: owner.id,
+            requestId: requestId(),
+            name: "Firefox",
+            kind: "browser",
+        });
         const push = { url: `${PUSH_ORIGIN}${path}`, keys: browser.keys };
-        await this.simulation.drive(
-            clients.subscribe({ userId: owner.id, id: created.id, requestId: requestId(), push }),
-        );
+        await clients.subscribe({ userId: owner.id, id: created.id, requestId: requestId(), push });
 
         return { to: { channel: "push", client: created.id, user: owner.id }, browser };
     }
