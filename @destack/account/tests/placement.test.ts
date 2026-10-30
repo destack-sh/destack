@@ -983,16 +983,16 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
         kind: "static",
         value: ["shared", "dedicated", "local"],
     });
-    await fixture.served.settle();
+    await fixture.served.simulation.idle();
     const kept = [await decided(), await schedule("shared"), await schedule(null)];
 
     // find no dedicated machine of the account, then decide again once one and then two are declared
     const none = await schedule("dedicated");
     const first = await fixture.declareCloudMachine(accountId, "eu");
-    await fixture.served.settle();
+    await fixture.served.simulation.idle();
     const one = await decided();
     const second = await fixture.declareCloudMachine(accountId, "eu");
-    await fixture.served.settle();
+    await fixture.served.simulation.idle();
     const two = await decided();
 
     // compare every decision
@@ -1046,7 +1046,7 @@ test("move a space off a draining machine, decide again once it is placed, and k
         id: local.subject.id,
         requestId: RequestId.create(fixture.environment),
     });
-    await fixture.served.settle();
+    await fixture.served.simulation.idle();
     const draining = (await read()).schedule;
 
     // place the space on the peer, which decides again in the same call
@@ -1056,7 +1056,7 @@ test("move a space off a draining machine, decide again once it is placed, and k
 
     // change the plan, which decides again without a new decision
     await fixture.entitle(accountId, "tenancy", { kind: "static", value: ["local"] });
-    await fixture.served.settle();
+    await fixture.served.simulation.idle();
     const kept = await read();
 
     // compare each decision, and the revision a decision without change keeps

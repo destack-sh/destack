@@ -3,7 +3,7 @@ import { ObjectReference, RequestId } from "@destack/sync";
 import { expect, test, refusal } from "@destack/test";
 import accountPackage from "../src/package.ts";
 import type { Environment } from "@destack/environment";
-import { DomainFixture } from "./domain.ts";
+import { TestDomain } from "./domain.ts";
 
 /** Serve a hostname in an account as a client of the account package. */
 function serve(
@@ -20,7 +20,7 @@ function serve(
 }
 
 /** Write the row of a domain the fixture's owner claimed now, unverified. */
-function claimedDomain(fixture: DomainFixture, id: string) {
+function claimedDomain(fixture: TestDomain, id: string) {
     const creator = fixture.owner.subject;
 
     return {
@@ -42,7 +42,7 @@ function claimedDomain(fixture: DomainFixture, id: string) {
 }
 
 test("claim and verify a domain once through its TXT record", async () => {
-    await using fixture = await DomainFixture.open();
+    await using fixture = await TestDomain.open();
     const { accountId, name } = fixture;
     const owner = fixture.owner.client(accountPackage);
     const verify = (id: string) =>
@@ -86,7 +86,7 @@ test("claim and verify a domain once through its TXT record", async () => {
 });
 
 test("refuse IP literals and wildcards as domain claims", async () => {
-    await using fixture = await DomainFixture.open();
+    await using fixture = await TestDomain.open();
     const { accountId } = fixture;
     const owner = fixture.owner.client(accountPackage);
     const claim = (name: string) =>
@@ -117,7 +117,7 @@ test("refuse IP literals and wildcards as domain claims", async () => {
 });
 
 test("let a second account claim a domain and refuse its verification once another verified it", async () => {
-    await using fixture = await DomainFixture.open();
+    await using fixture = await TestDomain.open();
     const { accountId, otherId, name } = fixture;
     const owner = fixture.owner.client(accountPackage);
     const rival = fixture.rival.client(accountPackage);
@@ -159,7 +159,7 @@ test("let a second account claim a domain and refuse its verification once anoth
 });
 
 test("serve hostnames below a verified domain alone, and refuse to remove the domain while one serves", async () => {
-    await using fixture = await DomainFixture.open();
+    await using fixture = await TestDomain.open();
     const { accountId, otherId, name } = fixture;
     const owner = fixture.owner.client(accountPackage);
     const rival = fixture.rival.client(accountPackage);
@@ -211,7 +211,7 @@ test("serve hostnames below a verified domain alone, and refuse to remove the do
 });
 
 test("hide an account's domains from a stranger to every domain method", async () => {
-    await using fixture = await DomainFixture.open();
+    await using fixture = await TestDomain.open();
     const { accountId, name } = fixture;
     const owner = fixture.owner.client(accountPackage);
     const stranger = fixture.stranger.client(accountPackage);
@@ -256,7 +256,7 @@ test("hide an account's domains from a stranger to every domain method", async (
 
 test("refuse a domain claim until the account's plan allows custom domains", async () => {
     // serve the domains under the account's entitlements
-    await using fixture = await DomainFixture.open();
+    await using fixture = await TestDomain.open();
     const owner = fixture.owner.client(accountPackage);
     const claim = () =>
         owner.domain.create({

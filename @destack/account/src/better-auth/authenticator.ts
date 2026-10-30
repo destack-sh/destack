@@ -26,7 +26,7 @@ import { User } from "../object/user.ts";
 import { SignUp } from "./sign-up.ts";
 import { type ProviderClient, type ProviderId, SignInProvider } from "./provider.ts";
 import { Identifier, type UuidEnvironment, Uuid } from "@destack/schema";
-import { type Clock, type Environment } from "@destack/environment";
+import { type Clock, type Environment, type Scheduler } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
@@ -237,7 +237,7 @@ export class BetterAuthAuthenticator {
                     environment.crypto,
                 ),
             session: async (headers) =>
-                (await readBrowserSession(auth, headers, environment.clock))?.session.id,
+                (await readBrowserSession(auth, headers, environment.scheduler))?.session.id,
             codes,
             context: auth.$context,
             pages: {
@@ -248,12 +248,12 @@ export class BetterAuthAuthenticator {
         });
 
         // serve the sign-in pages over the audited protocol and the audited authorization server
-        const protocol = auditedProtocol(auth, audit, environment.clock);
+        const protocol = auditedProtocol(auth, audit, environment.scheduler);
         const authorization = audited(
             audit,
             server.paths,
-            (headers) => readBrowserSession(auth, headers, environment.clock),
-            (request) => environment.clock.track(server.answer(request)),
+            (headers) => readBrowserSession(auth, headers, environment.scheduler),
+            (request) => environment.scheduler.track(server.answer(request), "world"),
         );
         const signIn = new SignInPage({
             ...pages,
@@ -324,19 +324,19 @@ function configure(
 function auditedProtocol(
     authentication: Pick<ReturnType<typeof betterAuth<typeof MODELS>>, "api" | "handler">,
     audit: BetterAuthAudit,
-    clock: Clock,
+    scheduler: Scheduler,
 ): Fetch {
     // list the protocol's routes once
     const routes = Object.values(authentication.api)
         .map((endpoint) => endpoint.path)
         .filter((path): path is string => typeof path === "string");
 
-    // answer requests on the clock's tracked work, as the user of the presented session
+    // answer requests as the world's work, as the user of the presented session
     return audited(
         audit,
         routes,
-        (headers) => readBrowserSession(authentication, headers, clock),
-        (request) => clock.track(authentication.handler(request)),
+        (headers) => readBrowserSession(authentication, headers, scheduler),
+        (request) => scheduler.track(authentication.handler(request), "world"),
     );
 }
 
@@ -358,11 +358,12 @@ function audited(
 function readBrowserSession(
     authentication: Pick<ReturnType<typeof betterAuth<typeof MODELS>>, "api">,
     headers: Headers,
-    clock: Clock,
+    scheduler: Scheduler,
 ) {
     return readSession(headers, (presented) =>
-        clock.track(
+        scheduler.track(
             authentication.api.getSession({ headers: presented, query: { disableRefresh: true } }),
+            "world",
         ),
     );
 }

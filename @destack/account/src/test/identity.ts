@@ -1,7 +1,7 @@
 import { principal } from "@destack/access";
 import { type DatabaseConnection } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { Installation } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import { testEvents, serversOf } from "@destack/object/test";
@@ -29,7 +29,7 @@ export const TestIdentityRegistry = {
         const { clock } = environment;
         const serving = principal.machine.reference(Scope.universe.id, machineId);
         await TestDirectory.publish(database, machineId, Scope.universe.id, null, clock);
-        const access = new AccessFixture(database, environment);
+        const access = new TestAccess(database, environment);
         await access.replicateRelationship(
             Scope.universe,
             "machine",

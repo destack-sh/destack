@@ -1,5 +1,5 @@
 import { principal, universe } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { type DatabaseConnection, eq } from "@destack/db";
 import { type ClaimPrimary, RemoteStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
@@ -26,7 +26,7 @@ export const TestDirectory = {
         // bind the universe as its owner once
         const { clock } = environment;
         const owner = universe.reference(Scope.universe.id, Scope.universe.id);
-        const access = new AccessFixture(database, environment, Scope.universe.id);
+        const access = new TestAccess(database, environment, Scope.universe.id);
         await access.bindOwner(Scope.universe, owner, clock.now());
 
         // serve the claims over their table, at the account package's base installation in the universe
@@ -68,7 +68,7 @@ export const TestDirectory = {
 
         // bind the universe as its owner, as the platform does, which relates runners to spaces
         const universal = universe.reference(Scope.universe.id, Scope.universe.id);
-        const access = new AccessFixture(database, environment, Scope.universe.id);
+        const access = new TestAccess(database, environment, Scope.universe.id);
         await access.bindOwner(Scope.universe, universal, clock.now());
 
         // receive each mutation as the sending machine

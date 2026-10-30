@@ -5,7 +5,7 @@ import type { Identifier } from "@destack/schema";
 import { STRANGER_EMAIL, TestAccountStore, TestDns, type TestPerson } from "../src/test/index.ts";
 
 /** Two shared accounts with an owner each and a stranger, claiming domains over a test DNS. */
-export class DomainFixture implements AsyncDisposable {
+export class TestDomain implements AsyncDisposable {
     /** The account package, with its people. */
     readonly accounts: TestAccountStore;
     /** The DNS domain claims verify through. */
@@ -27,7 +27,7 @@ export class DomainFixture implements AsyncDisposable {
     private constructor(
         accounts: TestAccountStore,
         dns: TestDns,
-        people: Pick<DomainFixture, "owner" | "rival" | "stranger" | "accountId" | "otherId">,
+        people: Pick<TestDomain, "owner" | "rival" | "stranger" | "accountId" | "otherId">,
     ) {
         this.accounts = accounts;
         this.dns = dns;
@@ -50,7 +50,7 @@ export class DomainFixture implements AsyncDisposable {
     }
 
     /** Sign the people up, each owner creating a shared account. */
-    static async open(): Promise<DomainFixture> {
+    static async open(): Promise<TestDomain> {
         // serve the account package over the test DNS at a clock standing still
         const dns = new TestDns();
         const accounts = await TestAccountStore.open({ resolver: dns });
@@ -60,7 +60,7 @@ export class DomainFixture implements AsyncDisposable {
         const rival = await accounts.signIn("rival@example.com");
         const stranger = await accounts.signIn(STRANGER_EMAIL);
 
-        return new DomainFixture(accounts, dns, {
+        return new TestDomain(accounts, dns, {
             owner,
             rival,
             stranger,
