@@ -48,7 +48,7 @@ function stubPermissions(statuses: Record<string, StubStatus>): void {
 }
 
 /** Wait for the queries to answer. */
-async function settle(): Promise<void> {
+async function flushPending(): Promise<void> {
     await wait(0);
     flush();
 }
@@ -62,7 +62,7 @@ test("follow a permission's state from unknown through its answer and changes", 
         dispose: disposeRoot,
     }));
     const before = states.map((state) => state());
-    await settle();
+    await flushPending();
     const answered = states.map((state) => state());
 
     // grant the camera

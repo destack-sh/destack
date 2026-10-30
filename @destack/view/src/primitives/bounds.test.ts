@@ -49,7 +49,7 @@ function movable(): { element: HTMLElement; move: (top: number) => void } {
 }
 
 /** Wait for the observers to deliver their records. */
-async function settle(): Promise<void> {
+async function flushPending(): Promise<void> {
     await wait(0);
 }
 
@@ -86,7 +86,7 @@ test("follow a rectangle as its element resizes, its holder scrolls and the docu
     tops.push(bounds.top);
     move(15);
     container.className = "moved";
-    await settle();
+    await flushPending();
     flush();
     tops.push(bounds.top);
     dispose();

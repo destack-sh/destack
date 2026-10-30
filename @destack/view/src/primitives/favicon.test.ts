@@ -109,8 +109,8 @@ function readOverlay(href: string | null | undefined): string {
     return number === undefined ? "plain" : (drawn[Number(number)] ?? []).slice(1).join(";");
 }
 
-/** Let the image loads and drawings settle. */
-async function settle(): Promise<void> {
+/** Let the image loads and drawings run. */
+async function flushPending(): Promise<void> {
     for (let round = 0; round < 10; round++) {
         await Promise.resolve();
     }
@@ -269,7 +269,7 @@ test("draw a count, a capped count, a text or a dot as a badge, and nothing for 
     const hrefs: string[] = [];
     for (const value of values) {
         const badge = makeFaviconBadge("/base.png", value, { position: "top-left" });
-        await settle();
+        await flushPending();
         hrefs.push(readOverlay(iconHref()));
         badge.dispose();
     }
@@ -290,7 +290,7 @@ test("keep the plain favicon, reporting why, when its image fails to load", asyn
     const reported: unknown[] = [];
     vi.stubGlobal("reportError", (error: unknown) => reported.push(error));
     const badge = makeFaviconBadge("error:missing.png", 3);
-    await settle();
+    await flushPending();
     const shown = iconHref();
     badge.dispose();
     vi.unstubAllGlobals();
@@ -310,7 +310,7 @@ test("leave the restored favicon alone when a drawing settles after disposal", a
     document.head.append(link);
     makeFaviconBadge("/base.png", 3).dispose();
     makeFaviconProgress("/base.png", 50).dispose();
-    await settle();
+    await flushPending();
 
     expect(iconHref()).toBe("/original.svg");
 });
@@ -322,7 +322,7 @@ test("draw a progress ring's track, and its arc from the top for a positive shar
             color: "blue",
             trackColor: "gray",
         });
-        await settle();
+        await flushPending();
         hrefs.push(readOverlay(iconHref()));
         ring.dispose();
     }
@@ -349,7 +349,7 @@ test("redraw a reactive badge and ring, applying only the latest drawing", async
         flush();
         setProgress(undefined);
         flush();
-        await settle();
+        await flushPending();
         const read = [
             readOverlay(iconHref()).split(";").at(-1),
             badge().startsWith("data:"),

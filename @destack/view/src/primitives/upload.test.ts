@@ -83,7 +83,7 @@ function drag(target: EventTarget, type: string, files?: FileList): DragEvent {
 }
 
 /** Wait for pending callbacks. */
-async function settle(): Promise<void> {
+async function flushPending(): Promise<void> {
     await wait(0);
     flush();
 }
@@ -117,7 +117,7 @@ test("open a file picker of the chosen kinds, hold the chosen files and run the 
     if (clicked.input !== undefined) {
         choose(clicked.input, fileList(file("first.png"), file("second.png")));
     }
-    await settle();
+    await flushPending();
     const chosen = picker.files().map((item) => item.name);
     picker.removeFile("first.png");
     flush();
@@ -162,7 +162,7 @@ test("record a picker callback's progress and failure", async () => {
     flush();
     const during = picker.isLoading();
     finish?.();
-    await settle();
+    await flushPending();
     picker.dispose();
 
     expect([during, picker.isLoading(), picker.error()]).toEqual([
@@ -186,7 +186,7 @@ test("revoke each file's object URL once it is dropped", async () => {
     if (clicked.input !== undefined) {
         choose(clicked.input, fileList(file("first.png"), file("second.png")));
     }
-    await settle();
+    await flushPending();
     const sources = picker.files().map((item) => item.source);
     picker.removeFile("first.png");
     picker.dispose();
@@ -220,7 +220,7 @@ test("follow drags over a drop zone and take the dropped files", async () => {
 
     // drop a file
     drag(element, "drop", fileList(file("dropped.png")));
-    await settle();
+    await flushPending();
     const dropped = zone.files().map((item) => item.name);
     zone.dispose();
 
@@ -283,7 +283,7 @@ test("hand the files chosen in an input to a callback, clearing it, and report f
     });
     choose(succeeding, fileList(file("chosen.png")));
     choose(failing, fileList(file()));
-    await settle();
+    await flushPending();
     dispose();
 
     expect({ held, errors, value: succeeding.value }).toEqual({

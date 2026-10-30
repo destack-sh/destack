@@ -4,7 +4,7 @@ import { createMutationObserver, mutationObserver } from "./mutation-observer.ts
 import { wait } from "../test/dom.ts";
 
 /** Wait for the observers to deliver their records. */
-async function settle(): Promise<void> {
+async function flushPending(): Promise<void> {
     await wait(0);
 }
 
@@ -30,7 +30,7 @@ test("observe initial nodes with shared options, from the moment it starts", asy
     });
     start();
     append(...parents);
-    await settle();
+    await flushPending();
     dispose();
 
     expect(targets).toEqual(parents);
@@ -60,7 +60,7 @@ test("observe nodes with their own options, and nodes added later", async () => 
     append(children, attributes);
     attributes.setAttribute("title", "observed");
     later.setAttribute("title", "observed");
-    await settle();
+    await flushPending();
     dispose();
 
     expect(kinds).toEqual(["childList", "attributes", "attributes"]);
@@ -87,7 +87,7 @@ test("stop delivering records when stopped or disposed, dropping pending ones", 
     append(parent);
     roots[0]?.stop();
     roots[1]?.dispose();
-    await settle();
+    await flushPending();
     roots[0]?.dispose();
 
     expect(count).toBe(0);
@@ -103,10 +103,10 @@ test("observe the element a ref receives, until its owner is disposed", async ()
         return disposeRoot;
     });
     append(element);
-    await settle();
+    await flushPending();
     dispose();
     append(element);
-    await settle();
+    await flushPending();
 
     expect(count).toBe(1);
 });

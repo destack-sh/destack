@@ -44,7 +44,7 @@ export function ViewExample(properties: ViewExampleProperties): JSX.Element {
     const closing = new AbortController();
     onCleanup(() => closing.abort());
     const opened = createMemo(() =>
-        environment.clock.track(openSample(properties, environment, closing.signal)),
+        environment.scheduler.track(openSample(properties, environment, closing.signal), "world"),
     );
 
     return createComponent(Loading, {
@@ -124,7 +124,7 @@ async function openScope(
 ): Promise<ObjectClient> {
     // keep the objects in memory
     const named = Object.fromEntries(objects.map((object) => [object.name, object]));
-    const memory = await WasmClient.memory(environment.clock);
+    const memory = await WasmClient.memory(environment);
     const database = new SqliteDatabase(memory, ObjectClient.tables(named), "embedded", {
         environment,
     });

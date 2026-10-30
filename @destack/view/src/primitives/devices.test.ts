@@ -43,7 +43,7 @@ afterEach(() => {
 });
 
 /** Wait for the listing to answer. */
-async function settle(): Promise<void> {
+async function flushPending(): Promise<void> {
     await wait(0);
     flush();
 }
@@ -55,10 +55,10 @@ test("follow the devices, and each kind of them, as devices are plugged in", asy
     }));
     const labels = (): string[][] => lists.map((list) => list().map((item) => item.label));
     const before = labels();
-    await settle();
+    await flushPending();
     const listed = labels();
     media.plug(device("audiooutput", "speaker"));
-    await settle();
+    await flushPending();
     const plugged = labels();
     dispose();
 

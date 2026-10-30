@@ -74,7 +74,7 @@ afterEach(() => {
 });
 
 /** Wait for the streams to open. */
-async function settle(): Promise<void> {
+async function flushPending(): Promise<void> {
     await wait(0);
     flush();
 }
@@ -89,7 +89,7 @@ test("open a stream for each source, stopping the last, and mute and stop it", a
 
         return { stream: followed, controls: openedControls, dispose: disposeRoot };
     });
-    await settle();
+    await flushPending();
     const first = opened[0];
     const deviceValues = {
         deviceId: "camera",
@@ -98,7 +98,7 @@ test("open a stream for each source, stopping the last, and mute and stop it", a
         label: "camera",
     };
     setSource({ ...deviceValues, toJSON: () => deviceValues });
-    await settle();
+    await flushPending();
 
     // mute, then stop
     controls.mute();
@@ -128,7 +128,7 @@ test("capture the screen and stop it on cleanup", async () => {
 
         return { stream: captured, dispose: disposeRoot };
     });
-    await settle();
+    await flushPending();
     const isOpen = stream() !== undefined;
     dispose();
 

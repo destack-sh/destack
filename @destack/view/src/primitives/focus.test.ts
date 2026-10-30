@@ -1,5 +1,4 @@
 import { testWorld } from "../test/browser.ts";
-import { Simulation } from "@destack/environment/simulation";
 import { afterEach, expect, test } from "@destack/test";
 import { createSignal, flush } from "solid-js";
 import { createPageRoot } from "../test/dom.ts";
@@ -15,13 +14,6 @@ function button(): HTMLButtonElement {
     document.body.append(element);
 
     return element;
-}
-
-/** Run effects and the timers due now. */
-async function settle(simulation: Simulation): Promise<void> {
-    flush();
-    await simulation.clock.sleep(simulation.clock.now() - simulation.clock.now());
-    await simulation.idle();
 }
 
 test("follow whether an element, fixed or given by an accessor, holds the focus", async () => {
@@ -62,7 +54,8 @@ test("focus a ref's element once rendered only when it asks for it", async () =>
 
             return disposeRoot;
         }, tab);
-        await settle(simulation);
+        flush();
+        await simulation.idle();
         dispose();
         focused.push(document.activeElement === target);
     }
@@ -80,17 +73,21 @@ test("focus each element an accessor gives, and none after disposal", async () =
 
         return disposeRoot;
     }, tab);
-    await settle(simulation);
+    flush();
+    await simulation.idle();
     const before = document.activeElement;
     setRef(first);
-    await settle(simulation);
+    flush();
+    await simulation.idle();
     const afterFirst = document.activeElement;
     setRef(second);
-    await settle(simulation);
+    flush();
+    await simulation.idle();
     const afterSecond = document.activeElement;
     dispose();
     setRef(first);
-    await settle(simulation);
+    flush();
+    await simulation.idle();
 
     expect([before, afterFirst, afterSecond, document.activeElement]).toEqual([
         document.body,
