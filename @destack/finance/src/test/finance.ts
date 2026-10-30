@@ -33,8 +33,7 @@ import { TestPackage, TestSpace } from "@destack/stack/test";
 import { defineVault } from "@destack/vault/declare";
 import vaultPackage from "@destack/vault/package";
 import { TestVault } from "@destack/vault/test";
-import { vaultProvider } from "@destack/vault/provider";
-import vaultServer, { secretBindable } from "@destack/vault/server";
+import vaultServer from "@destack/vault/server";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { testHost } from "@destack/test/host";
@@ -134,8 +133,7 @@ const FINANCE: TestPackage = {
     server: financeServer(new Map(), undefined),
     connectors: [],
     servers: [vaultServer],
-    bindables: [secretBindable],
-    providers: [vaultProvider],
+    providers: [],
 };
 
 /** The packages the residency's home installs beside its base ones, as its stack does. */
