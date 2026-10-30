@@ -10,6 +10,7 @@ import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { testSimulation } from "../test/world.ts";
 import { LocalPackageStore } from "./local.ts";
+import { BuildLayer } from "./layer.ts";
 import { STAGING_DIRECTORY } from "../dependency/tree.ts";
 
 /** A day, in milliseconds. */
@@ -74,6 +75,41 @@ test("keep one store in a directory, which a later open of any toolchain reads",
         entries: ["collected", "files", "open.lock", "store.db", "store.lock", "trees"],
         isStored: true,
     });
+});
+
+test("place a stored file by its blob and a layered one from its build", async () => {
+    // store a blob, and layer a build the blobs lack over the same store
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files, crypto } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    await using store = await LocalPackageStore.open(directory, environment);
+    const marker = await Digest.of(MARKER, crypto);
+    await store.receive(marker, MARKER);
+    const build = await written("export const answer = 42;", crypto);
+    const layer = await BuildLayer.of([build], [], [], crypto);
+    await using layered = await LocalPackageStore.of({
+        blobs: store.blobs,
+        directory: join(directory, "layered"),
+        environment,
+        layer,
+    });
+
+    // write each to a fresh folder and read the bytes back
+    const module = await build.file("src/answer.ts");
+    const placed = {
+        stored: join(directory, "out", "stored"),
+        layered: join(directory, "out", "src", "answer.ts"),
+    };
+    await layered.place(
+        { path: "stored", digest: marker, size: MARKER.byteLength, mediaType: "text/plain" },
+        placed.stored,
+    );
+    await layered.place(module, placed.layered);
+    expect([
+        await files.readTextFile(placed.stored),
+        await files.readTextFile(placed.layered),
+    ]).toEqual(["stored", "export const answer = 42;"]);
 });
 
 test("share the store between opens, each reading what the other writes", async () => {

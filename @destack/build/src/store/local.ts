@@ -209,10 +209,18 @@ export class LocalPackageStore
         await this.root(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests);
     }
 
-    /** Clone a stored file to a path, creating its folder, copying where cloning is unsupported. */
+    /** Write a file to a path, cloning a stored blob and reading a layered one from its build. */
     async place(file: PackageFile, destination: string): Promise<void> {
-        await this.environment.files.mkdir(dirname(destination), { recursive: true });
-        await this.blobs.storage.copy(file.digest, destination);
+        // clone a stored file's blocks where the file system can
+        const { files } = this.environment;
+        await files.mkdir(dirname(destination), { recursive: true });
+        if ((await this.blobs.storage.missing([file.digest])).length === 0) {
+            await this.blobs.storage.copy(file.digest, destination);
+        }
+        // write any other file's bytes, read from the layer or refused as unknown
+        else {
+            await files.writeFile(destination, await this.file(file));
+        }
     }
 
     /** Forget deleted directories' roots, collect, then delete deleted builds' trees. */
