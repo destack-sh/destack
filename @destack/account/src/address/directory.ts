@@ -2,7 +2,7 @@ import type { Clock, Environment } from "@destack/environment";
 import { type Snapshot, TABLE } from "@destack/db";
 import { Claim, ClaimLookup, claimTable, type ObjectType } from "@destack/object";
 import { nth, present, schema, type Identifier } from "@destack/schema";
-import { type Fetch, PackageMount, SpaceMount } from "@destack/object";
+import { type Fetch, InstallationMount, PackageMount, SpaceMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import type { ObjectReference, Publisher } from "@destack/sync";
@@ -97,6 +97,18 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         const url = await this.answering(placed.machine, now);
 
         return { placement: placed, url };
+    }
+
+    /** Locate a package below an installation of a space, at the URL its machine answers at now. */
+    async mount(
+        spaceId: Identifier<"space">,
+        installation: string,
+        packageId: string,
+        now: number,
+    ): Promise<string> {
+        const { url } = await this.locate(spaceId, now);
+
+        return `${InstallationMount.url(url, spaceId, installation)}${PackageMount.path(packageId)}`;
     }
 
     /** Find a space's placement and its machine's URL now, absent until both are known. */
