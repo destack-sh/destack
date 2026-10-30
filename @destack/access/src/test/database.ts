@@ -1,4 +1,5 @@
 import { testSimulation } from "@destack/test/world";
+import type { Simulation } from "@destack/environment/simulation";
 import { TestDatabase } from "@destack/db/test";
 import { Replica, Scope, type Subject } from "@destack/sync";
 import type { DatabaseConnection, LogPosition } from "@destack/db";
@@ -17,9 +18,11 @@ import {
 const CREDENTIAL_MILLISECONDS = 60_000;
 
 /** Open a migrated database home to a partition, the universe by default, with two users. */
-export async function openDatabase(partition: string = Scope.universe.id) {
-    // open the database in a world of its own, and authorize its objects as its partition's
-    const simulation = testSimulation();
+export async function openDatabase(
+    partition: string = Scope.universe.id,
+    simulation: Simulation = testSimulation(),
+) {
+    // open the database in its world, a world of its own by default, and authorize its objects as its partition's
     const environment = simulation.environment("access");
     const test = await TestDatabase.create(fixtureDatabase, {
         environment: environment,
@@ -63,9 +66,12 @@ export async function openDatabase(partition: string = Scope.universe.id) {
 }
 
 /** Open a migrated application database home to a partition, with its notes and one grant. */
-export async function openFixture(partition: string = Scope.universe.id) {
-    // populate the database and grant bob one note
-    const opened = await openDatabase(partition);
+export async function openFixture(
+    partition: string = Scope.universe.id,
+    simulation: Simulation = testSimulation(),
+) {
+    // populate the database in its world and grant bob one note
+    const opened = await openDatabase(partition, simulation);
     const { database, environment, authorizer, alice } = opened;
     await database.transaction(async (transaction) => await transaction.insert(item).values(rows));
     await Authorization.run(

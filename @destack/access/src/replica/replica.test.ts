@@ -83,8 +83,8 @@ function universeOf(authorizer: Authorizer, chain: readonly string[]) {
 test("relay an account's access through the space's database into an app's, and follow its revocation", async () => {
     // open the universe's database with accounts and spaces, the space's, and an app's with notes
     const global = await openDatabase();
-    const regional = await openDatabase("personal");
-    const app = await openFixture("app");
+    const regional = await openDatabase("personal", global.simulation);
+    const app = await openFixture("app", global.simulation);
     onTestFinished(async () => {
         await Promise.all([global.close(), regional.close(), app.close()]);
     });
@@ -159,9 +159,12 @@ test("relay an account's access through the space's database into an app's, and 
     // revoke the binding in the account's database, and refuse deciding on a replica that stays stale for a lag
     await owner((authorization) => Relationship.revoke(object, binding.id, authorization));
     const revoked = await global.database.log.position();
-    app.simulation.clock.advance(notes.lag);
+    await app.simulation.jump(app.simulation.clock.now() + notes.lag);
     const resolving = refusal(notes.resolve(Snapshot.live(app.database), "personal", carol));
-    await app.simulation.run({ to: app.simulation.clock.now() + notes.lag });
+    await app.simulation.clock.sleep(
+        app.simulation.clock.now() + notes.lag - app.simulation.clock.now(),
+    );
+    await app.simulation.idle();
     expect(await resolving).toEqual([
         "SERVICE_UNAVAILABLE",
         "STALE",
@@ -214,7 +217,7 @@ test("relay an account's access through the space's database into an app's, and 
 test("write a space's own access beside its row where its creator stores it, and replicate it to the home born below it", async () => {
     // create an account and its space of alice in the universe, which stores the space's row and owners
     const global = await openDatabase();
-    const home = await openDatabase();
+    const home = await openDatabase(Scope.universe.id, global.simulation);
     onTestFinished(async () => {
         await Promise.all([global.close(), home.close()]);
     });

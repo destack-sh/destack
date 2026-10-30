@@ -601,7 +601,7 @@ async function openWorld(
 ): Promise<World> {
     // open the home and the space's database
     const home = await openDatabase();
-    const app = await openDatabase();
+    const app = await openDatabase(Scope.universe.id, home.simulation);
     onTestFinished(async () => {
         await Promise.all([home.close(), app.close()]);
     });
