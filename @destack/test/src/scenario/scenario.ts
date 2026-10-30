@@ -30,6 +30,8 @@ export interface Driver<Speaks extends Interaction = Interaction> extends AsyncD
     observe(observation: schema.Infer<Speaks["observation"]>): JsonValue | Promise<JsonValue>;
     /** Read the world's counters since the driver started, by name. */
     readonly count: () => Counters | Promise<Counters>;
+    /** Read the fingerprint of everything the world did so far, equal across plays of one seed. */
+    readonly fingerprint: () => number;
 }
 
 /** The drivers of one interaction, each started on the examples a scenario is given. */
@@ -45,6 +47,22 @@ export type Observations = Record<string, JsonValue>;
 
 /** A world's counters by name, such as `db.client.operation.duration.count`, since it started. */
 export type Counters = Readonly<Record<string, number>>;
+
+/** A world's fingerprint after one step of a play. */
+export interface StepFingerprint {
+    /** The step, as JSON. */
+    readonly step: string;
+    /** The world's fingerprint after it. */
+    readonly fingerprint: number;
+}
+
+/** A play of a world: its result and the world's fingerprint after each step. */
+export interface Playthrough<Result> {
+    /** The play's result. */
+    readonly result: Result;
+    /** The world's fingerprint after each step. */
+    readonly steps: readonly StepFingerprint[];
+}
 
 /** The configuration a benchmark ran in, written as Go's `key: value` lines. */
 export type Configuration = Readonly<Record<string, string>>;
@@ -69,35 +87,39 @@ export const Runner = {
     async observe<Speaks extends Interaction, Instance>(
         scenario: Scenario<Speaks, Instance>,
         type: DriverType<Speaks, Instance>,
-    ): Promise<Observations[]> {
+    ): Promise<Playthrough<Observations[]>> {
         // take each step, reading the observations after each step or after the last
         await using driver = await type.start(scenario.given);
         const isEach = "each" in scenario.then;
         const observed: Observations[] = [];
+        const steps: StepFingerprint[] = [];
         for (const [index, step] of scenario.when.entries()) {
             await driver.act(step);
+            steps.push({ step: JSON.stringify(step), fingerprint: driver.fingerprint() });
             if (isEach || index === scenario.when.length - 1) {
                 observed.push(await read(driver, scenario.then.observe));
             }
         }
 
-        return observed;
+        return { result: observed, steps };
     },
 
     /** Set a benchmark's world up through a new driver, then measure each operation in order. */
     async measure<Speaks extends Interaction>(
         benchmark: Benchmark<Speaks>,
         type: DriverType<Speaks>,
-    ): Promise<Measurement[]> {
+    ): Promise<Playthrough<Measurement[]>> {
         // set the world up unmeasured, reporting each step's host time as it ends
         const { clock, process } = testHost();
         const started = clock.now();
         await using driver = await type.start({ examples: [] });
         report(benchmark, "start", started);
+        const steps: StepFingerprint[] = [];
         for (const step of benchmark.setup) {
             const taken = clock.now();
             await driver.act(step);
             report(benchmark, JSON.stringify(step), taken);
+            steps.push({ step: JSON.stringify(step), fingerprint: driver.fingerprint() });
         }
 
         // take each operation's iterations between two readings of CPU, clock and counters
@@ -110,6 +132,7 @@ export const Runner = {
             }
             const after = { usage: process.usage(), now: driver.clock.now() };
             report(benchmark, `${operation} x${benchmark.iterations}`, before.taken);
+            steps.push({ step: operation, fingerprint: driver.fingerprint() });
             const counters = await driver.count();
 
             // record the operation's totals
@@ -127,16 +150,38 @@ export const Runner = {
             });
         }
 
-        return measured;
+        return { result: measured, steps };
+    },
+
+    /** Play a world twice from one seed, refusing a replay whose world diverges. */
+    async replay<Result>(play: () => Promise<Playthrough<Result>>): Promise<Result> {
+        // play twice
+        const first = await play();
+        const second = await play();
+
+        // refuse the first step after which the two worlds differ
+        for (const [index, { step, fingerprint }] of first.steps.entries()) {
+            if (second.steps[index]?.fingerprint !== fingerprint) {
+                throw new Error(
+                    `the world diverged between two plays of one seed at step ${index}: ${step}`,
+                );
+            }
+        }
+
+        return first.result;
     },
 
     /** Play a scenario as a test through the driver of its interaction. */
     play(scenario: Scenario, types: readonly DriverType[]): void {
         const type = Runner.driverOf(scenario.interaction, scenario.name, types);
         test(scenario.name, async () => {
+            // expect each step's observations, or the last one's
             const then = scenario.then;
             const expected = "each" in then ? then.each : [then.end];
-            expect(await Runner.observe(scenario, type)).toEqual(expected);
+
+            // play the scenario twice, expecting its observations from one seed
+            const play = () => Runner.observe(scenario, type);
+            expect(await Runner.replay(play)).toEqual(expected);
         });
     },
 
@@ -145,7 +190,8 @@ export const Runner = {
         const type = Runner.driverOf(benchmark.interaction, benchmark.name, types);
         test(`measure ${benchmark.description}`, { timeout: BENCHMARK_MILLISECONDS }, async () => {
             // measure, then save the results under the run's baseline
-            const measured = await Runner.measure(benchmark, type);
+            const play = () => Runner.measure(benchmark, type);
+            const measured = await Runner.replay(play);
             const { variables } = testHost().process;
             const baseline = variables[BASELINE_VARIABLE] ?? CURRENT_BASELINE;
             const configuration = await Runner.configuration(benchmark);

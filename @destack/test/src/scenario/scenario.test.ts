@@ -97,6 +97,7 @@ const TallyDriver: DriverType<Tallying, Tally> = {
             },
             observe: () => String(tally.marks),
             count: () => ({ marks: tally.marks }),
+            fingerprint: () => tally.marks,
             [Symbol.asyncDispose]: async () => undefined,
         };
     },
@@ -109,14 +110,14 @@ test("observe a scenario's named observations after each step, or once after the
     } as const;
 
     expect([
-        await Runner.observe(createTallyMarkTwice, TallyDriver),
-        await Runner.observe(atEnd, TallyDriver),
+        (await Runner.observe(createTallyMarkTwice, TallyDriver)).result,
+        (await Runner.observe(atEnd, TallyDriver)).result,
     ]).toEqual([[{ marks: "3" }, { marks: "4" }, { marks: "0" }], [{ marks: "0" }]]);
 });
 
 test("measure each operation per iteration after an unmeasured setup, as Go benchmark lines", async () => {
     // measure marking after two setup marks
-    const measured = await Runner.measure(markTally, TallyDriver);
+    const { result: measured } = await Runner.measure(markTally, TallyDriver);
 
     // expect the counter growth of the measured iterations only, the host CPU left out as it varies
     expect(
@@ -139,4 +140,28 @@ test("measure each operation per iteration after an unmeasured setup, as Go benc
         "BenchmarkTally/op=tally.mark/start=2 4 0 sec/op N cpu-sec/op 1 marks/op",
         "",
     ]);
+});
+
+test("refuse a replay whose second play diverges, naming the first step after which it did", async () => {
+    // play a tally whose second play marks once more after its second step
+    const plays = [
+        [1, 2, 3],
+        [1, 3, 4],
+    ];
+    const play = async () => {
+        const fingerprints = plays.shift() ?? [];
+
+        return {
+            result: "played",
+            steps: fingerprints.map((fingerprint, index) => ({
+                step: `mark ${index}`,
+                fingerprint,
+            })),
+        };
+    };
+
+    // expect the replay to refuse the second step
+    await expect(Runner.replay(play)).rejects.toThrow(
+        new Error("the world diverged between two plays of one seed at step 1: mark 1"),
+    );
 });
