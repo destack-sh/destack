@@ -34,6 +34,7 @@ export const UpdateError = defineErrorFamily(import.meta.destack.package, {
     // internal server error
     ACTIVATION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     COMMAND_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    CLIENT_INCOMPATIBLE: { code: "INTERNAL_SERVER_ERROR" },
     FILE_SYSTEM_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     INSTALL_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     RECORD_INVALID: { code: "INTERNAL_SERVER_ERROR" },

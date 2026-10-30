@@ -91,13 +91,23 @@ export class UpdateRepository {
         return UpdateError.of(reason, `metadata refresh failed: ${message}`, { cause: error });
     }
 
+    /** Open a TUF client fetching through a fetcher, its update fixed at the environment's now. */
+    #updater(fetcher: Fetcher): Updater {
+        // fix the update's start time (TUF client workflow 5.1) on the environment's clock
+        const updater = new Updater({ ...this.locations, fetcher });
+        const trusted: unknown = Reflect.get(updater, "trustedSet");
+        if (typeof trusted !== "object" || trusted === null || !("referenceTime" in trusted)) {
+            throw UpdateError.of("CLIENT_INCOMPATIBLE", "tuf-js keeps no update start time");
+        }
+        Reflect.set(trusted, "referenceTime", new Date(this.environment.clock.now()));
+
+        return updater;
+    }
+
     /** Refresh trusted metadata and describe the current release for a target. */
     async latest(target: Target): Promise<Release> {
         // refresh from the persisted trusted metadata
-        const updater = new Updater({
-            ...this.locations,
-            fetcher: new Fetcher({ kind: "metadata" }, this.environment),
-        });
+        const updater = this.#updater(new Fetcher({ kind: "metadata" }, this.environment));
         await updater.refresh().catch((error: unknown) => {
             throw UpdateRepository.#refused(error);
         });
@@ -165,13 +175,9 @@ export class UpdateRepository {
 
         // authenticate an installer archive by its signed length and hashes
         const { clock } = this.environment;
-        const downloader = new Updater({
-            ...this.locations,
-            fetcher: new Fetcher(
-                { kind: "archive", total: artifact.length, options },
-                this.environment,
-            ),
-        });
+        const downloader = this.#updater(
+            new Fetcher({ kind: "archive", total: artifact.length, options }, this.environment),
+        );
         const cached = await clock.trackHost(downloader.findCachedTarget(artifact, candidate));
         if (candidate !== undefined && candidate !== "" && cached === undefined) {
             throw UpdateError.of("VERIFICATION_FAILED", "installer archive failed verification");
