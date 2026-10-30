@@ -13,7 +13,7 @@
     "check": {
         "expect": [
             {
-                "files": ["src/s3/test/fixture.ts"],
+                "files": ["src/s3/test/s3.ts"],
                 "rules": ["destack/no-system-environment"],
                 "reason": "the AWS SDK clients sign on the host's clock, so the fixture's world starts at the host's time"
             }

@@ -11,13 +11,13 @@ import {
     UploadPartCopyCommand,
 } from "@aws-sdk/client-s3";
 import { expect, test } from "@destack/test";
-import { failure, S3Fixture } from "./test/fixture.ts";
+import { failure, TestS3 } from "./test/s3.ts";
 
 /** The smallest size of every multipart part but the last, five MiB. */
 const PART_SIZE = 5 * 1024 * 1024;
 
 test("assemble, list and abort multipart uploads through the AWS SDK", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client({ endpoint: "https://s3.test" });
     await client.send(
         new PutObjectCommand({ Bucket: "files", Key: "tail.txt", Body: "0123456789" }),

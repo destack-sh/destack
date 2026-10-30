@@ -220,8 +220,8 @@ test("report reclamation failures separately from committed file replacements", 
             await refusal(bucket.collect()),
             await refusal(bucket.put("document", "uncommitted")),
         ]).toEqual([
-            ["INTERNAL_SERVER_ERROR", "FILE_SYSTEM_FAILED", `cannot remove ${path}: ERR_FS_EISDIR`],
-            ["INTERNAL_SERVER_ERROR", "FILE_SYSTEM_FAILED", `cannot remove ${path}: ERR_FS_EISDIR`],
+            ["CONFLICT", "ALREADY_EXISTS", `cannot remove ${path}: ENOTEMPTY`],
+            ["CONFLICT", "ALREADY_EXISTS", `cannot remove ${path}: ENOTEMPTY`],
         ]);
         expect(await present(await bucket.get("document"), "document").text()).toBe("replacement");
     } finally {

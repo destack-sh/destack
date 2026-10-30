@@ -5,10 +5,10 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { expect, test } from "@destack/test";
 import { S3Signature } from "./signature.ts";
-import { CREDENTIALS, failure, REGION, S3Fixture } from "./test/fixture.ts";
+import { CREDENTIALS, failure, REGION, TestS3 } from "./test/s3.ts";
 
 test("accept the AWS SDK's default checksums, trailers included", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client({ endpoint: "https://s3.test", checksums: "WHEN_SUPPORTED" });
 
     // store a buffered body with a CRC32 header and a streamed body with a trailing CRC32
@@ -40,7 +40,7 @@ test("accept the AWS SDK's default checksums, trailers included", async () => {
 });
 
 test("follow presigned GET and PUT URLs and refuse forged or expired ones", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
 
     // upload through a presigned PUT with user metadata in its query
@@ -113,7 +113,7 @@ test("follow presigned GET and PUT URLs and refuse forged or expired ones", asyn
 });
 
 test("refuse a request signed an hour before the server's clock", async () => {
-    await using fixture = await S3Fixture.open(3_600_000);
+    await using fixture = await TestS3.open(3_600_000);
     const read = fixture
         .client()
         .send(new GetObjectCommand({ Bucket: "files", Key: "readme.txt" }));
@@ -121,7 +121,7 @@ test("refuse a request signed an hour before the server's clock", async () => {
 });
 
 test("answer failures with S3 error documents", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
 
     // refuse anonymous requests and unknown access keys
     const anonymous = await fixture.fetch("http://s3.test/files/readme.txt");
@@ -153,7 +153,7 @@ test("answer failures with S3 error documents", async () => {
 });
 
 test("answer CORS preflights and expose headers to allowed origins", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
 
     // allow a matching origin, method and headers
     const preflight = await fixture.fetch("http://s3.test/files/readme.txt", {
@@ -200,7 +200,7 @@ test("answer CORS preflights and expose headers to allowed origins", async () =>
 });
 
 test("refuse bodies whose signed hash or checksum differs, storing nothing", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const signer = new S3Signature({ region: REGION, crypto: fixture.environment.crypto });
 
     // sign writes declaring the hash or CRC32 of other contents

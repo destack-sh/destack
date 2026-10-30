@@ -10,10 +10,10 @@ import {
 } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
 import { expect, test } from "@destack/test";
-import { failure, S3Fixture } from "./test/fixture.ts";
+import { failure, TestS3 } from "./test/s3.ts";
 
 test("store, read and delete objects with metadata through the AWS SDK", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
 
     // store an object with HTTP metadata, user metadata and a storage class
@@ -87,7 +87,7 @@ test("store, read and delete objects with metadata through the AWS SDK", async (
 });
 
 test("apply conditional headers and byte ranges through the AWS SDK", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
     const { ETag: etag } = await client.send(
         new PutObjectCommand({ Bucket: "files", Key: "report.txt", Body: "abcdef" }),
@@ -171,7 +171,7 @@ test("apply conditional headers and byte ranges through the AWS SDK", async () =
 });
 
 test("copy objects within and between buckets through the AWS SDK", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
     const { ETag: etag } = await client.send(
         new PutObjectCommand({
@@ -244,7 +244,7 @@ test("copy objects within and between buckets through the AWS SDK", async () => 
 });
 
 test("list objects by prefix, delimiter and continuation through the AWS SDK", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
     for (const key of [
         "photos/2024/a.jpg",
@@ -330,7 +330,7 @@ test("list objects by prefix, delimiter and continuation through the AWS SDK", a
 });
 
 test("match If-Match entity-tag lists on reads and writes through the AWS SDK", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
     const { ETag: etag } = await client.send(
         new PutObjectCommand({ Bucket: "files", Key: "report.txt", Body: "abcdef" }),
@@ -376,7 +376,7 @@ test("match If-Match entity-tag lists on reads and writes through the AWS SDK", 
 });
 
 test("refuse a write whose If-Match list names only an older version, storing nothing", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
     const put = (body: string, ifMatch?: string) =>
         client.send(
@@ -406,7 +406,7 @@ test("refuse a write whose If-Match list names only an older version, storing no
 });
 
 test("compare weak If-None-Match tags weakly on reads and refuse them on writes", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
     const { ETag: etag } = await client.send(
         new PutObjectCommand({ Bucket: "files", Key: "report.txt", Body: "abcdef" }),
@@ -447,7 +447,7 @@ test("compare weak If-None-Match tags weakly on reads and refuse them on writes"
 });
 
 test("match copy-source entity-tag lists against the current source through the AWS SDK", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
     const put = (body: string) =>
         client.send(new PutObjectCommand({ Bucket: "files", Key: "source.txt", Body: body }));
@@ -488,7 +488,7 @@ test("match copy-source entity-tag lists against the current source through the 
 });
 
 test("store and read objects under customer keys through the AWS SDK", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
     const key = new Uint8Array(32).fill(7);
     const customer = {
@@ -518,7 +518,7 @@ test("store and read objects under customer keys through the AWS SDK", async () 
 });
 
 test("lock an object in compliance mode through the AWS SDK, refusing its deletion until the date", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
 
     // store an object locked for an hour
@@ -550,7 +550,7 @@ test("lock an object in compliance mode through the AWS SDK, refusing its deleti
 });
 
 test("keep the SHA-256 checksum a write declares as the stored file's, refusing a body that does not match it", async () => {
-    await using fixture = await S3Fixture.open();
+    await using fixture = await TestS3.open();
     const client = fixture.client();
 
     // store an object declaring its body's SHA-256 checksum, and one declaring another body's

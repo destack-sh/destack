@@ -14,7 +14,7 @@ export const CREDENTIALS = { accessKeyId: "AKIDLOCAL", secretAccessKey: "local-s
 export const REGION = "us-east-1";
 
 /** Two local buckets served over S3, and clients calling them in-process. */
-export class S3Fixture implements AsyncDisposable {
+export class TestS3 implements AsyncDisposable {
     /** The served buckets by name. */
     readonly buckets: Map<string, LocalBucket>;
     /** The S3 server over the buckets. */
@@ -56,7 +56,7 @@ export class S3Fixture implements AsyncDisposable {
     }
 
     /** Open the files and archive buckets in a world at the host's time, shifted by an offset. */
-    static async open(offset = 0): Promise<S3Fixture> {
+    static async open(offset = 0): Promise<TestS3> {
         // start the world at the host's time, disposing it and every opened bucket if an open fails
         await using opening = new AsyncDisposableStack();
         const simulation = opening.use(
@@ -74,7 +74,7 @@ export class S3Fixture implements AsyncDisposable {
         ]);
         opening.move();
 
-        return new S3Fixture(simulation, buckets);
+        return new TestS3(simulation, buckets);
     }
 
     /** Create an AWS SDK client that sends its requests to the server. */
