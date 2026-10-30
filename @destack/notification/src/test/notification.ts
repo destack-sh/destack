@@ -253,7 +253,6 @@ export class TestNotification implements AsyncDisposable {
                 ),
                 connectors: [],
                 servers: [],
-                bindables: [],
                 providers: [],
             },
         ];
@@ -658,7 +657,6 @@ export const PACKAGES: readonly TestPackage[] = [
         server: notesServer,
         connectors: [],
         servers: [],
-        bindables: [],
         providers: [],
     },
 ];
