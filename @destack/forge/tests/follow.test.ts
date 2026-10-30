@@ -345,7 +345,7 @@ test("refuse an installation selecting a repository of another account or one no
         selection: foreign,
         build: { kind: "build", build: Identifier.create("build", environment) },
     });
-    expect([await refusal(update), await refusal(submit)]).toEqual([
+    expect(await Promise.all([refusal(update), refusal(submit)])).toEqual([
         missing(foreign.repository),
         missing(foreign.repository),
     ]);

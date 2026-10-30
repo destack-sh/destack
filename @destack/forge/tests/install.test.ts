@@ -52,7 +52,7 @@ test.for(MANAGER_NAMES)(
         const answer = await forge.publish((await fixtureBuild("answer")).reader);
         const greeting = await forge.publish((await fixtureBuild("greeting")).reader);
 
-        // install the dependent package into a consumer project through the registry
+        // install the dependent package into a consumer project through the registry, which answers from the world
         const { files } = testHost();
         const directory = await files.makeTemporaryDirectory("destack-forge-install-");
         onTestFinished(() => files.remove(directory, { recursive: true }));
@@ -61,7 +61,8 @@ test.for(MANAGER_NAMES)(
         await files.writeTextFile(join(consumer, ".npmrc"), await forge.npmrc("@example"));
         await files.mkdir(join(directory, "cache"), { recursive: true });
         const selected = MANAGERS[manager];
-        await run(selected.install(join(directory, "cache", manager)), consumer);
+        const { clock } = forge.home.simulation;
+        await clock.trackPeer(run(selected.install(join(directory, "cache", manager)), consumer));
 
         // run it, and restore both original builds from what was installed, finding each package as Node resolves it
         const greetingPath = await installed(consumer, "@example/greeting");

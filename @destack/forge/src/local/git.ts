@@ -43,7 +43,7 @@ export const Git = {
             }),
         );
 
-        // run git until it exits or the signal aborts
+        // run git as host work until it exits or the signal aborts
         const child = environment.process.spawn(["git", "-C", directory, ...command], {
             variables: {
                 ...host,
@@ -61,11 +61,13 @@ export const Git = {
         const input = child.stdin.getWriter();
         await input.write(new TextEncoder().encode(options.input ?? ""));
         await input.close();
-        const [code, output, errors] = await Promise.all([
-            child.exited,
-            new Response(child.stdout).text(),
-            new Response(child.stderr).text(),
-        ]);
+        const [code, output, errors] = await environment.clock.trackHost(
+            Promise.all([
+                child.exited,
+                new Response(child.stdout).text(),
+                new Response(child.stderr).text(),
+            ]),
+        );
 
         // fail with why the signal aborted, or with git's message
         options.signal?.throwIfAborted();
