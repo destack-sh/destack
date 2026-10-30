@@ -419,9 +419,9 @@ export class TestSpace implements AsyncDisposable {
 
         // make it in the test's world, else in the fixture's own, run through the world's simulation
         const simulation = TestSpace.#simulation(options);
-        const defer = TestSpace.#afterTest(simulation);
+        const defer = TestSpace.#afterTest();
 
-        return await simulation.settle(TestSpace.#create(options, { defer, simulation }));
+        return await TestSpace.#create(options, { defer, simulation });
     }
 
     /** Host the residency's home on its cloud machine as the operator. */
@@ -438,11 +438,9 @@ export class TestSpace implements AsyncDisposable {
 
         // host it in the test's world, run through the world's simulation
         const simulation = TestSpace.#simulation(options);
-        const defer = TestSpace.#afterTest(simulation);
+        const defer = TestSpace.#afterTest();
 
-        return await simulation.settle(
-            TestSpace.#residency(options, RESIDENCY, { defer, simulation }),
-        );
+        return await TestSpace.#residency(options, RESIDENCY, { defer, simulation });
     }
 
     /** Host a residency's home on its cloud machine as the operator, born as at its first start. */
@@ -521,9 +519,7 @@ export class TestSpace implements AsyncDisposable {
             world: { seed: WORLD_SEED, start },
             write: async (databases, directory, simulation) => {
                 // run the world's simulation over the template's databases and born space
-                return await simulation.settle(
-                    TestSpace.#write(options, world, simulation, databases, directory),
-                );
+                return await TestSpace.#write(options, world, simulation, databases, directory);
             },
         });
     }
@@ -646,7 +642,7 @@ export class TestSpace implements AsyncDisposable {
         // copy the template's databases, then restore its world in the fork's simulation
         const copied = await TestDatabase.copy(template, { label: "copy" });
 
-        return await copied.simulation.settle(TestSpace.#restore(copied, options));
+        return await TestSpace.#restore(copied, options);
     }
 
     /** Make the space at the universe, host and birth it, over the given databases when written. */
@@ -728,7 +724,7 @@ export class TestSpace implements AsyncDisposable {
     }> {
         // run the restore's cleanups once the test ends, in the fork's simulation
         const { simulation, databases, value } = copied;
-        const defer = TestSpace.#afterTest(simulation);
+        const defer = TestSpace.#afterTest();
 
         // restore the universe and its machine from the world's keys on a running clock, closed in turn once the test ends
         const environment = simulation.environment(UNIVERSE_NODE);
@@ -824,7 +820,7 @@ export class TestSpace implements AsyncDisposable {
     static async empty(options: TestSpaceOptions = {}): Promise<TestSpace> {
         // take the universe and the owner, and host an empty database of the test's tables
         const simulation = TestSpace.#simulation(options);
-        const defer = TestSpace.#afterTest(simulation);
+        const defer = TestSpace.#afterTest();
         const world = await TestSpace.#universe(options, defer, simulation);
         const { universe } = world;
         const owner = options.owner ?? (await universe.signIn(OWNER_EMAIL));
@@ -862,11 +858,11 @@ export class TestSpace implements AsyncDisposable {
         });
     }
 
-    /** Run a cleanup once the test ends, in the simulation of the world it closes in. */
-    static #afterTest(simulation: Simulation): Defer {
+    /** Run a cleanup once the test ends. */
+    static #afterTest(): Defer {
         // run the cleanups in reverse once the test ends, closing what serves before what it serves from
         const cleanups = new AsyncDisposableStack();
-        onTestFinished(() => simulation.settle(cleanups.disposeAsync()));
+        onTestFinished(() => cleanups.disposeAsync());
 
         return (cleanup) => {
             cleanups.defer(cleanup);
@@ -1273,7 +1269,7 @@ export class TestSpace implements AsyncDisposable {
 
     /** Settle the universe, its machine and the space to a fixpoint, their replicas caught up. */
     settle(served: TestObjectStore): Promise<void> {
-        return this.simulation.settle(this.#settle(served));
+        return this.#settle(served);
     }
 
     /** Settle in rounds until the universe and the space commit nothing, then wait for liveness. */
@@ -1315,7 +1311,8 @@ export class TestSpace implements AsyncDisposable {
 
     /** Run the space's world to a time through every timer on the way, then settle what is due. */
     async advance(served: TestObjectStore, to: number): Promise<void> {
-        await this.simulation.run({ to });
+        await this.simulation.clock.sleep(to - this.simulation.clock.now());
+        await this.simulation.idle();
         await this.settle(served);
     }
 
@@ -1327,7 +1324,7 @@ export class TestSpace implements AsyncDisposable {
 
     /** Suspend or resume the space at the universe as its owner, settled as its machine follows. */
     change(served: TestObjectStore, action: "suspend" | "resume"): Promise<void> {
-        return this.simulation.settle(this.#change(served, action));
+        return this.#change(served, action);
     }
 
     /** Suspend or resume the space at the universe as its owner, settled as its machine follows. */
@@ -1569,7 +1566,7 @@ export class TestSpace implements AsyncDisposable {
             readonly isControlled?: boolean;
         } = {},
     ): Promise<TestObjectStore> {
-        return this.simulation.settle(this.#serve(options));
+        return this.#serve(options);
     }
 
     /** Serve the space as its machine does, hosting the installed revisions of shipped packages. */
@@ -1731,7 +1728,7 @@ export class TestSpace implements AsyncDisposable {
         };
         this.#following = stop;
         this.#defer(stop);
-        await this.simulation.settle(store.untilLive(stopping.signal));
+        await store.untilLive(stopping.signal);
     }
 
     /** Call a served space as a person, carrying the token their client exchanges for it. */
@@ -1827,9 +1824,7 @@ export class TestSpace implements AsyncDisposable {
         collections: StackDocument<Types>,
     ): Promise<void> {
         // fail with the store's reported failures, else unless the controllers applied this submission
-        const { ready, generation, failures } = await this.simulation.settle(
-            this.#submit(served, types, collections),
-        );
+        const { ready, generation, failures } = await this.#submit(served, types, collections);
         if (failures.length > 0) {
             throw new AggregateError(failures, "the space's controllers failed");
         } else if (ready?.observedGeneration !== generation) {
@@ -1848,9 +1843,7 @@ export class TestSpace implements AsyncDisposable {
         collections: StackDocument<Types>,
     ): Promise<readonly [string | undefined, string | undefined]> {
         // require each failure the store reports to be the failed apply the stack retries
-        const { ready, failures } = await this.simulation.settle(
-            this.#submit(served, types, collections),
-        );
+        const { ready, failures } = await this.#submit(served, types, collections);
         const retried = failures.every(
             (failure) =>
                 ready?.reason === "ApplyFailed" &&
@@ -1935,7 +1928,7 @@ export class TestSpace implements AsyncDisposable {
             readonly capabilities?: schema.Input<typeof InstallationDefinition>["capabilities"];
         } = {},
     ): Promise<Identifier<"installation">> {
-        return this.simulation.settle(this.#install(served, build, options));
+        return this.#install(served, build, options);
     }
 
     /** Install a build through the space's stack as its owner, served once applied. */

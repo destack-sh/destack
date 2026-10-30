@@ -41,13 +41,12 @@ test("serve a build's modules, declarations and code symbols from its index to t
     const fixture = await TestSpace.open();
     const { simulation } = fixture;
     const { clock } = simulation;
-    clock.resume();
     const served = await fixture.serve();
     const notebook = await writeNotebook();
     const stored = notebook.reader;
     const index = { code: notebookCode(), modules: notebook.modules };
     const { build: buildId } = await fixture.recordBuild(stored, index);
-    clock.advance(1);
+    await simulation.jump(clock.now() + 1);
     const { build: rebuiltId } = await fixture.recordBuild(stored, index);
     const [rebuild] = await fixture.database
         .select({ finishedAt: build.table.finishedAt })

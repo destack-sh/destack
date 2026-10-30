@@ -29,12 +29,10 @@ test("serve a space and install a build in a simulated world without moving its 
         "2026.9.0",
         simulation.environment("test").crypto,
     );
-    await simulation.settle(
-        (async () => {
-            const served = await fixture.serve();
-            await fixture.install(served, build);
-        })(),
-    );
+    await (async () => {
+        const served = await fixture.serve();
+        await fixture.install(served, build);
+    })();
 
     // leave the world at its start, as serving and installing wait only on tracked work
     expect(simulation.clock.now()).toBe(START);

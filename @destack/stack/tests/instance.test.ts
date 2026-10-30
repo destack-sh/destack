@@ -614,37 +614,35 @@ test("restart a failing instance in place after a doubling backoff, with one rec
     const { clock } = simulation;
     const { database } = fixture;
     const failing = new FailingRuntime();
-    const { first, early, second, recorded } = await simulation.drive(
-        (async () => {
-            const notes = await installNotes(fixture);
-            const { deployments, instances, resources } = await serveControllers(fixture, {
-                runtime: failing,
-            });
-            const now = clock.now();
-            await deployments.reconcile(notes.id);
-            await resources.reconcile(ids.space);
-            const deployed = nth(await database.select().from(object.deployment.table), 0);
+    const { first, early, second, recorded } = await (async () => {
+        const notes = await installNotes(fixture);
+        const { deployments, instances, resources } = await serveControllers(fixture, {
+            runtime: failing,
+        });
+        const now = clock.now();
+        await deployments.reconcile(notes.id);
+        await resources.reconcile(ids.space);
+        const deployed = nth(await database.select().from(object.deployment.table), 0);
 
-            // fail, wait out the backoff and restart
-            const failed = await instances.reconcile(deployed.id);
-            const retried = await instances.reconcile(deployed.id);
-            await database.transaction(
-                async (transaction) =>
-                    await transaction
-                        .update(object.instance.table)
-                        .set({ stoppedAt: now - 1000 })
-                        .where(eq(object.instance.table.deploymentId, deployed.id)),
-            );
-            const restarted = await instances.reconcile(deployed.id);
+        // fail, wait out the backoff and restart
+        const failed = await instances.reconcile(deployed.id);
+        const retried = await instances.reconcile(deployed.id);
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .update(object.instance.table)
+                    .set({ stoppedAt: now - 1000 })
+                    .where(eq(object.instance.table.deploymentId, deployed.id)),
+        );
+        const restarted = await instances.reconcile(deployed.id);
 
-            return {
-                first: failed,
-                early: retried,
-                second: restarted,
-                recorded: await database.select().from(object.instance.table),
-            };
-        })(),
-    );
+        return {
+            first: failed,
+            early: retried,
+            second: restarted,
+            recorded: await database.select().from(object.instance.table),
+        };
+    })();
     expect({
         delays: [first, early, second],
         attempts: failing.attempts,
@@ -702,7 +700,10 @@ test("deploy a submitted revision next to the previous one, serve the previous o
     await instances.reconcile(first.id);
 
     // submit a second revision a millisecond later that deploys next to the first and drains it
-    await fixture.simulation.run({ to: fixture.simulation.clock.now() + 1 });
+    await fixture.simulation.clock.sleep(
+        fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
+    );
+    await fixture.simulation.idle();
     const second = await submitRevision(fixture, notes.id, "f");
     await deployments.reconcile(notes.id);
     const replacement = nth(
@@ -769,7 +770,10 @@ test("redeploy the revision an application follows once the outputs its machine 
     await workerd.reconcile(notes.id);
 
     // serve it on a bun machine a millisecond later to replace the workerd deployment
-    await fixture.simulation.run({ to: fixture.simulation.clock.now() + 1 });
+    await fixture.simulation.clock.sleep(
+        fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
+    );
+    await fixture.simulation.idle();
     const { deployments: bun } = await serveControllers(fixture, { runtimes: ["bun"] });
     await bun.reconcile(notes.id);
     await bun.reconcile(notes.id);
@@ -804,7 +808,10 @@ test("redeploy an application once a binding its deployment captured targets ano
     const owned = nth(await database.select().from(object.bucket.table), 0);
 
     // rebind the files a millisecond later to a second bucket of the same declaration
-    await fixture.simulation.run({ to: fixture.simulation.clock.now() + 1 });
+    await fixture.simulation.clock.sleep(
+        fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
+    );
+    await fixture.simulation.idle();
     const now = fixture.machine.clock.now();
     const second = nth(
         await database.transaction(
@@ -1044,7 +1051,10 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
     const unallowed = await deployed();
 
     // allow the issues, indexing and scanning a millisecond later, and redeploy the workload with their host abilities and the directory
-    await fixture.simulation.run({ to: fixture.simulation.clock.now() + 1 });
+    await fixture.simulation.clock.sleep(
+        fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
+    );
+    await fixture.simulation.idle();
     await grant(["issues", "index", "scanning"], [notesDirectory]);
     const allowed = await deployed();
     expect({
@@ -1353,7 +1363,10 @@ test("recreate over a draining release whose values a conversion narrows: stop i
     await instances.reconcile(original.id);
 
     // follow the narrowing revision a millisecond later, and plan a recreation that waits for approval
-    await fixture.simulation.run({ to: fixture.simulation.clock.now() + 1 });
+    await fixture.simulation.clock.sleep(
+        fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
+    );
+    await fixture.simulation.idle();
     declared = [narrowed];
     const second = await submitRevision(
         fixture,

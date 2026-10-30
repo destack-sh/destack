@@ -88,22 +88,18 @@ test("finish removing a deleted space whose row an earlier look already finalize
 
         return row;
     };
-    await fixture.simulation.settle(
-        fixture.database.log.until(
-            async () => (await replicated())?.deletedAt !== null,
-            new AbortController().signal,
-        ),
+    await fixture.database.log.until(
+        async () => (await replicated())?.deletedAt !== null,
+        new AbortController().signal,
     );
     isHolding = true;
 
     // remove the space and its row at the universe, then look again while its replica still has the row
     await served.settle();
     await fixture.universe.settle();
-    const again = await fixture.simulation.settle(
-        reconcile(served.store, "space", { id: ids.space }).then(
-            () => "removed",
-            (error: unknown) => (error instanceof Error ? error.message : "unknown"),
-        ),
+    const again = await reconcile(served.store, "space", { id: ids.space }).then(
+        () => "removed",
+        (error: unknown) => (error instanceof Error ? error.message : "unknown"),
     );
     const homed = await fixture.universe.storage.database
         .select({ id: accountObject.space.table.id })

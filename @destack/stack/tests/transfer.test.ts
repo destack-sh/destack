@@ -1014,7 +1014,7 @@ async function moveSpace(
     const isFollowed = async () =>
         (await Scope.read(Snapshot.live(source.database), [ids.account])).length > 0;
     await source.settle(serving);
-    await source.simulation.settle(source.database.log.until(isFollowed, FOREVER));
+    await source.database.log.until(isFollowed, FOREVER);
     await serving
         .as(source.owner.subject)
         .stepUp()
@@ -1089,7 +1089,7 @@ async function settleMove(
         const { snapshot } = space.machine.directory;
         const isShown = async () =>
             JSON.stringify((await Placement.find(snapshot, [ids.space]))[0]) === settled;
-        await space.simulation.settle(snapshot.database.log.until(isShown, FOREVER));
+        await snapshot.database.log.until(isShown, FOREVER);
     }
 
     return refused;

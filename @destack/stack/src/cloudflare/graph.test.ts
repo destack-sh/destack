@@ -96,7 +96,7 @@ test("index a manifest once in its object, show each build of it the rows in its
     await testHost().clock.sleep(LEASE_MILLISECONDS * 2);
 
     // index it again once a build views the deleted index after its renewal is due
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await readNotification(first, builds[0]);
 
     expect({ rows, kept, opened }).toEqual({

@@ -483,15 +483,13 @@ test("follow a distribution tag, recording the version of the release it points 
     });
 
     // submit the tag, the space resolving it in its world
-    await fixture.simulation.drive(
-        owner.rollout.submit({
-            spaceId: ids.space,
-            id: notes.id,
-            requestId: RequestId.create(fixture.machine.environment),
-            selection: latest,
-            build: latest,
-        }),
-    );
+    await owner.rollout.submit({
+        spaceId: ids.space,
+        id: notes.id,
+        requestId: RequestId.create(fixture.machine.environment),
+        selection: latest,
+        build: latest,
+    });
     const followed = await readInstalled(fixture.database, notes.id);
     const selected = await installer.installation.get({ scope: ids.space, id: notes.id });
     const [revision] = await fixture.database

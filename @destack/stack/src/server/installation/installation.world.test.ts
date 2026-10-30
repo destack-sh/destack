@@ -83,7 +83,7 @@ test("find and list only the enabled installations not being deleted, as a machi
     // add an enabled, a suspended and a deleting installation that follow a revision each, a moment after the stack
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    fixture.simulation.clock.advance(1);
+    await fixture.simulation.jump(fixture.simulation.clock.now() + 1);
     const now = fixture.machine.clock.now();
     const keep = async (
         name: string,

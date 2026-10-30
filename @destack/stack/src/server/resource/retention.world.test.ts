@@ -20,7 +20,7 @@ test("expire a dropped build as builds change, and collect it with its graph onc
     const fixture = await TestSpace.open();
     const { simulation } = fixture;
     const { clock } = simulation;
-    const served = await simulation.settle(fixture.serve());
+    const served = await fixture.serve();
     const start = clock.now();
     const recorded = [];
     for (let minor = 0; minor <= RETAINED; minor += 1) {
@@ -29,7 +29,7 @@ test("expire a dropped build as builds change, and collect it with its graph onc
             `2026.${minor + 1}.0`,
             fixture.environment.crypto,
         );
-        const { build: id } = await simulation.settle(fixture.recordBuild(built));
+        const { build: id } = await fixture.recordBuild(built);
         recorded.push({
             id,
             manifest: await PackageStore.digest(built.manifest, fixture.environment.crypto),
@@ -39,7 +39,8 @@ test("expire a dropped build as builds change, and collect it with its graph onc
         if (minor === 0) {
             await (await fixture.index()).open(id);
         }
-        await simulation.run({ to: clock.now() + 1 });
+        await simulation.clock.sleep(clock.now() + 1 - simulation.clock.now());
+        await simulation.idle();
     }
 
     // read the expiry the last recorded build caused, then wake past the leases and a week on

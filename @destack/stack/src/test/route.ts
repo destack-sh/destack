@@ -124,7 +124,7 @@ export class RouteFixture implements AsyncDisposable {
         const { spaces, world } = await TestSpace.copy(ROUTE_TEMPLATE);
         const { simulation } = present(spaces.get(ids.space), "the fixture's space");
 
-        return await simulation.settle(RouteFixture.#serve(simulation, spaces, world, options));
+        return await RouteFixture.#serve(simulation, spaces, world, options);
     }
 
     /** Serve each copied space, with the installations and hostnames the world wrote. */
@@ -203,7 +203,7 @@ export class RouteFixture implements AsyncDisposable {
         routes: NonNullable<StackInput["routes"]>,
     ): Promise<void> {
         const { space, served } = found(this.#spaces, spaceId);
-        await this.simulation.settle(space.apply(served, [], { routes }));
+        await space.apply(served, [], { routes });
     }
 
     /** Submit a stack's route declarations to a space, answering how its stack stands. */
@@ -213,7 +213,7 @@ export class RouteFixture implements AsyncDisposable {
     ): Promise<readonly [string | undefined, string | undefined]> {
         const { space, served } = found(this.#spaces, spaceId);
 
-        return this.simulation.settle(space.submit(served, [], { routes }));
+        return space.submit(served, [], { routes });
     }
 
     /** Create a hostname of an account as its owner, settled into each space replicating it. */
@@ -221,7 +221,7 @@ export class RouteFixture implements AsyncDisposable {
         accountId: Identifier<"account">,
         name: string,
     ): Promise<{ readonly id: Identifier<"hostname">; readonly name: string }> {
-        return this.simulation.settle(this.#hostname(accountId, name));
+        return this.#hostname(accountId, name);
     }
 
     /** Create a hostname at the universe, and settle the spaces replicating it. */
@@ -281,7 +281,7 @@ export class RouteFixture implements AsyncDisposable {
 
     /** Close the spaces in their world. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await this.simulation.settle(this.#close());
+        await this.#close();
     }
 
     /** Close each space's store, then the space. */
