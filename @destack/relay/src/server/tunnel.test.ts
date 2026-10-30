@@ -67,7 +67,15 @@ function openTunnel() {
     const socket = (id: string): Socket => ({
         id,
         attachment: attachments.get(id) ?? null,
-        send: (message) => setImmediate(() => machines.get(id)?.receive(message)),
+        send: (message) =>
+            void simulation.clock.track(
+                new Promise<void>((resolve) => {
+                    setImmediate(() => {
+                        machines.get(id)?.receive(message);
+                        resolve();
+                    });
+                }),
+            ),
         close: () => machines.get(id)?.terminate(),
     });
 
@@ -128,7 +136,15 @@ function openTunnel() {
         const id = accept(lapsesAt);
         const session = new Session(
             {
-                send: (message) => setImmediate(() => void running.message(socket(id), message)),
+                send: (message) =>
+                    void simulation.clock.track(
+                        new Promise<void>((resolve) => {
+                            setImmediate(() => {
+                                void running.message(socket(id), message);
+                                resolve();
+                            });
+                        }),
+                    ),
                 close: () => {},
             },
             "client",
@@ -398,7 +414,8 @@ test("forward through the newest socket whose token has not lapsed, before the l
     // open an older socket lasting a minute and a newer lasting a second, then pass the second
     await connect("older", TEST_START + 60_000);
     await connect("newer", TEST_START + 1000);
-    await simulation.run({ to: TEST_START + 1000 });
+    await simulation.clock.sleep(TEST_START + 1000 - simulation.clock.now());
+    await simulation.idle();
 
     expect(await forward(running, "/a")).toBe("older /a");
 });
@@ -410,7 +427,8 @@ test("answer the wait until a socket's lapse, and close the socket once it lapse
 
     // read the next lapse, then close the socket past it
     const wait = await running.closeLapsed();
-    await simulation.run({ to: TEST_START + 1000 });
+    await simulation.clock.sleep(TEST_START + 1000 - simulation.clock.now());
+    await simulation.idle();
     const lapsed = await running.closeLapsed();
     expect([wait, lapsed, telemetry.records()]).toEqual([
         1000,
@@ -485,7 +503,8 @@ test("refuse a request beyond a machine's open requests, and time out the ones t
     // fill the machine's open requests, refuse one more and time the open ones out
     const open = Array.from({ length: MAX_STREAMS }, () => forward(running, "/slow"));
     const refusedOne = await forward(running, "/one-more");
-    await simulation.run({ to: TEST_START + ANSWER_TIMEOUT_MILLISECONDS });
+    await simulation.clock.sleep(TEST_START + ANSWER_TIMEOUT_MILLISECONDS - simulation.clock.now());
+    await simulation.idle();
     const timedOut = await Promise.all(open);
     const timeout = [
         "GATEWAY_TIMEOUT",

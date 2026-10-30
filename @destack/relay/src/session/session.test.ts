@@ -1,4 +1,4 @@
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { nth } from "@destack/schema";
 import { testSimulation } from "@destack/test/world";
 import { Frame, FrameFlag, FrameType } from "./frame.ts";
@@ -15,11 +15,9 @@ const head: RequestHead = {
 
 /** A relay's and a machine's session joined by an in-memory channel, delivering after a delay. */
 function pair(delay?: number) {
-    // deliver after the delay on a world's simulated clock, which the test's driven work moves, removing the world after the test
+    // deliver after the delay on a world's simulated clock
     const simulation = testSimulation();
-    onTestFinished(() => simulation[Symbol.asyncDispose]());
     const { clock } = simulation;
-    const drive = <Value>(work: Promise<Value>) => simulation.drive(work);
 
     // signal each frame sent and received, and each stream accepted
     const accepted: Stream[] = [];
@@ -66,7 +64,7 @@ function pair(delay?: number) {
         },
     );
 
-    return { relay, machine, accepted, sent, until, drive };
+    return { relay, machine, accepted, sent, until };
 }
 
 /** Read a stream of bytes to its end, each chunk as it arrives on the world's time. */
@@ -207,15 +205,15 @@ test("stop the writers of every stream at the session's window until their reade
 });
 
 test("grow a window the writer outpaces while the reader catches up, up to its limit", async () => {
-    const { relay, accepted, until, drive } = pair(5);
+    const { relay, accepted, until } = pair(5);
     const opened = relay.open(head);
     const payload = new Uint8Array(4 * MAX_WINDOW_BYTES).fill(7);
     const writer = opened.writable.getWriter();
     void writer.write(payload).then(() => writer.close());
-    await drive(until(() => accepted.length === 1));
+    await until(() => accepted.length === 1);
 
     // read everything on arrival and find the window grown to its limit
-    const received = await drive(drain(nth(accepted, 0).readable));
+    const received = await drain(nth(accepted, 0).readable);
     expect([received.length, nth(accepted, 0).window]).toEqual([payload.length, MAX_WINDOW_BYTES]);
 });
 

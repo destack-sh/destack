@@ -102,7 +102,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         // run the universe in a simulation, driving its opening
         const simulation = testSimulation();
 
-        return await simulation.drive(TestTunnelMachine.#open(simulation, residency));
+        return await TestTunnelMachine.#open(simulation, residency);
     }
 
     /** Open the universe on a simulation, granting relay tokens, and enroll the computer. */
@@ -174,17 +174,13 @@ export class TestTunnelMachine implements AsyncDisposable {
 
     /** Run the simulation until a condition holds, within a relay token's lifetime of its time. */
     async until(condition: () => Promise<boolean> | boolean): Promise<void> {
-        await this.simulation.run({
-            until: condition,
-            to: this.simulation.clock.now() + TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
-        });
+        const deadline = this.simulation.clock.now() + TUNNEL_TOKEN_LIFETIME_MILLISECONDS;
+        await this.simulation.until(condition, deadline);
     }
 
     /** Open a residency's cloud machine once, which hosts its relays and serves its spaces. */
     async host(residency: ResidencyCode): Promise<TestMachine> {
-        const opened =
-            this.#hosts.get(residency) ??
-            (await this.simulation.drive(this.universe.machine(residency)));
+        const opened = this.#hosts.get(residency) ?? (await this.universe.machine(residency));
         this.#hosts.set(residency, opened);
 
         return opened;
@@ -280,7 +276,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         this.#started.defer(() => client.close());
 
         // return once the tunnel opened, the computer handled its first renewal, the relay follows it and published the tunnel
-        await this.simulation.drive(Promise.all([client.opened(), first.promise]));
+        await Promise.all([client.opened(), first.promise]);
         await this.until(async () => {
             const published = await this.endpoint();
 
@@ -334,13 +330,13 @@ export class TestTunnelMachine implements AsyncDisposable {
         const asked = this.simulation.network
             .of("caller")
             .fetch(new Request(`${relay.origin}${path}`, { ...request, headers }));
-        const response = await this.simulation.drive(asked);
+        const response = await asked;
 
         // answer the body, or the refusal's code, reason and message
         if (response.ok) {
-            return this.simulation.drive(response.text());
+            return response.text();
         }
-        const { code, reason, message } = await this.simulation.drive(Failure.read(response));
+        const { code, reason, message } = await Failure.read(response);
 
         return [code, reason, message];
     }

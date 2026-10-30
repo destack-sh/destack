@@ -417,9 +417,10 @@ test("route a request from an eu relay to a machine's name in the us residency t
     const forwarded = await computer.request(eu, name, "/status");
 
     // refuse the name at the eu relay once the published tunnel lapsed, and end the socket at the us relay
-    await computer.simulation.run({
-        to: computer.clock.now() + TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
-    });
+    await computer.simulation.clock.sleep(
+        computer.clock.now() + TUNNEL_TOKEN_LIFETIME_MILLISECONDS - computer.simulation.clock.now(),
+    );
+    await computer.simulation.idle();
     const lapsed = await computer.request(eu, name, "/status");
     await computer.until(() => computer.tunnels().length === 2);
     expect([forwarded, lapsed, computer.received, computer.tunnels()]).toEqual([
@@ -617,9 +618,10 @@ test("end a machine's socket once its token lapses, and route to the machine aga
     const before = await computer.request(relay, computer.notes, "/");
 
     // end the socket past its lapse
-    await computer.simulation.run({
-        to: computer.clock.now() + TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
-    });
+    await computer.simulation.clock.sleep(
+        computer.clock.now() + TUNNEL_TOKEN_LIFETIME_MILLISECONDS - computer.simulation.clock.now(),
+    );
+    await computer.simulation.idle();
     await computer.until(() => computer.tunnels().length === 2);
 
     // route again once the machine reconnects with a new token
