@@ -15,7 +15,6 @@ import type { LocalPackageStore } from "../store/local.ts";
 import type { PackageBuildOptions } from "./build.ts";
 import { DependencyTree } from "../dependency/tree.ts";
 import { readLockedReleases, readLockfile } from "../source/index.ts";
-import { Identities } from "../cache/index.ts";
 import { PackageLocator } from "@destack/package/locator";
 import type { Runtime } from "@destack/package/runtime";
 import { type NpmDependency, NpmInstallation, NpmUnit } from "../dependency/npm.ts";
@@ -510,7 +509,7 @@ export class Compiler implements AsyncDisposable {
             const locked = readLockedReleases(
                 await readLockfile(this.workspace, environment.files),
             );
-            const conversion = await Identities.of(environment).conversion();
+            const conversion = await this.store.toolchain.conversion();
 
             return new NpmInstallation(locked, this.store, conversion, environment);
         });

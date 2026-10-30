@@ -9,6 +9,8 @@ import { PackageStore } from "./store.ts";
 import { packageStoreDatabase } from "./table.ts";
 import { BuildError } from "../error/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
+import type { BuildLayer } from "./layer.ts";
+import { Toolchain } from "../cache/cache.ts";
 import { STAGING_DIRECTORY } from "../dependency/tree.ts";
 import { Digest, schema } from "@destack/schema";
 
@@ -57,7 +59,7 @@ export interface LocalPackageStoreOptions {
     /** The environment the store runs in. */
     readonly environment: Environment<"files" | "process" | "host">;
     /** The read-only builds the store reads in place, such as a machine's shipped builds. */
-    readonly layers?: readonly BuildReader[];
+    readonly layer?: BuildLayer;
 }
 
 /** A store of builds on this machine's disk, its blobs in a directory, which processes share. */
@@ -69,6 +71,8 @@ export class LocalPackageStore
     readonly directory: string;
     /** The directory of the dependency trees its builds are materialized in, one per manifest. */
     readonly trees: string;
+    /** The toolchain this process loaded, which the keys of its builds read. */
+    readonly toolchain: Toolchain;
     /** What disposal releases: the database the store opened, and a temporary store's directory. */
     readonly #disposables: AsyncDisposableStack;
     /** The store that renews the builds' retention, absent when this one does. */
@@ -86,6 +90,7 @@ export class LocalPackageStore
         super(options);
         this.directory = options.directory;
         this.trees = join(options.directory, TREES_DIRECTORY);
+        this.toolchain = Toolchain.of(options.environment);
         this.#disposables = disposables;
         this.#maintainer = maintainer;
     }
@@ -115,7 +120,9 @@ export class LocalPackageStore
         maintainer?: LocalPackageStore,
     ): Promise<LocalPackageStore> {
         // open the blobs, then the database, closed on disposal
-        const storage = await LocalBlobStorage.open(join(directory, FILES_DIRECTORY), environment);
+        const storage = await LocalBlobStorage.open(join(directory, FILES_DIRECTORY), environment, {
+            synchronous: "off",
+        });
         const database = await connectBunSqlite(
             join(directory, DATABASE_FILE),
             packageStoreDatabase,
@@ -133,23 +140,33 @@ export class LocalPackageStore
     }
 
     /** View this store's directory through another environment, this store renewing retention. */
-    async view(environment: Environment<"files" | "process" | "host">): Promise<LocalPackageStore> {
-        // renew the builds the view used once it closes, then close this store with it
+    async view(
+        environment: Environment<"files" | "process" | "host">,
+        scheduler?: Environment["scheduler"],
+    ): Promise<LocalPackageStore> {
+        // open the view, then release this store after it, as one piece of host work in a world it runs outside
         const disposables = new AsyncDisposableStack();
-        disposables.defer(() => this[Symbol.asyncDispose]());
+        disposables.defer(() =>
+            scheduler === undefined
+                ? this.#release(view)
+                : scheduler.track(this.#release(view), "host"),
+        );
         const view = await LocalPackageStore.#openDirectory(
             this.directory,
             environment,
             disposables,
             this,
         );
-        disposables.defer(async () => {
-            for (const digest of view.#used) {
-                await this.#use(digest);
-            }
-        });
 
         return view;
+    }
+
+    /** Renew the builds a closed view used, then close this store. */
+    async #release(view: LocalPackageStore): Promise<void> {
+        for (const digest of view.#used) {
+            await this.#use(digest);
+        }
+        await this[Symbol.asyncDispose]();
     }
 
     /** Store a build, retaining it a week past this use. */

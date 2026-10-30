@@ -8,7 +8,7 @@ import { PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
 import type { Runtime } from "@destack/package/runtime";
 import { Digest, found, nth } from "@destack/schema";
-import { Checkout, Identities } from "../cache/index.ts";
+import { Checkout } from "../cache/index.ts";
 import { NpmInstallation } from "./npm.ts";
 import { outputsOf, type PackageBuildOptions, PackageBuild } from "../build/build.ts";
 import type { Compiler } from "../build/compiler.ts";
@@ -54,8 +54,6 @@ export class Workspace {
     readonly #named: ReadonlyMap<string, WorkspaceUnit>;
     /** The compilers the units compile with, and the store they build into. */
     readonly #compilers: WorkspaceCompilers;
-    /** The identities of the packages and files the units' keys read. */
-    readonly #identities: Identities;
     /** The identity of the toolchain building the units. */
     readonly #toolchain: Digest;
     /** The files of the git checkout enclosing the workspace, which the units' keys read. */
@@ -67,7 +65,6 @@ export class Workspace {
     private constructor(
         units: readonly WorkspaceUnit[],
         compilers: WorkspaceCompilers,
-        identities: Identities,
         toolchain: Digest,
         checkout: Checkout,
         npm: NpmInstallation,
@@ -79,7 +76,6 @@ export class Workspace {
         this.#compilers = compilers;
 
         // store what the units' keys read
-        this.#identities = identities;
         this.#toolchain = toolchain;
         this.#checkout = checkout;
         this.#npm = npm;
@@ -118,14 +114,13 @@ export class Workspace {
         await Workspace.#visit(await files.realPath(directory), walk);
 
         // read the toolchain, the checkout and the locked npm releases the units' keys read
-        const identities = Identities.of(environment);
-        const toolchain = await identities.toolchain();
+        const toolchain = await compilers.store.toolchain.digest();
         const checkout = await Checkout.list(workspace, environment);
         const locked = readLockedReleases(lockfile);
-        const conversion = await identities.conversion();
+        const conversion = await compilers.store.toolchain.conversion();
         const npm = new NpmInstallation(locked, compilers.store, conversion, environment);
 
-        return new Workspace([...units.values()], compilers, identities, toolchain, checkout, npm);
+        return new Workspace([...units.values()], compilers, toolchain, checkout, npm);
     }
 
     /** Visit a member and the Destack members it requires, each before the members requiring it. */
@@ -444,7 +439,7 @@ export class Workspace {
             configuration:
                 options.configuration === undefined
                     ? null
-                    : await this.#identities.file(resolve(unit.directory, options.configuration)),
+                    : await this.#digestFile(resolve(unit.directory, options.configuration)),
             version: options.versions?.[unit.name] ?? null,
             commit: options.commit ?? null,
             npm: await this.#npmReleases(unit),
@@ -502,5 +497,18 @@ export class Workspace {
                 });
             }
         });
+    }
+
+    /** Digest a file's bytes, null for a missing file. */
+    async #digestFile(path: string): Promise<string | null> {
+        const { files, crypto } = this.#compilers.store.environment;
+        try {
+            return await Digest.of(await files.readFile(path), crypto);
+        } catch (error) {
+            if (FileSystemError.is(error, "NOT_FOUND")) {
+                return null;
+            }
+            throw error;
+        }
     }
 }

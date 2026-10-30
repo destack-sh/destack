@@ -29,27 +29,27 @@ const CONVERSION_MODULES = [
 /** The npm releases converting npm packages: the bundler and the CommonJS lexer. */
 const CONVERSION_RELEASES: ReadonlySet<string> = new Set(["rolldown", "cjs-module-lexer"]);
 
-/** The identities of files and of the toolchain that a key derivation reads. */
-export class Identities {
-    /** The files and process the derivation reads. */
+/** The toolchain this process loaded: its compiler and npm conversion, which build keys read. */
+export class Toolchain {
+    /** The files and process the toolchain is read through. */
     readonly environment: Environment<"files" | "process">;
-    /** The identity of the toolchain this process loaded, read once per process. */
-    static #toolchain: Promise<Digest> | undefined;
-    /** The identity of the npm conversion this process loaded, read once per process. */
-    static #conversion: Promise<Digest> | undefined;
+    /** The digest of the toolchain, read once. */
+    #digest: Promise<Digest> | undefined;
+    /** The digest of the npm conversion, read once. */
+    #conversion: Promise<Digest> | undefined;
 
-    /** Identify files and the toolchain on an environment. */
+    /** Read the toolchain through an environment. */
     private constructor(environment: Environment<"files" | "process">) {
         this.environment = environment;
     }
 
-    /** Identify files and the toolchain on an environment. */
-    static of(environment: Environment<"files" | "process">): Identities {
-        return new Identities(environment);
+    /** Read the toolchain through an environment. */
+    static of(environment: Environment<"files" | "process">): Toolchain {
+        return new Toolchain(environment);
     }
 
     /** Digest a file's bytes, null for a missing file. */
-    async file(path: string): Promise<string | null> {
+    async #file(path: string): Promise<string | null> {
         try {
             return await Digest.of(
                 await this.environment.files.readFile(path),
@@ -63,31 +63,31 @@ export class Identities {
         }
     }
 
-    /** Identify the toolchain running this compiler, once per process as its code stays loaded. */
-    toolchain(): Promise<Digest> {
-        Identities.#toolchain ??= this.#identifyToolchain();
+    /** Identify the toolchain running this compiler, once, as its code stays loaded. */
+    digest(): Promise<Digest> {
+        this.#digest ??= this.#identifyToolchain();
 
-        return Identities.#toolchain;
+        return this.#digest;
     }
 
-    /** Identify the npm conversion, once per process as its code stays loaded. */
+    /** Identify the npm conversion, once, as its code stays loaded. */
     conversion(): Promise<Digest> {
-        Identities.#conversion ??= this.#identifyConversion();
+        this.#conversion ??= this.#identifyConversion();
 
-        return Identities.#conversion;
+        return this.#conversion;
     }
 
     /** Identify the npm conversion by its executable, else Bun, its modules and their releases. */
     async #identifyConversion(): Promise<Digest> {
         // identify a standalone executable by its bytes, as its toolchain
         if (this.environment.process.runtime.isStandalone) {
-            return await this.toolchain();
+            return await this.digest();
         }
 
         // identify Bun, the conversion's modules and the releases they run
         const compiler = await ModuleClosure.read(fileURLToPath(COMPILER_ENTRY), this.environment);
         const modules = await Promise.all(
-            CONVERSION_MODULES.map((module) => this.file(fileURLToPath(module))),
+            CONVERSION_MODULES.map((module) => this.#file(fileURLToPath(module))),
         );
 
         return await Digest.json(
@@ -110,7 +110,7 @@ export class Identities {
             return await Digest.json(
                 {
                     layout: KEY_LAYOUT,
-                    executable: await this.file(this.environment.process.executable),
+                    executable: await this.#file(this.environment.process.executable),
                 },
                 this.environment.crypto,
             );
