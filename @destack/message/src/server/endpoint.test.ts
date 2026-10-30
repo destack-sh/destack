@@ -28,10 +28,10 @@ const BatchRecord = schema.object({
 });
 
 /** Create, rename and delete documents as the owner, the space's history the endpoints read. */
-function documents(kit: TestMessage) {
-    const client = kit.owner.client(documentsPackage);
-    const spaceId = kit.space.id;
-    const requestId = () => RequestId.create(kit.environment);
+function documents(fixture: TestMessage) {
+    const client = fixture.owner.client(documentsPackage);
+    const spaceId = fixture.space.id;
+    const requestId = () => RequestId.create(fixture.environment);
 
     return {
         create: (name: string) => client.document.create({ spaceId, requestId: requestId(), name }),
@@ -42,12 +42,12 @@ function documents(kit: TestMessage) {
 }
 
 /** Read an endpoint's message count and Delivered condition. */
-async function delivery(kit: TestMessage, id: string) {
-    const [row] = await kit.served.database
+async function delivery(fixture: TestMessage, id: string) {
+    const [row] = await fixture.served.database
         .select({ conditions: endpoint.table.conditions })
         .from(endpoint.table)
         .where(eq(endpoint.table.id, endpoint.identifier(id)));
-    const sent = await kit.served.database.select({ id: message.table.id }).from(message.table);
+    const sent = await fixture.served.database.select({ id: message.table.id }).from(message.table);
     const delivered = row?.conditions["Delivered"];
 
     return {
@@ -57,16 +57,16 @@ async function delivery(kit: TestMessage, id: string) {
 }
 
 /** Read posted bodies' types, refusing a post the secret does not verify. */
-async function readPosts(kit: TestMessage) {
+async function readPosts(fixture: TestMessage) {
     return Promise.all(
-        kit.hooks.requests.map(async (post) => {
+        fixture.hooks.requests.map(async (post) => {
             const received = new Request(post.url, {
                 method: "POST",
                 headers: post.headers,
                 body: post.body,
             });
-            const webhook = await StandardWebhook.of(SECRET_VALUE, kit.environment.crypto);
-            const { body } = await webhook.verify(received, kit.clock.now());
+            const webhook = await StandardWebhook.of(SECRET_VALUE, fixture.environment.crypto);
+            const { body } = await webhook.verify(received, fixture.clock.now());
 
             return Envelope.parse(JSON.parse(body)).type;
         }),
@@ -75,23 +75,26 @@ async function readPosts(kit: TestMessage) {
 
 test("refuse a webhook message to an endpoint from a sender who does not manage it", async () => {
     // create an endpoint, and a member who may send messages but not manage endpoints
-    const kit = await TestMessage.open();
-    const id = await kit.subscribe({ ...EVENTS, secret: await kit.secret(SECRET_VALUE) });
-    const member = await kit.member([message.permission("send")]);
+    const fixture = await TestMessage.open();
+    const id = await fixture.subscribe({ ...EVENTS, secret: await fixture.secret(SECRET_VALUE) });
+    const member = await fixture.member([message.permission("send")]);
 
     // refuse the member's webhook message posting to the endpoint with the endpoint's secret
-    const created = kit.space
-        .person(kit.served, member)
+    const created = fixture.space
+        .person(fixture.served, member)
         .client(messagePackage)
         .message.create({
-            ...message.target({ scope: kit.space.id, id: message.generateId(kit.environment) }),
-            requestId: RequestId.create(kit.environment),
+            ...message.target({
+                scope: fixture.space.id,
+                id: message.generateId(fixture.environment),
+            }),
+            requestId: RequestId.create(fixture.environment),
             to: { channel: "webhook" },
             sourcePackageId: endpoint.package.id,
             sourceType: endpoint.name,
-            sourceScope: kit.space.id,
+            sourceScope: fixture.space.id,
             sourceId: id,
-            ciphertext: await kit.seal({
+            ciphertext: await fixture.seal({
                 channel: "webhook",
                 type: "x",
                 format: "event",
@@ -107,31 +110,31 @@ test("refuse a webhook message to an endpoint from a sender who does not manage 
 
 test("let the installation consume an endpoint's new secret as the manager who sets it, and release the old one", async () => {
     // create an endpoint with a secret, a second secret, and a member managing endpoints
-    const kit = await TestMessage.open();
-    const first = await kit.secret(SECRET_VALUE);
-    const rotated = await kit.secret("whsec_cm90YXRlZA==");
-    const id = await kit.subscribe({ ...EVENTS, secret: first });
-    const person = await kit.member([endpoint.permission("manage")]);
-    const manager = kit.space.person(kit.served, person).client(messagePackage);
+    const fixture = await TestMessage.open();
+    const first = await fixture.secret(SECRET_VALUE);
+    const rotated = await fixture.secret("whsec_cm90YXRlZA==");
+    const id = await fixture.subscribe({ ...EVENTS, secret: first });
+    const person = await fixture.member([endpoint.permission("manage")]);
+    const manager = fixture.space.person(fixture.served, person).client(messagePackage);
     const rotate = () =>
         manager.endpoint.update({
-            scope: kit.space.id,
+            scope: fixture.space.id,
             id,
-            requestId: RequestId.create(kit.environment),
+            requestId: RequestId.create(fixture.environment),
             secret: rotated,
         });
 
     // refuse a manager who may not let software use the secret, then accept one who may
     const refused = await refusal(rotate());
-    await kit.allow(person, [endpoint.permission("manage"), secret.permission("bind")]);
+    await fixture.allow(person, [endpoint.permission("manage"), secret.permission("bind")]);
     await rotate();
 
     // read each secret as the installation, which consumes only the second one
     const read = (kept: typeof first) =>
-        kit.served
-            .as(principal.installation.reference(kit.space.id, kit.installation))
+        fixture.served
+            .as(principal.installation.reference(fixture.space.id, fixture.installation))
             .client(vaultPackage)
-            .secret.read({ scope: kit.space.id, id: secret.identifier(kept.id) });
+            .secret.read({ scope: fixture.space.id, id: secret.identifier(kept.id) });
     expect({ refused, old: await refusal(read(first)), rotated: await read(rotated) }).toEqual({
         refused: ["NOT_FOUND", "NOT_FOUND", `secret ${rotated.id} not found`],
         old: ["NOT_FOUND", "NOT_FOUND", `secret ${first.id} not found`],
@@ -141,22 +144,22 @@ test("let the installation consume an endpoint's new secret as the manager who s
 
 test("send each subscribed succeeded call as one event signed with the secret the installation consumes", async () => {
     // subscribe to renames, then create, rename twice, fail a rename and delete a document
-    const kit = await TestMessage.open();
-    const id = await kit.subscribe({
+    const fixture = await TestMessage.open();
+    const id = await fixture.subscribe({
         ...EVENTS,
         events: ["document.update"],
-        secret: await kit.secret(SECRET_VALUE),
+        secret: await fixture.secret(SECRET_VALUE),
     });
-    const history = documents(kit);
+    const history = documents(fixture);
     const created = await history.create("draft");
     await history.rename(created.id, "first");
     await history.rename(created.id, "second");
     await refusal(history.rename("document-019f5530-8000-7000-8000-0000000000ff", "missing"));
     await history.delete(created.id);
-    await kit.settle();
+    await fixture.simulation.idle();
 
     // post both renames once each, signed, and mark the endpoint delivered
-    expect({ delivery: await delivery(kit, id), posts: await readPosts(kit) }).toEqual({
+    expect({ delivery: await delivery(fixture, id), posts: await readPosts(fixture) }).toEqual({
         delivery: { messages: 2, delivered: ["true", "Delivered", ""] },
         posts: ["document.update", "document.update"],
     });
@@ -164,20 +167,20 @@ test("send each subscribed succeeded call as one event signed with the secret th
 
 test("send a page of calls as one NDJSON batch with the secret in the endpoint's header", async () => {
     // subscribe in NDJSON with the secret in a header, then create and delete a document
-    const kit = await TestMessage.open();
-    await kit.subscribe({
+    const fixture = await TestMessage.open();
+    await fixture.subscribe({
         events: ["document.create", "document.delete"],
         format: "ndjson",
         authentication: { kind: "header", name: "api-key" },
-        secret: await kit.secret(SECRET_VALUE),
+        secret: await fixture.secret(SECRET_VALUE),
     });
-    const history = documents(kit);
+    const history = documents(fixture);
     const created = await history.create("draft");
     await history.delete(created.id);
-    await kit.settle();
+    await fixture.simulation.idle();
 
     // post both calls as lines of JSON in the pages they landed in, with the secret in the header and no signature
-    const posts = kit.hooks.requests;
+    const posts = fixture.hooks.requests;
     expect({
         methods: posts.flatMap((post) =>
             post.body
@@ -204,37 +207,37 @@ test("send a page of calls as one NDJSON batch with the secret in the endpoint's
 
 test("hold a disabled endpoint's position and deliver only the calls after it once enabled again", async () => {
     // deliver a first call
-    const kit = await TestMessage.open();
-    const id = await kit.subscribe({
+    const fixture = await TestMessage.open();
+    const id = await fixture.subscribe({
         ...EVENTS,
         events: ["document.create", "document.delete"],
-        secret: await kit.secret(SECRET_VALUE),
+        secret: await fixture.secret(SECRET_VALUE),
     });
-    const history = documents(kit);
+    const history = documents(fixture);
     const created = await history.create("draft");
-    await kit.settle();
-    const before = await delivery(kit, id);
+    await fixture.simulation.idle();
+    const before = await delivery(fixture, id);
 
     // disable the endpoint, delete the document while it rests, and enable it again
-    const client = kit.owner.client(messagePackage);
+    const client = fixture.owner.client(messagePackage);
     const update = (status: "enabled" | "disabled") =>
         client.endpoint.update({
-            scope: kit.space.id,
+            scope: fixture.space.id,
             id,
-            requestId: RequestId.create(kit.environment),
+            requestId: RequestId.create(fixture.environment),
             status,
         });
     await update("disabled");
     await history.delete(created.id);
-    await kit.settle();
-    const resting = kit.hooks.requests.length;
+    await fixture.simulation.idle();
+    const resting = fixture.hooks.requests.length;
     await update("enabled");
-    await kit.settle();
+    await fixture.simulation.idle();
     expect({
         before,
         resting,
-        after: await delivery(kit, id),
-        types: await readPosts(kit),
+        after: await delivery(fixture, id),
+        types: await readPosts(fixture),
     }).toEqual({
         before: { messages: 1, delivered: ["true", "Delivered", ""] },
         resting: 1,
@@ -245,23 +248,25 @@ test("hold a disabled endpoint's position and deliver only the calls after it on
 
 test("mark an endpoint failing once the message controller gives up a message its URL refuses every time", async () => {
     // refuse every post with a server failure
-    const kit = await TestMessage.open({ hooks: Array.from({ length: 8 }, () => 500) });
-    const id = await kit.subscribe({
+    const fixture = await TestMessage.open({ hooks: Array.from({ length: 8 }, () => 500) });
+    const id = await fixture.subscribe({
         ...EVENTS,
         events: ["document.create"],
         format: "json",
-        secret: await kit.secret(SECRET_VALUE),
+        secret: await fixture.secret(SECRET_VALUE),
     });
-    await documents(kit).create("draft");
-    await kit.settle();
+    await documents(fixture).create("draft");
+    await fixture.simulation.idle();
 
     // give the batch up after the retries, and flag the endpoint with the URL's answer
-    const [sent] = await kit.served.database.select({ id: message.table.id }).from(message.table);
+    const [sent] = await fixture.served.database
+        .select({ id: message.table.id })
+        .from(message.table);
     for (let attempt = 1; attempt < 8; attempt++) {
-        await kit.retry(message.identifier(String(sent?.id)));
+        await fixture.retry(message.identifier(String(sent?.id)));
     }
-    await kit.settle();
-    expect(await delivery(kit, id)).toEqual({
+    await fixture.simulation.idle();
+    expect(await delivery(fixture, id)).toEqual({
         messages: 1,
         delivered: ["false", "Failing", "PROVIDER_UNAVAILABLE: answered 500"],
     });
@@ -269,21 +274,21 @@ test("mark an endpoint failing once the message controller gives up a message it
 
 test("fail a webhook message once its endpoint is disabled or deleted, or answers with a redirect it never follows", async () => {
     // subscribe three endpoints to one call each, the first two answered with a server failure
-    const kit = await TestMessage.open({ hooks: [500, 500, 302] });
-    const stored = await kit.secret(SECRET_VALUE);
+    const fixture = await TestMessage.open({ hooks: [500, 500, 302] });
+    const stored = await fixture.secret(SECRET_VALUE);
     const subscribe = (event: string) =>
-        kit.subscribe({ ...EVENTS, events: [event], secret: stored });
+        fixture.subscribe({ ...EVENTS, events: [event], secret: stored });
     const disabled = await subscribe("document.create");
     const deleted = await subscribe("document.update");
     const redirected = await subscribe("document.delete");
-    const client = kit.owner.client(messagePackage);
+    const client = fixture.owner.client(messagePackage);
     const target = (id: string) => ({
-        scope: kit.space.id,
+        scope: fixture.space.id,
         id,
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
     const sentTo = async (id: string) => {
-        const [row] = await kit.served.database
+        const [row] = await fixture.served.database
             .select({ id: message.table.id })
             .from(message.table)
             .where(eq(message.table.sourceId, id));
@@ -292,23 +297,23 @@ test("fail a webhook message once its endpoint is disabled or deleted, or answer
     };
 
     // defer the first message, disable its endpoint, and try it again
-    const history = documents(kit);
+    const history = documents(fixture);
     const created = await history.create("draft");
-    await kit.settle();
+    await fixture.simulation.idle();
     await client.endpoint.update({ ...target(disabled), status: "disabled" });
-    await kit.retry(await sentTo(disabled));
+    await fixture.retry(await sentTo(disabled));
 
     // defer the second message, delete its endpoint, and try it again
     await history.rename(created.id, "final");
-    await kit.settle();
+    await fixture.simulation.idle();
     await client.endpoint.delete(target(deleted));
-    await kit.retry(await sentTo(deleted));
+    await fixture.retry(await sentTo(deleted));
 
     // post the third message once, answered with a redirect
     await history.delete(created.id);
-    await kit.settle();
+    await fixture.simulation.idle();
     const read = async (id: string) => {
-        const sending = await kit.sending(await sentTo(id));
+        const sending = await fixture.sending(await sentTo(id));
 
         return [sending.status, sending.reason, sending.attempts];
     };
@@ -316,7 +321,7 @@ test("fail a webhook message once its endpoint is disabled or deleted, or answer
         disabled: await read(disabled),
         deleted: await read(deleted),
         redirected: await read(redirected),
-        posts: kit.hooks.requests.length,
+        posts: fixture.hooks.requests.length,
     }).toEqual({
         disabled: ["failed", "RECIPIENT_DISABLED", ["deferred", "failed"]],
         deleted: ["failed", "RECIPIENT_GONE", ["deferred", "failed"]],
@@ -326,11 +331,15 @@ test("fail a webhook message once its endpoint is disabled or deleted, or answer
 });
 
 test("refuse an endpoint whose secret header is one every webhook post sets itself", async () => {
-    const kit = await TestMessage.open();
-    const stored = await kit.secret(SECRET_VALUE);
+    const fixture = await TestMessage.open();
+    const stored = await fixture.secret(SECRET_VALUE);
     const subscribe = (name: string) =>
         refusal(
-            kit.subscribe({ ...EVENTS, authentication: { kind: "header", name }, secret: stored }),
+            fixture.subscribe({
+                ...EVENTS,
+                authentication: { kind: "header", name },
+                secret: stored,
+            }),
         );
     expect([await subscribe("Webhook-Signature"), await subscribe("Content-Type")]).toEqual([
         ["BAD_REQUEST", "HEADER_RESERVED", "every webhook post sets Webhook-Signature itself"],

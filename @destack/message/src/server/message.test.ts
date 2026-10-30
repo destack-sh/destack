@@ -47,8 +47,8 @@ const EMAIL_ONLY = implementPackage(messagePackage, (context) =>
 );
 
 /** List each journaled call of messages and attempts with the component making it, sorted. */
-async function listCalls(kit: TestMessage) {
-    const rows = await kit.served.database.select().from(journal);
+async function listCalls(fixture: TestMessage) {
+    const rows = await fixture.served.database.select().from(journal);
 
     // sort by method and component, as calls in one millisecond have no order the journal records
     return rows
@@ -61,11 +61,11 @@ async function listCalls(kit: TestMessage) {
 }
 
 /** List the message tables whose rows have the content's text or ciphertext. */
-async function listLeaks(kit: TestMessage): Promise<string[]> {
+async function listLeaks(fixture: TestMessage): Promise<string[]> {
     const leaking: string[] = [];
     const tables = { message: message.table, attempt: messageAttempt.table };
     for (const [name, table] of Object.entries(tables)) {
-        const text = JSON.stringify(await kit.served.database.select().from(table));
+        const text = JSON.stringify(await fixture.served.database.select().from(table));
         if (text.includes(TEXT)) {
             leaking.push(`${name}: text`);
         }
@@ -78,18 +78,18 @@ async function listLeaks(kit: TestMessage): Promise<string[]> {
 }
 
 test("send a message through its channel's provider, retrying a temporary refusal, by its message controller", async () => {
-    const kit = await TestMessage.open({ mails: [THROTTLED, { kind: "sent" }] });
-    const id = await kit.send(EMAIL, CONTENT);
+    const fixture = await TestMessage.open({ mails: [THROTTLED, { kind: "sent" }] });
+    const id = await fixture.send(EMAIL, CONTENT);
 
     // refuse it once, then send it on its next attempt
-    await kit.settle();
-    const retrying = await kit.sending(id);
-    await kit.retry(id);
+    await fixture.simulation.idle();
+    const retrying = await fixture.sending(id);
+    await fixture.retry(id);
     expect({
         retrying,
-        sent: await kit.sending(id),
-        texts: kit.mails.sent.map((mail) => mail.text),
-        calls: await listCalls(kit),
+        sent: await fixture.sending(id),
+        texts: fixture.mails.sent.map((mail) => mail.text),
+        calls: await listCalls(fixture),
     }).toEqual({
         retrying: {
             status: "pending",
@@ -118,19 +118,19 @@ test("send a message through its channel's provider, retrying a temporary refusa
 
 test("fail a message its provider refuses for good, or that the retries exhaust", async () => {
     // refuse one email for good, and the other eight times for now
-    const kit = await TestMessage.open({
+    const fixture = await TestMessage.open({
         mails: [REJECTED, ...Array.from({ length: 8 }, () => THROTTLED)],
     });
-    const refused = await kit.send(EMAIL, CONTENT);
-    await kit.settle();
-    const exhausted = await kit.send(EMAIL, CONTENT);
-    await kit.settle();
+    const refused = await fixture.send(EMAIL, CONTENT);
+    await fixture.simulation.idle();
+    const exhausted = await fixture.send(EMAIL, CONTENT);
+    await fixture.simulation.idle();
     for (let attempt = 1; attempt < 8; attempt++) {
-        await kit.retry(exhausted);
+        await fixture.retry(exhausted);
     }
 
     // fail at once on the refusal for good, and after the policy's attempts on the temporary ones
-    expect([await kit.sending(refused), await kit.sending(exhausted)]).toEqual([
+    expect([await fixture.sending(refused), await fixture.sending(exhausted)]).toEqual([
         {
             status: "failed",
             reason: "MESSAGE_REJECTED",
@@ -150,15 +150,15 @@ test("fail a message its provider refuses for good, or that the retries exhaust"
 
 test("forget a browser its push service forgot, as the space, once its push fails as gone", async () => {
     // push to a browser the push service answers as gone
-    const kit = await TestMessage.open({ pushes: [410] });
-    const { to } = await kit.browser("/subscriptions/1");
-    const id = await kit.send(to, { channel: "push", data: {}, urgency: "normal", ttl: 60 });
-    await kit.settle();
+    const fixture = await TestMessage.open({ pushes: [410] });
+    const { to } = await fixture.browser("/subscriptions/1");
+    const id = await fixture.send(to, { channel: "push", data: {}, urgency: "normal", ttl: 60 });
+    await fixture.simulation.idle();
 
     // fail it as gone, and start the browser's unsubscription as the space
-    const started = await kit.served.database.select().from(task.run.table);
+    const started = await fixture.served.database.select().from(task.run.table);
     expect({
-        sending: await kit.sending(id),
+        sending: await fixture.sending(id),
         started: started.map((row) => ({
             input: row["input"],
             actor: ObjectReference.at("actor", row),
@@ -176,7 +176,7 @@ test("forget a browser its push service forgot, as the space, once its push fail
                 input: {
                     call: client.call("unsubscribe", { id: to.client, userId: to.user }),
                 },
-                actor: principal.space.reference(Scope.universe.id, kit.space.id),
+                actor: principal.space.reference(Scope.universe.id, fixture.space.id),
             },
         ],
     });
@@ -184,19 +184,19 @@ test("forget a browser its push service forgot, as the space, once its push fail
 
 test("open a message's content only for its provider, and drop it from every message row as it settles", async () => {
     // send one email and fail another for good
-    const kit = await TestMessage.open({ mails: [{ kind: "sent" }, REJECTED] });
-    const sent = await kit.send(EMAIL, CONTENT);
-    const failed = await kit.send(EMAIL, CONTENT);
-    await kit.settle();
+    const fixture = await TestMessage.open({ mails: [{ kind: "sent" }, REJECTED] });
+    const sent = await fixture.send(EMAIL, CONTENT);
+    const failed = await fixture.send(EMAIL, CONTENT);
+    await fixture.simulation.idle();
 
     // hand the provider the text, while no row keeps it or its ciphertext
     expect({
-        sendings: [await kit.sending(sent), await kit.sending(failed)].map((each) => [
+        sendings: [await fixture.sending(sent), await fixture.sending(failed)].map((each) => [
             each.status,
             each.isErased,
         ]),
-        texts: kit.mails.sent.map((mail) => mail.text),
-        leaking: await listLeaks(kit),
+        texts: fixture.mails.sent.map((mail) => mail.text),
+        leaking: await listLeaks(fixture),
     }).toEqual({
         sendings: [
             ["sent", true],
@@ -208,31 +208,34 @@ test("open a message's content only for its provider, and drop it from every mes
 });
 
 test("send a provider's message as it is created, and show a desktop one at once until its own client receives it", async () => {
-    const kit = await TestMessage.open();
-    const messages = kit.owner.client(messagePackage);
+    const fixture = await TestMessage.open();
+    const messages = fixture.owner.client(messagePackage);
     const receive = (id: string) =>
         messages.message.receive({
-            scope: kit.space.id,
+            scope: fixture.space.id,
             id: message.identifier(id),
-            requestId: RequestId.create(kit.environment),
+            requestId: RequestId.create(fixture.environment),
         });
 
     // send an email and show a desktop message on the owner's client, received twice alike
-    const email = await kit.send(EMAIL, CONTENT);
-    const desktop = await kit.send({ channel: "desktop", client: kit.space.owner.clientId });
-    const foreign = await kit.send({ channel: "desktop", client: CLIENT });
+    const email = await fixture.send(EMAIL, CONTENT);
+    const desktop = await fixture.send({
+        channel: "desktop",
+        client: fixture.space.owner.clientId,
+    });
+    const foreign = await fixture.send({ channel: "desktop", client: CLIENT });
     await receive(desktop);
     await receive(desktop);
 
     // refuse a receipt off a desktop or on another client, a push without its content, and a push to a client receiving none
-    const { to } = await kit.browser("/1");
+    const { to } = await fixture.browser("/1");
     const refused = [
         await refusal(receive(email)),
         await refusal(receive(foreign)),
-        await refusal(kit.send(to)),
-        await refusal(kit.send({ ...to, client: CLIENT })),
+        await refusal(fixture.send(to)),
+        await refusal(fixture.send({ ...to, client: CLIENT })),
     ];
-    const rows = await kit.served.database
+    const rows = await fixture.served.database
         .select({
             id: message.table.id,
             status: message.table.status,
@@ -267,14 +270,14 @@ test("send a provider's message as it is created, and show a desktop one at once
 
 test("sign pushes with the key browsers subscribe with, and refuse pushes on a machine sending none", async () => {
     // push once on a machine with a push provider
-    const kit = await TestMessage.open();
-    const { key } = await kit.owner
+    const fixture = await TestMessage.open();
+    const { key } = await fixture.owner
         .client(messagePackage)
-        .message.serverKey({ scope: kit.space.id });
-    const { to } = await kit.browser("/subscriptions/1");
-    await kit.send(to, { channel: "push", data: {}, urgency: "normal", ttl: 60 });
-    await kit.settle();
-    const authorization = kit.pushes.requests.map((request) =>
+        .message.serverKey({ scope: fixture.space.id });
+    const { to } = await fixture.browser("/subscriptions/1");
+    await fixture.send(to, { channel: "push", data: {}, urgency: "normal", ttl: 60 });
+    await fixture.simulation.idle();
+    const authorization = fixture.pushes.requests.map((request) =>
         request.headers.get("authorization")?.split(", k=").at(1),
     );
 
@@ -282,7 +285,7 @@ test("sign pushes with the key browsers subscribe with, and refuse pushes on a m
     const silent = await TestMessage.open({ server: EMAIL_ONLY });
     const refused = [
         await refusal(
-            silent.owner.client(messagePackage).message.serverKey({ scope: kit.space.id }),
+            silent.owner.client(messagePackage).message.serverKey({ scope: fixture.space.id }),
         ),
         await refusal(silent.send(to, { channel: "push", data: {}, urgency: "normal", ttl: 60 })),
     ];

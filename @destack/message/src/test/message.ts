@@ -41,7 +41,7 @@ import { documentsPackage, documentsServer } from "./document.ts";
 import { type Browser, subscribeBrowser } from "./browser.ts";
 import { TestMailTransport } from "./mail.ts";
 
-/** The time every kit's simulation starts at. */
+/** The time every fixture's simulation starts at. */
 const START = Date.UTC(2026, 9, 5);
 
 /** The provider code the machine provides and connects the space's mail under. */
@@ -86,20 +86,20 @@ const DOCUMENTS: TestPackage = {
 /** The shipped servers and builds of the packages the space installs, messages before documents. */
 const INSTALLED = TestPackage.options([MESSAGE, DOCUMENTS]);
 
-/** The space the kit's tests copy: its installed packages beside the vault's tables, and start. */
+/** The space the fixture's tests copy: its installed packages beside the vault's tables, and start. */
 const SPACE_OPTIONS = {
     ...INSTALLED,
     packages: [...INSTALLED.packages, vaultPackage],
     start: START,
 };
 
-/** The world the kit writes on its space once: the message installation. */
+/** The world the fixture writes on its space once: the message installation. */
 const MessageWorld = schema.object({
     /** The message installation. */
     installation: schema.string(),
 });
 
-/** The world the kit writes on its space once. */
+/** The world the fixture writes on its space once. */
 type MessageWorld = schema.Infer<typeof MessageWorld>;
 
 /** The vault the space's stack declares for the endpoints' secrets. */
@@ -192,7 +192,7 @@ export class TestMessage {
     readonly hooks: TestReceiver;
     /** The push service at the push origin. */
     readonly pushes: TestReceiver;
-    /** The secrets the kit created so far, which number the next one's name. */
+    /** The secrets the fixture created so far, which number the next one's name. */
     #secrets = 0;
 
     /** The world the space's servers run in, its store's. */
@@ -200,7 +200,7 @@ export class TestMessage {
         return this.served.environment;
     }
 
-    /** Open a kit over a served space with its installation and outside systems. */
+    /** Open a fixture over a served space with its installation and outside systems. */
     private constructor(fields: {
         readonly space: TestSpace;
         readonly served: TestObjectStore;
@@ -266,7 +266,7 @@ export class TestMessage {
         return { ...MESSAGE, build: await messageBuild(crypto) };
     }
 
-    /** Define the template of the kit's space, which every test copies. */
+    /** Define the template of the fixture's space, which every test copies. */
     static template() {
         return TestSpace.template(SPACE_OPTIONS, {
             name: "message",
@@ -343,12 +343,7 @@ export class TestMessage {
         return id;
     }
 
-    /** Settle the space's controllers, such as the sends due now. */
-    settle(): Promise<void> {
-        return this.space.settle(this.served);
-    }
-
-    /** Reach a pending message's next attempt, settling what is due then. */
+    /** Reach a pending message's next attempt, running what is due then. */
     async retry(id: Identifier<"message">): Promise<void> {
         // read when the message's next attempt is due
         const [row] = await this.served.database
@@ -357,11 +352,10 @@ export class TestMessage {
             .where(eq(message.table.id, id));
         const retryAt = present(present(row, `message ${id}`).retryAt, `the retry of ${id}`);
 
-        // reach it, at least a moment on, and run until the attempt it was due for, then settle what it changed
+        // reach it, at least a moment on, and run until the attempt it was due for
         const tried = (await this.sending(id)).attempts.length;
-        await this.space.advance(this.served, Math.max(retryAt, this.clock.now() + 1));
+        await this.simulation.run(Math.max(retryAt, this.clock.now() + 1));
         await this.simulation.until(async () => (await this.sending(id)).attempts.length > tried);
-        await this.settle();
     }
 
     /** Read a message's sending: its status, its erasure, its attempts and its Sent condition. */
