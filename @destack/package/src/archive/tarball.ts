@@ -1,4 +1,4 @@
-import type { Compression, CompressionPair } from "@destack/environment";
+import { type Compression, Pipe } from "@destack/environment";
 import { PackageError } from "../error/index.ts";
 
 /** The size of a tar block, with a header or a slice of a file. */
@@ -92,7 +92,7 @@ export const Tarball = {
                 yield view(chunk);
             }
         })();
-        const read = readBlocks(transform(chunks, compression.decompress("gzip")));
+        const read = readBlocks(Pipe.through(chunks, compression.decompress("gzip")));
         let path: string | undefined;
         for (;;) {
             // end at the first zero block, and refuse a header whose checksum fails
@@ -223,7 +223,7 @@ async function* compress(
     // replace the runtime's header, which varies between runtimes, with the fixed one
     yield GZIP_HEADER.slice();
     const received: number[] = [];
-    for await (const chunk of transform(archive(entries), compression.compress("gzip"))) {
+    for await (const chunk of Pipe.through(archive(entries), compression.compress("gzip"))) {
         const skipped = Math.min(GZIP_HEADER.byteLength - received.length, chunk.byteLength);
         received.push(...chunk.subarray(0, skipped));
         if (received.length === GZIP_HEADER.byteLength && received[FLAGS_OFFSET] !== 0) {
@@ -232,36 +232,6 @@ async function* compress(
         if (skipped < chunk.byteLength) {
             yield chunk.subarray(skipped);
         }
-    }
-}
-
-/** Run chunks through a compression pair, writing them as read, never through the host's pipe. */
-async function* transform(
-    chunks: AsyncIterable<Uint8Array<ArrayBuffer>>,
-    pair: CompressionPair,
-): AsyncGenerator<Uint8Array<ArrayBuffer>> {
-    // write the chunks as they come, failing the output with their failure
-    const writer = pair.writable.getWriter();
-    const writing = (async () => {
-        try {
-            for await (const chunk of chunks) {
-                await writer.write(chunk);
-            }
-            await writer.close();
-        } catch (error) {
-            await writer.abort(error);
-        }
-    })();
-
-    // read the output, then stop the writing and wait until the chunks stop
-    const reader = pair.readable.getReader();
-    try {
-        for (let next = await reader.read(); !next.done; next = await reader.read()) {
-            yield next.value;
-        }
-    } finally {
-        await reader.cancel();
-        await writing;
     }
 }
 

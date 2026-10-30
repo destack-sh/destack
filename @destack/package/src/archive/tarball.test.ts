@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { join } from "node:path";
-import type { Environment } from "@destack/environment";
+import { type Environment, Pipe } from "@destack/environment";
 import { expect, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { Tarball, TarballEntry } from "./tarball.ts";
@@ -97,10 +97,10 @@ test("read back every file a tarball holds in order, with long paths and multi-b
         restored.push({ path: entry.path, contents: await TarballEntry.bytes(entry) });
     }
     const decompressed = await read(
-        new Blob([archived]).stream().pipeThrough(compression.decompress("gzip")),
+        Pipe.through(new Blob([archived]).stream(), compression.decompress("gzip")),
     );
     decompressed[0] = "M".charCodeAt(0) + 1;
-    const corrupted = new Blob([decompressed]).stream().pipeThrough(compression.compress("gzip"));
+    const corrupted = Pipe.through(new Blob([decompressed]).stream(), compression.compress("gzip"));
     const refused = await Array.fromAsync(Tarball.read(corrupted, compression)).then(
         () => "read",
         (error: unknown) => (error instanceof Error ? error.message : String(error)),
@@ -118,7 +118,7 @@ test("write equal entries to identical tarball bytes with a fixed gzip header, a
 
     // set no time and an unknown system, and inflate through the world's gzip, which checks the CRC and size
     const inflated = await read(
-        new Blob([first]).stream().pipeThrough(compression.decompress("gzip")),
+        Pipe.through(new Blob([first]).stream(), compression.decompress("gzip")),
     );
     const digest = new Uint8Array(await crypto.digest("SHA-256", first)).toHex();
     expect([
