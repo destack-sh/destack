@@ -28,7 +28,7 @@ interface Route {
 }
 
 /** An in-process Stripe serving the API subset finance uses, after stripe-mock. */
-export class StripeFixture {
+export class TestStripe {
     /** The API key, as the vault would hand it. */
     readonly key: Secret = Secret.of(API_KEY);
     /** The stored objects, by identifier. */

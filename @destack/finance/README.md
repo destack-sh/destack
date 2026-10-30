@@ -113,14 +113,14 @@ settings: {
 
 ## Tests
 
-`FinanceFixture` runs finance over a test database with each package published as a forge release, and `StripeFixture` is an in-process Stripe.
+`TestFinance` runs finance over a test database with each package published as a forge release, and `TestStripe` is an in-process Stripe.
 
 ```ts
-const finance = await FinanceFixture.open([[plan.package, [storage, storageSku]]], {
+const finance = await TestFinance.open([[plan.package, [storage, storageSku]]], {
     provider,
     clock,
 });
 await finance.append(payer, [{ id, space, meter, quantity, time }]);
 await finance.publish(plan.package, [storage, storageSku]); // a later release, now the latest
-const stripe = new StripeFixture(Date.now());
+const stripe = new TestStripe(Date.now());
 ```

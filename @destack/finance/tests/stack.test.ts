@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineCatalog, defineFeature } from "../src/declare/index.ts";
 import { price, product, productFeature, seller } from "../src/object/index.ts";
-import { FinanceFixture } from "../src/test/index.ts";
+import { TestFinance } from "../src/test/index.ts";
 import type { StackDocument } from "@destack/stack/declare";
 import financePackage from "../src/package.ts";
 
@@ -55,7 +55,7 @@ function catalog(fee: number, isPro: boolean): StackDocument<readonly [typeof fi
 
 test("declare the platform's seller active and its plans with their prices and grants, store them as declared, price new terms anew, archive the plans the stack stops declaring and keep its seller", async () => {
     // declare Go and Pro twice through the home's stack, which the platform's operator owns
-    const finance = await FinanceFixture.open([[tiers, [seats]]]);
+    const finance = await TestFinance.open([[tiers, [seats]]]);
     onTestFinished(() => finance.close());
     const { database } = finance;
     const revisions = async () =>

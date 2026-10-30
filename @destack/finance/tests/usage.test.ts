@@ -257,7 +257,7 @@ test("add up each space's latest bytes across both meters a feature counts, near
     const near = await entitled(finance, capacity);
 
     // an hour later, archive 500 in the first space: past the limit, blocked
-    await finance.fixture.jump(finance.fixture.clock.now() + HOUR);
+    await finance.fixture.simulation.jump(finance.fixture.clock.now() + HOUR);
     await append(finance, {
         id: "5",
         space: spaces.notes,

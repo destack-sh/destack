@@ -20,7 +20,7 @@ import {
 } from "../src/object/index.ts";
 import { ProviderEvent } from "../src/provider/index.ts";
 import { Stripe, StripeProvider } from "../src/provider/stripe/index.ts";
-import { spaces, type StripeDelivery, StripeFixture } from "../src/test/index.ts";
+import { spaces, type StripeDelivery, TestStripe } from "../src/test/index.ts";
 import { Finance, ids, resolved } from "./fixture/finance.ts";
 import { Period } from "../src/rate/period.ts";
 import { calls, disk, diskSku, requests, storage } from "./fixture/storage.ts";
@@ -60,7 +60,7 @@ const StripeSubscription = schema.looseObject({
 /** Open finance billing through the Stripe fixture, Carol's seller onboarded. */
 async function open() {
     // bill through the fixture, reading its keys as the vault would hand them
-    const stripe = new StripeFixture(TEST_START);
+    const stripe = new TestStripe(TEST_START);
     const finance = await Finance.open({
         provider: (home) => new StripeProvider({ key: stripe.key, home, fetch: stripe.fetch }),
     });

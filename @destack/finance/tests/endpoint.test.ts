@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { StripeFixture } from "../src/test/stripe.ts";
+import { TestStripe } from "../src/test/stripe.ts";
 import { StripeClient } from "../src/provider/stripe/client.ts";
 import { StripeEndpoint } from "../src/provider/stripe/endpoint.ts";
 import { STRIPE_EVENTS } from "../src/provider/stripe/provider.ts";
@@ -9,7 +9,7 @@ const URL = "https://finance--home--destack.destack.space/.destack/webhook/strip
 
 test("upsert one enabled endpoint at a URL delivering exactly finance's events, however often upserted", async () => {
     // upsert the endpoint twice
-    const stripe = new StripeFixture(Date.UTC(2026, 9, 12));
+    const stripe = new TestStripe(Date.UTC(2026, 9, 12));
     const client = new StripeClient(stripe.key, stripe.fetch);
     const created = await StripeEndpoint.upsert(client, URL);
     const again = await StripeEndpoint.upsert(client, URL);

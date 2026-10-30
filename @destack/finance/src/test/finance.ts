@@ -6,6 +6,7 @@ import { OPERATOR_EMAIL, type TestPerson } from "@destack/account/test";
 import { type Controller, Snapshot } from "@destack/db";
 import { reconciliation } from "@destack/db/test";
 import type { Crypto, Clock, Environment } from "@destack/environment";
+import type { Simulation } from "@destack/environment/simulation";
 import { type EventStore, EventTime } from "@destack/event";
 import { packageObject, tag } from "@destack/forge/object";
 import forgePackage from "@destack/forge/package";
@@ -51,13 +52,13 @@ import { Sku } from "../sku/index.ts";
 /** The residency whose home finance serves in. */
 const RESIDENCY = "eu";
 
-/** The tag the kit's releases open at, which answers each package's latest. */
+/** The tag the fixture's releases open at, which answers each package's latest. */
 const RELEASE_TAG = "latest";
 
 /** The tenancies a plan granting dedicated machines lets an account run. */
 const TENANCIES = ["shared", "dedicated", "local"];
 
-/** The origin of the dedicated machines the kit declares. */
+/** The origin of the dedicated machines the fixture declares. */
 const DEDICATED_ORIGIN = "https://dedicated.machine.test/";
 
 /** The people the scenarios act as, by the name of their email; dave operates the platform. */
@@ -100,7 +101,7 @@ export interface FinanceUse {
     readonly time: number;
 }
 
-/** The options of a finance kit. */
+/** The options of a finance fixture. */
 export interface FinanceFixtureOptions {
     /** Open the payment provider billing through for the home, none by default. */
     readonly provider?: (home: string) => PaymentProvider;
@@ -163,7 +164,7 @@ const HOME_STACK = {
     },
 };
 
-/** The home the kit's tests copy: its packages, forge's releases and the platform's publisher. */
+/** The home the fixture's tests copy: its packages, forge's releases and the platform's publisher. */
 const HOME_OPTIONS = {
     ...TestPackage.options(PACKAGES),
     publishers: ["platform"],
@@ -174,22 +175,22 @@ const HOME_OPTIONS = {
     ],
 };
 
-/** What the kit's world shares: the platform's account. */
+/** What the fixture's world shares: the platform's account. */
 const FinanceWorld = schema.object({
     /** The platform's account in the residency, whose home is the residency's. */
     platform: schema.identifier("account"),
 });
 
-/** What the kit's world shares. */
+/** What the fixture's world shares. */
 type FinanceWorld = schema.Infer<typeof FinanceWorld>;
 
 /** Finance in the residency's home with Acme's buyer and payer, and Carol's shop. */
-export class FinanceFixture {
+export class TestFinance {
     /** The residency's home serving finance. */
     readonly space: TestSpace;
     /** The home as its machine serves it, its controllers stepped by the test. */
     readonly served: TestObjectStore;
-    /** The payment provider billing through, absent for a kit selling nothing. */
+    /** The payment provider billing through, absent for a fixture selling nothing. */
     readonly provider: PaymentProvider | undefined;
     /** The telemetry recording the exceptions finance captures, refused at close unless taken. */
     readonly telemetry: TestTelemetry;
@@ -226,12 +227,12 @@ export class FinanceFixture {
     static async open(
         releases: readonly (readonly [Package, readonly (Feature | Meter | Sku)[]])[],
         options: FinanceFixtureOptions = {},
-    ): Promise<FinanceFixture> {
+    ): Promise<TestFinance> {
         // build each release, which the metering reads by its manifest's digest
         const published = new Map<string, BuildReader>();
         const { crypto } = testHost();
         for (const [owner, declared] of releases) {
-            const build = await FinanceFixture.release(owner, declared, crypto);
+            const build = await TestFinance.release(owner, declared, crypto);
             published.set(await Digest.json(build.manifest, crypto), build);
         }
 
@@ -241,7 +242,7 @@ export class FinanceFixture {
         const server = financeServer(published, charging, (definition) =>
             implemented.resolve(definition),
         );
-        const { space: home, world } = await TestSpace.copy(FinanceFixture.template(), {
+        const { space: home, world } = await TestSpace.copy(TestFinance.template(), {
             ...HOME_OPTIONS,
             servers: HOME_OPTIONS.servers.map((each) =>
                 each.package.id === financePackage.id ? server : each,
@@ -253,13 +254,13 @@ export class FinanceFixture {
         const { controllers = [] } = await implemented.promise;
         const built = controllers.map((controller) => controller(served.store));
         if (options.start !== undefined) {
-            await home.jump(served, options.start);
+            await home.simulation.jump(options.start);
         }
         for (const build of published.values()) {
             await publishBuild(served.database, home.id, world.platform, build, home.environment);
         }
 
-        return new FinanceFixture({
+        return new TestFinance({
             space: home,
             served,
             provider: charging === undefined ? undefined : charging(home.id),
@@ -270,13 +271,13 @@ export class FinanceFixture {
         });
     }
 
-    /** Define the template of the kit's world, which every test copies. */
+    /** Define the template of the fixture's world, which every test copies. */
     static template() {
         return TestSpace.template(HOME_OPTIONS, {
             name: "finance",
             value: FinanceWorld,
             spaces: [{ residency: RESIDENCY }],
-            write: (home) => FinanceFixture.#write(home),
+            write: (home) => TestFinance.#write(home),
         });
     }
 
@@ -295,7 +296,7 @@ export class FinanceFixture {
             const person =
                 name === "dave"
                     ? await universe.operator()
-                    : await universe.signIn(FinanceFixture.#email(name));
+                    : await universe.signIn(TestFinance.#email(name));
             people.set(name, person);
         }
         const alice = present(people.get("alice"), "alice");
@@ -352,7 +353,7 @@ export class FinanceFixture {
 
         // follow them in the home, and read the platform's account there
         await using served = await home.serve();
-        await home.settle(served);
+        await home.simulation.idle();
         const platform = await Snapshot.live(served.database)
             .read(account.table)
             .findFirst({ where: { handle: "destack" } });
@@ -408,14 +409,14 @@ export class FinanceFixture {
         return machines;
     }
 
-    /** Jump the home's world to a later time, settling what falls due. */
-    jump(to: number): Promise<void> {
-        return this.space.jump(this.served, to);
+    /** The simulation running the home's world. */
+    get simulation(): Simulation {
+        return this.space.simulation;
     }
 
     /** Read a person of the scenarios. */
     person(name: Person): TestPerson {
-        return this.space.universe.person(FinanceFixture.#email(name));
+        return this.space.universe.person(TestFinance.#email(name));
     }
 
     /** Read a person's subject. */
@@ -459,7 +460,7 @@ export class FinanceFixture {
                 calls: [
                     usage.call("append", {
                         ...usage.in(payerId),
-                        items: sent.map((use) => FinanceFixture.#item(use)),
+                        items: sent.map((use) => TestFinance.#item(use)),
                     }),
                 ],
             });
@@ -529,13 +530,13 @@ export class FinanceFixture {
 
     /** Rate the next page of an account's usage and derive its entitlements, as the loop does. */
     async rate(scope: string): Promise<number | undefined> {
-        // rate the page, then derive the entitlements and settle the replicas they change
+        // rate the page, then derive the entitlements and run the world idle
         const rated = await this.#controller(`${usage.name}/usage`).reconcile(
             scope,
             reconciliation(),
         );
         await this.#entitlements.reconcile(scope);
-        await this.space.settle(this.served);
+        await this.space.simulation.idle();
 
         return rated;
     }
@@ -567,7 +568,7 @@ export class FinanceFixture {
         for (const key of await entitlements.list()) {
             await entitlements.reconcile(key);
         }
-        await this.space.settle(this.served);
+        await this.space.simulation.idle();
     }
 
     /** Apply sellers and products through the home's stack, its controllers running. */
@@ -578,7 +579,7 @@ export class FinanceFixture {
 
     /** Publish a package release declaring features, meters and SKUs, which becomes its latest. */
     async publish(owner: Package, declared: readonly (Feature | Meter | Sku)[]): Promise<void> {
-        const build = await FinanceFixture.release(owner, declared, this.environment.crypto);
+        const build = await TestFinance.release(owner, declared, this.environment.crypto);
         await publishBuild(this.database, this.home, this.platform, build, this.environment);
         this.#published.set(await Digest.json(build.manifest, this.environment.crypto), build);
     }
@@ -591,7 +592,7 @@ export class FinanceFixture {
     ): Promise<BuildReader> {
         const declarations = declared.map((entry) => ({
             name: entry.name,
-            ...FinanceFixture.#describe(entry),
+            ...TestFinance.#describe(entry),
         }));
 
         return await MemoryBuild.of(owner, declarations, crypto);
@@ -639,7 +640,7 @@ function financeServer(
     implemented: (definition: FinanceDefinition) => void = () => {},
 ) {
     return implementPackage(financePackage, (context) => {
-        // implement finance, handing the definition to the kit that steps its controllers
+        // implement finance, handing the definition to the fixture that steps its controllers
         const provider = charging === undefined ? undefined : charging(context.scope);
         const definition = implementFinance(context.scope, metering(context, published), provider);
         implemented(definition);

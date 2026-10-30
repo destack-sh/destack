@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 import { testSimulation } from "@destack/object/test";
 import { ReleaseReader } from "../src/release/reader.ts";
 import { type Feature, type FeatureDefinition } from "../src/feature/index.ts";
-import { FinanceFixture } from "../src/test/index.ts";
+import { TestFinance } from "../src/test/index.ts";
 import {
     calls,
     storageLimit,
@@ -19,7 +19,7 @@ import {
 
 test("read described features and meters back from a build, and relate metered features to their meters", async () => {
     // read the storage package's declarations back from its build
-    const build = await FinanceFixture.release(
+    const build = await TestFinance.release(
         storage,
         [requests, stored, sync, support, seats, calls, storageLimit],
         testSimulation().environment("finance").crypto,

@@ -29,12 +29,7 @@ import {
     type SubscriptionItem,
     type Resolution,
 } from "../../src/object/index.ts";
-import {
-    FinanceFixture,
-    type FinanceFixtureOptions,
-    ids,
-    type Person,
-} from "../../src/test/index.ts";
+import { TestFinance, type FinanceFixtureOptions, ids, type Person } from "../../src/test/index.ts";
 
 export { ids, type Person, spaces } from "../../src/test/index.ts";
 import type { Feature, FeatureGrant } from "../../src/feature/index.ts";
@@ -107,18 +102,18 @@ const RELEASES = [
 export class Finance {
     /** The served finance objects. */
     readonly store: ObjectStore;
-    /** The served kit. */
-    readonly fixture: FinanceFixture;
+    /** The served fixture. */
+    readonly fixture: TestFinance;
 
-    /** Keep a served kit. */
-    private constructor(fixture: FinanceFixture) {
+    /** Keep a served fixture. */
+    private constructor(fixture: TestFinance) {
         this.fixture = fixture;
         this.store = fixture.store;
     }
 
     /** Open finance with the storage and hosting packages' releases. */
     static async open(options: FinanceFixtureOptions = {}): Promise<Finance> {
-        return new Finance(await FinanceFixture.open(RELEASES, options));
+        return new Finance(await TestFinance.open(RELEASES, options));
     }
 
     /** The home's database. */
