@@ -938,39 +938,60 @@ export class SimulatedNetwork {
 
         // send the body back across the link, failing it once the request aborts, as fetch does
         const { body, status, statusText, headers } = answer.response;
-        const crossed = body === null ? null : this.#cross(body, endpoint.node, from, target);
         const delivered =
-            crossed?.pipeThrough(new TransformStream(), { signal: request.signal }) ?? null;
+            body === null ? null : this.#cross(body, endpoint.node, from, target, request.signal);
 
         return new Response(delivered, { status, statusText, headers });
     }
 
-    /** Send a response body from a server to the requesting node, each chunk one delivery. */
+    /** Send a body from one node to another, each chunk one delivery read as it is pulled. */
     #cross(
         body: ReadableStream<Uint8Array>,
         server: string,
         client: string,
         target: string,
+        signal?: AbortSignal,
     ): ReadableStream<Uint8Array> {
-        return body.pipeThrough(
-            new TransformStream<Uint8Array, Uint8Array>({
-                transform: (chunk, controller) => {
-                    // lose the rest of the body on a cut link, as a reset connection does
-                    if (this.#isCut(client, server)) {
-                        this.#record({ kind: "loss", at: this.#clock.now(), from: client, target });
-                        throw refusal(
-                            `the body from ${server} to ${client} was cut off`,
-                            "ConnectionClosed",
-                        );
-                    }
+        // read the sender's body on each pull, in the turn the receiver asks, with no pipe between
+        const reader = body.getReader();
 
-                    // deliver the chunk, counted as sent and delivered
+        return new ReadableStream<Uint8Array>({
+            start: (controller) => {
+                // fail the body once the request aborts, as fetch does
+                signal?.addEventListener(
+                    "abort",
+                    () => {
+                        controller.error(signal.reason);
+                        void reader.cancel(signal.reason);
+                    },
+                    { once: true },
+                );
+            },
+            pull: async (controller) => {
+                const { done, value } = await reader.read();
+
+                // close after the last chunk
+                if (done) {
+                    controller.close();
+                }
+                // lose the rest of the body on a cut link, as a reset connection does
+                else if (this.#isCut(client, server)) {
+                    this.#record({ kind: "loss", at: this.#clock.now(), from: client, target });
+                    await reader.cancel();
+                    throw refusal(
+                        `the body from ${server} to ${client} was cut off`,
+                        "ConnectionClosed",
+                    );
+                }
+                // deliver the chunk, counted as sent and delivered
+                else {
                     this.#sent += 1;
                     this.#delivered += 1;
-                    controller.enqueue(chunk);
-                },
-            }),
-        );
+                    controller.enqueue(value);
+                }
+            },
+            cancel: (reason) => reader.cancel(reason),
+        });
     }
 
     /** Open a node's socket to a listener. */
