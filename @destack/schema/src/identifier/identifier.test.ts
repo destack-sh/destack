@@ -16,7 +16,7 @@ async function createNotes(seed: number): Promise<string[]> {
         Identifier.create("note", environment),
         Identifier.create("note", environment),
     ];
-    simulation.clock.advance(1);
+    await simulation.jump(simulation.clock.now() + 1);
 
     return [...created, Identifier.create("note", environment)];
 }
