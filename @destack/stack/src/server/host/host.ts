@@ -815,7 +815,7 @@ export class SpaceHost {
         // serve below the installation's mount at this machine's origin, on the network its sandbox lists
         const named = row.installation;
         const network = this.#network(named.name, Rollout.sandbox(row.installation, description));
-        const { clock, random, crypto, compression, telemetry, locale, timeZone } =
+        const { clock, scheduler, random, crypto, compression, telemetry, locale, timeZone } =
             machine.environment;
 
         return {
@@ -833,6 +833,7 @@ export class SpaceHost {
             fetch: (request) => network.fetch(request),
             environment: {
                 clock,
+                scheduler,
                 random,
                 crypto,
                 network,

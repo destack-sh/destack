@@ -23,7 +23,7 @@ import {
     insertRelease,
     insertRollout,
     reconcileResources,
-    settle,
+    reconcileAfter,
     spaceDatabase,
     TestSpace,
     TestSpaceDatabaseHost,
@@ -154,7 +154,7 @@ test("provision a resource as soon as its declaration changes", async () => {
                 updatedAt: now,
             }),
     );
-    await settle(
+    await reconcileAfter(
         database,
         [...store.controllers(), new ConsumerController(store, [object.database], spaceDatabase)],
         declared,

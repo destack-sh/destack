@@ -3,11 +3,11 @@ import { Claim } from "@destack/object";
 import { found, present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Route, route } from "../../object/index.ts";
-import { RouteFixture } from "../../test/index.ts";
+import { TestRoute } from "../../test/index.ts";
 
 /** Serve each path of an account's hostnames once across the universe. */
 test("reconcile a space's routes on its account's hostnames, one per hostname path across the universe", async () => {
-    await using fixture = await RouteFixture.open();
+    await using fixture = await TestRoute.open();
     const [first, second, rival] = fixture.spaceIds;
     const hostname = found(fixture.hostnames, fixture.accountId);
     const home = (spaceId: string, on = hostname.name) =>
@@ -96,7 +96,7 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
 
 test("refuse a route on a machine the account's hostname requests do not reach", async () => {
     // serve the spaces on a machine the account's hostnames do not reach, as a cloud machine before the edge provisions them
-    await using fixture = await RouteFixture.open({ isServingHostnames: false });
+    await using fixture = await TestRoute.open({ isServingHostnames: false });
     const [first] = fixture.spaceIds;
     const hostname = found(fixture.hostnames, fixture.accountId);
     const home = {
@@ -116,7 +116,7 @@ test("refuse a route on a machine the account's hostname requests do not reach",
 
 /** Find a request's route as a front door does. */
 test("locate the route serving a host's path, the most specific first", async () => {
-    await using fixture = await RouteFixture.open();
+    await using fixture = await TestRoute.open();
     const [first] = fixture.spaceIds;
     const notes = found(fixture.hostnames, fixture.accountId).name;
     const wildcard = await fixture.serve(fixture.accountId, "*.example.com");

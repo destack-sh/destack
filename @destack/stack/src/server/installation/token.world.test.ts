@@ -109,7 +109,7 @@ test("grant an installation tokens of its space as it asks by assertions its key
             environment,
         );
         const ciToken = await grant(ciAssertion);
-        await fixture.settle(served);
+        await fixture.simulation.idle();
         const keys = await Identity.keys(fixture.machine.directory.snapshot, ids.space, crypto);
         const verifier = new TokenVerifier({
             authority: { kind: "space", space: ids.space },

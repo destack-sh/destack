@@ -7,7 +7,7 @@ import { InstallationMount, PackageMount, SpaceMount } from "@destack/object";
 import type { TestObjectStore } from "@destack/object/test";
 import type { PackageId } from "@destack/package";
 import { PeerCall } from "../server/index.ts";
-import type { TestSpace } from "./fixture.ts";
+import type { TestSpace } from "./space.ts";
 
 /** The port a machine's HTTPS origin answers at. */
 const HTTPS_PORT = 443;

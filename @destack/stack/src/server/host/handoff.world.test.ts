@@ -16,7 +16,7 @@ test("serve a moving space's target only the blobs the space's rows reference an
     const now = fixture.machine.clock.now();
     const target = await fixture.universe.enroll(fixture.owner, ids.account, "http://target.test/");
     const served = await fixture.serve();
-    await fixture.settle(served);
+    await fixture.simulation.idle();
     const owner = served.as(fixture.owner.subject).stepUp().endpoint(stackPackage);
     await createClient(stackPackage, owner, fixture.machine.environment).transfer.create({
         spaceId: ids.space,

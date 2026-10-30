@@ -4,11 +4,11 @@ import { serversOf } from "@destack/object/test";
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
-import { board, card, ids, memo, PartitionFixture } from "../src/test/index.ts";
+import { board, card, ids, memo, TestPartition } from "../src/test/index.ts";
 
 test("accept a token bound to an account at the account's home, writing an account card there, and refuse it at another space of the account", async () => {
     // host the account's home and another space of the account, each serving the cards
-    const { home, other } = await PartitionFixture.open();
+    const { home, other } = await TestPartition.open();
     const homed = await home.serve({ servers: serversOf([card]) });
     const served = await other.serve({ servers: serversOf([card]) });
 
@@ -21,7 +21,7 @@ test("accept a token bound to an account at the account's home, writing an accou
             requestId: RequestId.create(home.environment),
             title: "Plan",
         });
-    await home.settle(homed);
+    await home.simulation.idle();
     const refused = await refusal(
         other
             .person(served, home.owner, ids.account)
@@ -41,7 +41,7 @@ test("accept a token bound to an account at the account's home, writing an accou
 
 test("write an account's handed-down memo at the account's home, and refuse it as a replica at another space of the account", async () => {
     // host the account's home and another space of the account, each serving the memos
-    const { home, other } = await PartitionFixture.open();
+    const { home, other } = await TestPartition.open();
     const homed = await home.serve({ servers: serversOf([memo]) });
     const served = await other.serve({ servers: serversOf([memo]) });
 

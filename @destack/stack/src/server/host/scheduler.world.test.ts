@@ -22,10 +22,9 @@ async function open(classes: readonly Tenancy[]) {
     // serve the space on its residency's cloud machine next to the owner's laptop, placing it as each change settles
     const laptop = await fixture.universe.enroll(fixture.owner, ids.account, LAPTOP_ENDPOINT);
     const served = await fixture.serve();
-    const settle = () => fixture.settle(served);
-    await settle();
+    await fixture.simulation.idle();
 
-    return { fixture, served, laptop: laptop.id, settle };
+    return { fixture, served, laptop: laptop.id };
 }
 
 /** Set the space's tenancy at the universe, as its owner does. */
@@ -76,14 +75,14 @@ async function baseStack(fixture: TestSpace) {
 }
 
 test("keep a space where the universe decides it stays, and move it as its base stack once the universe decides a move", async () => {
-    const { fixture, laptop, settle } = await open(["shared", "local"]);
+    const { fixture, laptop } = await open(["shared", "local"]);
 
     // keep the space on its machine while no tenancy is set
     const placed = await placement(fixture);
 
     // move it to the laptop once a person sets its tenancy to local
     await choose(fixture, "local");
-    await settle();
+    await fixture.simulation.idle();
     const moving = await placement(fixture);
 
     expect({ placed, moving }).toEqual({
@@ -107,13 +106,13 @@ test("keep a space where the universe decides it stays, and move it as its base 
 
 test("cancel a running move once the universe decides the space stays, and keep it on its machine", async () => {
     // start moving the space to the laptop, which never takes it over here
-    const { fixture, laptop, settle } = await open(["shared", "local"]);
+    const { fixture, laptop } = await open(["shared", "local"]);
     await choose(fixture, "local");
-    await settle();
+    await fixture.simulation.idle();
 
     // unset its tenancy, which keeps it on its machine and cancels the move
     await choose(fixture, null);
-    await settle();
+    await fixture.simulation.idle();
     const kept = await placement(fixture);
 
     expect(kept).toEqual({

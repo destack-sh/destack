@@ -1,4 +1,4 @@
-import { BORN_SPACE, RESIDENCY_HOME, TestSpace } from "./fixture.ts";
+import { BORN_SPACE, RESIDENCY_HOME, TestSpace } from "./space.ts";
 import { PARTITION_TEMPLATE } from "./partition.ts";
 import { ROUTE_TEMPLATE } from "./route.ts";
 import { gauge, meter, note, sharedNote } from "./schema.ts";

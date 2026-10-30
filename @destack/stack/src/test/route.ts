@@ -8,7 +8,7 @@ import type { TestObjectStore } from "@destack/object/test";
 import { found, type Identifier, nth, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { fixtureBuild } from "./build.ts";
-import { type FixtureOptions, ids, TestSpace, type HostedSpace } from "./fixture.ts";
+import { type FixtureOptions, ids, TestSpace, type HostedSpace } from "./space.ts";
 
 /** The resolver the universe reads DNS over HTTPS from, Cloudflare's. */
 const RESOLVER = "cloudflare-dns.com";
@@ -74,12 +74,12 @@ export const ROUTE_TEMPLATE = TestSpace.template(
         name: "route",
         value: RouteWorld,
         spaces: SPACES,
-        write: (_, __, spaces) => RouteFixture.write(spaces),
+        write: (_, __, spaces) => TestRoute.write(spaces),
     },
 );
 
 /** Two spaces of an account and one of another, each with an installation serving notes. */
-export class RouteFixture implements AsyncDisposable {
+export class TestRoute implements AsyncDisposable {
     /** The account of the first two spaces. */
     readonly accountId = ids.account;
     /** The account of the third space. */
@@ -119,12 +119,12 @@ export class RouteFixture implements AsyncDisposable {
     }
 
     /** Open the route world's spaces from its template, each served with its notes. */
-    static async open(options: FixtureOptions = {}): Promise<RouteFixture> {
+    static async open(options: FixtureOptions = {}): Promise<TestRoute> {
         // copy the world into a fork of it, then serve each space
         const { spaces, world } = await TestSpace.copy(ROUTE_TEMPLATE);
         const { simulation } = present(spaces.get(ids.space), "the fixture's space");
 
-        return await RouteFixture.#serve(simulation, spaces, world, options);
+        return await TestRoute.#serve(simulation, spaces, world, options);
     }
 
     /** Serve each copied space, with the installations and hostnames the world wrote. */
@@ -133,7 +133,7 @@ export class RouteFixture implements AsyncDisposable {
         spaces: ReadonlyMap<Identifier<"space">, TestSpace>,
         world: RouteWorld,
         options: FixtureOptions,
-    ): Promise<RouteFixture> {
+    ): Promise<TestRoute> {
         // serve each space
         const served = [];
         for (const space of spaces.values()) {
@@ -142,7 +142,7 @@ export class RouteFixture implements AsyncDisposable {
 
         // read each space's installation and each account's hostname
         const installations = new Map(world.installations.map((each) => [each.spaceId, each.id]));
-        const fixture = new RouteFixture(simulation, served, installations);
+        const fixture = new TestRoute(simulation, served, installations);
         for (const { accountId, id, name } of world.hostnames) {
             fixture.hostnames.set(accountId, { id, name });
         }
@@ -158,7 +158,7 @@ export class RouteFixture implements AsyncDisposable {
         simulation.network.server(RESOLVER).http({
             hostname: RESOLVER,
             port: HTTPS_PORT,
-            fetch: async (request) => RouteFixture.#answer(dns, request),
+            fetch: async (request) => TestRoute.#answer(dns, request),
         });
 
         // serve each space with notes installed
@@ -170,7 +170,7 @@ export class RouteFixture implements AsyncDisposable {
             installations.set(space.id, await space.install(store, build));
             served.push({ space, served: store });
         }
-        const fixture = new RouteFixture(simulation, served, installations);
+        const fixture = new TestRoute(simulation, served, installations);
 
         // verify a domain of each account and serve a hostname below it
         const hostnames = [];
@@ -237,10 +237,8 @@ export class RouteFixture implements AsyncDisposable {
             name,
         });
 
-        // settle each space following its account's hostnames
-        for (const entry of this.#spaces.values()) {
-            await entry.space.settle(entry.served);
-        }
+        // run the world idle while each space follows its account's hostnames
+        await this.simulation.idle();
 
         return { id: created.id, name };
     }

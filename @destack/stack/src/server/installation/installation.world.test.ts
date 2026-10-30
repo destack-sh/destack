@@ -263,7 +263,7 @@ test("identify a residency home's declared installation by its name, and forward
     const served = await home.serve();
     const build = await fixtureBuild(ids.package, "2026.9.0", home.environment.crypto);
     const installed = await home.install(served, build);
-    await home.settle(served);
+    await home.simulation.idle();
 
     // read the residency's installation relationships at the universe
     const related = await Relationship.readOn(
@@ -333,7 +333,7 @@ test("relate a residency home's declared installation at the universe once a pas
 
     // heal the partition, and let the failed pass retry and relate it
     network.heal(home.machine.id, UNIVERSE_NODE);
-    await home.advance(served, home.environment.clock.now() + RETRY_MILLISECONDS);
+    await home.simulation.run(home.environment.clock.now() + RETRY_MILLISECONDS);
     expect({ partitioned, healed: await related() }).toEqual({
         partitioned: [],
         healed: [installed],

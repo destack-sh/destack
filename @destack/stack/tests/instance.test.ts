@@ -60,7 +60,7 @@ import {
     insertRollout,
     reconcile,
     reconcileResources,
-    settle,
+    reconcileAfter,
     TestRuntime,
     TestSpace,
     TestSpaceDatabaseHost,
@@ -375,8 +375,8 @@ async function serveControllers(
         },
         instances: {
             reconcile: (id: string) => reconcile(store, "deployment", { id }),
-            settle: (after: LogPosition) =>
-                settle(
+            reconcileAfter: (after: LogPosition) =>
+                reconcileAfter(
                     database,
                     [
                         ...store.controllers(),
@@ -536,7 +536,7 @@ test("apply an application's tables from its revision to the space's main databa
     const provisioned = await database.log.position();
     await resources.reconcile(ids.space);
     await deployments.deploy(notes.id);
-    await instances.settle(provisioned);
+    await instances.reconcileAfter(provisioned);
     const deployed = nth(await database.select().from(object.deployment.table), 0);
     const applied = nth(await database.select().from(object.database.table), 0);
     const captured = nth(await database.select().from(object.capture.table), 0);
@@ -1873,7 +1873,7 @@ test("refuse deploying an application until its space installs its dependency, a
         "f",
         await MemoryBuild.of(VAULT, [], testHost().crypto),
     );
-    await instances.settle(before);
+    await instances.reconcileAfter(before);
     const deployed = await readiness(database, notes.id);
 
     // uninstall the vault while notes needs it

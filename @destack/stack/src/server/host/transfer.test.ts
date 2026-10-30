@@ -14,7 +14,7 @@ import {
     Relationship,
     relation,
 } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { IdentityKeystore } from "@destack/account/identity";
 import { LocalKeyring } from "@destack/identity";
 import { account, Placement } from "@destack/account/object";
@@ -97,7 +97,7 @@ test("hand a space's database to another machine and send its clients there", as
         await Promise.all([source.close(), target.close(), universe.close()]);
     });
     await openSpace(source.database, world);
-    await new AccessFixture(universe.database, world).replicateScope(
+    await new TestAccess(universe.database, world).replicateScope(
         account.reference(Scope.universe.id, accountId),
         account.policy,
     );
@@ -278,7 +278,7 @@ test("hand a space's database to another machine and send its clients there", as
 async function openSpace(database: DatabaseConnection, environment: Environment): Promise<void> {
     // record the space's scope
     const object = space.reference(Scope.universe.id, spaceId);
-    await new AccessFixture(database, environment).replicateScope(object, space.policy);
+    await new TestAccess(database, environment).replicateScope(object, space.policy);
 
     // relate anyone to the space as its reader
     await database.transaction(

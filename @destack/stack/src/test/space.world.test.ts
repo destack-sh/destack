@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { fixtureBuild } from "./build.ts";
-import { ids, TestSpace } from "./fixture.ts";
+import { ids, TestSpace } from "./space.ts";
 
 /** The moment the simulated world starts at, the stack's template's: 2026-10-01T00:00:00Z. */
 const START = Date.UTC(2026, 9, 1);

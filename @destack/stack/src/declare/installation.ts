@@ -1,5 +1,5 @@
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
-import { schema, } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { SECRET_TARGET } from "./binding.ts";
 import {
     InstallationBindings,

@@ -17,7 +17,7 @@ import {
 import stackPackage from "../package.ts";
 import { installation, type InstallationSelection } from "@destack/object";
 import { space } from "@destack/account/object";
-import { ids, spaceDatabase } from "./fixture.ts";
+import { ids, spaceDatabase } from "./space.ts";
 import { onTestFinished } from "@destack/test";
 import { workload } from "./build.ts";
 

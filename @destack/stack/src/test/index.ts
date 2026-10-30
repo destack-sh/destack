@@ -1,4 +1,3 @@
-export * from "./fixture.ts";
 export * from "./space.ts";
 export * from "./build.ts";
 export * from "./gateway.ts";

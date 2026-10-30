@@ -2,7 +2,7 @@ import type { PackageHandle } from "@destack/object";
 import type { PackageImplementation } from "@destack/object/server";
 import type { BuildReader } from "@destack/package/manifest";
 import type { Connector } from "@destack/resource";
-import type { TestSpaceOptions } from "./fixture.ts";
+import type { TestSpaceOptions } from "./space.ts";
 
 /** A package a test space installs: its build the machine ships, its server and what it needs. */
 export interface TestPackage {

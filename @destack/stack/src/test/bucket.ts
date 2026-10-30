@@ -74,7 +74,7 @@ export const PRESIGNED =
     "X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIDBUCKET%2F20261001%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20261001T000000Z&X-Amz-Expires=900";
 
 /** A space with a local bucket served over S3, a member role on it and a presigning store. */
-export class BucketFixture implements AsyncDisposable {
+export class TestBucket implements AsyncDisposable {
     /** The account of the space with members for the role to bind. */
     readonly accountId: Identifier<"account">;
     /** The space of the bucket. */
@@ -402,7 +402,7 @@ export class BucketFixture implements AsyncDisposable {
     static async open(
         database: DatabaseConnection,
         environment: Environment<"files">,
-    ): Promise<BucketFixture> {
+    ): Promise<TestBucket> {
         // open the bucket's directory, and the universe's database with its name claims
         const directory = await environment.files.makeTemporaryDirectory("destack-bucket-files-");
         const files = await LocalBucket.open(directory, "space-test", environment);
@@ -425,9 +425,9 @@ export class BucketFixture implements AsyncDisposable {
         };
         const scope = space.reference(ids.accountId, ids.spaceId);
         const base = await Installation.base(scope, stackPackage, environment.crypto);
-        let fixture: BucketFixture;
+        let fixture: TestBucket;
         try {
-            fixture = new BucketFixture(
+            fixture = new TestBucket(
                 database,
                 files,
                 claims,

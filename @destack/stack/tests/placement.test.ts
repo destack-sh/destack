@@ -170,7 +170,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
     // read the build and settings the space's stack follows once the space settles
     const colorKey = `${ids.stackPackage}/${color.name}`;
     const followed = async () => {
-        await fixture.settle(served);
+        await fixture.simulation.idle();
         const { revision } = await stack();
 
         return {

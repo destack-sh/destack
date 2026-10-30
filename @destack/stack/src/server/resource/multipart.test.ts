@@ -12,7 +12,7 @@ import {
     vi,
 } from "@destack/test";
 import { LEASE_LIFETIME_SECONDS } from "@destack/bucket/s3";
-import { BucketFixture, NOW, PRESIGNED } from "../../test/index.ts";
+import { TestBucket, NOW, PRESIGNED } from "../../test/index.ts";
 import { Simulation } from "@destack/environment/simulation";
 
 /** The world the scenarios run in, its clock at the presigning time. */
@@ -22,7 +22,7 @@ const world = new Simulation({ seed: 1, start: NOW }).environment("space");
 let storage: TestDatabase;
 
 beforeAll(async () => {
-    storage = await BucketFixture.database(world);
+    storage = await TestBucket.database(world);
 });
 
 afterAll(async () => {
@@ -39,7 +39,7 @@ afterEach(() => {
 
 /** Create and complete a multipart upload through a presigned part transfer. */
 test("create, lease and complete a multipart upload into a file with the upload's metadata", async () => {
-    await using fixture = await BucketFixture.open(storage.database, world);
+    await using fixture = await TestBucket.open(storage.database, world);
     const { client, bucket } = fixture;
     const key = "media/video.bin";
 
@@ -99,7 +99,7 @@ test("create, lease and complete a multipart upload into a file with the upload'
 
 /** Discard an aborted upload and refuse its later parts and completion. */
 test("abort a multipart upload", async () => {
-    await using fixture = await BucketFixture.open(storage.database, world);
+    await using fixture = await TestBucket.open(storage.database, world);
     const { client, bucket } = fixture;
     const key = "draft.bin";
 

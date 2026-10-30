@@ -2,7 +2,7 @@ import { Account, account, space } from "@destack/account/object";
 import { defineObject, field, PackageHandle } from "@destack/object";
 import { Package } from "@destack/package";
 import { present, schema, type Identifier } from "@destack/schema";
-import { ids, TestSpace, type HostedSpace } from "./fixture.ts";
+import { ids, TestSpace, type HostedSpace } from "./space.ts";
 
 /** The package of the cards and memos the spaces serve in addition to the stack. */
 const BOARD = Package.parse({
@@ -57,7 +57,7 @@ export const PARTITION_TEMPLATE = TestSpace.template(
 );
 
 /** An account's home and another space of the account, copied from their template. */
-export class PartitionFixture {
+export class TestPartition {
     /** The account's home. */
     readonly home: TestSpace;
     /** The other space of the account. */
@@ -70,10 +70,10 @@ export class PartitionFixture {
     }
 
     /** Open the account's home and the other space from their template. */
-    static async open(): Promise<PartitionFixture> {
+    static async open(): Promise<TestPartition> {
         const { spaces } = await TestSpace.copy(PARTITION_TEMPLATE, { packages: [board] });
         const copied = (id: Identifier<"space">) => present(spaces.get(id), `space ${id}`);
 
-        return new PartitionFixture(copied(Account.home(ids.account)), copied(OTHER_SPACE));
+        return new TestPartition(copied(Account.home(ids.account)), copied(OTHER_SPACE));
     }
 }

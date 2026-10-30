@@ -57,10 +57,7 @@ const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
 /** How long a test moving a space between two machines runs at most, beyond its longest wait. */
 const SCENARIO_MILLISECONDS = 30_000;
 
-/** The control loop's first retry of a failed reconciliation, as its default policy waits. */
-const FIRST_RETRY_MILLISECONDS = RetryPolicy.of().initialInterval;
-
-/** A signal that never aborts, for waits a settle bounds. */
+/** A signal that never aborts, for waits the world bounds. */
 const FOREVER = new AbortController().signal;
 
 /** A machine the universe knows nothing of. */
@@ -357,9 +354,8 @@ test(
             handoff,
             providers: [targets, ...(await target.options()).providers],
         });
-        const refused = await settleMove(
+        const refused = await runMove(
             sourceMachine,
-            serving,
             target,
             receiving,
             (placed) => placed?.machine === targetId,
@@ -669,7 +665,7 @@ test(
             });
 
         // let the source follow the target's receipt, then conceal the transfer from its cancellation
-        await fixture.settle(serving);
+        await fixture.simulation.idle();
         const cancel = (caller: StackClient) =>
             caller.transfer.cancel({
                 ...moving,
@@ -812,9 +808,8 @@ test(
             }),
             handoff: async () => target.handoff(serving, serving.as(targetId)),
         });
-        const cancelled = await settleMove(
+        const cancelled = await runMove(
             source,
-            serving,
             target,
             receiving,
             (placed) => placed?.machine === source.machine.id && placed.epoch === 2,
@@ -866,9 +861,8 @@ test(
             requestId: RequestId.create(source.machine.environment),
             targetId,
         });
-        const moved = await settleMove(
+        const moved = await runMove(
             source,
-            serving,
             target,
             receiving,
             (placed) => placed?.machine === targetId,
@@ -910,7 +904,7 @@ test(
 test("collect a stray blob once its lease ends, and a snapshot's blobs once the snapshot expires", async () => {
     // serve the fixture's space on the machine that stores the snapshots of it
     const fixture = await TestSpace.open({});
-    const served = await fixture.serve();
+    await fixture.serve();
     const { database, blobs } = fixture;
     const start = fixture.machine.clock.now();
 
@@ -945,9 +939,9 @@ test("collect a stray blob once its lease ends, and a snapshot's blobs once the 
     );
 
     // collect the stray blob past its lease, then the snapshot's blob once the snapshot expires, leaving the states main refers to
-    await fixture.jump(served, start + blobs.leaseMilliseconds + 1);
+    await fixture.simulation.jump(start + blobs.leaseMilliseconds + 1);
     const leased = await Array.fromAsync(blobs.storage.digests());
-    await fixture.jump(served, start + 2 * DAY_MILLISECONDS);
+    await fixture.simulation.jump(start + 2 * DAY_MILLISECONDS);
     const [main] = await database
         .select({ states: object.database.table.states })
         .from(object.database.table)
@@ -1013,7 +1007,7 @@ async function moveSpace(
     // ask for the move as the space's owner on its source, once it follows the space's chain
     const isFollowed = async () =>
         (await Scope.read(Snapshot.live(source.database), [ids.account])).length > 0;
-    await source.settle(serving);
+    await source.simulation.idle();
     await source.database.log.until(isFollowed, FOREVER);
     await serving
         .as(source.owner.subject)
@@ -1031,9 +1025,8 @@ async function moveSpace(
         role: "standby",
         handoff: async () => target.handoff(serving, serving.as(targetId)),
     });
-    const refused = await settleMove(
+    const refused = await runMove(
         source,
-        serving,
         target,
         receiving,
         (placed) => placed?.machine === targetId,
@@ -1043,45 +1036,29 @@ async function moveSpace(
     return receiving;
 }
 
-/** Settle a move's source and target until its placement settles, listing the target's refusals. */
-async function settleMove(
+/** Run the world until a move's placement settles within the target's lag and expected retries. */
+async function runMove(
     source: TestSpace,
-    serving: TestObjectStore,
     target: TestSpace,
     receiving: TestObjectStore,
     isSettled: (placed: Placement | undefined) => boolean,
     expected = 0,
 ): Promise<(readonly [string, string, string])[]> {
-    // settle both machines in turn until the placement settles, past the failures a test expects retried
-    let retries = expected;
+    // allow the target's access lag and the longest waits of the retries a test expects
     const universe = source.universe.storage.database;
-    const positions = async () =>
-        JSON.stringify(
-            await Promise.all(
-                [universe, source.database, target.database].map((database) =>
-                    database.log.position(),
-                ),
-            ),
-        );
-    const refused: (readonly [string, string, string])[] = [];
-    let before = await positions();
-    while (!isSettled(await placementOf(universe))) {
-        await source.settle(serving);
-        refused.push(...(await TestSpace.refusals(target.settle(receiving))));
-        const after = await positions();
-
-        // advance past an expected retry of a failed step, else refuse a round that commits nothing
-        if (after === before && retries > 0) {
-            retries -= 1;
-            await target.advance(
-                receiving,
-                target.simulation.clock.now() + FIRST_RETRY_MILLISECONDS,
-            );
-        } else if (after === before) {
-            throw new Error("the move went idle before its placement settled");
-        }
-        before = after;
+    const { simulation } = source;
+    const policy = RetryPolicy.of();
+    let budget = receiving.store.authorizer.lag;
+    for (let failures = 1; failures <= expected; failures += 1) {
+        budget += RetryPolicy.interval(policy, failures, () => 1);
     }
+
+    // run until the placement settles, then take the target's refusals
+    await simulation.until(
+        async () => isSettled(await placementOf(universe)),
+        simulation.clock.now() + budget,
+    );
+    const refused = target.takeRefusals();
 
     // let both machines' directories show the settled placement
     const settled = JSON.stringify(await placementOf(universe));

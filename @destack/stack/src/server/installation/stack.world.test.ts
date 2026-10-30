@@ -36,7 +36,7 @@ import {
     fixtureOutputs,
     readStack,
     reconcile,
-    settle,
+    reconcileAfter,
     TestSpace,
     ids,
 } from "../../test/index.ts";
@@ -56,7 +56,7 @@ const personal = defineStack([], {
     buckets: { files: filesBucket.declare({ retention: { within: { days: 30 } } }) },
 });
 
-/** Submit a build of a manifest to a space's stack, apply it, and settle its installations. */
+/** Submit a build of a manifest to a space's stack, apply it, and reconcile its installations. */
 async function submit(
     fixture: TestSpace,
     store: Pick<ObjectStore, "database" | "as" | "mutate" | "controllers" | "environment">,
@@ -89,10 +89,10 @@ async function submit(
         ],
     });
 
-    // apply it, then settle the installations it changed
+    // apply it, then reconcile the installations it changed
     await reconcile(store, "rollout", { id: (await readStack(store.database)).id });
     const installing = store.controllers().filter((each) => each.name === "rollout");
-    await settle(store.database, installing, before);
+    await reconcileAfter(store.database, installing, before);
 
     return readStack(store.database);
 }
@@ -274,7 +274,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
                 .set({ conditions: condition("Applied", "true") })
                 .where(main),
     );
-    await settle(
+    await reconcileAfter(
         database,
         store.controllers().filter((each) => each.name === "rollout"),
         ready,
@@ -416,7 +416,7 @@ test("replace an installation's own binding once its stack binds the declaration
             },
         },
     });
-    await settle(
+    await reconcileAfter(
         database,
         store.controllers().filter((each) => each.name === "rollout"),
         before,

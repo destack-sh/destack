@@ -27,7 +27,7 @@ test("delete a space at its home once its installations are gone, clearing its b
         id: ids.space,
         requestId: RequestId.create(fixture.universe.environment),
     });
-    await fixture.settle(served);
+    await fixture.simulation.idle();
 
     // remove the installations, the space's replica here and its keys, and its placement and row at the universe, the account's home left
     const installations = await fixture.database
@@ -95,8 +95,7 @@ test("finish removing a deleted space whose row an earlier look already finalize
     isHolding = true;
 
     // remove the space and its row at the universe, then look again while its replica still has the row
-    await served.settle();
-    await fixture.universe.settle();
+    await fixture.simulation.idle();
     const again = await reconcile(served.store, "space", { id: ids.space }).then(
         () => "removed",
         (error: unknown) => (error instanceof Error ? error.message : "unknown"),

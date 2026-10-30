@@ -20,7 +20,7 @@ test("expire a dropped build as builds change, and collect it with its graph onc
     const fixture = await TestSpace.open();
     const { simulation } = fixture;
     const { clock } = simulation;
-    const served = await fixture.serve();
+    await fixture.serve();
     const start = clock.now();
     const recorded = [];
     for (let minor = 0; minor <= RETAINED; minor += 1) {
@@ -56,8 +56,8 @@ test("expire a dropped build as builds change, and collect it with its graph onc
         "the dropped build's graph index",
     );
     const isIndexedWithinLease = await (await fixture.builds()).space.has(attached.digest);
-    await fixture.jump(served, start + LEASE_MILLISECONDS + RETAINED + 1);
-    await fixture.jump(served, start + WEEK_MILLISECONDS);
+    await fixture.simulation.jump(start + LEASE_MILLISECONDS + RETAINED + 1);
+    await fixture.simulation.jump(start + WEEK_MILLISECONDS);
 
     // expire it at once, retain it with its graph through its lease, then collect both
     const { space } = await fixture.builds();
