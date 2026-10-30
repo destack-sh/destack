@@ -145,15 +145,13 @@ test("follow the spaces of an account once the person owns it, and their activit
 
     // let the account's owner make alice an owner of the account too, its home served beside the space
     await fixture.serve(Account.home(fixture.space.account));
-    await fixture.space.simulation.settle(
-        fixture.space.owner.client(objectPackage).relationship.create({
-            scope: fixture.space.owner.id,
-            requestId: RequestId.create(fixture.environment),
-            object: account.reference(fixture.space.owner.id, fixture.space.account),
-            relation: "owner",
-            subject: fixture.subject("alice"),
-        }),
-    );
+    await fixture.space.owner.client(objectPackage).relationship.create({
+        scope: fixture.space.owner.id,
+        requestId: RequestId.create(fixture.environment),
+        object: account.reference(fixture.space.owner.id, fixture.space.account),
+        relation: "owner",
+        subject: fixture.subject("alice"),
+    });
     const owner = await follows();
 
     // follow the space and her personal account's spaces as its guest, then the account's spaces and their activities as their owner

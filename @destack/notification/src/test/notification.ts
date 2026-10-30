@@ -452,13 +452,11 @@ export class TestNotification implements AsyncDisposable {
         profile: { readonly timeZone?: string; readonly locale?: LocaleTag },
     ): Promise<void> {
         const signedIn = this.people[person];
-        await this.space.simulation.settle(
-            signedIn.client(accountPackage).user.update({
-                id: signedIn.id,
-                requestId: RequestId.create(this.environment),
-                ...profile,
-            }),
-        );
+        await signedIn.client(accountPackage).user.update({
+            id: signedIn.id,
+            requestId: RequestId.create(this.environment),
+            ...profile,
+        });
     }
 
     /** Set a person's value of a setting in their own scope, as they choose it. */
@@ -468,17 +466,15 @@ export class TestNotification implements AsyncDisposable {
         value: schema.Infer<Value>,
     ): Promise<void> {
         const signedIn = this.people[person];
-        await this.space.simulation.settle(
-            signedIn.client(settingPackage).setting.create({
-                scope: signedIn.id,
-                packageId: declared.reference.packageId,
-                name: declared.reference.name,
-                mode: "set",
-                value: schema.json().parse(value),
-                release: declared.package.version,
-                requestId: RequestId.create(this.environment),
-            }),
-        );
+        await signedIn.client(settingPackage).setting.create({
+            scope: signedIn.id,
+            packageId: declared.reference.packageId,
+            name: declared.reference.name,
+            mode: "set",
+            value: schema.json().parse(value),
+            release: declared.package.version,
+            requestId: RequestId.create(this.environment),
+        });
     }
 
     /** Read the native client a person signed in with, which shows their desktop notifications. */
@@ -489,14 +485,12 @@ export class TestNotification implements AsyncDisposable {
     /** Sign another desktop client of a person in at their account, answering the client. */
     async desktop(person: Person): Promise<Identifier<"client">> {
         const signedIn = this.people[person];
-        const created = await this.space.simulation.settle(
-            signedIn.client(accountPackage).client.create({
-                userId: signedIn.id,
-                requestId: RequestId.create(this.environment),
-                name: "Desktop",
-                kind: "native",
-            }),
-        );
+        const created = await signedIn.client(accountPackage).client.create({
+            userId: signedIn.id,
+            requestId: RequestId.create(this.environment),
+            name: "Desktop",
+            kind: "native",
+        });
 
         return created.id;
     }
@@ -514,23 +508,19 @@ export class TestNotification implements AsyncDisposable {
         const signedIn = this.people[person];
         const clients = signedIn.client(accountPackage).client;
         const browser = await subscribeBrowser(this.environment);
-        const created = await this.space.simulation.settle(
-            clients.create({
-                userId: signedIn.id,
-                requestId: RequestId.create(this.environment),
-                name: "Browser",
-                kind: "browser",
-            }),
-        );
+        const created = await clients.create({
+            userId: signedIn.id,
+            requestId: RequestId.create(this.environment),
+            name: "Browser",
+            kind: "browser",
+        });
         const url = `${PUSH_ORIGIN}${path}`;
-        await this.space.simulation.settle(
-            clients.subscribe({
-                userId: signedIn.id,
-                id: created.id,
-                requestId: RequestId.create(this.environment),
-                push: { url, keys: browser.keys },
-            }),
-        );
+        await clients.subscribe({
+            userId: signedIn.id,
+            id: created.id,
+            requestId: RequestId.create(this.environment),
+            push: { url, keys: browser.keys },
+        });
 
         return { id: created.id, url, browser };
     }
@@ -538,13 +528,11 @@ export class TestNotification implements AsyncDisposable {
     /** Revoke one of a person's clients at their account, as they sign it out. */
     async revoke(person: Person, id: Identifier<"client">): Promise<void> {
         const signedIn = this.people[person];
-        await this.space.simulation.settle(
-            signedIn.client(accountPackage).client.revoke({
-                userId: signedIn.id,
-                id,
-                requestId: RequestId.create(this.environment),
-            }),
-        );
+        await signedIn.client(accountPackage).client.revoke({
+            userId: signedIn.id,
+            id,
+            requestId: RequestId.create(this.environment),
+        });
     }
 
     /** Read the space's activities, by recipient and creation order. */
@@ -596,12 +584,10 @@ export class TestNotification implements AsyncDisposable {
             }
 
             // let every home's replicas of the space and of each other catch up to their sources
-            await this.space.simulation.settle(
-                TestObjectStore.settleReplicas([
-                    this.served.store,
-                    ...homes.map((home) => home.served.store),
-                ]),
-            );
+            await TestObjectStore.settleReplicas([
+                this.served.store,
+                ...homes.map((home) => home.served.store),
+            ]);
             if ((await this.#positions()) === before) {
                 return;
             }
@@ -619,7 +605,8 @@ export class TestNotification implements AsyncDisposable {
         // jump to a moment before the time, run the rest, then dispatch what fell due
         const catchingUp = Math.max(this.clock.now(), at - CATCH_UP_MILLISECONDS);
         await this.space.simulation.jump(catchingUp);
-        await this.space.simulation.run({ to: at });
+        await this.space.simulation.clock.sleep(at - this.space.simulation.clock.now());
+        await this.space.simulation.idle();
         await this.dispatch();
     }
 

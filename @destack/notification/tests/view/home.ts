@@ -35,10 +35,9 @@ export interface Home {
 
 /** Serve a space where alice mentions bob twice, and open bob's home on a device. */
 export async function openHome(): Promise<Home> {
-    // mention bob in two documents, the world's clock flowing for his device
+    // mention bob in two documents
     const scenario = await TestNotification.open();
     onTestFinished(() => scenario[Symbol.asyncDispose]());
-    scenario.clock.resume();
     const plan = await scenario.call(
         "alice",
         document.call("create", { ...scenario.scope, title: "Launch plan" }),
