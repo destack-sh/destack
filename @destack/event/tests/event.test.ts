@@ -6,7 +6,7 @@ import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { eventSegment } from "../src/archive/catalog.ts";
-import { type EventKind, Histogram, type Series } from "../src/index.ts";
+import { type EventKind, Histogram, OUT_OF_ORDER_MILLISECONDS, type Series } from "../src/index.ts";
 import { TestEventStore, testKind } from "../src/test/index.ts";
 
 /** The package declaring the test kinds. */
@@ -98,30 +98,25 @@ function measured(id: string, minute: number, meter: string, value: number, note
     };
 }
 
+/** Run past an event minute by the out-of-order window, where its events settle. */
+async function pass(fixture: Pick<TestEventStore, "simulation">, minute: number): Promise<void> {
+    await fixture.simulation.run(TEST_START + minute * MINUTE + OUT_OF_ORDER_MILLISECONDS + 1);
+}
+
 /** The microseconds some minutes after the start. */
 function at(minute: number): number {
     return (TEST_START + minute * MINUTE) * 1000;
 }
 
-test("page a scope's events a condition selects in time order, appending one again changing nothing and refusing one with other contents", async () => {
+test("page a scope's events a condition selects in time order", async () => {
     const { store } = await open();
 
-    // append three readings, one of them twice and another scope's once
+    // append three readings of the scope and one of another scope
     await store.append(reading, [
         measured("c", 3, "db.bytes", 30),
         measured("a", 1, "db.bytes", 10),
         measured("b", 2, "bucket.bytes", 20),
-    ]);
-    await store.append(reading, [
-        measured("a", 1, "db.bytes", 10),
         { ...measured("x", 1, "db.bytes", 1), scope: "space-2" },
-    ]);
-
-    // refuse a reading appended again with another value
-    expect(await refusal(store.append(reading, [measured("a", 1, "db.bytes", 99)]))).toEqual([
-        "CONFLICT",
-        "CONTENTS_DIFFER",
-        `event a of ${reading.key} is already stored with other contents`,
     ]);
 
     // read the scope's database readings one per page, then every reading of at least 20
@@ -148,12 +143,12 @@ test("flush a scope's hot events at the row cap into segments that queries read 
     const fixture = await open();
     const { store, database } = fixture;
 
-    // append five readings and flush at the policy's three rows, an hour before any is due by age
+    // append five readings, and flush the policy's three rows once they settle, an hour before any is due by age
     await store.append(
         reading,
         [1, 2, 3, 4, 5].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
     );
-    await fixture.simulation.idle();
+    await pass(fixture, 5);
     const hot = await database.database.select({ id: reading.table.id }).from(reading.table);
     const segments = await database.database.select().from(eventSegment);
 
@@ -186,7 +181,45 @@ test("flush a scope's hot events at the row cap into segments that queries read 
     ]);
 });
 
-test("flush at the row cap across single appends, counting them between reconciles", async () => {
+test("store an event once while it is within the out-of-order window, a row cap flush taking only settled ones", async () => {
+    const fixture = await open();
+    const { store, database } = fixture;
+
+    // append four readings, and flush the first three once they settle, the fourth still within the window
+    await store.append(
+        reading,
+        [1, 2, 3, 4].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
+    );
+    await pass(fixture, 3);
+
+    // repeat the fourth with another value, then unchanged
+    const changed = await refusal(store.append(reading, [measured("r4", 4, "db.bytes", 99)]));
+    await store.append(reading, [measured("r4", 4, "db.bytes", 4)]);
+
+    // keep each reading once, the repeated one unchanged
+    const page = await store.query(reading, { scopes: ["space-1"] });
+    const segments = await database.database.select().from(eventSegment);
+    expect({
+        changed,
+        segments: segments.map((segment) => segment.rows),
+        events: page.events.map((event) => [event.id, event.keys.value]),
+    }).toEqual({
+        changed: [
+            "CONFLICT",
+            "CONTENTS_DIFFER",
+            `event r4 of ${reading.key} is already stored with other contents`,
+        ],
+        segments: [3],
+        events: [
+            ["r1", 1],
+            ["r2", 2],
+            ["r3", 3],
+            ["r4", 4],
+        ],
+    });
+});
+
+test("flush at the row cap across single appends once a full segment settles", async () => {
     const fixture = await open();
     const { store, database } = fixture;
 
@@ -198,11 +231,24 @@ test("flush at the row cap across single appends, counting them between reconcil
         const rows = await database.database.select({ id: reading.table.id }).from(reading.table);
         hot.push(rows.map((row) => row.id).toSorted());
     }
-    const segments = await database.database.select().from(eventSegment);
 
-    // flush the first three once the third arrives, leaving the next two hot
-    expect({ hot, segments: segments.map((segment) => segment.rows) }).toEqual({
-        hot: [["r1"], ["r1", "r2"], [], ["r4"], ["r4", "r5"]],
+    // flush the first three once they settle, leaving the next two hot
+    await pass(fixture, 5);
+    const rows = await database.database.select({ id: reading.table.id }).from(reading.table);
+    const segments = await database.database.select().from(eventSegment);
+    expect({
+        hot,
+        settled: rows.map((row) => row.id).toSorted(),
+        segments: segments.map((segment) => segment.rows),
+    }).toEqual({
+        hot: [
+            ["r1"],
+            ["r1", "r2"],
+            ["r1", "r2", "r3"],
+            ["r1", "r2", "r3", "r4"],
+            ["r1", "r2", "r3", "r4", "r5"],
+        ],
+        settled: ["r4", "r5"],
         segments: [3],
     });
 });
@@ -610,7 +656,7 @@ test("lock a locked kind's segments for its retention, chained by digest and nev
     const fixture = await open([call]);
     const { store, database, bucket } = fixture;
 
-    // flush two segments of two calls each
+    // flush two segments of two calls each as they settle
     await store.append(
         call,
         [1, 2, 3, 4].map((minute) => ({
@@ -621,7 +667,7 @@ test("lock a locked kind's segments for its retention, chained by digest and nev
             data: {},
         })),
     );
-    await fixture.simulation.idle();
+    await pass(fixture, 4);
     const segments = await database.database.select().from(eventSegment).orderBy(eventSegment.from);
     const [first, second] = segments;
 
@@ -636,7 +682,13 @@ test("lock a locked kind's segments for its retention, chained by digest and nev
         first?.previous,
         deleting === "deleted",
         (await bucket.head(first?.file ?? ""))?.retainUntil?.getTime(),
-    ]).toEqual([2, true, null, false, TEST_START + 365 * DAY]);
+    ]).toEqual([
+        2,
+        true,
+        null,
+        false,
+        TEST_START + 2 * MINUTE + OUT_OF_ORDER_MILLISECONDS + 1 + 365 * DAY,
+    ]);
 });
 
 test("compact an unlocked kind's small segments and expire them past the retention their scope reads", async () => {
@@ -655,10 +707,10 @@ test("compact an unlocked kind's small segments and expire them past the retenti
     await fixture.simulation.jump(TEST_START);
     const { store, database } = fixture;
 
-    // flush one reading at a time as each comes due by age
+    // flush one reading at a time as each settles past its age
     for (const minute of [1, 2, 3]) {
         await store.append(scoped, [measured(`r${String(minute)}`, minute, "db.bytes", minute)]);
-        await fixture.simulation.jump(TEST_START + (minute + 1) * MINUTE);
+        await pass(fixture, minute);
     }
     const compacted = await database.database
         .select()

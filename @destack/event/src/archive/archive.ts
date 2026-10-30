@@ -104,11 +104,22 @@ export class EventArchive {
             return { isDue: false, at: undefined, events: 0 };
         }
 
-        // flush at the age or the count the kind's policy sets
+        // read the time of a full segment's last event, absent below the row cap
         const { flush } = kind.policy;
-        const at = EventTime.milliseconds(oldest) + flush.maxAge;
+        const [last] = await this.#database
+            .select({ time: kind.table.time })
+            .from(kind.table)
+            .where(eq(kind.table.scope, scope))
+            .orderBy(asc(kind.table.time), asc(kind.table.id))
+            .limit(1)
+            .offset(flush.maxRows - 1);
 
-        return { isDue: held.events >= flush.maxRows || at <= now, at, events: held.events };
+        // flush at the oldest's age or once a full segment settled, never before the oldest settled
+        const aged = EventTime.milliseconds(oldest) + flush.maxAge;
+        const full = last === undefined ? aged : EventTime.settled(last.time);
+        const at = Math.max(Math.min(aged, full), EventTime.settled(oldest));
+
+        return { isDue: at <= now, at, events: held.events };
     }
 
     /** Flush a scope's oldest hot events into a verified, catalogued segment. */
@@ -118,7 +129,7 @@ export class EventArchive {
         const rows = await this.#database
             .select()
             .from(kind.table)
-            .where(eq(kind.table.scope, scope))
+            .where(and(eq(kind.table.scope, scope), lt(kind.table.time, EventTime.horizon(now))))
             .orderBy(asc(kind.table.time), asc(kind.table.id))
             .limit(flush.maxRows);
         const events = rows.map((row) => kind.event(row));

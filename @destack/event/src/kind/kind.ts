@@ -6,6 +6,9 @@ import { Histogram } from "./histogram.ts";
 /** The microseconds in a millisecond, the unit of event times. */
 const MICROSECONDS_PER_MILLISECOND = 1000;
 
+/** How far behind newer events an event may arrive: writers' races and client retries. */
+export const OUT_OF_ORDER_MILLISECONDS = 5 * 60_000;
+
 /** The digest bytes of an event's identity: 128 bits, as unlikely to collide as a UUID. */
 const IDENTITY_BYTES = 16;
 
@@ -51,6 +54,16 @@ export const EventTime = {
     /** Convert an event time to Unix milliseconds, rounding down. */
     milliseconds(time: number): number {
         return Math.floor(time / MICROSECONDS_PER_MILLISECOND);
+    },
+
+    /** Read the millisecond an event time leaves the out-of-order window. */
+    settled(time: number): number {
+        return EventTime.milliseconds(time) + OUT_OF_ORDER_MILLISECONDS + 1;
+    },
+
+    /** Read the event time before which events left the out-of-order window at a moment. */
+    horizon(now: number): number {
+        return EventTime.of(now - OUT_OF_ORDER_MILLISECONDS);
     },
 };
 
