@@ -96,8 +96,8 @@ export class EventFixture implements AsyncDisposable {
     readonly store: EventStore;
     /** The test database that stores the hot events, the catalog and people's keys. */
     readonly database: TestDatabase;
-    /** The clock the database, the controllers and the bucket's locks read, which tests set. */
-    readonly clock: SimulatedClock;
+    /** The world the database, the controllers and the bucket's locks run in, which tests jump. */
+    readonly simulation: Simulation;
     /** The memory bucket that stores the segments, its locks on the fixture's clock. */
     readonly bucket: MemoryBucket;
     /** The telemetry that records the exceptions the store captures. */
@@ -113,14 +113,14 @@ export class EventFixture implements AsyncDisposable {
     private constructor(
         open: (fixture: EventFixture) => EventStore,
         database: TestDatabase,
-        clock: SimulatedClock,
+        simulation: Simulation,
         telemetry: TestTelemetry,
     ) {
-        // store the database, clock and telemetry, then open the store on the fixture's bucket
+        // store the database, world and telemetry, then open the store on the fixture's bucket
         this.database = database;
-        this.clock = clock;
+        this.simulation = simulation;
         this.telemetry = telemetry;
-        this.bucket = new MemoryBucket(clock);
+        this.bucket = new MemoryBucket(simulation.clock);
         this.store = open(this);
     }
 
@@ -133,7 +133,6 @@ export class EventFixture implements AsyncDisposable {
         const tables = [...eventTables(kinds), ...ControlLoop.tables];
         const simulation = new Simulation({ seed: 1, start: START });
         const environment = simulation.environment("events");
-        const { clock } = simulation;
         const database = await TestDatabase.create(tables, { environment });
         await database.database.migrate(tables);
         const keyring = await LocalKeyring.read(LocalKeyring.generate(environment), environment);
@@ -150,9 +149,14 @@ export class EventFixture implements AsyncDisposable {
                     clock: fixture.clock,
                 }),
             database,
-            clock,
+            simulation,
             new TestTelemetry(simulation.telemetry),
         );
+    }
+
+    /** The clock of the fixture's world. */
+    get clock(): SimulatedClock {
+        return this.simulation.clock;
     }
 
     /** Run the store's controllers in a control loop until they settle, failing on their errors. */
@@ -178,11 +182,12 @@ export class EventFixture implements AsyncDisposable {
 
     /** Stop the control loop, then close the database. */
     async [Symbol.asyncDispose](): Promise<void> {
-        // stop the loop, then close the database and the telemetry
+        // stop the loop, then close the database, the telemetry and the world
         this.#stop.abort();
         await this.#controlled?.running;
         await this.database.close();
         this.telemetry[Symbol.dispose]();
+        await this.simulation[Symbol.asyncDispose]();
     }
 }
 

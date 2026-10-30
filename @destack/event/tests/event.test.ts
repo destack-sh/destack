@@ -82,7 +82,7 @@ const MISSING_LINE_TABLE = {
 async function open(kinds: readonly EventKind[] = [reading]) {
     const fixture = await EventFixture.open(kinds);
     onTestFinished(() => fixture[Symbol.asyncDispose]());
-    fixture.clock.set(TEST_START);
+    await fixture.simulation.jump(TEST_START);
 
     return fixture;
 }
@@ -306,7 +306,7 @@ test("sweep a scope's segment files without a catalog row once an hour old, dail
     await bucket.put(`${directory}/orphan.parquet`, "lost");
 
     // advance a day, leave a fresh uncatalogued file as a write in flight, then sweep
-    fixture.clock.set(TEST_START + DAY);
+    await fixture.simulation.jump(TEST_START + DAY);
     await bucket.put(`${directory}/inflight.parquet`, "writing");
     await fixture.settle();
 
@@ -652,13 +652,13 @@ test("compact an unlocked kind's small segments and expire them past the retenti
         setting === KEEP && owner.id === meters.id && scope === "space-1" ? 2 * DAY : DAY,
     );
     onTestFinished(() => fixture[Symbol.asyncDispose]());
-    fixture.clock.set(TEST_START);
+    await fixture.simulation.jump(TEST_START);
     const { store, database } = fixture;
 
     // flush one reading at a time as each comes due by age
     for (const minute of [1, 2, 3]) {
         await store.append(scoped, [measured(`r${String(minute)}`, minute, "db.bytes", minute)]);
-        fixture.clock.set(TEST_START + (minute + 1) * MINUTE);
+        await fixture.simulation.jump(TEST_START + (minute + 1) * MINUTE);
         await fixture.settle();
     }
     const compacted = await database.database
@@ -668,7 +668,7 @@ test("compact an unlocked kind's small segments and expire them past the retenti
     const read = await store.query(scoped, { scopes: ["space-1"] });
 
     // three days later every segment is past the scope's retention
-    fixture.clock.set(TEST_START + 3 * DAY);
+    await fixture.simulation.jump(TEST_START + 3 * DAY);
     await fixture.settle();
     expect([
         compacted.map((segment) => segment.rows),
