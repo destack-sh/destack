@@ -137,6 +137,12 @@ const CONSTRUCTORS = new Map([
     ["BroadcastChannel", "a capability of the environment"],
 ]);
 
+/** The host's stream pipes, outside a world's scheduler, and the pipes taking their place. */
+const PIPES = new Map([
+    ["pipeThrough", "Pipe.through"],
+    ["pipeTo", "Pipe.to"],
+]);
+
 /** The formatting methods that read the host's locale without one. */
 const FORMATTING = new Set(["toLocaleString", "toLocaleDateString", "toLocaleTimeString"]);
 
@@ -255,9 +261,19 @@ export const noAmbientEffect: Rule = {
                 }
             },
             MemberExpression(node) {
-                // read a host global's member by any spelling
+                // report a host pipe on any stream
                 const { object } = node;
                 const member = memberName(node);
+                const pipe = member === undefined ? undefined : PIPES.get(member);
+                if (pipe !== undefined) {
+                    context.report({
+                        node,
+                        messageId: "effect",
+                        data: { name: `.${String(member)}`, replacement: pipe },
+                    });
+                }
+
+                // read a host global's member by any spelling
                 if (object.type !== "Identifier" || member === undefined) {
                     return;
                 }

@@ -319,6 +319,7 @@ tester.run("deterministic-handler", rules["deterministic-handler"], {
 
 tester.run("no-ambient-effect", rules["no-ambient-effect"], {
     valid: [
+        { code: "const counted = body.pipeThrough(counting);", filename: ENVIRONMENT_HOST },
         { code: 'import { validate } from "uuid";', filename: SOURCE },
         { code: "const answer = await environment.network.fetch(request);", filename: SOURCE },
         {
@@ -361,6 +362,17 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
         },
     ],
     invalid: [
+        {
+            code: "const counted = body.pipeThrough(counting);\nawait body.pipeTo(writable);",
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: { name: ".pipeThrough", replacement: "Pipe.through" },
+                },
+                { messageId: "effect", data: { name: ".pipeTo", replacement: "Pipe.to" } },
+            ],
+        },
         {
             code: "const active = context.active();\nconst span = trace.getActiveSpan();",
             filename: SOURCE,
