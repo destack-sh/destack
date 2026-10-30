@@ -84,7 +84,7 @@ export class Sandbox implements AsyncDisposable {
         );
         try {
             configure(launcher, options, watched.ready);
-            await watched.ready.promise;
+            await environment.clock.trackHost(watched.ready.promise);
 
             // expose failures after startup through the public completion promise
             return new Sandbox(launcher, watched, closed.then(watched.outcome));
