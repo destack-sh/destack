@@ -385,12 +385,12 @@ async function extractArchive(
         parser.on("error", fail);
     });
 
-    // stream the archive into the parser with backpressure
+    // stream the archive into the parser with backpressure, its drain waiting on the world's writes
     await using handle = await files.open(archive, { read: true });
     for await (const chunk of handle.readable()) {
         const bytes = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
         if (!parser.write(bytes)) {
-            await clock.trackHost(
+            await clock.trackPeer(
                 new Promise<void>((drained) => {
                     parser.once("drain", drained);
                 }),
@@ -398,7 +398,7 @@ async function extractArchive(
         }
     }
     parser.end();
-    await clock.trackHost(parsed);
+    await clock.trackPeer(parsed);
     await written;
 
     // refuse the first unsafe entry once the archive drained
