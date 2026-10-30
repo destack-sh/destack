@@ -2,6 +2,7 @@ import { SimulatedClock } from "@destack/environment/simulation";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { TestDatabase } from "../test/database.ts";
+import { environmentOn } from "../test/environment.ts";
 import { PostgresPool } from "./pool.ts";
 
 /** A start time for the simulated clocks. */
@@ -18,18 +19,18 @@ function openPool(): PostgresPool {
     return pool;
 }
 
-test("refuse a reservation while the clock's own work keeps every connection past the wait, then reserve the released one", async () => {
-    // reserve the one connection, then wait past the wait for another on the same clock
+test("refuse a reservation while the world's own work keeps every connection past the wait, then reserve the released one", async () => {
+    // reserve the one connection, then wait past the wait for another in the same world
     const pool = openPool();
-    const clock = new SimulatedClock(START);
-    const held = await pool.reserve(clock, SCHEMA);
-    const waiting = pool.reserve(clock, SCHEMA);
-    clock.advance(50);
+    const environment = environmentOn(new SimulatedClock(START));
+    const held = await pool.reserve(environment, SCHEMA);
+    const waiting = pool.reserve(environment, SCHEMA);
+    environment.clock.advance(50);
     const refused = await refusal(waiting);
 
     // reserve again once the connection is released
     pool.release(held.sql);
-    const again = await pool.reserve(clock, SCHEMA);
+    const again = await pool.reserve(environment, SCHEMA);
     pool.release(again.sql);
     expect(refused).toEqual([
         "SERVICE_UNAVAILABLE",
@@ -38,35 +39,35 @@ test("refuse a reservation while the clock's own work keeps every connection pas
     ]);
 });
 
-test("count a wait behind another clock's connection as host work, reserving it once released", async () => {
-    // reserve the one connection on one clock, then wait for it on another
+test("count a wait behind another world's connection as peer work, reserving it once released", async () => {
+    // reserve the one connection in one world, then wait for it in another
     const pool = openPool();
-    const holder = new SimulatedClock(START);
-    const waiter = new SimulatedClock(START);
+    const holder = environmentOn(new SimulatedClock(START));
+    const waiter = environmentOn(new SimulatedClock(START));
     const held = await pool.reserve(holder, SCHEMA);
     const waiting = pool.reserve(waiter, SCHEMA);
-    const whileWaiting = waiter.hostInFlight;
+    const whileWaiting = kinds(waiter.scheduler.pending());
 
-    // release it to the waiting clock, which then has no host work in flight
+    // release it to the waiting world, which then has no work in flight
     pool.release(held.sql);
     const reserved = await waiting;
-    const afterwards = waiter.hostInFlight;
+    const afterwards = kinds(waiter.scheduler.pending());
     pool.release(reserved.sql);
-    expect([whileWaiting, afterwards]).toEqual([1, 0]);
+    expect([whileWaiting, afterwards]).toEqual([["peer"], []]);
 });
 
-test("end a timed-out wait behind another clock's connection as host work, leaving the queue", async () => {
-    // wait past the wait for the one connection another clock holds
+test("end a timed-out wait behind another world's connection as peer work, leaving the queue", async () => {
+    // wait past the wait for the one connection another world holds
     const pool = openPool();
-    const holder = new SimulatedClock(START);
-    const waiter = new SimulatedClock(START);
+    const holder = environmentOn(new SimulatedClock(START));
+    const waiter = environmentOn(new SimulatedClock(START));
     const held = await pool.reserve(holder, SCHEMA);
     const waiting = pool.reserve(waiter, SCHEMA);
-    waiter.advance(50);
+    waiter.clock.advance(50);
     const refused = await refusal(waiting);
 
-    // leave no host work in flight, and give the released connection to the next reservation
-    const afterwards = waiter.hostInFlight;
+    // leave no work in flight, and give the released connection to the next reservation
+    const afterwards = kinds(waiter.scheduler.pending());
     pool.release(held.sql);
     const next = await pool.reserve(holder, SCHEMA);
     pool.release(next.sql);
@@ -76,15 +77,15 @@ test("end a timed-out wait behind another clock's connection as host work, leavi
             "CONNECTION_TIMEOUT",
             "waited 50 ms for a connection: every one is in a transaction",
         ],
-        afterwards: 0,
+        afterwards: [],
     });
 });
 
 test("refuse releasing a connection the pool did not reserve or already took back", async () => {
     // release a reserved connection twice
     const pool = openPool();
-    const clock = new SimulatedClock(START);
-    const reserved = await pool.reserve(clock, SCHEMA);
+    const environment = environmentOn(new SimulatedClock(START));
+    const reserved = await pool.reserve(environment, SCHEMA);
     pool.release(reserved.sql);
     expect(() => pool.release(reserved.sql)).toThrow(
         new TypeError("the connection is not reserved from this pool"),
@@ -94,9 +95,9 @@ test("refuse releasing a connection the pool did not reserve or already took bac
 test("set a connection's search path to the schema it is reserved in, and again once the schema changes", async () => {
     // reserve the one connection in two schemas in turn, reading its search path each time
     const pool = openPool();
-    const clock = new SimulatedClock(START);
+    const environment = environmentOn(new SimulatedClock(START));
     const searchPath = async (schema: string) => {
-        const { sql, ready } = await pool.reserve(clock, schema);
+        const { sql, ready } = await pool.reserve(environment, schema);
         try {
             await ready;
             const [row] = await sql`SHOW search_path`;
@@ -112,3 +113,8 @@ test("set a connection's search path to the schema it is reserved in, and again 
         await searchPath("pool_other"),
     ]).toEqual([SCHEMA, SCHEMA, "pool_other"]);
 });
+
+/** Read who finishes each work in flight. */
+function kinds(pending: readonly string[]): string[] {
+    return pending.map((line) => line.split(" ")[0] ?? "");
+}

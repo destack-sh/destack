@@ -150,7 +150,7 @@ export class DurableObjectQuery implements SqliteQueryClient {
     #schedule<Value>(work: () => Promise<Value>): Promise<Value> {
         // queue the work of a queued client
         if (this.mode.kind === "queued") {
-            return this.host.queue.run(work, this.host.environment.clock);
+            return this.host.queue.run(work, this.host.environment);
         }
         // run a joined client's work within its open transaction
         else {
@@ -165,7 +165,7 @@ export class DurableObjectClient extends DurableObjectQuery implements SqliteCon
     async close(): Promise<void> {
         // wait for the queued work of a queued client
         if (this.mode.kind === "queued") {
-            await this.host.queue.run(async () => undefined, this.host.environment.clock);
+            await this.host.queue.run(async () => undefined, this.host.environment);
         }
     }
 

@@ -282,7 +282,6 @@ test("count a commit in flight until a watching connection receives it, though i
 test("send a listening writer's commit token in its commit notification, counted in flight until delivered, and none for a rolled back or unlogged transaction", async () => {
     // open a database on a simulated clock whose commit watch listens, and a second listener
     const simulation = testSimulation();
-    const { clock } = simulation;
     const environment = simulation.environment("store");
     const storage = await TestDatabase.create([note], { environment, isMigrated: true });
     onTestFinished(() => storage.close());
@@ -331,7 +330,7 @@ test("send a listening writer's commit token in its commit notification, counted
     expect({
         refused,
         received: [{ ...announced, token: UUID.test(announced.token) }, ...received.slice(1)],
-        inFlight: clock.inFlight,
+        inFlight: simulation.scheduler.inFlight,
     }).toEqual({
         refused: "roll back",
         received: [{ kind: "commit", tables: [note[TABLE].sqlName], sequence: 1, token: true }],

@@ -540,7 +540,10 @@ export class DatabaseConnection<
 export type Locality = "embedded" | "networked";
 
 /** The effects a connection runs on: its clock, randomness, crypto and telemetry. */
-export type DatabaseEnvironment = Pick<Environment, "clock" | "crypto" | "random" | "telemetry">;
+export type DatabaseEnvironment = Pick<
+    Environment,
+    "clock" | "scheduler" | "crypto" | "random" | "telemetry"
+>;
 
 /** How a physical connection runs: where, over which channels, and who announces commits. */
 export interface ConnectionOptions {
@@ -805,14 +808,12 @@ export class ConnectionState {
         return this.#tracker;
     }
 
-    /** Stop submissions, drain work, and close the client once. */
+    /** Stop submissions, drain work, and close the client once, tracking each host wait. */
     close(operation: () => Promise<void>): Promise<void> {
-        this.#closing ??= this.clock.trackPeer(
-            Promise.all(this.#pending)
-                .then(() => this.#tracker?.close())
-                .then(() => this.commits.stop())
-                .then(operation),
-        );
+        this.#closing ??= Promise.all(this.#pending)
+            .then(() => this.#tracker?.close())
+            .then(() => this.commits.stop())
+            .then(operation);
 
         return this.#closing;
     }

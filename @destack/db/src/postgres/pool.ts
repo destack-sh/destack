@@ -1,4 +1,5 @@
-import type { Clock, Environment } from "@destack/environment";
+import type { DatabaseEnvironment } from "../database/connection.ts";
+import type { Environment, Scheduler } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import postgres from "postgres";
@@ -41,8 +42,8 @@ export class PostgresPool {
     readonly #waiters: ((sql: postgres.Sql) => void)[] = [];
     /** The search path each connection has set, unknown after a change failed. */
     readonly #schemas = new Map<postgres.Sql, string | undefined>();
-    /** The clock of the work each reserved connection serves, until released. */
-    readonly #holders = new Map<postgres.Sql, Clock>();
+    /** The world each reserved connection serves, by its scheduler, until released. */
+    readonly #holders = new Map<postgres.Sql, Scheduler>();
     /** The callbacks of each listening party, called whenever the listening connection closes. */
     readonly #closings = new Set<() => void>();
 
@@ -90,9 +91,12 @@ export class PostgresPool {
     }
 
     /** Reserve an idle connection for work in a schema, failing once none frees within the wait. */
-    async reserve(clock: Clock, schema: string): Promise<PostgresReservation> {
-        // take a connection for the clock's work
-        const sql = await this.#take(clock);
+    async reserve(
+        environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
+        schema: string,
+    ): Promise<PostgresReservation> {
+        // take a connection for the environment's work
+        const sql = await this.#take(environment);
 
         // set the connection's search path once it changes, forgetting it should the change fail
         if (this.#schemas.get(sql) === schema) {
@@ -123,8 +127,11 @@ export class PostgresPool {
     }
 
     /** Run work that reads and writes no table, such as a notification, in any schema. */
-    async run<Value>(clock: Clock, work: (sql: postgres.Sql) => Promise<Value>): Promise<Value> {
-        const sql = await this.#take(clock);
+    async run<Value>(
+        environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
+        work: (sql: postgres.Sql) => Promise<Value>,
+    ): Promise<Value> {
+        const sql = await this.#take(environment);
         try {
             return await work(sql);
         } finally {
@@ -144,22 +151,27 @@ export class PostgresPool {
         await Promise.all([...this.#connections, this.listener].map((sql) => sql.end()));
     }
 
-    /** Take an idle connection for work on a clock, else wait for a release. */
-    async #take(clock: Clock): Promise<postgres.Sql> {
-        const sql = this.#idle.pop() ?? (await this.#waitForRelease(clock));
-        this.#holders.set(sql, clock);
+    /** Take an idle connection for an environment's work, else wait for a release. */
+    async #take(
+        environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
+    ): Promise<postgres.Sql> {
+        const sql = this.#idle.pop() ?? (await this.#waitForRelease(environment));
+        this.#holders.set(sql, environment.scheduler);
 
         return sql;
     }
 
-    /** Wait for a released connection on a clock, failing once none comes within the wait. */
-    async #waitForRelease(clock: Clock): Promise<postgres.Sql> {
-        // queue the wait, counting it as host work while other clocks' work has connections
+    /** Wait for a released connection, failing once none comes within the wait. */
+    async #waitForRelease(
+        environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
+    ): Promise<postgres.Sql> {
+        // queue the wait, counting it as peer work while other worlds' work has connections
+        const { clock, scheduler } = environment;
         const released = Promise.withResolvers<postgres.Sql>();
         const ended = Promise.withResolvers<void>();
         this.#waiters.push(released.resolve);
-        if ([...this.#holders.values()].some((holder) => holder !== clock)) {
-            void clock.trackPeer(ended.promise);
+        if ([...this.#holders.values()].some((holder) => holder !== scheduler)) {
+            void scheduler.track(ended.promise, "peer");
         }
         try {
             // race the release against the wait on the clock

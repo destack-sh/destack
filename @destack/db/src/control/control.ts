@@ -8,7 +8,7 @@ import { found, nth, Uuid } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { Failure } from "@destack/error";
-import { RetryPolicy, until, yieldToEventLoop, Clock } from "@destack/environment";
+import { RetryPolicy, until, Clock } from "@destack/environment";
 import type { Alarm } from "./alarm.ts";
 
 /** The tracker topic a loop announces releasing its locks on. */
@@ -180,7 +180,7 @@ export class ControlLoop {
     #releases = 0;
     /** The host's wake-up for the earliest due key. */
     readonly #alarm?: Alarm;
-    /** The clock keys come due at. */
+    /** The clock keys come due at, the database's. */
     readonly #clock: Clock;
     /** How long a key may fail transiently before its failures are reported. */
     readonly #transientFor: number;
@@ -220,8 +220,6 @@ export class ControlLoop {
             readonly retry?: Partial<RetryPolicy>;
             /** Set a wake-up for the earliest due key, so an evicted instance runs it. */
             readonly alarm?: Alarm;
-            /** The clock keys come due at. */
-            readonly clock: Clock;
             /** How long a key may fail transiently before reporting. */
             readonly transientFor?: number;
         },
@@ -244,7 +242,7 @@ export class ControlLoop {
             options.report(controller, key, error);
         };
         this.#retry = { ...RETRY, ...options.retry };
-        this.#clock = options.clock;
+        this.#clock = database.state.environment.clock;
         this.#transientFor = options.transientFor ?? TRANSIENT_REPORT_MILLISECONDS;
         if (options.alarm !== undefined) {
             this.#alarm = options.alarm;
@@ -440,7 +438,7 @@ export class ControlLoop {
                     // record the consumed sequence for idle waiters, and let other tasks run
                     this.#followed = Math.max(this.#followed, page.sequence);
                     this.#wake();
-                    await this.#clock.trackHost(yieldToEventLoop());
+                    await this.database.state.environment.scheduler.yield();
                 }
 
                 // list the watching controllers again once an idle check asked
@@ -635,7 +633,7 @@ export class ControlLoop {
                 await this.#schedule(this.#busy);
 
                 // let other tasks run before the next key
-                await this.#clock.trackHost(yieldToEventLoop());
+                await this.database.state.environment.scheduler.yield();
             }
             // set the wake-up due while keys run, or at the next key
             else {

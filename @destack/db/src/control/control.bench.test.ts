@@ -87,7 +87,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
         }
     })();
     const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], { clock, report: fail });
+    const loop = new ControlLoop(database, [controller], { report: fail });
     const start = clock.now();
     const running = loop.run(stopping.signal);
     await done.promise;

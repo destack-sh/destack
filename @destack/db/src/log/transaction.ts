@@ -100,7 +100,9 @@ export class TransactionIdentity {
             (isLogged) => (isLogged ? token.delivered : commits.forget(token.value)),
             () => commits.forget(token.value),
         );
-        void this.#connection.clock.trackPeer(delivered).catch(() => commits.forget(token.value));
+        void this.#connection.environment.scheduler
+            .track(delivered, "peer")
+            .catch(() => commits.forget(token.value));
     }
 
     /** Stop waiting for the token of a transaction that rolled back. */

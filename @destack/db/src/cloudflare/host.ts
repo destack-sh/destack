@@ -183,7 +183,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             } finally {
                 transaction.close();
             }
-        }, this.environment.clock);
+        }, this.environment);
     }
 
     /** Open a database of the storage whose statements run in a mode. */
@@ -247,7 +247,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             for (const name of await this.relations(namespace)) {
                 this.storage.sql.exec(`DROP TABLE IF EXISTS "${name.replaceAll('"', '""')}"`);
             }
-        }, this.environment.clock);
+        }, this.environment);
     }
 
     /** Diff the applied state against the desired states. */

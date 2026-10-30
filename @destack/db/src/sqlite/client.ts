@@ -1,4 +1,5 @@
-import type { Clock } from "@destack/environment";
+import type { DatabaseEnvironment } from "../database/connection.ts";
+import type { Scheduler } from "@destack/environment";
 import { DatabaseError } from "../error/error.ts";
 import type { DriverValue } from "../table/column.ts";
 
@@ -47,10 +48,10 @@ export class SqliteWorkQueue {
     #tail: Promise<unknown> = Promise.resolve();
     /** The work queued or running now. */
     #pending = 0;
-    /** The clock of the work running now and its end, absent while none runs. */
-    #running: { readonly clock: Clock; readonly settled: Promise<unknown> } | undefined;
-    /** The clocks of the work waiting for its turn, with how much of each waits. */
-    readonly #waiting = new Map<Clock, number>();
+    /** The world of the work running now, by its scheduler, and its end, absent while none runs. */
+    #running: { readonly scheduler: Scheduler; readonly settled: Promise<unknown> } | undefined;
+    /** The worlds waiting for a turn, by their schedulers, with how much of each waits. */
+    readonly #waiting = new Map<Scheduler, number>();
 
     /** Queue work, failing work whose turn does not come within the wait. */
     constructor(wait = TURN_WAIT_MILLISECONDS) {
@@ -58,11 +59,15 @@ export class SqliteWorkQueue {
     }
 
     /** Run work after the earlier work, refusing it once its turn outlasts the wait. */
-    run<Value>(work: () => Promise<Value>, clock: Clock): Promise<Value> {
+    run<Value>(
+        work: () => Promise<Value>,
+        environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
+    ): Promise<Value> {
         // run work at once on an idle queue, and wait a bounded time behind earlier work
         const turn = this.#tail;
-        const start = () => this.#start(work, clock);
-        const result = this.#pending === 0 ? turn.then(start) : this.#waited(turn, start, clock);
+        const start = () => this.#start(work, environment.scheduler);
+        const result =
+            this.#pending === 0 ? turn.then(start) : this.#waited(turn, start, environment);
         this.#pending += 1;
 
         // queue later work behind both the earlier work and this one
@@ -78,15 +83,15 @@ export class SqliteWorkQueue {
         return result;
     }
 
-    /** Start work in its turn, counting it as host work on every other clock waiting behind it. */
-    #start<Value>(work: () => Promise<Value>, clock: Clock): Promise<Value> {
-        // run the work, remembering its clock until it ends
+    /** Start work in its turn, counting it as peer work in every other world waiting behind it. */
+    #start<Value>(work: () => Promise<Value>, scheduler: Scheduler): Promise<Value> {
+        // run the work, remembering its world until it ends
         const running = work();
         const settled = running.then(
             () => undefined,
             () => undefined,
         );
-        this.#running = { clock, settled };
+        this.#running = { scheduler, settled };
         void settled.then(() => {
             if (this.#running?.settled === settled) {
                 this.#running = undefined;
@@ -95,8 +100,8 @@ export class SqliteWorkQueue {
 
         // keep the other worlds waiting for the file from moving time past it
         for (const waiting of this.#waiting.keys()) {
-            if (waiting !== clock) {
-                void waiting.trackPeer(settled);
+            if (waiting !== scheduler) {
+                void waiting.track(settled, "peer");
             }
         }
 
@@ -107,13 +112,14 @@ export class SqliteWorkQueue {
     #waited<Value>(
         turn: Promise<unknown>,
         start: () => Promise<Value>,
-        clock: Clock,
+        environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
     ): Promise<Value> {
-        // count the wait as host work while another world's work runs ahead
-        this.#waiting.set(clock, (this.#waiting.get(clock) ?? 0) + 1);
+        // count the wait as peer work while another world's work runs ahead
+        const { clock, scheduler } = environment;
+        this.#waiting.set(scheduler, (this.#waiting.get(scheduler) ?? 0) + 1);
         const running = this.#running;
-        if (running !== undefined && running.clock !== clock) {
-            void clock.trackPeer(running.settled);
+        if (running !== undefined && running.scheduler !== scheduler) {
+            void scheduler.track(running.settled, "peer");
         }
 
         // race the turn against the wait on the clock, which the turn stops
@@ -132,7 +138,7 @@ export class SqliteWorkQueue {
             ),
         ]).finally(() => {
             stop.abort();
-            this.#leave(clock);
+            this.#leave(scheduler);
         });
 
         // run the work in its turn, or refuse it
@@ -148,13 +154,13 @@ export class SqliteWorkQueue {
         });
     }
 
-    /** Stop counting one piece of a clock's waiting work. */
-    #leave(clock: Clock): void {
-        const count = (this.#waiting.get(clock) ?? 0) - 1;
+    /** Stop counting one piece of a world's waiting work. */
+    #leave(scheduler: Scheduler): void {
+        const count = (this.#waiting.get(scheduler) ?? 0) - 1;
         if (count === 0) {
-            this.#waiting.delete(clock);
+            this.#waiting.delete(scheduler);
         } else {
-            this.#waiting.set(clock, count);
+            this.#waiting.set(scheduler, count);
         }
     }
 }

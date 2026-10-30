@@ -60,24 +60,27 @@ export class PostgresDatabase<
     ) {
         // read how the connection writes, and declare the tables with their tree tables
         const { writers = "shared", schema, environment } = options;
-        const { clock } = environment;
         const declared = "tables" in tables ? tables.tables : expandTrees(tables);
         requireDistinct(declared, "postgresql");
 
         // key each channel by the database's schema, as the log's notifications do
         let hashed: Promise<string> | undefined;
         const channel = (name: string) => {
-            hashed ??= clock.trackPeer(
+            hashed ??= environment.scheduler.track(
                 pool
-                    .run(clock, (sql) => sql<{ hash: string }[]>`SELECT md5(${schema}) AS hash`)
+                    .run(
+                        environment,
+                        (sql) => sql<{ hash: string }[]>`SELECT md5(${schema}) AS hash`,
+                    )
                     .then(([row]) => present(row, "the schema's hash").hash),
+                "peer",
             );
 
             return hashed.then((hash) => `${CHANNEL_PREFIX}${name}_${hash}`);
         };
         super(
             new DatabaseDriver(
-                new PostgresSession({ pool }, schema, clock),
+                new PostgresSession({ pool }, schema, environment),
                 new ConnectionState({
                     locality: "networked",
                     openChannel:
@@ -106,8 +109,9 @@ export class PostgresDatabase<
     /** Stop listening after pending queries, closing a pool of its own. */
     async close(): Promise<void> {
         await this.state.close(async () => {
+            // end a pool of its own, which the server answers
             if (this.#poolCloser === "database") {
-                await this.pool.end();
+                await this.state.environment.scheduler.track(this.pool.end(), "peer");
             }
         });
     }
@@ -120,7 +124,7 @@ export function postgresChannel(
     environment: DatabaseEnvironment,
 ): Channel<unknown> {
     // identify this party to its listeners, and collect the listeners' failures
-    const { clock, random } = environment;
+    const { random } = environment;
     const party = Uuid.v4(random);
     const failures = new Set<(error: unknown) => void>();
 
@@ -138,8 +142,9 @@ export function postgresChannel(
     // send each payload on a reserved connection, failing the listeners as it fails
     const send = (payload: string) => {
         const sending = name.then((resolved) =>
-            clock.trackPeer(
-                pool.run(clock, (sql) => sql`SELECT pg_notify(${resolved}, ${payload})`),
+            environment.scheduler.track(
+                pool.run(environment, (sql) => sql`SELECT pg_notify(${resolved}, ${payload})`),
+                "peer",
             ),
         );
         track(sending);
@@ -163,7 +168,7 @@ export function postgresChannel(
     return {
         notify: (message) => notifyInFragments(send, party, message, random),
         listen: (listener) => {
-            const stop = listenToChannel(pool, name, party, failures, listener, clock);
+            const stop = listenToChannel(pool, name, party, failures, listener, environment);
 
             return () => track(stop());
         },
@@ -228,7 +233,7 @@ function listenToChannel(
     party: string,
     failures: Set<(error: unknown) => void>,
     listener: ChannelListener<unknown>,
-    clock: Clock,
+    environment: DatabaseEnvironment,
 ): () => Promise<void> {
     // pause while the listening connection is closed, which the next listen resumes
     const { receive, resume, fail, pause } = listener;
@@ -264,12 +269,17 @@ function listenToChannel(
     };
     const subscription = name.then(async (resolved) => {
         // listen, then receive tokens as a party of the channel
-        const subscribed = await clock.trackPeer(
-            pool.listener.listen(resolved, reassembler(resolved, party, deliver, clock), () => {
-                // settle every token wait on a reconnect, which may have lost notifications
-                deliverAll();
-                resume?.();
-            }),
+        const subscribed = await environment.scheduler.track(
+            pool.listener.listen(
+                resolved,
+                reassembler(resolved, party, deliver, environment.clock),
+                () => {
+                    // settle every token wait on a reconnect, which may have lost notifications
+                    deliverAll();
+                    resume?.();
+                },
+            ),
+            "peer",
         );
         const parties = pool.parties.get(resolved) ?? new Set();
         parties.add(expected);
@@ -290,13 +300,15 @@ function listenToChannel(
                 pool.parties.get(resolved)?.delete(expected);
                 deliverAll();
 
-                return subscribed.unlisten().catch((error: unknown) => {
-                    // count a closed connection as stopped, and fail on anything else
-                    const code = errorCode(error);
-                    if (code === undefined || !CLOSED_CODES.has(code)) {
-                        fail?.(error);
-                    }
-                });
+                return environment.scheduler
+                    .track(subscribed.unlisten(), "peer")
+                    .catch((error: unknown) => {
+                        // count a closed connection as stopped, and fail on anything else
+                        const code = errorCode(error);
+                        if (code === undefined || !CLOSED_CODES.has(code)) {
+                            fail?.(error);
+                        }
+                    });
             },
             () => undefined,
         );

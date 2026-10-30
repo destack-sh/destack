@@ -35,7 +35,7 @@ export async function connectBunSqlite<
 
         // connect to the database's other connections on the given channels, or to none as the only writer
         return new SqliteDatabase(
-            new BunClient(database, options.environment.clock),
+            new BunClient(database, options.environment),
             tables,
             "embedded",
             options,

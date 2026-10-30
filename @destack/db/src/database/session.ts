@@ -1,4 +1,5 @@
-import type { Clock } from "@destack/environment";
+import type { DatabaseEnvironment } from "./connection.ts";
+import type { Scheduler } from "@destack/environment";
 import type postgres from "postgres";
 import type { Dialect } from "../dialect/dialect.ts";
 import { quote } from "../dialect/quote.ts";
@@ -47,21 +48,25 @@ export class SqliteSession implements Session {
     readonly #connection: SqliteConnectionClient | undefined;
     /** The savepoint depth inside a transaction. */
     readonly #depth: number;
-    /** The clock counting each statement, opening and commit in flight. */
-    readonly #clock: Clock;
+    /** The scheduler counting each transaction's opening and commit in flight. */
+    readonly #scheduler: Scheduler;
 
-    /** Run statements on a connection, or in a transaction at a depth, counted on a clock. */
-    constructor(client: SqliteConnectionClient | SqliteQueryClient, clock: Clock, depth?: number) {
-        // keep the client, the connection starting transactions outside one, the depth and the clock
+    /** Run statements on a connection, or in a transaction at a depth, counted on a scheduler. */
+    constructor(
+        client: SqliteConnectionClient | SqliteQueryClient,
+        scheduler: Scheduler,
+        depth?: number,
+    ) {
+        // keep the client, the connection starting transactions outside one, the depth and the scheduler
         this.client = client;
         this.#connection = depth === undefined && "transactionAsync" in client ? client : undefined;
         this.#depth = depth ?? 0;
-        this.#clock = clock;
+        this.#scheduler = scheduler;
     }
 
     /** Read every row as an array of values, integers exact. */
     values(text: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
-        return this.#clock.trackPeer(this.client.values(text, parameters));
+        return this.client.values(text, parameters);
     }
 
     /** Read every row by column name. */
@@ -69,19 +74,19 @@ export class SqliteSession implements Session {
         text: string,
         parameters: readonly DriverValue[],
     ): Promise<Record<string, unknown>[]> {
-        const rows = await this.#clock.trackPeer(this.client.all(text, parameters));
+        const rows = await this.client.all(text, parameters);
 
         return rows.map(requireRecord);
     }
 
     /** Run a statement for its effect. */
     async run(text: string, parameters: readonly DriverValue[]): Promise<void> {
-        await this.#clock.trackPeer(this.client.run(text, parameters));
+        await this.client.run(text, parameters);
     }
 
     /** Run a script of statements in one round trip. */
     async exec(script: string): Promise<void> {
-        await this.#clock.trackPeer(this.client.exec(script));
+        await this.client.exec(script);
     }
 
     /** Commit work in a transaction, immediate unless read-only, or nest it in a savepoint. */
@@ -90,20 +95,20 @@ export class SqliteSession implements Session {
         options: SessionTransaction,
     ): Promise<Value> {
         // nest inside an open transaction
-        const clock = this.#clock;
+        const scheduler = this.#scheduler;
         const connection = this.#connection;
         if (connection === undefined) {
-            return transact(clock, operation, (body) =>
+            return transact(scheduler, operation, (body) =>
                 this.client.nest(this.#depth, (client) =>
-                    body(new SqliteSession(client, clock, this.#depth + 1)),
+                    body(new SqliteSession(client, scheduler, this.#depth + 1)),
                 ),
             );
         }
 
         // start a transaction on the connection
-        return transact(clock, operation, (body) => {
+        return transact(scheduler, operation, (body) => {
             const transaction = connection.transactionAsync((client) =>
-                body(new SqliteSession(client, clock, 0)),
+                body(new SqliteSession(client, scheduler, 0)),
             );
 
             return options.isReadOnly ? transaction.deferred() : transaction.immediate();
@@ -124,16 +129,16 @@ export class PostgresSession implements Session {
     readonly connection: PostgresConnection;
     /** The schema every statement runs in. */
     readonly schema: string;
-    /** The clock counting each statement, opening and commit in flight. */
-    readonly #clock: Clock;
+    /** The environment whose scheduler counts each statement, opening and commit in flight. */
+    readonly #environment: DatabaseEnvironment;
     /** Whether a transaction nested in this one is open, which no sibling may join. */
     #isNesting = false;
 
-    /** Run statements on a pool or in a transaction, in a schema, on a clock. */
-    constructor(connection: PostgresConnection, schema: string, clock: Clock) {
+    /** Run statements on a pool or in a transaction, in a schema, in an environment. */
+    constructor(connection: PostgresConnection, schema: string, environment: DatabaseEnvironment) {
         this.connection = connection;
         this.schema = schema;
-        this.#clock = clock;
+        this.#environment = environment;
     }
 
     /** Read every row as an array of values, planned per run, as schemas share statements' text. */
@@ -179,20 +184,24 @@ export class PostgresSession implements Session {
     ): Promise<Value> {
         // reserve a connection in the schema, then begin on it
         const { connection, schema } = this;
-        const clock = this.#clock;
+        const environment = this.#environment;
+        const { scheduler } = environment;
         if ("pool" in connection) {
             const { pool } = connection;
             const access = options.isReadOnly ? "READ ONLY" : "READ WRITE";
             const open = `BEGIN ISOLATION LEVEL ${options.isolationLevel} ${access}`;
-            const reserved = await pool.reserve(clock, schema);
+            const reserved = await pool.reserve(environment, schema);
             const transaction = reserved.sql;
             try {
-                return await transact(clock, operation, (body) =>
+                return await transact(scheduler, operation, (body) =>
                     block(
                         reserved,
                         { open, commit: "COMMIT", rollback: "ROLLBACK" },
-                        () => body(new PostgresSession({ transaction, depth: 0 }, schema, clock)),
-                        clock,
+                        () =>
+                            body(
+                                new PostgresSession({ transaction, depth: 0 }, schema, environment),
+                            ),
+                        scheduler,
                     ),
                 );
             } finally {
@@ -213,7 +222,7 @@ export class PostgresSession implements Session {
         const savepoint = quote(`savepoint_${depth}`);
         this.#isNesting = true;
 
-        return await transact(clock, operation, (body) =>
+        return await transact(scheduler, operation, (body) =>
             block(
                 { sql: transaction, ready: Promise.resolve() },
                 {
@@ -221,8 +230,11 @@ export class PostgresSession implements Session {
                     commit: `RELEASE SAVEPOINT ${savepoint}`,
                     rollback: `ROLLBACK TO SAVEPOINT ${savepoint}`,
                 },
-                () => body(new PostgresSession({ transaction, depth: depth + 1 }, schema, clock)),
-                clock,
+                () =>
+                    body(
+                        new PostgresSession({ transaction, depth: depth + 1 }, schema, environment),
+                    ),
+                scheduler,
             ),
         ).finally(() => {
             this.#isNesting = false;
@@ -234,15 +246,18 @@ export class PostgresSession implements Session {
         // run it in the open transaction, nested ones included, as the log identity stamps there
         const { connection, schema } = this;
         if (!("pool" in connection)) {
-            return await this.#clock.trackPeer(run(connection.transaction));
+            return await this.#environment.scheduler.track(run(connection.transaction), "peer");
         }
 
         // send the statement after any search path change on a connection reserved in the schema
         const { pool } = connection;
-        const clock = this.#clock;
-        const { sql, ready } = await pool.reserve(clock, schema);
+        const environment = this.#environment;
+        const { sql, ready } = await pool.reserve(environment, schema);
         try {
-            const settled = await clock.trackPeer(Promise.allSettled([ready, run(sql)]));
+            const settled = await environment.scheduler.track(
+                Promise.allSettled([ready, run(sql)]),
+                "peer",
+            );
 
             // answer the statement's result, or fail with the first failure
             const [changed, ran] = settled;
@@ -261,13 +276,13 @@ async function block<Value>(
     reserved: PostgresReservation,
     statements: { readonly open: string; readonly commit: string; readonly rollback: string },
     body: () => Promise<Value>,
-    clock: Clock,
+    scheduler: Scheduler,
 ): Promise<Value> {
     // send the opening before the body's statements, after the connection's search path, each statement a peer
     const client = reserved.sql;
     const send = (statement: string) =>
-        clock.trackPeer(client.unsafe(statement).simple().execute());
-    const ready = clock.trackPeer(reserved.ready);
+        scheduler.track(client.unsafe(statement).simple().execute(), "peer");
+    const ready = scheduler.track(reserved.ready, "peer");
     const settled = await Promise.allSettled([ready, send(statements.open), body()]);
 
     // commit a block whose opening and body succeeded, refusing a commit the server rolled back
@@ -313,23 +328,23 @@ function firstFailure(settled: readonly PromiseSettledResult<unknown>[]): unknow
     throw new TypeError("the settled work has no failure");
 }
 
-/** Run a transaction's body, counting its opening and its end in flight on a clock. */
+/** Run a transaction's body, counting its opening and its end in flight on a scheduler. */
 async function transact<Value>(
-    clock: Clock,
+    scheduler: Scheduler,
     operation: (session: Session) => Promise<Value>,
     open: (body: (session: Session) => Promise<Value>) => Promise<Value>,
 ): Promise<Value> {
     // count the opening until the body starts, and the commit or rollback once it ends
     const opening = Promise.withResolvers<void>();
     const ending = Promise.withResolvers<void>();
-    void clock.track(opening.promise);
+    void scheduler.track(opening.promise, "world");
     try {
         return await open(async (session) => {
             opening.resolve();
             try {
                 return await operation(session);
             } finally {
-                void clock.track(ending.promise);
+                void scheduler.track(ending.promise, "world");
             }
         });
     } finally {

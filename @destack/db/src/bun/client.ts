@@ -1,4 +1,4 @@
-import type { Clock } from "@destack/environment";
+import type { DatabaseEnvironment } from "../database/connection.ts";
 /// <reference types="bun" />
 import type * as bun from "bun:sqlite";
 import type { DriverValue } from "../table/column.ts";
@@ -32,14 +32,16 @@ export class BunQuery implements SqliteQueryClient {
     readonly database: bun.Database;
     /** The prepared statements. */
     readonly statements: BunStatementCache;
-    /** The work queue and the clock each turn waits on, absent within a transaction. */
-    readonly queue: { readonly work: SqliteWorkQueue; readonly clock: Clock } | undefined;
+    /** The work queue and the environment each turn waits in, absent within a transaction. */
+    readonly queue:
+        | { readonly work: SqliteWorkQueue; readonly environment: DatabaseEnvironment }
+        | undefined;
 
     /** Create the client. */
     constructor(
         database: bun.Database,
         statements: BunStatementCache,
-        queue?: { readonly work: SqliteWorkQueue; readonly clock: Clock },
+        queue?: { readonly work: SqliteWorkQueue; readonly environment: DatabaseEnvironment },
     ) {
         this.database = database;
         this.statements = statements;
@@ -90,7 +92,9 @@ export class BunQuery implements SqliteQueryClient {
 
     /** Run work behind the queue, or at once within a transaction. */
     #schedule<Value>(work: () => Promise<Value>): Promise<Value> {
-        return this.queue === undefined ? work() : this.queue.work.run(work, this.queue.clock);
+        return this.queue === undefined
+            ? work()
+            : this.queue.work.run(work, this.queue.environment);
     }
 }
 
@@ -98,16 +102,16 @@ export class BunQuery implements SqliteQueryClient {
 export class BunClient extends BunQuery implements SqliteConnectionClient {
     /** The work queue of the database file. */
     readonly #queue: SqliteWorkQueue;
-    /** The clock the client's turns wait on. */
-    readonly #clock: Clock;
+    /** The environment the client's turns wait in. */
+    readonly #environment: DatabaseEnvironment;
 
-    /** Create the client, its turns waited for on a clock. */
-    constructor(database: bun.Database, clock: Clock) {
-        // share the file's queue, each turn waited for on the client's clock
+    /** Create the client, its turns waited for in an environment. */
+    constructor(database: bun.Database, environment: DatabaseEnvironment) {
+        // share the file's queue, each turn waited for in the client's environment
         const queue = BunClient.queue(database);
-        super(database, new BunStatementCache(database), { work: queue, clock });
+        super(database, new BunStatementCache(database), { work: queue, environment });
         this.#queue = queue;
-        this.#clock = clock;
+        this.#environment = environment;
     }
 
     /** Read the work queue of a database's file by its real path, or a separate one in memory. */
@@ -146,7 +150,7 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
         await this.#queue.run(async () => {
             this.statements.close();
             this.database.close();
-        }, this.#clock);
+        }, this.#environment);
     }
 
     /** Run a callback in a transaction. */
@@ -164,7 +168,7 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
                     this.database.run("ROLLBACK");
                     throw error;
                 }
-            }, this.#clock);
+            }, this.#environment);
 
         return {
             deferred: () => begin("DEFERRED"),

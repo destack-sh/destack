@@ -1,21 +1,22 @@
 import { TEST_START } from "@destack/test/world";
 import { expect, test, refusal } from "@destack/test";
 import { SimulatedClock } from "@destack/environment/simulation";
+import { environmentOn } from "../test/environment.ts";
 import { SqliteWorkQueue } from "./client.ts";
 
 test("run queued work in arrival order, one piece at a time", async () => {
     // queue three pieces, the first finishing last
-    const clock = new SimulatedClock(TEST_START);
+    const environment = environmentOn(new SimulatedClock(TEST_START));
     const queue = new SqliteWorkQueue();
     const order: string[] = [];
     const slow = Promise.withResolvers<void>();
     const first = queue.run(async () => {
         await slow.promise;
         order.push("first");
-    }, clock);
+    }, environment);
     const second = queue.run(async () => {
         order.push("second");
-    }, clock);
+    }, environment);
     slow.resolve();
     await Promise.all([first, second]);
 
@@ -24,18 +25,18 @@ test("run queued work in arrival order, one piece at a time", async () => {
 
 test("refuse work whose turn does not come within the wait", async () => {
     // occupy the connection, as a transaction does whose code queues a statement outside it
-    const clock = new SimulatedClock(TEST_START);
+    const environment = environmentOn(new SimulatedClock(TEST_START));
     const queue = new SqliteWorkQueue(1);
     const held = Promise.withResolvers<void>();
-    const holding = queue.run(() => held.promise, clock);
-    const refused = queue.run(async () => "never", clock);
-    clock.advance(1);
+    const holding = queue.run(() => held.promise, environment);
+    const refused = queue.run(async () => "never", environment);
+    environment.clock.advance(1);
     const failure = await refusal(refused);
 
     // run later work once the holder finishes
     held.resolve();
     await holding;
-    const later = await queue.run(async () => "later", clock);
+    const later = await queue.run(async () => "later", environment);
 
     expect([failure, later]).toEqual([
         [

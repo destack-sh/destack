@@ -17,7 +17,7 @@ export async function serveBrowserDatabase(
     database.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
 
     // serve every party
-    const client = new WasmClient(database, environment.clock);
+    const client = new WasmClient(database, environment);
     const stop = serveDatabase(client, channel, environment);
 
     return async () => {

@@ -35,7 +35,7 @@ export class SqliteDatabase<
         requireDistinct(declared, "sqlite");
         super(
             new DatabaseDriver(
-                new SqliteSession(client, options.environment.clock),
+                new SqliteSession(client, options.environment.scheduler),
                 new ConnectionState({
                     locality,
                     openChannel: options.openChannel,

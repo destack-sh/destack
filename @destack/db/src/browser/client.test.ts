@@ -13,7 +13,7 @@ test("declare, log and query tables on SQLite WebAssembly through a channel, as 
 
     // serve an in-memory database to a party
     const sqlite = await init();
-    const client = new WasmClient(new sqlite.oo1.DB(":memory:"), world.clock);
+    const client = new WasmClient(new sqlite.oo1.DB(":memory:"), world);
     const join = channelHub<Message>();
     const stop = serveDatabase(client, join(), world);
     onTestFinished(async () => {

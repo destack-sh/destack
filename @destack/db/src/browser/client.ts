@@ -1,4 +1,4 @@
-import type { Clock } from "@destack/environment";
+import type { DatabaseEnvironment } from "../database/connection.ts";
 import type { DriverValue } from "../table/column.ts";
 import init, { type Database, type SqlValue } from "@sqlite.org/sqlite-wasm";
 import {
@@ -12,13 +12,15 @@ import {
 export class WasmQuery implements SqliteQueryClient {
     /** The database. */
     readonly database: Database;
-    /** The work queue and the clock each turn waits on, absent within a transaction. */
-    readonly queue: { readonly work: SqliteWorkQueue; readonly clock: Clock } | undefined;
+    /** The work queue and the environment each turn waits in, absent within a transaction. */
+    readonly queue:
+        | { readonly work: SqliteWorkQueue; readonly environment: DatabaseEnvironment }
+        | undefined;
 
     /** Create the client. */
     constructor(
         database: Database,
-        queue?: { readonly work: SqliteWorkQueue; readonly clock: Clock },
+        queue?: { readonly work: SqliteWorkQueue; readonly environment: DatabaseEnvironment },
     ) {
         this.database = database;
         this.queue = queue;
@@ -59,7 +61,9 @@ export class WasmQuery implements SqliteQueryClient {
 
     /** Run work behind the queue, or at once within a transaction. */
     #schedule<Value>(work: () => Promise<Value>): Promise<Value> {
-        return this.queue === undefined ? work() : this.queue.work.run(work, this.queue.clock);
+        return this.queue === undefined
+            ? work()
+            : this.queue.work.run(work, this.queue.environment);
     }
 }
 
@@ -67,31 +71,31 @@ export class WasmQuery implements SqliteQueryClient {
 export class WasmClient extends WasmQuery implements SqliteConnectionClient {
     /** The work queue. */
     readonly #queue: SqliteWorkQueue;
-    /** The clock the client's turns wait on. */
-    readonly #clock: Clock;
+    /** The environment the client's turns wait in. */
+    readonly #environment: DatabaseEnvironment;
 
-    /** Create the client, its turns waited for on a clock. */
-    constructor(database: Database, clock: Clock) {
-        // queue the database's work, each turn waited for on the client's clock
+    /** Create the client, its turns waited for in an environment. */
+    constructor(database: Database, environment: DatabaseEnvironment) {
+        // queue the database's work, each turn waited for in the client's environment
         const queue = new SqliteWorkQueue();
-        super(database, { work: queue, clock });
+        super(database, { work: queue, environment });
         this.#queue = queue;
-        this.#clock = clock;
+        this.#environment = environment;
     }
 
     /** Open an in-memory database. */
-    static async memory(clock: Clock): Promise<WasmClient> {
+    static async memory(environment: DatabaseEnvironment): Promise<WasmClient> {
         // open with foreign keys enforced
-        const sqlite = await init();
+        const sqlite = await environment.scheduler.track(init(), "host");
         const database = new sqlite.oo1.DB(":memory:");
         database.exec("PRAGMA foreign_keys = ON;");
 
-        return new WasmClient(database, clock);
+        return new WasmClient(database, environment);
     }
 
     /** Close the database after its work. */
     async close(): Promise<void> {
-        await this.#queue.run(async () => this.database.close(), this.#clock);
+        await this.#queue.run(async () => this.database.close(), this.#environment);
     }
 
     /** Run a callback in a transaction. */
@@ -109,7 +113,7 @@ export class WasmClient extends WasmQuery implements SqliteConnectionClient {
                     this.database.exec("ROLLBACK");
                     throw error;
                 }
-            }, this.#clock);
+            }, this.#environment);
 
         return {
             deferred: () => begin("DEFERRED"),

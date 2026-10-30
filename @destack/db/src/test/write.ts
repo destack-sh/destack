@@ -56,9 +56,17 @@ async function write(
 /** The module, the run's directory, its id and its database, as the run's setup passes them. */
 const [module, directory, id, target] = BunEnvironment.system.process.arguments;
 
+// exit once the run's setup ends, as its end closes this writer's input
+void new Response(BunEnvironment.system.process.stdin.readable).arrayBuffer().finally(() => {
+    BunEnvironment.system.process.exit(1);
+});
+
 // write the templates of the module the run's setup names, then close the database servers
 try {
     await write(module, directory, id, target);
 } finally {
     await TestDatabase.close();
 }
+
+// exit once written, as the read of the input keeps the process alive
+BunEnvironment.system.process.exit(0);

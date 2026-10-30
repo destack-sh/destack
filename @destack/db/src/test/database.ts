@@ -59,34 +59,23 @@ export class TestDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > {
     /** The first connection. */
-    readonly database: TestConnection<Models>;
+    readonly database: ClosingConnection<Models>;
     /** Open another connection, absent for SQLite in memory. */
     readonly #open: TestConnector | undefined;
     /** Remove the database. */
     readonly #remove: () => Promise<void>;
     /** The other open connections. */
-    readonly #connections = new Set<TestConnection>();
+    readonly #connections = new Set<ClosingConnection>();
 
     /** Create the test database. */
     private constructor(
-        database: TestConnection<Models>,
+        database: ClosingConnection<Models>,
         open: TestConnector | undefined,
         remove: () => Promise<void>,
     ) {
         this.database = database;
         this.#open = open;
         this.#remove = remove;
-    }
-
-    /** Wait until a database meets a check after a commit, failing once some milliseconds pass. */
-    static async settle(
-        database: DatabaseConnection,
-        check: () => Promise<boolean>,
-        milliseconds: number,
-    ): Promise<void> {
-        if (!(await database.log.until(check, AbortSignal.timeout(milliseconds)))) {
-            throw new TypeError(`the database never settled within ${milliseconds} ms`);
-        }
     }
 
     /** Read the PostgreSQL server address the tests run against, refusing a run without one. */
@@ -109,8 +98,8 @@ export class TestDatabase<
         tables: declaration.Database<Models> | readonly Table[],
         options: TestDatabaseOptions,
     ): Promise<TestDatabase<Models>> {
-        // count the harness's file and schema work in flight on the database's clock
-        return options.environment.clock.trackPeer(TestDatabase.#create(tables, options));
+        // count the harness's file and schema work in flight as a peer on the database's scheduler
+        return options.environment.scheduler.track(TestDatabase.#create(tables, options), "peer");
     }
 
     /** Create an isolated database, as `create` tracks it. */
@@ -167,9 +156,10 @@ export class TestDatabase<
         onTestFinished(() => simulation[Symbol.asyncDispose]());
         const environment = simulation.environment(TEMPLATE_NODE);
 
-        // copy each database, counting the harness's copying in flight on the fork's clock
-        const copied = await environment.clock.trackPeer(
+        // copy each database, counting the harness's copying in flight on the fork's scheduler
+        const copied = await environment.scheduler.track(
             TestDatabase.#copyDatabases(template, image, environment),
+            "peer",
         );
         const databases = mapValues<Databases, TemplateStorage<Databases>>(
             template.databases,
@@ -410,32 +400,36 @@ export class TestDatabase<
         options: TestDatabaseOptions,
         template?: string,
     ): Promise<TestDatabase<Models>> {
-        // copy the template's or the migrated database into a temporary file, each step tracked on the store's clock
+        // copy the template's or the migrated database into a temporary file, each step tracked as host work
         const { environment } = options;
-        const { clock } = environment;
-        const directory = await clock.trackHost(HOST.files.makeTemporaryDirectory("destack-test-"));
+        const { scheduler } = environment;
+        const directory = await scheduler.track(
+            HOST.files.makeTemporaryDirectory("destack-test-"),
+            "host",
+        );
         const file = join(directory, "test.db");
         const source =
             template ??
             (options.isMigrated === true
-                ? await clock.trackHost(
+                ? await scheduler.track(
                       sqliteTemplate(
                           declared,
                           options.isReplica ?? false,
                           replicatedOf(tables),
                           environment,
                       ),
+                      "host",
                   )
                 : undefined);
         if (source !== undefined) {
-            await clock.trackHost(HOST.files.copyFile(source, file));
+            await scheduler.track(HOST.files.copyFile(source, file), "host");
         }
 
         // open it, a world's copy keeping its log epoch
         return TestDatabase.#sqliteAt(
             file,
             tables,
-            () => clock.trackHost(HOST.files.remove(directory, { recursive: true })),
+            () => scheduler.track(HOST.files.remove(directory, { recursive: true }), "host"),
             environment,
             template === undefined ? "renew" : "keep",
         );
@@ -483,14 +477,17 @@ export class TestDatabase<
     /** Open another connection to the same database. */
     async connect<Other extends Readonly<Record<string, Model>>>(
         tables: declaration.Database<Other> | readonly Table[],
-    ): Promise<TestConnection<Other>> {
+    ): Promise<ClosingConnection<Other>> {
         // require a reachable database
         if (this.#open === undefined) {
             throw new TypeError("an in-memory SQLite database has no further connections");
         }
 
-        // track the connection, counting its opening in flight on the database's clock
-        const connection = await this.database.state.clock.trackPeer(this.#open(tables));
+        // track the connection, counting its opening in flight on the database's scheduler
+        const connection = await this.database.state.environment.scheduler.track(
+            this.#open(tables),
+            "peer",
+        );
         this.#connections.add(connection);
 
         return connection;
@@ -498,11 +495,11 @@ export class TestDatabase<
 
     /** Close every connection and remove the database. */
     async close(): Promise<void> {
-        // close the connections, then remove the database on its clock
+        // close the connections, then remove the database on its scheduler
         await Promise.all([...this.#connections].map((connection) => connection.close()));
-        const { clock } = this.database.state;
+        const { scheduler } = this.database.state.environment;
         await this.database.close();
-        await clock.trackPeer(this.#remove());
+        await scheduler.track(this.#remove(), "peer");
     }
 }
 
@@ -629,7 +626,7 @@ class TestSchema {
     connect<Models extends Readonly<Record<string, Model>>>(
         tables: declaration.Database<Models> | readonly Table[],
         environment: DatabaseEnvironment,
-    ): Promise<TestConnection<Models>> {
+    ): Promise<ClosingConnection<Models>> {
         return this.server.connect(this.name, tables, environment);
     }
 
@@ -770,7 +767,7 @@ class TestServer {
         schema: string,
         tables: declaration.Database<Models> | readonly Table[],
         environment: DatabaseEnvironment,
-    ): Promise<TestConnection<Models>> {
+    ): Promise<ClosingConnection<Models>> {
         return keyed(await postgresql.connectPostgres(this.pool, tables, { environment, schema }));
     }
 
@@ -943,15 +940,15 @@ async function sqliteTemplate(
     return file;
 }
 
-/** A connection to a test database. */
-type TestConnection<
+/** A connection to a test database, closed by its test. */
+type ClosingConnection<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > = DatabaseConnection<Models> & { readonly close: () => Promise<void> };
 
 /** Open a connection to a test database. */
 type TestConnector = <Models extends Readonly<Record<string, Model>>>(
     tables: declaration.Database<Models> | readonly Table[],
-) => Promise<TestConnection<Models>>;
+) => Promise<ClosingConnection<Models>>;
 
 /** Key a test database's sensitive columns with the test cipher. */
 function keyed<Database extends DatabaseConnection>(database: Database): Database {

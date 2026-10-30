@@ -196,6 +196,7 @@ class TemplateCache {
         const module = pathToFileURL(this.module).href;
         const arguments_ = [writer, module, this.directory, this.id, this.dialect];
         const child = HOST.process.spawn([HOST.process.executable, ...arguments_], {
+            stdin: "pipe",
             stdout: "inherit",
             stderr: "pipe",
         });
