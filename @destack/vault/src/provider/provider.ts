@@ -1,6 +1,6 @@
 import { AccessContext, Caller, principal } from "@destack/access";
 import type { Provider, Provisioner } from "@destack/resource";
-import type { ServedProvider } from "@destack/stack/server";
+import type { StoreProvider } from "@destack/stack/server";
 import { SecretReading, type Vault } from "../secret/secret.ts";
 import { VAULT_PROVIDER, VaultKind } from "../declare/kind.ts";
 import { vault } from "../object/index.ts";
@@ -11,7 +11,7 @@ export const VAULT_REFERENCE = vaultPackage.name;
 
 /** The provider of a space's vaults, which keeps them as objects in the space's database. */
 export type VaultProvider = Provider<typeof VaultKind, typeof vault> &
-    ServedProvider<Vault & AsyncDisposable> & {
+    StoreProvider<Vault & AsyncDisposable> & {
         readonly provision: Provisioner<typeof VaultKind>;
     };
 

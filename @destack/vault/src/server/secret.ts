@@ -2,7 +2,7 @@ import { SECRET_DECLARATION } from "@destack/stack/declare";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import { Binding } from "@destack/stack/object";
-import type { ServedBindable } from "@destack/stack/server";
+import type { ObjectBindable } from "@destack/stack/server";
 import { VAULT_PROVIDER } from "../declare/kind.ts";
 import { SecretDescription } from "../declare/secret.ts";
 import { secret, secretVersion } from "../object/index.ts";
@@ -140,7 +140,7 @@ export function implementSecretVersion(): typeof secretVersion {
 }
 
 /** Secrets that deployments capture at their current version or at a binding's fixed one. */
-export const secretBindable: ServedBindable<typeof secret, Secret> = {
+export const secretBindable: ObjectBindable<typeof secret, Secret> = {
     object: secret,
     used: [secret, secretVersion],
     declaration: SECRET_DECLARATION,

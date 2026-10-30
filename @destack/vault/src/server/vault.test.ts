@@ -8,7 +8,7 @@ import { expect, refusal, single, test } from "@destack/test";
 import { defineSecret, defineVault } from "../declare/index.ts";
 import { secret, secretVersion, vault } from "../object/index.ts";
 import vaultPackage from "../package.ts";
-import vaultServer, { secretBindable } from "../server.ts";
+import vaultServer from "../server.ts";
 import { APPLICATION, CONSUMER, CREDENTIAL, CREDENTIALS, TestVault } from "../test/index.ts";
 
 /** A vault the space's stack declares beside the application's, deleted at once on removal. */
@@ -374,7 +374,7 @@ test("trash a vault's secrets with it once its installation goes", async () => {
 test("provision a vault the account's home declares in the account, as its connections keep their credentials there", async () => {
     // serve the account's home with the vault package, and declare a vault in its account
     const home = await TestSpace.open({ id: Account.home(ids.account), packages: [vaultPackage] });
-    const served = await home.serve({ servers: [vaultServer], bindables: [secretBindable] });
+    const served = await home.serve({ servers: [vaultServer] });
     const credentials = defineVault({ name: "credentials", spec: {} });
     await home.apply(served, [vaultPackage], {
         vaults: { credentials: { ...credentials.declare(), scope: "enclosing" } },

@@ -19,7 +19,6 @@ import { describeSecret, describeVault } from "../inspect/index.ts";
 import { secret, secretVersion, vault } from "../object/index.ts";
 import vaultPackage from "../package.ts";
 import vaultServer from "../server.ts";
-import { secretBindable } from "../server/secret.ts";
 
 /** The application the test vault's space installs, declaring its vaults. */
 export const APPLICATION = Package.parse({
@@ -114,7 +113,7 @@ export class TestVault {
         if (!(clock instanceof SimulatedClock)) {
             throw new TypeError("the test space runs on the system clock");
         }
-        const served = await space.serve({ servers: [vaultServer], bindables: [secretBindable] });
+        const served = await space.serve({ servers: [vaultServer] });
 
         // install the application declaring the vaults and secrets
         const { vaults = [TestVault.declare(CREDENTIALS)], secrets = [] } = options;
