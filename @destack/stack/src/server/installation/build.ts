@@ -4,6 +4,7 @@ import { and, eq } from "@destack/db";
 import {
     type ManifestRead,
     PackageStore,
+    MAPS_REFERRER,
     RUNTIME_REFERRER,
     encodeManifest,
 } from "@destack/build/store";
@@ -161,8 +162,18 @@ export class BuildCache {
         };
         const closure = await this.store.closure(built, packageId, read);
 
-        // store each opened build after the builds it records, then attach the runtime build
+        // store each opened build after the builds it records
         await this.#store(built, served, closure, new Set());
+
+        // copy the source maps the registry attached to the runtime build, when its output has any
+        const maps = await registry.referrer(packageId, built, MAPS_REFERRER);
+        if (maps !== undefined) {
+            const { location, fetch } = await registry.locate(packageId, maps);
+            await this.store.copy(location, fetch);
+            await this.store.attachBuild(built, maps, MAPS_REFERRER);
+        }
+
+        // attach the runtime build, which the store answers once its closure and maps are stored
         await this.store.attachBuild(manifest, built, path);
     }
 
@@ -310,13 +321,24 @@ export class BuildStore {
             throw StackError.of("RUNTIME_BUILD_MISSING", `${manifest} has no browser build here`);
         }
 
-        // map each pinned dependency's exports in its dependent's scope, visiting each build once
+        // read the builds its views' modules reach, as a pull of its runtime closure stores them
+        const started = await this.get(runtime.digest);
+        const reached = await this.cache.store.closure(
+            runtime.digest,
+            PackageManifest.package(started).id,
+            (digest) => this.get(digest),
+        );
+
+        // map each reached dependency's exports in its dependent's scope, visiting each build once
         const map: ImportMap = { imports: {}, scopes: {} };
         const builds = new Set<Digest>([runtime.digest]);
         const pending = [{ digest: runtime.digest, scope: map.imports }];
         for (const { digest, scope } of pending) {
             for (const output of Object.values((await this.get(digest)).outputs)) {
-                for (const [name, release] of Object.entries(output.dependencies)) {
+                const dependencies = Object.entries(output.dependencies).filter(([, release]) =>
+                    reached.has(release.manifest),
+                );
+                for (const [name, release] of dependencies) {
                     // map the dependency's exports to its files below its build's prefix
                     const prefix = `${base}${release.manifest}/`;
                     const dependency = await this.get(release.manifest);

@@ -192,6 +192,7 @@ async function notesBuild(
                           entrypoint: "view.js",
                           sandbox: Sandbox.select(sandbox, browser),
                           presents: [],
+                          categories: [],
                           packages: [],
                       },
                   },

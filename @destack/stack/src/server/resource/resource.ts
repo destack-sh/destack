@@ -15,6 +15,7 @@ import {
     ResourceController,
     type ImplementationInput,
     type ObjectStore,
+    type PackageImplementation,
 } from "@destack/object/server";
 import {
     CONNECTION_PROVIDER,
@@ -40,13 +41,25 @@ export type SpaceProvider = Provider<
 >;
 
 /** A provider whose resources in-process installations open through the space's store. */
-export type ServedProvider<Client = unknown> = Pick<SpaceProvider, "kind" | "code"> & {
+export type StoreProvider<Client = unknown> = Pick<SpaceProvider, "kind" | "code"> & {
     /** Connect an in-process installation to a binding's resource. */
     readonly connect: (
         store: Promise<ObjectStore>,
         row: InstallationRollout,
         bound: Binding,
     ) => Promise<Client>;
+};
+
+/** The providers the servers a machine runs serve their resources through. */
+export const StoreProvider = {
+    /** Read the providers some servers declare that installations open through the store. */
+    of(servers: readonly PackageImplementation[]): StoreProvider[] {
+        return servers
+            .flatMap((server) => server.providers)
+            .filter(
+                (provider): provider is typeof provider & StoreProvider => "connect" in provider,
+            );
+    },
 };
 
 /** The provider of installations' dependencies, connecting over HTTP at their addresses. */

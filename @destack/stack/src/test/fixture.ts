@@ -95,7 +95,7 @@ import {
     type SpaceMachine,
     type SpaceOptions,
     SPACE_KERNEL,
-    type ServedProvider,
+    type StoreProvider,
     type SpaceProvider,
 } from "../server/index.ts";
 import { universeDatabase } from "@destack/universe";
@@ -326,7 +326,7 @@ export class TestSpace implements AsyncDisposable {
     /** The machine's connectors of bound resources, such as mail, by provider code. */
     readonly #connectors: readonly Connector[];
     /** What each serve of the space serves in addition to its packages. */
-    readonly #beside: Required<Pick<TestSpaceOptions, "companions" | "bindables" | "providers">>;
+    readonly #beside: Required<Pick<TestSpaceOptions, "companions" | "providers">>;
     /** The release the machine ships of each shipped server's package, as the test installs it. */
     readonly #bundled: Map<PackageId, PackageRelease>;
     /** The releases the machine ships with the space. */
@@ -365,7 +365,7 @@ export class TestSpace implements AsyncDisposable {
         readonly builds: BuildStore;
         readonly packages: readonly Pick<PackageHandle, "objects" | "tables">[];
         readonly connectors: readonly Connector[];
-        readonly beside: Required<Pick<TestSpaceOptions, "companions" | "bindables" | "providers">>;
+        readonly beside: Required<Pick<TestSpaceOptions, "companions" | "providers">>;
         readonly bundled: Map<PackageId, PackageRelease>;
         readonly releases: StackReleases;
         readonly defer: Defer;
@@ -1003,7 +1003,7 @@ export class TestSpace implements AsyncDisposable {
             new PackageStore({ blobs, environment: machine.environment }),
             new BuildCache(files.builds, ["bun", "browser"]),
         );
-        const servers = options.servers ?? [];
+        const servers = [...(options.servers ?? []), ...(options.companions ?? [])];
         const releases = await TestSpace.releases(machine.environment.crypto);
         const bundled = new Map<PackageId, PackageRelease>([
             [stackPackage.id, { package: Package.of(stackPackage), manifest: releases.manifest }],
@@ -1054,7 +1054,6 @@ export class TestSpace implements AsyncDisposable {
             connectors: [...(options.connectors ?? []), ...(local?.connectors ?? [])],
             beside: {
                 companions: options.companions ?? [],
-                bindables: options.bindables ?? [],
                 providers: [...(options.providers ?? []), ...(local?.providers ?? [])],
             },
             bundled,
@@ -1128,7 +1127,6 @@ export class TestSpace implements AsyncDisposable {
             registry: this.registry,
             buckets: await this.buckets(),
             builds: await this.builds(),
-            bindables: [],
             runtimes: [new TestRuntime(), new ProcessRuntime()],
             events: overrides.events ?? (await this.#events()),
             sockets: overrides.sockets ?? (await this.sockets()),
@@ -1613,7 +1611,6 @@ export class TestSpace implements AsyncDisposable {
                     return served.server(handler.package).fetch(request, authentication);
                 },
                 store: serving.promise.then((served) => served.store),
-                bindables: [...this.#beside.bindables, ...(given.bindables ?? [])],
                 providers,
                 connectors: this.#connectors,
                 buckets: this.#buckets,
@@ -1640,7 +1637,6 @@ export class TestSpace implements AsyncDisposable {
             await this.options({
                 ...given,
                 servers: [...hosted.servers, ...own],
-                bindables: [...this.#beside.bindables, ...(given.bindables ?? [])],
                 providers: providers.filter((each): each is SpaceProvider => !("connect" in each)),
                 sandboxes: hosted.sandboxes,
             }),
@@ -2045,10 +2041,8 @@ export interface TestSpaceOptions {
     readonly bundled?: readonly BuildReader[];
     /** The servers every serve runs with the packages, such as a vault, none by default. */
     readonly companions?: readonly PackageImplementation[];
-    /** The bindable kinds every serve offers, none by default. */
-    readonly bindables?: SpaceOptions["bindables"];
     /** The providers every serve offers with its database host, served ones in process. */
-    readonly providers?: readonly (SpaceProvider | ServedProvider)[];
+    readonly providers?: readonly (SpaceProvider | StoreProvider)[];
     /** The moment a template's world starts at, which a restoring simulation's clock reads. */
     readonly start?: number;
     /** The machine's connectors of bound resources such as mail, none by default. */
@@ -2059,7 +2053,7 @@ export interface TestSpaceOptions {
         environment: Environment<HostCapability>,
     ) => {
         /** The providers placing the resources below the directory. */
-        readonly providers: readonly (SpaceProvider | ServedProvider)[];
+        readonly providers: readonly (SpaceProvider | StoreProvider)[];
         /** The connectors opening them there. */
         readonly connectors: readonly Connector[];
     };

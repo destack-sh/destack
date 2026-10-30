@@ -39,12 +39,12 @@ import {
     ObjectDescription,
     type ObjectOf,
     type ObjectReconciliation,
-    type ObjectType,
+    ObjectType,
     ObjectTypePool,
     PackageDescription,
     role,
 } from "@destack/object";
-import { ObjectStore } from "@destack/object/server";
+import type { ObjectStore } from "@destack/object/server";
 import { DeclarationName, PackageId, Package, PackageRelease, Sandbox } from "@destack/package";
 import { type BuildReader, PackageManifest, ViewDescription } from "@destack/package/manifest";
 import { Plan, RESOURCE_DECLARATION, ResourceDescription } from "@destack/resource";
@@ -1409,7 +1409,7 @@ async function mainTables(
     }
 
     // read the types the builds of the packages it needs declare, pulling none of a package the pool knows
-    const pooled = ObjectStore.known(objects, Object.values(accountPackage.objects));
+    const pooled = ObjectType.known(objects, Object.values(accountPackage.objects));
     const known = new Set(objects.map((type) => ObjectTypeReference.key(type.typeReference)));
     const pooledPackages = new Set(pooled.map((type) => type.package.id));
     const description = await PackageDescription.of(reader);

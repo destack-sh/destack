@@ -2,7 +2,6 @@ import type { PackageHandle } from "@destack/object";
 import type { PackageImplementation } from "@destack/object/server";
 import type { BuildReader } from "@destack/package/manifest";
 import type { Connector } from "@destack/resource";
-import type { SpaceOptions } from "../server/index.ts";
 import type { TestSpaceOptions } from "./fixture.ts";
 
 /** A package a test space installs: its build the machine ships, its server and what it needs. */
@@ -17,8 +16,6 @@ export interface TestPackage {
     readonly connectors: readonly Connector[];
     /** The servers the space runs next to it, such as a vault. */
     readonly servers: readonly PackageImplementation[];
-    /** The bindable kinds the space offers it. */
-    readonly bindables: SpaceOptions["bindables"];
     /** The providers the space offers it, such as a mail provider, served ones in process. */
     readonly providers: NonNullable<TestSpaceOptions["providers"]>;
 }
@@ -40,7 +37,6 @@ export const TestPackage = {
             bundled: packages.map((each) => each.build),
             connectors: [...new Set(packages.flatMap((each) => each.connectors))],
             companions: [...new Set(packages.flatMap((each) => each.servers))],
-            bindables: [...new Set(packages.flatMap((each) => each.bindables))],
             providers: [...new Set(packages.flatMap((each) => each.providers))],
         } satisfies TestSpaceOptions;
     },

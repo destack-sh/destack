@@ -92,6 +92,7 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     REDIRECT_REFUSED: { code: "BAD_GATEWAY" },
 
     // not implemented
+    BINDABLE_UNSUPPORTED: { code: "NOT_IMPLEMENTED" },
     RESOURCE_UNSUPPORTED: { code: "NOT_IMPLEMENTED" },
     RESTORE_UNSUPPORTED: { code: "NOT_IMPLEMENTED" },
     SNAPSHOT_UNSUPPORTED: { code: "NOT_IMPLEMENTED" },

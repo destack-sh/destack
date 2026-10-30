@@ -125,7 +125,7 @@ test("pull a release with the runtime builds of its runtime closure, finding eac
     const libraryRuntime = await dependencyOf(applicationRuntime, LIBRARY.name);
     const unitRuntime = await dependencyOf(libraryRuntime, TINY.name);
 
-    // locate the release, its runtime build and the runtime closure, storing the release whole and the closure's runtime builds alone
+    // locate the release, its runtime build, the runtime closure and the runtime build's maps, storing the release whole and the closure's runtime builds alone
     const stored = await Promise.all(
         [
             applicationManifest,
@@ -143,6 +143,7 @@ test("pull a release with the runtime builds of its runtime closure, finding eac
             [APPLICATION.id, applicationRuntime],
             [LIBRARY.id, libraryRuntime],
             [LIBRARY.id, unitRuntime],
+            [APPLICATION.id, applicationRuntime],
         ],
         stored: [true, true, true, true, false, false],
     });

@@ -56,7 +56,7 @@ import {
 } from "../../object/index.ts";
 import { StackError } from "../../error/index.ts";
 import type { ProviderIndex } from "../resource/resource.ts";
-import type { ServedBindable } from "../resource/binding.ts";
+import type { ObjectBindable } from "../resource/binding.ts";
 import type { BuildStore } from "../installation/build.ts";
 
 /** The instance statuses of a recorded workload not stopped for good. */
@@ -76,7 +76,7 @@ export interface DeploymentOptions {
     /** The providers of the machine's resource kinds, with the object each kind's resources are. */
     readonly providers: ProviderIndex;
     /** The kinds of package objects that bindings target other than resources, such as secrets. */
-    readonly bindables: readonly ServedBindable[];
+    readonly bindables: readonly ObjectBindable[];
 }
 
 /** A resource a deployment captured, with its kind and readiness. */

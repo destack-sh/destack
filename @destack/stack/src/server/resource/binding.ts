@@ -2,6 +2,7 @@ import { type space } from "@destack/account/object";
 import { MAIN_DATABASE } from "../../declare/index.ts";
 import { ObjectReference, Subject } from "@destack/sync";
 import {
+    type Bindable,
     type BindingSelection,
     type BindingTarget,
     type InstallationBindings,
@@ -13,7 +14,7 @@ import {
 } from "@destack/object";
 import { AccessContext, Caller, principal } from "@destack/access";
 import type { Row, Select, Snapshot, Table } from "@destack/db";
-import type { ObjectStore, StackPlan } from "@destack/object/server";
+import type { ObjectStore, PackageImplementation, StackPlan } from "@destack/object/server";
 import { RESOURCE_DECLARATION, type ResourceKind } from "@destack/resource";
 import { canonicalize, Digest, type Identifier, nth, present, schema } from "@destack/schema";
 import { StackError } from "../../error/index.ts";
@@ -22,7 +23,6 @@ import {
     binding,
     capture,
     Database,
-    type Capture,
     Deployment,
     deployment,
     Rollout,
@@ -32,23 +32,6 @@ import {
     type ResourceNeed,
 } from "../../object/index.ts";
 
-/** A kind of object a binding targets, and the version a deployment captures of it. */
-export interface Bindable<Object extends ObjectType = ObjectType> {
-    /** The bindable object type. */
-    readonly object: Object;
-    /** The object types captures of this kind let installations use. */
-    readonly used: readonly ObjectType[];
-    /** Read the version a deployment captures of a target, null for a secret without a version. */
-    version(target: Select<Object["table"]>, pin: number | null): number | null;
-    /** Read the objects a capture of a target in the deployment's space lets it use. */
-    readonly uses: (
-        captured: Pick<Capture, "scope" | "target"> & { readonly version: number | null },
-        snapshot: Pick<Snapshot, "read">,
-    ) => Promise<readonly ObjectReference[]>;
-    /** The declaration kind whose needs this kind binds, such as resource or secret. */
-    readonly declaration: string;
-}
-
 /** A resource kind bindings target, whose providers provision its objects. */
 export interface ResourceBindable extends Bindable<ResourceType<typeof space>> {
     /** The resource kind the objects are. */
@@ -56,7 +39,7 @@ export interface ResourceBindable extends Bindable<ResourceType<typeof space>> {
 }
 
 /** A kind of object a package serves to workloads, such as secrets. */
-export interface ServedBindable<
+export interface ObjectBindable<
     Object extends ObjectType = ObjectType,
     Client = unknown,
 > extends Bindable<Object> {
@@ -93,10 +76,35 @@ export interface ServedBindable<
     ) => Promise<Client>;
 }
 
-/** The kinds of objects bindings target. */
-export const Bindable = {
+/** The kinds of objects the servers a machine runs serve to workloads. */
+export const ObjectBindable = {
+    /** Read the object kinds some servers declare, refusing one without a connection. */
+    of(servers: readonly PackageImplementation[]): ObjectBindable[] {
+        return servers
+            .flatMap((server) => server.bindables)
+            .map((bindable) => {
+                // refuse a kind without a connection
+                if (!ObjectBindable.is(bindable)) {
+                    throw StackError.of(
+                        "BINDABLE_UNSUPPORTED",
+                        `the bindable ${bindable.object.name} declares no connection`,
+                    );
+                }
+
+                return bindable;
+            });
+    },
+
+    /** Report whether a bindable kind connects and provisions through the store. */
+    is(bindable: Bindable): bindable is ObjectBindable {
+        return "connect" in bindable && "provision" in bindable;
+    },
+};
+
+/** Resource kinds as bindings target them. */
+export const ResourceBindable = {
     /** Bind resources of one kind, captured at their generation or a binding's pinned version. */
-    resource(kind: ResourceKind, object: ResourceType<typeof space>): ResourceBindable {
+    of(kind: ResourceKind, object: ResourceType<typeof space>): ResourceBindable {
         return {
             object,
             kind,
@@ -115,14 +123,19 @@ export class Binder {
     /** The bindable resource kinds, by their kind's name. */
     readonly #resources: ReadonlyMap<string, ResourceBindable>;
     /** The kinds packages serve, by their declaration kind. */
-    readonly #served: ReadonlyMap<string, ServedBindable>;
+    readonly #objects: ReadonlyMap<string, ObjectBindable>;
 
     /** Index the resource kinds and the other bindable kinds a machine serves. */
-    constructor(resources: readonly ResourceBindable[], served: readonly ServedBindable[]) {
+    constructor(resources: readonly ResourceBindable[], objects: readonly ObjectBindable[]) {
         // index the kinds by resource kind and by declaration kind
-        this.#kinds = [...resources, ...served];
+        this.#kinds = [...resources, ...objects];
         this.#resources = new Map(resources.map((kind) => [kind.kind.name, kind]));
-        this.#served = new Map(served.map((kind) => [kind.declaration, kind]));
+        this.#objects = new Map(objects.map((kind) => [kind.declaration, kind]));
+    }
+
+    /** List the kinds packages serve to workloads, such as secrets. */
+    objects(): readonly ObjectBindable[] {
+        return [...this.#objects.values()];
     }
 
     /** List the object types bindings target. */
@@ -304,7 +317,7 @@ export class Binder {
     unprovided(needs: readonly ResourceNeed[]): string[] {
         const kinds = needs
             .map((need) => need.kind)
-            .filter((kind) => !this.#resources.has(kind) && !this.#served.has(kind));
+            .filter((kind) => !this.#resources.has(kind) && !this.#objects.has(kind));
 
         return [...new Set(kinds)];
     }
@@ -401,7 +414,7 @@ export class Binder {
         }
     }
 
-    /** Read the object type of a bindable kind: a resource kind's, or a served kind's own. */
+    /** Read the object type of a bindable kind: a resource kind's, or an object kind's own. */
     #object(type: string, plan: StackPlan): ObjectType {
         return this.#resources.get(type)?.object ?? plan.object(type);
     }
@@ -485,12 +498,13 @@ export class Binder {
                 continue;
             }
 
-            // ready a target its served kind prepares once its row and its provisioned parent arrived
-            const served = this.#served.get(need.kind);
-            if (served !== undefined) {
-                const declarer = Binder.#declarer(context, target, served.object);
+            // ready a target its object kind prepares once its row and its provisioned parent arrived
+            const bindable = this.#objects.get(need.kind);
+            if (bindable !== undefined) {
+                const declarer = Binder.#declarer(context, target, bindable.object);
                 isReady =
-                    (await Binder.#readyServed(context, served, declarer, bound, need)) && isReady;
+                    (await Binder.#readyObject(context, bindable, declarer, bound, need)) &&
+                    isReady;
             }
             // ready a resource once its provider provisioned it
             else {
@@ -504,30 +518,30 @@ export class Binder {
         return isReady;
     }
 
-    /** Report whether a served target is ready, preparing one whose provisioned parent is. */
-    static async #readyServed(
+    /** Report whether an object target is ready, preparing one whose provisioned parent is. */
+    static async #readyObject(
         context: MethodContext,
-        served: ServedBindable,
+        bindable: ObjectBindable,
         declarer: AccessContext,
         bound: Binding,
         need: ResourceNeed,
     ): Promise<boolean> {
         // wait for the target's row, and for a nested target's provisioned parent
         const row: Row | undefined = await context
-            .read(served.object.table)
+            .read(bindable.object.table)
             .findFirst({ where: { id: bound.target } });
         if (
             row === undefined ||
-            !(await Binder.#isParentProvisioned(context, served.object, row))
+            !(await Binder.#isParentProvisioned(context, bindable.object, row))
         ) {
             return false;
         }
 
         // take a ready target, else prepare it and wait
-        if (await served.ready(context, bound, need)) {
+        if (await bindable.ready(context, bound, need)) {
             return true;
         }
-        await served.prepare(context, declarer, bound, need);
+        await bindable.prepare(context, declarer, bound, need);
 
         return false;
     }
@@ -670,7 +684,7 @@ export class Binder {
         target: InstallationRollout,
         need: ResourceNeed,
     ): Promise<void> {
-        // require a served kind of the declaration's resource
+        // require an object kind of the declaration's resource
         const kind = this.#resources.get(need.kind);
         if (kind === undefined) {
             throw StackError.of(
@@ -744,7 +758,7 @@ export class Binder {
         need: ResourceNeed,
     ): Promise<void> {
         // require a kind binding the declaration's kind
-        const kind = this.#served.get(need.kind);
+        const kind = this.#objects.get(need.kind);
         if (kind === undefined) {
             throw StackError.of(
                 "DEFINITION_INVALID",

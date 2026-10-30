@@ -13,7 +13,7 @@ import {
     ObjectDescription,
     ObjectError,
     type ObjectReconciliation,
-    type ObjectType,
+    ObjectType,
     ObjectTypePool,
 } from "@destack/object";
 import accountPackage from "@destack/account/package";
@@ -368,7 +368,7 @@ async function installedTypes(
 
     // declare them against the space's types and account's, which they refer to
     const pool = ObjectTypePool.of(
-        ObjectStore.known(objects, Object.values(accountPackage.objects)),
+        ObjectType.known(objects, Object.values(accountPackage.objects)),
     );
 
     // report an installation the document declares that follows no build yet

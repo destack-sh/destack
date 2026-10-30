@@ -49,7 +49,7 @@ import { Rollout, rollout } from "../object/index.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
 import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
-import { Bindable, Binder, type ServedBindable } from "./resource/binding.ts";
+import { Binder, ResourceBindable, ObjectBindable } from "./resource/binding.ts";
 import { implementDeployment, implementInstance } from "./deployment/deployment.ts";
 import {
     type InstallationOptions,
@@ -152,8 +152,6 @@ export interface SpaceOptions {
     readonly buckets: CatalogueBucketHost;
     /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
-    /** The kinds of package objects that bindings target other than resources, such as secrets. */
-    readonly bindables: readonly ServedBindable[];
     /** The runtimes the machine runs its instances on, in preference order. */
     readonly runtimes: readonly Runtime[];
     /** The events of the spaces, recording their finished runs. */
@@ -262,23 +260,21 @@ export function serveSpace(options: SpaceOptions): {
         );
 
         return {
-            served: {
-                objects,
-                ...(definition.providers === undefined ? {} : { providers: definition.providers }),
-            },
+            served: { objects, providers: server.providers },
             server: server.installation === undefined ? resolved : resolved.at(server.installation),
         };
     });
 
     // index the machine's providers and bindable kinds, which the stack and the installations bind with
+    const bindables = ObjectBindable.of(options.servers);
     const providers = new ProviderIndex(
         options.machine,
         spaceProviders(options),
         others.map((each) => each.served),
     );
     const binder = new Binder(
-        providers.objects().map((type) => Bindable.resource(providers.kind(type), type)),
-        options.bindables,
+        providers.objects().map((type) => ResourceBindable.of(providers.kind(type), type)),
+        bindables,
     );
 
     // serve the stack with its access objects, then settings and packages, a standby the stack and access only
@@ -389,7 +385,7 @@ function ownObjects(
         binder.serve(),
         implementDeployment({
             providers,
-            bindables: options.bindables,
+            bindables: binder.objects(),
             machine: options.machine,
             runtimes: new Map(options.runtimes.map((runtime) => [runtime.name, runtime])),
             builds,

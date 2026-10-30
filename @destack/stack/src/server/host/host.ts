@@ -56,8 +56,8 @@ import {
     rollout,
     type InstallationRollout,
 } from "../../object/index.ts";
-import type { ServedBindable } from "../resource/binding.ts";
-import type { ServedProvider, SpaceProvider } from "../resource/resource.ts";
+import { ObjectBindable } from "../resource/binding.ts";
+import { StoreProvider, type SpaceProvider } from "../resource/resource.ts";
 import stackPackage from "../../package.ts";
 import type { BuildStore } from "../installation/build.ts";
 import type { SpaceRole } from "./space.ts";
@@ -130,10 +130,8 @@ export interface SpaceStart {
     ) => Promise<Response>;
     /** The space's store once it serves, which bound secrets and vaults read through. */
     readonly store: Promise<ObjectStore>;
-    /** The bindables connecting to their bound targets through the store, such as secrets. */
-    readonly bindables: readonly ServedBindable[];
-    /** The providers of the space's resources, served ones connecting through the store. */
-    readonly providers: readonly (SpaceProvider | ServedProvider)[];
+    /** The providers of the space's resources, store providers connecting through the store. */
+    readonly providers: readonly (SpaceProvider | StoreProvider)[];
     /** The connectors of the machine's resources, by provider code, such as Git storage. */
     readonly connectors: readonly Connector[];
     /** The host that stores the space's buckets. */
@@ -540,12 +538,16 @@ export class SpaceHost {
             .findMany({ where: { scope, installationId: id, packageId, name: declaration.name } });
         const found = present(bound, `the binding of ${declaration.name} by ${id}`);
         const { target } = found;
-        const served = start.bindables.find((each) => each.declaration === declaration.kind);
-        const provider = start.providers.find((each) => each.kind.name === declaration.kind);
+        const bindable = ObjectBindable.of(this.machine.servers).find(
+            (each) => each.declaration === declaration.kind,
+        );
+        const provider = [...start.providers, ...StoreProvider.of(this.machine.servers)].find(
+            (each) => each.kind.name === declaration.kind,
+        );
 
-        // connect to a served object, such as a secret, or a served resource, such as a vault, through the store
-        if (served !== undefined) {
-            return served.connect(start.store, row, found);
+        // connect to a bound object, such as a secret, or a store resource, such as a vault, through the store
+        if (bindable !== undefined) {
+            return bindable.connect(start.store, row, found);
         } else if (provider !== undefined && "connect" in provider) {
             return provider.connect(start.store, row, found);
         }
