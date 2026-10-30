@@ -209,7 +209,7 @@ const HOME_STACK = {
     },
 };
 
-/** The residency's home the fixture's tests copy: the forge with the vault's tables and Git storage. */
+/** The residency's home its tests copy: the forge with the vault's tables and Git storage. */
 const HOME_OPTIONS = {
     residencies: RESIDENCIES,
     ...TestPackage.options([FORGE]),
@@ -459,7 +459,7 @@ export class TestForge {
         return forge;
     }
 
-    /** Write the fixture's world: the forge, its GitHub App, the publishing account and the tenants. */
+    /** Write the world: the forge, its GitHub App, the publishing account and the tenants. */
     static async write(home: TestSpace): Promise<ForgeWorld> {
         // install the forge with its vaults, bucket, Git storage and secrets, as the residency's stack declares it
         const { issuers: _issuers, ...declared } = HOME_STACK;

@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { Tarball, type TarballEntry } from "@destack/package/archive";
+import { Tarball, TarballEntry } from "@destack/package/archive";
 import { type DependencyRelease, graph, PackageDefinition, type PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import type { Runtime } from "@destack/package/runtime";
@@ -268,7 +268,7 @@ export class PackageArchive {
             for (const [path, entry] of entries) {
                 const contents =
                     entry instanceof Uint8Array ? entry : await source.load(entry.path);
-                yield { path, contents };
+                yield TarballEntry.of(path, contents);
             }
         };
 
