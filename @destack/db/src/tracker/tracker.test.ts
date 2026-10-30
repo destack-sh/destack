@@ -66,7 +66,8 @@ test("hand a late instance the tracked owners, and count a silent instance stopp
     crashing.track("bob");
     await tracked(west, "bob", true);
     isCrashed = true;
-    await simulation.run({ to: simulation.clock.now() + HEARTBEAT * 4 });
+    await simulation.clock.sleep(HEARTBEAT * 4);
+    await simulation.idle();
     await tracked(west, "bob", false);
     expect({ alice: west.isTracked("alice"), stopped }).toEqual({
         alice: true,
@@ -86,7 +87,7 @@ test("count an unknown instance live only until this one could receive from it, 
     const isListening = west.isLive("unknown");
     east.track("alice");
     await tracked(west, "alice", true);
-    simulation.clock.advance(HEARTBEAT * 4);
+    await simulation.jump(simulation.clock.now() + HEARTBEAT * 4);
     const isForgotten = !west.isLive("unknown");
     const isHeard = west.isLive(east.instance);
 
@@ -164,7 +165,8 @@ test("announce a mark at once and a refresh with the next heartbeat, hand a late
     await marked(west, "replica", [1]);
     east.refresh("replica", 2);
     const beforeBeat = west.marks("replica");
-    await simulation.run({ to: simulation.clock.now() + HEARTBEAT });
+    await simulation.clock.sleep(HEARTBEAT);
+    await simulation.idle();
     await marked(west, "replica", [2]);
 
     // hand a late instance the marks set before it joined

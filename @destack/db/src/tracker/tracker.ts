@@ -243,8 +243,11 @@ export class Tracker {
 
     /** Announce this instance and stop silent ones at each heartbeat until closed. */
     async #beat(): Promise<void> {
+        // beat until closed, keeping when this instance beat last
         const { clock } = this.#environment;
         const { signal } = this.#closing;
+        const missed = this.#heartbeat * MISSED_HEARTBEATS;
+        let beatAt = clock.now();
         while (
             await clock.sleep(this.#heartbeat, signal).then(
                 () => true,
@@ -256,10 +259,12 @@ export class Tracker {
             this.#pending.clear();
             this.#notify({ kind: "heartbeat", instance: this.instance, marks });
 
-            // stop the instances silent for too many heartbeats
-            const deadline = clock.now() - this.#heartbeat * MISSED_HEARTBEATS;
-            for (const [instance, seen] of this.#instances) {
-                if (seen < deadline) {
+            // stop the instances silent for too many heartbeats, unless this one slept past them itself
+            const now = clock.now();
+            const isAwake = now - beatAt < missed;
+            beatAt = now;
+            for (const [instance, seen] of isAwake ? this.#instances : []) {
+                if (seen < now - missed) {
                     this.#drop(instance);
                 }
             }
