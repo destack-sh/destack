@@ -16,12 +16,15 @@ import {
     SimpleSpanProcessor,
     TracerProvider,
 } from "@opentelemetry/sdk-trace";
-import type { ContextManager, TextMapPropagator } from "@opentelemetry/api";
+import type { Attributes, ContextManager, TextMapPropagator } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import type { Clock } from "../clock/clock.ts";
 import type { Random } from "../random/random.ts";
 import { TraceIdGenerator } from "./generator.ts";
 import { type Telemetry, W3C_PROPAGATOR } from "./telemetry.ts";
+
+/** The duration histogram of database operations, by OpenTelemetry's semantic conventions. */
+const DB_OPERATION_DURATION = "db.client.operation.duration";
 
 /** A metric reader the world collects from on demand, beside no timer. */
 class CollectedMetrics extends MetricReader {
@@ -97,6 +100,14 @@ export class SimulatedTelemetry implements Telemetry {
                         0,
                     );
                     counts[`${name}.count`] = (counts[`${name}.count`] ?? 0) + count;
+
+                    // count each database statement kind apart, by its operation and table
+                    if (name === DB_OPERATION_DURATION) {
+                        for (const point of metric.dataPoints) {
+                            const key = `${name}.count.${statementKey(point.attributes)}`;
+                            counts[key] = (counts[key] ?? 0) + point.value.count;
+                        }
+                    }
                 }
                 // add up a sum
                 else if (metric.dataPointType === DataPointType.SUM) {
@@ -108,4 +119,15 @@ export class SimulatedTelemetry implements Telemetry {
 
         return counts;
     }
+}
+
+/** Name a statement kind's counter by its operation and table, as pg_stat_statements groups. */
+function statementKey(attributes: Attributes): string {
+    // read the operation and table, naming a statement without one other or none
+    const operation = attributes["db.operation.name"];
+    const collection = attributes["db.collection.name"];
+    const verb = typeof operation === "string" ? operation : "other";
+    const table = typeof collection === "string" ? collection : "none";
+
+    return `${verb}.${table}`;
 }
