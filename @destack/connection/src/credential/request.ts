@@ -1,13 +1,16 @@
-import type { Crypto, FetchOptions } from "@destack/environment";
+import type { Directory } from "@destack/account/address";
+import type { Crypto, Environment, FetchOptions } from "@destack/environment";
 import { AwsSigner, EMPTY_HASH } from "@destack/identity/aws";
 import type { Credential, Material, Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import type { ConnectionProtocol } from "../object/connection.ts";
 import { MessageSignature } from "../signature/signature.ts";
-import type { ClientOf } from "@destack/object/client";
-import { schema } from "@destack/schema";
+import type { Fetch } from "@destack/object";
+import type { PackageId } from "@destack/package";
+import { type ClientOf, createClient } from "@destack/object/client";
+import { type Identifier, schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
-import type connectionPackage from "../package.ts";
+import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 
 /** A request with a connection's credential applied, sent with the machine's client certificate. */
 export interface ConnectionRequest extends FetchOptions {
@@ -68,6 +71,20 @@ export const ConnectionRequest = {
 
             return ConnectionRequest.token(token, request);
         }
+    },
+
+    /** Call the connections' primary in an account's home, signing for the connection package. */
+    primary(
+        directory: Directory,
+        home: Identifier<"space">,
+        sign: (audience: PackageId) => Fetch,
+        environment: Environment,
+    ): ClientOf<typeof connectionPackage> {
+        const { id } = connectionPackage;
+        const url = () =>
+            directory.mount(home, CONNECTION_INSTALLATION, id, environment.clock.now());
+
+        return createClient(connectionPackage, { url, fetch: sign(id) }, environment);
     },
 
     /** Lease a connection's credential at its primary as the consumer, applied to its request. */
