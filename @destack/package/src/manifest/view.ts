@@ -4,6 +4,9 @@ import { PackagePath } from "../file/file.ts";
 import { Sandbox } from "../definition/sandbox.ts";
 import { PackageError } from "../error/index.ts";
 
+/** The roles a client opens a view in: a start view, or a command palette over a window. */
+const VIEW_CATEGORIES = ["home", "command"] as const;
+
 /** The presentation priorities, the strongest first. */
 const PRESENTATION_PRIORITIES = ["default", "option"] as const;
 
@@ -29,6 +32,11 @@ export const ViewPresentation = schema.object({
 /** An object type a view presents, as its declaration describes it. */
 export type ViewPresentation = schema.Infer<typeof ViewPresentation>;
 
+/** A role a client opens a view in, as Android's intent categories mark a home screen. */
+export const ViewCategory = schema.enum(VIEW_CATEGORIES);
+/** A role a client opens a view in. */
+export type ViewCategory = schema.Infer<typeof ViewCategory>;
+
 /** A view a browser output compiles, as manifests describe it. */
 const viewDescription = schema
     .object({
@@ -38,6 +46,8 @@ const viewDescription = schema
         sandbox: Sandbox,
         /** The object types the view presents, so opening an object picks its view. */
         presents: schema.array(ViewPresentation),
+        /** The roles clients open the view in. */
+        categories: schema.array(ViewCategory),
         /** The packages the view calls as its person. */
         packages: schema.array(PackageId),
     })
@@ -47,7 +57,7 @@ const viewDescription = schema
 export const ViewDescription = Object.assign(viewDescription, {
     /** A view as its declaration describes it: its name, presented types and called packages. */
     declaration: viewDescription
-        .pick({ presents: true, packages: true })
+        .pick({ presents: true, categories: true, packages: true })
         .extend({ name: schema.string().min(1) }),
 
     /** List the views a build's outputs compile, by name. */
