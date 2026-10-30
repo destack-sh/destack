@@ -21,7 +21,7 @@ import { ObjectReference, RequestId } from "@destack/sync";
 import { defineVault } from "@destack/vault/declare";
 import { secret, vault } from "@destack/vault/object";
 import vaultPackage from "@destack/vault/package";
-import vaultServer, { secretBindable } from "@destack/vault/server";
+import vaultServer from "@destack/vault/server";
 import { mailConnector, mailProvider } from "../email/index.ts";
 import { describeMail } from "../inspect/index.ts";
 import {
@@ -66,7 +66,6 @@ const MESSAGE: TestPackage = {
     server: messageServer,
     connectors: [mailConnector(MAIL_PROVIDER, new TestMailTransport())],
     servers: [vaultServer],
-    bindables: [secretBindable],
     providers: [mailProvider(MAIL_PROVIDER, mail)],
 };
 
@@ -81,7 +80,6 @@ const DOCUMENTS: TestPackage = {
     server: documentsServer,
     connectors: [],
     servers: [],
-    bindables: [],
     providers: [],
 };
 
