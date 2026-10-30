@@ -1,4 +1,4 @@
-import { type Environment, until } from "@destack/environment";
+import { type Environment, Pipe, until } from "@destack/environment";
 import { Digest, type DigestCrypto, present } from "@destack/schema";
 import type { BlobStorage } from "@destack/resource";
 import { and, asc, type BlobStore, type DatabaseConnection, eq, inArray, lte } from "@destack/db";
@@ -397,7 +397,7 @@ export class PackageStore<
                 signal?.throwIfAborted();
                 const stream = this.#stream(await select(path));
 
-                return signal ? stream.pipeThrough(new TransformStream(), { signal }) : stream;
+                return signal ? Pipe.through(stream, new TransformStream(), signal) : stream;
             },
             this.environment.crypto,
         );
