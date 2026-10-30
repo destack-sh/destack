@@ -431,7 +431,7 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
     ];
 
     // once the date passes, delete it
-    simulation.clock.advance(250);
+    await simulation.jump(simulation.clock.now() + 250);
     await bucket.delete("audit/segment");
     expect([replaced, deleted, held, await bucket.head("audit/segment")]).toEqual([
         ["FORBIDDEN", "ACCESS_DENIED", "file audit/segment is retained until its lock expires"],

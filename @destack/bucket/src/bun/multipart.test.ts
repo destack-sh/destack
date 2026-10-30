@@ -277,10 +277,10 @@ test("expire an upload at its seven days on a sweep or a close, reclaiming its p
     await multipart.uploadPart(1, "part");
 
     // keep it through a sweep before its seven days, and through a write once they pass
-    clock.advance(UPLOAD_RETENTION - 1);
+    await simulation.jump(clock.now() + UPLOAD_RETENTION - 1);
     await bucket.sweep();
     const before = await uploadsOf(bucket);
-    clock.advance(1);
+    await simulation.jump(clock.now() + 1);
     await bucket.put("other", "kept");
     const written = await uploadsOf(bucket);
 
@@ -289,7 +289,7 @@ test("expire an upload at its seven days on a sweep or a close, reclaiming its p
     const swept = await uploadsOf(bucket);
     const draft = await bucket.createMultipartUpload("draft");
     await draft.uploadPart(1, "draft part");
-    clock.advance(UPLOAD_RETENTION);
+    await simulation.jump(clock.now() + UPLOAD_RETENTION);
     await bucket[Symbol.asyncDispose]();
     await using reopened = await LocalBucket.open(directory, "space-test", world);
     expect({ before, written, swept, closed: await uploadsOf(reopened) }).toEqual({
