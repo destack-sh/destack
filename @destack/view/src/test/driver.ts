@@ -1,4 +1,4 @@
-import { testBrowser } from "./browser.ts";
+import { testBrowser, testWorld } from "./browser.ts";
 import type { Counters, Driver } from "@destack/test";
 import type { Clock } from "@destack/environment";
 import type { Given, SetStep } from "@destack/package/declare";
@@ -131,6 +131,11 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
                 break;
         }
         flush();
+    }
+
+    /** Read the fingerprint of everything the test's world did so far. */
+    fingerprint(): number {
+        return testWorld().simulation.fingerprint;
     }
 
     /** Count the elements the rendered examples show, as a render's size. */

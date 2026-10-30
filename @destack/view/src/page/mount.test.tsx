@@ -222,10 +222,10 @@ test("show the time on the view's clock, moving on each second until the view go
     const first = element.textContent;
 
     // move the clock a second, then two more once the view went
-    clock.advance(1000);
+    await simulation.jump(clock.now() + 1000);
     await changed(element, () => element.textContent !== first, RENDER_MILLISECONDS);
     const moved = element.textContent;
     dispose();
-    clock.advance(2000);
+    await simulation.jump(clock.now() + 2000);
     expect([first, moved, clock.next]).toEqual([String(start), String(start + 1000), undefined]);
 });

@@ -39,12 +39,12 @@ interface ViewExampleProperties {
 
 /** Render a view's example offline over the objects its calls bring about, each scope in memory. */
 export function ViewExample(properties: ViewExampleProperties): JSX.Element {
-    // open the scopes and load the view's component as host work on the clock, closing the scopes on unmount
+    // open the scopes and load the view's component as the world's work, closing the scopes on unmount
     const environment = useEnvironment();
     const closing = new AbortController();
     onCleanup(() => closing.abort());
     const opened = createMemo(() =>
-        environment.clock.trackHost(openSample(properties, environment, closing.signal)),
+        environment.clock.track(openSample(properties, environment, closing.signal)),
     );
 
     return createComponent(Loading, {

@@ -14,11 +14,14 @@ test("run a timeout once after its delay", async () => {
     const { simulation, tab } = testWorld();
     let count = 0;
     makeTimer(() => count++, 100, "timeout", tab.clock);
-    await simulation.run({ to: simulation.clock.now() + 50 });
+    await simulation.clock.sleep(50);
+    await simulation.idle();
     const early = count;
-    await simulation.run({ to: simulation.clock.now() + 60 });
+    await simulation.clock.sleep(60);
+    await simulation.idle();
     const fired = count;
-    await simulation.run({ to: simulation.clock.now() + 200 });
+    await simulation.clock.sleep(200);
+    await simulation.idle();
 
     expect([early, fired, count]).toEqual([0, 1, 1]);
 });
@@ -27,10 +30,12 @@ test("run an interval every delay until cleared", async () => {
     const { simulation, tab } = testWorld();
     let count = 0;
     const clear = makeTimer(() => count++, 100, "interval", tab.clock);
-    await simulation.run({ to: simulation.clock.now() + 350 });
+    await simulation.clock.sleep(350);
+    await simulation.idle();
     const fired = count;
     clear();
-    await simulation.run({ to: simulation.clock.now() + 300 });
+    await simulation.clock.sleep(300);
+    await simulation.idle();
 
     expect([fired, count]).toEqual([3, 3]);
 });
@@ -43,9 +48,11 @@ test("stop a timer made in a root once the caller cleans it up", async () => {
 
         return disposeRoot;
     }, tab);
-    await simulation.run({ to: simulation.clock.now() + 150 });
+    await simulation.clock.sleep(150);
+    await simulation.idle();
     dispose();
-    await simulation.run({ to: simulation.clock.now() + 200 });
+    await simulation.clock.sleep(200);
+    await simulation.idle();
 
     expect(count).toBe(1);
 });
@@ -62,7 +69,8 @@ test("stop timers when their root is disposed", async () => {
         { environment: tab },
     );
     cleanup();
-    await simulation.run({ to: simulation.clock.now() + 50 });
+    await simulation.clock.sleep(50);
+    await simulation.idle();
 
     expect([timeouts, intervals]).toEqual([0, 0]);
 });
@@ -79,11 +87,13 @@ test("run a timeout once and an interval every fixed delay until disposed", asyn
     }, tab);
     const counts: number[][] = [];
     for (const step of [50, 100, 100]) {
-        await simulation.run({ to: simulation.clock.now() + step });
+        await simulation.clock.sleep(step);
+        await simulation.idle();
         counts.push([timeouts, intervals]);
     }
     dispose();
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     counts.push([timeouts, intervals]);
 
     expect(counts).toEqual([
@@ -116,19 +126,23 @@ test("pause timers while their delay is false, keeping the waited share", async 
         return disposeRoot;
     }, tab);
     setIsPaused(true);
-    await simulation.run({ to: simulation.clock.now() + 300 });
+    await simulation.clock.sleep(300);
+    await simulation.idle();
     setIsPaused(false);
     const resumed = [timeouts, intervals];
 
     // pause again, then resume at a longer delay
     setIsPaused(true);
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     setIsPaused(false);
     setDelay(100);
     flush();
-    await simulation.run({ to: simulation.clock.now() + 10 });
+    await simulation.clock.sleep(10);
+    await simulation.idle();
     const early = [timeouts, intervals];
-    await simulation.run({ to: simulation.clock.now() + 160 });
+    await simulation.clock.sleep(160);
+    await simulation.idle();
     dispose();
 
     expect([resumed, early, [timeouts, intervals]]).toEqual([
@@ -148,15 +162,18 @@ test("stop an interval while its delay is false, and restart it after", async ()
         return disposeRoot;
     }, tab);
     flush();
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     const first = count;
     setDelay(false);
     flush();
-    await simulation.run({ to: simulation.clock.now() + 500 });
+    await simulation.clock.sleep(500);
+    await simulation.idle();
     const paused = count;
     setDelay(100);
     flush();
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     dispose();
 
     expect([first, paused, count]).toEqual([1, 1, 2]);
@@ -170,10 +187,12 @@ test("run a timeout loop every fixed delay until disposed", async () => {
 
         return disposeRoot;
     }, tab);
-    await simulation.run({ to: simulation.clock.now() + 350 });
+    await simulation.clock.sleep(350);
+    await simulation.idle();
     const fired = count;
     dispose();
-    await simulation.run({ to: simulation.clock.now() + 200 });
+    await simulation.clock.sleep(200);
+    await simulation.idle();
 
     expect([fired, count]).toEqual([3, 3]);
 });
@@ -189,17 +208,21 @@ test("read a timeout loop's new delay only between runs", async () => {
         return disposeRoot;
     }, tab);
     flush();
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     setDelay(200);
     flush();
 
     // finish the running wait, then wait the new delay
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     const second = count;
     flush();
-    await simulation.run({ to: simulation.clock.now() + 199 });
+    await simulation.clock.sleep(199);
+    await simulation.idle();
     const early = count;
-    await simulation.run({ to: simulation.clock.now() + 1 });
+    await simulation.clock.sleep(1);
+    await simulation.idle();
     dispose();
 
     expect([second, early, count]).toEqual([2, 2, 3]);
@@ -216,19 +239,23 @@ test("stop a timeout loop after the run that reads a false delay, and restart it
         return disposeRoot;
     }, tab);
     flush();
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     setDelay(false);
     flush();
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     const last = count;
     flush();
-    await simulation.run({ to: simulation.clock.now() + 500 });
+    await simulation.clock.sleep(500);
+    await simulation.idle();
     const stopped = count;
 
     // restart on a number
     setDelay(100);
     flush();
-    await simulation.run({ to: simulation.clock.now() + 200 });
+    await simulation.clock.sleep(200);
+    await simulation.idle();
     dispose();
 
     expect([last, stopped, count]).toEqual([2, 2, 4]);
@@ -246,12 +273,14 @@ test("poll a computation right away and after each delay, stopping when disposed
     );
     const values = [polled()];
     for (let tick = 0; tick < 2; tick++) {
-        await simulation.run({ to: simulation.clock.now() + 100 });
+        await simulation.clock.sleep(100);
+        await simulation.idle();
         flush();
         values.push(polled());
     }
     dispose();
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     flush();
 
     expect([...values, polled(), calls]).toEqual([1, 2, 3, 3, 3]);
@@ -304,12 +333,14 @@ test("poll at a reactive delay", async () => {
     );
     const values = [polled()];
     flush();
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     flush();
     values.push(polled());
     setDelay(50);
     flush();
-    await simulation.run({ to: simulation.clock.now() + 50 });
+    await simulation.clock.sleep(50);
+    await simulation.idle();
     flush();
     values.push(polled());
     dispose();
@@ -327,9 +358,11 @@ test("poll on each delay before the accessor is first read", async () => {
         }),
         tab,
     );
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     flush();
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     flush();
     const value = polled();
     dispose();
@@ -348,7 +381,8 @@ test("count the delays that pass from zero, at a fixed or reactive delay", async
         tab,
     );
     const counts = [fixed.count()];
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     flush();
     counts.push(fixed.count());
     fixed.dispose();
@@ -363,12 +397,14 @@ test("count the delays that pass from zero, at a fixed or reactive delay", async
         tab,
     );
     flush();
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     flush();
     counts.push(reactive.count());
     setDelay(50);
     flush();
-    await simulation.run({ to: simulation.clock.now() + 50 });
+    await simulation.clock.sleep(50);
+    await simulation.idle();
     flush();
     counts.push(reactive.count());
     reactive.dispose();

@@ -291,14 +291,14 @@ export async function changed(
     });
 
     // give up once the time passes on the test's clock, moving time until either happens
-    const { simulation, tab } = testWorld();
+    const { tab } = testWorld();
     const { clock } = tab;
     const timer = clock.setTimeout(
         () => reject(new TypeError(`the element never changed within ${milliseconds} ms`)),
         milliseconds,
     );
     try {
-        await simulation.drive(promise);
+        await promise;
     } finally {
         observer.disconnect();
         clock.clearTimeout(timer);
@@ -307,13 +307,13 @@ export async function changed(
 
 /** Move the test's clock to the tab's next frame, running what the frame starts. */
 export async function frame(): Promise<void> {
-    const { simulation, tab } = testWorld();
-    await simulation.drive(tab.display.frame());
+    const { tab } = testWorld();
+    await tab.display.frame();
 }
 
 /** Move the test's clock on, running the timers due meanwhile, such as a popover's open delay. */
-export function wait(milliseconds: number): Promise<void> {
+export async function wait(milliseconds: number): Promise<void> {
     const { simulation } = testWorld();
-
-    return simulation.run({ to: simulation.clock.now() + milliseconds });
+    await simulation.clock.sleep(milliseconds);
+    await simulation.idle();
 }

@@ -19,7 +19,8 @@ test("run nothing scheduled on the server, and only the first leading call", asy
     for (const trigger of triggers) {
         trigger("foo");
     }
-    await simulation.run({ to: TEST_START + 1000 });
+    await simulation.clock.sleep(TEST_START + 1000 - simulation.clock.now());
+    await simulation.idle();
     for (const trigger of triggers) {
         trigger("baz");
     }

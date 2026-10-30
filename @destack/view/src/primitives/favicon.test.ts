@@ -183,11 +183,13 @@ test("cycle favicon frames every interval, pausing, resuming and stopping after 
     );
     const frames = [looping.frame];
     for (let step = 0; step < 3; step++) {
-        await simulation.run({ to: simulation.clock.now() + 100 });
+        await simulation.clock.sleep(100);
+        await simulation.idle();
         frames.push(looping.frame);
     }
     looping.pause();
-    await simulation.run({ to: simulation.clock.now() + 300 });
+    await simulation.clock.sleep(300);
+    await simulation.idle();
     const paused = [looping.frame, looping.playing];
     looping.dispose();
 
@@ -197,7 +199,8 @@ test("cycle favicon frames every interval, pausing, resuming and stopping after 
         { interval: 100, loop: false },
         tab.clock,
     );
-    await simulation.run({ to: simulation.clock.now() + 500 });
+    await simulation.clock.sleep(500);
+    await simulation.idle();
     const ended = [once.frame, once.playing];
     once.dispose();
     const single = makeFaviconAnimation(["/1.png"], {}, tab.clock);
@@ -226,7 +229,8 @@ test("cycle reactive frames, starting over when they change and pausing while th
         }),
         tab,
     );
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     flush();
     const advanced = [animation.frame(), iconHref()];
 

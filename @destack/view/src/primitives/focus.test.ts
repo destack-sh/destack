@@ -20,7 +20,8 @@ function button(): HTMLButtonElement {
 /** Run effects and the timers due now. */
 async function settle(simulation: Simulation): Promise<void> {
     flush();
-    await simulation.run({ to: simulation.clock.now() });
+    await simulation.clock.sleep(simulation.clock.now() - simulation.clock.now());
+    await simulation.idle();
 }
 
 test("follow whether an element, fixed or given by an accessor, holds the focus", async () => {
