@@ -67,7 +67,7 @@ export class PostgresDatabase<
         // key each channel by the database's schema, as the log's notifications do
         let hashed: Promise<string> | undefined;
         const channel = (name: string) => {
-            hashed ??= clock.trackHost(
+            hashed ??= clock.trackPeer(
                 pool
                     .run(clock, (sql) => sql<{ hash: string }[]>`SELECT md5(${schema}) AS hash`)
                     .then(([row]) => present(row, "the schema's hash").hash),
@@ -138,7 +138,7 @@ export function postgresChannel(
     // send each payload on a reserved connection, failing the listeners as it fails
     const send = (payload: string) => {
         const sending = name.then((resolved) =>
-            clock.trackHost(
+            clock.trackPeer(
                 pool.run(clock, (sql) => sql`SELECT pg_notify(${resolved}, ${payload})`),
             ),
         );
@@ -264,7 +264,7 @@ function listenToChannel(
     };
     const subscription = name.then(async (resolved) => {
         // listen, then receive tokens as a party of the channel
-        const subscribed = await clock.trackHost(
+        const subscribed = await clock.trackPeer(
             pool.listener.listen(resolved, reassembler(resolved, party, deliver, clock), () => {
                 // settle every token wait on a reconnect, which may have lost notifications
                 deliverAll();

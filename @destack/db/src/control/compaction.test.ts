@@ -23,9 +23,9 @@ test("compact once the oldest windowed change leaves the window, and a week on w
 
     // log a change, then look again a day later and once it left the window
     await database.transaction((transaction) => transaction.insert(note).values(first).execute());
-    clock.set(clock.now() + 24 * 60 * 60_000);
+    await simulation.jump(clock.now() + 24 * 60 * 60_000);
     const dayLater = await compaction.reconcile();
-    clock.set(clock.now() + WEEK_MILLISECONDS);
+    await simulation.jump(clock.now() + WEEK_MILLISECONDS);
     const compacted = await compaction.reconcile();
     const oldest = await database.log.compact(clock.now(), clock.now());
     expect({ empty, dayLater, compacted, oldest }).toEqual({

@@ -18,7 +18,7 @@ import type { Channel } from "../channel/channel.ts";
 import { channelHub } from "../channel/channel.ts";
 import { STATE, type TableState } from "../migration/state.ts";
 import { upsertPredefined } from "../migration/plan.ts";
-import { inject, type TestProject, testTarget } from "@destack/test";
+import { inject, onTestFinished, type TestProject, testTarget } from "@destack/test";
 import { type JsonValue, mapValues, present, Uuid } from "@destack/schema";
 import type {
     ImageIndex,
@@ -110,7 +110,7 @@ export class TestDatabase<
         options: TestDatabaseOptions,
     ): Promise<TestDatabase<Models>> {
         // count the harness's file and schema work in flight on the database's clock
-        return options.environment.clock.trackHost(TestDatabase.#create(tables, options));
+        return options.environment.clock.trackPeer(TestDatabase.#create(tables, options));
     }
 
     /** Create an isolated database, as `create` tracks it. */
@@ -164,10 +164,11 @@ export class TestDatabase<
         // fork the template's world by the label, its databases running as the write's node
         const recorded = { seed: template.world.seed, start: image.end };
         const simulation = Simulation.fork(recorded, options.label);
+        onTestFinished(() => simulation[Symbol.asyncDispose]());
         const environment = simulation.environment(TEMPLATE_NODE);
 
         // copy each database, counting the harness's copying in flight on the fork's clock
-        const copied = await environment.clock.trackHost(
+        const copied = await environment.clock.trackPeer(
             TestDatabase.#copyDatabases(template, image, environment),
         );
         const databases = mapValues<Databases, TemplateStorage<Databases>>(
@@ -489,7 +490,7 @@ export class TestDatabase<
         }
 
         // track the connection, counting its opening in flight on the database's clock
-        const connection = await this.database.state.clock.trackHost(this.#open(tables));
+        const connection = await this.database.state.clock.trackPeer(this.#open(tables));
         this.#connections.add(connection);
 
         return connection;
@@ -501,7 +502,7 @@ export class TestDatabase<
         await Promise.all([...this.#connections].map((connection) => connection.close()));
         const { clock } = this.database.state;
         await this.database.close();
-        await clock.trackHost(this.#remove());
+        await clock.trackPeer(this.#remove());
     }
 }
 

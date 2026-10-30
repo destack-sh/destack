@@ -64,7 +64,7 @@ function message(error: unknown): string {
 
 /** Run a world until a read equals the expected value, then assert it whole. */
 async function settle<Value>(simulation: Simulation, read: () => Value, expected: Value) {
-    await simulation.run({ until: () => canonicalize(read()) === canonicalize(expected) });
+    await simulation.until(() => canonicalize(read()) === canonicalize(expected));
     expect(read()).toEqual(expected);
 }
 
@@ -328,7 +328,7 @@ test("fail the loop, its run and its idle waiters, once a controller throws a fa
     const running = loop.run(new AbortController().signal);
 
     // reject the driven idle wait and the run with the failure, naming the controller and the key
-    const idled = await refusal(simulation.drive(loop.idle()));
+    const idled = await refusal(loop.idle());
     const ran = await running.catch((error: unknown) => error);
 
     expect({
@@ -372,11 +372,12 @@ test("end a run whose loop fails, only after its running reconciliations ended",
     const running = loop.run(new AbortController().signal).catch(() => events.push("run ended"));
 
     // close the database under the watching loop while the key reconciles, then release it
-    await simulation.drive(started.promise);
+    await started.promise;
     await storage.database.close();
-    await simulation.run({ to: simulation.clock.now() + 1000 });
+    await simulation.clock.sleep(1000);
+    await simulation.idle();
     gate.resolve();
-    await simulation.drive(running);
+    await running;
 
     expect(events).toEqual(["held started", "held ended", "run ended"]);
 });
@@ -483,7 +484,7 @@ test("report a key function that fails on a change and reconcile every listed ke
         stopping.abort();
         await running;
     });
-    await simulation.drive(loop.idle());
+    await loop.idle();
 
     // report the failing change and reconcile the listed keys
     await database.transaction((transaction) =>
@@ -810,7 +811,7 @@ test("follow each listed key until its list drops it or the loop stops", async (
     await settle(simulation, () => started.toSorted(), ["added", "dropped", "stayed"]);
 
     // settle idle while the follows run
-    await simulation.drive(loop.idle());
+    await loop.idle();
     expect(stopped).toEqual(["dropped"]);
 
     // stop the rest with the loop
@@ -1294,7 +1295,7 @@ test("settle idle only after reconciling the keys of every watched change commit
         stopping.abort();
         await running;
     });
-    await simulation.drive(loop.idle());
+    await loop.idle();
 
     // commit changes one after another, each followed by an idle wait seeing its key reconciled
     const seen: string[][] = [];
@@ -1302,7 +1303,7 @@ test("settle idle only after reconciling the keys of every watched change commit
         await database.transaction((transaction) =>
             transaction.insert(job).values({ id, scope: "space", runs: 1 }).execute(),
         );
-        await simulation.drive(loop.idle());
+        await loop.idle();
         seen.push([...reconciled]);
     }
     expect(seen).toEqual([["first"], ["first", "second"], ["first", "second", "third"]]);
@@ -1347,7 +1348,7 @@ test("keep the follow cursor before a change the follow is still keying, and mov
         stopping.abort();
         await running;
     });
-    await simulation.drive(loop.idle());
+    await loop.idle();
 
     // commit a change and read the cursor while the follow keys it
     const { sequence: before } = await database.log.position();
@@ -1360,7 +1361,7 @@ test("keep the follow cursor before a change the follow is still keying, and mov
 
     // release the follow and settle once the key ran, the follow at the head
     release.resolve();
-    await simulation.drive(loop.idle());
+    await loop.idle();
     expect({ followedWhileKeying, followed: loop.followed, depth: loop.depth, reconciled }).toEqual(
         {
             followedWhileKeying: before,
@@ -1396,7 +1397,7 @@ test("spend no statement on commits to tables no controller watches", async () =
         stopping.abort();
         await running;
     });
-    await simulation.drive(loop.idle());
+    await loop.idle();
 
     // commit notes one at a time for the loop to see, and count every statement
     const before = database.driver.state.statements;
@@ -1443,7 +1444,7 @@ test("settle idle once the log moved past a quiet watched table, also after comp
     await database.transaction((transaction) =>
         transaction.insert(job).values({ id: "first", scope: "space", runs: 1 }).execute(),
     );
-    await simulation.drive(loop.idle());
+    await loop.idle();
     for (const id of ["one", "two", "three"]) {
         await database.transaction((transaction) =>
             transaction.insert(note).values({ id, scope: "space" }).execute(),
@@ -1641,7 +1642,7 @@ test("settle an alarm at its deadline while a follow runs, leave the alarm due, 
 
     // settle the alarm at its deadline once the follow runs
     await settle(simulation, () => follows, 1);
-    await simulation.drive(evicted.loop.idle(world.clock.now() + 20));
+    await evicted.loop.idle(world.clock.now() + 20);
     const settled = world.clock.now();
     const isDue = alarms.length === 1 && nth(alarms, 0) <= settled;
 

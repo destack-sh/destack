@@ -807,7 +807,7 @@ export class ConnectionState {
 
     /** Stop submissions, drain work, and close the client once. */
     close(operation: () => Promise<void>): Promise<void> {
-        this.#closing ??= this.clock.trackHost(
+        this.#closing ??= this.clock.trackPeer(
             Promise.all(this.#pending)
                 .then(() => this.#tracker?.close())
                 .then(() => this.commits.stop())

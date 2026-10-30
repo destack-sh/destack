@@ -80,7 +80,7 @@ test("keep a blob while a row references it or its write's lease lasts, and dele
 
     // collect within the leases, after them, and after the row's deletion retires its blob
     const within = await store.collect();
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     const after = await store.collect();
     const remaining = [...(await storage.missing([kept, dropped]))];
     await database.transaction(async (transaction) => {
@@ -106,7 +106,7 @@ test("rescue a blob a deleted row let go when a writer leases it again before th
     // let a blob go with its row, then lease it again for a new row before collecting
     const { simulation, environment, store, storage, database } = await openBlobs();
     const digest = await put(store, "shared", environment.crypto);
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await database.transaction(async (transaction) => {
         await transaction.insert(attachment).values({ id: "a", file: digest });
     });
@@ -120,7 +120,7 @@ test("rescue a blob a deleted row let go when a writer leases it again before th
 
     // keep it through a collection and past the new lease
     await store.collect();
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await store.collect();
     expect(await storage.missing([digest])).toEqual([]);
 });
@@ -134,7 +134,7 @@ test("keep the blobs a JSON array column lists, and delete one once no row lists
     await database.transaction(async (transaction) => {
         await transaction.insert(attachment).values({ id: "c", file, renditions: [small, large] });
     });
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await store.collect();
     const kept = [...(await storage.missing([file, small, large]))];
 
@@ -163,7 +163,7 @@ test("keep the blobs a map column lists by key, and delete one once no row lists
             .insert(attachment)
             .values({ id: "c", file, captions: { en: english, de: german } });
     });
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await store.collect();
     const kept = [...(await storage.missing([file, english, german]))];
 
@@ -202,7 +202,7 @@ test("delete a bundle no row keeps with its records, then the bundles and files 
     });
 
     // collect past the leases, where only the attachment and the bundles' own leases kept anything
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await store.collect();
     const digests = [outer, inner, own, shared];
     expect({

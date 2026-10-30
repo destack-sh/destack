@@ -52,13 +52,11 @@ test("answer a transaction that loses every race as unavailable after five attem
     await using simulation = testSimulation();
     const { database } = await open(simulation.environment("test"));
     let losing = 0;
-    const lost = await simulation
-        .drive(
-            database.transaction(async () => {
-                losing++;
-                throw new Error("database is locked");
-            }),
-        )
+    const lost = await database
+        .transaction(async () => {
+            losing++;
+            throw new Error("database is locked");
+        })
         .catch((error: unknown) => error);
     let failing = 0;
     const failed = await database

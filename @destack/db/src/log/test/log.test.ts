@@ -480,14 +480,13 @@ test("claim a consumer's page once from where its slot stands at the first claim
 test("stamp each logged change at its connection's clock as the clock moves between transactions", async () => {
     // write a note at one time, and rename it later
     const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 0, 1) });
-    const { clock } = simulation;
     const environment = simulation.environment("store");
     const storage = await TestDatabase.create(changeTables, { environment });
     onTestFinished(() => storage.close());
     const { database } = storage;
     await database.migrate(changeTables);
     await database.transaction((transaction) => transaction.insert(note).values(first).execute());
-    clock.set(Date.UTC(2026, 0, 2));
+    await simulation.jump(Date.UTC(2026, 0, 2));
     await database.transaction(async (transaction) => {
         await transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
     });
@@ -503,7 +502,6 @@ test("stamp each logged change at its connection's clock as the clock moves betw
 test("keep a transaction's stamp through a failed savepoint after its first write, logging one time for both writes", async () => {
     // write a note, fail a nested transaction, then rename the note, the clock moving between
     const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 0, 1) });
-    const { clock } = simulation;
     const environment = simulation.environment("store");
     const storage = await TestDatabase.create(changeTables, { environment });
     onTestFinished(() => storage.close());
@@ -511,7 +509,7 @@ test("keep a transaction's stamp through a failed savepoint after its first writ
     await database.migrate(changeTables);
     await database.transaction(async (transaction) => {
         await transaction.insert(note).values(first);
-        clock.set(Date.UTC(2026, 0, 2));
+        await simulation.jump(Date.UTC(2026, 0, 2));
         await transaction
             .transaction(async (nested) => {
                 await nested.update(note).set({ title: "Undone" }).where(eq(note.id, "a"));

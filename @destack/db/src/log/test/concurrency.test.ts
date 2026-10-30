@@ -20,11 +20,11 @@ async function open() {
     onTestFinished(() => storage.close());
     await storage.database.migrate(changeTables);
 
-    return { storage, simulation, database: storage.database };
+    return { storage, database: storage.database };
 }
 
 test("order postgresql changes by commit, not by write", async () => {
-    const { database, simulation } = await open();
+    const { database } = await open();
 
     // write first in a transaction that commits last
     const released = Promise.withResolvers<void>();
@@ -46,13 +46,13 @@ test("order postgresql changes by commit, not by write", async () => {
     const before = await database.log.read({ tables: [note], after: 0 });
     expect(before.changes.map((change) => change.key)).toEqual([{ id: "early" }]);
     released.resolve();
-    await simulation.drive(late);
+    await late;
     const after = await database.log.read({ tables: [note], after: before.sequence });
     expect(after.changes.map((change) => change.key)).toEqual([{ id: "late" }]);
 });
 
 test("commit both of two postgresql transactions that read a row together and append to it, running the later again", async () => {
-    const { database, simulation } = await open();
+    const { database } = await open();
     await database.transaction((transaction) => transaction.insert(note).values(first).execute());
 
     // read the row in both before either commits, and append to the title read
@@ -75,7 +75,7 @@ test("commit both of two postgresql transactions that read a row together and ap
                 after: { ...row, title: row.title + suffix },
             });
         });
-    await simulation.drive(Promise.all([append("!"), append("?")]));
+    await Promise.all([append("!"), append("?")]);
 
     // commit both appends in one of the two orders, the later one read again
     const [row] = await database.select({ title: note.title }).from(note).where(eq(note.id, "a"));
@@ -83,7 +83,7 @@ test("commit both of two postgresql transactions that read a row together and ap
 });
 
 test("run a postgresql update that lost to a concurrent commit again after it, its write last", async () => {
-    const { database, simulation } = await open();
+    const { database } = await open();
     await database.transaction((transaction) => transaction.insert(note).values(first).execute());
 
     // commit both of two concurrent updates, the one losing the race again after the other
@@ -100,7 +100,7 @@ test("run a postgresql update that lost to a concurrent commit again after it, i
         transaction.update(note).set({ title: "Early" }).where(eq(note.id, "a")).execute(),
     );
     released.resolve();
-    await simulation.drive(late);
+    await late;
 
     // keep the later update's title, written after the earlier commit
     expect(await database.select({ title: note.title }).from(note).where(eq(note.id, "a"))).toEqual(
@@ -109,7 +109,7 @@ test("run a postgresql update that lost to a concurrent commit again after it, i
 });
 
 test("number concurrent postgresql commits of two pools without gaps, each key's changes in commit order, at once for their writer", async () => {
-    const { storage, simulation } = await open();
+    const { storage } = await open();
     const other = await storage.connect(changeTables);
     await storage.database.transaction((transaction) =>
         transaction
@@ -156,13 +156,13 @@ test("number concurrent postgresql commits of two pools without gaps, each key's
             }
         }),
     );
-    await simulation.drive(committing);
+    await committing;
 
     // read the last commit at once through its writer's pool
     expect((await storage.database.log.position()).sequence).toBe(total);
 
     // number every change once, without gaps
-    await simulation.drive(following);
+    await following;
     expect(followed.map((change) => change.sequence)).toEqual(
         Array.from({ length: total }, (_, index) => index + 1),
     );

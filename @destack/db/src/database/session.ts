@@ -61,7 +61,7 @@ export class SqliteSession implements Session {
 
     /** Read every row as an array of values, integers exact. */
     values(text: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
-        return this.#clock.trackHost(this.client.values(text, parameters));
+        return this.#clock.trackPeer(this.client.values(text, parameters));
     }
 
     /** Read every row by column name. */
@@ -69,19 +69,19 @@ export class SqliteSession implements Session {
         text: string,
         parameters: readonly DriverValue[],
     ): Promise<Record<string, unknown>[]> {
-        const rows = await this.#clock.trackHost(this.client.all(text, parameters));
+        const rows = await this.#clock.trackPeer(this.client.all(text, parameters));
 
         return rows.map(requireRecord);
     }
 
     /** Run a statement for its effect. */
     async run(text: string, parameters: readonly DriverValue[]): Promise<void> {
-        await this.#clock.trackHost(this.client.run(text, parameters));
+        await this.#clock.trackPeer(this.client.run(text, parameters));
     }
 
     /** Run a script of statements in one round trip. */
     async exec(script: string): Promise<void> {
-        await this.#clock.trackHost(this.client.exec(script));
+        await this.#clock.trackPeer(this.client.exec(script));
     }
 
     /** Commit work in a transaction, immediate unless read-only, or nest it in a savepoint. */
@@ -188,8 +188,11 @@ export class PostgresSession implements Session {
             const transaction = reserved.sql;
             try {
                 return await transact(clock, operation, (body) =>
-                    block(reserved, { open, commit: "COMMIT", rollback: "ROLLBACK" }, () =>
-                        body(new PostgresSession({ transaction, depth: 0 }, schema, clock)),
+                    block(
+                        reserved,
+                        { open, commit: "COMMIT", rollback: "ROLLBACK" },
+                        () => body(new PostgresSession({ transaction, depth: 0 }, schema, clock)),
+                        clock,
                     ),
                 );
             } finally {
@@ -219,6 +222,7 @@ export class PostgresSession implements Session {
                     rollback: `ROLLBACK TO SAVEPOINT ${savepoint}`,
                 },
                 () => body(new PostgresSession({ transaction, depth: depth + 1 }, schema, clock)),
+                clock,
             ),
         ).finally(() => {
             this.#isNesting = false;
@@ -230,7 +234,7 @@ export class PostgresSession implements Session {
         // run it in the open transaction, nested ones included, as the log identity stamps there
         const { connection, schema } = this;
         if (!("pool" in connection)) {
-            return await this.#clock.trackHost(run(connection.transaction));
+            return await this.#clock.trackPeer(run(connection.transaction));
         }
 
         // send the statement after any search path change on a connection reserved in the schema
@@ -238,7 +242,7 @@ export class PostgresSession implements Session {
         const clock = this.#clock;
         const { sql, ready } = await pool.reserve(clock, schema);
         try {
-            const settled = await clock.trackHost(Promise.allSettled([ready, run(sql)]));
+            const settled = await clock.trackPeer(Promise.allSettled([ready, run(sql)]));
 
             // answer the statement's result, or fail with the first failure
             const [changed, ran] = settled;
@@ -257,14 +261,14 @@ async function block<Value>(
     reserved: PostgresReservation,
     statements: { readonly open: string; readonly commit: string; readonly rollback: string },
     body: () => Promise<Value>,
+    clock: Clock,
 ): Promise<Value> {
-    // send the opening before the body's statements, after the connection's search path
+    // send the opening before the body's statements, after the connection's search path, each statement a peer
     const client = reserved.sql;
-    const settled = await Promise.allSettled([
-        reserved.ready,
-        client.unsafe(statements.open).simple().execute(),
-        body(),
-    ]);
+    const send = (statement: string) =>
+        clock.trackPeer(client.unsafe(statement).simple().execute());
+    const ready = clock.trackPeer(reserved.ready);
+    const settled = await Promise.allSettled([ready, send(statements.open), body()]);
 
     // commit a block whose opening and body succeeded, refusing a commit the server rolled back
     const [changed, opened, ran] = settled;
@@ -273,7 +277,7 @@ async function block<Value>(
         opened.status === "fulfilled" &&
         ran.status === "fulfilled"
     ) {
-        const committed = await client.unsafe(statements.commit).simple().execute();
+        const committed = await send(statements.commit);
         if (committed.command === "ROLLBACK") {
             throw DatabaseError.of(
                 "QUERY_FAILED",
@@ -287,7 +291,7 @@ async function block<Value>(
     // roll back a failed block, then fail with its first failure
     const failure = firstFailure(settled);
     try {
-        await client.unsafe(statements.rollback).simple().execute();
+        await send(statements.rollback);
     } catch (cleanup) {
         throw new AggregateError([failure, cleanup], "transaction and rollback failed", {
             cause: cleanup,
@@ -318,14 +322,14 @@ async function transact<Value>(
     // count the opening until the body starts, and the commit or rollback once it ends
     const opening = Promise.withResolvers<void>();
     const ending = Promise.withResolvers<void>();
-    void clock.trackHost(opening.promise);
+    void clock.track(opening.promise);
     try {
         return await open(async (session) => {
             opening.resolve();
             try {
                 return await operation(session);
             } finally {
-                void clock.trackHost(ending.promise);
+                void clock.track(ending.promise);
             }
         });
     } finally {

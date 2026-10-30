@@ -1,4 +1,3 @@
-import { yieldToEventLoop } from "@destack/environment";
 import postgres from "postgres";
 import { expect, onTestFinished, test } from "@destack/test";
 import { present, schema, Uuid } from "@destack/schema";
@@ -274,7 +273,7 @@ test("count a commit in flight until a watching connection receives it, though i
             })
             .execute(),
     );
-    await simulation.run({ until: () => isSeen });
+    await simulation.until(() => isSeen);
 
     // leave the clock where it started, as the commit stays in flight until delivered
     expect(simulation.clock.now()).toBe(Date.UTC(2026, 9, 1));
@@ -316,9 +315,9 @@ test("send a listening writer's commit token in its commit notification, counted
     );
     await database.transaction((transaction) => transaction.insert(note).values(row).execute());
 
-    // read the notification, then the work in flight once its handlers ran
+    // read the notification, then the work in flight once the world is idle
     await isReceived.promise;
-    await yieldToEventLoop();
+    await simulation.idle();
     const announced = schema
         .object({
             kind: schema.literal("commit"),

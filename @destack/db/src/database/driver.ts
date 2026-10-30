@@ -91,11 +91,11 @@ export class DatabaseDriver {
             this.operations += 1;
         }
 
-        // count the statement in flight on the clock, classify failures, and record its duration
+        // classify failures, and record the duration, its statements counted in flight by the session
         const reported = async () => {
             const started = this.state.clock.now();
             try {
-                return await this.state.clock.trackHost(Promise.resolve(operation()));
+                return await operation();
             } catch (error) {
                 throw classifyError(error, this.state.declared);
             } finally {
