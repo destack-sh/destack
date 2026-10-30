@@ -53,10 +53,12 @@ test("serve a moving space's target only the blobs the space's rows reference an
     // list and read the snapshot's blob as the target, and refuse the other blob and another machine
     const read = async (caller: string, digest: Digest) => {
         const chunks: Uint8Array[] = [];
-        for await (const chunk of fixture
+        for await (const blob of fixture
             .handoff(served, served.as(caller))
-            .read(ids.space, digest)) {
-            chunks.push(chunk);
+            .batch(ids.space, [digest])) {
+            for await (const chunk of blob.body) {
+                chunks.push(chunk);
+            }
         }
 
         return new TextDecoder().decode(Buffer.concat(chunks));

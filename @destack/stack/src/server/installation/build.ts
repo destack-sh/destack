@@ -148,14 +148,13 @@ export class BuildCache {
         }
 
         // read its closure, opening the builds the store lacks where the registry locates them
-        const { crypto } = this.store.environment;
         const served = new Map<Digest, BuildReader>();
         const read: ManifestRead = async (digest, located) => {
             if (await this.store.contains(digest)) {
                 return this.store.get(digest);
             }
             const { location, fetch } = await registry.locate(located, digest);
-            const opened = await BuildReader.open(location, fetch, crypto);
+            const opened = await BuildReader.archive(location, fetch, this.store.environment);
             served.set(digest, opened);
 
             return opened.manifest;

@@ -16,7 +16,8 @@ import { type IdentityKeystore } from "@destack/account/identity";
 import type { MethodContext } from "@destack/object";
 import type { AdapterFetch } from "@destack/object/server";
 import type { Runtime } from "../../runtime/index.ts";
-import { ResourceId, type Rewrapper, type BlobStorage } from "@destack/resource";
+import { ResourceId, type Rewrapper, type BlobEntry } from "@destack/resource";
+import { Tarball } from "@destack/package/archive";
 import { Recipient } from "@destack/identity";
 import { type Fence, snapshot, type Transfer } from "../../object/index.ts";
 import type { BuildStore } from "../installation/build.ts";
@@ -92,12 +93,12 @@ export interface Handoff {
     ) => Promise<Digest>;
     /** List the blobs the space's rows reference that the source stores. */
     readonly blobs: (spaceId: Identifier<"space">, options?: HandoffCall) => Promise<Digest[]>;
-    /** Read a blob of the source machine's content store as it streams its bytes. */
-    readonly read: (
+    /** Read many blobs of the source machine's store in one request, each streamed in order. */
+    readonly batch: (
         spaceId: Identifier<"space">,
-        digest: Digest,
+        digests: readonly Digest[],
         options?: HandoffCall,
-    ) => AsyncIterable<Uint8Array>;
+    ) => AsyncIterable<BlobEntry>;
     /** Locate a build the space runs in the source machine's build store. */
     readonly locate: (
         spaceId: Identifier<"space">,
@@ -185,10 +186,21 @@ export const Handoff = {
 
                 return schema.array(Digest).parse(await response.json());
             },
-            read: async function* (spaceId, digest, options = {}) {
-                const path = `${adapter}${HandoffPath.of(spaceId, "blobs")}/${digest}`;
-                const response = await send(new Request(path, { signal: options.signal ?? null }));
-                yield* present(response.body, `the blob ${digest}`);
+            batch: async function* (spaceId, digests, options = {}) {
+                // ask for the blobs in one request, reading the tarball of them as it streams
+                const path = `${adapter}${HandoffPath.of(spaceId, "blobs")}`;
+                const response = await send(
+                    new Request(path, {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify(digests),
+                        signal: options.signal ?? null,
+                    }),
+                );
+                const archive = present(response.body, "the blobs' tarball");
+                for await (const entry of Tarball.read(archive, environment.compression)) {
+                    yield { digest: Digest.parse(entry.path), size: entry.size, body: entry.body };
+                }
             },
             locate: (spaceId, manifest) => ({
                 location: {
@@ -203,38 +215,27 @@ export const Handoff = {
 
 /** Read the pages of an NDJSON answer, one page per line. */
 async function* pagesOf(response: Response): AsyncGenerator<Page> {
-    const lines = present(response.body, "the handoff's pages")
-        .pipeThrough(new TextDecoderStream())
-        .pipeThrough(splitLines());
-    for await (const line of lines) {
-        yield Page.parse(JSON.parse(line));
-    }
-}
-
-/** Split a text stream into its non-empty lines. */
-function splitLines(): TransformStream<string, string> {
+    // decode the body as it arrives, parsing each complete line as a page
+    const decoder = new TextDecoder();
     let pending = "";
+    for await (const chunk of present(response.body, "the handoff's pages")) {
+        const lines = `${pending}${decoder.decode(chunk, { stream: true })}`.split("\n");
+        pending = lines.pop() ?? "";
+        for (const line of lines.filter((each) => each.length > 0)) {
+            yield Page.parse(JSON.parse(line));
+        }
+    }
 
-    return new TransformStream({
-        transform: (chunk, lines) => {
-            // emit each complete line, and buffer the partial one
-            const parts = `${pending}${chunk}`.split("\n");
-            pending = parts.pop() ?? "";
-            for (const part of parts.filter((line) => line.length > 0)) {
-                lines.enqueue(part);
-            }
-        },
-        flush: (lines) => {
-            if (pending.length > 0) {
-                lines.enqueue(pending);
-            }
-        },
-    });
+    // parse a last line without its newline
+    const last = `${pending}${decoder.decode()}`;
+    if (last.length > 0) {
+        yield Page.parse(JSON.parse(last));
+    }
 }
 
 /** Answer pages as NDJSON, one page per line. */
 function ndjson(pages: AsyncIterable<Page>): Response {
-    const lines = streamOf(linesOf(pages)).pipeThrough(new TextEncoderStream());
+    const lines = streamOf(linesOf(pages));
 
     return new Response(lines, { headers: { "content-type": "application/x-ndjson" } });
 }
@@ -258,15 +259,18 @@ function streamOf<Value>(values: AsyncIterable<Value>): ReadableStream<Value> {
     });
 }
 
-/** Write each page as one JSON line. */
-async function* linesOf(pages: AsyncIterable<Page>): AsyncGenerator<string> {
+/** Write each page as one encoded JSON line. */
+async function* linesOf(pages: AsyncIterable<Page>): AsyncGenerator<Uint8Array> {
+    const encoder = new TextEncoder();
     for await (const page of pages) {
-        yield `${JSON.stringify(page)}\n`;
+        yield encoder.encode(`${JSON.stringify(page)}\n`);
     }
 }
 
 /** What a source hands its spaces off with. */
 export interface HandoffOptions {
+    /** The environment whose compression packs the blobs a target asks for. */
+    readonly environment: Pick<Environment, "compression">;
     /** The space's database. */
     readonly database: DatabaseConnection;
     /** The account package's uplink, which places the spaces as this machine. */
@@ -358,25 +362,27 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
         else if (part === "blobs" && rest === "" && request.method === "GET") {
             return Response.json([...(await content.blobs(record))]);
         }
-        // stream a blob the space's rows reference
-        else if (part === "blobs" && request.method === "GET") {
-            const digest = Digest.parse(rest.slice(1));
-            await content.requireBlob(record, digest);
+        // stream the asked blobs the space's rows reference as one tarball named by digest
+        else if (part === "blobs" && rest === "" && request.method === "POST") {
+            const digests = schema.array(Digest).parse(await request.json());
+            for (const digest of digests) {
+                await content.requireBlob(record, digest);
+            }
+            const entries = (async function* () {
+                for await (const blob of options.blobs.storage.batch(digests)) {
+                    yield { path: blob.digest, size: blob.size, body: blob.body };
+                }
+            })();
 
-            return streamBlob(options.blobs.storage, digest);
+            return new Response(Tarball.stream(entries, options.environment.compression), {
+                headers: { "content-type": "application/gzip" },
+            });
         }
         // refuse any other request
         else {
             throw StackError.of("HANDOFF_NOT_FOUND", `no handoff at ${url.pathname}`);
         }
     };
-}
-
-/** Stream a blob of the space. */
-function streamBlob(store: Pick<BlobStorage, "read">, digest: Digest): Response {
-    const body = streamOf(store.read(digest));
-
-    return new Response(body, { headers: { "content-type": "application/octet-stream" } });
 }
 
 /** The builds and blobs each moving space's target reads, read once per transfer. */

@@ -126,7 +126,7 @@ interface Copy {
     /** The snapshot's digest. */
     readonly digest: Digest;
     /** The space's store, reading blobs through the source's handoff. */
-    readonly store: Pick<BlobStorage, "read" | "write" | "fetch">;
+    readonly store: Pick<BlobStorage, "read" | "batch" | "write" | "fetch">;
     /** The recipient the source encrypted the machine-bound values to. */
     readonly recipient: Recipient;
     /** The resource's applied states. */
@@ -311,7 +311,7 @@ export async function expireSnapshots(
 
 /** Write into a space's blobs, leasing each for a day, collecting what it writes or fetches. */
 function recording(space: BlobStore): {
-    readonly store: Pick<BlobStorage, "read" | "write" | "fetch">;
+    readonly store: Pick<BlobStorage, "read" | "batch" | "write" | "fetch">;
     readonly blobs: Set<Digest>;
 } {
     const blobs = new Set<Digest>();
@@ -321,6 +321,7 @@ function recording(space: BlobStore): {
         blobs,
         store: {
             read: (digest) => space.storage.read(digest),
+            batch: (digests) => space.storage.batch(digests),
             write: async (body, expected) => {
                 // lease the bytes' digest before keeping them, so no collection takes them meanwhile
                 const chunked = await Array.fromAsync(body);
@@ -355,10 +356,10 @@ function relayed(
     space: BlobStore,
     source: Handoff,
     spaceId: Identifier<"space">,
-): Pick<BlobStorage, "read" | "write" | "fetch"> {
-    // read a blob from the source machine's store through its relay
+): Pick<BlobStorage, "read" | "batch" | "write" | "fetch"> {
+    // read blobs from the source machine's store through its relay, in batches
     const remote = {
-        read: (digest: Digest) => source.read(spaceId, digest),
+        batch: (digests: readonly Digest[]) => source.batch(spaceId, digests),
     };
     const { store } = recording(space);
 
@@ -366,6 +367,10 @@ function relayed(
         read: async function* (digest) {
             await store.fetch([digest], remote);
             yield* space.storage.read(digest);
+        },
+        batch: async function* (digests) {
+            await store.fetch(digests, remote);
+            yield* space.storage.batch(digests);
         },
         write: (body, expected) => store.write(body, expected),
         fetch: (digests, from) => store.fetch(digests, from),

@@ -636,7 +636,7 @@ export class SpaceTransfer {
     async #copyBlobs(source: Handoff, blobs: BlobStore, signal: AbortSignal): Promise<void> {
         const missing = await blobs.storage.missing(await source.blobs(this.spaceId, { signal }));
         await blobs.storage.fetch(missing, {
-            read: (digest) => source.read(this.spaceId, digest, { signal }),
+            batch: (digests) => source.batch(this.spaceId, digests, { signal }),
         });
     }
 
