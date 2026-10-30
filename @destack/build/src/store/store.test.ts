@@ -631,7 +631,7 @@ test("serve a stored build over HTTP after the host authorizes each read", async
     await present((await fetchPackage(`${url}archive`)).body, "the archive body").cancel();
 });
 
-test("copy a served build into another store by its digest, fetching only the files it lacks", async () => {
+test("copy a served build into another store by its digest in one request for its archive", async () => {
     // serve a stored build, recording each path read
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -666,16 +666,7 @@ test("copy a served build into another store by its digest, fetching only the fi
         before: false,
         after: true,
         manifest: build.manifest,
-        first: [
-            // fetch the empty declaration and source map lists once, as their bytes share one digest
-            "files/manifest/declarations.json",
-            "files/manifest/dependencies.json",
-            "files/manifest/files.json",
-            "files/manifest/files.json",
-            "files/src/answer.ts",
-            "files/src/index.ts",
-            "manifest.json",
-        ],
+        first: ["archive"],
         second: [],
     });
 });

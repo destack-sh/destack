@@ -23,7 +23,7 @@ export async function testStore(
     }
 
     // give the world a view of it through its own effects
-    return await (await world.scheduler.track(host, "host")).view(world);
+    return await (await world.scheduler.track(host, "host")).view(world, world.scheduler);
 }
 
 /** A package store over a test's blobs and index, in memory or below a directory. */
@@ -51,7 +51,9 @@ export class TestPackageStore extends PackageStore implements AsyncDisposable {
         directory: string,
         environment: Environment<"files">,
     ): Promise<TestPackageStore> {
-        const storage = await LocalBlobStorage.open(join(directory, "files"), environment);
+        const storage = await LocalBlobStorage.open(join(directory, "files"), environment, {
+            synchronous: "off",
+        });
         const database = await TestPackageStore.#migrated(join(directory, "store.db"), environment);
 
         return new TestPackageStore(storage, database, environment);
