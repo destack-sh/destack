@@ -98,7 +98,6 @@ test("add a version, point the current alias at it, destroy and restore, recordi
     const kit = await TestVault.open();
     const caller = await kit.elevated();
     const client = caller.client(vaultPackage);
-    kit.clock.pause();
     const time = kit.clock.now();
     const { sequence } = await kit.served.database.log.position();
     const { secret: created, key, version: written } = await kit.createSecret(caller);
@@ -220,7 +219,6 @@ test("refuse writing a version with a past expiry and reading an expired version
     const live = await client.secret.read(key);
 
     // refuse reading the version once its expiry passed
-    kit.clock.pause();
     await kit.space.advance(kit.served, expiresAt);
     expect([past, live, await refusal(client.secret.read(key))]).toEqual([
         ["BAD_REQUEST", "EXPIRY_IN_PAST", "secret expiry must be in the future"],
@@ -236,7 +234,6 @@ test("purge a deleted secret at once or when its window ends, destroying its val
     const { key, version: written } = await kit.createSecret(kit.owner);
 
     // delete it at a paused time
-    kit.clock.pause();
     const deletedAt = kit.clock.now();
     await client.secret.delete({
         ...key,
@@ -603,7 +600,6 @@ test("bind a secret the stack declares at a fixed version, and trash it once the
 
     // drop the consumer and the secret from the stack at a paused time, trashing the secret
     const before = await client.secret.get({ scope: ids.space, id: declared.id });
-    kit.clock.pause();
     const droppedAt = kit.clock.now();
     await kit.space.apply(kit.served, [vaultPackage], { installations: {}, secrets: {} });
     expect({

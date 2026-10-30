@@ -133,7 +133,6 @@ test("put a consumer's secret as one live version through its vault, refuse anot
         await TestVault.build(STRANGER, [], [], kit.environment.crypto),
     );
     const target = { vault: await kit.vault(), secret: secret.generateId(kit.environment) };
-    kit.clock.pause();
     const time = kit.clock.now();
     await put(kit, kit.installation, target, "first");
     await put(kit, kit.installation, target, "second");
@@ -359,7 +358,6 @@ test("trash a vault's secrets with it once its installation goes", async () => {
             ),
         ],
     });
-    kit.clock.pause();
     const removedAt = kit.clock.now();
     await kit.space.apply(kit.served, [], { installations: {} });
 
