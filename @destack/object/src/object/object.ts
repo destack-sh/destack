@@ -165,6 +165,7 @@ import type { DeclarationHandler } from "../server/stack.ts";
 import type { ManagedTable } from "../trait/record.ts";
 import { Casing } from "./name.ts";
 import { ObjectPolicy } from "./access.ts";
+import type { KnownDeclaration } from "./description.ts";
 import { type ConstraintColumn, ObjectTable, type TraitOf, type TraitTable } from "./table.ts";
 import type { ObjectConstraint } from "./constraint.ts";
 
@@ -1963,6 +1964,27 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const owners = objects.filter((object) => object.text.length > 0);
 
         return owners.length === 0 ? [...objects] : [...objects, Chunk.object(owners)];
+    }
+
+    /** List the declarations installed types resolve against: served types, scopes and policies. */
+    static known(
+        objects: readonly ObjectType[],
+        policies: readonly (Policy | ObjectType | TableMapping)[],
+    ): KnownDeclaration[] {
+        // add the scope types enclosing the served types, up to the universe
+        const served = ObjectType.served(objects);
+        const scopes = new Set(served.flatMap((type) => type.scopes));
+        for (const scope of scopes) {
+            scope.scopes.forEach((enclosing) => scopes.add(enclosing));
+        }
+
+        return [
+            ...served,
+            ...[...scopes].filter((scope) => !served.some((type) => type.same(scope))),
+            ...policies.filter(
+                (policy) => policy instanceof Policy || policy instanceof ObjectType,
+            ),
+        ];
     }
 
     /** List the types some types refer to or live in, transitively, leaving out the given ones. */

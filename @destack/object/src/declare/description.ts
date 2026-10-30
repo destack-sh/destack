@@ -1,7 +1,7 @@
 import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
 import { PermissionRequest } from "@destack/access";
-import { DeclarationName, PackageId, Sandbox } from "@destack/package";
+import { DeclarationName, type graph, PackageId, Sandbox } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { ObjectTypeReference } from "@destack/sync";
 
@@ -159,6 +159,17 @@ export const PackageDescription = Object.assign(packageDescription, {
         );
 
         return declared?.description;
+    },
+
+    /** Read the package some declarations declare, absent for a library. */
+    find(
+        declarations: readonly Pick<graph.Declaration, "kind" | "kindPackageId" | "description">[],
+    ): schema.Infer<typeof packageDescription> | undefined {
+        const declared = declarations.find(
+            (each) => each.kind === PACKAGE_DECLARATION && each.kindPackageId === KIND_PACKAGE_ID,
+        );
+
+        return declared === undefined ? undefined : packageDescription.parse(declared.description);
     },
 });
 /** A declared package: its API, objects, adapters, views and requested permissions. */

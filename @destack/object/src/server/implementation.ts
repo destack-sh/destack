@@ -13,6 +13,10 @@ import type { Follow } from "../replica/shape.ts";
 import type { ExternalStorage } from "./external.ts";
 import type { ResourceControllerOptions } from "./provisioned.ts";
 import type { ObjectStore } from "./store.ts";
+import type { Bindable } from "../installation/bindable.ts";
+import { Installation } from "../installation/installation.ts";
+import type { ObjectReference } from "@destack/sync";
+import type { DigestCrypto } from "@destack/schema";
 
 /** Answer a request below an adapter's mount over the package's store, as the authorized caller. */
 export type AdapterFetch = (
@@ -34,8 +38,10 @@ export type ImplementationInput<Handle extends ObjectPackage = ObjectPackage> = 
     readonly objects?: readonly ObjectType[];
     /** The controllers beside the objects' controllers, each built over the package's store. */
     readonly controllers?: readonly ((store: ObjectStore) => Controller)[];
-    /** The providers reconciling the package's provisioned resources. */
+    /** The providers of the resource kinds the package provides to every space serving it. */
     readonly providers?: ResourceControllerOptions["providers"];
+    /** The kinds of objects the package lets installations bind, such as secrets. */
+    readonly bindables?: readonly Bindable[];
     /** The shapes the package's code reads replicated, with the keys it follows them at. */
     readonly follows?: readonly Follow[];
     /** The on-demand follows of the rows standing for callers, acquired where they are missing. */
@@ -70,6 +76,12 @@ export interface PackageImplementation {
     ) => ImplementationInput;
     /** Serve the package as an installation inside a store of other packages. */
     readonly at: (installation: ServerContext) => PackageImplementation;
+    /** Serve the package as its base installation in a scope. */
+    readonly base: (scope: ObjectReference, crypto: DigestCrypto) => Promise<PackageImplementation>;
+    /** The providers of the resource kinds the package provides to every installation. */
+    readonly providers: NonNullable<ImplementationInput["providers"]>;
+    /** The kinds of objects the package lets every installation bind. */
+    readonly bindables: readonly Bindable[];
 }
 
 /** Implement a package from its code, or per installation from its context. */
@@ -81,21 +93,37 @@ export function implementPackage<const Handle extends ObjectPackage>(
 ): PackageImplementation {
     // serve a static definition, else build an installed installation's from its context
     const read = (context: PackageContext | BaseServerContext | undefined): ImplementationInput => {
+        // serve a static definition as it is
         if (typeof definition !== "function") {
             return definition;
-        } else if (context === undefined) {
+        }
+        // refuse serving a per-installation definition without an installation
+        else if (context === undefined) {
             throw new TypeError(`package ${handle.name} can only serve an installation`);
-        } else if (!ServerContext.isInstalled(context)) {
+        }
+        // refuse one not installed yet
+        else if (!ServerContext.isInstalled(context)) {
             throw new TypeError(`package ${handle.name} can only serve an installed installation`);
         }
 
-        return definition(context);
+        // refuse providers or bindables that differ by installation
+        const installed = definition(context);
+        if (installed.providers !== undefined || installed.bindables !== undefined) {
+            throw new TypeError(
+                `package ${handle.name} must declare its providers and bindables for every installation`,
+            );
+        }
+
+        return installed;
     };
     const serve = (installation: ServerContext | undefined): PackageImplementation => ({
         package: handle,
         installation,
         definition: read,
         at: (bound) => serve(bound),
+        base: async (scope, crypto) => serve(await Installation.base(scope, handle, crypto)),
+        providers: typeof definition === "function" ? [] : (definition.providers ?? []),
+        bindables: typeof definition === "function" ? [] : (definition.bindables ?? []),
     });
 
     return serve(undefined);

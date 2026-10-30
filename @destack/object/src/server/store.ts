@@ -654,7 +654,7 @@ export class ObjectStore {
         this.followed = [...shapes, ...followed.decided];
         this.replicated = followed.replicated;
         this.feed = followed.feed;
-        this.known = ObjectStore.known(options.objects, options.policies ?? []);
+        this.known = ObjectType.known(options.objects, options.policies ?? []);
 
         // implement each served package, the first one also running the store's controllers
         const servedIds = new Set(served.map((entry) => entry.package.id));
@@ -765,27 +765,6 @@ export class ObjectStore {
                 },
             },
         };
-    }
-
-    /** List the declarations installed types resolve against: served types, scopes and policies. */
-    static known(
-        objects: readonly ObjectType[],
-        policies: readonly (Policy | ObjectType | TableMapping)[],
-    ): KnownDeclaration[] {
-        // add the scope types enclosing the served types, up to the universe
-        const served = ObjectType.served(objects);
-        const scopes = new Set(served.flatMap((type) => type.scopes));
-        for (const scope of scopes) {
-            scope.scopes.forEach((enclosing) => scopes.add(enclosing));
-        }
-
-        return [
-            ...served,
-            ...[...scopes].filter((scope) => !served.some((type) => type.same(scope))),
-            ...policies.filter(
-                (policy) => policy instanceof Policy || policy instanceof ObjectType,
-            ),
-        ];
     }
 
     /** Describe known types and every type they refer to, every served one when given none. */
@@ -3612,7 +3591,7 @@ export class ObjectStore {
         const followed = implementations
             .flatMap((each) => ObjectStore.#follows(each.definition))
             .flatMap((each) => Follow.types(each));
-        const known = ObjectStore.known(objects, [
+        const known = ObjectType.known(objects, [
             ...policies,
             ...ObjectType.referenced(objects),
             ...followed,
