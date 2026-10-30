@@ -17,6 +17,9 @@ const BENCH_DIRECTORY = "node_modules/.cache/destack/bench";
 /** The most milliseconds a benchmark takes, its world's setup included. */
 const BENCHMARK_MILLISECONDS = 600_000;
 
+/** The parts of an exceeded counter a failure lists, largest first. */
+const LISTED_PARTS = 8;
+
 /** Milliseconds per second: clocks read milliseconds, and Go's format writes seconds. */
 const MILLISECONDS = 1000;
 
@@ -205,11 +208,22 @@ export const Runner = {
                     if (total === undefined) {
                         return [`${operation} ${name}: not counted`];
                     }
-                    // compare the counter per iteration otherwise
+                    // compare the counter per iteration, listing its largest parts when over
                     else {
                         const each = total / iterations;
+                        const parts = Object.entries(counters)
+                            .filter(([part]) => part.startsWith(`${name}.`))
+                            .toSorted(([, left], [, right]) => right - left)
+                            .slice(0, LISTED_PARTS)
+                            .map(
+                                ([part, value]) =>
+                                    `${value / iterations} ${part.slice(name.length + 1)}`,
+                            );
+                        const over = `${operation} ${name}: ${each} > ${limit}`;
 
-                        return each > limit ? [`${operation} ${name}: ${each} > ${limit}`] : [];
+                        return each > limit
+                            ? [parts.length === 0 ? over : `${over} (${parts.join(", ")})`]
+                            : [];
                     }
                 }),
             );
