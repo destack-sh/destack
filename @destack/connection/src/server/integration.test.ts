@@ -5,13 +5,13 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import type { ObjectReference } from "@destack/sync";
 import { DEVICE_CODE } from "../oauth/server.ts";
 import { integration } from "../object/index.ts";
-import { ConnectionFixture, testIssuer } from "../test/index.ts";
+import { TestConnection, testIssuer } from "../test/index.ts";
 
 /** A space of another account, outside the primary's. */
 const OUTSIDE = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000f1");
 
 /** Ask an integration's primary for a device authorization, token and revocation as a space. */
-async function ask(primary: ConnectionFixture, registered: ObjectReference, space: string) {
+async function ask(primary: TestConnection, registered: ObjectReference, space: string) {
     // call the primary as the space
     const client = primary.primary(space).primary(registered.scope);
     const target = {
@@ -36,7 +36,7 @@ async function ask(primary: ConnectionFixture, registered: ObjectReference, spac
 
 test("refuse a space outside a private integration's scope its tokens, device authorizations and revocations, and serve every space a public one's", async () => {
     // store a private and a public integration at their primary
-    const primary = await ConnectionFixture.open();
+    const primary = await TestConnection.open();
     onTestFinished(() => primary.close());
     const owned = await primary.staticIntegration();
     const shared = await primary.staticIntegration({ isPublic: true });
@@ -75,7 +75,7 @@ test("refuse a space outside a private integration's scope its tokens, device au
 
 test("let the installation issuing an integration's tokens read it, and refuse another installation", async () => {
     // register an integration issued by the serving space's declared issuer installation
-    const fixture = await ConnectionFixture.open({ issuer: testIssuer.implement({ methods: {} }) });
+    const fixture = await TestConnection.open({ issuer: testIssuer.implement({ methods: {} }) });
     onTestFinished(() => fixture.close());
     const issuer = await fixture.createIssuer();
     const [created] = await fixture.objects.mutate(fixture.context().access(), {

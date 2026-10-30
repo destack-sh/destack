@@ -3,15 +3,15 @@ import { nth, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Connection, integration, authorizationRequest, connection } from "../object/index.ts";
-import { ConnectionFixture, RESOURCE, testIssuer } from "../test/index.ts";
+import { TestConnection, RESOURCE, testIssuer } from "../test/index.ts";
 import { Runner } from "./token.ts";
 
 /** The redirect URI the test integration registered. */
 const REDIRECT = "https://app.test/callback";
 
 /** Serve connections for one test. */
-async function open(): Promise<ConnectionFixture> {
-    const fixture = await ConnectionFixture.open();
+async function open(): Promise<TestConnection> {
+    const fixture = await TestConnection.open();
     onTestFinished(() => fixture.close());
 
     return fixture;
@@ -19,7 +19,7 @@ async function open(): Promise<ConnectionFixture> {
 
 /** Create a connection as the owner, answering its reference. */
 async function create(
-    fixture: ConnectionFixture,
+    fixture: TestConnection,
     input: Omit<CallInput<typeof connection, "create">, "scope" | "vault">,
 ): Promise<ObjectReference> {
     const created = await fixture.objects
@@ -50,7 +50,7 @@ const OTHER_SCOPE = "space-019f5530-8000-7000-8000-0000000000c1";
 const OTHER_CONNECTION = "connection-019f5530-8000-7000-8000-0000000000c2";
 
 /** Read a connection's Authorized condition and expiry as status, reason and whether it expires. */
-async function authorized(fixture: ConnectionFixture, reference: ObjectReference) {
+async function authorized(fixture: TestConnection, reference: ObjectReference) {
     const row = await readConnection(fixture, reference);
     const condition = row.conditions["Authorized"];
 
@@ -58,7 +58,7 @@ async function authorized(fixture: ConnectionFixture, reference: ObjectReference
 }
 
 /** Read a connection's row. */
-async function readConnection(fixture: ConnectionFixture, reference: ObjectReference) {
+async function readConnection(fixture: TestConnection, reference: ObjectReference) {
     return nth(
         (await fixture.connections()).filter((each) => each.id === reference.id),
         0,
@@ -66,17 +66,14 @@ async function readConnection(fixture: ConnectionFixture, reference: ObjectRefer
 }
 
 /** Lend a connection to a request to the external API, answering its Authorization header. */
-async function lease(
-    fixture: ConnectionFixture,
-    reference: ObjectReference,
-): Promise<string | null> {
+async function lease(fixture: TestConnection, reference: ObjectReference): Promise<string | null> {
     const leased = await fixture.bindAndLease(reference, new Request("https://api.test/items"));
 
     return leased.request.headers.get("authorization");
 }
 
 /** Start authorizing a connection as the owner in a session, redirected to the test URI. */
-function authorize(fixture: ConnectionFixture, reference: ObjectReference, session?: string) {
+function authorize(fixture: TestConnection, reference: ObjectReference, session?: string) {
     return fixture.objects
         .mutate(fixture.context(session).access(), {
             id: RequestId.create(fixture.environment),
@@ -93,7 +90,7 @@ function authorize(fixture: ConnectionFixture, reference: ObjectReference, sessi
 
 /** Complete a connection's authorization as the owner in a session with a redirect's parameters. */
 function completeAuthorization(
-    fixture: ConnectionFixture,
+    fixture: TestConnection,
     reference: ObjectReference,
     parameters: Record<string, string>,
     session?: string,
@@ -228,7 +225,7 @@ test("acquire a client credentials token in the controller, refresh it before ex
 });
 
 /** Move the fixture's one connection's token expiry, in its row and its vault. */
-async function moveExpiry(fixture: ConnectionFixture, expiresAt: number): Promise<void> {
+async function moveExpiry(fixture: TestConnection, expiresAt: number): Promise<void> {
     await fixture.database.transaction(
         async (transaction) => await transaction.update(connection.table).set({ expiresAt }),
     );
@@ -526,7 +523,7 @@ test("install an app through the installation issuing its tokens, lease an insta
     const calls: string[] = [];
     const called = (method: string, installation: string, caller: { subject?: Subject }) =>
         calls.push(`${method} ${installation} by ${caller.subject?.id}`);
-    const fixture = await ConnectionFixture.open({
+    const fixture = await TestConnection.open({
         issuer: testIssuer.implement({
             methods: {
                 issue: {
@@ -765,7 +762,7 @@ test("answer no credential from any procedure: connections, integrations and aut
 
 /** Authorize a code connection of an integration through the test server, returning it. */
 async function authorizeCode(
-    fixture: ConnectionFixture,
+    fixture: TestConnection,
     registered: ObjectReference,
 ): Promise<ObjectReference> {
     const reference = await create(fixture, {

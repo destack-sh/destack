@@ -14,7 +14,7 @@ import { MemoryBlobStorage } from "@destack/resource";
 import { TOKEN_LIFETIME_MILLISECONDS, Pkce } from "@destack/access/token";
 import { Account, account, space } from "@destack/account/object";
 import { AccessContext, Authentication, Caller, principal, relation } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { STACKS } from "@destack/account/test";
 import { TestDatabase, reconcileOnce } from "@destack/db/test";
 import {
@@ -390,7 +390,7 @@ export interface ConnectionFixtureOptions {
 }
 
 /** Connections served over a database with a scope, owner, vault and test server. */
-export class ConnectionFixture {
+export class TestConnection {
     /** The database. */
     readonly database: DatabaseConnection;
     /** The object store with the connections. */
@@ -417,7 +417,7 @@ export class ConnectionFixture {
     /** Take the open connections. */
     private constructor(
         fields: Omit<
-            ConnectionFixture,
+            TestConnection,
             | "close"
             | "context"
             | "control"
@@ -449,35 +449,35 @@ export class ConnectionFixture {
     }
 
     /** Serve connections over a fresh database. */
-    static async open(options: ConnectionFixtureOptions = {}): Promise<ConnectionFixture> {
+    static async open(options: ConnectionFixtureOptions = {}): Promise<TestConnection> {
         // take the test's world, else open one paused at a fixed start, and serve driven through it
         const simulation =
             options.simulation ?? new Simulation({ seed: WORLD_SEED, start: WORLD_START });
 
-        return ConnectionFixture.#open(options, simulation);
+        return TestConnection.#open(options, simulation);
     }
 
     /** Serve connections over a fresh database in a world. */
     static async #open(
         options: ConnectionFixtureOptions,
         simulation: Simulation,
-    ): Promise<ConnectionFixture> {
+    ): Promise<TestConnection> {
         // take the world's node, the database and the authorization server
         const environment = simulation.environment(WORLD_NODE);
-        const storage = await TestDatabase.create(ConnectionFixture.#declare(options), {
+        const storage = await TestDatabase.create(TestConnection.#declare(options), {
             environment,
             isMigrated: true,
         });
         const { database } = storage;
         const server = new TestAuthorizationServer(environment);
         const primary = options.primary;
-        const scope = await ConnectionFixture.#scope(database, primary, environment);
+        const scope = await TestConnection.#scope(database, primary, environment);
         // serve the issuing package beside the fixture when it has one
         const events = await testEvents(database, environment);
         const issuingObjects =
             options.issuer === undefined
                 ? undefined
-                : await ConnectionFixture.#issuingObjects(
+                : await TestConnection.#issuingObjects(
                       database,
                       options.issuer,
                       scope,
@@ -487,13 +487,10 @@ export class ConnectionFixture {
         const issuing =
             issuingObjects === undefined || options.issuer === undefined
                 ? undefined
-                : ConnectionFixture.#serve(
-                      issuingObjects,
-                      ConnectionFixture.#issuing(options.issuer),
-                  );
+                : TestConnection.#serve(issuingObjects, TestConnection.#issuing(options.issuer));
 
         // reach the served issuer as the connection installation, and other installations at the primary
-        const consumer = ConnectionFixture.#installation(scope);
+        const consumer = TestConnection.#installation(scope);
         const issuer = Egress.address(ISSUER_NAME, consumer.scope);
         const tokens = new TokenSource({
             environment,
@@ -504,7 +501,7 @@ export class ConnectionFixture {
                     ? {
                           url: ORIGIN,
                           fetch: (request) =>
-                              ConnectionFixture.#sent(
+                              TestConnection.#sent(
                                   present(issuing, "the issuing package's server"),
                                   request,
                                   consumer,
@@ -512,12 +509,12 @@ export class ConnectionFixture {
                               ),
                       }
                     : primary === undefined
-                      ? ConnectionFixture.#unreached(address)
+                      ? TestConnection.#unreached(address)
                       : primary.at(address),
         });
 
         // serve the connections, the vaults, and the integrations at their primary
-        const objects = await ConnectionFixture.#objects(
+        const objects = await TestConnection.#objects(
             database,
             tokens,
             options,
@@ -525,16 +522,16 @@ export class ConnectionFixture {
             events,
             environment,
         );
-        const http = ConnectionFixture.#serve(objects, connectionPackage);
+        const http = TestConnection.#serve(objects, connectionPackage);
 
-        return new ConnectionFixture({
+        return new TestConnection({
             database,
             objects,
             issuing: issuingObjects,
             tokens,
             server,
             scope,
-            vaultReference: await ConnectionFixture.#vault(database, scope, environment),
+            vaultReference: await TestConnection.#vault(database, scope, environment),
             http,
             simulation,
             environment,
@@ -618,7 +615,7 @@ export class ConnectionFixture {
         // serve the connections as the space's connection installation, and the vaults at their base installation
         const serving = principal.space.reference(
             Scope.universe.id,
-            ConnectionFixture.#principal(scope).id,
+            TestConnection.#principal(scope).id,
         );
         const installed = {
             ...(await testServerContext(Package.of(connectionPackage), serving.id, environment)),
@@ -630,7 +627,7 @@ export class ConnectionFixture {
         return new ObjectStore({
             blobs: new MemoryBlobStorage(environment.crypto),
             environment,
-            principal: ConnectionFixture.#installation(scope),
+            principal: TestConnection.#installation(scope),
             ...(primary === undefined ? { partitions: [Scope.universe.id] } : {}),
             servers: [
                 implementPackage(connectionPackage, {
@@ -672,7 +669,7 @@ export class ConnectionFixture {
         events: EventStore,
         environment: Environment,
     ): Promise<ObjectStore> {
-        const serving = ConnectionFixture.#principal(scope);
+        const serving = TestConnection.#principal(scope);
         const issuing = {
             ...(await testServerContext(Package.of(ISSUING), serving.id, environment)),
             installation: ISSUER_INSTALLATION,
@@ -683,7 +680,7 @@ export class ConnectionFixture {
             environment,
             principal: principal.installation.reference(serving.id, ISSUER_INSTALLATION),
             servers: [
-                implementPackage(ConnectionFixture.#issuing(issuer), { objects: [issuer] }).at(
+                implementPackage(TestConnection.#issuing(issuer), { objects: [issuer] }).at(
                     issuing,
                 ),
             ],
@@ -707,7 +704,7 @@ export class ConnectionFixture {
             resources: new ResourceContext(),
             authorizeMachine: async () => {},
             authenticate: async (request) =>
-                ConnectionFixture.#authenticate(request, handle.id, objects.clock.now()),
+                TestConnection.#authenticate(request, handle.id, objects.clock.now()),
         });
     }
 
@@ -724,7 +721,7 @@ export class ConnectionFixture {
     ): Promise<ObjectReference> {
         // store the owner's account with its row: the primary's own scope, or the one a space lives in
         const owner = principal.user.reference(Scope.universe.id, OWNER);
-        const access = new AccessFixture(database, environment);
+        const access = new TestAccess(database, environment);
         const enclosing = primary?.enclosing;
         const holder =
             enclosing ?? account.reference(OWNER, Identifier.create("account", environment));
@@ -747,7 +744,7 @@ export class ConnectionFixture {
         // store the primary's account as its scope, or a space in the account, with the serving space's row
         const isPrimary = primary === undefined;
         const scope = isPrimary ? holder : space.reference(holder.id, primary.space);
-        const serving = space.reference(holder.id, ConnectionFixture.#principal(scope).id);
+        const serving = space.reference(holder.id, TestConnection.#principal(scope).id);
         await access.replicateScope(serving, space.policy);
         await database.transaction(
             async (transaction) =>
@@ -763,7 +760,7 @@ export class ConnectionFixture {
 
         // bind the primary's owners here, and receive a placed space's from its primary's replica
         if (isPrimary) {
-            await ConnectionFixture.#bindOwners(database, scope, environment);
+            await TestConnection.#bindOwners(database, scope, environment);
         }
 
         return scope;
@@ -780,13 +777,13 @@ export class ConnectionFixture {
         const now = environment.clock.now();
         const subjects = [
             owner,
-            ConnectionFixture.#principal(scope),
-            ConnectionFixture.#installation(scope),
+            TestConnection.#principal(scope),
+            TestConnection.#installation(scope),
         ];
         const [container] = await Scope.read(Snapshot.live(database), [scope.scope]);
         const partition =
             scope.scope === Scope.universe.id ? Scope.universe.id : container?.partition;
-        const access = new AccessFixture(database, environment, partition);
+        const access = new TestAccess(database, environment, partition);
         for (const subject of subjects) {
             await access.bindOwner(scope, subject, now);
         }
@@ -794,10 +791,7 @@ export class ConnectionFixture {
 
     /** Read the connection installation serving a scope's connections, in its serving space. */
     static #installation(scope: ObjectReference): Subject {
-        return principal.installation.reference(
-            ConnectionFixture.#principal(scope).id,
-            INSTALLATION,
-        );
+        return principal.installation.reference(TestConnection.#principal(scope).id, INSTALLATION);
     }
 
     /** Refuse calling another space from a primary, which stores its own integrations. */
@@ -822,10 +816,7 @@ export class ConnectionFixture {
                 await transaction.insert(placementTable).values({ id, scope: accountId }),
         );
         const placed = space.reference(accountId, id);
-        await new AccessFixture(this.database, this.environment).replicateScope(
-            placed,
-            space.policy,
-        );
+        await new TestAccess(this.database, this.environment).replicateScope(placed, space.policy);
         await this.database.transaction(
             async (transaction) =>
                 await transaction.insert(space.table).values({
@@ -839,7 +830,7 @@ export class ConnectionFixture {
         );
 
         // bind its owners where its row lives
-        await ConnectionFixture.#bindOwners(this.database, placed, this.environment);
+        await TestConnection.#bindOwners(this.database, placed, this.environment);
 
         return this.scope;
     }
@@ -880,7 +871,7 @@ export class ConnectionFixture {
         const connections = principal.installation.reference(spaceId, INSTALLATION);
         const address = Egress.address(
             CONNECTION_INSTALLATION,
-            ConnectionFixture.#principal(this.scope).id,
+            TestConnection.#principal(this.scope).id,
         );
 
         return {
@@ -893,7 +884,7 @@ export class ConnectionFixture {
 
                 return {
                     url: ORIGIN,
-                    fetch: (request) => ConnectionFixture.#sent(this.http, request, connections),
+                    fetch: (request) => TestConnection.#sent(this.http, request, connections),
                 };
             },
         };
@@ -936,7 +927,7 @@ export class ConnectionFixture {
     async bindAndLease(reference: ObjectReference, request: Request) {
         // bind the consuming installation as the owner, then lease as it
         const consumer = principal.installation.reference(
-            ConnectionFixture.#principal(this.scope).id,
+            TestConnection.#principal(this.scope).id,
             "installation-consumer",
         );
         await this.objects.mutate(this.context().access(), {
@@ -983,7 +974,6 @@ export class ConnectionFixture {
             this.database,
             this.objects.controllers().filter((each) => each.name === "replica"),
             {
-                clock: this.environment.clock,
                 report: (_controller, _key, error) => failures.push(error),
             },
         );
@@ -1072,7 +1062,7 @@ export class ConnectionFixture {
     /** Create the served issuer in the serving space, its consumer the connection installation. */
     async createIssuer(): Promise<Extract<IntegrationIssuer, { readonly kind: "installation" }>> {
         // create the issuer as the serving space
-        const serving = ConnectionFixture.#principal(this.scope);
+        const serving = TestConnection.#principal(this.scope);
         const issuing = present(this.issuing, "the fixture's issuing installation");
         const [created] = await issuing.mutate(
             AccessContext.of(Caller.of(serving), this.environment.clock.now()),
@@ -1084,8 +1074,8 @@ export class ConnectionFixture {
         const reference = testIssuer.reference(serving.id, present(created, "the issuer").id);
 
         // let the connection installation call it
-        const consumer = ConnectionFixture.#installation(this.scope);
-        await new AccessFixture(this.database, this.environment).replicateRelationship(
+        const consumer = TestConnection.#installation(this.scope);
+        await new TestAccess(this.database, this.environment).replicateRelationship(
             reference,
             "consumer",
             consumer,

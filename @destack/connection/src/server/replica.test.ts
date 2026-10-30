@@ -7,7 +7,7 @@ import type { ObjectReference } from "@destack/sync";
 import { journal } from "@destack/object";
 import { Credential } from "../credential/credential.ts";
 import { authorizationRequest, connection, integration } from "../object/index.ts";
-import { ConnectionFixture, RESOURCE } from "../test/index.ts";
+import { TestConnection, RESOURCE } from "../test/index.ts";
 
 /** The redirect URI the test integration registered. */
 const REDIRECT = "https://app.test/callback";
@@ -15,7 +15,7 @@ const REDIRECT = "https://app.test/callback";
 /** Serve connections with an integration and a space replicating it, both until the test ends. */
 async function open(given?: string) {
     // store the integration at its primary, and name the space in the primary's world
-    const primary = await ConnectionFixture.open();
+    const primary = await TestConnection.open();
     onTestFinished(() => primary.close());
     const registered = await primary.staticIntegration();
     const spaceId = given ?? Identifier.create("space", primary.environment);
@@ -30,13 +30,13 @@ async function open(given?: string) {
 
 /** Open a space in a primary's world, replicating its account in a loop until the test ends. */
 async function follow(
-    primary: ConnectionFixture,
+    primary: TestConnection,
     spaceId: string,
     signal: AbortSignal,
-): Promise<ConnectionFixture> {
+): Promise<TestConnection> {
     // place the space in the primary's account, and serve its connections over the primary's integrations
     const placed = await primary.place(spaceId);
-    const space = await ConnectionFixture.open({
+    const space = await TestConnection.open({
         primary: { ...primary.primary(spaceId), space: spaceId, enclosing: placed },
         simulation: primary.simulation,
     });
@@ -53,7 +53,7 @@ async function follow(
 /** Create a connection through the replicated integration in a space, with its external account. */
 async function connect(
     fixture: Awaited<ReturnType<typeof open>>,
-    space: ConnectionFixture,
+    space: TestConnection,
     input: {
         readonly subject?: string;
         readonly kind?: "authorization-code" | "client-credentials";
@@ -88,7 +88,7 @@ async function connect(
 }
 
 /** Start authorizing a space's connection as its owner, redirected to the test redirect URI. */
-function authorize(space: ConnectionFixture, id: string) {
+function authorize(space: TestConnection, id: string) {
     return space.objects
         .mutate(space.context().access(), {
             id: RequestId.create(space.environment),
@@ -100,7 +100,7 @@ function authorize(space: ConnectionFixture, id: string) {
 }
 
 /** Complete a connection's authorization in a space as its owner with a redirect's parameters. */
-function complete(space: ConnectionFixture, id: string, parameters: Record<string, string>) {
+function complete(space: TestConnection, id: string, parameters: Record<string, string>) {
     return space.objects
         .mutate(space.context().access(), {
             id: RequestId.create(space.environment),
@@ -111,7 +111,7 @@ function complete(space: ConnectionFixture, id: string, parameters: Record<strin
 
 /** Create a client credentials connection at the primary, and bind its token to a consumer. */
 async function bindAtPrimary(
-    primary: ConnectionFixture,
+    primary: TestConnection,
     registered: ObjectReference,
     consumer: ObjectReference,
 ): Promise<ObjectReference> {

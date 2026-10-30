@@ -2,21 +2,18 @@ import { principal } from "@destack/access";
 import { RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { connection } from "../object/index.ts";
-import { ConnectionFixture } from "../test/index.ts";
+import { TestConnection } from "../test/index.ts";
 
 /** Serve connections for one test. */
-async function open(): Promise<ConnectionFixture> {
-    const fixture = await ConnectionFixture.open();
+async function open(): Promise<TestConnection> {
+    const fixture = await TestConnection.open();
     onTestFinished(() => fixture.close());
 
     return fixture;
 }
 
 /** Create an authorized key connection as the owner, answering its identifier. */
-async function createKey(
-    fixture: ConnectionFixture,
-    input: Readonly<Record<string, unknown>> = {},
-) {
+async function createKey(fixture: TestConnection, input: Readonly<Record<string, unknown>> = {}) {
     const created = await fixture.objects
         .mutate(fixture.context().access(), {
             id: RequestId.create(fixture.environment),
