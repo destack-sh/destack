@@ -63,9 +63,6 @@ const DRAIN_MILLISECONDS = 1000;
 /** The node the test store runs as in its world unless its test names another. */
 const WORLD_NODE = "store";
 
-/** Run work under a world, such as a simulation moving time while the work waits. */
-type Drive = <Value>(work: Promise<Value>) => Promise<Value>;
-
 /** Authenticate a request to a served package, absent for no one. */
 export type TestAuthenticate = (
     request: Request,
@@ -137,8 +134,6 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     readonly #failures: unknown[];
     /** The first failure a server reported, rejected once one does. */
     readonly #failed: Promise<never>;
-    /** Run work under the store's world, such as its simulation, moving time while it waits. */
-    readonly #drive: Drive;
     /** The object types the store serves by their reference's key, each with its package. */
     readonly #types: ReadonlyMap<
         string,
@@ -158,7 +153,6 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         disposables: AsyncDisposableStack,
         failures: unknown[],
         failed: Promise<never>,
-        drive: Drive,
     ) {
         // store the store, its scope, its world, its servers, its callers' credential and what disposal closes
         this.store = store;
@@ -168,7 +162,6 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         this.#disposables = disposables;
         this.#failures = failures;
         this.#failed = failed;
-        this.#drive = drive;
 
         // index the served object types by their reference, each with its package
         const served = store.packages.flatMap((handler) =>
@@ -256,21 +249,18 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         const disposables = new AsyncDisposableStack();
         const environment = simulation.environment(options.node ?? WORLD_NODE);
         try {
-            // open the store driven through its world, which then drives its callers' work
-            const drive: Drive = (work) => simulation.drive(work);
-
-            return await drive(TestObjectStore.#open(options, environment, drive, disposables));
+            // open the store in its world
+            return await TestObjectStore.#open(options, environment, disposables);
         } catch (error) {
             await disposables.disposeAsync();
             throw error;
         }
     }
 
-    /** Serve packages in a world, its work run by the world's drive, closing with a lifetime. */
+    /** Serve packages in a world, closing with a lifetime. */
     static async #open(
         options: TestObjectStoreOptions,
         environment: Environment,
-        drive: Drive,
         disposables: AsyncDisposableStack,
     ): Promise<TestObjectStore> {
         // serve each package as implemented, or as declared without code
@@ -352,7 +342,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             store,
             store.packages,
             TestObjectStore.#bearers(store, options.groups ?? new Map()),
-            { disposables, failures, failed, drive },
+            { disposables, failures, failed },
         );
     }
 
@@ -380,7 +370,6 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
                 disposables: new AsyncDisposableStack(),
                 failures: [],
                 failed: TestObjectStore.#failure(),
-                drive: (work) => work,
                 ...(options.scopes === undefined ? {} : { scopes: options.scopes }),
             },
         );
@@ -395,12 +384,11 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             readonly disposables: AsyncDisposableStack;
             readonly failures: unknown[];
             readonly failed: PromiseWithResolvers<never>;
-            readonly drive: Drive;
             readonly scopes?: readonly string[];
         },
     ): TestObjectStore {
         // start one server per package, closed first on disposal, collecting what they report
-        const { disposables, failures, failed, drive } = run;
+        const { disposables, failures, failed } = run;
         const scopes =
             run.scopes ?? (store.scope === Scope.universe.id ? undefined : [store.scope]);
         const servers = new Map(
@@ -435,7 +423,6 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             disposables,
             failures,
             failed.promise,
-            drive,
         );
     }
 
@@ -487,7 +474,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     as(caller: string | Subject): TestCaller {
         const subject = typeof caller === "string" ? this.#subject(caller) : caller;
 
-        return new TestCaller(this, subject).driven(this.#drive);
+        return new TestCaller(this, subject);
     }
 
     /** Read an identifier's principal by its kind, such as a machine, space or user. */
@@ -552,7 +539,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     async ready(): Promise<void> {
         const servers = [...this.#servers.values()];
         const ready = Promise.all(servers.map((server) => server.ready()));
-        await this.#drive(Promise.race([ready, this.#failed]));
+        await Promise.race([ready, this.#failed]);
     }
 
     /** Wait until each store's followed replicas reach their sources' heads and their requests. */
@@ -589,13 +576,8 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         }
     }
 
-    /** Settle once no controller of any package has work left, under the store's world. */
-    settle(): Promise<void> {
-        return this.#drive(this.#settle());
-    }
-
     /** Settle once no controller of any package has work left after a round committing nothing. */
-    async #settle(): Promise<void> {
+    async settle(): Promise<void> {
         // settle every server again while a round commits, as one package's work wakes another's
         let before = await this.database.log.position();
         for (let round = 0; round < SETTLE_ROUNDS; round += 1) {
@@ -630,14 +612,17 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
 
     /** Stop every server's controllers at once, while it serves its requests until it drains. */
     async stopControllers(): Promise<void> {
-        await this.#drive(
-            Promise.all([...this.#servers.values()].map((server) => server.stopControllers())),
-        );
+        await Promise.all([...this.#servers.values()].map((server) => server.stopControllers()));
+    }
+
+    /** Run a cleanup once the store closes, before its servers and databases close. */
+    defer(cleanup: () => Promise<void>): void {
+        this.#disposables.defer(cleanup);
     }
 
     /** Close the servers, then the databases the test store opened. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await this.#drive(this.#disposables.disposeAsync());
+        await this.#disposables.disposeAsync();
         this.#throwFailures();
     }
 

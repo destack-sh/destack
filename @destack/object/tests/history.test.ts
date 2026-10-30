@@ -66,7 +66,7 @@ test("group each caller's changes into activities, and read and revert a page as
         parent: { packageId: page.policy.definition.packageId, type: "page", id: created.id },
     };
     const beforeGrant = await storage.database.log.position();
-    at(1 * MINUTE);
+    await at(1 * MINUTE);
     await call(page, "grant", {
         id: created.id,
         relation: "editor",
@@ -76,10 +76,10 @@ test("group each caller's changes into activities, and read and revert a page as
 
     // write it as bob and as alice again once her session ended
     as(users.bob);
-    at(2 * MINUTE);
+    await at(2 * MINUTE);
     await call(page, "update", { id: created.id, title: "Roadmap" });
     as(users.alice);
-    at(30 * MINUTE);
+    await at(30 * MINUTE);
     await call(page, "update", { id: created.id, body: "final" });
 
     // list one activity per session, with the fields each changed
@@ -233,7 +233,6 @@ test("refuse serving history that reads through an object recording none", async
 async function servePages() {
     // run in a world of its own
     const simulation = testSimulation(0);
-    const { clock } = simulation;
     const world = simulation.environment("test");
 
     // store the pages, their activities and checkpoints, and requests in one database
@@ -293,8 +292,8 @@ async function servePages() {
             current = caller;
             context = sign();
         },
-        at: (time: number) => {
-            clock.set(time);
+        at: async (time: number) => {
+            await simulation.jump(time);
             context = sign();
         },
     };

@@ -60,7 +60,6 @@ const machineDatabase = defineDatabase({
 test("observe a controlled object without advancing its generation, finalize its deletion, and refuse a moved scope", async () => {
     // run in a world of its own
     const simulation = testSimulation(0);
-    const { clock } = simulation;
     const world = simulation.environment("test");
 
     const storage = await TestDatabase.create(machineDatabase, {
@@ -81,8 +80,8 @@ test("observe a controlled object without advancing its generation, finalize its
         },
         environment: world,
     });
-    const at = (time: number) => {
-        clock.set(time);
+    const at = async (time: number) => {
+        await simulation.jump(time);
 
         return AccessContext.of(Caller.of(spacePrincipal(spaceId)), time);
     };
@@ -93,7 +92,7 @@ test("observe a controlled object without advancing its generation, finalize its
     };
 
     // create a machine as the system on behalf of its owner
-    await store.mutate(at(1_000), {
+    await store.mutate(await at(1_000), {
         id: RequestId.create(world),
         calls: [
             machine.call("provision", {
@@ -107,7 +106,7 @@ test("observe a controlled object without advancing its generation, finalize its
 
     // observe it twice and preserve the transition time while the status stays
     const ready = { status: "false", reason: "Provisioning", message: "" } as const;
-    await store.mutate(at(2_000), {
+    await store.mutate(await at(2_000), {
         id: RequestId.create(world),
         calls: [
             machine.call("observe", {
@@ -117,7 +116,7 @@ test("observe a controlled object without advancing its generation, finalize its
             }),
         ],
     });
-    await store.mutate(at(3_000), {
+    await store.mutate(await at(3_000), {
         id: RequestId.create(world),
         calls: [
             machine.call("observe", {
@@ -131,14 +130,14 @@ test("observe a controlled object without advancing its generation, finalize its
     const observed = present(await read(), "the machine");
 
     // delete it through its controller, requesting and finalizing inside an open transaction
-    await store.mutate(at(4_000), {
+    await store.mutate(await at(4_000), {
         id: RequestId.create(world),
         calls: [machine.call("delete", machine.target(observed))],
     });
     const requested = present(await read(), "the machine");
     const transaction = await Transaction.open(storage.database);
     await store.mutate(
-        at(5_000),
+        await at(5_000),
         {
             id: RequestId.create(world),
             calls: [machine.call("finalize", { spaceId, id: created.id })],
@@ -149,7 +148,7 @@ test("observe a controlled object without advancing its generation, finalize its
     const finalized = await read();
 
     // refuse system work once the space moves to another machine
-    await store.mutate(at(6_000), {
+    await store.mutate(await at(6_000), {
         id: RequestId.create(world),
         calls: [
             machine.call("provision", {
@@ -162,7 +161,7 @@ test("observe a controlled object without advancing its generation, finalize its
     await Transaction.run(storage.database, (fencing) =>
         Scope.fence(fencing, spaceId, TARGET, 7_000),
     );
-    const moved = store.mutate(at(8_000), {
+    const moved = store.mutate(await at(8_000), {
         id: RequestId.create(world),
         calls: [
             machine.call("observe", {
@@ -208,7 +207,6 @@ test("observe a controlled object without advancing its generation, finalize its
 test("answer a repeated system request from the journal, provisioning once, and refuse other input under its identifier", async () => {
     // run in a world of its own
     const simulation = testSimulation(0);
-    const { clock } = simulation;
     const world = simulation.environment("test");
 
     const storage = await TestDatabase.create(machineDatabase, {
@@ -227,16 +225,16 @@ test("answer a repeated system request from the journal, provisioning once, and 
         origin: { package: machine.package },
         environment: world,
     });
-    const at = (time: number) => {
-        clock.set(time);
+    const at = async (time: number) => {
+        await simulation.jump(time);
 
         return AccessContext.of(Caller.of(spacePrincipal(spaceId)), time);
     };
 
     // provision under a request twice, then with another size under it
     const requestId = await RequestId.derive(1_000, "machine small", world.crypto);
-    const provision = (size: string) =>
-        store.mutate(at(1_000), {
+    const provision = async (size: string) =>
+        store.mutate(await at(1_000), {
             id: requestId,
             calls: [
                 machine.call("provision", {

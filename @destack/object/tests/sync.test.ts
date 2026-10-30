@@ -240,7 +240,7 @@ test("let go of a task once the grant relating it expires, with no change in the
     expect(await next()).toEqual([[false, "insert", "First", undefined]]);
 
     // drop it once the grant expires
-    expect(await simulation.drive(next())).toEqual([[false, "delete", undefined, undefined]]);
+    expect(await next()).toEqual([[false, "delete", undefined, undefined]]);
 });
 
 /** Read the next page of a sync stream, refusing an ended stream. */

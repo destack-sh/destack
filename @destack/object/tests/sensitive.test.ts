@@ -126,7 +126,7 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
         report: (_controller, _key, error) => failures.push(error),
     });
     const running = loop.run(stopping.signal);
-    await simulation.drive(loop.idle());
+    await loop.idle();
     stopping.abort();
     await running;
     await telemetry.flush();

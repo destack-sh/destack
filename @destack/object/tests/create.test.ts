@@ -529,65 +529,61 @@ test("create an object once for a request two transactions run, the one reading 
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation();
     const world = simulation.environment("test");
-    await simulation.drive(
-        (async () => {
-            const storage = await TestDatabase.create(
-                tablesOf({
-                    packages: [objectPackage, { objects: { topic }, tables: [] }],
-                    follows: [],
-                    tables: [],
-                }).tables,
-                { environment: world, isMigrated: true },
-            );
-            onTestFinished(() => storage.close());
-            await openSpace(storage.database, world, spaceId);
-            const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
-                chain: async () => undefined,
-                environment: world,
-                principal: spacePrincipal(spaceId),
-                servers: serversOf([topic]),
-                database: storage.database,
-                callKey: testCallKey,
-                events: await testEvents(storage.database, world),
-                origin: { package: topic.package },
-            });
+    await (async () => {
+        const storage = await TestDatabase.create(
+            tablesOf({
+                packages: [objectPackage, { objects: { topic }, tables: [] }],
+                follows: [],
+                tables: [],
+            }).tables,
+            { environment: world, isMigrated: true },
+        );
+        onTestFinished(() => storage.close());
+        await openSpace(storage.database, world, spaceId);
+        const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+            chain: async () => undefined,
+            environment: world,
+            principal: spacePrincipal(spaceId),
+            servers: serversOf([topic]),
+            database: storage.database,
+            callKey: testCallKey,
+            events: await testEvents(storage.database, world),
+            origin: { package: topic.package },
+        });
 
-            // create the topic unless the transaction reads it, both transactions under one request
-            const caller = userContext(users.alice, spaceId, { environment: world }).access();
-            const id = RequestId.create(world);
-            const create = topic.call("create", { spaceId, holderId: users.alice, name: "ideas" });
-            const step = (attempted: () => Promise<void>) =>
-                Transaction.run(storage.database, async (transaction) => {
-                    const [found] = await transaction
-                        .view()
-                        .read(topic.table)
-                        .findMany({ where: { name: "ideas" } });
-                    await attempted();
-                    if (found === undefined) {
-                        await store.mutate(caller, { id, calls: [create] }, { transaction });
-                    }
-                });
-
-            // read in the later transaction, commit the first, then create in the later one
-            const committed = Promise.withResolvers<void>();
-            let attempts = 0;
-            const later = step(async () => {
-                attempts += 1;
-                if (attempts === 1) {
-                    await committed.promise;
+        // create the topic unless the transaction reads it, both transactions under one request
+        const caller = userContext(users.alice, spaceId, { environment: world }).access();
+        const id = RequestId.create(world);
+        const create = topic.call("create", { spaceId, holderId: users.alice, name: "ideas" });
+        const step = (attempted: () => Promise<void>) =>
+            Transaction.run(storage.database, async (transaction) => {
+                const [found] = await transaction
+                    .view()
+                    .read(topic.table)
+                    .findMany({ where: { name: "ideas" } });
+                await attempted();
+                if (found === undefined) {
+                    await store.mutate(caller, { id, calls: [create] }, { transaction });
                 }
             });
-            await step(async () => {});
-            committed.resolve();
-            await later;
 
-            // expect the one topic, the later transaction running again as it lost the race
-            const rows = await storage.database
-                .select({ name: topic.table.name })
-                .from(topic.table);
-            expect({ rows, attempts }).toEqual({ rows: [{ name: "ideas" }], attempts: 2 });
-        })(),
-    );
+        // read in the later transaction, commit the first, then create in the later one
+        const committed = Promise.withResolvers<void>();
+        let attempts = 0;
+        const later = step(async () => {
+            attempts += 1;
+            if (attempts === 1) {
+                await committed.promise;
+            }
+        });
+        await step(async () => {});
+        committed.resolve();
+        await later;
+
+        // expect the one topic, the later transaction running again as it lost the race
+        const rows = await storage.database.select({ name: topic.table.name }).from(topic.table);
+        expect({ rows, attempts }).toEqual({ rows: [{ name: "ideas" }], attempts: 2 });
+    })();
 });
 
 /** Watches of a space's objects, by their watcher, which code adds for others too. */

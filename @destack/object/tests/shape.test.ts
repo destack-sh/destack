@@ -98,7 +98,7 @@ test("subscribe to a fixed key and to one key per row the follower has as one re
             }),
         );
     const first = await listed();
-    simulation.clock.advance(1);
+    await simulation.jump(simulation.clock.now() + 1);
     await create("Ideas", "💡");
     const second = await listed();
 

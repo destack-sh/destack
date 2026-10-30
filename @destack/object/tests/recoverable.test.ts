@@ -174,7 +174,7 @@ test("purge a retained record through its handler under its permission or as the
     // purge the lapsed record as the system, through its handler, once
     const store = await serve(handled);
     const later = clock.now() + 120_000;
-    clock.set(later);
+    await simulation.jump(later);
     expect([
         await RecoverableController.purge(store, later),
         await RecoverableController.purge(store, later),

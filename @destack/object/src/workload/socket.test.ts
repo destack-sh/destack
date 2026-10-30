@@ -36,9 +36,9 @@ test("report a socket close its instance refuses, delivering the close once", as
 
     // open and close the socket from the client
     const socket = simulation.network.of("client").websocket("ws://host.test/");
-    await simulation.run({ until: () => socket.readyState === WebSocket.OPEN });
+    await simulation.until(() => socket.readyState === WebSocket.OPEN);
     socket.close();
-    await simulation.run({ until: () => telemetry.exceptions().length === 1 });
+    await simulation.until(() => telemetry.exceptions().length === 1);
 
     // deliver the close once and capture its refusal once
     expect([delivered, telemetry.take()]).toEqual([

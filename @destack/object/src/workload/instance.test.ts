@@ -251,12 +251,12 @@ test("retain shared resources until an overdue request observes cancellation", a
         message: "workload shutdown failed",
         errors: [{ name: "TimeoutError", message: "server drain deadline exceeded" }],
     });
-    await simulation.drive(cancelled.promise);
+    await cancelled.promise;
     expect(events).toEqual([]);
 
     // release after the handler stops
     released.resolve();
-    await simulation.drive(Promise.all([responseFailure, closeFailure]));
+    await Promise.all([responseFailure, closeFailure]);
     expect(events).toEqual(["resources"]);
 }, 1500);
 

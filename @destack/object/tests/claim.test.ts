@@ -144,7 +144,6 @@ test("reserve a write's names before it commits and confirm them once it committ
 test("claim the names of writes outside the object store and finish expired reservations", async () => {
     const now = 1_800_000_000_000;
     const simulation = testSimulation(now - RESERVATION_MILLISECONDS);
-    const { clock } = simulation;
     const world = simulation.environment("test");
     const storage = await universeStorage(world);
     const claims = await serveClaims(storage.database, world);
@@ -226,7 +225,7 @@ test("claim the names of writes outside the object store and finish expired rese
     await reserve('["universe","existing"]', existing, now);
     await reserve('["universe","lost"]', `profile-${Uuid.v7(world)}`, now);
     await reserve('["universe","later"]', `profile-${Uuid.v7(world)}`, now + 1000);
-    clock.set(now);
+    await simulation.jump(now);
 
     // finish the expired reservations through the controller, looking again at the later one
     const controller = new ClaimController(claims, east.database, [profile], world);

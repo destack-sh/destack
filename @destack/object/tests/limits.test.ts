@@ -76,7 +76,7 @@ test("refuse a third post of an author within a minute, saying when the next is 
         },
     );
     await write(users.bob);
-    clock.advance(30_000);
+    await simulation.jump(clock.now() + 30_000);
     await write(users.alice);
 
     // expect the third due once the 30 second interval of two posts a minute passed

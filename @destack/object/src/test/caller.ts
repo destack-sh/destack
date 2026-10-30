@@ -48,26 +48,6 @@ export class TestCaller {
         this.#isSteppedUp = isSteppedUp;
     }
 
-    /** Call as the same subject, each request's work run by a driver such as a simulation. */
-    driven(drive: <Value>(work: Promise<Value>) => Promise<Value>): TestCaller {
-        // sign and serve each request under the driver
-        const served = this.#served;
-        const driving: TestServed = {
-            scope: served.scope,
-            environment: served.environment,
-            type: (reference) => served.type(reference),
-            named: (name) => served.named(name),
-            server: (handle) => {
-                const server = served.server(handle);
-
-                return { fetch: (request, ...context) => drive(server.fetch(request, ...context)) };
-            },
-            sign: (request, signer) => drive(served.sign(request, signer)),
-        };
-
-        return new TestCaller(driving, this.subject, this.#isSteppedUp);
-    }
-
     /** Call as the same subject having just authenticated with a second factor (RFC 9470). */
     stepUp(): TestCaller {
         return new TestCaller(this.#served, this.subject, true);

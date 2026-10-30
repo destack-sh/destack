@@ -55,7 +55,7 @@ test("push again after transient failures, waiting twice as long after each", as
 
     // confirm the note after two reported failures with doubling retry waits, moving time for them
     const created = client.mutate(note).create({ title: "Ideas" });
-    await simulation.drive(created.confirmed);
+    await created.confirmed;
     const waits = attempts.slice(1).map((at, position) => at - nth(attempts, position));
     expect([
         reported.map((error) => (error instanceof Error ? error.message : error)),

@@ -1047,7 +1047,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
     await expect.poll(isComplete, { timeout: 5000 }).toBe(true);
     first.abort();
     await firstFollow;
-    clock.advance(60_000);
+    await simulation.jump(clock.now() + 60_000);
 
     // wake a store over the same database, blocking the chain's pages
     const pages = Promise.withResolvers<void>();

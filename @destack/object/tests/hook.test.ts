@@ -394,70 +394,68 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation();
     const world = simulation.environment("test");
-    await simulation.drive(
-        (async () => {
-            // rename the card concurrently while the first attempt's hook runs
-            const attempts: string[] = [];
-            const served: { store?: ObjectStore } = {};
-            const { store, exchange } = await serveCards(
-                world,
-                definePackage({
-                    objects: {
-                        card: card.implement({
-                            methods: {
-                                remark: async (call) => {
-                                    // read the card, renaming it concurrently on the first attempt
-                                    const read = await call
-                                        .read(card)
-                                        .findFirst({ where: { id: call.target.id } });
-                                    attempts.push(present(read, "the card").name);
-                                    if (attempts.length === 1) {
-                                        await run(
-                                            present(served.store, "the store"),
-                                            card.call("update", {
-                                                spaceId,
-                                                id: call.target.id,
-                                                name: "Roadmap",
-                                            }),
-                                        );
-                                    }
-
-                                    // rename it with the remark
-                                    await call.mutate(call.caller, [
+    await (async () => {
+        // rename the card concurrently while the first attempt's hook runs
+        const attempts: string[] = [];
+        const served: { store?: ObjectStore } = {};
+        const { store, exchange } = await serveCards(
+            world,
+            definePackage({
+                objects: {
+                    card: card.implement({
+                        methods: {
+                            remark: async (call) => {
+                                // read the card, renaming it concurrently on the first attempt
+                                const read = await call
+                                    .read(card)
+                                    .findFirst({ where: { id: call.target.id } });
+                                attempts.push(present(read, "the card").name);
+                                if (attempts.length === 1) {
+                                    await run(
+                                        present(served.store, "the store"),
                                         card.call("update", {
                                             spaceId,
                                             id: call.target.id,
-                                            name: `${present(read, "the card").name}: ${call.input.text}`,
+                                            name: "Roadmap",
                                         }),
-                                    ]);
+                                    );
+                                }
 
-                                    return call.target;
-                                },
+                                // rename it with the remark
+                                await call.mutate(call.caller, [
+                                    card.call("update", {
+                                        spaceId,
+                                        id: call.target.id,
+                                        name: `${present(read, "the card").name}: ${call.input.text}`,
+                                    }),
+                                ]);
+
+                                return call.target;
                             },
-                        }),
-                    },
-                }),
-            );
-            served.store = store;
-            const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
-            await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
-            const stored = await store.query(
-                userContext(users.alice, spaceId, { environment: world }).access(),
-                card.call("get", { spaceId, id: created.id }),
-            );
+                        },
+                    }),
+                },
+            }),
+        );
+        served.store = store;
+        const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
+        await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
+        const stored = await store.query(
+            userContext(users.alice, spaceId, { environment: world }).access(),
+            card.call("get", { spaceId, id: created.id }),
+        );
 
-            // read the concurrent name in the second attempt's session, seeing only its change
-            expect({
-                attempts,
-                stored: stored.name,
-                sessions: exchange.filter(([, kind]) => kind === "handle").map(([name]) => name),
-            }).toEqual({
-                attempts: ["Plan", "Roadmap"],
-                stored: "Roadmap: ship it",
-                sessions: ["session 1", "session 2"],
-            });
-        })(),
-    );
+        // read the concurrent name in the second attempt's session, seeing only its change
+        expect({
+            attempts,
+            stored: stored.name,
+            sessions: exchange.filter(([, kind]) => kind === "handle").map(([name]) => name),
+        }).toEqual({
+            attempts: ["Plan", "Roadmap"],
+            stored: "Roadmap: ship it",
+            sessions: ["session 1", "session 2"],
+        });
+    })();
 });
 
 test("read every card of the package in a hook, and read as the caller through a query", async () => {

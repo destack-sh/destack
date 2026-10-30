@@ -102,112 +102,110 @@ test("share presence on a board across instances, guarded by access, gone after 
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation();
     const world = simulation.environment("test");
-    await simulation.drive(
-        (async () => {
-            const { east, west } = await serveBoards(world);
+    await (async () => {
+        const { east, west } = await serveBoards(world);
 
-            // let the owner share a board, and follow every durable type of the space beside presence
-            const plans = await east.call(users.alice, board, "create", {
-                requestId: RequestId.create(world),
-            });
-            const shared = await east.call(users.alice, board, "grant", {
-                requestId: RequestId.create(world),
-                id: plans.id,
-                relation: "viewer",
-                subject: principal.user.reference("universe", users.bob),
-            });
-            const durable = east.store.source.relayed(
-                {
-                    ...east.store.source.queriesPublication.subscription({
-                        name: "objects",
-                        scope: spaceId,
-                        target: spaceId,
-                        parameters: {},
-                    }),
-                    revision: FOLLOWER_REVISION,
-                },
-                context(users.alice, world).context,
-            );
-            expect((await nextPage(durable)).complete).toBe(true);
-            await durable.return(undefined);
+        // let the owner share a board, and follow every durable type of the space beside presence
+        const plans = await east.call(users.alice, board, "create", {
+            requestId: RequestId.create(world),
+        });
+        const shared = await east.call(users.alice, board, "grant", {
+            requestId: RequestId.create(world),
+            id: plans.id,
+            relation: "viewer",
+            subject: principal.user.reference("universe", users.bob),
+        });
+        const durable = east.store.source.relayed(
+            {
+                ...east.store.source.queriesPublication.subscription({
+                    name: "objects",
+                    scope: spaceId,
+                    target: spaceId,
+                    parameters: {},
+                }),
+                revision: FOLLOWER_REVISION,
+            },
+            context(users.alice, world).context,
+        );
+        expect((await nextPage(durable)).complete).toBe(true);
+        await durable.return(undefined);
 
-            // be present on the board through the owner's client, once per board and writer
-            const parent = {
-                packageId: board.policy.definition.packageId,
-                type: "board",
-                id: plans.id,
-            };
-            const alice = await openClient(world, east, users.alice);
-            await alice.client.query.presence.findMany().subscribe().ready;
-            const created = alice.client
-                .mutate(presence)
-                .create({ parent, activity: "editing", cursor: 0 });
-            const mine = await created.predicted;
-            await created.confirmed;
-            expect([
-                mine.writerId === alice.client.writerId,
-                await refusal(
-                    alice.client.mutate(presence).create({ parent, activity: "viewing" }).confirmed,
-                ),
-            ]).toEqual([
-                true,
-                ["CONFLICT", "DUPLICATE", "another presence has the same parent and writerId"],
-            ]);
+        // be present on the board through the owner's client, once per board and writer
+        const parent = {
+            packageId: board.policy.definition.packageId,
+            type: "board",
+            id: plans.id,
+        };
+        const alice = await openClient(world, east, users.alice);
+        await alice.client.query.presence.findMany().subscribe().ready;
+        const created = alice.client
+            .mutate(presence)
+            .create({ parent, activity: "editing", cursor: 0 });
+        const mine = await created.predicted;
+        await created.confirmed;
+        expect([
+            mine.writerId === alice.client.writerId,
+            await refusal(
+                alice.client.mutate(presence).create({ parent, activity: "viewing" }).confirmed,
+            ),
+        ]).toEqual([
+            true,
+            ["CONFLICT", "DUPLICATE", "another presence has the same parent and writerId"],
+        ]);
 
-            // show the owner's moving cursor to the viewer's client on the other instance
-            const bob = await openClient(world, west, users.bob);
-            const seen = bob.client.query.presence.findMany().subscribe();
-            const shown = async () =>
-                (await seen.read()).map((row) => [row["memberId"], row["activity"], row["cursor"]]);
-            await until(seen, (rows) => rows.length === 1);
-            const first = await shown();
-            await alice.client.mutate(presence).update({ id: mine.id, cursor: 12 }).confirmed;
-            await until(seen, (rows) => rows[0]?.["cursor"] === 12);
-            expect([first, await shown()]).toEqual([
-                [[users.alice, "editing", 0]],
-                [[users.alice, "editing", 12]],
-            ]);
+        // show the owner's moving cursor to the viewer's client on the other instance
+        const bob = await openClient(world, west, users.bob);
+        const seen = bob.client.query.presence.findMany().subscribe();
+        const shown = async () =>
+            (await seen.read()).map((row) => [row["memberId"], row["activity"], row["cursor"]]);
+        await until(seen, (rows) => rows.length === 1);
+        const first = await shown();
+        await alice.client.mutate(presence).update({ id: mine.id, cursor: 12 }).confirmed;
+        await until(seen, (rows) => rows[0]?.["cursor"] === 12);
+        expect([first, await shown()]).toEqual([
+            [[users.alice, "editing", 0]],
+            [[users.alice, "editing", 12]],
+        ]);
 
-            // find no board for a stranger's presence, and show the stranger nobody
-            const carol = await openClient(world, west, users.carol);
-            const stranger = carol.client.query.presence.findMany().subscribe();
-            await stranger.ready;
-            expect([
-                await refusal(
-                    carol.client.mutate(presence).create({ parent, activity: "viewing" }).confirmed,
-                ),
-                await stranger.read(),
-            ]).toEqual([["NOT_FOUND", "NOT_FOUND", `board ${plans.id} not found`], []]);
+        // find no board for a stranger's presence, and show the stranger nobody
+        const carol = await openClient(world, west, users.carol);
+        const stranger = carol.client.query.presence.findMany().subscribe();
+        await stranger.ready;
+        expect([
+            await refusal(
+                carol.client.mutate(presence).create({ parent, activity: "viewing" }).confirmed,
+            ),
+            await stranger.read(),
+        ]).toEqual([["NOT_FOUND", "NOT_FOUND", `board ${plans.id} not found`], []]);
 
-            // remove the owner's presence after its linger, which another caller's stream under her writer never extends
-            west.stream(users.bob, alice.client.writerId);
-            alice.stop();
-            await until(seen, (rows) => rows.length === 0);
+        // remove the owner's presence after its linger, which another caller's stream under her writer never extends
+        west.stream(users.bob, alice.client.writerId);
+        alice.stop();
+        await until(seen, (rows) => rows.length === 0);
 
-            // retain a presence a call wrote on the other instance past its linger while its writer streams here
-            const returning = await openClient(world, east, users.alice);
-            await returning.client.query.presence.findMany().subscribe().ready;
-            const viewing = await west.call(users.alice, presence, "create", {
-                writerId: returning.client.writerId,
-                parent,
-                activity: "viewing",
-            });
-            await until(seen, (rows) => rows[0]?.["activity"] === "viewing");
-            await world.clock.sleep(150);
-            const held = await present(west.store.ephemeral, "the west ephemeral storage")
-                .database.select({ id: presence.table.id })
-                .from(presence.table);
+        // retain a presence a call wrote on the other instance past its linger while its writer streams here
+        const returning = await openClient(world, east, users.alice);
+        await returning.client.query.presence.findMany().subscribe().ready;
+        const viewing = await west.call(users.alice, presence, "create", {
+            writerId: returning.client.writerId,
+            parent,
+            activity: "viewing",
+        });
+        await until(seen, (rows) => rows[0]?.["activity"] === "viewing");
+        await world.clock.sleep(150);
+        const held = await present(west.store.ephemeral, "the west ephemeral storage")
+            .database.select({ id: presence.table.id })
+            .from(presence.table);
 
-            // hide the board's presence from the viewer once the owner revokes it
-            await east.call(users.alice, board, "revoke", {
-                requestId: RequestId.create(world),
-                id: plans.id,
-                relationshipId: shared.id,
-            });
-            await until(seen, (rows) => rows.length === 0);
-            expect(held).toEqual([{ id: viewing.id }]);
-        })(),
-    );
+        // hide the board's presence from the viewer once the owner revokes it
+        await east.call(users.alice, board, "revoke", {
+            requestId: RequestId.create(world),
+            id: plans.id,
+            relationshipId: shared.id,
+        });
+        await until(seen, (rows) => rows.length === 0);
+        expect(held).toEqual([{ id: viewing.id }]);
+    })();
 });
 
 test("change many presences at once, only those the caller may write", async () => {
@@ -260,186 +258,179 @@ test("write and follow presence through object clients of both instances", async
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation();
     const world = simulation.environment("test");
-    await simulation.drive(
-        (async () => {
-            const { east, west } = await serveBoards(world);
-            const plans = await east.call(users.alice, board, "create", {
-                requestId: RequestId.create(world),
-            });
-            await east.call(users.alice, board, "grant", {
-                requestId: RequestId.create(world),
+    await (async () => {
+        const { east, west } = await serveBoards(world);
+        const plans = await east.call(users.alice, board, "create", {
+            requestId: RequestId.create(world),
+        });
+        await east.call(users.alice, board, "grant", {
+            requestId: RequestId.create(world),
+            id: plans.id,
+            relation: "viewer",
+            subject: principal.user.reference("universe", users.bob),
+        });
+
+        // follow the owner's presence from the other instance
+        const alice = await openClient(world, east, users.alice);
+        const bob = await openClient(world, west, users.bob);
+        await alice.client.query.presence.findMany().subscribe().ready;
+        const seen = bob.client.query.presence.findMany().subscribe();
+        await alice.client.mutate(presence).create({
+            parent: {
+                packageId: board.policy.definition.packageId,
+                type: "board",
                 id: plans.id,
-                relation: "viewer",
-                subject: principal.user.reference("universe", users.bob),
-            });
+            },
+            activity: "editing",
+            cursor: 3,
+        }).confirmed;
+        await until(seen, (rows) => rows.length === 1);
+        expect((await seen.read()).map((row) => [row["memberId"], row["cursor"]])).toEqual([
+            [users.alice, 3],
+        ]);
 
-            // follow the owner's presence from the other instance
-            const alice = await openClient(world, east, users.alice);
-            const bob = await openClient(world, west, users.bob);
-            await alice.client.query.presence.findMany().subscribe().ready;
-            const seen = bob.client.query.presence.findMany().subscribe();
-            await alice.client.mutate(presence).create({
-                parent: {
-                    packageId: board.policy.definition.packageId,
-                    type: "board",
-                    id: plans.id,
-                },
-                activity: "editing",
-                cursor: 3,
-            }).confirmed;
-            await until(seen, (rows) => rows.length === 1);
-            expect((await seen.read()).map((row) => [row["memberId"], row["cursor"]])).toEqual([
-                [users.alice, 3],
-            ]);
+        // deliver her reaction to the board's readers on the other instance
+        const listening = new AbortController();
+        onTestFinished(() => listening.abort());
+        const reactions = bob.client.broadcasts(board, plans.id, listening.signal);
+        const received = reactions.next();
+        await alice.client.broadcast(board, plans.id, { reaction: "👍" });
+        expect((await received).value).toEqual({ reaction: "👍" });
 
-            // deliver her reaction to the board's readers on the other instance
-            const listening = new AbortController();
-            onTestFinished(() => listening.abort());
-            const reactions = bob.client.broadcasts(board, plans.id, listening.signal);
-            const received = reactions.next();
-            await alice.client.broadcast(board, plans.id, { reaction: "👍" });
-            expect((await received).value).toEqual({ reaction: "👍" });
-
-            // let her presence go once her client stops following
-            alice.stop();
-            await until(seen, (rows) => rows.length === 0);
-        })(),
-    );
+        // let her presence go once her client stops following
+        alice.stop();
+        await until(seen, (rows) => rows.length === 0);
+    })();
 });
 
 test("deliver an object's events to a reader granted it while already following", async () => {
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation();
     const world = simulation.environment("test");
-    await simulation.drive(
-        (async () => {
-            const { east, west } = await serveBoards(world);
-            const plans = await east.call(users.alice, board, "create", {
-                requestId: RequestId.create(world),
-            });
+    await (async () => {
+        const { east, west } = await serveBoards(world);
+        const plans = await east.call(users.alice, board, "create", {
+            requestId: RequestId.create(world),
+        });
 
-            // listen for the board's events as bob before he may read it
-            const alice = await openClient(world, east, users.alice);
-            const bob = await openClient(world, west, users.bob);
-            const boards = bob.client.query.board.findMany().subscribe();
-            const listening = new AbortController();
-            onTestFinished(() => listening.abort());
-            const received = bob.client.broadcasts(board, plans.id, listening.signal).next();
+        // listen for the board's events as bob before he may read it
+        const alice = await openClient(world, east, users.alice);
+        const bob = await openClient(world, west, users.bob);
+        const boards = bob.client.query.board.findMany().subscribe();
+        const listening = new AbortController();
+        onTestFinished(() => listening.abort());
+        const received = bob.client.broadcasts(board, plans.id, listening.signal).next();
 
-            // grant him the board and deliver her reaction once his replicas have it and follow its events
-            await east.call(users.alice, board, "grant", {
-                requestId: RequestId.create(world),
-                id: plans.id,
-                relation: "viewer",
-                subject: principal.user.reference("universe", users.bob),
-            });
-            await until(boards, (rows) => rows.length === 1);
-            await bob.client.query.presence.findMany().subscribe().ready;
-            await alice.client.broadcast(board, plans.id, { reaction: "👋" });
-            expect((await received).value).toEqual({ reaction: "👋" });
-        })(),
-    );
+        // grant him the board and deliver her reaction once his replicas have it and follow its events
+        await east.call(users.alice, board, "grant", {
+            requestId: RequestId.create(world),
+            id: plans.id,
+            relation: "viewer",
+            subject: principal.user.reference("universe", users.bob),
+        });
+        await until(boards, (rows) => rows.length === 1);
+        await bob.client.query.presence.findMany().subscribe().ready;
+        await alice.client.broadcast(board, plans.id, { reaction: "👋" });
+        expect((await received).value).toEqual({ reaction: "👋" });
+    })();
 });
 
 test("include live presence with durable profiles, and count live viewers per board, across storages", async () => {
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation();
     const world = simulation.environment("test");
-    await simulation.drive(
-        (async () => {
-            const { east, west } = await serveBoards(world);
-            const plans = await east.call(users.alice, board, "create", {
+    await (async () => {
+        const { east, west } = await serveBoards(world);
+        const plans = await east.call(users.alice, board, "create", {
+            requestId: RequestId.create(world),
+        });
+        await simulation.jump(simulation.clock.now() + 1);
+        const notes = await east.call(users.alice, board, "create", {
+            requestId: RequestId.create(world),
+        });
+        for (const shared of [plans, notes]) {
+            await east.call(users.alice, board, "grant", {
                 requestId: RequestId.create(world),
+                id: shared.id,
+                relation: "viewer",
+                subject: principal.user.reference("universe", users.bob),
             });
-            simulation.clock.advance(1);
-            const notes = await east.call(users.alice, board, "create", {
-                requestId: RequestId.create(world),
-            });
-            for (const shared of [plans, notes]) {
-                await east.call(users.alice, board, "grant", {
-                    requestId: RequestId.create(world),
-                    id: shared.id,
-                    relation: "viewer",
-                    subject: principal.user.reference("universe", users.bob),
-                });
-            }
-            const card = await east.call(users.alice, profile, "create", {
-                requestId: RequestId.create(world),
-                parentId: plans.id,
-                name: "Alice",
-            });
+        }
+        const card = await east.call(users.alice, profile, "create", {
+            requestId: RequestId.create(world),
+            parentId: plans.id,
+            name: "Alice",
+        });
 
-            // show the viewer each board with the presence on it and the profile each presence refers to
-            const alice = await openClient(world, east, users.alice);
-            const bob = await openClient(world, west, users.bob);
-            await alice.client.query.presence.findMany().subscribe().ready;
-            await alice.client.mutate(presence).create({
-                parent: {
-                    packageId: board.policy.definition.packageId,
-                    type: "board",
-                    id: plans.id,
-                },
-                activity: "editing",
-                profileId: card.id,
-            }).confirmed;
-            const boards = bob.client.query.board
-                .findMany({
-                    orderBy: { createdAt: "asc" },
-                    with: { presences: { with: { profile: true } } },
-                })
-                .subscribe();
-            await boards.ready;
-            const shown = async () =>
-                (await boards.read()).map((row) =>
-                    row.presences.map((entry) => [entry.activity, entry.profile?.name]),
-                );
-            await until(boards, (rows) =>
-                rows.some((row) => row.presences.some((entry) => entry.profile?.name === "Alice")),
+        // show the viewer each board with the presence on it and the profile each presence refers to
+        const alice = await openClient(world, east, users.alice);
+        const bob = await openClient(world, west, users.bob);
+        await alice.client.query.presence.findMany().subscribe().ready;
+        await alice.client.mutate(presence).create({
+            parent: {
+                packageId: board.policy.definition.packageId,
+                type: "board",
+                id: plans.id,
+            },
+            activity: "editing",
+            profileId: card.id,
+        }).confirmed;
+        const boards = bob.client.query.board
+            .findMany({
+                orderBy: { createdAt: "asc" },
+                with: { presences: { with: { profile: true } } },
+            })
+            .subscribe();
+        await boards.ready;
+        const shown = async () =>
+            (await boards.read()).map((row) =>
+                row.presences.map((entry) => [entry.activity, entry.profile?.name]),
             );
-            expect(await shown()).toEqual([[["editing", "Alice"]], []]);
+        await until(boards, (rows) =>
+            rows.some((row) => row.presences.some((entry) => entry.profile?.name === "Alice")),
+        );
+        expect(await shown()).toEqual([[["editing", "Alice"]], []]);
 
-            // take only the presences the relation's condition selects
-            const filtered = bob.client.query.board
-                .findMany({
-                    orderBy: { createdAt: "asc" },
-                    with: { presences: { where: { activity: "idle" } } },
-                })
-                .subscribe();
-            await filtered.ready;
-            expect((await filtered.read()).map((row) => row.presences.length)).toEqual([0, 0]);
-            await filtered.close();
+        // take only the presences the relation's condition selects
+        const filtered = bob.client.query.board
+            .findMany({
+                orderBy: { createdAt: "asc" },
+                with: { presences: { where: { activity: "idle" } } },
+            })
+            .subscribe();
+        await filtered.ready;
+        expect((await filtered.read()).map((row) => row.presences.length)).toEqual([0, 0]);
+        await filtered.close();
 
-            // count each board's live viewers locally
-            const counts = bob.client.query.board
-                .findMany({
-                    orderBy: { createdAt: "asc" },
-                    extras: { viewers: Expression.rollup("count", "presences") },
-                })
-                .subscribe();
-            await counts.ready;
-            const viewers = async () =>
-                (await counts.read()).map((row) => ({ count: row.viewers }));
-            expect(await viewers()).toEqual([{ count: 1 }, { count: 0 }]);
+        // count each board's live viewers locally
+        const counts = bob.client.query.board
+            .findMany({
+                orderBy: { createdAt: "asc" },
+                extras: { viewers: Expression.rollup("count", "presences") },
+            })
+            .subscribe();
+        await counts.ready;
+        const viewers = async () => (await counts.read()).map((row) => ({ count: row.viewers }));
+        expect(await viewers()).toEqual([{ count: 1 }, { count: 0 }]);
 
-            // count none once the viewer's presence goes, and forget her profile
-            alice.stop();
-            await until(counts, (rows) => rows[0]?.viewers === 0);
-            await until(boards, (rows) => rows.every((row) => row.presences.length === 0));
-            expect(await shown()).toEqual([[], []]);
+        // count none once the viewer's presence goes, and forget her profile
+        alice.stop();
+        await until(counts, (rows) => rows[0]?.viewers === 0);
+        await until(boards, (rows) => rows.every((row) => row.presences.length === 0));
+        expect(await shown()).toEqual([[], []]);
 
-            // refuse conditions relating the other storage's objects
-            let refused: unknown;
-            try {
-                bob.client.query.board.findMany({ where: { presences: {} } }).subscribe();
-            } catch (error) {
-                refused = error;
-            }
-            expect(refused).toMatchObject({
-                code: "BAD_REQUEST",
-                message: "object board cannot relate presences: it has another storage",
-            });
-        })(),
-    );
+        // refuse conditions relating the other storage's objects
+        let refused: unknown;
+        try {
+            bob.client.query.board.findMany({ where: { presences: {} } }).subscribe();
+        } catch (error) {
+            refused = error;
+        }
+        expect(refused).toMatchObject({
+            code: "BAD_REQUEST",
+            message: "object board cannot relate presences: it has another storage",
+        });
+    })();
 });
 
 /** Serve boards from two instances over one durable database. */

@@ -205,157 +205,150 @@ const tick = defineObject(
 test("hand a scope's page of ticks to the handler once its first is a batch old, the same page after a failed attempt, the same page to two hosts at once, then the next page", async () => {
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation(START);
-    await simulation.drive(
-        (async () => {
-            const { clock } = simulation;
-            const world = simulation.environment("test");
+    await (async () => {
+        const { clock } = simulation;
+        const world = simulation.environment("test");
 
-            // serve the space's ticks as the space itself
-            const storage = await TestDatabase.create(
-                defineDatabase({
-                    name: "main",
-                    ...tablesOf({
-                        packages: [objectPackage, { objects: { space, tick }, tables: [] }],
-                        follows: [],
-                        tables: [],
-                    }),
+        // serve the space's ticks as the space itself
+        const storage = await TestDatabase.create(
+            defineDatabase({
+                name: "main",
+                ...tablesOf({
+                    packages: [objectPackage, { objects: { space, tick }, tables: [] }],
+                    follows: [],
+                    tables: [],
                 }),
-                { environment: world, isMigrated: true },
-            );
-            onTestFinished(() => storage.close());
-            const { database } = storage;
-            const store = await TestObjectStore.at(space.reference(Scope.universe.id, SPACE_ID), {
-                chain: async () => undefined,
-                environment: world,
-                principal: spacePrincipal(SPACE_ID),
-                servers: serversOf([tick]),
-                database,
-                callKey: testCallKey,
-                events: await testEvents(database, world, [tick.eventKind()]),
-                origin: { package: tick.package },
-            });
-            await openSpace(database, world, SPACE_ID);
-            const record = async (id: string, spaceId: string = SPACE_ID) => {
-                await store.mutate(
-                    AccessContext.of(Caller.of(spacePrincipal(spaceId)), clock.now()),
-                    {
-                        id: RequestId.create(world),
-                        calls: [
-                            tick.call("record", {
-                                spaceId,
-                                items: [
-                                    { id, time: EventTime.of(clock.now()), count: 1, data: {} },
-                                ],
-                            }),
-                        ],
-                    },
-                );
-
-                return (await database.log.position()).sequence;
-            };
-
-            // fail the first attempt, and let host two take the second page while host one has it
-            const pages: {
-                readonly host: string;
-                readonly ids: string[];
-                readonly after: number;
-                readonly through: number;
-                readonly claimedAt: number;
-            }[] = [];
-            let isFailing = true;
-            const reconcile = (consumer: ReconcileController) =>
-                consumer.reconcile(SPACE_ID, {
-                    signal: new AbortController().signal,
-                    changed: async () => undefined,
-                });
-            const two = tick.consume("count", async (page) => {
-                pages.push({
-                    host: "two",
-                    ids: page.events.map((event) => event.id),
-                    after: page.after,
-                    through: page.through,
-                    claimedAt: page.claimedAt,
-                });
-            })(store);
-            const one = tick.consume("count", async (page) => {
-                // record the page, fail the first, and run host two before committing the third
-                pages.push({
-                    host: "one",
-                    ids: page.events.map((event) => event.id),
-                    after: page.after,
-                    through: page.through,
-                    claimedAt: page.claimedAt,
-                });
-                if (isFailing) {
-                    isFailing = false;
-                    throw new Error("the counter is unreachable");
-                } else if (page.events.length > 1) {
-                    await reconcile(two);
-                }
-            })(store);
-
-            // tick, wait half a batch, fail a batch in, tick again, then retry
-            const first = await record("1");
-            clock.set(START + BATCH / 2);
-            const young = await reconcile(one);
-            clock.set(START + BATCH);
-            const failed = await reconcile(one).catch((error: unknown) => String(error));
-            await record("2");
-            const retried = await reconcile(one);
-
-            // tick a batch later, then take the page on host one while host two takes it too
-            clock.set(START + 2 * BATCH);
-            const third = await record("3");
-            clock.set(START + 3 * BATCH);
-            const both = await reconcile(one);
-            const idle = await reconcile(two);
-
-            // tick in another space, then pass the page without the space's ticks and look again
-            await openSpace(database, world, OTHER_SPACE_ID);
-            const elsewhere = await record("4", OTHER_SPACE_ID);
-            const passed = await reconcile(two);
-            const rest = await reconcile(two);
-
-            // take the failed page twice unchanged, and the next one on both hosts, host two moving past it
-            const reader = tick.reader("count").at(SPACE_ID);
-            expect({
-                young,
-                failed,
-                retried,
-                both,
-                idle,
-                passed,
-                rest,
-                pages,
-                place: [await reader.after(database), await reader.claimed(database)],
-            }).toEqual({
-                young: BATCH / 2,
-                failed: "Error: the counter is unreachable",
-                retried: 0,
-                both: 0,
-                idle: undefined,
-                passed: 0,
-                rest: undefined,
-                pages: [
-                    { host: "one", ids: ["1"], after: 0, through: first, claimedAt: START + BATCH },
-                    { host: "one", ids: ["1"], after: 0, through: first, claimedAt: START + BATCH },
-                    {
-                        host: "one",
-                        ids: ["2", "3"],
-                        after: first,
-                        through: third,
-                        claimedAt: START + 3 * BATCH,
-                    },
-                    {
-                        host: "two",
-                        ids: ["2", "3"],
-                        after: first,
-                        through: third,
-                        claimedAt: START + 3 * BATCH,
-                    },
+            }),
+            { environment: world, isMigrated: true },
+        );
+        onTestFinished(() => storage.close());
+        const { database } = storage;
+        const store = await TestObjectStore.at(space.reference(Scope.universe.id, SPACE_ID), {
+            chain: async () => undefined,
+            environment: world,
+            principal: spacePrincipal(SPACE_ID),
+            servers: serversOf([tick]),
+            database,
+            callKey: testCallKey,
+            events: await testEvents(database, world, [tick.eventKind()]),
+            origin: { package: tick.package },
+        });
+        await openSpace(database, world, SPACE_ID);
+        const record = async (id: string, spaceId: string = SPACE_ID) => {
+            await store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), clock.now()), {
+                id: RequestId.create(world),
+                calls: [
+                    tick.call("record", {
+                        spaceId,
+                        items: [{ id, time: EventTime.of(clock.now()), count: 1, data: {} }],
+                    }),
                 ],
-                place: [elsewhere, undefined],
             });
-        })(),
-    );
+
+            return (await database.log.position()).sequence;
+        };
+
+        // fail the first attempt, and let host two take the second page while host one has it
+        const pages: {
+            readonly host: string;
+            readonly ids: string[];
+            readonly after: number;
+            readonly through: number;
+            readonly claimedAt: number;
+        }[] = [];
+        let isFailing = true;
+        const reconcile = (consumer: ReconcileController) =>
+            consumer.reconcile(SPACE_ID, {
+                signal: new AbortController().signal,
+                changed: async () => undefined,
+            });
+        const two = tick.consume("count", async (page) => {
+            pages.push({
+                host: "two",
+                ids: page.events.map((event) => event.id),
+                after: page.after,
+                through: page.through,
+                claimedAt: page.claimedAt,
+            });
+        })(store);
+        const one = tick.consume("count", async (page) => {
+            // record the page, fail the first, and run host two before committing the third
+            pages.push({
+                host: "one",
+                ids: page.events.map((event) => event.id),
+                after: page.after,
+                through: page.through,
+                claimedAt: page.claimedAt,
+            });
+            if (isFailing) {
+                isFailing = false;
+                throw new Error("the counter is unreachable");
+            } else if (page.events.length > 1) {
+                await reconcile(two);
+            }
+        })(store);
+
+        // tick, wait half a batch, fail a batch in, tick again, then retry
+        const first = await record("1");
+        await simulation.jump(START + BATCH / 2);
+        const young = await reconcile(one);
+        await simulation.jump(START + BATCH);
+        const failed = await reconcile(one).catch((error: unknown) => String(error));
+        await record("2");
+        const retried = await reconcile(one);
+
+        // tick a batch later, then take the page on host one while host two takes it too
+        await simulation.jump(START + 2 * BATCH);
+        const third = await record("3");
+        await simulation.jump(START + 3 * BATCH);
+        const both = await reconcile(one);
+        const idle = await reconcile(two);
+
+        // tick in another space, then pass the page without the space's ticks and look again
+        await openSpace(database, world, OTHER_SPACE_ID);
+        const elsewhere = await record("4", OTHER_SPACE_ID);
+        const passed = await reconcile(two);
+        const rest = await reconcile(two);
+
+        // take the failed page twice unchanged, and the next one on both hosts, host two moving past it
+        const reader = tick.reader("count").at(SPACE_ID);
+        expect({
+            young,
+            failed,
+            retried,
+            both,
+            idle,
+            passed,
+            rest,
+            pages,
+            place: [await reader.after(database), await reader.claimed(database)],
+        }).toEqual({
+            young: BATCH / 2,
+            failed: "Error: the counter is unreachable",
+            retried: 0,
+            both: 0,
+            idle: undefined,
+            passed: 0,
+            rest: undefined,
+            pages: [
+                { host: "one", ids: ["1"], after: 0, through: first, claimedAt: START + BATCH },
+                { host: "one", ids: ["1"], after: 0, through: first, claimedAt: START + BATCH },
+                {
+                    host: "one",
+                    ids: ["2", "3"],
+                    after: first,
+                    through: third,
+                    claimedAt: START + 3 * BATCH,
+                },
+                {
+                    host: "two",
+                    ids: ["2", "3"],
+                    after: first,
+                    through: third,
+                    claimedAt: START + 3 * BATCH,
+                },
+            ],
+            place: [elsewhere, undefined],
+        });
+    })();
 });

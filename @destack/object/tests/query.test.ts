@@ -318,10 +318,10 @@ test("follow the newest notebooks and notes as one feed", async () => {
     // file a notebook with two notes, a millisecond apart, and read the newest three
     const book = await device.client.mutate(notebook).create({ name: "Home" }).predicted;
     for (const title of ["Chores", "Budget"]) {
-        clock.advance(1);
+        await simulation.jump(clock.now() + 1);
         await device.client.mutate(note).create({ parentId: book.id, title }).predicted;
     }
-    clock.advance(1);
+    await simulation.jump(clock.now() + 1);
     await device.client.mutate(notebook).create({ name: "Travel" }).predicted;
     expect(unionNames(await activity.read())).toEqual([
         "notebooks:Travel",

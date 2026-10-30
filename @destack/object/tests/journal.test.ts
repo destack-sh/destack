@@ -86,7 +86,7 @@ test("remove calls past their lifetime through the journal's controller, ended o
         }).run(stopping.signal);
         const remaining = async () =>
             (await storage.database.select({ id: journal.id }).from(journal)).map((row) => row.id);
-        await simulation.run({ until: async () => (await remaining()).length === 0 });
+        await simulation.until(async () => (await remaining()).length === 0);
         stopping.abort();
         await loop;
 

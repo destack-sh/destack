@@ -39,33 +39,6 @@ test("serve a package's objects in a new space, make an example's calls as a use
     ).rejects.toThrow(new TypeError("the test store serves no object type ledger"));
 });
 
-test("run a driven caller's signing and serving through its driver, answering what the caller would", async () => {
-    // serve the notes, and count the work a driver runs
-    await using objects = await TestObjectStore.open({
-        packages: [notesPackage],
-        scope: space.reference(Scope.universe.id, "space-01996ab0-0000-7000-8000-000000000201"),
-    });
-    let driven = 0;
-    const caller = objects.as(users.alice).driven(async (work) => {
-        driven += 1;
-
-        return await work;
-    });
-
-    // create and list a notebook through the driven caller
-    const client = caller.client(notesPackage);
-    await caller.given({
-        objects: { space: [{ object: notebook, method: "create", input: { name: "Drafts" } }] },
-    });
-    const listed = await client.notebook.list({ spaceId: objects.scope });
-
-    // sign and serve both calls under the driver
-    expect({ names: listed.items.map((item) => item.name), driven }).toEqual({
-        names: ["Drafts"],
-        driven: 4,
-    });
-});
-
 test("refuse a package served twice in one store", async () => {
     // serve the notes package's notebooks and notes through two servers
     const opening = TestObjectStore.open({

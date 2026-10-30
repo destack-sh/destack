@@ -564,9 +564,10 @@ export class ObjectSource {
         context: RequestContext,
         requested: Recorded | undefined,
     ): AsyncGenerator<sync.Page> {
-        // open the audience
+        // open the audience, watching for access changes from before it was decided
         const { scope, after, previous } = subscription;
         const reader = this.#reader(follower, scope);
+        const { generation } = this.store.database.state.commits;
         const audience = await ObjectAudience.of(this.store, scope, reader);
 
         // compile a request's queries over the scope's chain now
@@ -581,6 +582,7 @@ export class ObjectSource {
                 subscription,
                 caller: Caller.principal(reader),
                 audience,
+                generation,
                 compile,
                 after,
                 previous,
@@ -622,6 +624,7 @@ export class ObjectSource {
             readonly subscription: sync.Subscription;
             readonly caller: Subject | undefined;
             readonly audience: ObjectAudience;
+            readonly generation: number;
             readonly compile: (parameters: JsonObject) => Record<string, sync.Query>;
             readonly after: LogPosition | undefined;
             readonly previous: JsonObject | undefined;
@@ -631,10 +634,9 @@ export class ObjectSource {
         },
     ): AsyncGenerator<sync.Page> {
         // read the replicas the reader holds now, and compile parameters over them
-        const { subscription, caller, audience, compile, signal } = followed;
+        const { subscription, caller, audience, generation, compile, signal } = followed;
         const { database } = this.store;
         const { scope } = subscription;
-        const { generation } = database.state.commits;
         let held = await sync.Replica.tables(database, scope, caller);
         let parameters = subscription.parameters;
         const queries = (requested: JsonObject) =>

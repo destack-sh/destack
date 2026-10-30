@@ -719,7 +719,10 @@ test("restart a caller's access stream only on access changes concerning the cal
         scope: spaceId,
         homes: [],
     });
-    await simulation.run({ to: simulation.clock.now() + HEARTBEAT_MILLISECONDS });
+    await simulation.clock.sleep(
+        simulation.clock.now() + HEARTBEAT_MILLISECONDS - simulation.clock.now(),
+    );
+    await simulation.idle();
     const isPast = () =>
         pages.some(
             (page) =>

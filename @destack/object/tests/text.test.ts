@@ -303,60 +303,53 @@ test("predict edits on two clients, converge after push, undo one exactly and hi
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation();
     const world = simulation.environment("test");
-    await simulation.drive(
-        (async () => {
-            const { endpoint } = await serveDocuments(world);
-            const alice = await openClient(world, users.alice, endpoint(users.alice));
-            const bob = await openClient(world, users.bob, endpoint(users.bob));
-            const carol = await openClient(world, users.carol, endpoint(users.carol));
+    await (async () => {
+        const { endpoint } = await serveDocuments(world);
+        const alice = await openClient(world, users.alice, endpoint(users.alice));
+        const bob = await openClient(world, users.bob, endpoint(users.bob));
+        const carol = await openClient(world, users.carol, endpoint(users.carol));
 
-            // create a shared document with a first line
-            const created = alice.client.mutate(document).create({ title: "Plan" });
-            const { id } = await created.predicted;
-            await created.confirmed;
-            const base = new Sequence().change(
-                { from: 0, to: 0, insert: "hello world" },
-                "alice.1",
-            );
-            await alice.client.mutate(document).edit({ id, field: "body", edits: base }).confirmed;
-            await alice.client.mutate(document).grant({
-                id,
-                relation: "editor",
-                subject: principal.user.reference("universe", users.bob),
-            }).confirmed;
-            await expect.poll(() => body(bob.live)).toEqual(["hello world"]);
+        // create a shared document with a first line
+        const created = alice.client.mutate(document).create({ title: "Plan" });
+        const { id } = await created.predicted;
+        await created.confirmed;
+        const base = new Sequence().change({ from: 0, to: 0, insert: "hello world" }, "alice.1");
+        await alice.client.mutate(document).edit({ id, field: "body", edits: base }).confirmed;
+        await alice.client.mutate(document).grant({
+            id,
+            relation: "editor",
+            subject: principal.user.reference("universe", users.bob),
+        }).confirmed;
+        await expect.poll(() => body(bob.live)).toEqual(["hello world"]);
 
-            // predict one edit on each client at once and see each locally first
-            const replica = base.reduce((sequence, each) => sequence.apply(each), new Sequence());
-            const shout = replica.change({ from: 0, to: 5, insert: "HELLO" }, "alice.2");
-            const exclaim = replica.change({ from: 11, to: 11, insert: "!" }, "bob.1");
-            const shouted = alice.client.mutate(document).edit({ id, field: "body", edits: shout });
-            const exclaimed = bob.client
-                .mutate(document)
-                .edit({ id, field: "body", edits: exclaim });
-            await Promise.all([shouted.predicted, exclaimed.predicted]);
-            expect([await body(alice.live), await body(bob.live)]).toEqual([
-                ["HELLO world"],
-                ["hello world!"],
-            ]);
+        // predict one edit on each client at once and see each locally first
+        const replica = base.reduce((sequence, each) => sequence.apply(each), new Sequence());
+        const shout = replica.change({ from: 0, to: 5, insert: "HELLO" }, "alice.2");
+        const exclaim = replica.change({ from: 11, to: 11, insert: "!" }, "bob.1");
+        const shouted = alice.client.mutate(document).edit({ id, field: "body", edits: shout });
+        const exclaimed = bob.client.mutate(document).edit({ id, field: "body", edits: exclaim });
+        await Promise.all([shouted.predicted, exclaimed.predicted]);
+        expect([await body(alice.live), await body(bob.live)]).toEqual([
+            ["HELLO world"],
+            ["hello world!"],
+        ]);
 
-            // converge both replicas once both edits arrive at the server
-            await Promise.all([shouted.confirmed, exclaimed.confirmed]);
-            await expect.poll(() => body(alice.live)).toEqual(["HELLO world!"]);
-            await expect.poll(() => body(bob.live)).toEqual(["HELLO world!"]);
+        // converge both replicas once both edits arrive at the server
+        await Promise.all([shouted.confirmed, exclaimed.confirmed]);
+        await expect.poll(() => body(alice.live)).toEqual(["HELLO world!"]);
+        await expect.poll(() => body(bob.live)).toEqual(["HELLO world!"]);
 
-            // undo alice's edit exactly, leaving bob's
-            await alice.client.undo().confirmed;
-            await expect.poll(() => body(bob.live)).toEqual(["hello world!"]);
-            expect(await body(alice.live)).toEqual(["hello world!"]);
+        // undo alice's edit exactly, leaving bob's
+        await alice.client.undo().confirmed;
+        await expect.poll(() => body(bob.live)).toEqual(["hello world!"]);
+        expect(await body(alice.live)).toEqual(["hello world!"]);
 
-            // store no chunks for a caller without read
-            await carol.live.ready;
-            const stored = await carol.client.database.select().from(chunk);
-            expect([await body(carol.live), stored]).toEqual([[], []]);
-            expect([alice.errors, bob.errors, carol.errors]).toEqual([[], [], []]);
-        })(),
-    );
+        // store no chunks for a caller without read
+        await carol.live.ready;
+        const stored = await carol.client.database.select().from(chunk);
+        expect([await body(carol.live), stored]).toEqual([[], []]);
+        expect([alice.errors, bob.errors, carol.errors]).toEqual([[], [], []]);
+    })();
 });
 
 test("type into a live text by offsets, one change after another, and converge on the server", async () => {

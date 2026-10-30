@@ -126,7 +126,7 @@ test("refuse a follow whose caller's credential lapsed before its first page, fo
         signal: following.signal,
         environment: world,
     });
-    clock.advance(TOKEN_LIFETIME_MILLISECONDS);
+    await simulation.jump(clock.now() + TOKEN_LIFETIME_MILLISECONDS);
     await Promise.resolve();
     const pages = store.source.relayed(
         {

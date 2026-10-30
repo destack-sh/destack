@@ -11,7 +11,7 @@ import { defineObject, defineShape, field, Follow, followKey } from "../src/inde
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { serversOf, subjectContext, testEvents } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { SimulatedClock } from "@destack/environment/simulation";
+import type { Simulation } from "@destack/environment/simulation";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
@@ -78,7 +78,7 @@ const followerDatabase = defineDatabase({
 /** Serve the cards at home and a follower acquiring them by title on a clock the test moves. */
 async function openStores(): Promise<{
     readonly follower: ObjectStore;
-    readonly clock: SimulatedClock;
+    readonly simulation: Simulation;
     readonly titles: () => Promise<readonly string[]>;
     readonly keys: () => Promise<readonly string[]>;
     readonly machineId: Identifier<"machine">;
@@ -192,11 +192,12 @@ async function openStores(): Promise<{
                 .orderBy(asc(followKey.parameters))
         ).map((row) => row.parameters);
 
-    return { follower, clock, titles, keys, machineId };
+    return { follower, simulation, titles, keys, machineId };
 }
 
 test("follow a shape's keys on demand: replicate only the acquired keys, renew a key past half its time, and evict lapsed keys on the next acquisition", async () => {
-    const { follower, clock, titles, keys } = await openStores();
+    const { follower, simulation, titles, keys } = await openStores();
+    const { clock } = simulation;
     const signal = () => clock.timeout(REPLICA_MILLISECONDS);
 
     // acquire one title, then a second, replicating only their cards
@@ -211,17 +212,17 @@ test("follow a shape's keys on demand: replicate only the acquired keys, renew a
             .map((row) => row.expiresAt)
             .toSorted((left, right) => left - right);
     const before = await expiry();
-    clock.advance(60_000);
+    await simulation.jump(clock.now() + 60_000);
     await follower.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal());
     const renewedEarly = await expiry();
 
     // renew a key acquired again past half its time
-    clock.advance((TTL_MINUTES / 2) * 60_000);
+    await simulation.jump(clock.now() + (TTL_MINUTES / 2) * 60_000);
     await follower.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal());
     const renewed = (await expiry()).map((at) => at - clock.now());
 
     // let both lapse, then acquire a third title, evicting the lapsed ones and their cards
-    clock.advance(TTL_MINUTES * 60_000);
+    await simulation.jump(clock.now() + TTL_MINUTES * 60_000);
     await follower.acquire(byTitle, { key: { scope: spaceId, title: "Eggs" } }, signal());
     await follower.database.log.until(async () => (await titles()).length === 1, signal());
 

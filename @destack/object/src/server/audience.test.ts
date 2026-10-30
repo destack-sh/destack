@@ -415,7 +415,7 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     const inserted = await take(pages, (page) =>
         page.changes.some((change) => change.operation === "insert"),
     );
-    clock.advance(SHARED_MILLISECONDS);
+    await simulation.jump(clock.now() + SHARED_MILLISECONDS);
     const deleted = await take(pages, (page) =>
         page.changes.some((change) => change.operation === "delete"),
     );

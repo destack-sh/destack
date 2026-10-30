@@ -175,7 +175,7 @@ test.for([
                 for await (const value of await client.watch()) {
                     // lapse the caller once the first value arrived
                     values.push(value);
-                    clock.advance(LAPSE_MILLISECONDS);
+                    await simulation.jump(clock.now() + LAPSE_MILLISECONDS);
                 }
             })().then(
                 () => undefined,
@@ -517,7 +517,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     // retain resources until cancellation is acknowledged
     await entered.promise;
     try {
-        await expect(simulation.drive(server.close())).rejects.toMatchObject({
+        await expect(server.close()).rejects.toMatchObject({
             name: "TimeoutError",
         });
         expect(isStopped).toBe(false);
@@ -744,7 +744,7 @@ test.for(["before the call", "during the call", "between events"] as const)(
 
         // end every generator before the drain timeout
         const started = world.clock.now();
-        await simulation.drive(server.close());
+        await server.close();
         expect([outcome, running, world.clock.now() - started < 1000]).toEqual([
             "aborted",
             0,
@@ -844,7 +844,7 @@ test("delay a request while starting and answer it once ready, and refuse it wit
             echo: implementation.echo.handler(({ input }) => input),
         }),
     });
-    onTestFinished(() => simulation.drive(server.close()));
+    onTestFinished(() => server.close());
     const client = createClient(
         { router: routes },
         {
@@ -857,18 +857,20 @@ test("delay a request while starting and answer it once ready, and refuse it wit
 
     // refuse a request still starting once the window passes
     const refused = server.fetch(new Request("https://test.local/echo", { method: "POST" }));
-    await simulation.run({ to: simulation.clock.now() + 1000 });
+    await simulation.clock.sleep(1000);
+    await simulation.idle();
     const starting = await refused;
 
     // delay a call within the window and answer it once the server opens
     const answered = client.echo({ text: "hello" });
-    await simulation.run({ to: simulation.clock.now() + 100 });
+    await simulation.clock.sleep(100);
+    await simulation.idle();
     opened.resolve();
 
     expect([
         starting.status,
         starting.headers.get("retry-after"),
-        await simulation.drive(answered),
+        await answered,
         server.health.status,
     ]).toEqual([503, "1", { text: "hello" }, "serving"]);
 });
