@@ -549,7 +549,7 @@ test("apply an application's tables from its revision to the space's main databa
         present(revision, "the deployed revision").states["main"],
         "main's tables",
     );
-    const bound = DatabaseState.parse(await fixture.blobs.readJson(required));
+    const bound = await fixture.blobs.readJson(required, DatabaseState);
     expect({
         main: [applied.name, applied.ownerId, applied.conditions["Ready"]?.reason],
         capture: [captured.deploymentId, captured.name, captured.target],

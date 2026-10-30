@@ -25,7 +25,7 @@ import {
     TABLE,
     Transaction,
 } from "@destack/db";
-import { appliedStates, type ProviderIndex, type SpaceProvider } from "../resource/resource.ts";
+import { appliedDigests, type ProviderIndex, type SpaceProvider } from "../resource/resource.ts";
 import {
     RequestId,
     Replica,
@@ -48,7 +48,6 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import type { ResourceState } from "@destack/package/declare";
 import { type IdentityKeystore } from "@destack/account/identity";
 import { type Resource, type ResourceType, type SettlementContext } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -372,24 +371,22 @@ export class SpaceTransfer {
     static async states(
         space: TransferSpace,
         spaceId: Identifier<"space">,
-    ): Promise<ResourceState[]> {
+    ): Promise<DatabaseState[]> {
         const main = await Database.mainMaybe(Snapshot.live(space.database), spaceId);
 
         return main === undefined || main.reference === null
             ? []
             : await Promise.all(
-                  main.appliedStates.map(async (digest) =>
-                      schema.jsonObject().parse(await space.blobs.readJson(digest)),
-                  ),
+                  main.appliedStates.map((digest) => space.blobs.readJson(digest, DatabaseState)),
               );
     }
 
     /** Describe the tables some main database states declare in addition to a database's own. */
-    static tables(database: DatabaseConnection, states: readonly ResourceState[]): Table[] {
+    static tables(database: DatabaseConnection, states: readonly DatabaseState[]): Table[] {
         // describe the states' tables in the database's dialect, leaving the ones it declares
         const own = new Set(database.tables.map((table) => table[TABLE].sqlName));
         const described = DatabaseHandle.tables(
-            states.map((state) => DatabaseState.parse(state).tables[database.dialect]),
+            states.map((state) => state.tables[database.dialect]),
         );
 
         return described.filter((table) => !own.has(table[TABLE].sqlName));
@@ -414,7 +411,11 @@ export class SpaceTransfer {
         const states =
             main === undefined || main.reference === null
                 ? []
-                : await appliedStates(options.blobs, main);
+                : await Promise.all(
+                      appliedDigests(main).map((digest) =>
+                          options.blobs.readJson(digest, DatabaseState),
+                      ),
+                  );
 
         return SpaceTransfer.of(
             options,

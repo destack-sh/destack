@@ -2,6 +2,7 @@ import type { Environment } from "@destack/environment";
 import {
     type BlobStore,
     type DatabaseConnection,
+    DatabaseState,
     LogPosition,
     type Row,
     Snapshot,
@@ -23,7 +24,6 @@ import { type Fence, snapshot, type Transfer } from "../../object/index.ts";
 import type { BuildStore } from "../installation/build.ts";
 import { SpaceTransfer } from "./transfer.ts";
 import type { PackageLocation } from "@destack/package/manifest";
-import type { ResourceState } from "@destack/package/declare";
 import stackPackage, { HANDOFF_PATH } from "../../package.ts";
 import type { ProviderIndex } from "../resource/resource.ts";
 import type {} from "@destack/package/import-meta";
@@ -77,7 +77,7 @@ export interface Handoff {
     readonly states: (
         spaceId: Identifier<"space">,
         options?: HandoffCall,
-    ) => Promise<ResourceState[]>;
+    ) => Promise<DatabaseState[]>;
     /** Fence the space for the transfer's target, answering its position and digest. */
     readonly fence: (transfer: Pick<Transfer, "scope" | "id">) => Promise<Fence>;
     /** Read the fenced space's rows whole, sealing machine-bound values to a recipient. */
@@ -143,7 +143,7 @@ export const Handoff = {
                 const path = `${adapter}${HandoffPath.of(spaceId, "states")}`;
                 const response = await send(new Request(path, { signal: options.signal ?? null }));
 
-                return schema.array(schema.jsonObject()).parse(await response.json());
+                return schema.array(DatabaseState).parse(await response.json());
             },
             fence: (transfer) =>
                 stack.transfer.fence({

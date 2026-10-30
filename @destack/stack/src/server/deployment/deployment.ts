@@ -378,7 +378,7 @@ class Reconcile {
                     `the pinned release of ${entry.name}`,
                 );
 
-                return InstallationBindingState.parse(await blobs.readJson(state)).release;
+                return (await blobs.readJson(state, InstallationBindingState)).release;
             }),
         );
 

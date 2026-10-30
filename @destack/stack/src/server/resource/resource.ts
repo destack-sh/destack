@@ -1,6 +1,6 @@
 import { space } from "@destack/account/object";
-import { canonicalize, nth, type Identifier, present, schema } from "@destack/schema";
-import { type BlobStore, type DatabaseHandle, type Row, Snapshot, type Table } from "@destack/db";
+import { canonicalize, type Digest, nth, type Identifier, present, schema } from "@destack/schema";
+import { type DatabaseHandle, type Row, Snapshot, type Table } from "@destack/db";
 import {
     type ObjectType,
     Provisioned,
@@ -24,7 +24,6 @@ import {
     type Provider,
     type Rewrapper,
 } from "@destack/resource";
-import type { ResourceState } from "@destack/package/declare";
 import { StackError } from "../../error/index.ts";
 import type { Controller } from "@destack/db";
 import { type Binding, dependency, https, type InstallationRollout } from "../../object/index.ts";
@@ -283,8 +282,8 @@ export class ProviderIndex {
     }
 }
 
-/** Read the desired states a resource applied, refusing a resource that has not applied them. */
-export async function appliedStates(blobs: BlobStore, row: Resource): Promise<ResourceState[]> {
+/** List the digests of the states a resource applied, refusing one that has not applied them. */
+export function appliedDigests(row: Resource): Digest[] {
     // require its applied states to be its desired ones, blocking a transfer while a plan waits for approval
     const desired = [...row.states, ...row.drainingStates];
     const isApplied = canonicalize(row.appliedStates) === canonicalize(desired);
@@ -295,7 +294,5 @@ export async function appliedStates(blobs: BlobStore, row: Resource): Promise<Re
         );
     }
 
-    return await Promise.all(
-        desired.map(async (digest) => schema.jsonObject().parse(await blobs.readJson(digest))),
-    );
+    return desired;
 }

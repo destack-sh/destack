@@ -16,7 +16,7 @@ import {
 } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
 import { nth, schema, present, Digest, Identifier } from "@destack/schema";
-import { appliedStates, ConsumerController, ProviderIndex, serveSpace } from "../index.ts";
+import { appliedDigests, ConsumerController, ProviderIndex, serveSpace } from "../index.ts";
 import { testHost } from "@destack/test/host";
 import {
     ids,
@@ -251,7 +251,7 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
                 .where(eq(object.rollout.table.id, named.installation));
         });
 
-        return state;
+        return digest;
     };
     const store = serveSpace(
         await fixture.options({
@@ -271,7 +271,7 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
     const bound = await bind([noteOne]);
     await reconcileResources(store, ids.space);
     expect((await read()).conditions["Ready"]?.reason).toBe("Applied");
-    expect(await appliedStates(store.blobs, await read())).toEqual([bound]);
+    expect(appliedDigests(await read())).toEqual([bound]);
 
     // wait for approval of a plan dropping a column and record the plan for review
     const rebound = await bind([noteTwo]);
@@ -295,7 +295,7 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
     expect(await read()).toEqual(waiting);
 
     // refuse reading the applied states while the plan waits
-    expect(await refusal(appliedStates(store.blobs, waiting))).toEqual([
+    expect(await refusal(() => appliedDigests(waiting))).toEqual([
         "PRECONDITION_FAILED",
         "PLAN_UNAPPLIED",
         `resource ${named.kept} has not applied its desired states: approve or reject its plan first`,
@@ -314,7 +314,7 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
     expect([
         applied.conditions["Ready"]?.reason,
         applied.approvedPlan,
-        await appliedStates(store.blobs, applied),
+        appliedDigests(applied),
     ]).toEqual(["Applied", null, [rebound]]);
 });
 

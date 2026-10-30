@@ -1,4 +1,4 @@
-import { appliedStates } from "./resource.ts";
+import { appliedDigests } from "./resource.ts";
 import { asc, type BlobStore, Condition, isNotNull, lt, Snapshot, Transaction } from "@destack/db";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { type ObjectReconciliation, type Resource, type ResourceType } from "@destack/object";
@@ -71,7 +71,11 @@ export function implementSnapshot(options: TransferOptions) {
                     const { store, blobs } = recording(options.blobs);
                     const digest = await snapshotter.snapshot(
                         kind.record(resource),
-                        kind.states(await appliedStates(reconciliation.store.blobs, resource)),
+                        await Promise.all(
+                            appliedDigests(resource).map((applied) =>
+                                reconciliation.store.blobs.readJson(applied, kind.state),
+                            ),
+                        ),
                         store,
                         Recipient.of(row.recipient, reconciliation.store.environment),
                     );
@@ -129,8 +133,8 @@ interface Copy {
     readonly store: Pick<BlobStorage, "read" | "batch" | "write" | "fetch">;
     /** The recipient the source encrypted the machine-bound values to. */
     readonly recipient: Recipient;
-    /** The resource's applied states. */
-    readonly desired: Awaited<ReturnType<typeof appliedStates>>;
+    /** The digests of the resource's applied states. */
+    readonly desired: readonly Digest[];
 }
 
 /** Restore one pending restore from a snapshot its source machine takes for it. */
@@ -160,7 +164,7 @@ async function restoreRow(
         digest,
         store: relayed(options.blobs, source, spaceId),
         recipient,
-        desired: await appliedStates(reconciliation.store.blobs, found.row),
+        desired: appliedDigests(found.row),
     };
 
     // provision and restore a resource or catch the restored one up
@@ -186,7 +190,9 @@ async function restoreFirst(
         provision: provisioning,
         snapshot: snapshotter,
     } = options.providers.restoring(object, resource);
-    const states = kind.states(copy.desired);
+    const states = await Promise.all(
+        copy.desired.map((digest) => reconciliation.store.blobs.readJson(digest, kind.state)),
+    );
     const provisioned = await provisioning.provision(kind.record({ ...resource, reference: null }));
     const record = kind.record({ ...resource, reference: provisioned.reference });
 
@@ -241,7 +247,9 @@ async function catchUp(
     const { kind, snapshot: snapshotter } = options.providers.snapshotting(object, row.provider);
     await snapshotter.restore(
         kind.record({ ...resource, reference: row.reference }),
-        kind.states(copy.desired),
+        await Promise.all(
+            copy.desired.map((digest) => reconciliation.store.blobs.readJson(digest, kind.state)),
+        ),
         copy.digest,
         copy.store,
         copy.recipient,
