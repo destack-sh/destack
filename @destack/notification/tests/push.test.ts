@@ -34,7 +34,7 @@ test("push a mention to each of a recipient's phones, and forget the subscriptio
             mentions: [fixture.subject("bob")],
         }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
 
     // send one push to each phone, failing the old phone's as gone
     const mentioned = nth((await fixture.inbox("bob")).entries, 0);

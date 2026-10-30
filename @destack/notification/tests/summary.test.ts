@@ -63,7 +63,7 @@ test("collect a recipient's summarized notifications into one email at the next 
         "bob",
         document.call("edit", { ...fixture.scope, id: draft.id, summary: "Fixed a typo" }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const threads = new Map(
         (await fixture.inbox("erin")).entries.map((entry) => [
             entry.activity.thread,
@@ -83,7 +83,7 @@ test("collect a recipient's summarized notifications into one email at the next 
         notification.call("read", { ...fixture.homeScope("erin"), id: drafted }),
     );
     await fixture.wait((evening - fixture.clock.now()) / 60_000);
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const settled = async (id: string) =>
         (await fixture.messages("erin", id)).map((row) => [row.status, row.reason]);
     expect([
@@ -131,7 +131,7 @@ test("send a recipient's email and scheduled summary with its lines in their Ger
         "bob",
         document.call("edit", { ...fixture.scope, id: plan.id, summary: "Rewrote the intro" }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     await fixture.wait(16);
 
     // take later changes in the summary, and change the plan again for the summary at 18:00 UTC
@@ -145,9 +145,9 @@ test("send a recipient's email and scheduled summary with its lines in their Ger
         "bob",
         document.call("edit", { ...fixture.scope, id: plan.id, summary: "Added a timeline" }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     await fixture.wait((Date.UTC(2026, 8, 28, 18, 0) - fixture.clock.now()) / 60_000);
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     expect([
         (await fixture.inbox("erin")).entries.length,
         fixture.mails.sent.map((mail) => [mail.subject, mail.text]),

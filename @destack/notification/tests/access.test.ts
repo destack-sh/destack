@@ -39,7 +39,7 @@ test("drop an activity from a recipient's home once they lose access to its sour
             mentions: [fixture.subject("carol")],
         }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const mentioned = nth((await fixture.inbox("carol")).entries, 0);
     const end = Date.UTC(2026, 8, 28, 12, 0);
     const read = async () =>
@@ -58,7 +58,7 @@ test("drop an activity from a recipient's home once they lose access to its sour
             relationshipId: relationship,
         }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const revoked = (await fixture.inbox("carol")).entries;
 
     // send nothing once the quiet hours end, the delivery ending without the activity her home no longer has
@@ -81,7 +81,7 @@ test("drop an activity from a recipient's home once they lose access to its sour
             subject: fixture.subject("carol"),
         }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const regained = (await fixture.inbox("carol")).entries;
     expect([
         regained.map((entry) => [entry.notification.id, entry.isUnread]),

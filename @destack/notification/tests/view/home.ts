@@ -68,7 +68,7 @@ export async function openHome(): Promise<Home> {
     }
 
     // plan both notifications in his home
-    await scenario.dispatch();
+    await scenario.simulation.idle();
     const home = await scenario.home("bob");
 
     // serve the home over HTTP to bob, then follow it from his device

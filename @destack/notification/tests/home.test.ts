@@ -99,7 +99,7 @@ test("seal an emailed notification's content to its home's message key, so no jo
     );
 
     // email it once the delay passes
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     await fixture.wait(16);
 
     // list where the text appears in alice's home beside the activity replica: the journal, the notifications' delivery state, and the messages' changes
@@ -123,7 +123,7 @@ test("follow the spaces of an account once the person owns it, and their activit
     await using fixture = await TestNotification.open();
     const { served: home } = await fixture.home("alice");
     const follows = async () => {
-        await fixture.dispatch();
+        await fixture.simulation.idle();
         const subscriptions = await present(
             home.store.subscriber,
             "the home's subscriber",

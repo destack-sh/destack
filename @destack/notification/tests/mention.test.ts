@@ -48,7 +48,7 @@ test("send mentions to the desktop and the phone, badging the inbox until they a
             mentions: [fixture.subject("bob")],
         }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const first = nth((await fixture.inbox("bob")).entries, 0);
     const home = fixture.homeScope("bob").spaceId;
     expect([
@@ -92,7 +92,7 @@ test("send mentions to the desktop and the phone, badging the inbox until they a
             mentions: [fixture.subject("bob")],
         }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const second = present(
         (await fixture.inbox("bob")).entries.find(
             (entry) => entry.notification.id !== first.notification.id,

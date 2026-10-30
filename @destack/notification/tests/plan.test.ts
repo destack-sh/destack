@@ -32,7 +32,7 @@ test("list on start only the activities whose notification is missing or planned
             mentions: [fixture.subject("bob")],
         }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const controller = present(
         store.controllers().find((each) => each.name === activity.name),
         "the activity controller",

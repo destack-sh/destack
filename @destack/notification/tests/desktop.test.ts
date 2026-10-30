@@ -41,7 +41,7 @@ test("defer a mention through quiet hours, show it on the desktops still signed 
             mentions: [fixture.subject("carol")],
         }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const mentioned = nth((await fixture.inbox("carol")).entries, 0).notification;
     const end = Date.UTC(2026, 8, 28, 12, 0);
     const { served: home } = await fixture.home("carol");

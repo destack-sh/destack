@@ -52,7 +52,7 @@ test("expand an announcement to every subscriber, or every member, in batches, n
         "alice",
         document.call("broadcast", { ...scope, id: plan.id, audience: "subscribers" }),
     );
-    await fixture.settle();
+    await fixture.simulation.idle();
     const subscribed = await states();
 
     // announce it to the space's members, its account's owner among them, collapsing into their unread notifications
@@ -63,7 +63,7 @@ test("expand an announcement to every subscriber, or every member, in batches, n
         "alice",
         document.call("broadcast", { ...scope, id: plan.id, audience: "members" }),
     );
-    await fixture.settle();
+    await fixture.simulation.idle();
     const members = await states();
 
     // announce it to the users with edit, found through their grants, in batches of two
@@ -82,7 +82,7 @@ test("expand an announcement to every subscriber, or every member, in batches, n
         "alice",
         document.call("broadcast", { ...scope, id: plan.id, audience: "editors" }),
     );
-    await fixture.settle();
+    await fixture.simulation.idle();
     const editors = await states();
 
     expect([subscribed, members, editors]).toEqual([
@@ -155,7 +155,7 @@ test("notify each subscriber for the reason it subscribed, skipping the principa
             excluded: [fixture.subject("dave")],
         }),
     );
-    await fixture.settle();
+    await fixture.simulation.idle();
     const announced = (await fixture.activities()).filter((row) => row.name === "change");
     expect(
         byRecipient(announced.map((row) => [Subject.key(Activity.recipient(row)), row.reason])),

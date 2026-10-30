@@ -38,7 +38,7 @@ test("replace a keyed notification as unread and collapse a thread's burst into 
         "bob",
         document.call("publish", { ...fixture.scope, id: plan.id, state: "publishing" }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const status = nth((await fixture.inbox("alice")).entries, 0);
     await fixture.call(
         "alice",
@@ -52,7 +52,7 @@ test("replace a keyed notification as unread and collapse a thread's burst into 
         "bob",
         document.call("publish", { ...fixture.scope, id: plan.id, state: "published" }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
 
     // show it unread again, its read marker older than the new occurrence, emailing nothing by preference
     const replaced = nth((await fixture.inbox("alice")).entries, 0);
@@ -91,7 +91,7 @@ test("replace a keyed notification as unread and collapse a thread's burst into 
         "bob",
         document.call("edit", { ...fixture.scope, id: plan.id, summary: "Fourth" }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     expect([
         (await fixture.inbox("alice")).unread(),
         (await fixture.activities()).map((row) => [

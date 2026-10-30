@@ -107,6 +107,6 @@ await fixture.call(
     "alice",
     document.call("broadcast", { ...fixture.scope, id, audience: "members" }),
 );
-await fixture.settle();
+await fixture.simulation.idle();
 const activities = await fixture.activities();
 ```

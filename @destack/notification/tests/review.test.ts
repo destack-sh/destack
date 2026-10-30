@@ -47,7 +47,7 @@ test("answer a review request from its notification, which breaks through a focu
         "alice",
         document.call("edit", { ...fixture.scope, id: plan.id, summary: "Rewrote the intro" }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     const inbox = await fixture.inbox("bob");
     const { entries } = inbox;
     const request = entries.find((entry) => review.is(entry.activity));
@@ -95,7 +95,7 @@ test("answer a review request from its notification, which breaks through a focu
             id: request.notification.id,
         }),
     );
-    await fixture.dispatch();
+    await fixture.simulation.idle();
     expect([
         ObjectReference.at(
             "approvedBy",

@@ -40,7 +40,7 @@ import { NotificationServer } from "../server/server.ts";
 import { focus, preferences, summarySchedule } from "../setting/setting.ts";
 import { notesPackage, notesServer, openNotesBuild } from "./notes.ts";
 
-/** When the kit's world starts: Monday 28 September 2026, 10:00 UTC, noon in Vienna. */
+/** When the fixture's world starts: Monday 28 September 2026, 10:00 UTC, noon in Vienna. */
 const START = Date.UTC(2026, 8, 28, 10, 0);
 
 /** The origin of the push service the people's browsers subscribe at. */
@@ -54,9 +54,6 @@ const CREATED = 201;
 
 /** The status a push service answers a forgotten subscription with (RFC 8030 7.3). */
 const GONE = 410;
-
-/** The most settle rounds a dispatch runs, as a notification crosses a few stores. */
-const DISPATCH_ROUNDS = 10;
 
 /** The time a jump runs before its target: two 10 s feed heartbeats, inside access's 30 s lag. */
 const CATCH_UP_MILLISECONDS = 20_000;
@@ -162,7 +159,7 @@ export class TestNotification implements AsyncDisposable {
         return this.served.environment;
     }
 
-    /** Open a kit over a served space, its people and their homes. */
+    /** Open a fixture over a served space, its people and their homes. */
     private constructor(fields: {
         readonly space: TestSpace;
         readonly served: TestObjectStore;
@@ -285,7 +282,7 @@ export class TestNotification implements AsyncDisposable {
         );
     }
 
-    /** Define the template of the kit's world, which every test copies. */
+    /** Define the template of the fixture's world, which every test copies. */
     static template() {
         return TestSpace.template(SPACE_OPTIONS, {
             name: "notification",
@@ -339,7 +336,7 @@ export class TestNotification implements AsyncDisposable {
         }
 
         // follow the people's profiles in the space before the tests notify them
-        await space.settle(served);
+        await space.simulation.idle();
 
         return null;
     }
@@ -387,7 +384,7 @@ export class TestNotification implements AsyncDisposable {
         return serving;
     }
 
-    /** Serve another space the world hosts, such as the account's home, until the kit closes. */
+    /** Serve another space the world hosts, such as the account's home, until the fixture closes. */
     async serve(id: Identifier<"space">): Promise<void> {
         const space = present(this.#spaces.get(id), `the hosted space ${id}`);
         const served = await space.serve();
@@ -428,7 +425,7 @@ export class TestNotification implements AsyncDisposable {
     /** Make a person a member reading the space: its owner relates them as a viewer. */
     async join(person: Person): Promise<void> {
         await TestNotification.#relate(this.space, this.people[person], "viewer");
-        await this.settle();
+        await this.simulation.idle();
     }
 
     /** Relate a person to the space at the universe as its owner, as a guest or a viewer. */
@@ -567,57 +564,22 @@ export class TestNotification implements AsyncDisposable {
             .toSorted((left, right) => left.to.channel.localeCompare(right.to.channel));
     }
 
-    /** Settle the space's controllers, such as expanding its announcements. */
-    settle(): Promise<void> {
-        return this.space.settle(this.served);
+    /** The simulation running the space's world. */
+    get simulation(): Simulation {
+        return this.space.simulation;
     }
 
-    /** Settle the space and the homes until none of them commits. */
-    async dispatch(): Promise<void> {
-        for (let round = 0; round < DISPATCH_ROUNDS; round += 1) {
-            // settle each, and stop once a round moved no log
-            const before = await this.#positions();
-            await this.settle();
-            const homes = await this.#served();
-            for (const home of homes) {
-                await home.space.settle(home.served);
-            }
-
-            // let every home's replicas of the space and of each other catch up to their sources
-            await TestObjectStore.settleReplicas([
-                this.served.store,
-                ...homes.map((home) => home.served.store),
-            ]);
-            if ((await this.#positions()) === before) {
-                return;
-            }
-        }
-        throw new Error(`the space and homes kept committing after ${DISPATCH_ROUNDS} rounds`);
-    }
-
-    /** Move the world on by some minutes, then dispatch what fell due. */
+    /** Move the world on by some minutes, then run what fell due. */
     wait(minutes: number): Promise<void> {
         return this.reach(this.clock.now() + minutes * 60_000);
     }
 
     /** Jump the world to a time, running its last moments so the follows catch up. */
     async reach(at: number): Promise<void> {
-        // jump to a moment before the time, run the rest, then dispatch what fell due
+        // jump to a moment before the time, then run the rest on time
         const catchingUp = Math.max(this.clock.now(), at - CATCH_UP_MILLISECONDS);
-        await this.space.simulation.jump(catchingUp);
-        await this.space.simulation.clock.sleep(at - this.space.simulation.clock.now());
-        await this.space.simulation.idle();
-        await this.dispatch();
-    }
-
-    /** Read the log positions of the space and the homes, as one comparable text. */
-    async #positions(): Promise<string> {
-        const stores = [this.served, ...(await this.#served()).map((home) => home.served)];
-        const positions = await Promise.all(
-            stores.map(async (store) => (await store.database.log.position()).sequence),
-        );
-
-        return positions.join(" ");
+        await this.simulation.jump(catchingUp);
+        await this.simulation.run(at);
     }
 
     /** List the homes and other spaces served so far. */
@@ -651,5 +613,5 @@ export const PACKAGES: readonly TestPackage[] = [
 /** The packages each person's home installs: messages and notifications. */
 const HOME_PACKAGES = PACKAGES.filter((each) => each.handle !== notesPackage);
 
-/** The world the kit's tests copy: its packages, shipped servers and builds, and start. */
+/** The world the fixture's tests copy: its packages, shipped servers and builds, and start. */
 const SPACE_OPTIONS = { ...TestPackage.options(PACKAGES), start: START };
