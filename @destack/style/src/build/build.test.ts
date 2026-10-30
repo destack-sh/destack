@@ -92,7 +92,7 @@ async function bundle(
 }
 
 /** Wait for the reloads queued in the current task. */
-async function settle(environment: Environment): Promise<void> {
+async function flushPending(environment: Environment): Promise<void> {
     await environment.clock.sleep(0);
 }
 
@@ -153,17 +153,17 @@ test("serve the collected rules as a stylesheet module, reloading it when transf
     const server = await serve(environment);
     const client = server.environments.client;
     await client.transformRequest("/fixture/teal");
-    await settle(environment);
+    await flushPending(environment);
     await client.transformRequest("virtual:stylex.css");
     const sheet = await client.pluginContainer.load("\0virtual:stylex.css");
     const reload = vi.spyOn(client, "reloadModule").mockResolvedValue();
     await client.transformRequest("/fixture/teal");
-    await settle(environment);
+    await flushPending(environment);
     const unchanged = reload.mock.calls.length;
 
     // compile a style with a new rule
     await client.transformRequest("/fixture/plum");
-    await settle(environment);
+    await flushPending(environment);
 
     expect({ sheet, unchanged, grown: reload.mock.calls.length }).toEqual({
         sheet: "@layer base;\n\n@layer priority1 {\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
