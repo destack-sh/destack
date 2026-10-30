@@ -150,7 +150,7 @@ test("authorize a manifest push from the forge's replica of the account, followi
         relation: "publisher",
         subject: stranger.subject,
     });
-    await forge.settle();
+    await forge.simulation.idle();
 
     // refuse the stranger's first file upload, whichever file the concurrent uploads send first
     const uploads = `${forgePackage.adapters.builds.path}/${PackageManifest.package(build.manifest).id}/files`;
@@ -185,9 +185,9 @@ test("collect a pushed but unreleased build once its lease ends, leaving release
 
     // retain the unreleased build within its lease, and collect it once the lease ends
     const { clock } = forge.environment;
-    await forge.jump(clock.now());
+    await forge.simulation.jump(clock.now());
     const within = await stored();
-    await forge.jump(clock.now() + UNRELEASED_MILLISECONDS + 1000);
+    await forge.simulation.jump(clock.now() + UNRELEASED_MILLISECONDS + 1000);
     expect({ within, after: await stored() }).toEqual({
         within: {
             released: true,
@@ -217,7 +217,7 @@ test("retain a pushed build once a release lists it, past its lease", async () =
     const released = await forge.publish(build.reader);
 
     // wake past its lease
-    await forge.jump(forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000);
+    await forge.simulation.jump(forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000);
 
     // read and verify every file of the released build after the collection
     const store = await forge.store();
@@ -293,7 +293,7 @@ test("serve a release's npm units and runtime builds by digest to its readers on
 
     // retain both past their leases, as the release lists them
     const store = await forge.store();
-    await forge.jump(forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000);
+    await forge.simulation.jump(forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000);
     expect({
         referred: described,
         copied: [await copied.contains(unitManifest), await copied.contains(runtime)],

@@ -213,7 +213,7 @@ test("connect a GitHub repository, refresh it, and refresh it again as the syste
         remote: "https://github.com/acme/site.git",
         connectionId,
     });
-    await forge.settle();
+    await forge.simulation.idle();
     expect([
         created.provider,
         created.providerRepositoryId,
@@ -428,7 +428,7 @@ test("issue checkout access to a GitHub repository as installation tokens limite
         remote: "https://github.com/acme/site.git",
         connectionId,
     });
-    await forge.settle();
+    await forge.simulation.idle();
 
     // lease each token as Git's basic credential for the recorded remote, expiring an hour after its issue
     forge.github.requests.length = 0;

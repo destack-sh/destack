@@ -305,7 +305,7 @@ test("stream the references a space inside the account selects to the space, and
     // create a space of the account and one of another account, as their owner does
     const inside = await forge.createSpace(accountId, tenant.owner);
     const outside = await forge.createSpace(other.accountId, other.owner);
-    await forge.settle();
+    await forge.simulation.idle();
 
     // follow the selected branch as a space for a target space
     const follow = async (space: Identifier<"space">, target: string) => {
@@ -367,7 +367,7 @@ test("let a space inside the account read its private packages, and no other acc
     // create a space of the account and one of another account, as their owner does
     const inside = await forge.createSpace(accountId, tenant.owner);
     const outside = await forge.createSpace(other.accountId, other.owner);
-    await forge.settle();
+    await forge.simulation.idle();
 
     // read the package as each space
     const read = async (space: Identifier<"space">) => {

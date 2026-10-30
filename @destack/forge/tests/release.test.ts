@@ -275,7 +275,7 @@ test("administer releases and distribution tags of a published package as its ac
     ]);
 
     // audit each change once, the publication's vocabulary, tag and its pointing included, failures too, and never a read
-    await forge.settle();
+    await forge.simulation.idle();
     const forgeTypes = ["package.", "release.", "tag."];
     const audited = (await auditedCalls(forge.served.database))
         .filter((ended) => ended.execution.category === "activity")

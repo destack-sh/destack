@@ -10,6 +10,7 @@ import { PackageClient, PackageStore } from "@destack/build/store";
 import { Forge } from "../server/forge.ts";
 import { Snapshot, type Select } from "@destack/db";
 import type { Environment } from "@destack/environment";
+import type { Simulation } from "@destack/environment/simulation";
 import {
     ClaimLookup,
     claimTable,
@@ -58,22 +59,22 @@ const GITHUB_NODE = "github";
 /** The port GitHub's hosts answer HTTPS at. */
 const HTTPS_PORT = 443;
 
-/** The host name the kit's forge listens at for package managers on the host. */
+/** The host name the fixture's forge listens at for package managers on the host. */
 const LOOPBACK = "127.0.0.1";
 
-/** The origin the kit's requests name, which the served home answers at any host. */
+/** The origin the fixture's requests name, which the served home answers at any host. */
 const ORIGIN = "http://forge.test";
 
-/** The residency whose home the kit's forge serves in. */
+/** The residency whose home the fixture's forge serves in. */
 export const RESIDENCY = "eu";
 
-/** The residencies of the kit's universe: the forge's, and another the forge serves none of. */
+/** The residencies of the fixture's universe: the forge's, and another the forge serves none of. */
 const RESIDENCIES = [
     { code: RESIDENCY, name: "Europe" },
     { code: "us", name: "United States" },
 ];
 
-/** The account the kit's owner publishes packages under, which scopes their npm names. */
+/** The account the fixture's owner publishes packages under, which scopes their npm names. */
 export const ACCOUNT_ID = schema
     .identifier("account")
     .parse("account-00000000-0000-7000-8000-000000000001");
@@ -90,7 +91,7 @@ const STRANGER_EMAIL = "stranger@example.test";
 /** The tenants the templates sign in and create once, as most tests take one or two. */
 const TEMPLATE_TENANTS = 2;
 
-/** The tunnel the machines the kit enrolls publish through the residency's relay. */
+/** The tunnel the machines the fixture enrolls publish through the residency's relay. */
 const MACHINE_ORIGIN = "https://machine.relay.test/";
 
 /** The vault the residency's stack declares for the platform's secrets. */
@@ -208,7 +209,7 @@ const HOME_STACK = {
     },
 };
 
-/** The residency's home the kit's tests copy: the forge with the vault's tables and Git storage. */
+/** The residency's home the fixture's tests copy: the forge with the vault's tables and Git storage. */
 const HOME_OPTIONS = {
     residencies: RESIDENCIES,
     ...TestPackage.options([FORGE]),
@@ -223,7 +224,7 @@ const HOME_OPTIONS = {
     }),
 };
 
-/** What the kit's world shares: the forge installation in the residency's home. */
+/** What the fixture's world shares: the forge installation in the residency's home. */
 const ForgeWorld = schema.object({
     /** The forge's installation. */
     installation: schema.identifier("installation"),
@@ -231,7 +232,7 @@ const ForgeWorld = schema.object({
     tenants: schema.array(schema.identifier("account")),
 });
 
-/** What the kit's world shares. */
+/** What the fixture's world shares. */
 type ForgeWorld = schema.Infer<typeof ForgeWorld>;
 
 /** The template of the residency's home serving the forge and its GitHub App. */
@@ -280,9 +281,9 @@ export class TestForge {
     #owner: TestPerson;
     /** The accounts of the template's tenants, taken in order. */
     readonly #templated: readonly Identifier<"account">[];
-    /** The tenants the kit took or created, which number their people and handles. */
+    /** The tenants the fixture took or created, which number their people and handles. */
     #tenants = 0;
-    /** The packages the kit created, by identity. */
+    /** The packages the fixture created, by identity. */
     readonly #created = new Set<string>();
 
     /** Keep a served home and the forge it installs. */
@@ -342,7 +343,7 @@ export class TestForge {
         return `${scope}:registry=${url.href}\n//${url.host}${url.pathname}:_authToken=${accessToken}\n`;
     }
 
-    /** The origin the kit's requests name. */
+    /** The origin the fixture's requests name. */
     get origin(): string {
         return ORIGIN;
     }
@@ -458,7 +459,7 @@ export class TestForge {
         return forge;
     }
 
-    /** Write the kit's world: the forge, its GitHub App, the publishing account and the tenants. */
+    /** Write the fixture's world: the forge, its GitHub App, the publishing account and the tenants. */
     static async write(home: TestSpace): Promise<ForgeWorld> {
         // install the forge with its vaults, bucket, Git storage and secrets, as the residency's stack declares it
         const { issuers: _issuers, ...declared } = HOME_STACK;
@@ -470,7 +471,7 @@ export class TestForge {
         // declare the GitHub App's issuer once the home serves the forge's types, as the machine's restart does
         const installing = await home.serve();
         await home.apply(installing, HOME_TYPES, HOME_STACK);
-        await installing.settle();
+        await installing.simulation.idle();
 
         // create the publishing account as its owner, then stop serving
         const owner = await home.universe.signIn(OWNER_EMAIL);
@@ -490,7 +491,7 @@ export class TestForge {
             tenants.push(created.accountId);
         }
         await home.universe.signIn(STRANGER_EMAIL);
-        await home.settle(installing);
+        await home.simulation.idle();
         const installation = await TestForge.#installation(installing);
         await installing[Symbol.asyncDispose]();
 
@@ -640,7 +641,7 @@ export class TestForge {
             `tenant-${this.#tenants + TEMPLATE_TENANTS}`,
             residency,
         );
-        await this.settle();
+        await this.simulation.idle();
 
         return { ...created, stranger: this.stranger() };
     }
@@ -750,7 +751,7 @@ export class TestForge {
             requestId: RequestId.create(this.environment),
             consumer: principal.installation.reference(this.space, this.installation),
         });
-        await this.settle();
+        await this.simulation.idle();
 
         return created.id;
     }
@@ -761,7 +762,7 @@ export class TestForge {
         person: TestPerson,
     ): Promise<Identifier<"machine">> {
         const enrolled = await this.home.universe.enroll(person, accountId, MACHINE_ORIGIN);
-        await this.settle();
+        await this.simulation.idle();
 
         return enrolled.id;
     }
@@ -771,7 +772,7 @@ export class TestForge {
         accountId: Identifier<"account">,
         person: TestPerson,
     ): Promise<Identifier<"space">> {
-        // create the space as the person, then settle its placement
+        // create the space as the person, then run the world idle to place it
         const id = Identifier.create("space", this.environment);
         await person.client(accountPackage).space.create({
             accountId,
@@ -779,7 +780,7 @@ export class TestForge {
             requestId: RequestId.create(this.environment),
             name: `space-${id.slice(-12)}`,
         });
-        await this.settle();
+        await this.simulation.idle();
 
         return id;
     }
@@ -806,14 +807,9 @@ export class TestForge {
         return ClaimLookup.of(Snapshot.live(this.home.universe.storage.database).read(claimTable));
     }
 
-    /** Settle the universe and the home until their replicas and controllers rest. */
-    settle(): Promise<void> {
-        return this.home.settle(this.served);
-    }
-
-    /** Jump the home's world to a time, waking the blob collection once a lease ends. */
-    jump(to: number): Promise<void> {
-        return this.home.jump(this.served, to);
+    /** The simulation running the forge's world. */
+    get simulation(): Simulation {
+        return this.home.simulation;
     }
 
     /** Read the build of a package's release, by version or tag, as an anonymous reader. */

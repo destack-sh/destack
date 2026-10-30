@@ -61,8 +61,11 @@ test.for(MANAGER_NAMES)(
         await files.writeTextFile(join(consumer, ".npmrc"), await forge.npmrc("@example"));
         await files.mkdir(join(directory, "cache"), { recursive: true });
         const selected = MANAGERS[manager];
-        const { clock } = forge.home.simulation;
-        await clock.trackPeer(run(selected.install(join(directory, "cache", manager)), consumer));
+        const { scheduler } = forge.home.simulation;
+        await scheduler.track(
+            run(selected.install(join(directory, "cache", manager)), consumer),
+            "peer",
+        );
 
         // run it, and restore both original builds from what was installed, finding each package as Node resolves it
         const greetingPath = await installed(consumer, "@example/greeting");

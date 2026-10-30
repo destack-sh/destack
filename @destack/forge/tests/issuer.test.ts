@@ -66,7 +66,7 @@ test("issue a GitHub installation's tokens to the resident account's installatio
     const first = await place("first", "eu");
     const second = await place("second", "eu");
     const foreign = await place("foreign", "us");
-    await forge.settle();
+    await forge.simulation.idle();
     const firstSpace = first.spaceId;
     const secondSpace = second.spaceId;
     const foreignSpace = foreign.spaceId;
