@@ -195,7 +195,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             new DurableObjectClient(this, { kind: "queued" }),
             tables,
             "embedded",
-            { ...options, environment: this.environment },
+            { ...options, environment: this.environment, name: options.namespace ?? "storage" },
         );
     }
 

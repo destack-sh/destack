@@ -1,4 +1,5 @@
 /// <reference types="bun" />
+import { basename } from "node:path";
 import { Database } from "bun:sqlite";
 import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
@@ -33,12 +34,15 @@ export async function connectBunSqlite<
             }
         }
 
+        // read the database's name from its file, or memory for an in-memory one
+        const name = database.filename === ":memory:" ? "memory" : basename(database.filename);
+
         // connect to the database's other connections on the given channels, or to none as the only writer
         return new SqliteDatabase(
             new BunClient(database, options.environment),
             tables,
             "embedded",
-            options,
+            { ...options, name },
         );
     } catch (error) {
         // release only connections opened by this call

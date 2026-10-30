@@ -28,7 +28,7 @@ export class SqliteDatabase<
         client: Client,
         tables: declaration.Database<Models> | readonly Table[],
         locality: Locality,
-        options: SqliteConnectOptions & { readonly namespace?: string },
+        options: SqliteConnectOptions & { readonly namespace?: string; readonly name: string },
     ) {
         // declare the tables with their tree tables
         const declared = "tables" in tables ? tables.tables : expandTrees(tables);
@@ -44,6 +44,7 @@ export class SqliteDatabase<
                     tables: declared,
                     dialect: "sqlite",
                     replicated: "tables" in tables ? tables.replicated : new Set(),
+                    name: options.name,
                     ...(options.namespace === undefined ? {} : { namespace: options.namespace }),
                 }),
             ),

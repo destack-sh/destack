@@ -13,7 +13,18 @@ import type {} from "@destack/package/import-meta";
 const MILLISECONDS_PER_SECOND = 1000;
 
 /** The statement verbs the database runs, as OpenTelemetry's `db.operation.name` reports them. */
-const OPERATIONS = ["SELECT", "INSERT", "UPDATE", "DELETE", "PRAGMA", "CREATE", "DROP"];
+const OPERATIONS = [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE",
+    "WITH",
+    "PRAGMA",
+    "CREATE",
+    "DROP",
+    "SCRIPT",
+    "TRANSACTION",
+];
 
 /** The histogram of each statement's duration in seconds, by OpenTelemetry's conventions. */
 export class OperationDuration {
@@ -22,9 +33,17 @@ export class OperationDuration {
     /** The SQL names of the tables a statement may report as its collection. */
     readonly #collections: ReadonlySet<string>;
 
-    /** Declare the histogram on a telemetry, over the database's tables. */
-    constructor(telemetry: Environment["telemetry"], collections: readonly string[]) {
+    /** The database's name, as OpenTelemetry's `db.namespace` reports it. */
+    readonly #namespace: string;
+
+    /** Declare the histogram on a telemetry, over a named database's tables. */
+    constructor(
+        telemetry: Environment["telemetry"],
+        namespace: string,
+        collections: readonly string[],
+    ) {
         this.#collections = new Set(collections);
+        this.#namespace = namespace;
         this.#histogram = TelemetryScope.of(
             import.meta.destack.package,
             telemetry,
@@ -32,6 +51,7 @@ export class OperationDuration {
             unit: "s",
             attributes: {
                 "db.system.name": ["sqlite", "postgresql"],
+                "db.namespace": [namespace],
                 "db.operation.name": OPERATIONS,
                 "db.collection.name": collections,
             },
@@ -47,6 +67,7 @@ export class OperationDuration {
         const collection = table !== undefined && this.#collections.has(table) ? table : undefined;
         this.#histogram.record(milliseconds / MILLISECONDS_PER_SECOND, {
             "db.system.name": dialect,
+            "db.namespace": this.#namespace,
             ...(operation === undefined ? {} : { "db.operation.name": operation }),
             ...(collection === undefined ? {} : { "db.collection.name": collection }),
         });
@@ -84,7 +105,7 @@ export class DatabaseDriver {
     }
 
     /** Submit work through the transaction or connection. */
-    run<Value>(operation: () => PromiseLike<Value>, statement?: DriverStatement): Promise<Value> {
+    run<Value>(operation: () => PromiseLike<Value>, statement: DriverStatement): Promise<Value> {
         // count the statement, and the operation the connection submits outside a transaction
         this.state.statements += 1;
         if (this.transaction === undefined) {
@@ -144,7 +165,7 @@ export class DatabaseDriver {
         operation: () => Promise<Value>,
         tables: ReadonlySet<string>,
         scripted: ReadonlySet<string>,
-        statement?: DriverStatement,
+        statement: DriverStatement,
     ): Promise<Value> {
         // record the tables in the enclosing transaction, marking a replica's write that derives rows first
         const transaction = this.transaction;
@@ -260,7 +281,7 @@ export class DatabaseDriver {
     }
 
     /** Decide whether a write fires derivations, dependents only on deletes. */
-    #isDerived(tables: readonly string[], statement: DriverStatement | undefined): boolean {
+    #isDerived(tables: readonly string[], statement: DriverStatement): boolean {
         const { aggregated, dependent, declared, unlogged } = this.state;
         const isDeleting = writeOperation(statement) === "DELETE";
 
@@ -319,9 +340,9 @@ async function failing<Value>(
     }
 }
 
-/** Read a statement's write operation, a delete for an unknown one, as it cascades furthest. */
-function writeOperation(statement: DriverStatement | undefined): WriteOperation {
-    const operation = statement?.operation;
+/** Read a statement's write operation, a delete for any other, as it cascades furthest. */
+function writeOperation(statement: DriverStatement): WriteOperation {
+    const { operation } = statement;
 
     return operation === "INSERT" || operation === "UPDATE" ? operation : "DELETE";
 }

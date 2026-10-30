@@ -92,6 +92,7 @@ export class PostgresDatabase<
                     tables: declared,
                     dialect: "postgresql",
                     replicated: "tables" in tables ? tables.replicated : new Set(),
+                    name: schema,
                 }),
             ),
             declared,

@@ -1,6 +1,14 @@
 import type { Clock, Environment } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
-import { exists, fill, render, type SQL, sql, type SQLWrapper } from "../sql/index.ts";
+import {
+    type DriverStatement,
+    exists,
+    fill,
+    render,
+    type SQL,
+    sql,
+    type SQLWrapper,
+} from "../sql/index.ts";
 import { classifyError, DatabaseError, type DeclaredNames } from "../error/error.ts";
 import { DatabaseDriver, OperationDuration } from "./driver.ts";
 import type { ColumnCipher } from "./cipher.ts";
@@ -55,6 +63,15 @@ const CACHED_READ_ROWS = 128;
 
 /** The key bytes weighing as much as one row, the half kilobyte a row averages. */
 const KEY_BYTES_PER_ROW = 512;
+
+/** A transaction's own round trip, opening and committing it, as telemetry counts it. */
+const TRANSACTION: DriverStatement = {
+    text: "BEGIN; COMMIT",
+    parameters: [],
+    tables: [],
+    isRead: false,
+    operation: "TRANSACTION",
+};
 
 /** The referential actions that write the referencing rows. */
 const WRITING_ACTIONS: ReadonlySet<string> = new Set(["cascade", "set null", "set default"]);
@@ -278,7 +295,14 @@ export class DatabaseConnection<
         // stamp an enclosing transaction, then commit the script as a write of every table
         const every = new Set(this.state.declared.keys());
         await this.driver.transaction?.identity.stamp();
-        await this.driver.commit(() => this.driver.session.exec(script), every, every);
+        const statement = {
+            text: script,
+            parameters: [],
+            tables: [...every],
+            isRead: false,
+            operation: "SCRIPT",
+        };
+        await this.driver.commit(() => this.driver.session.exec(script), every, every, statement);
     }
 
     /** Run SQL and parse each row by a schema. */
@@ -503,7 +527,12 @@ export class DatabaseConnection<
                 written.clear();
                 scripted.clear();
                 try {
-                    const committed = await this.driver.commit(execute, written, scripted);
+                    const committed = await this.driver.commit(
+                        execute,
+                        written,
+                        scripted,
+                        TRANSACTION,
+                    );
                     attempt?.commit();
 
                     return committed;
@@ -561,6 +590,8 @@ export interface ConnectionOptions {
     readonly replicated: ReadonlySet<string>;
     /** The namespace of the database's relations, absent for none. */
     readonly namespace?: string;
+    /** The database's name, as telemetry reports its statements under. */
+    readonly name: string;
     /** The clock, randomness, crypto and telemetry the connection runs on. */
     readonly environment: DatabaseEnvironment;
 }
@@ -637,7 +668,7 @@ export class ConnectionState {
         const { openChannel, tables } = options;
         this.locality = options.locality;
         this.environment = options.environment;
-        this.durations = new OperationDuration(options.environment.telemetry, [
+        this.durations = new OperationDuration(options.environment.telemetry, options.name, [
             ...tables.map((table) => table[TABLE].sqlName),
             ...LOG_TABLES,
         ]);

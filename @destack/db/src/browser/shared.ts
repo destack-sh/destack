@@ -311,6 +311,7 @@ export function connectShared<
     return new SqliteDatabase(client, tables, "embedded", {
         openChannel: (name: string) => SharedClient.channel(channel, name),
         environment,
+        name: "shared",
     });
 }
 
