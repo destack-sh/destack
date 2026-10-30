@@ -1,5 +1,5 @@
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
-import { type ViewPresentationPriority } from "@destack/package/manifest";
+import type { ViewCategory, ViewPresentationPriority } from "@destack/package/manifest";
 import { account, space } from "@destack/account/object";
 import type { ObjectType } from "@destack/object";
 import type { ContextScope } from "./context.ts";
@@ -15,6 +15,8 @@ export interface ViewDefinition {
     readonly objects?: readonly ObjectType[];
     /** The object types the view presents, and how strongly. */
     readonly presents?: readonly Presentation[];
+    /** The roles clients open the view in, such as a person's start view. */
+    readonly categories?: readonly ViewCategory[];
     /** The packages the view calls as its user, such as observability. */
     readonly packages?: readonly PackageHandle[];
     /** Load the module whose default export is the root component. */
@@ -44,6 +46,8 @@ export class View {
     readonly objects: readonly ObjectType[];
     /** The object types the view presents. */
     readonly presents: readonly Presentation[];
+    /** The roles clients open the view in. */
+    readonly categories: readonly ViewCategory[];
     /** The packages the view calls as its user. */
     readonly packages: readonly PackageHandle[];
     /** Load the module whose default export is the root component. */
@@ -56,6 +60,7 @@ export class View {
         this.name = definition.name;
         this.objects = definition.objects ?? [];
         this.presents = definition.presents ?? [];
+        this.categories = definition.categories ?? [];
         this.packages = definition.packages ?? [];
         this.component = definition.component;
     }

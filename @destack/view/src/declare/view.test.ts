@@ -33,7 +33,7 @@ const budget = defineObject({
     permissions: { read: none() },
 });
 
-test("describe a declared view by its name, permissions, presented types and packages without loading its component", () => {
+test("describe a declared view by its name, presented types, categories and packages without loading its component", () => {
     // declare a view of notes calling a package, whose component never loads
     const counter = PackageHandle.of(notes, {});
     const view = defineView(
@@ -41,19 +41,21 @@ test("describe a declared view by its name, permissions, presented types and pac
             name: "notes",
             objects: [note],
             presents: [{ object: note, priority: "default" }],
+            categories: ["home"],
             packages: [counter],
             component: () => Promise.reject(new Error("loaded")),
         },
         { package: notes },
     );
 
-    // describe the name, presented types and packages, and keep the package and opened object types
+    // describe the name, presented types, categories and packages, and keep the package and opened types
     expect([view.package, view.objects, describeView(view)]).toEqual([
         notes,
         [note],
         {
             name: "notes",
             presents: [{ packageId: note.package.id, type: "note", priority: "default" }],
+            categories: ["home"],
             packages: [notes.id],
         },
     ]);
