@@ -50,23 +50,23 @@ function errors(now: number): TestLog[] {
 
 /** Create an alert rule in the space as the member, notifying its followers. */
 function rule(
-    kit: TestObservability,
+    fixture: TestObservability,
     title: string,
     condition: AlertCondition,
     actions: AlertAction[] = [{ kind: "notify" }],
 ) {
-    return kit.member.client(observabilityPackage).alertRule.create({
+    return fixture.member.client(observabilityPackage).alertRule.create({
         ...alertRule.in(ids.space),
         title,
         condition,
         actions,
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
 }
 
 /** Read the space's alerts' statuses, the announcements made, and the responses started. */
-async function outcome(kit: TestObservability) {
-    const { database } = kit.served;
+async function outcome(fixture: TestObservability) {
+    const { database } = fixture.served;
     const alerts = await database.select().from(alert.table);
     const announced = await database.select().from(announcement.table);
     const responses = await database
@@ -86,17 +86,20 @@ async function outcome(kit: TestObservability) {
 }
 
 test("fire an events condition per crossing group, as a count, a ratio and a percentile over the window, and resolve its alert once it clears", async () => {
-    await using kit = await TestObservability.open();
-    const now = kit.clock.now();
+    await using fixture = await TestObservability.open();
+    const now = fixture.clock.now();
 
     // log three errors and one note in the last minute, and record a 5 ms render
-    await kit.post(
+    await fixture.post(
         "logs",
-        kit.emitter.logs([...errors(now), { time: now - 10_000, name: "note.saved", severity: 9 }]),
+        fixture.emitter.logs([
+            ...errors(now),
+            { time: now - 10_000, name: "note.saved", severity: 9 },
+        ]),
     );
-    await kit.post(
+    await fixture.post(
         "metrics",
-        kit.emitter.metrics([
+        fixture.emitter.metrics([
             {
                 name: "note.render.duration",
                 unit: "ms",
@@ -122,9 +125,9 @@ test("fire an events condition per crossing group, as a count, a ratio and a per
     );
 
     // watch the errors per installation, their share of every record, and the slowest renders
-    const created = await rule(kit, "Errors", ERROR_COUNT);
-    await rule(kit, "Error rate", { ...ERROR_COUNT, per: {}, threshold: 0.5 });
-    await rule(kit, "Slow renders", {
+    const created = await rule(fixture, "Errors", ERROR_COUNT);
+    await rule(fixture, "Error rate", { ...ERROR_COUNT, per: {}, threshold: 0.5 });
+    await rule(fixture, "Slow renders", {
         kind: "events",
         event: metric.typeReference,
         where: 'name = "note.render.duration"',
@@ -136,33 +139,35 @@ test("fire an events condition per crossing group, as a count, a ratio and a per
     });
 
     // evaluate the rules, then raise the errors' threshold above the count and evaluate again
-    const client = kit.member.client(observabilityPackage);
+    const client = fixture.member.client(observabilityPackage);
     const alerts = async () =>
         (await client.alert.list({ ...alert.in(ids.space) })).items
             .map(({ title, value, labels, status }) => ({ title, value, labels, status }))
             .toSorted((left, right) => left.title.localeCompare(right.title));
     const statuses = async () => (await alerts()).map((each) => each.status);
-    await kit.simulation.until(async () => (await statuses()).join() === "firing,firing,firing");
+    await fixture.simulation.until(
+        async () => (await statuses()).join() === "firing,firing,firing",
+    );
     const fired = await alerts();
     await client.alertRule.update({
         ...alertRule.target(created),
         condition: { ...ERROR_COUNT, threshold: 10 },
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
-    await kit.simulation.until(async () => (await statuses()).includes("resolved"));
+    await fixture.simulation.until(async () => (await statuses()).includes("resolved"));
 
     // fire once per rule for the notes installation's group, or the space's, and settle the errors' alert
-    const labels = { installationId: kit.notes };
+    const labels = { installationId: fixture.notes };
     expect({ fired, settled: await alerts() }).toEqual({
         fired: [
             {
-                title: `Error rate installationId=${kit.notes}`,
+                title: `Error rate installationId=${fixture.notes}`,
                 value: 0.75,
                 labels,
                 status: "firing",
             },
             {
-                title: `Errors installationId=${kit.notes}`,
+                title: `Errors installationId=${fixture.notes}`,
                 value: 3,
                 labels,
                 status: "firing",
@@ -171,13 +176,13 @@ test("fire an events condition per crossing group, as a count, a ratio and a per
         ],
         settled: [
             {
-                title: `Error rate installationId=${kit.notes}`,
+                title: `Error rate installationId=${fixture.notes}`,
                 value: 0.75,
                 labels,
                 status: "firing",
             },
             {
-                title: `Errors installationId=${kit.notes}`,
+                title: `Errors installationId=${fixture.notes}`,
                 value: 3,
                 labels,
                 status: "resolved",
@@ -189,12 +194,12 @@ test("fire an events condition per crossing group, as a count, a ratio and a per
 
 test("refuse a rule calling an installation's method from an editor who does not manage alert rules", async () => {
     // let the member edit alert rules without managing them
-    await using kit = await TestObservability.open();
-    await kit.allow([alertRule.permission("read"), alertRule.permission("write")]);
+    await using fixture = await TestObservability.open();
+    await fixture.allow([alertRule.permission("read"), alertRule.permission("write")]);
 
     // refuse the member's rule rolling back the installation an error count names
     const calling = rule(
-        kit,
+        fixture,
         "Roll back",
         {
             kind: "events",
@@ -215,27 +220,32 @@ test("refuse a rule calling an installation's method from an editor who does not
 });
 
 test("refuse a rule calling an installation once the space's owner withdraws observability's respond capability", async () => {
-    await using kit = await TestObservability.open();
+    await using fixture = await TestObservability.open();
 
     // let the owner detach observability's installation from the space's stack and withdraw the capability, then serve the space again
-    const owner = kit.space.person(kit.served, kit.space.owner).client(objectPackage);
-    const [installed] = await kit.served.database
+    const owner = fixture.space.person(fixture.served, fixture.space.owner).client(objectPackage);
+    const [installed] = await fixture.served.database
         .select()
         .from(installation.table)
         .where(eq(installation.table.packageId, observabilityPackage.id));
     const target = { scope: ids.space, id: present(installed, "observability's installation").id };
-    await owner.installation.detach({ ...target, requestId: RequestId.create(kit.environment) });
+    await owner.installation.detach({
+        ...target,
+        requestId: RequestId.create(fixture.environment),
+    });
     await owner.installation.update({
         ...target,
         capabilities: [],
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
-    await kit.space.settle(kit.served);
-    await kit.restart();
+    await fixture.space.simulation.idle();
+    await fixture.restart();
 
     // refuse the member's rule rolling the installation back
     expect(
-        await refusal(rule(kit, "Roll back", ERROR_COUNT, [{ kind: "call", method: "rollBack" }])),
+        await refusal(
+            rule(fixture, "Roll back", ERROR_COUNT, [{ kind: "call", method: "rollBack" }]),
+        ),
     ).toEqual([
         "PRECONDITION_FAILED",
         "RESPOND_CAPABILITY_MISSING",
@@ -245,11 +255,11 @@ test("refuse a rule calling an installation once the space's owner withdraws obs
 
 test("make the manager who last sets a rule's condition or actions its author, whom its calls act as", async () => {
     // let the member create a rule notifying of an error count
-    await using kit = await TestObservability.open();
-    const now = kit.clock.now();
-    const created = await rule(kit, "Roll back", ERROR_COUNT);
+    await using fixture = await TestObservability.open();
+    const now = fixture.clock.now();
+    const created = await rule(fixture, "Roll back", ERROR_COUNT);
     const author = async () => {
-        const [row] = await kit.served.database
+        const [row] = await fixture.served.database
             .select()
             .from(alertRule.table)
             .where(eq(alertRule.table.id, created.id));
@@ -259,32 +269,36 @@ test("make the manager who last sets a rule's condition or actions its author, w
     const first = await author();
 
     // let the space's owner make it roll the installation back, then let it fire on errors
-    const owner = kit.space.person(kit.served, kit.space.owner).client(observabilityPackage);
+    const owner = fixture.space
+        .person(fixture.served, fixture.space.owner)
+        .client(observabilityPackage);
     const update = (fields: Partial<Parameters<typeof owner.alertRule.update>[0]>) => ({
         ...alertRule.target(created),
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
         ...fields,
     });
     await owner.alertRule.update(update({ actions: [{ kind: "call", method: "rollBack" }] }));
     const acted = await author();
-    await kit.post("logs", kit.emitter.logs(errors(now)));
-    await kit.simulation.until(async () => (await outcome(kit)).responses.length === 1);
-    const { responses } = await outcome(kit);
+    await fixture.post("logs", fixture.emitter.logs(errors(now)));
+    await fixture.simulation.until(async () => (await outcome(fixture)).responses.length === 1);
+    const { responses } = await outcome(fixture);
 
     // let the owner change only its title, then the member only its condition
     await owner.alertRule.update(update({ title: "Errors" }));
     const titled = await author();
-    const member = kit.member.client(observabilityPackage);
+    const member = fixture.member.client(observabilityPackage);
     await member.alertRule.update(update({ condition: { ...ERROR_COUNT, threshold: 10 } }));
     const conditioned = await author();
-    await kit.simulation.until(async () => (await outcome(kit)).statuses.join() === "resolved");
+    await fixture.simulation.until(
+        async () => (await outcome(fixture)).statuses.join() === "resolved",
+    );
 
     // past the repeat interval, let the member restore the condition and fire again on new errors
-    await kit.space.jump(kit.served, now + REPEAT_MILLISECONDS);
+    await fixture.space.simulation.jump(now + REPEAT_MILLISECONDS);
     await member.alertRule.update(update({ condition: ERROR_COUNT }));
-    await kit.post("logs", kit.emitter.logs(errors(kit.clock.now())));
-    await kit.simulation.until(async () => (await outcome(kit)).responses.length === 2);
-    const responders = (await outcome(kit)).responses.map((response) => response.actor);
+    await fixture.post("logs", fixture.emitter.logs(errors(fixture.clock.now())));
+    await fixture.simulation.until(async () => (await outcome(fixture)).responses.length === 2);
+    const responders = (await outcome(fixture)).responses.map((response) => response.actor);
 
     // move the author with the actions and the condition, keep it for the title, and respond as it
     expect({
@@ -293,30 +307,30 @@ test("make the manager who last sets a rule's condition or actions its author, w
         responders,
     }).toEqual({
         authors: [
-            kit.member.subject,
-            kit.space.owner.subject,
-            kit.space.owner.subject,
-            kit.member.subject,
+            fixture.member.subject,
+            fixture.space.owner.subject,
+            fixture.space.owner.subject,
+            fixture.member.subject,
         ],
         first: 1,
-        responders: [kit.space.owner.subject, kit.member.subject],
+        responders: [fixture.space.owner.subject, fixture.member.subject],
     });
 });
 
 test("declare alert rules as code through the space's stack, checking each rule as it applies", async () => {
-    await using kit = await TestObservability.open();
+    await using fixture = await TestObservability.open();
 
     // declare an error count rule through the stack
-    await kit.apply([alertRule], {
+    await fixture.apply([alertRule], {
         alertRules: {
             errors: { title: "Errors", condition: ERROR_COUNT, actions: [{ kind: "notify" }] },
         },
     });
-    const rules = await kit.served.database.select().from(alertRule.table);
+    const rules = await fixture.served.database.select().from(alertRule.table);
 
     // refuse a declared rule over a type the space serves none of
     const unserved = { ...ERROR_COUNT, event: { packageId: NOTES.id, type: "page-view" } };
-    const refused = await kit.submit([alertRule], {
+    const refused = await fixture.submit([alertRule], {
         alertRules: {
             pages: { title: "Pages", condition: unserved, actions: [{ kind: "notify" }] },
         },
@@ -346,7 +360,7 @@ test("declare alert rules as code through the space's stack, checking each rule 
 });
 
 test("refuse an events rule calling an installation its group names none of, and one over a type the space serves none of", async () => {
-    await using kit = await TestObservability.open();
+    await using fixture = await TestObservability.open();
     const condition: EventsCondition = {
         kind: "events",
         event: log.typeReference,
@@ -359,10 +373,10 @@ test("refuse an events rule calling an installation its group names none of, and
 
     // call an installation from a rule grouping by nothing, and watch a type no package serves here
     const calling = await refusal(
-        rule(kit, "Calling", condition, [{ kind: "call", method: "rollBack" }]),
+        rule(fixture, "Calling", condition, [{ kind: "call", method: "rollBack" }]),
     );
     const unserved = await refusal(
-        rule(kit, "Unserved", {
+        rule(fixture, "Unserved", {
             ...condition,
             event: { packageId: NOTES.id, type: "page-view" },
         }),
@@ -380,35 +394,35 @@ test("refuse an events rule calling an installation its group names none of, and
 });
 
 test("keep an alert pending for its rule's pending period, then fire, announce and respond as the rule's author, and announce its resolution once clear", async () => {
-    await using kit = await TestObservability.open();
-    const now = kit.clock.now();
-    await kit.post("logs", kit.emitter.logs(errors(now)));
+    await using fixture = await TestObservability.open();
+    const now = fixture.clock.now();
+    await fixture.post("logs", fixture.emitter.logs(errors(now)));
 
     // watch the errors, notifying followers and rolling back the installation after two minutes
-    const client = kit.member.client(observabilityPackage);
+    const client = fixture.member.client(observabilityPackage);
     const created = await client.alertRule.create({
         ...alertRule.in(ids.space),
         title: "Errors",
         condition: ERROR_COUNT,
         actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
         pending: { minutes: 2 },
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
 
     // evaluate now, each minute until the pending period ends, and once the threshold rises above the count
-    const statuses = async () => (await outcome(kit)).statuses.join();
-    await kit.simulation.until(async () => (await statuses()) === "pending");
-    const pending = (await outcome(kit)).statuses;
-    await kit.simulation.clock.sleep(now + 2 * 60_000 - kit.simulation.clock.now());
-    await kit.simulation.idle();
-    const fired = await outcome(kit);
+    const statuses = async () => (await outcome(fixture)).statuses.join();
+    await fixture.simulation.until(async () => (await statuses()) === "pending");
+    const pending = (await outcome(fixture)).statuses;
+    await fixture.simulation.clock.sleep(now + 2 * 60_000 - fixture.simulation.clock.now());
+    await fixture.simulation.idle();
+    const fired = await outcome(fixture);
     await client.alertRule.update({
         ...alertRule.target(created),
         condition: { ...ERROR_COUNT, threshold: 10 },
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
-    await kit.simulation.until(async () => (await statuses()) === "resolved");
-    const resolved = await outcome(kit);
+    await fixture.simulation.until(async () => (await statuses()) === "resolved");
+    const resolved = await outcome(fixture);
 
     // expect pending, then firing with one response as the member, then resolved with both announcements
     expect({
@@ -417,48 +431,51 @@ test("keep an alert pending for its rule's pending period, then fire, announce a
         announced: resolved.announced,
     }).toEqual({
         statuses: [["pending"], ["firing"], ["resolved"]],
-        responses: [{ key: fired.alerts[0]?.id, actor: kit.member.subject }],
+        responses: [{ key: fired.alerts[0]?.id, actor: fixture.member.subject }],
         announced: ["firingAlert", "resolvedAlert"],
     });
 });
 
 test("fire an issue rule once per opened issue and once per regression, and not again once its alerts expired", async () => {
-    await using kit = await TestObservability.open();
-    const now = kit.clock.now();
-    const client = kit.member.client(observabilityPackage);
+    await using fixture = await TestObservability.open();
+    const now = fixture.clock.now();
+    const client = fixture.member.client(observabilityPackage);
     const fired = async (title: string) => {
-        const rules = await kit.served.database.select().from(alertRule.table);
+        const rules = await fixture.served.database.select().from(alertRule.table);
         const ruleId = present(
             rules.find((row) => row.title === title),
             title,
         ).id;
-        const alerts = await kit.served.database.select().from(alert.table);
+        const alerts = await fixture.served.database.select().from(alert.table);
 
         return alerts.filter((row) => row.ruleId === ruleId).map((row) => row.status);
     };
 
     // watch issues opening and regressing, then fail once, opening an issue
-    await rule(kit, "Opened", { kind: "issue", on: "open" });
-    await rule(kit, "Regressed", { kind: "issue", on: "regress" });
-    await kit.post("logs", kit.emitter.exceptions([kit.renameFailure(now, "dana")]));
-    await kit.simulation.until(async () => (await fired("Opened")).length === 1);
+    await rule(fixture, "Opened", { kind: "issue", on: "open" });
+    await rule(fixture, "Regressed", { kind: "issue", on: "regress" });
+    await fixture.post("logs", fixture.emitter.exceptions([fixture.renameFailure(now, "dana")]));
+    await fixture.simulation.until(async () => (await fired("Opened")).length === 1);
     const opened = [await fired("Opened"), await fired("Regressed")];
 
     // resolve the issue, then fail again, regressing it
     const [row] = (await client.issue.list({ ...issue.in(ids.space) })).items;
     await client.issue.resolve({
         ...issue.target(present(row, "the issue")),
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
         until: { kind: "event" },
     });
-    await kit.post("logs", kit.emitter.exceptions([kit.renameFailure(now + 10, "dana")]));
-    await kit.simulation.until(async () => (await fired("Regressed")).length === 1);
+    await fixture.post(
+        "logs",
+        fixture.emitter.exceptions([fixture.renameFailure(now + 10, "dana")]),
+    );
+    await fixture.simulation.until(async () => (await fired("Regressed")).length === 1);
     const regressed = [await fired("Opened"), await fired("Regressed")];
 
     // let the resolved alerts expire, evaluating the rules again after
-    await kit.space.jump(kit.served, now + 121 * 3_600_000);
-    await kit.simulation.clock.sleep(2 * 60_000);
-    await kit.simulation.idle();
+    await fixture.space.simulation.jump(now + 121 * 3_600_000);
+    await fixture.simulation.clock.sleep(2 * 60_000);
+    await fixture.simulation.idle();
     const expired = [await fired("Opened"), await fired("Regressed")];
 
     // expect each change answered by one alert, settled at once, and nothing raised again
@@ -470,29 +487,31 @@ test("fire an issue rule once per opened issue and once per regression, and not 
 });
 
 test("fire a silenced subject's alert without announcing it or responding, and announce it once the silence ends", async () => {
-    await using kit = await TestObservability.open();
-    const now = kit.clock.now();
-    await kit.post("logs", kit.emitter.logs(errors(now)));
+    await using fixture = await TestObservability.open();
+    const now = fixture.clock.now();
+    await fixture.post("logs", fixture.emitter.logs(errors(now)));
 
     // silence the notes installation's alerts for two minutes, and watch its errors
-    await kit.member.client(observabilityPackage).silence.create({
+    await fixture.member.client(observabilityPackage).silence.create({
         ...silence.in(ids.space),
-        matchers: [{ label: "installationId", operator: "=", value: kit.notes }],
+        matchers: [{ label: "installationId", operator: "=", value: fixture.notes }],
         startsAt: now,
         endsAt: now + 120_000,
         comment: "Deploying notes",
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
-    await rule(kit, "Errors", ERROR_COUNT, [
+    await rule(fixture, "Errors", ERROR_COUNT, [
         { kind: "notify" },
         { kind: "call", method: "rollBack" },
     ]);
-    await kit.simulation.until(async () => (await outcome(kit)).statuses.join() === "firing");
-    const silenced = await outcome(kit);
+    await fixture.simulation.until(
+        async () => (await outcome(fixture)).statuses.join() === "firing",
+    );
+    const silenced = await outcome(fixture);
 
     // announce it and start its response at the first evaluation after the silence ends
-    await kit.simulation.until(async () => (await outcome(kit)).announced.length > 0);
-    const lapsed = await outcome(kit);
+    await fixture.simulation.until(async () => (await outcome(fixture)).announced.length > 0);
+    const lapsed = await outcome(fixture);
 
     expect({
         silenced: [silenced.statuses, silenced.announced.length, silenced.responses.length],
@@ -504,7 +523,7 @@ test("fire a silenced subject's alert without announcing it or responding, and a
 });
 
 test("fire an events condition with an empty window when its rule says no data alerts, and stay clear otherwise", async () => {
-    await using kit = await TestObservability.open();
+    await using fixture = await TestObservability.open();
 
     // watch a metric nothing records, alerting on no data, and the same counting no data as clear
     const missing: EventsCondition = {
@@ -517,22 +536,22 @@ test("fire an events condition with an empty window when its rule says no data a
         comparison: "above",
         threshold: 0,
     };
-    const client = kit.member.client(observabilityPackage);
+    const client = fixture.member.client(observabilityPackage);
     await client.alertRule.create({
         ...alertRule.in(ids.space),
         title: "Missing",
         condition: missing,
         actions: [{ kind: "notify" }],
         noData: "alerting",
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
-    await rule(kit, "Quiet", missing);
-    await kit.simulation.until(async () =>
-        (await outcome(kit)).alerts.some((each) => each.status === "firing"),
+    await rule(fixture, "Quiet", missing);
+    await fixture.simulation.until(async () =>
+        (await outcome(fixture)).alerts.some((each) => each.status === "firing"),
     );
 
     // expect one no-data alert, of the alerting rule
-    const { alerts } = await outcome(kit);
+    const { alerts } = await outcome(fixture);
     expect(alerts.map(({ title, labels, status }) => ({ title, labels, status }))).toEqual([
         { title: "Missing no data", labels: {}, status: "firing" },
     ]);

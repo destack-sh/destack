@@ -40,27 +40,27 @@ const BROWSER = {
 };
 
 test("append an export through the otlp adapter as the machine forwarding it, and conceal the append from a member not serving the space", async () => {
-    await using kit = await TestObservability.open();
-    const now = kit.clock.now();
+    await using fixture = await TestObservability.open();
+    const now = fixture.clock.now();
 
     // forward two records as the machine, and one as the member, who serves nothing
-    const forwarded = await kit.post(
+    const forwarded = await fixture.post(
         "logs",
-        kit.emitter.logs([
+        fixture.emitter.logs([
             { time: now, name: "note.saved", severity: 9 },
             { time: now + 1, name: "note.conflict", severity: 13 },
         ]),
     );
     const refused = await refusal(
-        kit.post(
+        fixture.post(
             "logs",
-            kit.emitter.logs([{ time: now, name: "note.forged", severity: 9 }]),
-            kit.member,
+            fixture.emitter.logs([{ time: now, name: "note.forged", severity: 9 }]),
+            fixture.member,
         ),
     );
 
     // keep the machine's records alone, stamped with the forwarder's installation and build
-    const kept = await kit.served.store.events.query(log.eventKind(), { scopes: [ids.space] });
+    const kept = await fixture.served.store.events.query(log.eventKind(), { scopes: [ids.space] });
     expect({
         forwarded,
         refused,
@@ -73,28 +73,28 @@ test("append an export through the otlp adapter as the machine forwarding it, an
         forwarded: 200,
         refused: ["NOT_FOUND", "NOT_FOUND", "items.0: log not found"],
         kept: [
-            { name: "note.saved", installationId: kit.notes, build: kit.manifest },
-            { name: "note.conflict", installationId: kit.notes, build: kit.manifest },
+            { name: "note.saved", installationId: fixture.notes, build: fixture.manifest },
+            { name: "note.conflict", installationId: fixture.notes, build: fixture.manifest },
         ],
     });
 });
 
 test("group an export's failures in the transaction appending it, opening no issue for a refused append", async () => {
-    await using kit = await TestObservability.open();
+    await using fixture = await TestObservability.open();
 
     // post a failure as the member, who serves nothing, so its append is refused
     const refused = await refusal(
-        kit.post(
+        fixture.post(
             "logs",
-            kit.emitter.exceptions([kit.renameFailure(kit.clock.now(), "dana")]),
-            kit.member,
+            fixture.emitter.exceptions([fixture.renameFailure(fixture.clock.now(), "dana")]),
+            fixture.member,
         ),
     );
 
     // refuse its exception's append, hidden from the member, keeping neither the record nor an issue
-    await kit.count();
-    const issues = await kit.served.database.select().from(issue.table);
-    const kept = await kit.served.store.events.query(log.eventKind(), { scopes: [ids.space] });
+    await fixture.count();
+    const issues = await fixture.served.database.select().from(issue.table);
+    const kept = await fixture.served.store.events.query(log.eventKind(), { scopes: [ids.space] });
     expect({ refused, issues, kept: kept.events }).toEqual({
         refused: ["NOT_FOUND", "NOT_FOUND", "items.0: exception not found"],
         issues: [],
@@ -103,15 +103,20 @@ test("group an export's failures in the transaction appending it, opening no iss
 });
 
 test("count an exception exported twice at once a single time, as the issue records each occurrence once", async () => {
-    await using kit = await TestObservability.open();
-    const exported = kit.emitter.exceptions([kit.renameFailure(kit.clock.now(), "dana")]);
+    await using fixture = await TestObservability.open();
+    const exported = fixture.emitter.exceptions([
+        fixture.renameFailure(fixture.clock.now(), "dana"),
+    ]);
 
     // post the same export twice concurrently, as an exporter's overlapping retry does
-    const posted = await Promise.all([kit.post("logs", exported), kit.post("logs", exported)]);
-    await kit.count();
+    const posted = await Promise.all([
+        fixture.post("logs", exported),
+        fixture.post("logs", exported),
+    ]);
+    await fixture.count();
 
     // keep one issue counting the exception once
-    const client = kit.member.client(observabilityPackage);
+    const client = fixture.member.client(observabilityPackage);
     const issues = (await client.issue.list({ ...issue.in(ids.space) })).items;
     expect({ posted, counts: issues.map((row) => [row.count, row.people]) }).toEqual({
         posted: [200, 200],
@@ -120,29 +125,32 @@ test("count an exception exported twice at once a single time, as the issue reco
 });
 
 test("keep an issue ignored for good through further failures, reopen it until its next failure, and refuse a revision of another installation", async () => {
-    await using kit = await TestObservability.open();
-    const now = kit.clock.now();
-    const client = kit.member.client(observabilityPackage);
+    await using fixture = await TestObservability.open();
+    const now = fixture.clock.now();
+    const client = fixture.member.client(observabilityPackage);
     const read = async () =>
         present((await client.issue.list({ ...issue.in(ids.space) })).items[0], "the issue");
 
     // fail, ignore the issue for good, and fail again
-    await kit.post("logs", kit.emitter.exceptions([kit.renameFailure(now, "dana")]));
-    await kit.count();
+    await fixture.post("logs", fixture.emitter.exceptions([fixture.renameFailure(now, "dana")]));
+    await fixture.count();
     const opened = await read();
     await client.issue.ignore({
         ...issue.target(opened),
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
         until: { kind: "never" },
     });
-    await kit.post("logs", kit.emitter.exceptions([kit.renameFailure(now + 1, "dana")]));
-    await kit.count();
+    await fixture.post(
+        "logs",
+        fixture.emitter.exceptions([fixture.renameFailure(now + 1, "dana")]),
+    );
+    await fixture.count();
     const ignored = await read();
 
     // reopen it, which reopens it until its next failure, and refuse a revision the installation never ran
     const reopened = await client.issue.reopen({
         ...issue.target(ignored),
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
     const foreign = schema
         .identifier("installation-revision")
@@ -151,7 +159,7 @@ test("keep an issue ignored for good through further failures, reopen it until i
         refusal(
             client.issue.resolve({
                 ...issue.target(reopened),
-                requestId: RequestId.create(kit.environment),
+                requestId: RequestId.create(fixture.environment),
                 until,
             }),
         );
@@ -171,7 +179,7 @@ test("keep an issue ignored for good through further failures, reopen it until i
             [
                 "BAD_REQUEST",
                 "REVISION_UNKNOWN",
-                `revision ${foreign} is not a revision of installation ${kit.notes}`,
+                `revision ${foreign} is not a revision of installation ${fixture.notes}`,
             ],
             ["BAD_REQUEST", "UNTIL_PASSED", "the issue counted 2 events, at or past 2"],
         ],
@@ -179,18 +187,18 @@ test("keep an issue ignored for good through further failures, reopen it until i
 });
 
 test("group failures logged and annotated on spans into an issue at their declaration, counting each carrying record once, and regress it once resolved", async () => {
-    await using kit = await TestObservability.open();
-    const now = kit.clock.now();
+    await using fixture = await TestObservability.open();
+    const now = fixture.clock.now();
     const trace = `${now.toString(16).padStart(12, "0")}${"a".repeat(20)}`;
     const spanId = "b".repeat(16);
 
     // fail twice for dana and once for erin, and refuse a missing note, which is a declared outcome
-    await kit.post(
+    await fixture.post(
         "logs",
-        kit.emitter.exceptions([
-            { ...kit.renameFailure(now, "dana"), trace, span: spanId },
-            kit.renameFailure(now + 1, "dana"),
-            kit.renameFailure(now + 2, "erin"),
+        fixture.emitter.exceptions([
+            { ...fixture.renameFailure(now, "dana"), trace, span: spanId },
+            fixture.renameFailure(now + 1, "dana"),
+            fixture.renameFailure(now + 2, "erin"),
             {
                 time: now + 3,
                 attributes: {
@@ -204,9 +212,9 @@ test("group failures logged and annotated on spans into an issue at their declar
     );
 
     // annotate the span the first failure was logged in with the same exception
-    await kit.post(
+    await fixture.post(
         "traces",
-        kit.emitter.traces([
+        fixture.emitter.traces([
             {
                 trace,
                 span: spanId,
@@ -219,7 +227,7 @@ test("group failures logged and annotated on spans into an issue at their declar
                     {
                         name: "exception",
                         time: now,
-                        attributes: kit.renameFailure(now, "dana").attributes,
+                        attributes: fixture.renameFailure(now, "dana").attributes,
                     },
                 ],
             },
@@ -227,11 +235,11 @@ test("group failures logged and annotated on spans into an issue at their declar
     );
 
     // read the issues as the member, and the issue each event carries
-    await kit.count();
-    const client = kit.member.client(observabilityPackage);
+    await fixture.count();
+    const client = fixture.member.client(observabilityPackage);
     const issues = async () => (await client.issue.list({ ...issue.in(ids.space) })).items;
     const opened = present((await issues())[0], "the issue");
-    const { events } = kit.served.store;
+    const { events } = fixture.served.store;
     const stamped = async () => ({
         logs: (await events.query(log.eventKind(), { scopes: [ids.space] })).events.map(
             (event) => event.keys.issue,
@@ -245,15 +253,18 @@ test("group failures logged and annotated on spans into an issue at their declar
     // regress the issue once it fails again after the member resolves it
     await client.issue.resolve({
         ...issue.target(opened),
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
         until: { kind: "event" },
     });
-    await kit.post("logs", kit.emitter.exceptions([kit.renameFailure(now + 10, "dana")]));
-    await kit.count();
-    const notes = await kit
-        .person(kit.space.owner)
+    await fixture.post(
+        "logs",
+        fixture.emitter.exceptions([fixture.renameFailure(now + 10, "dana")]),
+    );
+    await fixture.count();
+    const notes = await fixture
+        .person(fixture.space.owner)
         .client(stackPackage)
-        .rollout.get({ spaceId: ids.space, id: kit.notes });
+        .rollout.get({ spaceId: ids.space, id: fixture.notes });
     expect({
         opened: {
             title: opened.title,
@@ -265,7 +276,7 @@ test("group failures logged and annotated on spans into an issue at their declar
             people: opened.people,
             firstRevision: opened.firstRevisionId,
         },
-        people: (await kit.served.database.select().from(issuePerson.table))
+        people: (await fixture.served.database.select().from(issuePerson.table))
             .map(({ person }) => person)
             .toSorted(),
         before,
@@ -289,21 +300,21 @@ test("group failures logged and annotated on spans into an issue at their declar
 });
 
 test("count an exporter's retry of an untraced export once", async () => {
-    await using kit = await TestObservability.open();
-    const now = kit.clock.now();
+    await using fixture = await TestObservability.open();
+    const now = fixture.clock.now();
 
     // post the same two failures twice, as an exporter retrying a lost response does
-    const exported = kit.emitter.exceptions([
-        kit.renameFailure(now, "dana"),
-        kit.renameFailure(now + 1, "erin"),
+    const exported = fixture.emitter.exceptions([
+        fixture.renameFailure(now, "dana"),
+        fixture.renameFailure(now + 1, "erin"),
     ]);
-    await kit.post("logs", exported);
-    await kit.post("logs", exported);
-    await kit.count();
+    await fixture.post("logs", exported);
+    await fixture.post("logs", exported);
+    await fixture.count();
 
     // keep each record once, and one issue counting each failure once
-    const issues = await kit.served.database.select().from(issue.table);
-    const logs = await kit.served.store.events.query(log.eventKind(), { scopes: [ids.space] });
+    const issues = await fixture.served.database.select().from(issue.table);
+    const logs = await fixture.served.store.events.query(log.eventKind(), { scopes: [ids.space] });
     expect({
         logs: logs.events.length,
         issues: issues.map(({ count, people }) => ({ count, people })),
@@ -311,10 +322,10 @@ test("count an exporter's retry of an untraced export once", async () => {
 });
 
 test("answer an export with OTLP's empty response, and refuse an unknown path, another method and another media type", async () => {
-    await using kit = await TestObservability.open();
-    const endpoint = kit.machine.endpoint(observabilityPackage);
+    await using fixture = await TestObservability.open();
+    const endpoint = fixture.machine.endpoint(observabilityPackage);
     const exported = JSON.stringify(
-        kit.emitter.logs([{ time: kit.clock.now(), name: "note.saved" }]),
+        fixture.emitter.logs([{ time: fixture.clock.now(), name: "note.saved" }]),
     );
     const answer = async (path: string, request: RequestInit) => {
         const response = await endpoint.fetch(
@@ -346,9 +357,9 @@ test("answer an export with OTLP's empty response, and refuse an unknown path, a
 test("keep a page's visits and actions apart from its logs, its visitor a hash of the day's salt, rotating the salt at midnight", async () => {
     // open the space minutes before a UTC midnight
     const midnight = Date.UTC(2026, 9, 17);
-    await using kit = await TestObservability.open(midnight - 5 * MINUTE);
-    const now = kit.clock.now();
-    const page = kit.emitter.with(BROWSER);
+    await using fixture = await TestObservability.open(midnight - 5 * MINUTE);
+    const now = fixture.clock.now();
+    const page = fixture.emitter.with(BROWSER);
     const visited = (time: number) =>
         page.logs([
             {
@@ -362,8 +373,8 @@ test("keep a page's visits and actions apart from its logs, its visitor a hash o
         ]);
 
     // visit a note, share it, and visit again just past midnight
-    await kit.post("logs", visited(now));
-    await kit.post(
+    await fixture.post("logs", visited(now));
+    await fixture.post(
         "logs",
         page.logs([
             {
@@ -373,30 +384,30 @@ test("keep a page's visits and actions apart from its logs, its visitor a hash o
             },
         ]),
     );
-    await kit.simulation.clock.sleep(midnight + 1 - kit.simulation.clock.now());
-    await kit.simulation.idle();
-    await kit.post("logs", visited(midnight + 1));
+    await fixture.simulation.clock.sleep(midnight + 1 - fixture.simulation.clock.now());
+    await fixture.simulation.idle();
+    await fixture.post("logs", visited(midnight + 1));
 
     // read the visits once both arrived, the action, the logs and the salts kept
-    const { events } = kit.served.store;
+    const { events } = fixture.served.store;
     const scopes: EventFilter = { scopes: [ids.space] };
     const read = async () => (await events.query(visit.eventKind(), scopes)).events;
-    await kit.simulation.until(async () => (await read()).length === 2);
+    await fixture.simulation.until(async () => (await read()).length === 2);
     const visits = await read();
     const actions = (await events.query(action.eventKind(), scopes)).events;
     const logs = (await events.query(log.eventKind(), scopes)).events;
-    const salts = await kit.served.database.select().from(visitorSalt.table);
+    const salts = await fixture.served.database.select().from(visitorSalt.table);
     const hashed = async (day: string) => {
         const salt = present(
             salts.find((each) => each.day === day),
             `the salt of ${day}`,
         ).salt;
         const browser = [
-            kit.notes,
+            fixture.notes,
             BROWSER[EMITTER_ATTRIBUTES.address],
             BROWSER[EMITTER_ATTRIBUTES.userAgent],
         ];
-        const digest = await Digest.of([salt, ...browser].join("\n"), kit.environment.crypto);
+        const digest = await Digest.of([salt, ...browser].join("\n"), fixture.environment.crypto);
 
         return digest.slice(0, VISITOR_DIGITS);
     };
@@ -418,13 +429,13 @@ test("keep a page's visits and actions apart from its logs, its visitor a hash o
 });
 
 test("record each session's end with its build and status, keying its records by session, so release health counts crashed sessions per build", async () => {
-    await using kit = await TestObservability.open();
-    const now = kit.clock.now();
+    await using fixture = await TestObservability.open();
+    const now = fixture.clock.now();
 
     // end one crashed session after a failure, and one session without failures
-    await kit.post(
+    await fixture.post(
         "logs",
-        kit.emitter.logs([
+        fixture.emitter.logs([
             {
                 time: now,
                 name: "note.failed",
@@ -450,7 +461,7 @@ test("record each session's end with its build and status, keying its records by
     );
 
     // read the failure's session, and count the sessions per build and status
-    const { events } = kit.served.store;
+    const { events } = fixture.served.store;
     const logs = (await events.query(log.eventKind(), { scopes: [ids.space] })).events;
     const health = await events.series(
         session.eventKind(),
@@ -471,8 +482,8 @@ test("record each session's end with its build and status, keying its records by
     }).toEqual({
         sessions: ["session-1"],
         health: [
-            { build: kit.manifest, status: "crashed", count: 1 },
-            { build: kit.manifest, status: "ok", count: 1 },
+            { build: fixture.manifest, status: "crashed", count: 1 },
+            { build: fixture.manifest, status: "ok", count: 1 },
         ],
     });
 });

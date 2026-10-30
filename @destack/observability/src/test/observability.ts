@@ -41,7 +41,7 @@ import { NOTES, RENAME_STACK, TestNotes } from "./notes.ts";
 /** How long the issues reader waits to take a page: its one minute batch, and a second to run. */
 const ISSUE_COUNT_MILLISECONDS = 61_000;
 
-/** When the kits' simulations start by default: 16 October 2026, UTC. */
+/** When the fixtures' simulations start by default: 16 October 2026, UTC. */
 export const START = Date.UTC(2026, 9, 16);
 
 /** The packages notifications install with, in dependency order. */
@@ -71,19 +71,19 @@ const INSTANCE = schema
     .identifier("instance")
     .parse("instance-01996ab0-0000-7000-8000-000000000006");
 
-/** The world the kit writes on its space once: the notes application's installation. */
+/** The world the fixture writes on its space once: the notes application's installation. */
 const ObservabilityWorld = schema.object({
     /** The notes application's installation. */
     notes: schema.string(),
 });
 
-/** The world the kit writes on its space once. */
+/** The world the fixture writes on its space once. */
 type ObservabilityWorld = schema.Infer<typeof ObservabilityWorld>;
 
 /** The shipped servers and builds of the packages the space installs. */
 const INSTALLED = TestPackage.options(PACKAGES);
 
-/** The space the kit's tests copy: its installed packages beside social, for comments on issues. */
+/** The space the fixture's tests copy: its installed packages beside social, for comments on issues. */
 const SPACE_OPTIONS = { ...INSTALLED, packages: [...INSTALLED.packages, socialPackage] };
 
 /** Every permission an observer of the space's issues, alerts and silences needs. */
@@ -205,7 +205,7 @@ export class TestObservability implements AsyncDisposable {
         });
     }
 
-    /** Define the template of the kit's space at a start, which every test at that start copies. */
+    /** Define the template of the fixture's space at a start, which every test at that start copies. */
     static template(start = START) {
         return TestSpace.template(
             { ...SPACE_OPTIONS, start },
