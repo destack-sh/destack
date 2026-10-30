@@ -1,7 +1,7 @@
 import type { Crypto } from "@destack/environment";
 import { Digest } from "@destack/schema";
 import { ResourceError } from "../error/error.ts";
-import type { BlobStorage } from "./provider.ts";
+import type { BlobEntry, BlobStorage } from "./provider.ts";
 
 /** Blob storage in memory. */
 export class MemoryBlobStorage implements BlobStorage {
@@ -27,6 +27,17 @@ export class MemoryBlobStorage implements BlobStorage {
             throw ResourceError.of("BLOB_NOT_FOUND", `blob ${digest} not found`);
         }
         yield blob;
+    }
+
+    /** Read many blobs in order. */
+    async *batch(digests: readonly Digest[]): AsyncIterable<BlobEntry> {
+        for (const digest of digests) {
+            const blob = this.#blobs.get(digest);
+            if (blob === undefined) {
+                throw ResourceError.of("BLOB_NOT_FOUND", `blob ${digest} not found`);
+            }
+            yield { digest, size: blob.byteLength, body: this.read(digest) };
+        }
     }
 
     /** Read a range of a blob's bytes as one chunk. */
@@ -59,12 +70,11 @@ export class MemoryBlobStorage implements BlobStorage {
     }
 
     /** Keep the missing blobs of some digests from another store. */
-    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "read">): Promise<void> {
-        for (const digest of new Set(digests)) {
-            // copy a missing blob
-            if (!this.#blobs.has(digest)) {
-                await this.write(source.read(digest), digest);
-            }
+    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "batch">): Promise<void> {
+        for await (const { digest, body } of source.batch(
+            await this.missing([...new Set(digests)]),
+        )) {
+            await this.write(body, digest);
         }
     }
 
