@@ -1,6 +1,6 @@
 import { createHash, type Hash } from "node:crypto";
 import type { Random } from "@destack/environment";
-import type { BlobStorage } from "@destack/resource";
+import type { BlobEntry, BlobStorage } from "@destack/resource";
 import { Digest, present, Uuid } from "@destack/schema";
 import { type Bucket, type UploadedPart, MAX_BATCH_FILES } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
@@ -40,6 +40,14 @@ export class R2BlobStorage implements BlobStorage {
     async *read(digest: Digest): AsyncIterable<Uint8Array> {
         const file = await this.#files.get(this.#key(digest));
         yield* present(file, digest).body;
+    }
+
+    /** Read many blobs in order. */
+    async *batch(digests: readonly Digest[]): AsyncIterable<BlobEntry> {
+        for (const digest of digests) {
+            const file = present(await this.#files.get(this.#key(digest)), digest);
+            yield { digest, size: file.size, body: file.body };
+        }
     }
 
     /** Read a range of a blob's bytes. */
@@ -84,10 +92,12 @@ export class R2BlobStorage implements BlobStorage {
     }
 
     /** Keep the blobs the store lacks among some digests, read from another store. */
-    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "read">): Promise<void> {
-        // copy the missing blobs
-        for (const digest of await this.missing([...new Set(digests)])) {
-            await this.write(source.read(digest), digest);
+    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "batch">): Promise<void> {
+        // copy the missing blobs in batches
+        for await (const { digest, body } of source.batch(
+            await this.missing([...new Set(digests)]),
+        )) {
+            await this.write(body, digest);
         }
     }
 

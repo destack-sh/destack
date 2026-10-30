@@ -53,7 +53,7 @@ export const BucketSnapshot = {
     async restore(
         bucket: CatalogueHandle,
         digest: Digest,
-        store: Pick<BlobStorage, "read">,
+        store: Pick<BlobStorage, "read" | "batch">,
         base?: Digest,
     ): Promise<void> {
         // keep the blobs the base lacks, held from collection until their rows commit

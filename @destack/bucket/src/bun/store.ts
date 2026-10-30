@@ -1,7 +1,14 @@
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import type { DirectoryEntry, Environment, FileSystem, Random } from "@destack/environment";
-import type { BlobStorage } from "@destack/resource";
+import {
+    type DirectoryEntry,
+    type Environment,
+    type FileHandle,
+    type FileSystem,
+    FileSystemError,
+    type Random,
+} from "@destack/environment";
+import type { BlobEntry, BlobStorage } from "@destack/resource";
 import { Digest, Uuid } from "@destack/schema";
 import { BucketError } from "../error/index.ts";
 import { createDurably, syncDirectory } from "./directory.ts";
@@ -12,6 +19,9 @@ const READ_BYTES = 64 * 1024;
 /** The files a blob store keeps its blobs in, and the randomness naming its writes. */
 export type BlobEnvironment = Pick<Environment<"files">, "files" | "random">;
 
+/** How a blob store syncs its writes, as SQLite's `synchronous`: fully, or off for a cache. */
+export type BlobSynchronous = "full" | "off";
+
 /** A bucket's blobs as files in a directory, each keyed by its digest. */
 export class LocalBlobStorage implements BlobStorage {
     /** The directory of blob files. */
@@ -20,19 +30,31 @@ export class LocalBlobStorage implements BlobStorage {
     readonly #files: FileSystem;
     /** The randomness naming each write's temporary file. */
     readonly #random: Random;
+    /** Whether each write syncs its file and directory, off for a cache its digests verify. */
+    readonly #synchronous: BlobSynchronous;
 
     /** Keep blobs in a directory of a file system. */
-    private constructor(directory: string, environment: BlobEnvironment) {
+    private constructor(
+        directory: string,
+        environment: BlobEnvironment,
+        synchronous: BlobSynchronous,
+    ) {
+        // keep the directory, its files, the randomness naming writes and how they sync
         this.directory = directory;
         this.#files = environment.files;
         this.#random = environment.random;
+        this.#synchronous = synchronous;
     }
 
-    /** Open a directory of blobs, creating it durably when missing. */
-    static async open(directory: string, environment: BlobEnvironment): Promise<LocalBlobStorage> {
+    /** Open a directory of blobs, creating it durably when missing, synced fully unless a cache. */
+    static async open(
+        directory: string,
+        environment: BlobEnvironment,
+        options: { readonly synchronous?: BlobSynchronous } = {},
+    ): Promise<LocalBlobStorage> {
         await createDurably(directory, environment.files);
 
-        return new LocalBlobStorage(directory, environment);
+        return new LocalBlobStorage(directory, environment, options.synchronous ?? "full");
     }
 
     /** Build the path of a blob's file, refusing anything but a digest. */
@@ -58,6 +80,14 @@ export class LocalBlobStorage implements BlobStorage {
         return this.slice(digest, 0, Number.POSITIVE_INFINITY);
     }
 
+    /** Read many blobs in order. */
+    async *batch(digests: readonly Digest[]): AsyncIterable<BlobEntry> {
+        for (const digest of digests) {
+            const { size } = await this.#files.stat(this.path(digest));
+            yield { digest, size, body: this.read(digest) };
+        }
+    }
+
     /** Read a range of a blob's bytes from its file, each chunk read at its exact size. */
     async *slice(digest: Digest, offset: number, length: number): AsyncIterable<Uint8Array> {
         // read from the offset in chunks of the range's remaining size, up to one read's bytes
@@ -79,12 +109,12 @@ export class LocalBlobStorage implements BlobStorage {
         return this.#files.copyFile(this.path(digest), destination);
     }
 
-    /** Write bytes to a temporary file, then keep it under its digest. */
+    /** Write bytes to a fresh temporary file, then keep it under its digest. */
     async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
-        const temporary = join(this.directory, `.${Uuid.v4(this.#random)}`);
+        const { path: temporary, file } = await this.#temporary();
         try {
-            // write and hash the bytes into a temporary file
-            const digest = await this.#written(temporary, body);
+            // write and hash the bytes into a temporary file this write created
+            const digest = await this.#written(file, body);
             if (expected !== undefined && digest !== expected) {
                 throw BucketError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
             }
@@ -94,7 +124,9 @@ export class LocalBlobStorage implements BlobStorage {
                 await this.#files.remove(temporary);
             } else {
                 await this.#files.rename(temporary, this.path(digest));
-                await syncDirectory(this.directory, this.#files);
+                if (this.#synchronous === "full") {
+                    await syncDirectory(this.directory, this.#files);
+                }
             }
 
             return digest;
@@ -105,12 +137,11 @@ export class LocalBlobStorage implements BlobStorage {
     }
 
     /** Keep the blobs the directory lacks among some digests, read from another store. */
-    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "read">): Promise<void> {
-        for (const digest of new Set(digests)) {
-            // copy a missing blob
-            if (!(await this.#files.exists(this.path(digest)))) {
-                await this.write(source.read(digest), digest);
-            }
+    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "batch">): Promise<void> {
+        for await (const { digest, body } of source.batch(
+            await this.missing([...new Set(digests)]),
+        )) {
+            await this.write(body, digest);
         }
     }
 
@@ -143,22 +174,39 @@ export class LocalBlobStorage implements BlobStorage {
         return this.#files.readDirectory(this.directory);
     }
 
-    /** Write and hash a body into a new file, synced to disk. */
-    async #written(path: string, body: AsyncIterable<Uint8Array>): Promise<Digest> {
+    /** Create a temporary file under a fresh name, drawing again once taken, as `mkstemp` does. */
+    async #temporary(): Promise<{ readonly path: string; readonly file: FileHandle }> {
+        for (;;) {
+            // create the file only if no other writer did
+            const path = join(this.directory, `.${Uuid.v4(this.#random)}`);
+            const file = await this.#files
+                .open(path, { write: true, createNew: true, mode: 0o600 })
+                .catch((error: unknown) => {
+                    if (FileSystemError.is(error, "ALREADY_EXISTS")) {
+                        return undefined;
+                    }
+                    throw error;
+                });
+            if (file !== undefined) {
+                return { path, file };
+            }
+        }
+    }
+
+    /** Write and hash a body into a created file, synced to disk unless a cache, then close it. */
+    async #written(file: FileHandle, body: AsyncIterable<Uint8Array>): Promise<Digest> {
         // write each chunk and hash it on the way
+        await using opened = file;
         const hash = createHash("sha256");
-        await using file = await this.#files.open(path, {
-            write: true,
-            createNew: true,
-            mode: 0o600,
-        });
-        const writer = file.writable().getWriter();
+        const writer = opened.writable().getWriter();
         for await (const chunk of body) {
             await writer.write(chunk);
             hash.update(chunk);
         }
         await writer.close();
-        await file.sync();
+        if (this.#synchronous === "full") {
+            await opened.sync();
+        }
 
         return Digest.parse(hash.digest("hex"));
     }
