@@ -38,7 +38,6 @@ export const PACKAGES: readonly TestPackage[] = [
         server: articlesServer,
         connectors: [],
         servers: [],
-        bindables: [],
         providers: [],
     },
     {
@@ -55,7 +54,6 @@ export const PACKAGES: readonly TestPackage[] = [
         server: socialServer,
         connectors: [],
         servers: [],
-        bindables: [],
         providers: [],
     },
 ];
