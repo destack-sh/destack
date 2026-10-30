@@ -39,8 +39,7 @@ import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resourc
 import { secret, vault } from "@destack/vault/object";
 import vaultPackage from "@destack/vault/package";
 import { TestVault } from "@destack/vault/test";
-import { vaultProvider } from "@destack/vault/provider";
-import vaultServer, { secretBindable } from "@destack/vault/server";
+import vaultServer from "@destack/vault/server";
 import { onTestFinished } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { LocalGitStorage, localGitProvider } from "../local/index.ts";
@@ -139,8 +138,7 @@ export const FORGE: TestPackage = {
     server: forgeServer,
     connectors: [],
     servers: [vaultServer],
-    bindables: [secretBindable],
-    providers: [vaultProvider],
+    providers: [],
 };
 
 /** Connections as the machine ships them, beside the vault keeping their credentials. */
@@ -167,8 +165,7 @@ export const CONNECTION: TestPackage = {
     server: connectionServer,
     connectors: [],
     servers: [vaultServer],
-    bindables: [secretBindable],
-    providers: [vaultProvider],
+    providers: [],
 };
 
 /** The vault of an account's home that its connections keep their credentials in. */

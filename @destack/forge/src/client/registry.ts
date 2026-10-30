@@ -5,12 +5,13 @@ import type { PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
 import { type Digest, type Identifier, schema } from "@destack/schema";
-import { type Fetch, InstallationMount, PackageMount } from "@destack/object";
+import type { Fetch } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import { ForgeError } from "../error/index.ts";
 import { packageObject } from "../object/index.ts";
 import forgePackage, { FORGE_INSTALLATION } from "../package.ts";
 import type { Environment } from "@destack/environment";
+import type { Lease } from "@destack/resource";
 
 /** The forge a caller calls for a package. */
 type ForgeEndpoint = {
@@ -22,62 +23,80 @@ type ForgeEndpoint = {
     readonly fetch: Fetch;
 };
 
-/** The registry of published releases. */
+/** Whose forge a caller calls: a package's publisher's, or an account's. */
+type ForgeOwner = { readonly package: PackageId } | { readonly account: Identifier<"account"> };
+
+/** The forges of published releases and repositories, called as one caller. */
 export class Registry {
-    /** Find the forge of the account publishing a package. */
-    readonly #find: (packageId: PackageId) => Promise<ForgeEndpoint>;
+    /** Find the forge of a package's publisher or of an account. */
+    readonly #find: (owner: ForgeOwner) => Promise<ForgeEndpoint>;
     /** The environment the forge's clients run in. */
     readonly #environment: Environment;
     /** The reader of each build opened so far, by package and manifest, as builds never change. */
     readonly #readers = new Map<string, Promise<BuildReader>>();
 
-    /** Read releases from the forge each package's publisher stores them in, in an environment. */
-    constructor(find: (packageId: PackageId) => Promise<ForgeEndpoint>, environment: Environment) {
+    /** Call the forge of each package's publisher and each account, in an environment. */
+    constructor(find: (owner: ForgeOwner) => Promise<ForgeEndpoint>, environment: Environment) {
         this.#find = find;
         this.#environment = environment;
     }
 
-    /** Read releases through the universe directory's replica: claims, placements, endpoints. */
+    /** Call forges through the universe directory's replica, signing for the forge package. */
     static of(
         directory: Directory,
         home: (account: Identifier<"account">) => Promise<Identifier<"space">>,
-        fetch: Fetch,
+        sign: (audience: PackageId) => Fetch,
         environment: Environment,
     ): Registry {
         const claims = ClaimLookup.of(directory.snapshot.read(claimTable));
 
-        return new Registry(async (packageId) => {
-            // find the account claiming the package's identifier
-            const found = await Claim.lookup(packageObject, claims, "id", [packageId]);
-            if (found === undefined) {
-                throw ForgeError.of("PUBLISHER_MISSING", `${packageId} has no publishing account`);
-            }
-
-            // find the machine serving the home of the account's residency
-            const accountId = schema.identifier("account").parse(found.scope);
+        return new Registry(async (owner) => {
+            // call the forge below its installation in the home of the owning account's residency
+            const accountId = await Registry.#account(claims, owner);
             const spaceId = await home(accountId);
-            const located = await directory.locate(spaceId, environment.clock.now());
+            const now = environment.clock.now();
+            const url = await directory.mount(spaceId, FORGE_INSTALLATION, forgePackage.id, now);
 
-            // call the forge's package below its installation in the home
-            const installation = InstallationMount.url(located.url, spaceId, FORGE_INSTALLATION);
-
-            return {
-                url: `${installation}${PackageMount.path(forgePackage.id)}`,
-                space: spaceId,
-                fetch,
-            };
+            return { url, space: spaceId, fetch: sign(forgePackage.id) };
         }, environment);
+    }
+
+    /** Read the account owning a forge: an account itself, or the one publishing a package. */
+    static async #account(claims: ClaimLookup, owner: ForgeOwner): Promise<Identifier<"account">> {
+        // take an account itself
+        if ("account" in owner) {
+            return owner.account;
+        }
+
+        // find the account claiming the package's identifier
+        const found = await Claim.lookup(packageObject, claims, "id", [owner.package]);
+        if (found === undefined) {
+            throw ForgeError.of("PUBLISHER_MISSING", `${owner.package} has no publishing account`);
+        }
+
+        return schema.identifier("account").parse(found.scope);
     }
 
     /** Resolve a package's published release of a version, or of the version a tag points at. */
     async resolve(packageId: PackageId, release: string) {
-        const forge = await this.#find(packageId);
+        const forge = await this.#find({ package: packageId });
 
         return createClient(forgePackage, forge, this.#environment).release.resolve({
             spaceId: forge.space,
             parentId: packageId,
             release,
         });
+    }
+
+    /** Lease short-lived access to read a repository at the forge of its account. */
+    async lease(
+        account: Identifier<"account">,
+        repositoryId: Identifier<"repository">,
+    ): Promise<Lease> {
+        const forge = await this.#find({ account });
+        const client = createClient(forgePackage, forge, this.#environment);
+
+        return client.repository.open({ spaceId: forge.space, id: repositoryId, mode: "read" });
     }
 
     /** Find the digest of the manifest of a package's published release. */
@@ -96,7 +115,7 @@ export class Registry {
         // upload below the package, which its forge authorizes to the package's publishers
         const build = await store.contents(manifest);
         const packageId = PackageManifest.package(build.manifest).id;
-        const forge = await this.#find(packageId);
+        const forge = await this.#find({ package: packageId });
         const uploads = `${forge.url}${forgePackage.adapters.builds.path}/${packageId}/`;
         const client = new PackageClient(uploads, forge.fetch, this.#environment.crypto);
 
@@ -117,7 +136,7 @@ export class Registry {
         readonly location: PackageLocation;
         readonly fetch: (input: URL, init: RequestInit) => Promise<Response>;
     }> {
-        const forge = await this.#find(packageId);
+        const forge = await this.#find({ package: packageId });
 
         return {
             location: {
