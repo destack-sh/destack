@@ -317,7 +317,10 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     const shrunk = present(await read(ids.first), "the shrunk box");
 
     // store the one state the box needs, and refuse a digest of a state the space lacks
-    const stored = await store.blobs.readJson(await Digest.json({ size: 1 }, world.crypto));
+    const stored = await store.blobs.readJson(
+        await Digest.json({ size: 1 }, world.crypto),
+        schema.jsonObject(),
+    );
     const unknown = await refusal(
         store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
             id: RequestId.create(store.environment),

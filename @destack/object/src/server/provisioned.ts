@@ -10,7 +10,7 @@ import {
     type Step,
 } from "@destack/resource";
 import { ResourceError } from "@destack/resource/error";
-import { nth, Digest, Duration, type Identifier, present, schema, zip } from "@destack/schema";
+import { nth, Digest, Duration, type Identifier, present, zip } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
 import {
     ObjectWatch,
@@ -125,12 +125,8 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         // read and parse the states not stored
         const missing = digests.filter((digest) => !this.#states.has(digest));
         if (missing.length > 0) {
-            const parsed = this.#kind.states(
-                await Promise.all(
-                    missing.map(async (digest) =>
-                        schema.jsonObject().parse(await blobs.readJson(digest)),
-                    ),
-                ),
+            const parsed = await Promise.all(
+                missing.map((digest) => blobs.readJson(digest, this.#kind.state)),
             );
             for (const [digest, state] of zip(missing, parsed)) {
                 this.#states.set(digest, state);
