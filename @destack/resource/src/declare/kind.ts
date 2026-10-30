@@ -72,11 +72,6 @@ export class ResourceKind<
 
         return state !== NO_STATE;
     }
-
-    /** Read stored desired states of this kind, refusing invalid ones. */
-    states(stored: readonly ResourceState[]): schema.Output<State>[] {
-        return stored.map((entry) => this.state.parse(entry));
-    }
 }
 
 /** Define a resource kind: its specification, desired state, and whether Destack creates it. */
