@@ -38,7 +38,6 @@ function stampOf(claims: AccessToken): number {
 
 test("issue a token client with its grant, act through it, and revoke both", async () => {
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     let owner = await fixture.signIn(OWNER_EMAIL);
     const { accountId, spaceId } = await fixture.createSpace(owner);
 
@@ -300,12 +299,11 @@ test("end a personal access token's exchanged tokens at its grant's lapse, and r
     expect((await exchange()).sub).toBe(owner.id);
 
     // end a token exchanged a minute before the grant lapses at the lapse
-    clock.pause();
-    clock.advance(DAY - 60_000);
+    await fixture.simulation.jump(clock.now() + DAY - 60_000);
     expect((await exchange()).exp).toBe(Math.floor(expiresAt / 1000));
 
     // refuse it once the grant lapsed
-    clock.advance(60_001);
+    await fixture.simulation.jump(clock.now() + 60_001);
     expect(await refusal(exchange())).toEqual([
         "BAD_REQUEST",
         "INVALID_GRANT",
@@ -449,7 +447,7 @@ test("refuse a person's refresh once their refresh token expired, as the issuer'
     // sign a person in, then let a month pass
     await using fixture = await TestAccountStore.open();
     const person = await fixture.signIn("monthly@example.test");
-    fixture.clock.advance(REFRESH_EXPIRED_MILLISECONDS);
+    await fixture.simulation.jump(fixture.clock.now() + REFRESH_EXPIRED_MILLISECONDS);
 
     // refuse refreshing their tokens
     expect(await refusal(person.tokens())).toEqual([
@@ -463,7 +461,7 @@ test("sign a person in with a fresh code a month after their first sign-in, refu
     // sign a person in, then let a month pass and sign them in again with a new code
     await using fixture = await TestAccountStore.open();
     const first = await fixture.signIn("returning@example.test");
-    fixture.clock.advance(REFRESH_EXPIRED_MILLISECONDS);
+    await fixture.simulation.jump(fixture.clock.now() + REFRESH_EXPIRED_MILLISECONDS);
     const again = await fixture.signIn("returning@example.test");
 
     // take the new sign-in's tokens, and refuse refreshing the first one's

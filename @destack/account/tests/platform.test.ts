@@ -336,7 +336,6 @@ test("apply the declared cloud machines with their keys in the universe once, an
 test("invite a new operator as the platform's owner beside the first", async () => {
     // apply the platform for a new operator at a clock standing still, and sign in a stranger and the new operator
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const successor = { ...PLATFORM, operator: SUCCESSOR_EMAIL };
     const platformId = await new Platform(fixture.store, successor, STACKS.residency).apply(
         fixture.clock.now(),

@@ -797,7 +797,7 @@ test("remove a space's delegated grants when the space is finalized", async () =
     ];
     for (const delegate of delegates) {
         // grant each a millisecond after the last, so the grants list in the order granted
-        fixture.clock.advance(1);
+        await fixture.simulation.jump(fixture.clock.now() + 1);
         await owner.client(objectPackage).grant.create({
             scope: owner.id,
             requestId: RequestId.create(fixture.environment),
@@ -837,7 +837,7 @@ test("replicate a drained machine's status to every machine through the director
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
     const drained = await enroll(fixture, accountId, owner);
-    fixture.clock.advance(1);
+    await fixture.simulation.jump(fixture.clock.now() + 1);
     const other = await enroll(fixture, accountId, owner);
     await owner.client(accountPackage).machine.drain({
         scope: accountId,

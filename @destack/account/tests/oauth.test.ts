@@ -382,7 +382,7 @@ test("refuse a refresh token issued before a revoked consent was granted again",
     const before = await grant();
 
     // revoke the consent a second later, then grant it again a second after
-    fixture.clock.advance(SECOND);
+    await fixture.simulation.jump(fixture.clock.now() + SECOND);
     const { items } = await owner.client(accountPackage).oauthConsent.list({ userId: owner.id });
     const revoked = present(
         items.find(({ clientId }) => clientId === registered.clientId),
@@ -394,7 +394,7 @@ test("refuse a refresh token issued before a revoked consent was granted again",
         revision: revoked.revision,
         requestId: RequestId.create(fixture.environment),
     });
-    fixture.clock.advance(SECOND);
+    await fixture.simulation.jump(fixture.clock.now() + SECOND);
     const after = await grant();
 
     // refuse the token issued before the second grant, and refresh the one issued after it
@@ -521,7 +521,6 @@ test("sign a device in to a confidential application through the device authoriz
 test("sign a device in as a new client through the browser once the person allows it, with a loopback redirect and PKCE", async () => {
     // authorize a fresh client with a challenge on the loopback, signed out and signed in
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const { person: owner, browser: ownerBrowser } =
         await fixture.signInWithLink("ada@example.com");
     const signedOut = fixture.browser();
@@ -757,7 +756,6 @@ test("continue an authorization asking a sign-in of no age once the person signe
 test("sign a person in with a mailed code at the token endpoint as a new client, and refuse a wrong, a spent or an expired code", async () => {
     // mail a code, and exchange it for the person's tokens on a new client
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const owner = await fixture.signIn("ada@example.com");
     const browser = fixture.browser();
     const clientId = Identifier.create("client", fixture.environment);
@@ -904,7 +902,6 @@ test("update, disable and delete an application", async () => {
 test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal is refused, rotate it at each use, revoke the family a spent token returns to, and refuse a lapsed code", async () => {
     // authorize a registered client with the challenge of RFC 7636 Appendix B
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const { person: owner, browser } = await fixture.signInWithLink("ada@example.com");
     const registered = await registerNotes(fixture, owner);
     const query = new URLSearchParams({

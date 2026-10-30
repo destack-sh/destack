@@ -574,7 +574,7 @@ test("verify an authenticator code on the second-factor page", async () => {
 test("ask a person asked to sign in again to sign in until they do, and refuse an unknown request", async () => {
     await using fixture = await TestAccountStore.open();
     const { browser } = await fixture.signInWithLink("ada@example.com");
-    fixture.clock.advance(SECOND);
+    await fixture.simulation.jump(fixture.clock.now() + SECOND);
 
     // ask the browser signed in a second ago to sign in again for a new client
     const authorize = `/oauth2/authorize?${new URLSearchParams({

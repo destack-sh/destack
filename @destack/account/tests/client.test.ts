@@ -36,7 +36,6 @@ function prove(
 
 test("register clients with proven keys and revoke them with the sessions linked to them", async () => {
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const owner = await fixture.signIn("person@example.com");
     const again = await fixture.signIn("person@example.com");
     const now = fixture.clock.now();
@@ -267,14 +266,13 @@ test("register clients with proven keys and revoke them with the sessions linked
 test("refresh a person's access token once it expires, and keep calling as the person", async () => {
     await using fixture = await TestAccountStore.open();
     const person = await fixture.signIn("person@example.com");
-    fixture.clock.pause();
 
     // read the person's account, then again past the access token's expiry
     const read = () =>
         person.client(accountPackage).account.get({ scope: person.id, id: person.account });
     const issued = await person.tokens();
     const before = await read();
-    fixture.clock.set(issued.expiresAt + 1);
+    await fixture.simulation.jump(issued.expiresAt + 1);
     const after = await read();
     const refreshed = await person.tokens();
 

@@ -394,8 +394,7 @@ test("refuse a cloud machine's grants while the operator disables it and once th
 test("issue a machine's token at the store clock's time, verifiable after the clock advances to it", async () => {
     // run the account package ten minutes ahead of real time, standing still there
     await using fixture = await TestAccountStore.open();
-    fixture.clock.advance(10 * 60_000);
-    fixture.clock.pause();
+    await fixture.simulation.jump(fixture.clock.now() + 10 * 60_000);
 
     // declare a cloud machine on the same clock and take its token
     const identity = await fixture.declareCloudMachine(fixture.platform, "eu");
@@ -657,7 +656,6 @@ function byX(left: { readonly x: string }, right: { readonly x: string }): numbe
 test("rotate once for two identities of one machine rotating at once, ending on the key the universe has as current", async () => {
     // enroll a machine at a clock standing still
     await using accounts = await TestAccountStore.open();
-    accounts.clock.pause();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const accountId = ids.account;
     const keys = new MemoryKeychain();

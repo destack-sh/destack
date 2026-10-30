@@ -16,7 +16,7 @@ test("prove a client to its computer's machine by its stored key, refusing a for
     const verified = await keys.verify(proof);
 
     // refuse the proof once stale, and once the key is forgotten
-    clock.advance(10 * 60 * 1000);
+    await simulation.jump(clock.now() + 10 * 60 * 1000);
     const stale = await refusal(keys.verify(proof));
     await keys.forget(client);
     const forgotten = await refusal(keys.verify(proof));

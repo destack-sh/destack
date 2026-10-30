@@ -24,7 +24,6 @@ import { space } from "../src/object/space.ts";
 test("rename a user as themselves, the user created and changed on the store's clock", async () => {
     // sign the user up and rename them at a clock standing still
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const signedUpAt = fixture.clock.now();
     const owner = await fixture.signIn("newcomer@example.test");
     const client = owner.client(accountPackage);
@@ -50,7 +49,6 @@ test("rename a user as themselves, the user created and changed on the store's c
 test("change a user's time zone and locale, and refuse an unknown time zone", async () => {
     // change the time zone to an unknown one, then to a known one with a locale
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const users = owner.client(accountPackage).user;
     const current = await users.get({ id: owner.id });
@@ -300,7 +298,6 @@ test("exchange tokens acting as a user through lent authority or account adminis
 
 test("exchange a token acting as a member in the account's space, with the member's memberships and the acting administrator", async () => {
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     let administrator = await fixture.signIn("administrator@example.com");
     const member = await fixture.signIn("member@example.com");
 

@@ -250,7 +250,6 @@ test("serve an organization's accounts on hostnames below the domains it verifie
     // claim a domain for the organization over a test DNS
     const dns = new TestDns();
     await using fixture = await TestAccountStore.open({ resolver: dns });
-    fixture.clock.pause();
     const founder = await fixture.signIn("founder@example.com");
     const { organizationId, accountId } = await foundOrganization(fixture, founder);
     await fixture.entitle(accountId, "domain", { kind: "boolean" });

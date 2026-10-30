@@ -12,8 +12,7 @@ test("answer an exchanged token's expiry on the store's clock, as its signed cla
     // exchange a person's token for a package once the store's clock runs a day ahead of the wall clock
     await using accounts = await TestAccountStore.open();
     const person = await accounts.signIn("ada@example.test");
-    accounts.clock.pause();
-    accounts.clock.advance(AHEAD_MILLISECONDS);
+    await accounts.simulation.jump(accounts.clock.now() + AHEAD_MILLISECONDS);
     const exchanged = await person.exchange(accountPackage.id);
 
     // answer the signed token's expiry, in milliseconds

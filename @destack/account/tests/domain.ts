@@ -54,7 +54,6 @@ export class DomainFixture implements AsyncDisposable {
         // serve the account package over the test DNS at a clock standing still
         const dns = new TestDns();
         const accounts = await TestAccountStore.open({ resolver: dns });
-        accounts.clock.pause();
 
         // sign the people up, and let each owner create an account
         const owner = await accounts.signIn("owner@example.com");

@@ -221,7 +221,7 @@ test("claim names of objects in its residency's accounts as a residency home or 
 
     // list a reservation of a write that never confirmed it, once expired, to the residency's claimants
     await reserve(home, europeanId, "lost");
-    fixture.clock.advance(RESERVATION_MILLISECONDS + 1);
+    await fixture.simulation.jump(fixture.clock.now() + RESERVATION_MILLISECONDS + 1);
     expect([await expired(home), await expired(cloud)]).toEqual([
         [europeanId, europeanId],
         [europeanId, europeanId],
@@ -622,11 +622,7 @@ test("let an installation its residency's home declares provide entitlements in 
     const home = await homeOf(fixture, "eu");
     const homeId = schema.identifier("space").parse(home.subject.id);
     const homeSpace = await Scope.object(Snapshot.live(fixture.storage.database), homeId);
-    const installation = await InstallationId.of(
-        homeSpace,
-        "billing",
-        fixture.environment.crypto,
-    );
+    const installation = await InstallationId.of(homeSpace, "billing", fixture.environment.crypto);
     const installed = principal.installation.reference(homeId, installation);
 
     // provide an entitlement in the account as the installation, before and after its home relates it

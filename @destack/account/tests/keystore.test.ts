@@ -55,7 +55,15 @@ async function openKeystore() {
         accounts.environment,
     );
 
-    return { accounts, clock, database: accounts.database, registry, place, keystore };
+    return {
+        accounts,
+        clock,
+        simulation: accounts.simulation,
+        database: accounts.database,
+        registry,
+        place,
+        keystore,
+    };
 }
 
 /** Open an account database holding a copy of a space's keys, as a move's other machine does. */
@@ -94,8 +102,7 @@ async function derive(
 
 test("sign with the active key until every verifier read the next one, verifying tokens of every published key with a key set a verifier caches", async () => {
     // start a space's identity on a clock the test moves
-    const { clock, database, place, keystore, registry } = await openKeystore();
-    clock.pause();
+    const { clock, simulation, database, place, keystore, registry } = await openKeystore();
     const subject = await place();
     await keystore.generate(database, subject);
     const sign = () => keystore.sign(database, subject, { sub: "user-1" });
@@ -109,7 +116,7 @@ test("sign with the active key until every verifier read the next one, verifying
 
     // sign with the first key until the verifiers' key set age passed, then with the next one
     const during = await sign();
-    clock.advance(KEY_SET_MILLISECONDS);
+    await simulation.jump(clock.now() + KEY_SET_MILLISECONDS);
     const after = await sign();
 
     // sign with the first published key until the next, and verify every token with the key set read again once it aged

@@ -32,7 +32,6 @@ test("generate RFC 6238 Appendix B's SHA-1 codes at each of its moments", async 
 test("accept a code a step either side of now once, refusing an expired code and a reused step", async () => {
     // generate the codes of the steps around a moment, paused there
     await using simulation = testSimulation();
-    simulation.clock.pause();
     const environment = simulation.environment("totp");
     const { clock, crypto } = environment;
     const totp = await Totp.of(SEED, crypto);

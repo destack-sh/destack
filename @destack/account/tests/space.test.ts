@@ -45,9 +45,9 @@ test("place a new space on its account's residency cloud machine, on a machine o
 
     // place one on the residency's cloud machine, one on the person's machine and one on the named cloud machine, a millisecond apart so they order as created
     const cloud = await create(fixture, person, "work");
-    fixture.clock.advance(1);
+    await fixture.simulation.jump(fixture.clock.now() + 1);
     const local = await create(fixture, person, "notes", laptop.machineId);
-    fixture.clock.advance(1);
+    await fixture.simulation.jump(fixture.clock.now() + 1);
     const shared = await create(fixture, person, "shared", ids.machine);
 
     // store each placement beside the home's, and claim each name for its space
@@ -157,7 +157,6 @@ test("rename a space to a free address in its account, releasing the old one, an
 test("create a space at the universe with its row and its own access, the space owning itself", async () => {
     // let a person create a space in their account at a clock standing still
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const created = await create(fixture, owner, "work");
 

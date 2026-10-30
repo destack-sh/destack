@@ -419,7 +419,7 @@ test("sign a person in with the latest of two mailed codes", async () => {
             type: "sign-in",
         });
     const first = await answered(await send());
-    fixture.clock.advance(1);
+    await fixture.simulation.jump(fixture.clock.now() + 1);
     const sent = [first, await answered(await send())];
 
     // sign in with the second code
@@ -691,7 +691,6 @@ test("refuse refreshing a device's tokens once the person revokes its client", a
 test("list and revoke a session over the account package", async () => {
     // sign the owner in on two browsers, each beside a native client
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const { person: owner, browser: ownerBrowser } = await fixture.signInWithLink(EMAIL);
     const { browser: otherBrowser } = await fixture.signInWithLink(EMAIL);
     const sessions = owner.client(accountPackage).session;

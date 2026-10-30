@@ -24,6 +24,7 @@ async function openRegistry(world: Environment) {
     return {
         environment: world,
         clock,
+        simulation: accounts.simulation,
         space,
         stranger,
         /** Start the space's identity as the serving machine, or as another caller. */
@@ -59,7 +60,6 @@ test("start a space's identity from its machine, chain operations by rotation ke
 
     const registry = await openRegistry(world);
     const { clock, space, start, extend, read, log } = registry;
-    clock.pause();
     const signing = (await KeyPair.generate(world.crypto)).pair;
     const machineKey = (await KeyPair.generate(world.crypto)).pair;
     const owner = (await KeyPair.generate(world.crypto)).pair;
@@ -185,7 +185,7 @@ test("start a space's identity from its machine, chain operations by rotation ke
             world.crypto,
         ),
     );
-    clock.advance(RECOVERY_MILLISECONDS + 1000);
+    await registry.simulation.jump(clock.now() + RECOVERY_MILLISECONDS + 1000);
     expect(
         await refusal(
             extend(

@@ -32,7 +32,6 @@ async function nameOf(
 test("rotate a machine's key, revoking its other keys, and match the keys authenticating at a time", async () => {
     // enroll a machine and register a new key at a clock standing still
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
     const enrolled = await fixture.enroll(accountId, owner);
@@ -183,7 +182,6 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
 test("record a machine's contact with what it reports, replacing its host, and refuse a report without one", async () => {
     // report the version, runtimes, host, system, start and update state as the machine at a clock standing still
     await using fixture = await TestAccountStore.open();
-    fixture.clock.pause();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
     const enrolled = await fixture.enroll(accountId, owner);
