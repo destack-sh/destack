@@ -28,9 +28,8 @@ test("start a universe over its definition, answering the account package below 
 });
 
 test("apply a definition once across starts, again once the operator's invitation lapses, and again once it changes", async () => {
-    // store the universe's database across starts in one flowing world
+    // store the universe's database across starts in one world
     const simulation = testSimulation();
-    simulation.clock.resume();
     onTestFinished(() => simulation[Symbol.asyncDispose]());
     const environment = simulation.environment(UNIVERSE_NODE);
     const storage = await TestDatabase.create(universeDatabase, { environment, isMigrated: true });
@@ -51,7 +50,7 @@ test("apply a definition once across starts, again once the operator's invitatio
     await first[Symbol.asyncDispose]();
     await start();
     const again = await counts();
-    simulation.clock.advance(INVITATION_LIFETIME_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + INVITATION_LIFETIME_MILLISECONDS);
     await start();
     const later = await counts();
     await start({

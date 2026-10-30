@@ -394,10 +394,9 @@ export class TestUniverse implements AsyncDisposable {
         return this.environment.clock;
     }
 
-    /** Open a world of its own whose clock flows, its network reaching no other origin. */
+    /** Open a world of its own, its network reaching no other origin. */
     static #simulate(opening: AsyncDisposableStack): Simulation {
         const simulation = opening.use(testSimulation());
-        simulation.clock.resume();
 
         return simulation;
     }
