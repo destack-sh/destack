@@ -1,4 +1,5 @@
 import { RelayError } from "../error/index.ts";
+import { Pipe } from "@destack/environment";
 import { Frame, FrameFlag, FrameType, GoAwayCode } from "./frame.ts";
 import { Head, type RequestHead } from "./head.ts";
 import { Stream } from "./stream.ts";
@@ -93,7 +94,9 @@ export class Session {
 
         // send the body, resetting the stream on a failed read
         const sending =
-            request.body === null ? stream.writable.close() : request.body.pipeTo(stream.writable);
+            request.body === null
+                ? stream.writable.close()
+                : Pipe.to(request.body, stream.writable);
         sending.catch((error: unknown) =>
             stream.reset(error instanceof Error ? error : new Error(String(error))),
         );

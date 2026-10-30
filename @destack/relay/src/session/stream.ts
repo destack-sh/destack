@@ -1,4 +1,5 @@
 import { RelayError } from "../error/index.ts";
+import { Pipe } from "@destack/environment";
 import { Frame, FrameFlag, FrameType, MAX_PAYLOAD_BYTES } from "./frame.ts";
 import { Head, type RequestHead, type ResponseHead } from "./head.ts";
 import type { Session } from "./session.ts";
@@ -167,7 +168,7 @@ export class Stream {
             if (response.body === null || !Head.hasResponseBody(head)) {
                 await this.writable.close();
             } else {
-                await response.body.pipeTo(this.writable);
+                await Pipe.to(response.body, this.writable);
             }
         } catch (error) {
             if (!this.signal.aborted) {
