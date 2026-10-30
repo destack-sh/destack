@@ -121,13 +121,14 @@ export class SimulatedTelemetry implements Telemetry {
     }
 }
 
-/** Name a statement kind's counter by its operation and table, as pg_stat_statements groups. */
+/** Build a statement kind's counter key from its database, operation and table. */
 function statementKey(attributes: Attributes): string {
-    // read the operation and table, naming a statement without one other or none
-    const operation = attributes["db.operation.name"];
-    const collection = attributes["db.collection.name"];
-    const verb = typeof operation === "string" ? operation : "other";
-    const table = typeof collection === "string" ? collection : "none";
+    // read the database, operation and table, with a stand-in for a part a statement lacks
+    const text = (key: string, absent: string) => {
+        const value = attributes[key];
 
-    return `${verb}.${table}`;
+        return typeof value === "string" ? value : absent;
+    };
+
+    return `${text("db.namespace", "unnamed")}:${text("db.operation.name", "other")}.${text("db.collection.name", "none")}`;
 }
