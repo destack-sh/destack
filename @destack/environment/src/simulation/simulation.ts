@@ -673,8 +673,8 @@ export class Simulation {
     async #move(): Promise<void> {
         try {
             while (this.#isRunning) {
-                // settle the work at the current time
-                await this.#settle();
+                // run the work at the current time until idle
+                await this.#runUntilIdle();
                 this.#requireRunning();
                 const { next } = this.clock;
                 const now = this.clock.now();
@@ -684,13 +684,13 @@ export class Simulation {
                 if (next !== undefined && next <= now) {
                     this.#setTime(now);
                 }
-                // answer the waits for an idle world, then settle the work they start
+                // answer the waits for an idle world, then run the work they start
                 else if (this.#idlers.length > 0) {
                     for (const idler of this.#idlers.splice(0)) {
                         idler.resolve();
                     }
                 }
-                // answer the steps begun before the last move, then settle the work they start
+                // answer the steps begun before the last move, then run the work they start
                 else if (this.#steps.some((step) => step.moves < this.#moves)) {
                     const moved = this.#steps.filter((step) => step.moves < this.#moves);
                     this.#steps = this.#steps.filter((step) => step.moves === this.#moves);
@@ -781,8 +781,8 @@ export class Simulation {
         };
     }
 
-    /** Let pending work run until a macrotask turn passes without progress or tracked work. */
-    async #settle(): Promise<void> {
+    /** Run pending work until a macrotask turn passes without progress or tracked work. */
+    async #runUntilIdle(): Promise<void> {
         // start from the current progress, nothing counted as busy
         let progress = this.#progress();
         let busy = 0;
