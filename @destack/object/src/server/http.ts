@@ -555,11 +555,19 @@ export class Server implements AsyncDisposable {
         const deadline = this.#options.environment.clock
             .sleep(this.#options.drainTimeout, disarm.signal)
             .then(() => {
-                const error = new DOMException("server drain deadline exceeded", "TimeoutError");
+                // list the requests still open
+                const open = [...this.#requests.values()].map(
+                    (request) => `${request.method} ${new URL(request.url).pathname}`,
+                );
+                const error = new DOMException(
+                    `server drain deadline exceeded with requests open: ${open.join(", ")}`,
+                    "TimeoutError",
+                );
+
+                // abort them with the deadline's error, then fail the drain with it
                 for (const controller of this.#requests.keys()) {
                     controller.abort(error);
                 }
-
                 throw error;
             });
 

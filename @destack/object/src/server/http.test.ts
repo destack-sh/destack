@@ -511,7 +511,10 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     const pending = authorized.get();
     const rejected = expect(pending).rejects.toMatchObject({
         message: "Cannot parse response body, please check the response body and content-type.",
-        cause: { name: "TimeoutError", message: "server drain deadline exceeded" },
+        cause: {
+            name: "TimeoutError",
+            message: "server drain deadline exceeded with requests open: GET /work",
+        },
     });
 
     // retain resources until cancellation is acknowledged
