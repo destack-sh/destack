@@ -39,7 +39,7 @@ export class LocalBlobStorage implements BlobStorage {
         environment: BlobEnvironment,
         synchronous: BlobSynchronous,
     ) {
-        // keep the directory, its files, the randomness naming writes and how they sync
+        // keep the directory, its files, the randomness of temporary files and how writes sync
         this.directory = directory;
         this.#files = environment.files;
         this.#random = environment.random;
