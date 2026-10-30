@@ -924,11 +924,7 @@ export class TestAccountStore implements AsyncDisposable {
             // derive the installation the residency's space declares for billing
             const snapshot = Snapshot.live(this.database);
             const home = await Scope.object(snapshot, await this.residencySpace(residencyId));
-            const id = await InstallationId.of(
-                home,
-                BILLING_INSTALLATION,
-                this.environment.crypto,
-            );
+            const id = await InstallationId.of(home, BILLING_INSTALLATION, this.environment.crypto);
             const installed = principal.installation.reference(home.id, id);
 
             // relate it to the residency as the universe's operator

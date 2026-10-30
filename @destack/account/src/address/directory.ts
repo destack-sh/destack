@@ -2,8 +2,14 @@ import type { Clock, Environment } from "@destack/environment";
 import { type Snapshot, TABLE } from "@destack/db";
 import { Claim, ClaimLookup, claimTable, type ObjectType } from "@destack/object";
 import { nth, present, schema, type Identifier } from "@destack/schema";
-import { type Fetch, InstallationMount, PackageMount, SpaceMount } from "@destack/object";
-import { createClient } from "@destack/object/client";
+import {
+    type Fetch,
+    InstallationMount,
+    type PackageHandle,
+    PackageMount,
+    SpaceMount,
+} from "@destack/object";
+import { type ClientOf, createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import type { ObjectReference, Publisher } from "@destack/sync";
 import { account } from "../object/account.ts";
@@ -109,6 +115,19 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         const { url } = await this.locate(spaceId, now);
 
         return `${InstallationMount.url(url, spaceId, installation)}${PackageMount.path(packageId)}`;
+    }
+
+    /** Call a package below an installation of a space, locating its machine on each call. */
+    client<Handle extends PackageHandle>(
+        handle: Handle,
+        spaceId: Identifier<"space">,
+        installation: string,
+        fetch: Fetch,
+        environment: Environment,
+    ): ClientOf<Handle> {
+        const url = () => this.mount(spaceId, installation, handle.id, environment.clock.now());
+
+        return createClient<Handle["router"]>(handle, { url, fetch }, environment);
     }
 
     /** Find a space's placement and its machine's URL now, absent until both are known. */
