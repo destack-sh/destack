@@ -207,21 +207,21 @@ test("fetch a remote key set once while it is fresh, again once it is stale, and
     // look up the known key twice, then after it went stale, then an unknown key at once and after the cooldown
     const lookups: (string | number)[] = [];
     const lookup = async (kid: string) => {
-        const found = await simulation.drive(
-            keys({ alg: "ES256", kid }).then(
-                (each) => each.length,
-                (error: Error) => error.message,
-            ),
+        const found = await keys({ alg: "ES256", kid }).then(
+            (each) => each.length,
+            (error: Error) => error.message,
         );
         lookups.push(found, fetches);
     };
     await lookup("key-1");
     await lookup("key-1");
-    await simulation.run({ to: TEST_START + 61_000 });
+    await simulation.clock.sleep(TEST_START + 61_000 - simulation.clock.now());
+    await simulation.idle();
     await lookup("key-1");
     published.push({ ...exported, kid: "key-2" });
     await lookup("key-2");
-    await simulation.run({ to: TEST_START + 72_000 });
+    await simulation.clock.sleep(TEST_START + 72_000 - simulation.clock.now());
+    await simulation.idle();
     await lookup("key-2");
 
     expect(lookups).toEqual([1, 1, 1, 1, 1, 2, "no key of the set signed the token", 2, 1, 3]);
