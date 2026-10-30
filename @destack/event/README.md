@@ -67,11 +67,11 @@ if (claim !== undefined) {
 
 ## Tests
 
-`EventFixture` runs a store on SQLite or PostgreSQL with a memory bucket and keyring.
+`TestEventStore` runs a store and its controllers in a world, on SQLite or PostgreSQL with a memory bucket and keyring.
 
 ```ts
-const fixture = await EventFixture.open(dialect, [
+await using fixture = await TestEventStore.open([
     testKind({ name: "reading", keys, data, delivery: "exactly-once", policy }),
 ]);
-await fixture.settle();
+await fixture.simulation.idle();
 ```

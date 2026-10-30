@@ -1,1 +1,1 @@
-export * from "./fixture.ts";
+export * from "./store.ts";

@@ -7,7 +7,7 @@ import { schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { eventSegment } from "../src/archive/catalog.ts";
 import { type EventKind, Histogram, type Series } from "../src/index.ts";
-import { EventFixture, testKind } from "../src/test/index.ts";
+import { TestEventStore, testKind } from "../src/test/index.ts";
 
 /** The package declaring the test kinds. */
 const meters = Package.parse({
@@ -80,7 +80,7 @@ const MISSING_LINE_TABLE = {
 
 /** Open events of some kinds, closed as the test finishes. */
 async function open(kinds: readonly EventKind[] = [reading]) {
-    const fixture = await EventFixture.open(kinds);
+    const fixture = await TestEventStore.open(kinds);
     onTestFinished(() => fixture[Symbol.asyncDispose]());
     await fixture.simulation.jump(TEST_START);
 
@@ -153,7 +153,7 @@ test("flush a scope's hot events at the row cap into segments that queries read 
         reading,
         [1, 2, 3, 4, 5].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
     );
-    await fixture.settle();
+    await fixture.simulation.idle();
     const hot = await database.database.select({ id: reading.table.id }).from(reading.table);
     const segments = await database.database.select().from(eventSegment);
 
@@ -194,7 +194,7 @@ test("flush at the row cap across single appends, counting them between reconcil
     const hot: string[][] = [];
     for (const minute of [1, 2, 3, 4, 5]) {
         await store.append(reading, [measured(`r${String(minute)}`, minute, "db.bytes", minute)]);
-        await fixture.settle();
+        await fixture.simulation.idle();
         const rows = await database.database.select({ id: reading.table.id }).from(reading.table);
         hot.push(rows.map((row) => row.id).toSorted());
     }
@@ -221,7 +221,7 @@ test("read the events of several scopes, hot and flushed, in one time order", as
         scope: "organization-1",
     });
     await store.append(reading, [within("w1", 1), within("w2", 3), within("w3", 5)]);
-    await fixture.settle();
+    await fixture.simulation.idle();
     await store.append(reading, [within("w4", 6), organization("o1", 2), organization("o2", 4)]);
 
     // read only the organization, and with the space within it
@@ -269,7 +269,7 @@ test("search a scope's hot and flushed events by word prefixes, its segments pru
         data: {},
     });
     await store.append(message, [said("a", 1, "Request timed out"), said("b", 2, "Cache warmed")]);
-    await fixture.settle();
+    await fixture.simulation.idle();
     await store.append(message, [said("c", 3, "Retry timeout reached")]);
 
     // search both alone and beside a condition, and for words no segment has
@@ -302,13 +302,13 @@ test("sweep a scope's segment files without a catalog row once an hour old, dail
         reading,
         [1, 2, 3].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
     );
-    await fixture.settle();
+    await fixture.simulation.idle();
     await bucket.put(`${directory}/orphan.parquet`, "lost");
 
     // advance a day, leave a fresh uncatalogued file as a write in flight, then sweep
     await fixture.simulation.jump(TEST_START + DAY);
     await bucket.put(`${directory}/inflight.parquet`, "writing");
-    await fixture.settle();
+    await fixture.simulation.idle();
 
     // retain the catalogued segment and the file in flight, deleting the orphan
     const catalogued = await fixture.database.database.select().from(eventSegment);
@@ -328,7 +328,7 @@ test("fold a measure per step and group across hot events in SQL and flushed one
         measured("b", 2, "bucket.bytes", 5),
         measured("c", 3, "db.bytes", 20),
     ]);
-    await fixture.settle();
+    await fixture.simulation.idle();
     await store.append(reading, [
         measured("d", 11, "bucket.bytes", 7),
         measured("e", 12, "db.bytes", 30),
@@ -572,7 +572,7 @@ test("seal a person's personal values at rest, drop secrets, and erase the value
         store.append(call, [made("d", 4, "bo")], transaction),
     );
     const rows = await database.database.select({ data: call.table.data }).from(call.table);
-    await fixture.settle();
+    await fixture.simulation.idle();
     await store.append(call, [made("e", 5, "ada")]);
     const before = await store.query(call, { scopes: ["space-1"] });
 
@@ -621,7 +621,7 @@ test("lock a locked kind's segments for its retention, chained by digest and nev
             data: {},
         })),
     );
-    await fixture.settle();
+    await fixture.simulation.idle();
     const segments = await database.database.select().from(eventSegment).orderBy(eventSegment.from);
     const [first, second] = segments;
 
@@ -648,7 +648,7 @@ test("compact an unlocked kind's small segments and expire them past the retenti
             retention: { setting: KEEP },
         },
     });
-    const fixture = await EventFixture.open([scoped], async (setting, owner, scope) =>
+    const fixture = await TestEventStore.open([scoped], async (setting, owner, scope) =>
         setting === KEEP && owner.id === meters.id && scope === "space-1" ? 2 * DAY : DAY,
     );
     onTestFinished(() => fixture[Symbol.asyncDispose]());
@@ -659,7 +659,6 @@ test("compact an unlocked kind's small segments and expire them past the retenti
     for (const minute of [1, 2, 3]) {
         await store.append(scoped, [measured(`r${String(minute)}`, minute, "db.bytes", minute)]);
         await fixture.simulation.jump(TEST_START + (minute + 1) * MINUTE);
-        await fixture.settle();
     }
     const compacted = await database.database
         .select()
@@ -669,7 +668,6 @@ test("compact an unlocked kind's small segments and expire them past the retenti
 
     // three days later every segment is past the scope's retention
     await fixture.simulation.jump(TEST_START + 3 * DAY);
-    await fixture.settle();
     expect([
         compacted.map((segment) => segment.rows),
         read.events.map((event) => event.id),
@@ -772,7 +770,7 @@ test("fold the distributions of a kind's events into quantiles per group, hot an
         timed("b", 2, "save", oneBucket(3, 12, 2)),
         timed("d", 3, "load", zero),
     ]);
-    await fixture.settle();
+    await fixture.simulation.idle();
     await store.append(timing, [timed("c", 4, "save", oneBucket(2, 5)), timed("e", 5, "save")]);
 
     // fold the median and the 99th percentile per operation over one step
@@ -867,7 +865,7 @@ test("select, group and count the events of a map key's entries newest first, ho
         served("c", 3, "/notes", "bob", 500),
         served("d", 4, "/notes", "ada"),
     ]);
-    await fixture.settle();
+    await fixture.simulation.idle();
     await store.append(request, [served("e", 5, "/notes", "cy")]);
 
     // page the notes requests newest first, two at a time
@@ -906,7 +904,7 @@ test("select, group and count the events of a map key's entries newest first, ho
             isRelational: false,
         }),
     });
-    const twice = await EventFixture.open([request, request]).then(
+    const twice = await TestEventStore.open([request, request]).then(
         () => "opened",
         (error: unknown) => String(error),
     );

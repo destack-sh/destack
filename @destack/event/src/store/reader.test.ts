@@ -1,7 +1,7 @@
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { EventFixture, testKind } from "../test/index.ts";
+import { TestEventStore, testKind } from "../test/index.ts";
 import { EventReader } from "./reader.ts";
 
 /** How long the readers retain unread events: one minute. */
@@ -25,7 +25,7 @@ const reading = testKind({
 });
 
 test("place each key of a reader family once, list the placed keys in order, and move each key apart", async () => {
-    const fixture = await EventFixture.open([reading]);
+    const fixture = await TestEventStore.open([reading]);
     onTestFinished(() => fixture[Symbol.asyncDispose]());
     const { database } = fixture.database;
     const now = fixture.clock.now();
@@ -46,7 +46,7 @@ test("place each key of a reader family once, list the placed keys in order, and
 });
 
 test("read a claimed page again unchanged after later appends, retain the first claim, and end it when the reader moves", async () => {
-    const fixture = await EventFixture.open([reading]);
+    const fixture = await TestEventStore.open([reading]);
     onTestFinished(() => fixture[Symbol.asyncDispose]());
     const { database } = fixture.database;
     const { store } = fixture;

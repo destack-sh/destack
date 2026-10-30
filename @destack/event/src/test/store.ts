@@ -91,7 +91,7 @@ function snake(key: string): string {
 }
 
 /** A host's events over a test database, memory bucket and keyring, on a clock the test sets. */
-export class EventFixture implements AsyncDisposable {
+export class TestEventStore implements AsyncDisposable {
     /** The store. */
     readonly store: EventStore;
     /** The test database that stores the hot events, the catalog and people's keys. */
@@ -104,14 +104,12 @@ export class EventFixture implements AsyncDisposable {
     readonly telemetry: TestTelemetry;
     /** The stop of the store's control loop. */
     readonly #stop = new AbortController();
-    /** The failures the store's controllers reported. */
-    readonly #failures: unknown[] = [];
-    /** The store's control loop and its run, started at the first settle. */
-    #controlled: { readonly loop: ControlLoop; readonly running: Promise<void> } | undefined;
+    /** The run of the store's control loop, its reports failing the world. */
+    readonly #running: Promise<void>;
 
     /** Store opened events. */
     private constructor(
-        open: (fixture: EventFixture) => EventStore,
+        open: (fixture: TestEventStore) => EventStore,
         database: TestDatabase,
         simulation: Simulation,
         telemetry: TestTelemetry,
@@ -122,13 +120,21 @@ export class EventFixture implements AsyncDisposable {
         this.telemetry = telemetry;
         this.bucket = new MemoryBucket(simulation.clock);
         this.store = open(this);
+
+        // run the store's controllers in the world, failing it on their reports
+        const loop = new ControlLoop(this.store.database, this.store.controllers, {
+            report: (_controller, _key, error) => simulation.scheduler.fail(error),
+        });
+        this.#running = loop.run(this.#stop.signal).catch((error: unknown) => {
+            simulation.scheduler.fail(error);
+        });
     }
 
     /** Open events of some kinds over a fresh database, memory bucket and new keyring. */
     static async open(
         kinds: readonly EventKind[],
         settings?: SettingRetention,
-    ): Promise<EventFixture> {
+    ): Promise<TestEventStore> {
         // migrate the kinds' tables and the control loop's on the fixture's clock
         const tables = [...eventTables(kinds), ...ControlLoop.tables];
         const simulation = new Simulation({ seed: 1, start: START });
@@ -138,7 +144,7 @@ export class EventFixture implements AsyncDisposable {
         const keyring = await LocalKeyring.read(LocalKeyring.generate(environment), environment);
 
         // store every scope's segments in the one bucket, on the fixture's clock
-        return new EventFixture(
+        return new TestEventStore(
             (fixture) =>
                 new EventStore({
                     database: database.database,
@@ -159,32 +165,11 @@ export class EventFixture implements AsyncDisposable {
         return this.simulation.clock;
     }
 
-    /** Run the store's controllers in a control loop until they settle, failing on their errors. */
-    async settle(): Promise<void> {
-        // start the loop on the fixture's clock once
-        if (this.#controlled === undefined) {
-            const loop = new ControlLoop(this.store.database, this.store.controllers, {
-                clock: this.clock,
-                report: (_controller, _key, error) => this.#failures.push(error),
-            });
-            const running = loop.run(this.#stop.signal).catch((error: unknown) => {
-                this.#failures.push(error);
-            });
-            this.#controlled = { loop, running };
-        }
-
-        // wait until nothing is due, failing on the first reported error
-        await this.#controlled.loop.idle();
-        if (this.#failures.length > 0) {
-            throw this.#failures[0];
-        }
-    }
-
     /** Stop the control loop, then close the database. */
     async [Symbol.asyncDispose](): Promise<void> {
         // stop the loop, then close the database, the telemetry and the world
         this.#stop.abort();
-        await this.#controlled?.running;
+        await this.#running;
         await this.database.close();
         this.telemetry[Symbol.dispose]();
         await this.simulation[Symbol.asyncDispose]();
