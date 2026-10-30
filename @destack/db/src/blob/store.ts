@@ -77,11 +77,11 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> {
         return this.write(new TextEncoder().encode(canonicalize(value)));
     }
 
-    /** Read a JSON blob's value. */
-    async readJson(digest: Digest): Promise<JsonValue> {
+    /** Read a JSON blob's value, parsed once by the schema its writer wrote it with. */
+    async readJson<Value>(digest: Digest, written: schema.Schema<Value>): Promise<Value> {
         const text = new TextDecoder().decode(await this.read(digest));
 
-        return schema.json().parse(JSON.parse(text));
+        return written.parse(JSON.parse(text));
     }
 
     /** Lease blobs until a moment, rescuing any retired one, waiting out its deletion. */
