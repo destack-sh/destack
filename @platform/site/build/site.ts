@@ -64,7 +64,7 @@ export async function run(
         const output = join(directory, ".output");
         await rm(output, { recursive: true, force: true });
         await mkdir(output, { recursive: true });
-        await PackageBuild.write(build.reader, join(output, "package"), environment.files);
+        await build.reader.writeDirectory(join(output, "package"), environment.files);
         await mkdir(join(output, "public"), { recursive: true });
         const browser = build.manifest.outputs["website-browser"];
         if (browser === undefined) {
