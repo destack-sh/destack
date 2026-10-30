@@ -37,7 +37,7 @@ export const CONSUMER = Package.parse({
 /** The vault the application declares unless a test gives others. */
 export const CREDENTIALS = "credentials";
 
-/** The text value the kit writes as a secret's first version. */
+/** The text value the fixture writes as a secret's first version. */
 export const CREDENTIAL = { encoding: "text", value: "credential" } as const;
 
 /** The email the member of the space signs up with. */
@@ -246,7 +246,7 @@ export class TestVault {
         });
     }
 
-    /** Create a secret in the credentials vault with a first version of the kit's value. */
+    /** Create a secret in the credentials vault with a first version of the fixture's value. */
     async createSecret(caller: TestCaller) {
         // create the secret with its first version
         const client = caller.client(vaultPackage);

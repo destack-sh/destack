@@ -29,7 +29,7 @@ const CONSUMER_SECRET = defineSecret({ name: "token" }, { package: CONSUMER });
 
 /** Install the consumer bound to an existing vault or secret, answering its installation. */
 async function installConsumer(
-    kit: TestVault,
+    fixture: TestVault,
     target: { readonly type: "vault" | "secret"; readonly id: string },
 ): Promise<Identifier<"installation">> {
     // declare the vault or the secret the consumer binds, by the target's type
@@ -38,23 +38,23 @@ async function installConsumer(
         CONSUMER,
         isVault ? [CONSUMER_VAULT] : [],
         isVault ? [] : [CONSUMER_SECRET],
-        kit.environment.crypto,
+        fixture.environment.crypto,
     );
     const name = isVault ? CONSUMER_VAULT.name : CONSUMER_SECRET.name;
 
-    return kit.space.install(kit.served, build, {
+    return fixture.space.install(fixture.served, build, {
         bindings: { [CONSUMER.id]: { [name]: { target } } },
     });
 }
 
 /** Put a value of a secret named token through a vault as an installation. */
 function put(
-    kit: TestVault,
+    fixture: TestVault,
     installation: Identifier<"installation">,
     target: { readonly vault: Identifier<"vault">; readonly secret: Identifier<"secret"> },
     value: string,
 ): Promise<void> {
-    return kit.mutate(
+    return fixture.mutate(
         installation,
         vault.call("put", {
             ...vault.target({ scope: ids.space, id: target.vault }),
@@ -67,24 +67,24 @@ function put(
 
 test("read a vault's secret by name, never a secret of the same name in another vault", async () => {
     // keep a secret of the same name in the credentials vault and another one
-    const kit = await TestVault.open({
+    const fixture = await TestVault.open({
         vaults: [TestVault.declare(CREDENTIALS), TestVault.declare("other")],
     });
-    const caller = await kit.elevated();
+    const caller = await fixture.elevated();
     const client = caller.client(vaultPackage);
-    await kit.createSecret(caller);
-    const credentials = await kit.vault();
-    const other = await kit.vault("other");
+    await fixture.createSecret(caller);
+    const credentials = await fixture.vault();
+    const other = await fixture.vault("other");
     const created = await client.secret.create({
         scope: ids.space,
         parentId: other,
         name: "first",
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
     await client.version.create({
         scope: ids.space,
         parentId: created.id,
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
         value: { encoding: "text", value: "other credential" },
     });
     const read = (id: Identifier<"vault">, name: string) =>
@@ -104,18 +104,18 @@ test("read a vault's secret by name, never a secret of the same name in another 
 
 test("let an installation bound to a vault read its secrets by name without a step-up, and conceal the vault from another", async () => {
     // bind the consumer to the application's vault, and install a stranger binding nothing
-    const kit = await TestVault.open();
-    await kit.createSecret(kit.owner);
-    const credentials = await kit.vault();
-    const consumer = await installConsumer(kit, { type: "vault", id: credentials });
-    const stranger = await kit.space.install(
-        kit.served,
-        await TestVault.build(STRANGER, [], [], kit.environment.crypto),
+    const fixture = await TestVault.open();
+    await fixture.createSecret(fixture.owner);
+    const credentials = await fixture.vault();
+    const consumer = await installConsumer(fixture, { type: "vault", id: credentials });
+    const stranger = await fixture.space.install(
+        fixture.served,
+        await TestVault.build(STRANGER, [], [], fixture.environment.crypto),
     );
 
     // read the secret by name as each installation
     const read = (installation: Identifier<"installation">) =>
-        kit
+        fixture
             .installed(installation)
             .client(vaultPackage)
             .vault.read({ scope: ids.space, id: credentials, name: "first" });
@@ -127,20 +127,20 @@ test("let an installation bound to a vault read its secrets by name without a st
 
 test("put a consumer's secret as one live version through its vault, refuse another name, read it as the consumer, conceal it from a stranger, and remove it", async () => {
     // put twice through the vault as the application binding it, at a paused time
-    const kit = await TestVault.open();
-    const stranger = await kit.space.install(
-        kit.served,
-        await TestVault.build(STRANGER, [], [], kit.environment.crypto),
+    const fixture = await TestVault.open();
+    const stranger = await fixture.space.install(
+        fixture.served,
+        await TestVault.build(STRANGER, [], [], fixture.environment.crypto),
     );
-    const target = { vault: await kit.vault(), secret: secret.generateId(kit.environment) };
-    const time = kit.clock.now();
-    await put(kit, kit.installation, target, "first");
-    await put(kit, kit.installation, target, "second");
+    const target = { vault: await fixture.vault(), secret: secret.generateId(fixture.environment) };
+    const time = fixture.clock.now();
+    await put(fixture, fixture.installation, target, "first");
+    await put(fixture, fixture.installation, target, "second");
 
     // refuse putting the secret again under another name
     const renamed = await refusal(
-        kit.mutate(
-            kit.installation,
+        fixture.mutate(
+            fixture.installation,
             vault.call("put", {
                 ...vault.target({ scope: ids.space, id: target.vault }),
                 secret: target.secret,
@@ -152,13 +152,13 @@ test("put a consumer's secret as one live version through its vault, refuse anot
 
     // read the live value as the application, refusing the stranger
     const read = (installation: Identifier<"installation">) =>
-        kit
+        fixture
             .installed(installation)
             .client(vaultPackage)
             .secret.read({ scope: ids.space, id: target.secret });
-    const live = await read(kit.installation);
+    const live = await read(fixture.installation);
     const concealed = await refusal(read(stranger));
-    const versions = await kit.served.database
+    const versions = await fixture.served.database
         .select({
             number: secretVersion.table.number,
             state: secretVersion.table.state,
@@ -167,14 +167,14 @@ test("put a consumer's secret as one live version through its vault, refuse anot
         .orderBy(secretVersion.table.number);
 
     // remove it with its values
-    await kit.mutate(
-        kit.installation,
+    await fixture.mutate(
+        fixture.installation,
         vault.call("remove", {
             ...vault.target({ scope: ids.space, id: target.vault }),
             secret: target.secret,
         }),
     );
-    const removed = await kit.served.database
+    const removed = await fixture.served.database
         .select({
             name: secret.table.name,
             deletedAt: secret.table.deletedAt,
@@ -199,17 +199,17 @@ test("put a consumer's secret as one live version through its vault, refuse anot
 
 test("let installations bound to a vault put and rotate their own secrets there, refusing another consumer their replacement and an installation bound to one secret the whole vault", async () => {
     // bind the consumer to the application's vault, and a stranger's installation to one of its secrets
-    const kit = await TestVault.open();
-    const credentials = await kit.vault();
-    const declared = await kit.createSecret(kit.owner);
-    const other = await installConsumer(kit, { type: "vault", id: credentials });
-    const reader = await kit.space.install(
-        kit.served,
+    const fixture = await TestVault.open();
+    const credentials = await fixture.vault();
+    const declared = await fixture.createSecret(fixture.owner);
+    const other = await installConsumer(fixture, { type: "vault", id: credentials });
+    const reader = await fixture.space.install(
+        fixture.served,
         await TestVault.build(
             STRANGER,
             [],
             [defineSecret({ name: "token" }, { package: STRANGER })],
-            kit.environment.crypto,
+            fixture.environment.crypto,
         ),
         {
             bindings: {
@@ -221,18 +221,18 @@ test("let installations bound to a vault put and rotate their own secrets there,
     );
 
     // put and rotate the application's own secret, and refuse the others replacing, removing or planting one
-    const target = { vault: credentials, secret: secret.generateId(kit.environment) };
+    const target = { vault: credentials, secret: secret.generateId(fixture.environment) };
     const read = () =>
-        kit
-            .installed(kit.installation)
+        fixture
+            .installed(fixture.installation)
             .client(vaultPackage)
             .secret.read({ scope: ids.space, id: target.secret });
-    await put(kit, kit.installation, target, "first");
-    await put(kit, kit.installation, target, "second");
+    await put(fixture, fixture.installation, target, "first");
+    await put(fixture, fixture.installation, target, "second");
     const rotated = await read();
-    const replaced = await refusal(put(kit, other, target, "stolen"));
+    const replaced = await refusal(put(fixture, other, target, "stolen"));
     const removed = await refusal(
-        kit.mutate(
+        fixture.mutate(
             other,
             vault.call("remove", {
                 ...vault.target({ scope: ids.space, id: credentials }),
@@ -242,9 +242,9 @@ test("let installations bound to a vault put and rotate their own secrets there,
     );
     const planted = await refusal(
         put(
-            kit,
+            fixture,
             reader,
-            { vault: credentials, secret: secret.generateId(kit.environment) },
+            { vault: credentials, secret: secret.generateId(fixture.environment) },
             "planted",
         ),
     );
@@ -259,28 +259,28 @@ test("let installations bound to a vault put and rotate their own secrets there,
 
 test("destroy a vault's secrets with their records on its removal from the stack", async () => {
     // keep a secret in a vault the space's stack declares, deleted at once on removal
-    const kit = await TestVault.open({ vaults: [] });
-    await kit.space.apply(kit.served, [vaultPackage], {
+    const fixture = await TestVault.open({ vaults: [] });
+    await fixture.space.apply(fixture.served, [vaultPackage], {
         vaults: { shared: shared.declare({ retention: "delete" }) },
     });
-    const { database } = kit.served;
+    const { database } = fixture.served;
     const provisioned = single(await database.select({ id: vault.table.id }).from(vault.table));
-    const client = kit.owner.client(vaultPackage);
+    const client = fixture.owner.client(vaultPackage);
     const created = await client.secret.create({
         scope: ids.space,
         parentId: provisioned.id,
         name: "token",
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
     await client.version.create({
         scope: ids.space,
         parentId: created.id,
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
         value: CREDENTIAL,
     });
 
     // remove the vault from the stack, destroying its secret and its versions with it
-    await kit.space.apply(kit.served, [vaultPackage], { vaults: {} });
+    await fixture.space.apply(fixture.served, [vaultPackage], { vaults: {} });
     const remaining = await Promise.all(
         [vault.table, secret.table, secretVersion.table].map((table: Table) =>
             database.select().from(table),
@@ -291,30 +291,30 @@ test("destroy a vault's secrets with their records on its removal from the stack
 
 test("refuse removing a vault while an installation binds one of its secrets", async () => {
     // keep a secret in a vault the space's stack declares, bound by the consumer's installation
-    const kit = await TestVault.open({ vaults: [] });
-    await kit.space.apply(kit.served, [vaultPackage], {
+    const fixture = await TestVault.open({ vaults: [] });
+    await fixture.space.apply(fixture.served, [vaultPackage], {
         vaults: { shared: shared.declare({ retention: "delete" }) },
     });
-    const provisioned = single(await kit.served.database.select().from(vault.table));
-    const token = await kit.owner.client(vaultPackage).secret.create({
+    const provisioned = single(await fixture.served.database.select().from(vault.table));
+    const token = await fixture.owner.client(vaultPackage).secret.create({
         scope: ids.space,
         parentId: provisioned.id,
         name: "token",
-        requestId: RequestId.create(kit.environment),
+        requestId: RequestId.create(fixture.environment),
     });
-    const consumer = await installConsumer(kit, { type: "secret", id: token.id });
+    const consumer = await installConsumer(fixture, { type: "secret", id: token.id });
 
     // refuse the vault's removal, the stack reporting why, keeping the vault and its secret
     const refused = await TestSpace.refusals(
-        kit.space.apply(kit.served, [vaultPackage], { vaults: {} }),
+        fixture.space.apply(fixture.served, [vaultPackage], { vaults: {} }),
     );
     expect({
         refused,
         kept: [
-            await kit.served.database
+            await fixture.served.database
                 .select({ deletedAt: vault.table.deletedAt })
                 .from(vault.table),
-            await kit.served.database
+            await fixture.served.database
                 .select({ deletedAt: secret.table.deletedAt })
                 .from(secret.table),
         ],
@@ -326,20 +326,20 @@ test("refuse removing a vault while an installation binds one of its secrets", a
 
 test("refuse removing a vault while an installation binds the vault itself", async () => {
     // bind the consumer to a vault the space's stack declares
-    const kit = await TestVault.open({ vaults: [] });
-    await kit.space.apply(kit.served, [vaultPackage], {
+    const fixture = await TestVault.open({ vaults: [] });
+    await fixture.space.apply(fixture.served, [vaultPackage], {
         vaults: { shared: shared.declare({ retention: "delete" }) },
     });
-    const provisioned = single(await kit.served.database.select().from(vault.table));
-    const consumer = await installConsumer(kit, { type: "vault", id: provisioned.id });
+    const provisioned = single(await fixture.served.database.select().from(vault.table));
+    const consumer = await installConsumer(fixture, { type: "vault", id: provisioned.id });
 
     // refuse the vault's removal, the stack reporting why, keeping the vault
     const refused = await TestSpace.refusals(
-        kit.space.apply(kit.served, [vaultPackage], { vaults: {} }),
+        fixture.space.apply(fixture.served, [vaultPackage], { vaults: {} }),
     );
     expect({
         refused,
-        kept: await kit.served.database
+        kept: await fixture.served.database
             .select({ deletedAt: vault.table.deletedAt })
             .from(vault.table),
     }).toEqual({
@@ -350,7 +350,7 @@ test("refuse removing a vault while an installation binds the vault itself", asy
 
 test("trash a vault's secrets with it once its installation goes", async () => {
     // install the application with a key in its vault, then remove the installation at a paused time
-    const kit = await TestVault.open({
+    const fixture = await TestVault.open({
         secrets: [
             defineSecret(
                 { name: "key", generated: { vault: CREDENTIALS, algorithm: "ES256" } },
@@ -358,11 +358,11 @@ test("trash a vault's secrets with it once its installation goes", async () => {
             ),
         ],
     });
-    const removedAt = kit.clock.now();
-    await kit.space.apply(kit.served, [], { installations: {} });
+    const removedAt = fixture.clock.now();
+    await fixture.space.apply(fixture.served, [], { installations: {} });
 
     // trash the vault and its key in the same request
-    const { database } = kit.served;
+    const { database } = fixture.served;
     expect([
         await database.select({ deletedAt: vault.table.deletedAt }).from(vault.table),
         await database.select({ deletedAt: secret.table.deletedAt }).from(secret.table),
