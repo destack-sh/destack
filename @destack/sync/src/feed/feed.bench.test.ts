@@ -258,13 +258,13 @@ test(
                 progress.resolve();
             }
         });
-        const settle = async (position: LogPosition) => {
+        const untilReached = async (position: LogPosition) => {
             while (positions.some((sequence) => sequence < position.sequence)) {
                 await progress.promise;
                 progress = Promise.withResolvers<void>();
             }
         };
-        await settle(await source.log.position());
+        await untilReached(await source.log.position());
 
         // time a write every subscriber has
         const { milliseconds, operations } = await measure(
@@ -279,7 +279,7 @@ test(
                             .where(eq(task.id, "s1")),
                 );
             },
-            settle,
+            untilReached,
         );
         controller.abort();
         await Promise.all(subscribers);
@@ -483,12 +483,12 @@ async function measure(
     source: DatabaseConnection,
     writes: number,
     write: (index: number) => Promise<unknown>,
-    settle: (position: LogPosition) => Promise<unknown>,
+    untilReached: (position: LogPosition) => Promise<unknown>,
 ): Promise<{ readonly milliseconds: number; readonly operations: number }> {
     // warm up
     for (let index = 0; index < WARMUP_WRITES; index += 1) {
         await write(index);
-        await settle(await source.log.position());
+        await untilReached(await source.log.position());
     }
 
     // time each write until its subscribers have it
@@ -497,7 +497,7 @@ async function measure(
     for (let index = WARMUP_WRITES; index < WARMUP_WRITES + writes; index += 1) {
         await write(index);
         const committed = cpuTime();
-        await settle(await source.log.position());
+        await untilReached(await source.log.position());
         elapsed += cpuTime() - committed;
     }
 

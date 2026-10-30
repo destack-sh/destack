@@ -32,7 +32,7 @@ import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { PAGE_SIZE } from "../dataflow/selection.ts";
 import { Run, type RunCost } from "../dataflow/run.ts";
 import { Memo, View, type Cache, type Window } from "../dataflow/view.ts";
-import { Clock, until } from "@destack/environment";
+import { Clock, type Scheduler, until } from "@destack/environment";
 
 /** The default count of recent changes a feed stores in memory. */
 const FEED_CHANGES = 10_000;
@@ -177,6 +177,11 @@ export class Feed implements Cache {
     /** The database's clock, which the feed's streams and decisions run at. */
     get clock(): Clock {
         return this.database.state.clock;
+    }
+
+    /** The database's scheduler, which the feed's streams and decisions yield on. */
+    get scheduler(): Scheduler {
+        return this.database.state.environment.scheduler;
     }
 
     /** Beat at each heartbeat of the feed's clock until the reading stops. */

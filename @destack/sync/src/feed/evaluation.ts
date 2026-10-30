@@ -1,5 +1,4 @@
 import { TABLE, DatabaseError, Change, Key, LogPosition, type Table } from "@destack/db";
-import { type Clock, yieldToEventLoop } from "@destack/environment";
 import { nth } from "@destack/schema";
 import type { Query } from "../query/query.ts";
 import type { Node } from "../query/node.ts";
@@ -319,7 +318,7 @@ export class Evaluation {
                 break;
             }
             const position = { ...after, sequence: nth(changes, -1).sequence };
-            await Evaluation.nextTask(this.#feed.clock);
+            await this.#feed.scheduler.yield();
 
             // decide every row again across a change of access, sending the difference
             if (await this.#decides(changes)) {
@@ -374,7 +373,7 @@ export class Evaluation {
             const batches = dataflow.hydrate(run);
             while ((await batches.next()).done !== true) {
                 if (walk === "snapshot" && run.patch.size >= this.#feed.pageSize) {
-                    await Evaluation.nextTask(this.#feed.clock);
+                    await this.#feed.scheduler.yield();
                     const patch = this.#union(pending.splice(0), walk);
                     yield await patch.page(view.position, this.#audience, this.#feed, {
                         reset: isFirst,
@@ -538,11 +537,6 @@ export class Evaluation {
     /** Show the feed's database as of a position. */
     #view(position: LogPosition): View {
         return new View(this.#feed.database, position, this.#feed);
-    }
-
-    /** Let other work run before deciding more, tracked on a clock. */
-    static nextTask(clock: Clock): Promise<void> {
-        return clock.trackHost(yieldToEventLoop());
     }
 
     /** Split changes into runs of about a page that end with whole transactions. */

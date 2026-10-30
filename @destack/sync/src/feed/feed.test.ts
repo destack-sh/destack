@@ -3,7 +3,6 @@ import { nth, schema } from "@destack/schema";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
 import type { Stream } from "./stream.ts";
-import { Evaluation } from "./evaluation.ts";
 import type { Page } from "../query/page.ts";
 import {
     first,
@@ -388,7 +387,6 @@ test("continue serving a subscriber while another stops reading", async () => {
 
 test("end every subscriber with the failure once the database closes", async () => {
     const simulation = new Simulation({ seed: 1, start: START });
-    const { clock } = simulation;
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     const query = { table: note, scopes: ["inbox"] };
@@ -407,11 +405,15 @@ test("end every subscriber with the failure once the database closes", async () 
     // close the database under both, wait for the feed to fail, and let rejections propagate
     await database.close();
     const failure = await failureOf(feed.next(feed.sequence, signal));
-    await Evaluation.nextTask(clock);
+    await simulation.idle();
 
-    // end both subscribers with the closed connection, the run failing on any rejection left unhandled
-    const ended = await Promise.all([plain, merged].map((pages) => failureOf(pages.next())));
-    expect([failure, ended]).toEqual([closed, [closed, closed]]);
+    // end both subscribers with the closed connection, any page read first carrying no change
+    const ended = await Promise.all([plain, merged].map((pages) => endOf(pages)));
+    expect([
+        failure,
+        ended.map(({ failure: end }) => end),
+        ended.flatMap(({ changes }) => changes),
+    ]).toEqual([closed, [closed, closed], []]);
 });
 
 test("watch an ordered query reusing unchanged rows and placing a changed row by its order", async () => {
@@ -698,6 +700,35 @@ function tasksOf(item: Item): readonly Item[] {
     return item.with["tasks"] ?? [];
 }
 
+/** Read a subscriber's pages to its end: its failure, if any, and the changes read. */
+async function endOf(
+    pages: AsyncIterator<Page>,
+): Promise<{ readonly failure: unknown; readonly changes: readonly unknown[] }> {
+    const changes: unknown[] = [];
+    for (;;) {
+        // read the next page, or the failure once a read fails
+        const read = await pages.next().then(
+            (result) => ({ result }),
+            (error: unknown) => ({
+                failure: DatabaseError.is(error) ? [error.reason, error.message] : error,
+            }),
+        );
+
+        // answer the failure
+        if ("failure" in read) {
+            return { failure: read.failure, changes };
+        }
+        // answer a clean end
+        else if (read.result.done === true) {
+            return { failure: undefined, changes };
+        }
+        // take a page's changes and read on
+        else {
+            changes.push(...read.result.value.changes);
+        }
+    }
+}
+
 /** Read the code and message of a read's database failure, absent once it succeeds. */
 function failureOf(read: Promise<unknown>): Promise<unknown> {
     return read.then(
@@ -708,7 +739,6 @@ function failureOf(read: Promise<unknown>): Promise<unknown> {
 
 test("end a stream drained while it waits at a completed page of its position", async () => {
     const simulation = new Simulation({ seed: 1, start: START });
-    const { clock } = simulation;
     // follow the inbox's notes to their snapshot, then resume from its position with a drain
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
@@ -738,7 +768,7 @@ test("end a stream drained while it waits at a completed page of its position", 
             read.push(page);
         }
     })();
-    await Evaluation.nextTask(clock);
+    await simulation.scheduler.yield();
     drain.abort();
     await reading;
     expect(read).toEqual([

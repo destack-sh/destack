@@ -288,7 +288,7 @@ export class Stream {
             // publish the decided pages before waiting or moving on
             else {
                 const { pages, sequence } = await decided;
-                await Evaluation.nextTask(this.#feed.clock);
+                await this.#feed.scheduler.yield();
                 for (const page of pages) {
                     published = page.position.sequence;
                     yield page;
