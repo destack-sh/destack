@@ -95,7 +95,7 @@ export const note = defineObject(
 export const notesPackage = PackageHandle.of(note.package, { objects: { note } });
 
 /** A space serving notes and change requests over them, on a simulated clock. */
-export interface ApprovalFixture {
+export interface TestApproval {
     /** The store serving the space, called as its users. */
     readonly served: TestObjectStore;
     /** The world the space's store runs in. */
@@ -123,7 +123,7 @@ export interface ApprovalFixture {
 }
 
 /** Serve notes and change requests in alice's space, where bob and carol approve alice's notes. */
-export async function openApprovals(): Promise<ApprovalFixture> {
+export async function openApprovals(): Promise<TestApproval> {
     // serve the universe where people grant, in the simulated world
     const simulation = testSimulation();
     const { clock } = simulation;
@@ -239,15 +239,10 @@ export async function openApprovals(): Promise<ApprovalFixture> {
         return created.id;
     };
 
-    // run the world until the condition holds, failing on the controllers' errors first
+    // run the world idle, then until the condition holds, the controllers' reports failing it
     const when = async (isMet: () => Promise<boolean>) => {
-        try {
-            await simulation.until(isMet, clock.now() + UNTIL_MILLISECONDS);
-        } catch (error) {
-            await served.settle();
-            throw error;
-        }
-        await served.settle();
+        await simulation.idle();
+        await simulation.until(isMet, clock.now() + UNTIL_MILLISECONDS);
     };
 
     // decide an approval as its approver through the package's client

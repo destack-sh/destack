@@ -8,7 +8,7 @@ import {
     relation,
 } from "@destack/access";
 import { Scope, type Subject } from "@destack/sync";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
 import { Identifier } from "@destack/schema";
 import { defineObject } from "../../src/index.ts";
@@ -40,7 +40,7 @@ export async function openSpace(
 ): Promise<void> {
     // record the space's scope, with the space as owner as its creation binds it
     const object = space.reference(Scope.universe.id, id);
-    const fixture = new AccessFixture(database, environment);
+    const fixture = new TestAccess(database, environment);
     await fixture.replicateScope(object, space.policy);
     await fixture.replicateOwner(object, spacePrincipal(id), 0);
 

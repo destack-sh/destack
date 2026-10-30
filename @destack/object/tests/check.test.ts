@@ -3,7 +3,7 @@ import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
@@ -34,7 +34,7 @@ test("check the caller's access under its grant, and another subject's for grant
 
     // check as alice, as bob, and as a token acting for alice under a grant to read the space
     const token = principal.client.reference(Scope.universe.id, "client-alice");
-    const grantId = await new AccessFixture(storage.database, world).replicateGrant(alice, token, [
+    const grantId = await new TestAccess(storage.database, world).replicateGrant(alice, token, [
         { ...space.permission("read"), scope: SPACE_ID },
     ]);
     const delegated = { actors: [token], grants: [{ id: grantId, scope: users.alice }] };
@@ -202,7 +202,7 @@ async function serveSpace(world: Environment, partition?: string) {
 
     // create a private space of alice, read by bob
     const object = space.reference(Scope.universe.id, SPACE_ID);
-    const fixture = new AccessFixture(storage.database, world);
+    const fixture = new TestAccess(storage.database, world);
     await fixture.replicateScope(object, space.policy);
     await fixture.replicateOwner(object, alice);
     await fixture.replicateRelationship(object, "reader", bob);

@@ -264,7 +264,7 @@ test("remove the expired objects of several people at once, one mutation per sco
             ),
     );
 
-    // let the store's expiry remove both, each in its own scope's mutation, failing the settling otherwise
-    await objects.settle();
+    // let the store's expiry remove both, each in its own scope's mutation, failing the world otherwise
+    await objects.simulation.idle();
     expect(await objects.database.select().from(reminder.table)).toEqual([]);
 });

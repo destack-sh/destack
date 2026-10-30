@@ -5,7 +5,7 @@ import { defineObject, field, ObjectDescription, type ObjectType } from "../src/
 import { Package } from "@destack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, principal, relation } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
@@ -151,7 +151,7 @@ test("follow an installation's root chain from its machine, and a partition's ch
     });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    await new AccessFixture(storage.database, world).replicateScope(
+    await new TestAccess(storage.database, world).replicateScope(
         room.reference(spaceId, ROOM),
         room.policy,
     );

@@ -14,7 +14,6 @@ import {
     Snapshot,
     TABLE,
 } from "@destack/db";
-import { SimulatedClock } from "@destack/environment/simulation";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { FeedPublisher, testEvents, testServerContext, serversOf } from "../src/test/index.ts";
@@ -35,7 +34,7 @@ import {
     union,
 } from "@destack/access";
 
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { canonicalize, Identifier, nth, present, schema, Uuid } from "@destack/schema";
 import { followKey } from "../src/replica/key.ts";
 
@@ -222,7 +221,7 @@ test("decide calls over a relayed replica of access as the holder does, through 
     const alice = principal.user.reference("universe", users.alice);
     const carol = principal.user.reference("universe", users.carol);
     const accountObject = account.reference(Scope.universe.id, accountId);
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(accountObject, account.policy);
     await access.replicateScope(space.reference(accountId, spaceId), space.policy);
     await access.replicateOwner(accountObject, alice);
@@ -307,7 +306,7 @@ test("decide calls over a relayed replica of access as the holder does, through 
         const grantId =
             restricted === undefined
                 ? undefined
-                : await new AccessFixture(installed.database, world).replicateGrant(
+                : await new TestAccess(installed.database, world).replicateGrant(
                       principal.user.reference("universe", user),
                       token,
                       [document.permission("read"), document.permission("write")].map(
@@ -641,7 +640,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
     onTestFinished(async () => {
         await Promise.all([home.close(), machine.close()]);
     });
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(space.reference(accountId, spaceId), space.policy);
     await access.replicateScope(space.reference(accountId, otherSpaceId), space.policy);
@@ -708,7 +707,6 @@ test("report a follow its source refuses, and drop its replica once a change of 
         store.controllers().filter((each) => each.name === "replica"),
         // run the loop at a frozen clock, so a drop that waits out a failure's backoff never comes
         {
-            clock: new SimulatedClock(world.clock.now()),
             report: (_controller, _key, error) => failures.push(error),
         },
     );
@@ -769,7 +767,7 @@ test("finish a wait through a store's replica of a scope once it stops following
     onTestFinished(async () => {
         await Promise.all([home.close(), machine.close()]);
     });
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(space.reference(accountId, spaceId), space.policy);
     await access.replicateScope(space.reference(accountId, otherSpaceId), space.policy);
@@ -827,7 +825,7 @@ test("finish a wait through a store's replica of a scope once it stops following
     const loop = new ControlLoop(
         machine.database,
         store.controllers().filter((each) => each.name === "replica"),
-        { clock: world.clock, report: failing },
+        { report: failing },
     );
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
@@ -900,7 +898,7 @@ test("replicate a person's grant to an installation of the space from the univer
     onTestFinished(async () => {
         await Promise.all([home.close(), machine.close()]);
     });
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(space.reference(accountId, spaceId), space.policy);
     const alice = principal.user.reference(Scope.universe.id, users.alice);
@@ -945,7 +943,7 @@ test("replicate a person's grant to an installation of the space from the univer
     const loop = new ControlLoop(
         machine.database,
         store.controllers().filter((each) => each.name === "replica"),
-        { clock: world.clock, report: failing },
+        { report: failing },
     );
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
@@ -977,7 +975,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(space.reference(accountId, spaceId), space.policy);
 
@@ -1018,7 +1016,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
         const loop = new ControlLoop(
             installed.database,
             store.controllers().filter((each) => each.name === "replica"),
-            { clock, report: failing },
+            { report: failing },
         );
 
         return loop.run(signal);
@@ -1090,7 +1088,7 @@ test("follow replicates as a server without methods, journal or call key", async
     onTestFinished(async () => {
         await Promise.all([home.close(), follower.close()]);
     });
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(space.reference(accountId, spaceId), space.policy);
 
@@ -1115,7 +1113,6 @@ test("follow replicates as a server without methods, journal or call key", async
     });
     const controller = new AbortController();
     const loop = new ControlLoop(follower.database, store.controllers(), {
-        clock: world.clock,
         report: failing,
     });
     const running = loop.run(controller.signal);
@@ -1162,14 +1159,14 @@ test("replicate the chains of an installation's two served spaces in one replica
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(
         account.reference(Scope.universe.id, otherAccountId),
         account.policy,
     );
     for (const id of [spaceId, otherSpaceId]) {
-        await new AccessFixture(home.database, world).replicateScope(
+        await new TestAccess(home.database, world).replicateScope(
             space.reference(accountId, id),
             space.policy,
         );
@@ -1193,7 +1190,7 @@ test("replicate the chains of an installation's two served spaces in one replica
         events: await testEvents(home.database, world),
         origin: { package: document.package },
     });
-    const fixture = new AccessFixture(home.database, world);
+    const fixture = new TestAccess(home.database, world);
     const subject = principal.installation.reference(followingSpaceId, followingId);
     const grant = (id: string, granted: "reader" | "replicator") =>
         fixture.replicateRelationship(space.reference(accountId, id), granted, subject, 1);
@@ -1300,7 +1297,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => home.close());
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(space.reference(accountId, spaceId), space.policy);
     await home.database.transaction(
@@ -1423,7 +1420,7 @@ test("replicate a partition's chain via its installation's space, whose source h
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => home.close());
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(space.reference(accountId, spaceId), space.policy);
     await home.database.transaction(
@@ -1681,7 +1678,6 @@ test("wait before serving for the store's chain replicas, never for its followed
 test("serve a store once its chain is confirmed while the source of a followed shape never answers", async () => {
     // insert an account and its space at home, and declare the documents the store follows at the universe
     const simulation = testSimulation();
-    const { clock } = simulation;
     const world = simulation.environment("test");
     const home = await TestDatabase.create(accessTables, { environment: world, isMigrated: true });
     const follows = [DOCUMENTS_FOLLOW];
@@ -1696,7 +1692,7 @@ test("serve a store once its chain is confirmed while the source of a followed s
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(space.reference(accountId, spaceId), space.policy);
 
@@ -1737,7 +1733,7 @@ test("serve a store once its chain is confirmed while the source of a followed s
     const following = new ControlLoop(
         installed.database,
         store.controllers().filter((each) => each.name === "replica"),
-        { clock, report: failing },
+        { report: failing },
     ).run(stopping.signal);
     const ready = present(
         store.implement(definePackage({ objects: { document } }), [], []).ready,
@@ -1782,7 +1778,7 @@ test("replicate a scoped table an installation's database declares beside its fo
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     for (const id of [spaceId, otherSpaceId]) {
         await access.replicateScope(space.reference(accountId, id), space.policy);
@@ -1817,7 +1813,7 @@ test("replicate a scoped table an installation's database declares beside its fo
         events: await testEvents(home.database, world),
         origin: { package: document.package },
     });
-    const fixture = new AccessFixture(home.database, world);
+    const fixture = new TestAccess(home.database, world);
     const subject = principal.installation.reference(followingSpaceId, followingId);
     const followedSpace = space.reference(accountId, spaceId);
     const reading = await fixture.replicateRelationship(followedSpace, "reader", subject, 1);
@@ -1857,7 +1853,6 @@ test("replicate a scoped table an installation's database declares beside its fo
     );
     const controller = new AbortController();
     const loop = new ControlLoop(installed.database, [replica], {
-        clock: world.clock,
         report: failing,
     }).run(controller.signal);
     onTestFinished(async () => {
@@ -1937,7 +1932,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     for (const id of [accountId, otherAccountId]) {
         await access.replicateScope(account.reference(Scope.universe.id, id), account.policy);
         await home.database.transaction(
@@ -2040,7 +2035,7 @@ test("replicate the chain of an account another replica brought first, once the 
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
-    const access = new AccessFixture(home.database, world);
+    const access = new TestAccess(home.database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await home.database.transaction(
         async (transaction) =>
@@ -2151,7 +2146,7 @@ test("replicate the chain of an account another replica brought first, once the 
     const loop = new ControlLoop(
         installed.database,
         replicating.controllers().filter((each) => each.name === "replica"),
-        { clock: world.clock, report: failing },
+        { report: failing },
     );
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
@@ -2227,7 +2222,7 @@ test("require replicate via a scope for an in-process follower inside the scopes
     const machineId = schema
         .identifier("machine")
         .parse("machine-01996ab0-0000-7000-8000-00000000000b");
-    const fixture = new AccessFixture(home.database, world);
+    const fixture = new TestAccess(home.database, world);
     await fixture.replicateScope(region.reference(Scope.universe.id, regionId), region.policy);
     await home.database.transaction(
         async (transaction) =>

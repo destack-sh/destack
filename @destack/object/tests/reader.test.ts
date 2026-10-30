@@ -4,7 +4,7 @@ import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AccessContext, Authorization, Caller, none, principal } from "@destack/access";
 import { defineDatabase, Transaction, type ReconcileController } from "@destack/db";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/object/test";
@@ -92,7 +92,7 @@ test("start a feed's reader at its creating commit and release it at its deletio
         world,
     ).receive(space.reference("universe", SPACE_ID), []);
     await born.commit();
-    await new AccessFixture(database, world).replicateOwner(
+    await new TestAccess(database, world).replicateOwner(
         space.reference("universe", SPACE_ID),
         owner,
     );

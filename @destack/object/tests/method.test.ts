@@ -26,7 +26,7 @@ import {
     none,
     principal,
 } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -1403,7 +1403,7 @@ async function serveTasks(simulation: Simulation) {
             agent = delegate;
             if (delegate !== undefined) {
                 const delegator = principal.user.reference("universe", current);
-                await new AccessFixture(database, world).replicateGrant(
+                await new TestAccess(database, world).replicateGrant(
                     delegator,
                     delegate,
                     permissions,

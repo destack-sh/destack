@@ -15,7 +15,7 @@ import {
     union,
 } from "@destack/access";
 import { testEvents, serversOf } from "../test/index.ts";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { eq, type Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema, type Identifier, Uuid, type UuidEnvironment } from "@destack/schema";
@@ -81,7 +81,7 @@ test("decide again after changes of the caller's access, and leave other identit
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await new AccessFixture(database, world).replicateScope(
+    await new TestAccess(database, world).replicateScope(
         space.reference(Scope.universe.id, spaceId),
         space.policy,
     );
@@ -229,7 +229,7 @@ test("decide again after changes of the caller's access, and leave other identit
 
     // decide again once the space is suspended
     const suspended = await decided(
-        () => new AccessFixture(database, world).suspendReplica(spaceId, 2),
+        () => new TestAccess(database, world).suspendReplica(spaceId, 2),
         [Scope.table],
     );
     expect(suspended).toEqual([true]);
@@ -270,7 +270,7 @@ test("decide again once a relationship an arrow follows changes, and leave anoth
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await new AccessFixture(database, world).replicateScope(
+    await new TestAccess(database, world).replicateScope(
         space.reference(Scope.universe.id, spaceId),
         space.policy,
     );
@@ -355,7 +355,7 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await new AccessFixture(database, world).replicateScope(
+    await new TestAccess(database, world).replicateScope(
         space.reference(Scope.universe.id, spaceId),
         space.policy,
     );
@@ -478,7 +478,7 @@ test("pass the keys an account hands down to its space for listing, and only tho
     const database = storage.database;
     const accountId = newId("account", world);
     const roomId = newId("room", world);
-    const access = new AccessFixture(database, world);
+    const access = new TestAccess(database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(room.reference(accountId, roomId), room.policy);
     const bob = principal.user.reference(Scope.universe.id, "bob");

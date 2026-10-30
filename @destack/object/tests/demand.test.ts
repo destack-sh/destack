@@ -85,7 +85,6 @@ async function openStores(): Promise<{
 }> {
     // run in a world of its own, at a fixed time
     const simulation = testSimulation(Date.UTC(2026, 9, 16));
-    const { clock } = simulation;
     const world = simulation.environment("test");
 
     // create three cards at home in a public space
@@ -164,7 +163,6 @@ async function openStores(): Promise<{
         followerTest.database,
         follower.controllers().filter((each) => each.name === "replica"),
         {
-            clock,
             report: (_controller, _key, error) => {
                 throw error;
             },

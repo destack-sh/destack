@@ -1,5 +1,5 @@
 import { testSimulation } from "../test/index.ts";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { Scope, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Identifier, schema } from "@destack/schema";
@@ -231,7 +231,7 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
     });
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const fixture = new AccessFixture(database, world);
+    const fixture = new TestAccess(database, world);
     await fixture.replicateScope(
         { packageId, type: "space", scope: "universe", id: spaceId },
         space,
@@ -394,7 +394,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await new AccessFixture(database, world).replicateScope(
+    await new TestAccess(database, world).replicateScope(
         {
             packageId,
             type: "space",
@@ -489,7 +489,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     // limit an owner's token to one object by their stored grant to it
     const now = world.clock.now();
     const token = principal.client.reference(Scope.universe.id, "client-restricted");
-    const grantId = await new AccessFixture(database, world).replicateGrant(owner, token, [
+    const grantId = await new TestAccess(database, world).replicateGrant(owner, token, [
         { ...note.permission("read"), scope: spaceId, objectId: "one" },
     ]);
     const restricted = await issuer.issue(

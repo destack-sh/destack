@@ -9,7 +9,7 @@ import {
     Relationship,
     relation,
 } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema, Uuid } from "@destack/schema";
 
@@ -160,7 +160,7 @@ test("show a private space to readers of one object in it, forbid their writes, 
 
     // show a delegate granted no reading what alice sees, asking her for the grant it lacks
     const delegate = principal.installation.reference(spaceId, `installation-${Uuid.v7(world)}`);
-    const grantId = await new AccessFixture(storage.database, world).replicateGrant(
+    const grantId = await new TestAccess(storage.database, world).replicateGrant(
         principal.user.reference("universe", users.alice),
         delegate,
         [{ ...document.permission("write"), scope: spaceId }],
@@ -191,7 +191,7 @@ test("find nothing when a call asks for a scope its objects do not live in, thou
     // insert a room anyone reads
     const roomId = schema.identifier("room").parse(`room-${Uuid.v7(world)}`);
     const object = room.reference(Scope.universe.id, roomId);
-    await new AccessFixture(database, world).replicateScope(object, room.policy);
+    await new TestAccess(database, world).replicateScope(object, room.policy);
     await database.transaction(
         async (transaction) =>
             await transaction.insert(accessRelationship).values(

@@ -10,7 +10,7 @@ import {
     relation,
     union,
 } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import {
@@ -319,7 +319,7 @@ test("follow a person's mentions on their behalf as the home they relate, and re
                 .insert(person.table)
                 .values({ id: aliceId, scope: "universe", createdAt: 0, updatedAt: 0 }),
     );
-    await new AccessFixture(database, world).replicateRelationship(
+    await new TestAccess(database, world).replicateRelationship(
         person.reference("universe", aliceId),
         "home",
         spacePrincipal(home),
@@ -618,7 +618,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     const { database } = storage;
     const realmId = Identifier.create("realm", world);
     const owner = principal.user.reference(Scope.universe.id, users.owner);
-    const access = new AccessFixture(database, world);
+    const access = new TestAccess(database, world);
     await access.replicateScope(realm.reference(Scope.universe.id, realmId), realm.policy);
     await access.replicateOwner(realm.reference(Scope.universe.id, realmId), owner);
     await database.transaction(

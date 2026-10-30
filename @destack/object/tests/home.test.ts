@@ -4,7 +4,7 @@ import { reconciliation, TestDatabase } from "@destack/db/test";
 import { FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { accessTables, none, principal } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { defineDatabase, eq, Snapshot } from "@destack/db";
 import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
@@ -109,7 +109,7 @@ async function serveHomes(world: Environment, options: { readonly isFollowing?: 
         await Promise.all([homeStorage.close(), replicateStorage.close()]);
     });
     const alice = principal.user.reference(Scope.universe.id, users.alice);
-    const fixture = new AccessFixture(homeStorage.database, world);
+    const fixture = new TestAccess(homeStorage.database, world);
     await fixture.replicateScope(person.reference(Scope.universe.id, personId), person.policy);
     await fixture.replicateScope(room.reference(personId, roomId), room.policy);
     await fixture.replicateOwner(person.reference(Scope.universe.id, personId), alice);

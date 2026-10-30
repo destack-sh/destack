@@ -2,7 +2,7 @@ import { testSimulation } from "../src/test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import { defineDatabase } from "@destack/db";
 import { AccessError, principal, through } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceContext } from "@destack/resource/context";
@@ -133,7 +133,7 @@ test("act with the space's delegation to its installation, refusing without one,
             );
     const before = await ask();
     const installation = principal.installation.reference(spaceId, INSTALLATION);
-    const grant = await new AccessFixture(database, world).replicateGrant(
+    const grant = await new TestAccess(database, world).replicateGrant(
         principal.space.reference(Scope.universe.id, spaceId),
         installation,
         [probe.permission("read")],

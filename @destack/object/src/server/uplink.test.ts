@@ -4,7 +4,7 @@ import { testCallKey } from "../test/context.ts";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
 import { RequestId, Replica, Scope } from "@destack/sync";
 import { present, schema } from "@destack/schema";
@@ -71,7 +71,7 @@ async function delegated(
 ): Promise<AccessContext> {
     // store the space's grant to its installation
     const installation = principal.installation.reference(spaceId, "installation-a");
-    const id = await new AccessFixture(database, environment).replicateGrant(
+    const id = await new TestAccess(database, environment).replicateGrant(
         space,
         installation,
         permissions.map((name) => person.permission(name)),
@@ -123,7 +123,7 @@ async function serveHome(world: Environment) {
     });
     for (const database of [home.database, replicating.database]) {
         // store ada's scope and her joining the space, at home and in the space's access replica
-        const access = new AccessFixture(database, world);
+        const access = new TestAccess(database, world);
         await access.replicateScope(person.reference(Scope.universe.id, adaId), person.policy);
         await access.replicateRelationship(
             person.reference(Scope.universe.id, adaId),

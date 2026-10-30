@@ -26,7 +26,7 @@ import { Package } from "@destack/package";
 import { nth, Identifier, present, schema, Uuid } from "@destack/schema";
 import { profile, profilesDatabase, profilesPackage } from "./fixture/profile.ts";
 import { none, universe } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
@@ -386,12 +386,12 @@ test("key an index within the enclosing scope it is unique across", async () => 
     ];
     for (const [accountId, folderId] of folders) {
         if (folderId !== "folder-2") {
-            await new AccessFixture(storage.database, world).replicateScope(
+            await new TestAccess(storage.database, world).replicateScope(
                 account.reference(Scope.universe.id, accountId),
                 account.policy,
             );
         }
-        await new AccessFixture(storage.database, world).replicateScope(
+        await new TestAccess(storage.database, world).replicateScope(
             folder.reference(accountId, folderId),
             folder.policy,
         );

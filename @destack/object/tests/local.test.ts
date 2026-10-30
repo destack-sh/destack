@@ -4,7 +4,7 @@ import { testSimulation } from "../src/test/index.ts";
 import { defineObject, device, field, Installation, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, accessTables, Caller, CONTAINED, principal } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
 import { broadcastChannel, serveDatabase, WasmClient } from "@destack/db/browser";
@@ -37,7 +37,7 @@ test("read a local object one tab writes in another tab over the shared database
 
     // open two tabs of one browser sharing one database worker
     const environment = new BrowserSimulation(simulation).environment("browser");
-    const worker = databaseWorker(await WasmClient.memory(environment.clock), environment);
+    const worker = databaseWorker(await WasmClient.memory(environment), environment);
     const open = () =>
         BrowserTab.open({
             environment,
@@ -240,7 +240,7 @@ test("serve a device's local objects at its store to the people signed in on it 
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await new AccessFixture(storage.database, world).replicateScope(laptop, device.policy);
+    await new TestAccess(storage.database, world).replicateScope(laptop, device.policy);
 
     // serve them at the laptop's store
     const store = await TestObjectStore.at(
@@ -305,7 +305,7 @@ test("let a device see and use the local objects of its scope as itself, and hid
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await new AccessFixture(storage.database, world).replicateScope(laptop, device.policy);
+    await new TestAccess(storage.database, world).replicateScope(laptop, device.policy);
 
     // serve them at the laptop's store, as the laptop
     const itself = principal.device.reference(Scope.universe.id, laptop.id);

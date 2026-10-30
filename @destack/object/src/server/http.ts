@@ -118,7 +118,6 @@ export class Server implements AsyncDisposable {
                 );
             },
             ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
-            clock: options.environment.clock,
         });
     }
 

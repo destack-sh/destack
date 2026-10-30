@@ -1,13 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { MemoryBlobStorage } from "@destack/resource";
-import {
-    type DatabaseConnection,
-    defineDatabase,
-    type LogPosition,
-    TABLE,
-    type Table,
-    Transaction,
-} from "@destack/db";
+import { type DatabaseConnection, defineDatabase, type Table, Transaction } from "@destack/db";
 import {
     AccessContext,
     anyone,
@@ -18,20 +11,19 @@ import {
     universe,
 } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { ServerContext } from "../workload/workload.ts";
 import { connectBunSqlite } from "@destack/db/bun";
 import { TestDatabase } from "@destack/db/test";
 import { Clock, type Environment } from "@destack/environment";
-import { Simulation } from "@destack/environment/simulation";
+import { Simulation, SimulatedScheduler } from "@destack/environment/simulation";
 import { Package, type PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Identifier, schema } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 import {
     type ObjectReference,
     ObjectTypeReference,
     type Publisher,
-    Replica,
     Scope,
     Subject,
 } from "@destack/sync";
@@ -53,9 +45,6 @@ import { TestBearer } from "./bearer.ts";
 import { TestCaller, type TestServed } from "./caller.ts";
 import { testCallKey } from "./context.ts";
 import { testEvents } from "./events.ts";
-
-/** The most settling rounds, each a hop of one package's controllers waking another's: 20 hops. */
-const SETTLE_ROUNDS = 20;
 
 /** How long a closing test server drains its requests, in milliseconds: far above a test call's. */
 const DRAIN_MILLISECONDS = 1000;
@@ -130,10 +119,6 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     readonly #credential: TestCredential;
     /** What disposal closes: the servers, and the databases the test store opened. */
     readonly #disposables: AsyncDisposableStack;
-    /** The failures the servers reported, such as a controller's, which settling throws. */
-    readonly #failures: unknown[];
-    /** The first failure a server reported, rejected once one does. */
-    readonly #failed: Promise<never>;
     /** The object types the store serves by their reference's key, each with its package. */
     readonly #types: ReadonlyMap<
         string,
@@ -145,14 +130,17 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         return this.store.environment;
     }
 
+    /** The simulation running its world. */
+    get simulation(): Simulation {
+        return present(SimulatedScheduler.of(this.environment).world, "the store's world");
+    }
+
     /** Create a test store over its database and servers. */
     private constructor(
         store: ObjectStore,
         servers: ReadonlyMap<PackageId, Server>,
         credential: TestCredential,
         disposables: AsyncDisposableStack,
-        failures: unknown[],
-        failed: Promise<never>,
     ) {
         // store the store, its scope, its world, its servers, its callers' credential and what disposal closes
         this.store = store;
@@ -160,8 +148,6 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         this.#servers = servers;
         this.#credential = credential;
         this.#disposables = disposables;
-        this.#failures = failures;
-        this.#failed = failed;
 
         // index the served object types by their reference, each with its package
         const served = store.packages.flatMap((handler) =>
@@ -287,20 +273,13 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             options.scope ??
             principal.space.reference(Scope.universe.id, Identifier.create("space", environment));
 
-        // collect the failures the servers report, which settling and serving throw
-        const failures: unknown[] = [];
-        const failed = TestObjectStore.#failure();
-
         // store the served ephemeral types in memory, as a host does, failing the test on a lost write
         const ephemeral = await EphemeralStorage.open(
             implementations.flatMap((each) => Object.values(each.package.objects)),
             storage.database.tracker,
             (tables) => connectBunSqlite(":memory:", tables, { environment }),
             {
-                report: (error) => {
-                    failures.push(error);
-                    failed.reject(error);
-                },
+                report: (error) => SimulatedScheduler.of(environment).fail(error),
             },
         );
 
@@ -342,7 +321,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             store,
             store.packages,
             TestObjectStore.#bearers(store, options.groups ?? new Map()),
-            { disposables, failures, failed },
+            { disposables },
         );
     }
 
@@ -358,6 +337,8 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             readonly credential?: TestCredential;
             /** The scopes the servers serve, its own first, the store's alone by default. */
             readonly scopes?: readonly string[];
+            /** Take what the servers report, failing the world by default. */
+            readonly report?: (error: unknown) => void;
         } = {},
     ): TestObjectStore {
         const groups = options.groups ?? new Map();
@@ -368,9 +349,8 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             options.credential ?? TestObjectStore.#bearers(store, groups),
             {
                 disposables: new AsyncDisposableStack(),
-                failures: [],
-                failed: TestObjectStore.#failure(),
                 ...(options.scopes === undefined ? {} : { scopes: options.scopes }),
+                ...(options.report === undefined ? {} : { report: options.report }),
             },
         );
     }
@@ -382,13 +362,14 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         credential: TestCredential,
         run: {
             readonly disposables: AsyncDisposableStack;
-            readonly failures: unknown[];
-            readonly failed: PromiseWithResolvers<never>;
             readonly scopes?: readonly string[];
+            readonly report?: (error: unknown) => void;
         },
     ): TestObjectStore {
-        // start one server per package, closed first on disposal, collecting what they report
-        const { disposables, failures, failed } = run;
+        // start one server per package, closed first on disposal, failing the world on what they report
+        const { disposables } = run;
+        const report =
+            run.report ?? ((error) => SimulatedScheduler.of(store.environment).fail(error));
         const scopes =
             run.scopes ?? (store.scope === Scope.universe.id ? undefined : [store.scope]);
         const servers = new Map(
@@ -402,10 +383,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
                     resources: new ResourceContext(),
                     health: new Health(handler.package.name),
                     drainTimeout: DRAIN_MILLISECONDS,
-                    report: (error) => {
-                        failures.push(error);
-                        failed.reject(error);
-                    },
+                    report,
                     // add no host requirement, as a host serving no machines or installations
                     authorizeMachine: async () => {},
                     authenticate: (request) => credential.authenticate(request, handler.package.id),
@@ -416,14 +394,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             disposables.defer(() => server.close());
         }
 
-        return new TestObjectStore(
-            store,
-            servers,
-            credential,
-            disposables,
-            failures,
-            failed.promise,
-        );
+        return new TestObjectStore(store, servers, credential, disposables);
     }
 
     /** Sign callers with test bearers, authenticated toward a store's packages in their groups. */
@@ -455,14 +426,6 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     /** Sign a request as a caller of a package with the callers' credential. */
     sign(request: Request, signer: TestSigner): Promise<Request> {
         return this.#credential.sign(request, signer);
-    }
-
-    /** Open the failure that serving and settling race, leaving it to those waiting for it. */
-    static #failure(): PromiseWithResolvers<never> {
-        const failed = Promise.withResolvers<never>();
-        failed.promise.catch(() => undefined);
-
-        return failed;
     }
 
     /** The store's database. */
@@ -539,75 +502,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     async ready(): Promise<void> {
         const servers = [...this.#servers.values()];
         const ready = Promise.all(servers.map((server) => server.ready()));
-        await Promise.race([ready, this.#failed]);
-    }
-
-    /** Wait until each store's followed replicas reach their sources' heads and their requests. */
-    static async settleReplicas(stores: readonly ObjectStore[]): Promise<void> {
-        // run every store's heartbeat now, so every caught-up stream publishes its head
-        const heads = new Map<string, LogPosition>();
-        for (const store of stores) {
-            const head = await store.database.log.position();
-            heads.set(`${head.log} ${head.epoch}`, head);
-            store.feed.beat();
-        }
-
-        // wait until each followed replica reaches its source's head
-        const signal = new AbortController().signal;
-        for (const { database, sink } of stores) {
-            for (const { subscription } of await sink.followed()) {
-                const { name, scope } = subscription;
-                const marked = Replica.marked(database, name, scope)?.position;
-                const head = marked && heads.get(`${marked.log} ${marked.epoch}`);
-                if (head !== undefined) {
-                    await Replica.untilAt(database, [subscription], head, signal);
-                }
-            }
-
-            // wait until each followed replica completed a run of the subscription it requests now
-            await database.log.until(async () => {
-                const requested = await sink.followed();
-                const current = await Promise.all(
-                    requested.map(({ subscription }) => Replica.isCurrent(database, subscription)),
-                );
-
-                return current.every(Boolean);
-            }, signal);
-        }
-    }
-
-    /** Settle once no controller of any package has work left after a round committing nothing. */
-    async settle(): Promise<void> {
-        // settle every server again while a round commits, as one package's work wakes another's
-        let before = await this.database.log.position();
-        for (let round = 0; round < SETTLE_ROUNDS; round += 1) {
-            await Promise.all([...this.#servers.values()].map((server) => server.idle()));
-            const after = await this.database.log.position();
-            if (after.epoch === before.epoch && after.sequence === before.sequence) {
-                this.#throwFailures();
-
-                return;
-            }
-            before = after;
-        }
-
-        // refuse controllers still committing, naming the objects their last round wrote
-        const page = await this.database.log.read({
-            tables: this.store.objects.map((object) => object.table),
-            after: before.sequence,
-        });
-        const written = [...new Set(page.changes.map((change) => change.table[TABLE].sqlName))];
-        throw new Error(
-            `the test store's controllers kept committing after ${SETTLE_ROUNDS} rounds, last to ${written.join(", ")}`,
-        );
-    }
-
-    /** Throw the failures the servers reported, once. */
-    #throwFailures(): void {
-        const failures = this.#failures.splice(0);
-        if (failures.length > 0) {
-            throw new AggregateError(failures, "the test store's servers failed");
-        }
+        await Promise.race([ready, SimulatedScheduler.of(this.environment).failed]);
     }
 
     /** Stop every server's controllers at once, while it serves its requests until it drains. */
@@ -623,7 +518,6 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     /** Close the servers, then the databases the test store opened. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.#disposables.disposeAsync();
-        this.#throwFailures();
     }
 
     /** Authenticate a bearer's subject: a user in the scope with their groups, else by its kind. */
@@ -672,7 +566,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         origin: "born" | "replicated",
     ): Promise<void> {
         // record a replicated scope in its own partition or its parent's, as its policy declares, and bind its owners
-        const fixture = new AccessFixture(store.database, store.environment);
+        const fixture = new TestAccess(store.database, store.environment);
         if (origin === "replicated") {
             await fixture.replicateScope(object, store.authorizer.policy(object));
         }

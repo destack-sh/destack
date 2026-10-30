@@ -19,7 +19,7 @@ test("serve a package's objects in a new space, make an example's calls as a use
             space: [{ object: notebook, method: "create", input: { name: "Research" } }],
         },
     });
-    await objects.settle();
+    await objects.simulation.idle();
 
     // read it as its owner alone, and refuse a scope or a type the store does not serve
     const names = async (user: typeof users.alice) =>

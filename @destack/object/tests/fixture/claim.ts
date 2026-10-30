@@ -1,5 +1,5 @@
 import { none, universe } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf, TestObjectStore } from "../../src/test/index.ts";
@@ -33,7 +33,7 @@ export async function serveClaims(
 ): Promise<ClaimPrimary> {
     // bind the universe as its owner
     const owner = universe.reference(Scope.universe.id, Scope.universe.id);
-    await new AccessFixture(database, environment).replicateOwner(Scope.universe, owner);
+    await new TestAccess(database, environment).replicateOwner(Scope.universe, owner);
 
     // serve the claims, claiming the names of nothing it writes itself
     const store = await TestObjectStore.receive(Scope.universe, {

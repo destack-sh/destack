@@ -7,7 +7,7 @@ import objectPackage from "../src/package.ts";
 import {
     agentOf,
     alice,
-    type ApprovalFixture,
+    type TestApproval,
     bob,
     carol,
     note,
@@ -17,7 +17,7 @@ import {
 
 /** Open a change as a requester, answering its identifier. */
 async function openChange(
-    fixture: ApprovalFixture,
+    fixture: TestApproval,
     requester: Subject,
     input: {
         readonly id: string;
@@ -45,11 +45,7 @@ async function openChange(
 }
 
 /** Run the world until an approver is asked on a change, answering the approval. */
-async function asked(
-    fixture: ApprovalFixture,
-    change: string,
-    approver: Subject,
-): Promise<Approval> {
+async function asked(fixture: TestApproval, change: string, approver: Subject): Promise<Approval> {
     const find = async () =>
         (await fixture.served.database.select().from(approval.table)).find(
             (row) =>
@@ -62,7 +58,7 @@ async function asked(
 
 /** Run the world until a change leaves the open state, answering its state and failure reason. */
 async function settled(
-    fixture: ApprovalFixture,
+    fixture: TestApproval,
     change: string,
 ): Promise<readonly [string, string | null]> {
     const find = async () =>
@@ -76,7 +72,7 @@ async function settled(
 }
 
 /** Read the note's title. */
-async function title(fixture: ApprovalFixture): Promise<string | undefined> {
+async function title(fixture: TestApproval): Promise<string | undefined> {
     const [row] = await fixture.served.database.select().from(note.table);
 
     return row?.title;

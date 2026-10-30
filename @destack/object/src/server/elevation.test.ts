@@ -1,6 +1,6 @@
 import { testSimulation } from "../test/world.ts";
 import { Package } from "@destack/package";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Authorizer, Policy, principal, relation, Caller } from "@destack/access";
@@ -56,7 +56,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await new AccessFixture(storage.database, world).replicateScope(
+    await new TestAccess(storage.database, world).replicateScope(
         {
             packageId: hosting.package.id,
             type: "space",

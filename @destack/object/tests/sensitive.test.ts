@@ -122,7 +122,6 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
     const failures: unknown[] = [];
     const stopping = new AbortController();
     const loop = new ControlLoop(store.database, store.controllers(), {
-        clock: world.clock,
         report: (_controller, _key, error) => failures.push(error),
     });
     const running = loop.run(stopping.signal);

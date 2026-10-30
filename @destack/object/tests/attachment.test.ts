@@ -340,11 +340,14 @@ test("let the attaching package's installation attach tags to a poster it cannot
         async (transaction) => await transaction.insert(installation.table).values(row),
     );
 
-    // tag as each installation, which reads no poster
-    const tagging = (id: Identifier<"installation">) =>
-        TestObjectStore.serve(store)
+    // tag as each installation, which reads no poster, closing its servers after
+    const tagging = async (id: Identifier<"installation">) => {
+        await using served = TestObjectStore.serve(store);
+
+        return await served
             .as(principal.installation.reference(spaceId, id))
             .call(tag.call("create", { spaceId, ...host(poster, drawn.id), text: "Featured" }));
+    };
     const tagged = await tagging(own);
     expect([tagged.text, await refusal(tagging(other))]).toEqual([
         "Featured",

@@ -15,7 +15,7 @@ import {
     Relationship,
 } from "@destack/access";
 import { defineDatabase, eq, Transaction } from "@destack/db";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
@@ -88,7 +88,7 @@ test("follow a space's roles and the members bound to them as the owner defines 
         world,
     ).receive(object, []);
     await born.commit();
-    await new AccessFixture(database, world).replicateOwner(object, owner);
+    await new TestAccess(database, world).replicateOwner(object, owner);
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const context = subjectContext(principal.user.reference("universe", users.owner), SPACE_ID, {
@@ -303,7 +303,7 @@ test("delete the grants of an installation as its uninstall finalizes", async ()
         events: await testEvents(database, world),
         origin: { package: installation.package },
     });
-    await new AccessFixture(database, world).replicateOwner(
+    await new TestAccess(database, world).replicateOwner(
         principal.space.reference("universe", SPACE_ID),
         owner,
     );

@@ -435,7 +435,7 @@ test("share one browser database between tabs, handing it over when the leading 
 
     // share one browser's locks, channel and database worker between tabs
     const environment = new BrowserSimulation(simulation).environment("browser");
-    const database = await WasmClient.memory(environment.clock);
+    const database = await WasmClient.memory(environment);
     const worker: BrowserTabWorker = async () => {
         const channel = broadcastChannel("destack:notes", environment);
         const stop = serveDatabase(database, channel, environment);

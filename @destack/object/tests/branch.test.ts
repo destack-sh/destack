@@ -147,13 +147,13 @@ test("merge a branch whose role lets bob merge once another approves, through a 
     });
 
     // approve as alice, which merges the branch as bob
-    await objects.settle();
+    await objects.simulation.idle();
     const [asked] = await objects.database.select().from(approval.table);
     await client.approval.approve({
         ...approval.target(present(asked, "alice's approval")),
         requestId: RequestId.create(objects.environment),
     });
-    await objects.settle();
+    await objects.simulation.idle();
     const [requested] = await objects.database.select().from(changeRequest.table);
     expect([refused, (await read(id)).branch?.state, requested?.state]).toEqual([
         ["FORBIDDEN", "APPROVAL_REQUIRED", `merge on branch ${id} needs 1 approval`],

@@ -6,7 +6,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { accessRelationship, none, principal, relation, through } from "@destack/access";
 import { call, defineObject, defineShape, field, Follow, relationship } from "../index.ts";
 import { testEvents, serversOf } from "../test/index.ts";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
 import { schema, present, type Identifier } from "@destack/schema";
 
@@ -141,7 +141,7 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
     const cy = personId(3);
     const people = [ada, bob, cy];
     for (const id of people) {
-        await new AccessFixture(home.database, world).replicateScope(
+        await new TestAccess(home.database, world).replicateScope(
             person.reference(Scope.universe.id, id),
             person.policy,
         );
@@ -171,12 +171,12 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
                 })),
             ),
     );
-    await new AccessFixture(home.database, world).suspendReplica(cy, now);
+    await new TestAccess(home.database, world).suspendReplica(cy, now);
 
     // let the space read ada and the suspended cy
     const served = await serve(world, home.database);
     const join = (id: string) =>
-        new AccessFixture(home.database, world).replicateRelationship(
+        new TestAccess(home.database, world).replicateRelationship(
             person.reference(Scope.universe.id, id),
             "joined",
             principal.space.reference(Scope.universe.id, spaceId),
@@ -283,11 +283,11 @@ test("replicate the badges a space is shown from the scopes of teams without rep
     const now = 1;
     const ada = personId(1);
     const crew = schema.identifier("team").parse("team-01996ab0-0000-7000-8000-000000000001");
-    await new AccessFixture(home.database, world).replicateScope(
+    await new TestAccess(home.database, world).replicateScope(
         person.reference(Scope.universe.id, ada),
         person.policy,
     );
-    await new AccessFixture(home.database, world).replicateScope(
+    await new TestAccess(home.database, world).replicateScope(
         team.reference(Scope.universe.id, crew),
         team.policy,
     );
@@ -327,7 +327,7 @@ test("replicate the badges a space is shown from the scopes of teams without rep
         events: await testEvents(home.database, world),
         origin: { package: person.package },
     });
-    const fixture = new AccessFixture(home.database, world);
+    const fixture = new TestAccess(home.database, world);
     const spaceSubject = principal.space.reference(Scope.universe.id, spaceId);
     await fixture.replicateRelationship(
         person.reference(Scope.universe.id, ada),
@@ -404,13 +404,13 @@ test("replicate each person once the space may read them at the change's positio
     const spaceSubject = principal.space.reference(Scope.universe.id, spaceId);
     const [ada, bob, cy] = [personId(1), personId(2), personId(3)];
     const join = (database: DatabaseConnection, id: string) =>
-        new AccessFixture(database, world).replicateRelationship(
+        new TestAccess(database, world).replicateRelationship(
             person.reference(Scope.universe.id, id),
             "joined",
             spaceSubject,
         );
     for (const id of [ada, bob]) {
-        await new AccessFixture(home.database, world).replicateScope(
+        await new TestAccess(home.database, world).replicateScope(
             person.reference(Scope.universe.id, id),
             person.policy,
         );
@@ -473,7 +473,7 @@ test("replicate each person once the space may read them at the change's positio
     // let bob join the space, then create cy joining it in one commit
     await join(home.database, bob);
     await home.database.transaction(async (transaction) => {
-        await new AccessFixture(transaction, world).replicateScope(
+        await new TestAccess(transaction, world).replicateScope(
             person.reference(Scope.universe.id, cy),
             person.policy,
         );

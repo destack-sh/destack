@@ -19,8 +19,8 @@ import { Watermark } from "@destack/sync";
 /** The authentication lifetime of the lapsing callers, which the scenarios' clock moves past. */
 const LAPSE_MILLISECONDS = 200;
 
-/** Settle a call to "accepted" or its failure's code, reason and message. */
-function settle(call: Promise<unknown>): Promise<string> {
+/** Read a call's outcome: "accepted", or its failure's code, reason and message. */
+function outcomeOf(call: Promise<unknown>): Promise<string> {
     return refusal(call).then((refused) => (refused === "done" ? "accepted" : refused.join(": ")));
 }
 
@@ -806,8 +806,8 @@ test("report a handler's invalid output as an internal failure and a caller's in
     );
 
     expect([
-        await settle(client.echo({ text: "hello" })),
-        await settle(client.echo({ text: "hi" })),
+        await outcomeOf(client.echo({ text: "hello" })),
+        await outcomeOf(client.echo({ text: "hi" })),
     ]).toEqual([
         "INTERNAL_SERVER_ERROR: INTERNAL_SERVER_ERROR: internal server error",
         "BAD_REQUEST: INPUT_INVALID: invalid input: text: too small: expected string to have >=3 characters",
@@ -942,7 +942,7 @@ test("refuse a caller authenticated for another package as unauthenticated, audi
         { url: "https://test.local", fetch: (request) => server.fetch(request) },
         world,
     );
-    expect(await settle(client.get())).toBe(
+    expect(await outcomeOf(client.get())).toBe(
         "UNAUTHORIZED: AUDIENCE_MISMATCH: caller authentication has a different audience or scope",
     );
     expect(audited).toEqual(["caller authentication has a different audience or scope"]);

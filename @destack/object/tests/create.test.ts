@@ -1,7 +1,7 @@
 import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { TestAccess } from "@destack/access/test";
 
 import { Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -228,7 +228,7 @@ test("run only the one method a one-method grant includes, refusing every other 
 
     // create through a token granted only the create method, then read
     const token = principal.client.reference(Scope.universe.id, "client-alice");
-    const grantId = await new AccessFixture(storage.database, world).replicateGrant(
+    const grantId = await new TestAccess(storage.database, world).replicateGrant(
         principal.user.reference("universe", users.alice),
         token,
         [
