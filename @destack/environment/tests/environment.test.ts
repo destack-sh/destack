@@ -18,7 +18,7 @@ test("write a node's files at their host paths without moving its clock, and rem
         await files.writeTextFile(join(made, "today.md"), "plans");
         directory = made;
     });
-    await simulation.run({ until: () => directory !== "" });
+    await simulation.until(() => directory !== "");
     await writing;
     const writtenAt = simulation.clock.now();
 

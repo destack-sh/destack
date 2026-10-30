@@ -16,10 +16,7 @@ import { SimulatedNetwork } from "../network/simulated.ts";
 import { SimulatedRandom } from "../random/simulated.ts";
 import { Clock } from "../clock/clock.ts";
 
-/** The rounds of answered waits a run allows without moving time, far past any real chain. */
-const LIVELOCK_ROUNDS = 10_000;
-
-/** The turns a settle allows without moving time: at about 1 µs a turn, 200 ms of busy work. */
+/** The turns the world's own work may spin between host answers: at about 1 µs a turn, 200 ms. */
 const LIVELOCK_TURNS = 200_000;
 
 /** The real time host work may stall in flight before a run fails, ten seconds. */
@@ -48,6 +45,9 @@ const ROOT_DIRECTORY = "/tmp";
 /** The random bytes of a simulation root's name: 64 bits, distinct across any run's simulations. */
 const ROOT_BYTES = 8;
 
+/** The FNV-1a 32-bit offset basis and prime, hashing a simulation's events. */
+const FNV = { basis: 0x811c9dc5, prime: 0x01000193 } as const;
+
 /** The locale every node of a simulation formats in unless it gives another. */
 const LOCALE = "en-US";
 
@@ -58,24 +58,69 @@ const TIME_ZONE = "UTC";
 const RUNTIME = { revision: "0".repeat(40), isStandalone: false } as const;
 
 /** Something that happened in a simulation, in the order it happened. */
-export interface SimulationEvent {
-    /** What happened. */
-    readonly kind:
-        | "timer"
-        | "jump"
-        | "request"
-        | "loss"
-        | "refusal"
-        | "break"
-        | "partition"
-        | "heal"
-        | "start"
-        | "crash";
-    /** When, in the simulation's UTC epoch milliseconds. */
-    readonly at: number;
-    /** What it concerned, such as the nodes and the request. */
-    readonly detail: string;
-}
+export type SimulationEvent =
+    | {
+          /** The clock moving to the next timer, or jumping. */
+          readonly kind: "timer" | "jump";
+          /** When, in the simulation's UTC epoch milliseconds. */
+          readonly at: number;
+      }
+    | {
+          /** A request or connection arriving, or lost on its way. */
+          readonly kind: "request" | "loss";
+          /** When, in the simulation's UTC epoch milliseconds. */
+          readonly at: number;
+          /** The sending node. */
+          readonly from: string;
+          /** What the node reached for: a request's method and URL, or a socket's address. */
+          readonly target: string;
+      }
+    | {
+          /** A request or connection refused. */
+          readonly kind: "refusal";
+          /** When, in the simulation's UTC epoch milliseconds. */
+          readonly at: number;
+          /** The sending node. */
+          readonly from: string;
+          /** What the node reached for: a request's method and URL, or a socket's address. */
+          readonly target: string;
+          /** Why: nothing serves the target, or a partition cuts the node off from it. */
+          readonly reason: "unserved" | "partitioned";
+      }
+    | {
+          /** A connection breaking at both ends. */
+          readonly kind: "break";
+          /** When, in the simulation's UTC epoch milliseconds. */
+          readonly at: number;
+          /** The connecting node. */
+          readonly client: string;
+          /** The accepting node. */
+          readonly server: string;
+      }
+    | {
+          /** The network cut or joined between nodes. */
+          readonly kind: "partition" | "heal";
+          /** When, in the simulation's UTC epoch milliseconds. */
+          readonly at: number;
+          /** A pair, one node against every other, or none for every pair. */
+          readonly nodes: readonly string[];
+      }
+    | {
+          /** A node starting its work, or crashing. */
+          readonly kind: "start" | "crash";
+          /** When, in the simulation's UTC epoch milliseconds. */
+          readonly at: number;
+          /** The node. */
+          readonly node: string;
+      }
+    | {
+          /** Settled host work answered to the simulation, in the order it began. */
+          readonly kind: "release";
+          /** When, in the simulation's UTC epoch milliseconds. */
+          readonly at: number;
+          /** The order the host work began in. */
+          readonly order: number;
+      };
 
 /** Start a node's work in its environment, stopping it once the signal aborts. */
 export type NodeStart<Running> = (
@@ -136,7 +181,7 @@ export class SimulatedNode {
         this.#simulation.record({
             kind: "start",
             at: this.environment.clock.now(),
-            detail: this.name,
+            node: this.name,
         });
 
         return await work(this.environment, stop.signal);
@@ -148,25 +193,13 @@ export class SimulatedNode {
         this.#simulation.record({
             kind: "crash",
             at: this.environment.clock.now(),
-            detail: this.name,
+            node: this.name,
         });
         this.#stop?.abort(new Error(`node ${this.name} crashed`));
         this.#stop = undefined;
         this.#process = this.#spawn();
         this.#release();
     }
-}
-
-/** A run or driven work waiting on a simulation's loop: its condition, its time, or both. */
-interface SimulationWait {
-    /** The condition the wait ends at, absent for a wait to a time alone. */
-    readonly until: (() => boolean | Promise<boolean>) | undefined;
-    /** The time the wait ends at or refuses its condition at, absent for no deadline. */
-    readonly deadline: number | undefined;
-    /** Answer the wait. */
-    readonly resolve: () => void;
-    /** Fail the wait. */
-    readonly reject: (error: unknown) => void;
 }
 
 /** How a simulation's nodes run, beside its seed and start. */
@@ -181,7 +214,7 @@ export interface SimulationOptions {
     readonly timeZone?: string;
     /** The real milliseconds host work may stall in flight before a run fails. */
     readonly stallTimeout?: number;
-    /** The turns a settle allows without moving time before it fails as busy. */
+    /** The turns the world's own work may spin between host answers before it fails as busy. */
     readonly livelockTurns?: number;
     /** Whether the trace records what happens, off by default as it grows with every event. */
     readonly isTracing?: boolean;
@@ -209,7 +242,7 @@ export class Simulation {
     readonly #host: Host;
     /** The real milliseconds host work may stall in flight before a run fails. */
     readonly #stallTimeout: number;
-    /** The turns a settle allows without moving time before it fails as busy. */
+    /** The turns the world's own work may spin between host answers before it fails as busy. */
     readonly #livelockTurns: number;
     /** The locale each node formats in. */
     readonly #locale: string;
@@ -219,22 +252,40 @@ export class Simulation {
     readonly #nodes = new Map<string, SimulatedNode>();
     /** The listeners of node crashes. */
     readonly #crashListeners = new Set<(node: string) => void>();
-    /** The runs and driven work waiting on the loop, each answered once met. */
-    readonly #waits: SimulationWait[] = [];
-    /** The conditions the loop reads now, inside which a settle runs at the current time. */
-    #reading = 0;
-    /** The loop moving time now, which later runs and drives join, absent while it stands still. */
-    #moving: Promise<void> | undefined;
+    /** Move the world's clock, which its loop alone does. */
+    readonly #setTime: (time: number) => void;
+    /** The loop moving the world's time, running from construction until disposed. */
+    readonly #moving: Promise<void>;
+    /** Whether the world runs, false once disposed. */
+    #isRunning = true;
+    /** The waits for the world to go idle, answered at the loop's next idle point. */
+    readonly #idlers: PromiseWithResolvers<void>[] = [];
+    /** The jump the loop takes at its next idle point, absent with none asked. */
+    #jump: { readonly to: number; readonly answer: PromiseWithResolvers<void> } | undefined;
+    /** The wake of the loop waiting for new work, absent while it works. */
+    #wake: (() => void) | undefined;
+    /** The waits for the next idle point after time moves, each with the moves at its start. */
+    readonly #steps: { readonly answer: PromiseWithResolvers<void>; readonly moves: number }[] = [];
+    /** The times the loop moved the world's time, to a timer or by a jump. */
+    #moves = 0;
+    /** The failure of the loop, refusing later waits, thrown at dispose unless a wait took it. */
+    #failure: { readonly error: unknown; readonly isTaken: boolean } | undefined;
+    /** The world's disposal, absent until it began. */
+    #disposed: Promise<void> | undefined;
     /** Whether the trace records events. */
     readonly #isTracing: boolean;
     /** The events that happened, traced or not, which the loop reads as progress. */
     #events = 0;
+    /** The FNV-1a hash of every event so far, equal across runs of one seed and work. */
+    #fingerprint = FNV.basis;
 
     /** Start a simulation at a time from a seed. */
     constructor(options: SimulationOptions & { readonly seed: number; readonly start: number }) {
         // create the clock, randomness and network
         this.seed = options.seed;
-        this.clock = new SimulatedClock(options.start);
+        const owned = SimulatedClock.owned(options.start);
+        this.clock = owned.clock;
+        this.#setTime = owned.move;
         this.random = new SimulatedRandom(options.seed);
         this.telemetry = new SimulatedTelemetry({ clock: this.clock, random: this.random });
         this.#isTracing = options.isTracing ?? false;
@@ -251,6 +302,9 @@ export class Simulation {
         this.#livelockTurns = options.livelockTurns ?? LIVELOCK_TURNS;
         this.#locale = options.locale ?? LOCALE;
         this.#timeZone = options.timeZone ?? TIME_ZONE;
+
+        // run the world
+        this.#moving = this.#move();
     }
 
     /** Fork a recorded world by a label into a world of the split seed at the recorded time. */
@@ -279,18 +333,49 @@ export class Simulation {
         });
     }
 
-    /** Remove the nodes' files, and stop the telemetry's context. */
-    async [Symbol.asyncDispose](): Promise<void> {
-        this.telemetry.context.disable();
-        await rm(this.root, { recursive: true, force: true });
+    /** Stop the world's loop, remove the nodes' files, and stop the telemetry's context, once. */
+    [Symbol.asyncDispose](): Promise<void> {
+        this.#disposed ??= this.#dispose();
+
+        return this.#disposed;
     }
 
-    /** Count an event as progress, and trace it when the simulation traces. */
+    /** Stop the world's loop, remove the nodes' files, and stop the telemetry's context. */
+    async #dispose(): Promise<void> {
+        // stop the loop, answering host work at once from now on, then refuse a failure no wait took
+        this.#isRunning = false;
+        this.#wake?.();
+        await this.#moving;
+        this.clock.detach();
+        this.telemetry.context.disable();
+        await rm(this.root, { recursive: true, force: true });
+        if (this.#failure !== undefined && !this.#failure.isTaken) {
+            throw this.#failure.error;
+        }
+    }
+
+    /** Count an event as progress, fold it into the fingerprint, and trace it when tracing. */
     record(event: SimulationEvent): void {
+        // count the event
         this.#events += 1;
+
+        // fold its encoding into the fingerprint with FNV-1a
+        const encoded = JSON.stringify(event);
+        let hash = this.#fingerprint;
+        for (let index = 0; index < encoded.length; index += 1) {
+            hash = Math.imul(hash ^ encoded.charCodeAt(index), FNV.prime) >>> 0;
+        }
+        this.#fingerprint = hash;
+
+        // trace it
         if (this.#isTracing) {
             this.trace.push(event);
         }
+    }
+
+    /** The hash of every event so far, equal across runs of one seed and the same work. */
+    get fingerprint(): number {
+        return this.#fingerprint;
     }
 
     /** Read a node's environment: the world's clock and randomness, and its own effects. */
@@ -344,247 +429,158 @@ export class Simulation {
         }
     }
 
-    /** Run until a condition is true or to a time, moving to each next timer once idle. */
-    run(
-        options:
-            | { readonly until: () => boolean | Promise<boolean>; readonly to?: number }
-            | { readonly to: number },
-    ): Promise<void> {
-        return this.#wait("until" in options ? options.until : undefined, options.to);
-    }
-
-    /** Jump to a later time at once, waking each due wait a single time. */
-    async jump(to: number): Promise<void> {
-        // refuse a jump while a run or drive waits on the loop, else let a finishing loop stop
-        if (this.#waits.length > 0) {
-            throw new Error("a simulation cannot jump while it runs");
-        }
-        await this.#moving;
-
-        // settle the work at the current time, then move straight to the later one
-        await this.run({ to: this.clock.now() });
-        this.record({ kind: "jump", at: to, detail: "" });
-        this.clock.set(to);
-
-        // settle the work the jump woke
-        await this.run({ to });
-    }
-
-    /** Await a promise at the current time, or plainly inside a run that moves time. */
-    async settle<Value>(promise: Promise<Value>): Promise<Value> {
-        // await the promise inside a run or drive, which alone moves time, unless a condition the loop reads settles it
-        if (this.#waits.length > 0 && this.#reading === 0) {
-            return await promise;
+    /** Wait for the world's next idle point: nothing left to do before its next timer. */
+    idle(): Promise<void> {
+        // refuse a wait on a failed world
+        if (this.#failure !== undefined) {
+            return Promise.reject(this.#failure.error);
         }
 
-        // let a finishing loop stop, unless the loop waits on the condition settling the promise
-        if (this.#reading === 0) {
-            await this.#moving;
+        // wait for the loop's next idle point
+        const answer = Promise.withResolvers<void>();
+        this.#idlers.push(answer);
+        this.#wake?.();
+
+        return answer.promise;
+    }
+
+    /** Wait for the world's idle points until a condition is met, refusing it past a deadline. */
+    async until(condition: () => boolean | Promise<boolean>, deadline?: number): Promise<void> {
+        // stop the world's time at the deadline, withdrawing the deadline once the wait ends
+        const withdrawn = new AbortController();
+        let isLate = false;
+        if (deadline !== undefined) {
+            void this.clock.sleep(deadline - this.clock.now(), withdrawn.signal).then(
+                () => (isLate = true),
+                () => undefined,
+            );
         }
-
-        // run the promise's turns and the timers due now, never moving time
-        const outcome = { isSettled: false };
-        const settled = promise.finally(() => {
-            outcome.isSettled = true;
-        });
-        let quietSince = Clock.system.now();
-        while (!outcome.isSettled) {
-            // settle the promise's turns, then wake the timers due now
-            const progress = this.#progress();
-            await Promise.race([settled.then(noop, noop), this.#settle()]);
-            const { next } = this.clock;
-            const now = this.clock.now();
-            const isQuiet = Clock.system.now() - quietSince >= this.#stallTimeout;
-            if (next !== undefined && next <= now) {
-                this.clock.set(now);
-                quietSince = Clock.system.now();
-            }
-            // refuse a promise quiet past the host's stall limit beside a later timer, which it waits on
-            else if (!outcome.isSettled && isQuiet && next !== undefined) {
-                throw new Error(
-                    `the promise waits on a later time, its next timer in ${next - now} ms: advance or jump the simulation`,
-                );
-            }
-            // refuse a promise quiet past the host's stall limit with no timer, which waits on host work or nothing
-            else if (!outcome.isSettled && isQuiet) {
-                throw new Error(
-                    `the promise stayed quiet for ${this.#stallTimeout} ms with no timer due: it waits on host work or on nothing`,
-                );
-            }
-            // wait a host macrotask for untracked host work, such as a database's notifications
-            // NOTE #Robustness: untracked host work settles only within the stall timeout; track it on the clock
-            else if (!outcome.isSettled) {
-                await Promise.race([settled.then(noop, noop), Simulation.#macrotask()]);
-                quietSince = this.#progress() === progress ? quietSince : Clock.system.now();
-            }
-        }
-
-        return await settled;
-    }
-
-    /** Run until a promise settles, failing loudly once the simulation goes idle before it does. */
-    async drive<Value>(promise: Promise<Value>): Promise<Value> {
-        // move time until the promise settles
-        let isSettled = false;
-        const until = () => isSettled;
-        const settled = promise.finally(() => {
-            isSettled = true;
-            this.#withdraw(until);
-        });
-        await Promise.race([settled.then(noop, noop), this.#wait(until, undefined)]);
-
-        return await settled;
-    }
-
-    /** Wait on the loop for a condition or a time, starting the loop if it stands still. */
-    #wait(
-        until: (() => boolean | Promise<boolean>) | undefined,
-        deadline: number | undefined,
-    ): Promise<void> {
-        // add the wait, answered by the loop
-        const { promise, resolve, reject } = Promise.withResolvers<void>();
-        this.#waits.push({ until, deadline, resolve, reject });
-
-        // start the loop unless it moves time already
-        this.#moving ??= this.#move();
-
-        return promise;
-    }
-
-    /** Answer a wait the loop has not checked yet, as its work settled on its own. */
-    #withdraw(until: () => boolean | Promise<boolean>): void {
-        const index = this.#waits.findIndex((wait) => wait.until === until);
-        if (index !== -1) {
-            this.#waits.splice(index, 1)[0]?.resolve();
-        }
-    }
-
-    /** Move time to each next timer once idle, answering each wait once met, until none waits. */
-    async #move(): Promise<void> {
-        let answered = 0;
         try {
-            for (;;) {
-                // settle the work and answer the met waits
+            // check after the work due now, then after each move of time
+            let isSettled = false;
+            while (!(await condition())) {
+                // refuse a condition the deadline passed
+                if (isLate) {
+                    throw new Error("the world reached its deadline before its condition was met");
+                }
+                await (isSettled ? this.#step() : this.idle());
+                isSettled = true;
+            }
+        } finally {
+            withdrawn.abort();
+        }
+    }
+
+    /** Jump to a later time at once, waking each due timer once, until the world is idle. */
+    jump(to: number): Promise<void> {
+        // refuse a jump on a failed world, and a second one at once
+        if (this.#failure !== undefined) {
+            return Promise.reject(this.#failure.error);
+        }
+        if (this.#jump !== undefined) {
+            return Promise.reject(new Error("a simulation cannot jump while it jumps"));
+        }
+
+        // let the loop jump at its next idle point
+        const answer = Promise.withResolvers<void>();
+        this.#jump = { to, answer };
+        this.#wake?.();
+
+        return answer.promise;
+    }
+
+    /** Wait for the world's next idle point after its time moves, refused once nothing is left. */
+    #step(): Promise<void> {
+        // refuse a wait on a failed world
+        if (this.#failure !== undefined) {
+            return Promise.reject(this.#failure.error);
+        }
+
+        // wait for the loop's next idle point after a move
+        const answer = Promise.withResolvers<void>();
+        this.#steps.push({ answer, moves: this.#moves });
+        this.#wake?.();
+
+        return answer.promise;
+    }
+
+    /** Move the world's time to each next timer once idle, until disposed. */
+    async #move(): Promise<void> {
+        try {
+            while (this.#isRunning) {
+                // settle the work at the current time
                 await this.#settle();
-                const next = this.clock.next;
-                if (await this.#answer(next)) {
-                    // refuse a loop that answers waits without moving time
-                    answered += 1;
-                    if (answered >= LIVELOCK_ROUNDS) {
-                        const sites = this.clock.flights().join("\n");
-                        throw new Error(
-                            `the simulation kept answering waits without moving time:\n${sites}`,
-                        );
+                const { next } = this.clock;
+                const now = this.clock.now();
+                const jump = this.#jump;
+
+                // fire the timers due now
+                if (next !== undefined && next <= now) {
+                    this.#setTime(now);
+                }
+                // answer the waits for an idle world, then settle the work they start
+                else if (this.#idlers.length > 0) {
+                    for (const idler of this.#idlers.splice(0)) {
+                        idler.resolve();
                     }
-                    continue;
                 }
-                answered = 0;
-
-                // read the earliest deadline among the waits
-                const deadlines = this.#waits.flatMap((wait) =>
-                    wait.deadline === undefined ? [] : [wait.deadline],
-                );
-                const deadline = deadlines.length === 0 ? undefined : Math.min(...deadlines);
-
-                // end once none waits
-                if (this.#waits.length === 0) {
-                    this.#moving = undefined;
-
-                    return;
+                // answer the steps begun before the last move, then settle the work they start
+                else if (this.#steps.some((step) => step.moves < this.#moves)) {
+                    const moved = this.#steps.filter((step) => step.moves < this.#moves);
+                    this.#steps.splice(
+                        0,
+                        this.#steps.length,
+                        ...this.#steps.filter((step) => !moved.includes(step)),
+                    );
+                    for (const step of moved) {
+                        step.answer.resolve();
+                    }
                 }
-                // move to the earliest deadline before the next timer
-                else if (deadline !== undefined && (next === undefined || next > deadline)) {
-                    this.clock.set(Math.max(this.clock.now(), deadline));
-                }
-                // refuse the waits idle work never meets
-                else if (next === undefined) {
-                    throw new Error("the simulation went idle before its condition held");
+                // jump when asked, answering the jump once the woken work is idle
+                else if (jump !== undefined) {
+                    this.#jump = undefined;
+                    this.record({ kind: "jump", at: jump.to });
+                    this.#setTime(Math.max(now, jump.to));
+                    this.#moves += 1;
+                    this.#idlers.push(jump.answer);
                 }
                 // move time to the next timer
-                else {
-                    this.record({ kind: "timer", at: next, detail: "" });
-                    this.clock.set(next);
+                else if (next !== undefined) {
+                    this.record({ kind: "timer", at: next });
+                    this.#setTime(next);
+                    this.#moves += 1;
+                }
+                // refuse the steps of a world with nothing left to do
+                else if (this.#steps.length > 0) {
+                    const error = new Error("the world went idle with nothing left to do");
+                    for (const step of this.#steps.splice(0)) {
+                        step.answer.reject(error);
+                    }
+                }
+                // wait for new work with no timer pending, unless disposed meanwhile
+                else if (this.#isRunning) {
+                    const woken = new Promise<void>((resolve) => {
+                        this.#wake = resolve;
+                    });
+                    await Promise.race([woken, this.clock.nextActivity()]);
+                    this.#wake = undefined;
                 }
             }
         } catch (error) {
-            // fail every wait with the loop
-            this.#moving = undefined;
-            for (const wait of this.#waits.splice(0)) {
-                wait.reject(error);
+            // fail the clock's waits, the idle waits and the jump with the loop, keeping the failure
+            const failed = this.clock.fail(error);
+            const idlers = [
+                ...this.#idlers.splice(0),
+                ...this.#steps.splice(0).map((step) => step.answer),
+            ];
+            for (const idler of idlers) {
+                idler.reject(error);
             }
+            this.#jump?.answer.reject(error);
+            const isTaken = failed > 0 || idlers.length > 0 || this.#jump !== undefined;
+            this.#jump = undefined;
+            this.#failure = { error, isTaken };
         }
-    }
-
-    /** Read a wait's condition, counting it as read while it runs, and return what it throws. */
-    async #read(
-        until: () => boolean | Promise<boolean>,
-    ): Promise<{ readonly isMet: boolean; readonly error?: unknown }> {
-        this.#reading += 1;
-        try {
-            return { isMet: await until() };
-        } catch (error) {
-            return { isMet: false, error };
-        } finally {
-            this.#reading -= 1;
-        }
-    }
-
-    /** Take an answered wait off the loop's pending waits. */
-    #take(wait: SimulationWait): void {
-        const index = this.#waits.indexOf(wait);
-        if (index >= 0) {
-            this.#waits.splice(index, 1);
-        }
-    }
-
-    /** Answer the waits met once the work settled, reporting whether any was. */
-    async #answer(next: number | undefined): Promise<boolean> {
-        // check each wait, which stays pending while its condition runs, so a settle inside it awaits plainly
-        const waits = [...this.#waits];
-        const now = this.clock.now();
-        let isAnswered = false;
-        for (const wait of waits.filter((each) => this.#waits.includes(each))) {
-            // read whether the wait's time passed with no timer left before it
-            const isAtDeadline =
-                wait.deadline !== undefined &&
-                now >= wait.deadline &&
-                (next === undefined || next > wait.deadline);
-
-            // read the condition, keeping what it throws for this wait alone
-            const { until } = wait;
-            const condition = until === undefined ? { isMet: false } : await this.#read(until);
-
-            // fail the wait whose condition threw
-            if ("error" in condition) {
-                this.#take(wait);
-                wait.reject(condition.error);
-                isAnswered = true;
-            }
-            // answer a met condition
-            else if (condition.isMet) {
-                this.#take(wait);
-                wait.resolve();
-                isAnswered = true;
-            }
-            // refuse a condition its deadline passed
-            else if (wait.until !== undefined && isAtDeadline) {
-                const waiting = this.clock.flights().join("\n");
-                this.#take(wait);
-                wait.reject(
-                    new Error(
-                        `the simulation reached its deadline before its condition held, its next timer at ${next ?? "none"}:\n${waiting}`,
-                    ),
-                );
-            }
-            // answer a time once it passed
-            else if (wait.until === undefined && isAtDeadline) {
-                this.#take(wait);
-                wait.resolve();
-                isAnswered = true;
-            }
-        }
-
-        return isAnswered;
     }
 
     /** Read the process a node runs as without another, with the host's paths and executable. */
@@ -609,6 +605,7 @@ export class Simulation {
     }
 
     /** Let pending work run until a macrotask turn passes without progress or tracked work. */
+    /** Let pending work run until a macrotask turn passes without progress or tracked work. */
     async #settle(): Promise<void> {
         // start from the current progress, nothing counted as busy
         let progress = this.#progress();
@@ -616,14 +613,32 @@ export class Simulation {
         let isMoving = true;
         let movedAt = Clock.system.now();
         for (;;) {
-            // yield one turn while work moves, else wait for host work to settle or a host macrotask
+            // yield one turn while work moves or no host work is in flight
             const { clock } = this;
             if (isMoving || clock.hostInFlight === 0) {
                 await new Promise<void>((resolve) => {
                     setImmediate(resolve);
                 });
-            } else {
-                await Promise.race([clock.nextSettle(), Simulation.#macrotask()]);
+            }
+            // answer the settled host work in the order it began, once no leaf of it is pending
+            else if (clock.hostPending === 0 && clock.hostReady > 0) {
+                const at = clock.now();
+                for (const order of clock.answer()) {
+                    this.record({ kind: "release", at, order });
+                }
+                busy = 0;
+                await new Promise<void>((resolve) => {
+                    setImmediate(resolve);
+                });
+            }
+            // wait for host work to begin or settle, checking for a stall at the host's stall limit
+            else {
+                const watchdog = new AbortController();
+                const stall = Clock.system
+                    .sleep(this.#stallTimeout, watchdog.signal)
+                    .catch(() => undefined);
+                await Promise.race([clock.nextActivity(), stall]);
+                watchdog.abort();
             }
 
             // stop once the turn made no progress and no tracked work is in flight
@@ -635,9 +650,9 @@ export class Simulation {
             progress = next;
             movedAt = isMoving ? Clock.system.now() : movedAt;
 
-            // refuse host work stalled past its limit, listing the work in flight
+            // refuse leaf host work stalled past its limit, listing the work in flight
             const stalled = Clock.system.now() - movedAt;
-            if (clock.hostInFlight > 0 && stalled >= this.#stallTimeout) {
+            if (clock.hostPending > 0 && stalled >= this.#stallTimeout) {
                 throw new Error(
                     `host work stayed in flight for ${stalled} ms without settling:\n${clock.flights().join("\n")}`,
                 );
@@ -652,7 +667,7 @@ export class Simulation {
                 );
             }
 
-            // refuse busy work that neither moves time nor awaits the host, listing its call sites
+            // refuse the world's own work spinning between host answers without moving time, listing its call sites
             busy += clock.hostInFlight === 0 ? 1 : 0;
             if (busy >= this.#livelockTurns) {
                 const sites = [...(await this.#busy()), ...clock.flights()];
@@ -661,13 +676,6 @@ export class Simulation {
                 );
             }
         }
-    }
-
-    /** Wait for one macrotask of the host, after its input and output poll. */
-    static #macrotask(): Promise<void> {
-        return new Promise<void>((resolve) => {
-            setTimeout(resolve, 0);
-        });
     }
 
     /** Record what the next turns begin, by call site, most frequent first. */
@@ -699,6 +707,3 @@ export class Simulation {
         return clock.begun + clock.settled + this.#events + network.sent + network.delivered;
     }
 }
-
-/** Do nothing, as a settled promise's handler. */
-function noop(): void {}

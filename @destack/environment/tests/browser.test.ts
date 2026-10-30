@@ -53,7 +53,7 @@ test("show frames at 60 Hz on the simulated clock, idle periods and set media", 
         }
         await display.idle(50);
     })();
-    await simulation.drive(shown);
+    await shown;
 
     expect({
         frames: frames.map((time) => time - START),
@@ -192,10 +192,10 @@ test("broadcast copies of a message to every other open port of a channel, and p
     const message = { commit: 1 };
     sending.send(message);
     message.commit = 2;
-    await simulation.drive(Promise.resolve());
+    await Promise.resolve();
     sending.send({ commit: 3 });
     receiving.close();
-    await simulation.drive(Promise.resolve());
+    await Promise.resolve();
 
     expect({
         received,
@@ -219,7 +219,7 @@ test("deliver a broadcast to every listener past one that throws, and report wha
 
     // send once, and read what the delivery reported
     sending.send("commit");
-    await simulation.drive(Promise.resolve());
+    await Promise.resolve();
 
     expect({
         received,

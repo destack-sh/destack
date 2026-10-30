@@ -9,6 +9,13 @@ import {
 } from "../src/simulation/index.ts";
 import type { ServerSocket, Socket } from "../src/index.ts";
 import { BunNetwork } from "../src/network/bun.ts";
+import { join } from "node:path";
+
+/** The workers racing on host work in a replayed world. */
+const WORKERS = 8;
+
+/** The rounds of host work each racing worker takes. */
+const ROUNDS = 6;
 
 /** The simulations' start: 2026-10-16 at midnight UTC. */
 const START = Date.UTC(2026, 9, 16);
@@ -102,11 +109,9 @@ test("route requests between nodes through latency, partitions and loss, replaye
         });
         simulation.network.degrade({ delay: { least: 10, most: 20 } });
         const client = simulation.environment("client").network;
-        const body: unknown = await simulation.drive(
-            client
-                .fetch(new Request("https://server.test/notes"))
-                .then((response) => response.json()),
-        );
+        const body: unknown = await client
+            .fetch(new Request("https://server.test/notes"))
+            .then((response) => response.json());
 
         // request through a partition and full loss
         simulation.network.partition("client", "server");
@@ -151,11 +156,9 @@ test("route a name to its exact host first, else to the wildcard of its nearest 
     serve("exact", "laptop--acme.destack.computer");
     const client = simulation.environment("client").network;
     const answer = (host: string) =>
-        simulation.drive(
-            client.fetch(new Request(`https://${host}/`)).then(
-                (response) => response.text(),
-                (error: Error) => error.message,
-            ),
+        client.fetch(new Request(`https://${host}/`)).then(
+            (response) => response.text(),
+            (error: Error) => error.message,
         );
 
     expect([
@@ -183,11 +186,9 @@ test("route localhost and the names below it to the loopback listener of their p
     });
     const client = simulation.environment("client").network;
     const answer = (url: string) =>
-        simulation.drive(
-            client.fetch(new Request(url)).then(
-                (response) => response.text(),
-                (error: Error) => error.message,
-            ),
+        client.fetch(new Request(url)).then(
+            (response) => response.text(),
+            (error: Error) => error.message,
         );
 
     expect([
@@ -208,16 +209,14 @@ test("skip simulated time to each next timer until a condition holds, and refuse
     await using simulation = new Simulation({ seed: 1, start: START });
     let isAwake = false;
     void simulation.clock.sleep(24 * 60 * 60_000).then(() => (isAwake = true));
-    await simulation.run({ until: () => isAwake });
+    await simulation.until(() => isAwake);
     const woke = simulation.clock.now();
-    const refused = await simulation
-        .run({ until: () => false })
-        .catch((error: Error) => error.message);
+    const refused = await simulation.until(() => false).catch((error: Error) => error.message);
 
     // skip the day and refuse the idle run
     expect([woke - START, refused]).toEqual([
         24 * 60 * 60_000,
-        "the simulation went idle before its condition held",
+        "the world went idle with nothing left to do",
     ]);
 });
 
@@ -235,13 +234,14 @@ test("hold time back while tracked work is in flight, move to the next timer onc
     }, 20);
 
     // run until the timer fires
-    await simulation.run({ until: () => isFired });
+    await simulation.until(() => isFired);
     const fired = simulation.clock.now() - START;
 
     // run to a time past one more timer
     let isLater = false;
     void simulation.clock.sleep(15_000).then(() => (isLater = true));
-    await simulation.run({ to: START + 90_000 });
+    await simulation.clock.sleep(START + 90_000 - simulation.clock.now());
+    await simulation.idle();
 
     // stay at the start while the work runs, reach the timer only after it settled, and stop at the time
     expect({
@@ -282,10 +282,11 @@ test("hold the clock for an in-process call until its response head, and not for
 
         return response;
     });
-    await simulation.run({ until: () => isAnswered });
+    await simulation.until(() => isAnswered);
     const answeredAt = simulation.clock.now() - START;
     const ended = polled.text().then(() => simulation.clock.now() - START);
-    await simulation.run({ to: START + 60_000 });
+    await simulation.clock.sleep(START + 60_000 - simulation.clock.now());
+    await simulation.idle();
 
     // answer the slow call before time moves, and end the poll's body at its timer
     expect({ answeredAt, text: await (await answered).text(), ended: await ended }).toEqual({
@@ -327,10 +328,12 @@ test("crash a node, losing its memory and stopping its work, and start it again 
     await node.start(work);
 
     // crash, wait and restart
-    await simulation.run({ to: simulation.clock.now() + 3000 });
+    await simulation.clock.sleep(3000);
+    await simulation.idle();
     node.crash();
     const whileDown = ticks;
-    await simulation.run({ to: simulation.clock.now() + 3000 });
+    await simulation.clock.sleep(3000);
+    await simulation.idle();
     const crashed = ticks;
     const restarted = await node.start(work);
 
@@ -385,13 +388,13 @@ test("carry a socket's messages in order through latency, and close it from eith
     simulation.network.degrade({ delay: { least: 5, most: 50 } });
     const server = serveEcho(simulation, "server");
     const client = open(simulation, "browser", "ada");
-    await simulation.run({ until: () => client.socket.readyState === WebSocket.OPEN });
+    await simulation.until(() => client.socket.readyState === WebSocket.OPEN);
     for (const message of ["one", "two", "three"]) {
         client.socket.send(message);
     }
-    await simulation.run({ until: () => client.events.length === 4 });
+    await simulation.until(() => client.events.length === 4);
     client.socket.close();
-    await simulation.run({ until: () => client.events.length === 5 });
+    await simulation.until(() => client.events.length === 5);
 
     // the answers arrived in order, and the close reached both ends
     expect([client.events, server.events]).toEqual([
@@ -413,7 +416,7 @@ test("fail a socket its listener refuses with a plain answer, and discard the an
             }),
     });
     const refused = open(simulation, "laptop", "ada");
-    await simulation.run({ until: () => refused.events.length === 1 });
+    await simulation.until(() => refused.events.length === 1);
     expect([refused.events, cancelled]).toEqual([["close 1006"], ["cancelled"]]);
 });
 
@@ -425,20 +428,20 @@ test("break sockets across a partition and from a crashed node, and close them o
     await server.start(serve);
     const cut = open(simulation, "browser", "ada");
     const crashed = open(simulation, "laptop", "grace");
-    await simulation.run({ until: () => cut.events.length === 1 && crashed.events.length === 1 });
+    await simulation.until(() => cut.events.length === 1 && crashed.events.length === 1);
 
     // cut the browser off, then crash the server and connect it while it is down
     simulation.network.partition("browser", "server");
     server.crash();
     const down = open(simulation, "laptop", "lin");
-    await simulation.run({ until: () => down.events.length === 1 });
+    await simulation.until(() => down.events.length === 1);
 
     // restart it, and close an open socket by stopping its listener
     const listener = await server.start(serve);
     const stopped = open(simulation, "laptop", "ming");
-    await simulation.run({ until: () => stopped.events.length === 1 });
+    await simulation.until(() => stopped.events.length === 1);
     await listener.stop(true);
-    await simulation.run({ until: () => stopped.events.length === 2 });
+    await simulation.until(() => stopped.events.length === 2);
 
     // each socket ended the way its fault ends a connection
     expect([cut.events, crashed.events, down.events, stopped.events]).toEqual([
@@ -482,12 +485,7 @@ test("connect nodes sharing the host's files over a Unix socket through isolatio
         }
     })();
 
-    expect([
-        listener.address,
-        await simulation.drive(echoed),
-        await simulation.drive(refused),
-        insecure,
-    ]).toEqual([
+    expect([listener.address, await echoed, await refused, insecure]).toEqual([
         { unix: "/run/destack.sock" },
         "ping",
         "ConnectionRefused: connection refused: nothing listens at /run/missing.sock",
@@ -548,11 +546,11 @@ test("carry TCP bytes in order through latency, start TLS on a new socket, and e
     const client = connectUpper(simulation, "app");
     let isOpen = false;
     void client.socket.opened.then(() => (isOpen = true));
-    await simulation.run({ until: () => isOpen });
+    await simulation.until(() => isOpen);
     const writer = client.socket.writable.getWriter();
     await writer.write(ENCODER.encode("ehlo\r\n"));
     await writer.write(ENCODER.encode("starttls\r\n"));
-    await simulation.run({ until: () => client.received.length === 2 });
+    await simulation.until(() => client.received.length === 2);
 
     // start TLS, refuse the old socket's writes, and talk over the new one
     const secure = client.socket.startTls();
@@ -564,12 +562,12 @@ test("carry TCP bytes in order through latency, start TLS on a new socket, and e
         new WritableStream({ write: (chunk) => void answered.push(DECODER.decode(chunk)) }),
     );
     await secure.writable.getWriter().write(ENCODER.encode("quit\r\n"));
-    await simulation.run({ until: () => answered.length === 1 });
+    await simulation.until(() => answered.length === 1);
 
     // close the new socket, which ends the server's end too
     let isClosed = false;
     void secure.close().then(() => (isClosed = true));
-    await simulation.run({ until: () => isClosed });
+    await simulation.until(() => isClosed);
 
     // refuse TLS on a plain connect
     const plain = simulation.network.of("app").connect({ hostname: "smtp.test", port: 25 });
@@ -632,10 +630,10 @@ test("half-close a TCP connection, delivering the peer's bytes in flight, and ig
     const read = socket.readable.pipeTo(
         new WritableStream({ write: (chunk) => void received.push(DECODER.decode(chunk)) }),
     );
-    await simulation.drive(socket.opened);
+    await socket.opened;
     await socket.writable.getWriter().write(ENCODER.encode("quit\r\n"));
     const closes = [socket.close(), socket.close()];
-    await simulation.drive(Promise.all(closes));
+    await Promise.all(closes);
     await read;
 
     // deliver the answer sent before the server saw the end, and end both ways
@@ -657,7 +655,7 @@ test("refuse a TCP connect nothing listens at, and break connections across a pa
         connectUpper(simulation, "worker"),
         connectUpper(simulation, "cron"),
     ];
-    await simulation.run({ until: () => server.accepted.length === 3 });
+    await simulation.until(() => server.accepted.length === 3);
 
     // cut the app off, release the worker, and stop the listener
     simulation.network.partition("app", "mail");
@@ -680,174 +678,17 @@ test("refuse a TCP connect nothing listens at, and break connections across a pa
     ]);
 });
 
-test("drive work through its timers on the clock, and stall loudly on work waiting outside the simulation", async () => {
-    // drive work waiting on the clock, then work waiting on the system's time alone
+test("await work through its timers on the clock, the world moving time once idle", async () => {
+    // await work waiting on the clock in a running world
     await using simulation = new Simulation({ seed: 1, start: START });
     const timed = (async () => {
         await simulation.clock.sleep(60_000);
 
         return "done";
     })();
-    const driven = await simulation.drive(timed);
-    const outside = new Promise<void>((resolve) => {
-        setTimeout(resolve, 5);
-    });
-    const stalled = await simulation.drive(outside).then(
-        () => "settled",
-        (error: unknown) => (error instanceof Error ? error.message : String(error)),
-    );
-    await outside;
 
-    // settle the clock's work at its sleep, and refuse the untracked wait instead of jumping time
-    expect([driven, stalled, simulation.clock.now() - START]).toEqual([
-        "done",
-        "the simulation went idle before its condition held",
-        60_000,
-    ]);
-});
-
-test("wait inside a run in progress for a run or drive started meanwhile, without moving time twice", async () => {
-    // run to a timer whose callback drives work and runs until a later timer
-    await using simulation = new Simulation({ seed: 1, start: START });
-    const seen: number[] = [];
-    const inner = (async () => {
-        await simulation.clock.sleep(1000);
-        await simulation.drive(simulation.clock.sleep(1000));
-        seen.push(simulation.clock.now() - START);
-        await simulation.run({ to: START + 5000 });
-        seen.push(simulation.clock.now() - START);
-    })();
-    await simulation.run({ to: START + 10_000 });
-    await inner;
-
-    // reach each inner time once, as the outer run alone moves the clock
-    expect([seen, simulation.clock.now() - START]).toEqual([[2000, 5000], 10_000]);
-});
-
-test("answer a drive started inside a run's condition once its work settles, between the run's timers", async () => {
-    // tick a counter each second, and run until a condition that drives settled work reads it
-    await using simulation = new Simulation({ seed: 1, start: START });
-    let ticks = 0;
-    simulation.clock.setInterval(() => {
-        ticks += 1;
-    }, 1000);
-    const checks: number[] = [];
-    await simulation.run({
-        until: async () => {
-            const read = await simulation.drive(Promise.resolve(ticks));
-            checks.push(read);
-
-            return read === 3;
-        },
-    });
-
-    // check once after each timer the run moved to
-    expect(checks).toEqual([0, 1, 2, 3]);
-});
-
-test("answer a settle started inside a run's condition at the run's time, between the run's timers", async () => {
-    // tick a counter each second, and run until a condition that settles work reads it
-    await using simulation = new Simulation({ seed: 1, start: START });
-    let ticks = 0;
-    simulation.clock.setInterval(() => {
-        ticks += 1;
-    }, 1000);
-    const checks: number[] = [];
-    await simulation.run({
-        until: async () => {
-            const read = await simulation.settle(Promise.resolve(ticks));
-            checks.push(read);
-
-            return read === 3;
-        },
-    });
-
-    // check once after each timer the run moved to
-    expect(checks).toEqual([0, 1, 2, 3]);
-});
-
-test("refuse a settle inside a run's condition waiting on a later time, as a settle outside a run does", async () => {
-    // run until a condition that settles a sleep a second out
-    await using simulation = new Simulation({ seed: 1, start: START, stallTimeout: 50 });
-    const refused = await simulation
-        .run({
-            until: async () => {
-                await simulation.settle(simulation.clock.sleep(1000));
-
-                return true;
-            },
-        })
-        .then(
-            () => "ran",
-            (error: Error) => error.message,
-        );
-
-    // fail the run with the settle's refusal, instead of waiting on the loop the condition blocks
-    expect(refused).toBe(
-        "the promise waits on a later time, its next timer in 1000 ms: advance or jump the simulation",
-    );
-});
-
-test("move time for driven work past the end of a drive started inside it, until every driven work settles", async () => {
-    // drive work whose first step drives a short wait before the outer drive begins, then waits longer
-    await using simulation = new Simulation({ seed: 1, start: START });
-    const outer = (async () => {
-        await simulation.drive(simulation.clock.sleep(1000));
-        await simulation.clock.sleep(4000);
-
-        return simulation.clock.now() - START;
-    })();
-
-    // reach the outer wait, which the inner drive's run alone would leave behind
-    expect(await simulation.drive(outer)).toBe(5000);
-});
-
-test("settle the work a timer at a run's deadline starts before answering a run inside another", async () => {
-    // keep a drive moving time, and finish tracked work over several turns once a timer at the deadline fires
-    await using simulation = new Simulation({ seed: 1, start: START });
-    const outer = simulation.drive(simulation.clock.sleep(10_000));
-    let isFinished = false;
-    void simulation.clock.sleep(2000).then(async () => {
-        for (let step = 0; step < 3; step += 1) {
-            await simulation.clock.track(
-                new Promise<void>((resolve) => {
-                    setImmediate(resolve);
-                }),
-            );
-        }
-        isFinished = true;
-    });
-
-    // run to the deadline inside the moving drive, which answers once the timer's work settled
-    await simulation.run({ to: START + 2000 });
-    const isSettled = isFinished;
-    await outer;
-
-    expect(isSettled).toBe(true);
-});
-
-test("check a run's condition inside another only once the work settles, never between its steps", async () => {
-    // keep a drive moving time, and write two steps of tracked work once a timer fires
-    await using simulation = new Simulation({ seed: 1, start: START });
-    const outer = simulation.drive(simulation.clock.sleep(10_000));
-    let steps = 0;
-    void simulation.clock.sleep(1000).then(async () => {
-        for (let step = 0; step < 2; step += 1) {
-            await simulation.clock.track(
-                new Promise<void>((resolve) => {
-                    setImmediate(resolve);
-                }),
-            );
-            steps += 1;
-        }
-    });
-
-    // run until the first step inside the moving drive, which answers once both settled
-    await simulation.run({ until: () => steps > 0 });
-    const seen = steps;
-    await outer;
-
-    expect(seen).toBe(2);
+    // settle the clock's work at its sleep
+    expect([await timed, simulation.clock.now() - START]).toEqual(["done", 60_000]);
 });
 
 test("refuse work that keeps busy without letting time move, naming the call site that kept it busy", async () => {
@@ -863,7 +704,7 @@ test("refuse work that keeps busy without letting time move, naming the call sit
             );
         }
     })();
-    const refused = await simulation.drive(simulation.clock.sleep(1000)).then(
+    const refused = await simulation.clock.sleep(1000).then(
         () => "settled",
         (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
@@ -897,10 +738,7 @@ test("settle a slow host round trip without counting its wait as busy", async ()
         const reply = simulation.clock.trackHost(
             fetch(server.url).then((response) => response.text()),
         );
-        expect([await simulation.drive(reply), simulation.clock.now() - START]).toEqual([
-            "late",
-            0,
-        ]);
+        expect([await reply, simulation.clock.now() - START]).toEqual(["late", 0]);
     } finally {
         await server.stop(true);
     }
@@ -916,7 +754,7 @@ test("hold the clock while a child writes its whole output, so a timer beside it
         clock.sleep(1).then(() => "timed out"),
     ]);
 
-    expect([await simulation.drive(first), clock.now() - START]).toEqual([[0, "done\n"], 0]);
+    expect([await first, clock.now() - START]).toEqual([[0, "done\n"], 0]);
 });
 
 test("refuse tracked work that never settles beside a timer, as time cannot move while it is in flight", async () => {
@@ -927,7 +765,7 @@ test("refuse tracked work that never settles beside a timer, as time cannot move
             // never settle
         }),
     );
-    const refused = await simulation.drive(simulation.clock.sleep(1000)).then(
+    const refused = await simulation.clock.sleep(1000).then(
         () => "settled",
         (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
@@ -945,7 +783,7 @@ test("fork a world by a label into a world of its own draws, starting at the par
     // draw ids in a parent, then fork it twice by one label and once by another
     await using parent = new Simulation({ seed: 1, start: START });
     const drawn = drawIds(parent);
-    parent.clock.advance(1000);
+    await parent.jump(parent.clock.now() + 1000);
     await using first = parent.fork("copy");
     await using again = Simulation.fork({ seed: 1, start: START + 1000 }, "copy");
     await using other = parent.fork("other");
@@ -991,7 +829,7 @@ test("jump a day at once, waking a repeating wait a single time where running st
 
     // run an hour through every beat, and jump a day with a single beat
     expect({
-        run: await beats((simulation) => simulation.run({ to: START + 3_600_000 })),
+        run: await beats((simulation) => simulation.clock.sleep(3_600_000)),
         jump: await beats((simulation) => simulation.jump(START + 86_400_000)),
     }).toEqual({
         run: { count: 360, now: START + 3_600_000 },
@@ -999,23 +837,23 @@ test("jump a day at once, waking a repeating wait a single time where running st
     });
 });
 
-test("jump right after driven work settles, and refuse a jump while a drive still waits", async () => {
-    // drive a sleep to its end, then jump at once while the loop winds down
+test("jump right after awaited work settles, and refuse a second jump while one jumps", async () => {
+    // await a sleep, then jump at once
     await using simulation = new Simulation({ seed: 1, start: START });
     const { clock } = simulation.environment("node");
-    await simulation.drive(clock.sleep(1000));
+    await clock.sleep(1000);
     await simulation.jump(START + 60_000);
     const jumped = simulation.clock.now() - START;
 
-    // refuse jumping while a drive of a later sleep still waits on the loop
-    const pending = simulation.drive(clock.sleep(1000));
-    const refused = await simulation.jump(START + 120_000).then(
+    // refuse a jump while another jumps
+    const pending = simulation.jump(START + 120_000);
+    const refused = await simulation.jump(START + 180_000).then(
         () => "jumped",
         (error: unknown) => (error instanceof Error ? error.message : "refused"),
     );
     await pending;
 
-    expect([jumped, refused]).toEqual([60_000, "a simulation cannot jump while it runs"]);
+    expect([jumped, refused]).toEqual([60_000, "a simulation cannot jump while it jumps"]);
 });
 
 test("give up an aborted request, lose a response cut on its way back, and keep a listener a node serves again", async () => {
@@ -1034,11 +872,9 @@ test("give up an aborted request, lose a response cut on its way back, and keep 
     });
     const { clock, network } = simulation.environment("client");
     const failure = (url: string, signal?: AbortSignal) =>
-        simulation.drive(
-            network.fetch(new Request(url, signal === undefined ? {} : { signal })).then(
-                (response) => response.text(),
-                (error: Error) => [error.name, error.message],
-            ),
+        network.fetch(new Request(url, signal === undefined ? {} : { signal })).then(
+            (response) => response.text(),
+            (error: Error) => [error.name, error.message],
         );
     const hung = await failure("https://hung.test/", clock.timeout(1000));
     const cut = await failure("https://cut.test/");
@@ -1085,8 +921,8 @@ test("fail a streamed response's body once its request aborts, cancelling the li
     // read the first chunk, then abort the request and read on
     const { network } = simulation.environment("client");
     const controller = new AbortController();
-    const response = await simulation.drive(
-        network.fetch(new Request("https://stream.test/", { signal: controller.signal })),
+    const response = await network.fetch(
+        new Request("https://stream.test/", { signal: controller.signal }),
     );
     const reader = present(response.body, "the streamed body").getReader();
     const first = new TextDecoder().decode((await reader.read()).value);
@@ -1113,44 +949,31 @@ test("publish a node's listener on the host at its port, answering host processe
     });
 
     // call it from the host and from another node at the same address
-    const fromHost = await simulation.drive(
-        simulation.clock.trackHost(
-            BunNetwork.fetch(new Request(new URL("/host", published.url))).then((response) =>
-                response.text(),
-            ),
+    const fromHost = await simulation.clock.trackPeer(
+        BunNetwork.fetch(new Request(new URL("/host", published.url))).then((response) =>
+            response.text(),
         ),
     );
     const { network } = simulation.environment("client");
-    const fromNode = await simulation.drive(
-        network
-            .fetch(new Request(new URL("/node", published.url)))
-            .then((response) => response.text()),
-    );
+    const fromNode = await network
+        .fetch(new Request(new URL("/node", published.url)))
+        .then((response) => response.text());
     await published.stop(true);
 
     expect({ fromHost, fromNode }).toEqual({ fromHost: "/host", fromNode: "/node" });
 });
 
-test("refuse host work stalled past the stall timeout, and hand work driven during a timed run a run of its own", async () => {
+test("refuse leaf host work stalled past the stall timeout, failing the waits on the world", async () => {
     // track host work that never settles under a short host timeout
-    await using stalled = new Simulation({ seed: 1, start: START, stallTimeout: 50 });
-    void stalled.clock.trackHost(new Promise<void>(() => {}));
-    const refused = await stalled.drive(stalled.clock.sleep(1000)).then(
+    await using simulation = new Simulation({ seed: 1, start: START, stallTimeout: 50 });
+    void simulation.clock.trackHost(new Promise<void>(() => {}));
+    const refused = await simulation.clock.sleep(1000).then(
         () => "settled",
         (error: Error) => error.message.split("\n").length,
     );
 
-    // drive a wait past the end of a timed run started before it
-    await using simulation = new Simulation({ seed: 1, start: START });
-    const timed = simulation.run({ to: START + 1000 });
-    const driven = simulation.drive(simulation.clock.sleep(3000));
-    await timed;
-    await driven;
-
-    expect({ refused, driven: simulation.clock.now() - START }).toEqual({
-        refused: 2,
-        driven: 3000,
-    });
+    // refuse the sleep with the stall, naming the one work in flight
+    expect(refused).toBe(2);
 });
 
 test("run timers by deadline and, within one, in start order, a zero-delay timer first and an overflowing one a millisecond later, across many waits", async () => {
@@ -1167,7 +990,8 @@ test("run timers by deadline and, within one, in start order, a zero-delay timer
     for (const [index, delay] of delays.entries()) {
         void clock.sleep(delay + 1).then(() => released.push([delay + 1, index]));
     }
-    await simulation.run({ to: START + 100 });
+    await simulation.clock.sleep(START + 100 - simulation.clock.now());
+    await simulation.idle();
 
     // release every wait by deadline, ties in start order
     const expected = delays
@@ -1195,10 +1019,8 @@ test("decode a gzip response as Bun's fetch does, and keep its encoding when ask
     const { network } = simulation.environment("client");
 
     // fetch it decoded, then as stored
-    const decoded = await simulation.drive(network.fetch(new Request("https://files.test/")));
-    const stored = await simulation.drive(
-        network.fetch(new Request("https://files.test/"), { decompress: false }),
-    );
+    const decoded = await network.fetch(new Request("https://files.test/"));
+    const stored = await network.fetch(new Request("https://files.test/"), { decompress: false });
 
     expect({
         decoded: [await decoded.text(), decoded.headers.get("content-encoding")],
@@ -1206,40 +1028,93 @@ test("decode a gzip response as Bun's fetch does, and keep its encoding when ask
     }).toEqual({ decoded: ["stored", null], stored: [encoded.length, "gzip"] });
 });
 
-test("settle work and the timers due now without moving the clock, refuse work waiting on a later time, and leave a settle inside a drive to the drive", async () => {
-    // settle a chain of zero-delay timers and a host round trip at the start
-    await using simulation = new Simulation({ seed: 1, start: START, stallTimeout: 50 });
-    const settled = await simulation.settle(
-        (async () => {
-            await simulation.clock.sleep(0);
-            await simulation.clock.trackHost(
-                new Promise<void>((resolve) => {
-                    setTimeout(resolve, 5);
-                }),
-            );
-            await simulation.clock.sleep(0);
+test("answer idle once the work due now settled, and wait for a condition through the next timer", async () => {
+    // chain zero-delay timers around host work at the start, beside a timer a second out
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { clock } = simulation;
+    let done: number | undefined;
+    void (async () => {
+        await clock.sleep(0);
+        await clock.trackHost(
+            new Promise<void>((resolve) => {
+                setTimeout(resolve, 5);
+            }),
+        );
+        await clock.sleep(0);
+        done = clock.now() - START;
+    })();
+    let isFired = false;
+    void clock.sleep(1000).then(() => (isFired = true));
 
-            return simulation.clock.now();
-        })(),
-    );
+    // answer at the start once the chain settled, then at the timer
+    await simulation.idle();
+    const first = { done, now: clock.now() - START };
+    await simulation.until(() => isFired);
 
-    // refuse a wait a second ahead, leaving the clock where it was
-    const refused = await simulation.settle(simulation.clock.sleep(1000)).then(
-        () => "settled",
-        (error: Error) => error.message,
-    );
+    expect([first, clock.now() - START]).toEqual([{ done: 0, now: 0 }, 1000]);
+});
 
-    const now = simulation.clock.now();
+/** Race workers on hashing, files and timers, and return the order their rounds finished in. */
+async function race(simulation: Simulation): Promise<string[]> {
+    // give each worker its own file under the world's root
+    const { crypto, files, clock } = simulation.environment("node");
+    const finished: string[] = [];
+    const worker = async (index: number) => {
+        const path = join(simulation.root, `worker-${index}`);
+        for (let round = 0; round < ROUNDS; round += 1) {
+            // hash a buffer whose size differs by worker, so the host finishes them out of order
+            const data = new Uint8Array((index + 1) * 64 * 1024).fill(round);
+            const digest = new Uint8Array(await crypto.digest("SHA-256", data));
 
-    // leave a settle inside a drive to the drive, which alone moves time, in a world of its own
-    await using driving = new Simulation({ seed: 1, start: START });
-    await driving.drive(driving.settle(driving.clock.sleep(500)));
+            // write and read the digest back, then wait a timer
+            await files.writeFile(path, digest);
+            await files.readFile(path);
+            await clock.sleep(1 + ((index * round) % 3));
+            finished.push(`${index}.${round}`);
+        }
+    };
 
-    expect({ settled, refused, now, driven: driving.clock.now() }).toEqual({
-        settled: START,
-        refused:
-            "the promise waits on a later time, its next timer in 1000 ms: advance or jump the simulation",
-        now: START,
-        driven: START + 500,
-    });
+    // run every worker to the end on the world's loop
+    await Promise.all(Array.from({ length: WORKERS }, (_, index) => worker(index)));
+
+    return finished;
+}
+
+test("replay a seed's racing host work in one order with one fingerprint", async () => {
+    // run the same seed and work twice
+    await using first = new Simulation({ seed: 7, start: START });
+    await using second = new Simulation({ seed: 7, start: START });
+    const runs = [await race(first), await race(second)];
+
+    // expect the same interleaving, and the same events behind it
+    expect(runs[1]).toEqual(runs[0]);
+    expect(second.fingerprint).toBe(first.fingerprint);
+});
+
+test("move a world's time to each next timer once idle, as plain awaits wait on them", async () => {
+    // await the world's timers plainly
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { clock } = simulation.environment("node");
+    await clock.sleep(30_000);
+    await Promise.all([clock.sleep(1000), clock.sleep(2000)]);
+
+    // expect the clock at the last timer's deadline
+    expect(clock.now() - START).toBe(32_000);
+});
+
+test("jump a world at once, waking each due timer a single time", async () => {
+    // keep a timer every minute, then jump an hour
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { clock } = simulation.environment("node");
+    const fired: number[] = [];
+    void (async () => {
+        for (;;) {
+            await clock.sleep(60_000);
+            fired.push(clock.now() - START);
+        }
+    })();
+    await simulation.jump(START + 3_600_000);
+
+    // expect one firing at the jump's time, and none in between
+    expect(fired).toEqual([3_600_000]);
 });

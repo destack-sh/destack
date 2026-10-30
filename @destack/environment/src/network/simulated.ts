@@ -286,9 +286,9 @@ export class SimulatedNetwork {
     of(node: string): Network {
         return {
             fetch: async (request, options) => {
-                // send through a Unix socket on the host, a host file a host process serves
+                // send through a Unix socket on the host to a host process, which may call back in
                 if (options?.unix !== undefined) {
-                    return this.#clock.trackHost(BunNetwork.fetch(request, options));
+                    return this.#clock.trackPeer(BunNetwork.fetch(request, options));
                 }
 
                 // refuse a private host by its name, the simulated network routing by name
@@ -329,11 +329,11 @@ export class SimulatedNetwork {
 
     /** Publish a node's listener on the host at its port, outside the simulated links. */
     publish<Attachment>(node: string, options: ServeOptions<Attachment>): Listener<Attachment> {
-        // listen on the host at a free port unless given, counting its requests on the clock
+        // listen on the host at a free port unless given, counting its answers as the world's work
         const host = BunServer.http({
             ...options,
             fetch: (request, listener) =>
-                this.#clock.trackHost(Promise.resolve(options.fetch(request, listener))),
+                this.#clock.track(Promise.resolve(options.fetch(request, listener))),
         });
 
         // serve the node at the same address, stopping both together
@@ -353,7 +353,7 @@ export class SimulatedNetwork {
         // cut the pair
         const pair = SimulatedNetwork.#pair(left, right);
         this.#partitions.add(pair);
-        this.#record({ kind: "partition", at: this.#clock.now(), detail: pair });
+        this.#record({ kind: "partition", at: this.#clock.now(), nodes: [left, right] });
 
         // break its connections
         for (const connection of this.#connections) {
@@ -376,7 +376,7 @@ export class SimulatedNetwork {
         }
         this.#isolated.add(node);
         this.#tellIsolation(node, true);
-        this.#record({ kind: "partition", at: this.#clock.now(), detail: `${node} *` });
+        this.#record({ kind: "partition", at: this.#clock.now(), nodes: [node] });
 
         // break the connections the isolation cuts
         for (const connection of this.#connections) {
@@ -397,7 +397,7 @@ export class SimulatedNetwork {
         if (!this.#isolated.delete(node)) {
             return;
         }
-        this.#record({ kind: "heal", at: this.#clock.now(), detail: `${node} *` });
+        this.#record({ kind: "heal", at: this.#clock.now(), nodes: [node] });
         this.#tellIsolation(node, false);
     }
 
@@ -440,8 +440,8 @@ export class SimulatedNetwork {
         }
 
         // record the healing
-        const detail = `${left ?? "*"} ${right ?? "*"}`;
-        this.#record({ kind: "heal", at: this.#clock.now(), detail });
+        const nodes = left === undefined || right === undefined ? [] : [left, right];
+        this.#record({ kind: "heal", at: this.#clock.now(), nodes });
     }
 
     /** Set the faults every delivery meets. */
@@ -570,23 +570,19 @@ export class SimulatedNetwork {
             const endpoint = this.#socketEndpoints.get(key);
             const at = this.#clock.now();
             if (endpoint === undefined) {
-                this.#record({ kind: "refusal", at, detail: `${from} connect ${key}: unserved` });
+                this.#record({ kind: "refusal", at, from, target: key, reason: "unserved" });
                 throw refusal(
                     `connection refused: nothing listens at ${socketName(address)}`,
                     "ConnectionRefused",
                 );
             } else if (this.#isSocketCut(key, from, endpoint.node)) {
-                this.#record({
-                    kind: "refusal",
-                    at,
-                    detail: `${from} connect ${key}: partitioned`,
-                });
+                this.#record({ kind: "refusal", at, from, target: key, reason: "partitioned" });
                 throw refusal(
                     `connection failed: ${from} cannot reach ${endpoint.node}`,
                     "FailedToOpenSocket",
                 );
             } else if (this.#isSocketLost(key, from, endpoint.node)) {
-                this.#record({ kind: "loss", at, detail: `${from} connect ${key}` });
+                this.#record({ kind: "loss", at, from, target: key });
                 throw refusal(
                     `connection failed: the connection to ${key} was lost`,
                     "ConnectionClosed",
@@ -608,11 +604,7 @@ export class SimulatedNetwork {
                 isOpen: true,
             };
             this.#socketConnections.add(connection);
-            this.#record({
-                kind: "request",
-                at: this.#clock.now(),
-                detail: `${from} connect ${key}`,
-            });
+            this.#record({ kind: "request", at: this.#clock.now(), from, target: key });
             endpoint.accept(
                 this.#socketEnd({
                     connected: Promise.resolve(connection),
@@ -770,12 +762,12 @@ export class SimulatedNetwork {
         if (!connection.isOpen) {
             return;
         }
-        const detail = `${connection.client} ${connection.server}`;
-        const broken = refusal(`the connection ${detail} broke`, "ECONNRESET");
+        const { client, server } = connection;
+        const broken = refusal(`the connection ${client} ${server} broke`, "ECONNRESET");
         connection.isOpen = false;
         connection.broken = broken;
         this.#socketConnections.delete(connection);
-        this.#record({ kind: "break", at: this.#clock.now(), detail });
+        this.#record({ kind: "break", at: this.#clock.now(), client, server });
 
         // fail both readables, and settle every end's close
         connection.ways.toServer.inbox.controller.error(broken);
@@ -819,8 +811,8 @@ export class SimulatedNetwork {
         const { origin } = new URL(request.url);
         const isCut = this.#isCut(from, endpoint.node);
         if (isCut || this.#resolve(new URL(request.url)) !== endpoint) {
-            const detail = `${from} ${request.method} ${request.url}: response lost`;
-            this.#record({ kind: "loss", at: this.#clock.now(), detail });
+            const target = `${request.method} ${request.url}`;
+            this.#record({ kind: "loss", at: this.#clock.now(), from, target });
             throw refusal(`fetch failed: the response from ${origin} was lost`, "ConnectionClosed");
         }
 
@@ -954,8 +946,8 @@ export class SimulatedNetwork {
         this.#connections.delete(connection);
 
         // record it, and close both ends abnormally
-        const detail = `${connection.client} ${connection.server}`;
-        this.#record({ kind: "break", at: this.#clock.now(), detail });
+        const { client, server } = connection;
+        this.#record({ kind: "break", at: this.#clock.now(), client, server });
         connection.end.close(ABNORMAL_CLOSURE, "");
         connection.socket.closed(ABNORMAL_CLOSURE, "");
     }
@@ -966,25 +958,25 @@ export class SimulatedNetwork {
         const url = new URL(request.url);
         const { origin } = url;
         const endpoint = this.#resolve(url);
-        const detail = `${from} ${request.method} ${request.url}`;
+        const target = `${request.method} ${request.url}`;
         const at = this.#clock.now();
         if (endpoint === undefined) {
-            this.#record({ kind: "refusal", at, detail: `${detail}: unserved` });
+            this.#record({ kind: "refusal", at, from, target, reason: "unserved" });
             throw refusal(`fetch failed: nothing serves ${origin}`, "ConnectionRefused");
         } else if (this.#isCut(from, endpoint.node)) {
-            this.#record({ kind: "refusal", at, detail: `${detail}: partitioned` });
+            this.#record({ kind: "refusal", at, from, target, reason: "partitioned" });
             throw refusal(
                 `fetch failed: ${from} cannot reach ${endpoint.node}`,
                 "FailedToOpenSocket",
             );
         } else if (this.#isLost(from, endpoint.node)) {
-            this.#record({ kind: "loss", at, detail });
+            this.#record({ kind: "loss", at, from, target });
             throw refusal(`fetch failed: the request to ${origin} was lost`, "ConnectionClosed");
         }
 
         // arrive after the latency
         await this.#clock.sleep(this.#latency(), request.signal);
-        this.#record({ kind: "request", at: this.#clock.now(), detail });
+        this.#record({ kind: "request", at: this.#clock.now(), from, target });
 
         return endpoint;
     }

@@ -8,6 +8,8 @@ interface SimulatedSleep {
     readonly order: number;
     /** Release the wait. */
     readonly release: () => void;
+    /** Fail the wait with a failure of the world it waits in. */
+    readonly fail: (error: unknown) => void;
     /** Whether the wait keeps the process running: a sleep does, a timeout signal does not. */
     readonly isHeld: boolean;
     /** Whether the wait was withdrawn before its deadline. */
@@ -36,6 +38,8 @@ export class SimulatedClock implements Clock {
     #hostInFlight = 0;
     /** The waiters for the next tracked work to settle. */
     #settling: (() => void)[] = [];
+    /** The waiters for the next activity: a wait or tracked work beginning or settling. */
+    #activity: (() => void)[] = [];
     /** The tracked work settled so far. */
     #settled = 0;
     /** The stops of the pending timers, by handle. */
@@ -46,10 +50,39 @@ export class SimulatedClock implements Clock {
     #recorded: string[] | undefined;
     /** Where each tracked work in flight began, so a stalled run lists it. */
     readonly #flights = new Map<object, Error>();
+    /** Whether a loop answers settled host work in the order it began, instead of at once. */
+    #isOrdered = false;
+    /** Whether a world's loop alone moves the clock, refusing anyone else's move. */
+    #isOwned = false;
+    /** The order of the next host work. */
+    #hostOrder = 0;
+    /** The settled host work the loop has not answered yet. */
+    readonly #ready: {
+        readonly order: number;
+        readonly answer: () => void;
+        readonly fail: (error: unknown) => void;
+    }[] = [];
+    /** The failure of the loop that moves the clock, refusing every later wait and answer. */
+    #failure: { readonly error: unknown } | undefined;
+    /** The host work in flight that waits on another party, such as a child process. */
+    #peers = 0;
 
     /** Start the clock paused at a time. */
     constructor(time: number) {
         this.#time = time;
+    }
+
+    /** Make a clock a world's loop orders and alone moves, with the move only that loop gets. */
+    static owned(time: number): {
+        readonly clock: SimulatedClock;
+        readonly move: (time: number) => void;
+    } {
+        // order its host work and refuse every move but the loop's
+        const clock = new SimulatedClock(time);
+        clock.#isOrdered = true;
+        clock.#isOwned = true;
+
+        return { clock, move: (to) => clock.#move(to, Clock.system.now()) };
     }
 
     /** Read the clock's time. */
@@ -82,12 +115,116 @@ export class SimulatedClock implements Clock {
 
     /** Count simulated work in flight until it settles, answering the work. */
     track<Value>(work: Promise<Value>): Promise<Value> {
-        return this.#track(work, false);
+        return this.#track(work, false, new Error("track"));
     }
 
     /** Count host input and output in flight until it settles, answering the work. */
     trackHost<Value>(work: Promise<Value>): Promise<Value> {
-        return this.#track(work, true);
+        return this.#sequence(work, new Error("trackHost"));
+    }
+
+    /** Count host work that answers once another party acts, such as a child process or a world. */
+    trackPeer<Value>(work: Promise<Value>): Promise<Value> {
+        // count it apart from leaf host work until it settles, which the loop does not wait for
+        this.#peers += 1;
+        const settled = () => {
+            this.#peers -= 1;
+        };
+        void work.then(settled, settled);
+
+        return this.#sequence(work, new Error("trackPeer"));
+    }
+
+    /** Keep settled host work for the loop to answer in order, or answer it at once. */
+    #sequence<Value>(work: Promise<Value>, began: Error): Promise<Value> {
+        // number the work in the order it began
+        const order = this.#hostOrder;
+        this.#hostOrder += 1;
+        const answered = Promise.withResolvers<Value>();
+        const fail = (error: unknown) => answered.reject(error);
+        const ready = (answer: () => void) => {
+            // refuse the work once the loop failed
+            if (this.#failure !== undefined) {
+                fail(this.#failure.error);
+            }
+            // keep it for the loop
+            else if (this.#isOrdered) {
+                this.#ready.push({ order, answer, fail });
+                this.#wakeSettling();
+            }
+            // answer it at once without a loop
+            else {
+                answer();
+            }
+        };
+        void work.then(
+            (value) => ready(() => answered.resolve(value)),
+            (error: unknown) => ready(() => answered.reject(error)),
+        );
+
+        return this.#track(answered.promise, true, began);
+    }
+
+    /** Answer the settled host work in the order it began, returning each one's order. */
+    answer(): number[] {
+        const ready = this.#ready.splice(0).toSorted((left, right) => left.order - right.order);
+        for (const each of ready) {
+            each.answer();
+        }
+
+        return ready.map(({ order }) => order);
+    }
+
+    /** Read where tracked work began, as its caller's stack frames. */
+    static #site(began: Error): string {
+        return (began.stack ?? "").split("\n").slice(2, 8).join(" < ");
+    }
+
+    /** Answer host work at once from now on, answering what it kept, once no loop orders it. */
+    detach(): void {
+        this.#isOrdered = false;
+        this.#isOwned = false;
+        this.answer();
+    }
+
+    /** Fail every pending wait and host answer with the loop's failure, counting them. */
+    fail(error: unknown): number {
+        // keep the failure for later waits and answers
+        this.#failure = { error };
+
+        // fail the waits that keep the process running, dropping timeout signals
+        let failed = 0;
+        for (let sleep = pop(this.#sleeps); sleep !== undefined; sleep = pop(this.#sleeps)) {
+            if (!sleep.isWithdrawn && sleep.isHeld) {
+                sleep.fail(error);
+                failed += 1;
+            }
+        }
+
+        // fail the host work waiting for its answer
+        const ready = this.#ready.splice(0);
+        for (const each of ready) {
+            each.fail(error);
+        }
+
+        return failed + ready.length;
+    }
+
+    /** The leaf host work in flight that has not settled yet, peers aside. */
+    get hostPending(): number {
+        return this.#hostInFlight - this.#ready.length - this.#peers;
+    }
+
+    /** The settled host work the loop has not answered yet. */
+    get hostReady(): number {
+        return this.#ready.length;
+    }
+
+    /** Wait until a wait or tracked work begins or settles. */
+    nextActivity(): Promise<void> {
+        return new Promise<void>((resolve) => {
+            this.#activity.push(resolve);
+        });
     }
 
     /** Wait until the next tracked work settles. */
@@ -98,13 +235,14 @@ export class SimulatedClock implements Clock {
     }
 
     /** Count work in flight until it settles either way, waking the waiters for a settle. */
-    #track<Value>(work: Promise<Value>, isHost: boolean): Promise<Value> {
+    #track<Value>(work: Promise<Value>, isHost: boolean, began: Error): Promise<Value> {
         // count it, and the host's part apart, keeping where it began
         this.#inFlight += 1;
         this.#hostInFlight += isHost ? 1 : 0;
         this.#record(isHost ? "trackHost" : "track");
         const flight = {};
-        this.#flights.set(flight, new Error(isHost ? "trackHost" : "track"));
+        this.#flights.set(flight, began);
+        this.#wakeActivity();
 
         // uncount it once it settles, and wake the waiters
         const settle = () => {
@@ -113,9 +251,7 @@ export class SimulatedClock implements Clock {
             this.#inFlight -= 1;
             this.#hostInFlight -= isHost ? 1 : 0;
             this.#settled += 1;
-            for (const resolve of this.#settling.splice(0)) {
-                resolve();
-            }
+            this.#wakeSettling();
         };
         void work.then(settle, settle);
 
@@ -124,9 +260,11 @@ export class SimulatedClock implements Clock {
 
     /** Add a wait until the clock passes some milliseconds from now, a zero wait due at once. */
     #wait(milliseconds: number, isHeld: boolean, signal?: AbortSignal): Promise<void> {
-        // refuse aborted waits
+        // refuse aborted waits, and every wait once the loop failed
         if (signal?.aborted === true) {
             return Promise.reject(signal.reason);
+        } else if (this.#failure !== undefined) {
+            return Promise.reject(this.#failure.error);
         }
 
         // add the wait until its deadline
@@ -137,6 +275,10 @@ export class SimulatedClock implements Clock {
             release: () => {
                 signal?.removeEventListener("abort", abort);
                 resolve();
+            },
+            fail: (error) => {
+                signal?.removeEventListener("abort", abort);
+                reject(error);
             },
             isHeld,
             isWithdrawn: false,
@@ -152,6 +294,7 @@ export class SimulatedClock implements Clock {
         this.#held += isHeld ? 1 : 0;
         push(this.#sleeps, sleep);
         signal?.addEventListener("abort", abort, { once: true });
+        this.#wakeActivity();
 
         // wake it on time while the clock flows
         this.#follow();
@@ -171,6 +314,21 @@ export class SimulatedClock implements Clock {
         };
     }
 
+    /** Wake each waiter for the next settle, and for the next activity. */
+    #wakeSettling(): void {
+        for (const resolve of this.#settling.splice(0)) {
+            resolve();
+        }
+        this.#wakeActivity();
+    }
+
+    /** Wake each waiter for the next activity. */
+    #wakeActivity(): void {
+        for (const resolve of this.#activity.splice(0)) {
+            resolve();
+        }
+    }
+
     /** Note a wait or tracked work's call site while recording. */
     #record(kind: string): void {
         // read the call site from the stack while recording
@@ -187,8 +345,7 @@ export class SimulatedClock implements Clock {
     /** List where each tracked work in flight began, by its call sites. */
     flights(): string[] {
         return [...this.#flights.values()].map(
-            (began) =>
-                `${began.message} ${(began.stack ?? "").split("\n").slice(3, 9).join(" < ")}`,
+            (began) => `${began.message} ${SimulatedClock.#site(began)}`,
         );
     }
 
@@ -224,6 +381,7 @@ export class SimulatedClock implements Clock {
 
     /** Let the clock flow with the system's time from its current reading. */
     resume(): this {
+        this.#refuseOwned();
         if (this.#resumedAt === undefined) {
             this.#resumedAt = Clock.system.now();
             this.#follow();
@@ -242,13 +400,24 @@ export class SimulatedClock implements Clock {
 
     /** Move the clock to a later time, releasing the waits it passes, earliest first. */
     set(time: number): void {
+        this.#refuseOwned();
         this.#move(time, Clock.system.now());
     }
 
     /** Move the clock forward some milliseconds, releasing the waits it passes. */
     advance(milliseconds: number): void {
+        this.#refuseOwned();
         const system = Clock.system.now();
         this.#move(this.#at(system) + milliseconds, system);
+    }
+
+    /** Refuse moving a clock a world's loop alone moves. */
+    #refuseOwned(): void {
+        if (this.#isOwned) {
+            throw new Error(
+                "a world's clock moves by its loop: jump it, or sleep and wait for idle",
+            );
+        }
     }
 
     /** Read the clock at a reading of the system's clock. */
