@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { Environment } from "@destack/environment";
 import { expect, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
-import { Tarball, type TarballEntry } from "./tarball.ts";
+import { Tarball, TarballEntry } from "./tarball.ts";
 
 /** Read a stream's bytes. */
 async function read(stream: ReadableStream<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
@@ -46,7 +46,7 @@ test("roundtrip files of short, prefixed and extended paths through a tarball th
             Tarball.stream(
                 (async function* () {
                     for (const [path, text] of Object.entries(files)) {
-                        yield { path, contents: new TextEncoder().encode(text) };
+                        yield TarballEntry.of(path, new TextEncoder().encode(text));
                     }
                 })(),
                 environment.compression,
@@ -66,6 +66,46 @@ test("roundtrip files of short, prefixed and extended paths through a tarball th
         ),
     );
     expect(extracted).toEqual(files);
+});
+
+test("read back every file a tarball holds in order, with long paths and multi-block contents, and refuse a corrupted header", async () => {
+    await using simulation = testSimulation();
+    const { compression } = simulation.environment("test");
+
+    // archive a short path, a prefixed path, an extended path, an empty file and contents spanning blocks
+    const files: { readonly path: string; readonly contents: Uint8Array<ArrayBuffer> }[] = [
+        { path: "manifest.json", contents: new TextEncoder().encode("{}") },
+        { path: `${"nested/".repeat(20)}file.txt`, contents: new TextEncoder().encode("prefixed") },
+        { path: `long/${"x".repeat(200)}.txt`, contents: new TextEncoder().encode("extended") },
+        { path: "empty.txt", contents: new Uint8Array(0) },
+        { path: "blocks.bin", contents: new Uint8Array(1300).map((_, index) => index % 251) },
+    ];
+    const archived = await read(
+        Tarball.stream(
+            (async function* () {
+                for (const file of files) {
+                    yield TarballEntry.of(file.path, file.contents);
+                }
+            })(),
+            compression,
+        ),
+    );
+
+    // read the written back, then corrupt the first header's name and read again
+    const restored: { readonly path: string; readonly contents: Uint8Array<ArrayBuffer> }[] = [];
+    for await (const entry of Tarball.read(new Blob([archived]).stream(), compression)) {
+        restored.push({ path: entry.path, contents: await TarballEntry.bytes(entry) });
+    }
+    const decompressed = await read(
+        new Blob([archived]).stream().pipeThrough(compression.decompress("gzip")),
+    );
+    decompressed[0] = "M".charCodeAt(0) + 1;
+    const corrupted = new Blob([decompressed]).stream().pipeThrough(compression.compress("gzip"));
+    const refused = await Array.fromAsync(Tarball.read(corrupted, compression)).then(
+        () => "read",
+        (error: unknown) => (error instanceof Error ? error.message : String(error)),
+    );
+    expect([restored, refused]).toEqual([files, "a tarball header's checksum fails"]);
 });
 
 test("write equal entries to identical tarball bytes with a fixed gzip header, a checked trailer and a pinned digest", async () => {
@@ -100,9 +140,6 @@ test("write equal entries to identical tarball bytes with a fixed gzip header, a
 
 /** Stream a package manifest and an empty module. */
 async function* entries(): AsyncGenerator<TarballEntry> {
-    yield { path: "package/package.json", contents: new TextEncoder().encode('{"name":"a"}') };
-    yield {
-        path: "package/build/index.js",
-        contents: new TextEncoder().encode("export {};\n"),
-    };
+    yield TarballEntry.of("package/package.json", new TextEncoder().encode('{"name":"a"}'));
+    yield TarballEntry.of("package/build/index.js", new TextEncoder().encode("export {};\n"));
 }

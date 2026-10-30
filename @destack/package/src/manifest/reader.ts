@@ -1,4 +1,5 @@
-import type { Crypto, FileSystem } from "@destack/environment";
+import type { Compression, Crypto, FileSystem } from "@destack/environment";
+import { Tarball, TarballEntry } from "../archive/tarball.ts";
 import { present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
 import { DependencyResolution } from "../definition/dependency.ts";
@@ -172,6 +173,23 @@ export class BuildReader {
         return definition.parse(decode(await this.load(file.path)));
     }
 
+    /** Write the build to a new directory, its manifest last, as `openDirectory` reads it. */
+    async writeDirectory(directory: string, files: FileSystem): Promise<void> {
+        // require a new directory so a failed write cannot damage an existing build
+        await files.mkdir(directory);
+        for (const file of await this.distributed()) {
+            const destination = `${directory}/${PackagePath.parse(file.path)}`;
+            await files.mkdir(destination.slice(0, destination.lastIndexOf("/")), {
+                recursive: true,
+            });
+            await files.writeFile(destination, await this.load(file.path));
+        }
+
+        // make the build readable only after every file is written
+        const manifest = JSON.stringify(this.manifest);
+        await files.writeTextFile(`${directory}/${MANIFEST_PATH}`, manifest, { createNew: true });
+    }
+
     /** Open the build a directory keeps in files: its manifest at the root and its files below. */
     static async openDirectory(
         directory: string,
@@ -198,19 +216,7 @@ export class BuildReader {
     ): Promise<BuildReader> {
         // restrict relative reads to this package's HTTP endpoint
         location = PackageLocation.parse(location);
-        const base = new URL(location.url);
-        if (
-            !["https:", "http:"].includes(base.protocol) ||
-            base.username ||
-            base.password ||
-            base.search ||
-            base.hash
-        ) {
-            throw PackageError.of("FILE_INVALID", "invalid package URL");
-        }
-        if (!base.pathname.endsWith("/")) {
-            base.pathname += "/";
-        }
+        const base = BuildReader.#base(location);
 
         // authenticate and verify the root before trusting its file references
         const response = await BuildReader.#request(new URL(MANIFEST_PATH, base), fetch, signal);
@@ -246,6 +252,68 @@ export class BuildReader {
             },
             crypto,
         );
+    }
+
+    /** Read a whole remote package in one request for its archive, its manifest verified first. */
+    static async archive(
+        location: PackageLocation,
+        fetch: (input: URL, init: RequestInit) => Promise<Response>,
+        environment: { readonly crypto: Crypto; readonly compression: Compression },
+        signal?: AbortSignal,
+    ): Promise<BuildReader> {
+        // read the archive's entries, the manifest first, refusing one not matching its digest
+        location = PackageLocation.parse(location);
+        const response = await BuildReader.#request(
+            new URL("archive", BuildReader.#base(location)),
+            fetch,
+            signal,
+        );
+        const files = new Map<string, Uint8Array<ArrayBuffer>>();
+        for await (const entry of Tarball.read(
+            present(response.body, "a package's archive"),
+            environment.compression,
+        )) {
+            files.set(entry.path, await TarballEntry.bytes(entry));
+        }
+        const bytes = present(files.get(MANIFEST_PATH), "the archive's manifest");
+        await PackageFile.verify(
+            {
+                path: MANIFEST_PATH,
+                digest: location.manifest,
+                size: bytes.byteLength,
+                mediaType: "application/json",
+            },
+            bytes,
+            environment.crypto,
+        );
+
+        // read each file from the archive, verified as the reader reads it
+        return new BuildReader(
+            PackageManifest.parse(decode(bytes)),
+            async (path) =>
+                new Blob([present(files.get(path), `the archived file ${path}`)]).stream(),
+            environment.crypto,
+        );
+    }
+
+    /** Read a remote package's endpoint, refusing anything but a plain HTTP URL. */
+    static #base(location: PackageLocation): URL {
+        // refuse credentials, queries, fragments and other schemes, and end the path with a slash
+        const base = new URL(location.url);
+        if (
+            !["https:", "http:"].includes(base.protocol) ||
+            base.username ||
+            base.password ||
+            base.search ||
+            base.hash
+        ) {
+            throw PackageError.of("FILE_INVALID", "invalid package URL");
+        }
+        if (!base.pathname.endsWith("/")) {
+            base.pathname += "/";
+        }
+
+        return base;
     }
 
     /** Request one package file, rejecting HTTP failures before its body is read. */
