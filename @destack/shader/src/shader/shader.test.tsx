@@ -81,7 +81,7 @@ test("hand each built mount to onMount and hold it still while the theme's motio
     // turn the person's motion off and change the theme root, the test DOM resolving only the canvas's own custom properties
     container.querySelector("canvas")?.style.setProperty("--destack-motion-scale", "0");
     container.className = "reduced";
-    await simulation.run({ until: () => speed.mock.calls.at(-1)?.[0] === 0 });
+    await simulation.until(() => speed.mock.calls.at(-1)?.[0] === 0);
 
     expect([mounts[0]?.canvas === container.querySelector("canvas"), running]).toEqual([true, [1]]);
 });
