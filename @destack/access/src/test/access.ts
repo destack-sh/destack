@@ -13,7 +13,7 @@ import { Authorization, type AuthorizationEnvironment } from "../authorizer/auth
 import { Authorizer } from "../authorizer/authorizer.ts";
 
 /** A database storing replicas of other packages' access, for tests of packages that follow one. */
-export class AccessFixture {
+export class TestAccess {
     /** The database storing the replicas. */
     readonly database: DatabaseConnection;
     /** The clock, randomness and crypto the rows take their identifiers and digests from. */

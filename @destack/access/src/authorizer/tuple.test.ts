@@ -28,7 +28,7 @@ import {
     teamTable,
 } from "../test/fixture.ts";
 import { openFixture, sessionCredential } from "../test/database.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import { TupleTree } from "./tuple.ts";
 import { relationship } from "../declare/principal.ts";
 
@@ -139,7 +139,7 @@ test("decide in memory exactly as the permission queries do, for objects and the
     // call as users, members, anonymous callers, presenters of link secrets and actors under grants
     const agent = principal.installation.reference("personal", "agent");
     const client = principal.client.reference(Scope.universe.id, "client-bob");
-    const granting = new AccessFixture(database, environment);
+    const granting = new TestAccess(database, environment);
     const toAgent = await granting.replicateGrant(
         user("bob"),
         agent,

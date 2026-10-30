@@ -3,7 +3,7 @@ import { Snapshot } from "@destack/db";
 import { nth } from "@destack/schema";
 import type { Access } from "./access.ts";
 import { account, item, node, rows, space } from "../test/fixture.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import { openFixture, userSubject } from "../test/database.ts";
 
 /** Describe a caller's resolved access in a scope. */
@@ -27,12 +27,12 @@ test("resolve a caller in the scopes one encloses exactly as each scope resolves
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
     const { database, authorizer, bob, environment } = fixture;
-    const access = new AccessFixture(database, environment);
+    const access = new TestAccess(database, environment);
     await access.replicateScope(account.reference("universe", "near"), account);
     await access.replicateScope(account.reference("universe", "far"), account);
     const spaces = ["plain", "shared", "suspended"].map((id) => space.reference("near", id));
     for (const scope of [...spaces, space.reference("far", "outside")]) {
-        await new AccessFixture(database, environment).replicateScope(scope, space);
+        await new TestAccess(database, environment).replicateScope(scope, space);
     }
 
     // let bob read the nodes of two spaces through a role, and suspend one of them

@@ -374,11 +374,7 @@ export class TupleReader {
         const chain =
             expression.scope === "row"
                 ? [scope]
-                : [
-                      scope,
-                      ...(await this.#chain(scope)).map((link) => link.id),
-                      Scope.universe.id,
-                  ];
+                : [scope, ...(await this.#chain(scope)).map((link) => link.id), Scope.universe.id];
 
         // grant to the set in each scope once
         const subjects = [...new Set(chain)].map((at) => ({

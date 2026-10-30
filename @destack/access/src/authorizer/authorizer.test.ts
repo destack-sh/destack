@@ -47,7 +47,7 @@ import {
 } from "../test/fixture.ts";
 import { Authorization } from "./authorization.ts";
 import { openFixture, sessionCredential, userSubject } from "../test/database.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 
 /** The relationships of other subjects the stress test adds to a scope. */
 const STRESS_RELATIONSHIPS = 2000;
@@ -816,7 +816,7 @@ databaseTest(
             scope: "personal",
             mode: "approval" as const,
         };
-        const access = new AccessFixture(database, environment);
+        const access = new TestAccess(database, environment);
         const toAgent = await access.replicateGrant(
             alice.subject,
             agent,

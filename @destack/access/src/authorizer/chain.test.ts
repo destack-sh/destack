@@ -41,7 +41,7 @@ import {
     space,
     spaceTable,
 } from "../test/fixture.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import { homePositions, openDatabase, openFixture, userSubject } from "../test/database.ts";
 import { Identifier, type JsonObject, nth } from "@destack/schema";
 
@@ -597,7 +597,7 @@ interface Side {
 /** Open a world of two regions and two accounts drawn from a generator. */
 async function openWorld(
     random: () => number,
-    populate: (home: AccessFixture) => Promise<void> = async () => {},
+    populate: (home: TestAccess) => Promise<void> = async () => {},
 ): Promise<World> {
     // open the home and the space's database
     const home = await openDatabase();
@@ -605,7 +605,7 @@ async function openWorld(
     onTestFinished(async () => {
         await Promise.all([home.close(), app.close()]);
     });
-    const access = new AccessFixture(home.database, app.environment);
+    const access = new TestAccess(home.database, app.environment);
     await populate(access);
 
     // store two regions, each person serving one as its machine or home with a generated chance
@@ -654,7 +654,7 @@ async function openWorld(
         follow(app.database, chainOf(app.authorizer, authorizer, scope, SPACE, CHAIN), feed);
     await followScope("account-0");
     await followScope(Scope.universe.id);
-    await new AccessFixture(app.database, app.environment).replicateScope(
+    await new TestAccess(app.database, app.environment).replicateScope(
         space.reference("account-0", SPACE),
         space,
     );

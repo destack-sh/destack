@@ -25,7 +25,7 @@ import {
     spaceTable,
     teamTable,
 } from "../test/fixture.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import { sessionCredential } from "../test/database.ts";
 
 /** Realms, root scopes with districts, read by the principals inside them. */
@@ -98,7 +98,7 @@ test("permit a scope's row to the principals inside it and a row living in a sco
         [district.reference("far", "outside"), district],
     ] as const;
     for (const [scope, policy] of scopes) {
-        await new AccessFixture(database, environment).replicateScope(scope, policy);
+        await new TestAccess(database, environment).replicateScope(scope, policy);
     }
     await database.insert(accountTable).values([
         { id: "near", scope: "universe" },
@@ -203,7 +203,7 @@ test("resolve a credential bound to a scope within that scope and the scopes ins
         [district.reference("near", "inside"), district],
         [district.reference("far", "outside"), district],
     ] as const) {
-        await new AccessFixture(database, environment).replicateScope(scope, policy);
+        await new TestAccess(database, environment).replicateScope(scope, policy);
     }
 
     // resolve a caller whose credential is bound to the near realm in each scope
@@ -272,7 +272,7 @@ test("contain a space's principals under its global principal reference", async 
     });
     onTestFinished(() => opened.close());
     const { database } = opened;
-    const access = new AccessFixture(database, environment);
+    const access = new TestAccess(database, environment);
     await access.replicateScope(realm.reference("universe", "near"), realm);
     await access.replicateScope(home.reference("near", "own"), home);
     await access.replicateScope(home.reference("near", "other"), home);
@@ -348,7 +348,7 @@ test("contain a global scope's principal in its scope under its universe referen
     });
     onTestFinished(() => opened.close());
     const { database } = opened;
-    const access = new AccessFixture(database, environment);
+    const access = new TestAccess(database, environment);
     await access.replicateScope(realm.reference("universe", "near"), realm);
     await access.replicateScope(home.reference("near", "own"), home);
     await access.replicateScope(home.reference("near", "other"), home);
@@ -405,7 +405,7 @@ test("admit the contents of a realm related as a zone's residents, through an ar
             },
         ],
     );
-    const fixture = new AccessFixture(database, environment);
+    const fixture = new TestAccess(database, environment);
     for (const [scope, policy] of [
         [realm.reference("universe", "near"), realm],
         [realm.reference("universe", "far"), realm],

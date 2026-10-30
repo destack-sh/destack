@@ -18,7 +18,7 @@ import {
     space,
     spaceTable,
 } from "../test/fixture.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import { openFixture, sessionCredential } from "../test/database.ts";
 
 /** Spaces anyone may read once shared publicly, as a public home space is. */
@@ -46,7 +46,7 @@ test("allow any signed-in user's read of a public space whose home stores its ro
     const home = publicSpace.reference("account-1", "personal");
     await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await database.insert(spaceTable).values({ id: "personal", account: "account-1" });
-    const access = new AccessFixture(database, environment);
+    const access = new TestAccess(database, environment);
     await access.replicateScope(account.reference("universe", "account-1"), account);
     await access.replicateScope(home, publicSpace);
 

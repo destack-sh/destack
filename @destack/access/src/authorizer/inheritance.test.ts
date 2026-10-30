@@ -5,7 +5,7 @@ import type { ObjectReference, Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import { fixtureDatabase, item, module1 } from "../test/fixture.ts";
 import {
     AccessContext,
@@ -130,7 +130,7 @@ test("inherit a scope's relations onto the objects it encloses, through every sc
     const { database } = storage;
     const acme = org.reference("universe", "acme");
     const plans = folder.reference("acme", "plans");
-    const replicas = new AccessFixture(database, environment);
+    const replicas = new TestAccess(database, environment);
     await replicas.replicateScope(acme, org);
     await replicas.replicateScope(plans, folder);
     await database.transaction(
@@ -229,7 +229,7 @@ test("share an object with everyone with a permission on another, as its relatio
         permissions: { read: relation("reader") },
     });
     const authorizer = new Authorizer([team, note], [{ ...mapping, policy: note, relations: {} }]);
-    await new AccessFixture(database, environment).replicateScope(
+    await new TestAccess(database, environment).replicateScope(
         org.reference("universe", "plans"),
         org,
     );
@@ -304,7 +304,7 @@ test("share an object with a scope's readers, including those of the scopes encl
     );
     const acme = org.reference("universe", "acme");
     const plans = folder.reference("acme", "plans");
-    const replicas = new AccessFixture(database, environment);
+    const replicas = new TestAccess(database, environment);
     await replicas.replicateScope(acme, org);
     await replicas.replicateScope(plans, folder);
     await database.transaction(
@@ -400,7 +400,7 @@ test("read a permission through each object's scope, granting nothing where the 
     });
     const corner = shop.reference("universe", "corner");
     const chess = club.reference("universe", "chess");
-    const replicas = new AccessFixture(database, environment);
+    const replicas = new TestAccess(database, environment);
     await replicas.replicateScope(corner, shop);
     await replicas.replicateScope(chess, club);
     await database.transaction(

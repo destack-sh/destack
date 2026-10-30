@@ -738,7 +738,10 @@ export class Authorizer {
             return expression;
         }
         const server = this.#servers.get(ObjectTypeReference.key(reference));
-        const packages = new Set([this.policy(reference).package.id, ...(server === undefined ? [] : [server])]);
+        const packages = new Set([
+            this.policy(reference).package.id,
+            ...(server === undefined ? [] : [server]),
+        ]);
 
         return union(
             expression,
@@ -747,9 +750,7 @@ export class Authorizer {
     }
 
     /** List the chain subject sets a permission grants on its type's objects in their chain. */
-    chainSets(
-        reference: PermissionReference,
-    ): Extract<AccessExpression, { kind: "subjectSet" }>[] {
+    chainSets(reference: PermissionReference): Extract<AccessExpression, { kind: "subjectSet" }>[] {
         // grant no sets for a permission no policy here declares, as a role may name one
         const policy = this.find(reference);
         if (policy === undefined || !Object.hasOwn(policy.definition.permissions, reference.name)) {

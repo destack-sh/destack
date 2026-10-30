@@ -15,7 +15,7 @@ import {
     through,
 } from "../index.ts";
 import { module4, space } from "../test/fixture.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 
 /** Profiles living at the universe, which their viewers read. */
 const profile = new Policy(module4.package, {
@@ -81,7 +81,7 @@ test("follow a relation to a global type at the universe, through a plain and a 
     onTestFinished(() => storage.close());
     const { database } = storage;
     const authorizer = new Authorizer([space, profile, card], mappings);
-    const access = new AccessFixture(database, environment);
+    const access = new TestAccess(database, environment);
     await access.replicateScope(space.reference("universe", "personal"), space);
     await database.insert(profileTable).values({ id: "p1" });
     await database.insert(cardTable).values({

@@ -15,7 +15,7 @@ import {
     type TableMapping,
     through,
 } from "../index.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import {
     account,
     fixtureTables,
@@ -79,7 +79,7 @@ async function openWithOwner() {
     const { database } = storage;
 
     // replicate the accounts, the holder and the home, and store the holder and an asset of it
-    const replicas = new AccessFixture(database, environment);
+    const replicas = new TestAccess(database, environment);
     for (const scope of [holding, unrelated, account.reference(Scope.universe.id, "account-3")]) {
         await replicas.replicateScope(scope, account);
     }

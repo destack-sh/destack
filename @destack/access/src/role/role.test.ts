@@ -35,7 +35,7 @@ import {
     teamTable,
 } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 
 /** The members of carol's account as a subject set. */
 const carolMembership = { ...account.reference("universe", "account-1"), relation: "member" };
@@ -286,7 +286,7 @@ test("bind roles on enclosing scopes and compose roles through includes", async 
     const { database, readable, defineRole, relate, environment } = await openRoleFixture();
 
     // place the personal scope inside the account of its members
-    const access = new AccessFixture(database, environment, Scope.universe.id);
+    const access = new TestAccess(database, environment, Scope.universe.id);
     await access.replicateScope(account.reference("universe", "account-1"), account);
     await access.bindOwner(account.reference("universe", "account-1"), carolMembership, 1);
     await access.replicateScope(space.reference("account-1", "personal"), space);
@@ -737,7 +737,7 @@ test("list the spaces an account contains to the account's owner", async () => {
     ]);
 
     // record two accounts, their spaces, and carol as the first account's owner
-    const access = new AccessFixture(database, environment, Scope.universe.id);
+    const access = new TestAccess(database, environment, Scope.universe.id);
     await access.replicateScope(account.reference("universe", "account-1"), account);
     await access.bindOwner(account.reference("universe", "account-1"), carol.subject, 1);
     await access.replicateScope(account.reference("universe", "account-2"), account);
@@ -746,7 +746,7 @@ test("list the spaces an account contains to the account's owner", async () => {
         ["space-2", "account-1"],
         ["space-3", "account-2"],
     ] as const) {
-        await new AccessFixture(database, environment).replicateScope(
+        await new TestAccess(database, environment).replicateScope(
             space.reference(owner, id),
             space,
         );
@@ -771,7 +771,7 @@ test("list the spaces an account contains to the account's owner", async () => {
     expect(await listed(alice)).toEqual([]);
 
     // list the same spaces from the scope records of every database
-    await new AccessFixture(database, environment).replicateScope(
+    await new TestAccess(database, environment).replicateScope(
         account.reference("account-1", "account-3"),
         account,
     );

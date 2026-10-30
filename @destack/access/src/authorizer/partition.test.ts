@@ -21,7 +21,7 @@ import {
     spaceTable,
 } from "../test/fixture.ts";
 import { openFixture, userSubject } from "../test/database.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 
 test("record each scope in its partition where its type partitions, else in its parent's", async () => {
     // create an account in the universe and a partitioning space in it
@@ -85,7 +85,7 @@ test("store a space's own access beside its row in its account's home, refusing 
     // bear the space in its partition below its replicated account
     const partition = await openFixture();
     onTestFinished(() => partition.close());
-    await new AccessFixture(partition.database, partition.environment).replicateScope(
+    await new TestAccess(partition.database, partition.environment).replicateScope(
         account.reference("universe", "account-1"),
         account,
     );

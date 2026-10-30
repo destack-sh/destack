@@ -19,7 +19,7 @@ import {
     through,
     union,
 } from "../index.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import { module4 } from "../test/fixture.ts";
 
 /** Realms, root scopes guarded by their wardens. */
@@ -210,7 +210,7 @@ async function openRealm(environment: Environment) {
         { environment, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const fixture = new AccessFixture(storage.database, environment);
+    const fixture = new TestAccess(storage.database, environment);
     await fixture.replicateScope(crown, realm);
     await fixture.replicateScope(near, district);
     await fixture.replicateScope(far, district);

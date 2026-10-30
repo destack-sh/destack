@@ -3,7 +3,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Snapshot, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { principal } from "../declare/principal.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import { account, fixtureDatabase, mappings, policies, space } from "../test/fixture.ts";
 import { Authorizer } from "./authorizer.ts";
 import { AccessContext, Caller } from "../context/context.ts";
@@ -21,7 +21,7 @@ test("fence a scope for a transfer, moving it and the scopes below it until unfe
     const authorizer = new Authorizer(policies, mappings);
 
     // insert an account and a space inside it
-    const access = new AccessFixture(database, environment);
+    const access = new TestAccess(database, environment);
     await access.replicateScope(account.reference(Scope.universe.id, "account-a"), account);
     await access.replicateScope(space.reference("account-a", "space-a"), space);
     const context = AccessContext.of(

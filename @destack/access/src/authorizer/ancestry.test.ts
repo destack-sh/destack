@@ -14,7 +14,7 @@ import {
     resource,
     type TableMapping,
 } from "../index.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import { module4 } from "../test/fixture.ts";
 
 /** Clubs stored as scopes elsewhere, joined by their members and visited while open. */
@@ -49,7 +49,7 @@ test("decide a scope with no table here on its ancestry row, refusing terms that
     });
     onTestFinished(() => storage.close());
     const authorizer = new Authorizer([club], []);
-    await new AccessFixture(storage.database, environment).replicateScope(chess, club);
+    await new TestAccess(storage.database, environment).replicateScope(chess, club);
 
     // decide for a caller with the signed set of the club's members, and for one without it
     expect({
@@ -89,7 +89,7 @@ test("decide a scope whose object row lives elsewhere on its ancestry row, and d
         join: [true, true],
         visit: [false, false],
     });
-    await new AccessFixture(storage.database, environment).replicateScope(chess, club);
+    await new TestAccess(storage.database, environment).replicateScope(chess, club);
 
     // decide for a caller with the signed set of the club's members, and for one without it
     expect({

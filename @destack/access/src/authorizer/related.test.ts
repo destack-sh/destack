@@ -11,7 +11,7 @@ import {
     AccessContext,
 } from "../index.ts";
 import { account, group, node, space } from "../test/fixture.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 import { openFixture } from "../test/database.ts";
 
 /** The time every caller acts at. */
@@ -30,7 +30,7 @@ test("relate a caller to a scope through a direct, wildcard or subject-set share
     const note = node.reference("personal", "a");
 
     // store the personal space below its account, as every scope has its row
-    const replicas = new AccessFixture(database, environment);
+    const replicas = new TestAccess(database, environment);
     const personal = space.reference("account-1", "personal");
     await replicas.replicateScope(account.reference("universe", "account-1"), account);
     await replicas.replicateScope(personal, space);

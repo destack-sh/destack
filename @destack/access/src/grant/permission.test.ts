@@ -26,7 +26,7 @@ import {
     type TableMapping,
 } from "../index.ts";
 import { module1 } from "../test/fixture.ts";
-import { AccessFixture } from "../test/access.ts";
+import { TestAccess } from "../test/access.ts";
 
 /** Pages with text derived from reading them. */
 const page = new Policy(module1.package, {
@@ -137,7 +137,7 @@ async function restricted(
     // store alice's grant to the token
     const alice = principal.user.reference("universe", "alice");
     const client = principal.client.reference(Scope.universe.id, token);
-    const id = await new AccessFixture(database, environment).replicateGrant(alice, client, [
+    const id = await new TestAccess(database, environment).replicateGrant(alice, client, [
         { ...source, ...entry },
     ]);
 
@@ -248,7 +248,7 @@ test("cap every permission by the grant, lending a global type's permission in e
     // lend alice's token reading her pages and, in every scope, reading people
     const alice = principal.user.reference(universe, "alice");
     const client = principal.client.reference(universe, "client-1");
-    const id = await new AccessFixture(database, environment).replicateGrant(alice, client, [
+    const id = await new TestAccess(database, environment).replicateGrant(alice, client, [
         { ...page.permission("read"), scope: "personal" },
         person.permission("read"),
     ]);
