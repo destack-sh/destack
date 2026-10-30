@@ -136,11 +136,11 @@ export class TestObservability implements AsyncDisposable {
         return this.person(this.#member);
     }
 
-    /** The space's machine, forwarding its workloads' exports, calling under the simulation. */
+    /** The space's machine, forwarding its workloads' exports. */
     get machine(): TestCaller {
-        return this.served
-            .as(principal.machine.reference(Scope.universe.id, this.space.machine.id))
-            .driven((work) => this.simulation.settle(work));
+        return this.served.as(
+            principal.machine.reference(Scope.universe.id, this.space.machine.id),
+        );
     }
 
     /** Keep a served space with its installations and member. */
@@ -170,7 +170,7 @@ export class TestObservability implements AsyncDisposable {
         const { space, world } = await TestSpace.copy(template, { ...SPACE_OPTIONS, start });
 
         // serve it, driving the work through the fork
-        return space.simulation.settle(TestObservability.#open(space, world));
+        return TestObservability.#open(space, world);
     }
 
     /** Serve a copied space to its member. */
@@ -271,9 +271,7 @@ export class TestObservability implements AsyncDisposable {
 
     /** Address the space as a person, each call run under the simulation. */
     person(person: TestPerson): TestCaller {
-        return this.space
-            .person(this.served, person)
-            .driven((work) => this.simulation.settle(work));
+        return this.space.person(this.served, person);
     }
 
     /** Apply a stack document declaring records of some types to the space under the simulation. */
@@ -281,7 +279,7 @@ export class TestObservability implements AsyncDisposable {
         types: Types,
         document: StackDocument<Types>,
     ): Promise<void> {
-        return this.simulation.settle(this.space.apply(this.served, types, document));
+        return this.space.apply(this.served, types, document);
     }
 
     /** Submit a stack document to the space, answering how its stack stands. */
@@ -289,7 +287,7 @@ export class TestObservability implements AsyncDisposable {
         types: Types,
         document: StackDocument<Types>,
     ): Promise<readonly [string | undefined, string | undefined]> {
-        return this.simulation.settle(this.space.submit(this.served, types, document));
+        return this.space.submit(this.served, types, document);
     }
 
     /** Grant the member exactly some permissions through a role the space's stack declares. */
@@ -319,7 +317,10 @@ export class TestObservability implements AsyncDisposable {
 
     /** Run past the issues reader's minute, counting the posted exceptions into issues. */
     async count(): Promise<void> {
-        await this.simulation.run({ to: this.clock.now() + ISSUE_COUNT_MILLISECONDS });
+        await this.simulation.clock.sleep(
+            this.clock.now() + ISSUE_COUNT_MILLISECONDS - this.simulation.clock.now(),
+        );
+        await this.simulation.idle();
     }
 
     /** The clock the space's servers read. */
@@ -329,14 +330,14 @@ export class TestObservability implements AsyncDisposable {
 
     /** Serve the space anew, as its machine does once its installations change. */
     async restart(): Promise<void> {
-        await this.simulation.settle(this.#served[Symbol.asyncDispose]());
-        this.#served = await this.simulation.settle(this.space.serve());
+        await this.#served[Symbol.asyncDispose]();
+        this.#served = await this.space.serve();
     }
 
     /** Stop serving the space, then close it, running the simulation while they wind down. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await this.simulation.settle(this.served[Symbol.asyncDispose]());
-        await this.simulation.settle(this.space[Symbol.asyncDispose]());
+        await this.served[Symbol.asyncDispose]();
+        await this.space[Symbol.asyncDispose]();
     }
 }
 

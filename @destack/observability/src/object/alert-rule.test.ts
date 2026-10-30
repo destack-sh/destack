@@ -142,16 +142,14 @@ test("fire an events condition per crossing group, as a count, a ratio and a per
             .map(({ title, value, labels, status }) => ({ title, value, labels, status }))
             .toSorted((left, right) => left.title.localeCompare(right.title));
     const statuses = async () => (await alerts()).map((each) => each.status);
-    await kit.simulation.run({
-        until: async () => (await statuses()).join() === "firing,firing,firing",
-    });
+    await kit.simulation.until(async () => (await statuses()).join() === "firing,firing,firing");
     const fired = await alerts();
     await client.alertRule.update({
         ...alertRule.target(created),
         condition: { ...ERROR_COUNT, threshold: 10 },
         requestId: RequestId.create(kit.environment),
     });
-    await kit.simulation.run({ until: async () => (await statuses()).includes("resolved") });
+    await kit.simulation.until(async () => (await statuses()).includes("resolved"));
 
     // fire once per rule for the notes installation's group, or the space's, and settle the errors' alert
     const labels = { installationId: kit.notes };
@@ -270,9 +268,7 @@ test("make the manager who last sets a rule's condition or actions its author, w
     await owner.alertRule.update(update({ actions: [{ kind: "call", method: "rollBack" }] }));
     const acted = await author();
     await kit.post("logs", kit.emitter.logs(errors(now)));
-    await kit.simulation.run({
-        until: async () => (await outcome(kit)).responses.length === 1,
-    });
+    await kit.simulation.until(async () => (await outcome(kit)).responses.length === 1);
     const { responses } = await outcome(kit);
 
     // let the owner change only its title, then the member only its condition
@@ -281,17 +277,13 @@ test("make the manager who last sets a rule's condition or actions its author, w
     const member = kit.member.client(observabilityPackage);
     await member.alertRule.update(update({ condition: { ...ERROR_COUNT, threshold: 10 } }));
     const conditioned = await author();
-    await kit.simulation.run({
-        until: async () => (await outcome(kit)).statuses.join() === "resolved",
-    });
+    await kit.simulation.until(async () => (await outcome(kit)).statuses.join() === "resolved");
 
     // past the repeat interval, let the member restore the condition and fire again on new errors
     await kit.space.jump(kit.served, now + REPEAT_MILLISECONDS);
     await member.alertRule.update(update({ condition: ERROR_COUNT }));
     await kit.post("logs", kit.emitter.logs(errors(kit.clock.now())));
-    await kit.simulation.run({
-        until: async () => (await outcome(kit)).responses.length === 2,
-    });
+    await kit.simulation.until(async () => (await outcome(kit)).responses.length === 2);
     const responders = (await outcome(kit)).responses.map((response) => response.actor);
 
     // move the author with the actions and the condition, keep it for the title, and respond as it
@@ -405,16 +397,17 @@ test("keep an alert pending for its rule's pending period, then fire, announce a
 
     // evaluate now, each minute until the pending period ends, and once the threshold rises above the count
     const statuses = async () => (await outcome(kit)).statuses.join();
-    await kit.simulation.run({ until: async () => (await statuses()) === "pending" });
+    await kit.simulation.until(async () => (await statuses()) === "pending");
     const pending = (await outcome(kit)).statuses;
-    await kit.simulation.run({ to: now + 2 * 60_000 });
+    await kit.simulation.clock.sleep(now + 2 * 60_000 - kit.simulation.clock.now());
+    await kit.simulation.idle();
     const fired = await outcome(kit);
     await client.alertRule.update({
         ...alertRule.target(created),
         condition: { ...ERROR_COUNT, threshold: 10 },
         requestId: RequestId.create(kit.environment),
     });
-    await kit.simulation.run({ until: async () => (await statuses()) === "resolved" });
+    await kit.simulation.until(async () => (await statuses()) === "resolved");
     const resolved = await outcome(kit);
 
     // expect pending, then firing with one response as the member, then resolved with both announcements
@@ -448,7 +441,7 @@ test("fire an issue rule once per opened issue and once per regression, and not 
     await rule(kit, "Opened", { kind: "issue", on: "open" });
     await rule(kit, "Regressed", { kind: "issue", on: "regress" });
     await kit.post("logs", kit.emitter.exceptions([kit.renameFailure(now, "dana")]));
-    await kit.simulation.run({ until: async () => (await fired("Opened")).length === 1 });
+    await kit.simulation.until(async () => (await fired("Opened")).length === 1);
     const opened = [await fired("Opened"), await fired("Regressed")];
 
     // resolve the issue, then fail again, regressing it
@@ -459,12 +452,13 @@ test("fire an issue rule once per opened issue and once per regression, and not 
         until: { kind: "event" },
     });
     await kit.post("logs", kit.emitter.exceptions([kit.renameFailure(now + 10, "dana")]));
-    await kit.simulation.run({ until: async () => (await fired("Regressed")).length === 1 });
+    await kit.simulation.until(async () => (await fired("Regressed")).length === 1);
     const regressed = [await fired("Opened"), await fired("Regressed")];
 
     // let the resolved alerts expire, evaluating the rules again after
     await kit.space.jump(kit.served, now + 121 * 3_600_000);
-    await kit.simulation.run({ to: kit.clock.now() + 2 * 60_000 });
+    await kit.simulation.clock.sleep(2 * 60_000);
+    await kit.simulation.idle();
     const expired = [await fired("Opened"), await fired("Regressed")];
 
     // expect each change answered by one alert, settled at once, and nothing raised again
@@ -493,13 +487,11 @@ test("fire a silenced subject's alert without announcing it or responding, and a
         { kind: "notify" },
         { kind: "call", method: "rollBack" },
     ]);
-    await kit.simulation.run({
-        until: async () => (await outcome(kit)).statuses.join() === "firing",
-    });
+    await kit.simulation.until(async () => (await outcome(kit)).statuses.join() === "firing");
     const silenced = await outcome(kit);
 
     // announce it and start its response at the first evaluation after the silence ends
-    await kit.simulation.run({ until: async () => (await outcome(kit)).announced.length > 0 });
+    await kit.simulation.until(async () => (await outcome(kit)).announced.length > 0);
     const lapsed = await outcome(kit);
 
     expect({
@@ -535,7 +527,9 @@ test("fire an events condition with an empty window when its rule says no data a
         requestId: RequestId.create(kit.environment),
     });
     await rule(kit, "Quiet", missing);
-    await kit.simulation.run({ until: async () => (await outcome(kit)).alerts.length > 0 });
+    await kit.simulation.until(async () =>
+        (await outcome(kit)).alerts.some((each) => each.status === "firing"),
+    );
 
     // expect one no-data alert, of the alerting rule
     const { alerts } = await outcome(kit);

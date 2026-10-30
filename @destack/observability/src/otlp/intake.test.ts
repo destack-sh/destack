@@ -373,14 +373,15 @@ test("keep a page's visits and actions apart from its logs, its visitor a hash o
             },
         ]),
     );
-    await kit.simulation.run({ to: midnight + 1 });
+    await kit.simulation.clock.sleep(midnight + 1 - kit.simulation.clock.now());
+    await kit.simulation.idle();
     await kit.post("logs", visited(midnight + 1));
 
     // read the visits once both arrived, the action, the logs and the salts kept
     const { events } = kit.served.store;
     const scopes: EventFilter = { scopes: [ids.space] };
     const read = async () => (await events.query(visit.eventKind(), scopes)).events;
-    await kit.simulation.run({ until: async () => (await read()).length === 2 });
+    await kit.simulation.until(async () => (await read()).length === 2);
     const visits = await read();
     const actions = (await events.query(action.eventKind(), scopes)).events;
     const logs = (await events.query(log.eventKind(), scopes)).events;
