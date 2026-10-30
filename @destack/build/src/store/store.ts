@@ -23,6 +23,7 @@ import { comparePath } from "../build/serialization.ts";
 import type { CacheEntry } from "../cache/entry.ts";
 import { type PackageAccess, serveStore } from "./http.ts";
 import { buildCache, buildManifest, buildReference, buildReferrer, buildRoot } from "./table.ts";
+import { BuildLayer } from "./layer.ts";
 
 /** The concurrent uploads of one store. */
 const CONCURRENT_UPLOADS = 8;
@@ -60,6 +61,8 @@ export interface PackageStoreOptions<StoreEnvironment, Storage extends BlobStora
     readonly blobs: BlobStore<Storage>;
     /** The compression streaming archives, the crypto digesting files and the clock of leases. */
     readonly environment: StoreEnvironment;
+    /** The read-only builds the store reads in place, such as a machine's shipped builds. */
+    readonly layers?: readonly BuildReader[];
 }
 
 /** Immutable package builds in a partition's blobs, kept while any of its rows references them. */
@@ -80,11 +83,14 @@ export class PackageStore<
     readonly #building = new Map<string, Promise<Digest>>();
     /** The runtime builds being derived, by build and runtime. */
     readonly #attaching = new Map<string, Promise<Digest>>();
+    /** The read-only builds the store reads in place, indexed once. */
+    readonly #layer: Promise<BuildLayer>;
 
-    /** Store builds in a partition's blobs. */
+    /** Store builds in a partition's blobs, reading some read-only builds in place. */
     constructor(options: PackageStoreOptions<StoreEnvironment, Storage>) {
         this.blobs = options.blobs;
         this.environment = options.environment;
+        this.#layer = BuildLayer.of(options.layers ?? [], options.environment.crypto);
     }
 
     /** The partition's database with the store's index. */
@@ -140,6 +146,12 @@ export class PackageStore<
 
     /** Report whether the store has a build, recorded once every blob it references is stored. */
     async contains(digest: Digest): Promise<boolean> {
+        // take a layered build as contained
+        if ((await this.#layer).build(digest) !== undefined) {
+            return true;
+        }
+
+        // find a stored build
         const [found] = await this.database
             .select({ digest: buildManifest.digest })
             .from(buildManifest)
@@ -151,7 +163,10 @@ export class PackageStore<
 
     /** Report whether the store has a blob. */
     async has(digest: Digest): Promise<boolean> {
-        return (await this.blobs.storage.missing([digest])).length === 0;
+        return (
+            (await this.#layer).has(digest) ||
+            (await this.blobs.storage.missing([digest])).length === 0
+        );
     }
 
     /** Copy a served build by manifest digest unless stored, fetching only missing files. */
@@ -315,6 +330,12 @@ export class PackageStore<
 
     /** Open a stored build for selective reads, one reader per build, as its files never change. */
     async contents(digest: Digest): Promise<BuildReader> {
+        // read a layered build in place
+        const layered = (await this.#layer).build(digest);
+        if (layered !== undefined) {
+            return layered;
+        }
+
         // refuse a build the store no longer records, whose reader may outlive it
         await this.head(digest);
 
@@ -709,7 +730,7 @@ export class PackageStore<
         packageId: PackageId,
         read: ManifestRead = (digest) => this.get(digest),
     ): Promise<ReadonlySet<Digest>> {
-        // start at each workload's entry of each output, reading each manifest once
+        // start at each output's workload entries and the exports its views mount, reading each manifest once
         const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
         const once: ManifestRead = (digest, located) => {
             const reading = manifests.get(digest) ?? read(digest, located);
@@ -718,14 +739,22 @@ export class PackageStore<
             return reading;
         };
         const first = await once(start, packageId);
-        const pending = Object.values(first?.outputs ?? {}).flatMap((output) =>
-            Object.values(output.workloads).map((workload) => ({
+        const pending = Object.values(first?.outputs ?? {}).flatMap((output) => {
+            const mounted = new Set(Object.values(output.views).map((view) => view.entrypoint));
+            const entries = [
+                ...Object.values(output.workloads).map((workload) => workload.entrypoint),
+                ...Object.entries(output.exports)
+                    .filter(([, exported]) => mounted.has(exported.path))
+                    .map(([subpath]) => subpath),
+            ];
+
+            return entries.map((subpath) => ({
                 manifest: start,
                 packageId,
                 runtime: output.runtime,
-                subpath: workload.entrypoint,
-            })),
-        );
+                subpath,
+            }));
+        });
 
         // follow each export once to the dependency exports its chunks import
         const units = new Map<Digest, PackageId>();
@@ -786,6 +815,12 @@ export class PackageStore<
 
     /** Describe a stored build's manifest file, leaving its bytes unread. */
     async head(digest: Digest): Promise<PackageFile> {
+        // describe a layered build's manifest
+        const layered = (await this.#layer).head(digest);
+        if (layered !== undefined) {
+            return layered;
+        }
+
         // read the manifest's size by its digest
         const [stored] = await this.database
             .select({ size: buildManifest.size })
@@ -805,9 +840,7 @@ export class PackageStore<
     ): ReadableStream<Uint8Array> {
         return range === undefined
             ? this.#stream(file)
-            : PackageStore.#readable(
-                  this.blobs.storage.slice(file.digest, range.offset, range.length),
-              );
+            : PackageStore.#readable(this.#slice(file, range.offset, range.length));
     }
 
     /** Stream a stored build as a tarball of its manifest and files in path order, verified. */
@@ -831,12 +864,21 @@ export class PackageStore<
         }
     }
 
-    /** Stream a stored blob, refusing a missing one by its file's path. */
+    /** Stream a layered or stored blob, refusing a missing one by its file's path. */
     #stream(file: PackageFile): ReadableStream<Uint8Array> {
         const { storage } = this.blobs;
+        const layer = this.#layer;
 
         return PackageStore.#readable(
             (async function* () {
+                // stream a layered blob in place
+                const layered = (await layer).stream(file.digest);
+                if (layered !== undefined) {
+                    yield* layered;
+
+                    return;
+                }
+
                 // refuse a missing blob, then stream its bytes
                 if ((await storage.missing([file.digest])).length > 0) {
                     throw BuildError.of("BLOB_UNKNOWN", `package file not found: ${file.path}`);
@@ -844,6 +886,21 @@ export class PackageStore<
                 yield* storage.read(file.digest);
             })(),
         );
+    }
+
+    /** Read a range of a layered or stored blob. */
+    async *#slice(file: PackageFile, offset: number, length: number): AsyncIterable<Uint8Array> {
+        // cut a layered blob's range from its bytes
+        const layered = (await this.#layer).stream(file.digest);
+        if (layered !== undefined) {
+            const bytes = new Uint8Array(await new Response(layered).arrayBuffer());
+            yield bytes.subarray(offset, offset + length);
+
+            return;
+        }
+
+        // read a stored blob's range
+        yield* this.blobs.storage.slice(file.digest, offset, length);
     }
 
     /** Store bytes under their digest unless stored. */
@@ -855,7 +912,12 @@ export class PackageStore<
 
     /** Require the store to have each file a build's manifest lists. */
     async #requireStored(digest: string, files: readonly PackageFile[]): Promise<void> {
-        const missing = new Set(await this.blobs.storage.missing(files.map((file) => file.digest)));
+        // find the files neither layered nor stored, refusing the first
+        const layer = await this.#layer;
+        const unlayered = files.filter((file) => !layer.has(file.digest));
+        const missing = new Set(
+            await this.blobs.storage.missing(unlayered.map((file) => file.digest)),
+        );
         const absent = files.find((file) => missing.has(file.digest));
         if (absent !== undefined) {
             throw BuildError.of(

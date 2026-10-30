@@ -56,6 +56,8 @@ export interface LocalPackageStoreOptions {
     readonly directory: string;
     /** The environment the store runs in. */
     readonly environment: Environment<"files" | "process" | "host">;
+    /** The read-only builds the store reads in place, such as a machine's shipped builds. */
+    readonly layers?: readonly BuildReader[];
 }
 
 /** A store of builds on this machine's disk, its blobs in a directory, which processes share. */
