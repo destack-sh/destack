@@ -45,7 +45,7 @@ async function follow(
     // follow the replicas until the test ends, moving the world until they reach the primary's head
     space.follow();
     const head = await primary.database.log.position();
-    await space.simulation.drive(Replica.wait(space.database, primary.scope.id, head, signal));
+    await Replica.wait(space.database, primary.scope.id, head, signal);
 
     return space;
 }

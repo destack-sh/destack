@@ -454,7 +454,7 @@ export class ConnectionFixture {
         const simulation =
             options.simulation ?? new Simulation({ seed: WORLD_SEED, start: WORLD_START });
 
-        return simulation.drive(ConnectionFixture.#open(options, simulation));
+        return ConnectionFixture.#open(options, simulation);
     }
 
     /** Serve connections over a fresh database in a world. */
@@ -846,7 +846,7 @@ export class ConnectionFixture {
 
     /** Close the database. */
     close(): Promise<void> {
-        return this.simulation.drive(this.#close());
+        return this.#close();
     }
 
     /** Build the context of the owner calling in a session. */
@@ -893,10 +893,7 @@ export class ConnectionFixture {
 
                 return {
                     url: ORIGIN,
-                    fetch: (request) =>
-                        this.simulation.drive(
-                            ConnectionFixture.#sent(this.http, request, connections),
-                        ),
+                    fetch: (request) => ConnectionFixture.#sent(this.http, request, connections),
                 };
             },
         };
@@ -909,7 +906,7 @@ export class ConnectionFixture {
             {
                 url: ORIGIN,
                 headers: { authorization: `Bearer ${Subject.key(subject)}` },
-                fetch: (request: Request) => this.simulation.drive(this.http.fetch(request)),
+                fetch: (request: Request) => this.http.fetch(request),
             },
             this.environment,
         );
@@ -974,7 +971,7 @@ export class ConnectionFixture {
             throw new TypeError("the connection package controls its connections");
         }
 
-        return this.simulation.drive(reconcileOnce(controller, this.objects.database));
+        return reconcileOnce(controller, this.objects.database);
     }
 
     /** Follow the store's replicas in a control loop until the test ends. */
