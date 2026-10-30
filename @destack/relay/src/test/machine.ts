@@ -207,7 +207,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         this.#started.use(relay);
 
         // wait until its replicas reached the universe
-        await this.until(() => relay.isSettled());
+        await this.until(() => relay.isCaughtUp());
 
         return relay;
     }
@@ -218,11 +218,11 @@ export class TestTunnelMachine implements AsyncDisposable {
     }
 
     /** Wait until the relays' replicas reached the universe as of now. */
-    async settle(...relays: readonly TestRelay[]): Promise<void> {
+    async untilCaughtUp(...relays: readonly TestRelay[]): Promise<void> {
         await this.until(async () => {
-            const settled = await Promise.all(relays.map((relay) => relay.isSettled()));
+            const caughtUp = await Promise.all(relays.map((relay) => relay.isCaughtUp()));
 
-            return settled.every(Boolean);
+            return caughtUp.every(Boolean);
         });
     }
 
@@ -280,7 +280,9 @@ export class TestTunnelMachine implements AsyncDisposable {
         await this.until(async () => {
             const published = await this.endpoint();
 
-            return (await relay.isSettled()) && published?.relay?.url === new URL(relay.url).origin;
+            return (
+                (await relay.isCaughtUp()) && published?.relay?.url === new URL(relay.url).origin
+            );
         });
 
         return client;

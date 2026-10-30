@@ -380,7 +380,7 @@ export class TestRelay implements AsyncDisposable {
     }
 
     /** Report whether the root's replicas reached the universe's log as of now. */
-    async isSettled(): Promise<boolean> {
+    async isCaughtUp(): Promise<boolean> {
         // read the universe's head and the root's replicas of the universe
         const position = await this.#universe.storage.database.log.position();
         const root = await present(this.#memories.get(undefined), "the root's memory");
@@ -390,7 +390,7 @@ export class TestRelay implements AsyncDisposable {
     }
 
     /** Wait until the root's replicas reach the universe's log as of now. */
-    async settled(signal: AbortSignal): Promise<boolean> {
+    async untilCaughtUp(signal: AbortSignal): Promise<boolean> {
         // wait until the root's replicas of the universe reach its head
         const position = await this.#universe.storage.database.log.position();
         const root = await present(this.#memories.get(undefined), "the root's memory");

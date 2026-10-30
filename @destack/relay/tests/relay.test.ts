@@ -113,7 +113,7 @@ test("tell a machine its name as its tunnel opens, and again at once after its r
     // call the machine by its new name once the relay tells it
     const renamed = "renamed--acme.destack.computer";
     await computer.until(() => computer.names.at(-1) === renamed);
-    await computer.settle(relay);
+    await computer.untilCaughtUp(relay);
     expect([
         computer.names,
         await computer.request(relay, renamed, "/status"),
@@ -144,7 +144,7 @@ test("refuse a forwarded request without its host, and one for a name another re
     const relay = await computer.relay();
     await computer.cloud("eu", "cloud", EU_CLOUD);
     await computer.place("site");
-    await computer.settle(relay);
+    await computer.untilCaughtUp(relay);
 
     // forward to the relay's own host with a Forwarded header lacking the host, then naming a cloud space
     const host = new URL(relay.origin).host;
@@ -292,7 +292,7 @@ test("leave a machine revoked elsewhere alone, starting no tunnel partition for 
         id: other.id,
         requestId: RequestId.create(computer.environment),
     });
-    await computer.settle(relay);
+    await computer.untilCaughtUp(relay);
 
     // run the root and the computer's partition alone
     expect(relay.partitions).toEqual([undefined, Tunnel.partition(computer.machine.id)]);
@@ -374,7 +374,7 @@ test("forward a name a cloud machine serves to the machine's endpoint, preservin
     const relay = await computer.relay();
     await computer.cloud("eu", "cloud", EU_CLOUD);
     await computer.place("site");
-    await computer.settle(relay);
+    await computer.untilCaughtUp(relay);
 
     const name = "notes--site--acme.destack.space";
     expect(await computer.request(relay, name, "/")).toBe(`cloud host="${name}";proto=http`);
@@ -386,7 +386,7 @@ test("route the name of a space whose account lives in another residency through
     const relay = await computer.relay();
     await computer.cloud("us", "us", US_CLOUD);
     await computer.place("site");
-    await computer.settle(relay);
+    await computer.untilCaughtUp(relay);
 
     const name = "notes--site--acme.destack.space";
     expect(await computer.request(relay, name, "/")).toBe(`us host="${name}";proto=http`);
@@ -444,7 +444,7 @@ test("follow a space's rename", async () => {
         requestId: RequestId.create(computer.environment),
         name: "renamed",
     });
-    await computer.settle(relay);
+    await computer.untilCaughtUp(relay);
 
     // refuse the old name and call the space by the new one
     const renamed = "notes--renamed--acme.destack.space";
@@ -471,7 +471,7 @@ test("resolve a handle from the relay's replica after the account renames it", a
         revision: current.revision,
         handle: "acme-renamed",
     });
-    await computer.settle(relay);
+    await computer.untilCaughtUp(relay);
 
     // refuse the old handle and call the space by the new one
     const renamed = "notes--work--acme-renamed.destack.space";
@@ -496,7 +496,7 @@ test("end a revoked machine's tunnel at once, refuse its names, and emit the ope
         requestId: RequestId.create(computer.environment),
     });
     await computer.until(() => computer.tunnels().length === 2);
-    await computer.settle(relay);
+    await computer.untilCaughtUp(relay);
 
     // refuse its name and its space's name, recording why its tunnel ended
     expect([
@@ -677,13 +677,13 @@ test("follow a cloud machine's new endpoint", async () => {
     const relay = await computer.relay();
     await computer.cloud("eu", "first", EU_CLOUD);
     await computer.place("site");
-    await computer.settle(relay);
+    await computer.untilCaughtUp(relay);
     const name = "notes--site--acme.destack.space";
     const before = await computer.request(relay, name, "/");
 
     // publish the cloud machine's new endpoint
     await computer.cloud("eu", "second", "https://second.machine.test/");
-    await computer.settle(relay);
+    await computer.untilCaughtUp(relay);
     expect([before, await computer.request(relay, name, "/")]).toEqual([
         `first host="${name}";proto=http`,
         `second host="${name}";proto=http`,
