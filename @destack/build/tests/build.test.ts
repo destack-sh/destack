@@ -26,7 +26,7 @@ test.concurrent("relocate the library build and call its exports, refusing corru
 
     // load the complete distribution after removing its source checkout
     const destination = join(input.directory, "build");
-    await PackageBuild.write(build.reader, destination, files);
+    await build.reader.writeDirectory(destination, files);
     await files.remove(input.source, { recursive: true });
     const restored = await PackageBuild.read(destination, environment);
     expect(restored.manifest).toEqual(build.manifest);

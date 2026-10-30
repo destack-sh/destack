@@ -10,7 +10,7 @@ import { mapExports } from "../source/source.ts";
 import type { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
 import { type Commit, type Digest, schema, type Version } from "@destack/schema";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
 import { BuildReader, MANIFEST_PATH, type PackageManifest } from "@destack/package/manifest";
 import type { PackageFile } from "@destack/package/file";
@@ -111,23 +111,6 @@ export class PackageBuild implements AsyncDisposable {
         }
 
         return new PackageBuild(reader, directory, "retained", files);
-    }
-
-    /** Write a build to a new directory, its manifest last, for the caller to move into place. */
-    static async write(reader: BuildReader, directory: string, files: FileSystem): Promise<void> {
-        // require a new directory so a failed write cannot damage an existing build
-        await files.mkdir(directory);
-        for (const file of await reader.distributed()) {
-            const destination = resolve(directory, file.path);
-            await files.mkdir(dirname(destination), { recursive: true });
-            await files.writeFile(destination, await reader.load(file.path));
-        }
-
-        // make the build readable only after every file has been written
-        const manifest = JSON.stringify(reader.manifest);
-        await files.writeTextFile(resolve(directory, MANIFEST_PATH), manifest, {
-            createNew: true,
-        });
     }
 }
 

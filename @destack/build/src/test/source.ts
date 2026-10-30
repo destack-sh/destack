@@ -99,7 +99,7 @@ export class PackageCopy implements AsyncDisposable {
     async deploy(build: PackageBuild, destination: string): Promise<void> {
         // write the build, then place the builds its outputs record and link them into it
         const { files } = this.store.environment;
-        await PackageBuild.write(build.reader, destination, files);
+        await build.reader.writeDirectory(destination, files);
         const recorded = Object.values(build.manifest.outputs).flatMap((output) =>
             Object.values(output.dependencies),
         );

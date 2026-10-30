@@ -417,7 +417,7 @@ test("refuse what a module an extension generates imports until the package decl
         throw new TypeError("the application's output records no leaf build");
     }
     const destination = join(root, "deployed");
-    await PackageBuild.write(build.reader, destination, files);
+    await build.reader.writeDirectory(destination, files);
     const tree = await DependencyTree.materialize(store, [leaf], join(root, "builds"));
     await tree.link(join(destination, "node_modules"), files);
     const barrel = present(

@@ -83,7 +83,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     const greetings: unknown[] = [];
     for (const [index, each] of [built, restored, rebuilt].entries()) {
         const destination = join(directory, `application-${index}`);
-        await PackageBuild.write(each.reader, destination, files);
+        await each.reader.writeDirectory(destination, files);
         const dependency = each.manifest.outputs["bun"]?.dependencies?.[LIBRARY];
         if (dependency?.kind !== "destack") {
             throw new TypeError("the application's output records no library build");

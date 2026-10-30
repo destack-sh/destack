@@ -52,7 +52,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         );
         await using edited = await builder.build(library);
         const editDirectory = join(directory, "edited");
-        await PackageBuild.write(edited.reader, editDirectory, files);
+        await edited.reader.writeDirectory(editDirectory, files);
         const editedModule = await importNotes(
             editDirectory,
             rootExport(edited.manifest, "library"),
@@ -158,13 +158,13 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         );
 
         // remove source access before loading the distributed package
-        await PackageBuild.write(build.reader, destination, files);
+        await build.reader.writeDirectory(destination, files);
         await files.remove(source, { recursive: true });
         const restored = await PackageBuild.read(destination, environment);
         expect(restored.manifest).toEqual(build.manifest);
 
         // preserve an existing distribution when the caller repeats a write
-        expect(await refusal(PackageBuild.write(build.reader, destination, files))).toEqual([
+        expect(await refusal(build.reader.writeDirectory(destination, files))).toEqual([
             "CONFLICT",
             "ALREADY_EXISTS",
             `cannot create ${destination}: EEXIST`,
@@ -184,7 +184,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const flipped = Uint8Array.from(original, (byte, index) => (index === 0 ? byte ^ 1 : byte));
         await files.writeFile(join(build.directory, changed.path), flipped);
         const corrupted = join(directory, "corrupted");
-        expect(await refusal(PackageBuild.write(build.reader, corrupted, files))).toEqual([
+        expect(await refusal(build.reader.writeDirectory(corrupted, files))).toEqual([
             "BAD_REQUEST",
             "FILE_INVALID",
             `file digest mismatch: ${changed.path}`,
@@ -195,7 +195,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const failed = join(directory, "failed");
         await files.remove(join(build.directory, rootExport(build.manifest, "library")));
         const removed = join(build.directory, rootExport(build.manifest, "library"));
-        expect(await refusal(PackageBuild.write(build.reader, failed, files))).toEqual([
+        expect(await refusal(build.reader.writeDirectory(failed, files))).toEqual([
             "NOT_FOUND",
             "NOT_FOUND",
             `cannot open ${removed}: ENOENT`,
@@ -390,7 +390,7 @@ test("compile a package with the build extension it declares", async () => {
             dependencies: {},
             outputs,
         });
-        await PackageBuild.write(built.reader, join(directory, "build"), files);
+        await built.reader.writeDirectory(join(directory, "build"), files);
         const module = await importBuilt(
             join(directory, "build"),
             rootExport(built.manifest, "library"),
