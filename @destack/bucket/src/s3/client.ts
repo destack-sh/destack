@@ -1,6 +1,6 @@
 import { type Connector, ResourceBinding } from "@destack/resource";
 import { Failure } from "@destack/error";
-import { copyRequest, type Crypto, type Environment } from "@destack/environment";
+import { copyRequest, type Crypto, type Environment, Pipe } from "@destack/environment";
 import {
     type Bucket,
     type BucketBody,
@@ -577,7 +577,7 @@ function counted(body: BucketBody | null): {
             },
         });
 
-        return { body: body.pipeThrough(counting), size: () => size };
+        return { body: Pipe.through(body, counting), size: () => size };
     }
 
     // measure a body of known length

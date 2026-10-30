@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { createHash } from "node:crypto";
-import type { Environment, HostCapability } from "@destack/environment";
+import { type Environment, type HostCapability, Pipe } from "@destack/environment";
 import { join } from "node:path";
 import { expect, test, refusal } from "@destack/test";
 import { type Bucket, BucketFile } from "../bucket/index.ts";
@@ -298,7 +298,7 @@ test("read a file stored with a content encoding as its stored bytes, never deco
     const served = await serveBucket(world);
     await using bucket = served.bucket;
     const encoded = await new Response(
-        new Blob(["compressed notes"]).stream().pipeThrough(world.compression.compress("gzip")),
+        Pipe.through(new Blob(["compressed notes"]).stream(), world.compression.compress("gzip")),
     ).bytes();
     await bucket.put("notes.txt.gz", encoded, { httpMetadata: { contentEncoding: "gzip" } });
 

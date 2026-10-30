@@ -1,4 +1,5 @@
 import { nth, Digest } from "@destack/schema";
+import { Pipe } from "@destack/environment";
 import { Crc32, Crc32c } from "./checksum.ts";
 import { CryptoHasher, type Hasher } from "./hasher.ts";
 import { BucketError } from "../error/index.ts";
@@ -139,7 +140,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         const body =
             request.body ?? new ReadableStream<Uint8Array>({ start: (empty) => empty.close() });
 
-        return body.pipeThrough(new TransformStream(payload));
+        return Pipe.through(body, new TransformStream(payload));
     }
 
     /** Decode and verify one received chunk of the body. */
