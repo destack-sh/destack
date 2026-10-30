@@ -142,9 +142,9 @@ test("collect an idle store at most daily, keeping what a crashed materializatio
 
     // keep it through idle opens within the day, and delete it on the first idle open a day on
     const within = [await staged()];
-    clock.set(clock.now() + DAY_MILLISECONDS - 1);
+    await simulation.jump(clock.now() + DAY_MILLISECONDS - 1);
     within.push(await staged());
-    clock.set(clock.now() + 1);
+    await simulation.jump(clock.now() + 1);
     expect({ within, after: await staged() }).toEqual({ within: [true, true], after: false });
 });
 
@@ -180,7 +180,7 @@ test("collect an unrooted build and its tree on the first idle open a week after
     const kept = [await contents(), await contents()];
 
     // collect it with its tree on the first idle open past the week
-    clock.set(clock.now() + WEEK_MILLISECONDS);
+    await simulation.jump(clock.now() + WEEK_MILLISECONDS);
     const collected = await contents();
     const all = { rooted: true, dropped: true, rootedTree: true, droppedTree: true };
     expect({ kept, collected }).toEqual({
@@ -201,7 +201,7 @@ test("retain an unrooted build a week past its last use, and collect it on the f
         await using store = await LocalPackageStore.open(directory, environment);
         used = await store.put(await written("export const answer = 44;\n", environment.crypto));
     }
-    clock.set(clock.now() + DAY_MILLISECONDS * 6);
+    await simulation.jump(clock.now() + DAY_MILLISECONDS * 6);
     {
         await using store = await LocalPackageStore.open(directory, environment);
         await store.contents(used);
@@ -215,15 +215,15 @@ test("retain an unrooted build a week past its last use, and collect it on the f
     };
     const opens = async () => {
         const first = await contains();
-        clock.set(clock.now() + DAY_MILLISECONDS);
+        await simulation.jump(clock.now() + DAY_MILLISECONDS);
 
         return [first, await contains()];
     };
 
     // retain it past the week after storing it, then collect it a week after its use
-    clock.set(clock.now() + DAY_MILLISECONDS * 2);
+    await simulation.jump(clock.now() + DAY_MILLISECONDS * 2);
     const kept = await opens();
-    clock.set(clock.now() + WEEK_MILLISECONDS);
+    await simulation.jump(clock.now() + WEEK_MILLISECONDS);
     const dropped = await opens();
     expect({ kept, dropped }).toEqual({ kept: [true, true], dropped: [false, false] });
 });

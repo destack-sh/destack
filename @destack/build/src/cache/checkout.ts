@@ -147,17 +147,19 @@ export class Checkout {
         directory: string,
         environment: Environment<"process">,
     ): Promise<string> {
-        // run git and read its bounded output and its diagnostics
+        // run git as host work, reading its bounded output and its diagnostics
         const child = environment.process.spawn(["git", ...command], {
             workingDirectory: directory,
             stdout: "pipe",
             stderr: "pipe",
         });
-        const [output, diagnostics, code] = await Promise.all([
-            Checkout.#bounded(child.stdout, () => child.kill()),
-            new Response(child.stderr).text(),
-            child.exited,
-        ]);
+        const [output, diagnostics, code] = await environment.clock.trackHost(
+            Promise.all([
+                Checkout.#bounded(child.stdout, () => child.kill()),
+                new Response(child.stderr).text(),
+                child.exited,
+            ]),
+        );
 
         // refuse a failed run with git's diagnostics, and an output past the bound
         if (code !== 0) {

@@ -27,7 +27,7 @@ test("write a build once, read it back by its manifest's digest, and refuse a bu
     const builds = new BuildBucket(bucket, crypto);
     await builds.write(build, digest);
     const first = await bucket.list({ prefix: "build/" });
-    simulation.clock.set(clock.now() + 60_000);
+    await simulation.jump(clock.now() + 60_000);
     await builds.write(build, digest);
     const second = await bucket.list({ prefix: "build/" });
 

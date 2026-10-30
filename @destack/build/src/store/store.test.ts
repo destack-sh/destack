@@ -313,11 +313,11 @@ test("collect the builds no root or lease retains, the blobs only they reference
 
     // collect once the leases end, then use the live entry a day on, and collect once the other went unused for a week
     const start = simulation.clock.now();
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     const cached = await collect(store);
-    simulation.clock.advance(DAY_MILLISECONDS - LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + DAY_MILLISECONDS - LEASE_MILLISECONDS);
     await store.cached(keys.live);
-    simulation.clock.advance(CACHE_MILLISECONDS - MINUTE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + CACHE_MILLISECONDS - MINUTE_MILLISECONDS);
     const unused = await collect(store);
 
     // keep exactly the live build's blobs, answering when each collection could delete more
@@ -377,7 +377,7 @@ test("attach a code index to a build, retain it with the build, and collect it w
     ]).toEqual([live.file, dropped.file, undefined]);
 
     // collect the dropped build once the leases end, its index and its referrer with it
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await collect(store);
     expect({
         blobs: await listing(store),
@@ -403,7 +403,7 @@ test("open one reader per stored build, and refuse a collected build", async () 
     const [first, second] = [await store.contents(digest), await store.contents(digest)];
 
     // collect it once its lease ends, then open it again
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await collect(store);
     const reopened = await store.contents(digest).then(
         () => "opened",
@@ -432,7 +432,7 @@ test("retain a leased build until its lease ends, then collect it with every blo
     // collect within the lease, and once it ends
     const within = await collect(store);
     const kept = await listing(store);
-    simulation.clock.advance(until - simulation.clock.now());
+    await simulation.jump(simulation.clock.now() + until - simulation.clock.now());
     const ended = await collect(store);
     expect({ within, kept, ended, after: await listing(store) }).toEqual({
         within: { manifests: [], next: stored + LEASE_MILLISECONDS },
@@ -450,13 +450,13 @@ test("rescue a blob a collection listed as garbage once a writer leases it, and 
     const { store } = opened;
     const build = await written(SOURCES, environment.crypto);
     const digest = await store.put(build);
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await collect(store);
 
     // store the same build again after the collection, which writes every blob back
     const again = await store.put(build);
     await store.root("space-a", new Set([again]));
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await collect(store);
     expect({
         again,
@@ -490,7 +490,7 @@ test("collect many builds sharing a module, keeping exactly the rooted ones and 
     await store.root("space-a", new Set(live));
 
     // collect once the leases end, keeping exactly the live manifests and the files they list
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     const collected = await collect(store);
     expect({
         manifests: [...collected.manifests].toSorted(),
@@ -792,7 +792,7 @@ test("retain the union of every root's builds, and collect a forgotten root's bu
     const second = await store.put(
         await written({ ...SOURCES, "src/extra.ts": "export {};\n" }, environment.crypto),
     );
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await store.root("space-a", new Set([first]));
     await store.root("space-b", new Set([second]));
     await collect(store);
@@ -849,7 +849,7 @@ test("retain a rooted build with every build it depends on, as its outputs recor
         ),
     );
     await store.root("space-a", new Set([application]));
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     const collected = await collect(store);
 
     // keep the application, the library and both builds the library depends on
@@ -982,7 +982,7 @@ test("retain a rooted build's runtime build and its maps, passing over a depende
     const maps = present(await store.referrer(runtime, MAPS_REFERRER), "the maps build");
 
     // retain both builds, the runtime build and its maps past their leases, passing over the lacking library
-    simulation.clock.advance(LEASE_MILLISECONDS);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await collect(store);
     expect(await recorded(store)).toEqual([served, runtime, maps.digest, importing].toSorted());
 });

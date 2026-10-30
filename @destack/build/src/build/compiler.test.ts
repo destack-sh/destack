@@ -1,6 +1,7 @@
 import { yieldToEventLoop } from "@destack/environment";
 import { testSimulation } from "../test/world.ts";
 import { expect, refusal, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PackageBuild, Compiler } from "../index.ts";
@@ -253,10 +254,8 @@ test("reject invalid outputs and recover the retained compiler", async () => {
 });
 
 test("terminate compilation on cancellation and deadline, and build again with the same builder", async () => {
-    // run a world whose clock flows with real time
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    simulation.clock.resume();
+    // run on the host, as a compiler's deadline bounds the host's time a build takes
+    const environment = testHost();
     const directory = fileURLToPath(
         new URL("../../tests/fixture/library/source/", import.meta.url),
     );
@@ -267,7 +266,7 @@ test("terminate compilation on cancellation and deadline, and build again with t
 
     // cancel a build once the compiler has it, as the library's build takes over a second
     const pending = builder.build({ ...library, signal: controller.signal });
-    void simulation.clock.sleep(CANCEL_MILLISECONDS).then(() => controller.abort());
+    void environment.clock.sleep(CANCEL_MILLISECONDS).then(() => controller.abort());
     expect(await refusal(pending)).toEqual([
         "CLIENT_CLOSED_REQUEST",
         "BUILD_CANCELLED",
@@ -318,7 +317,7 @@ while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
         const closing = builder[Symbol.asyncDispose]().then(() => {
             isClosed = true;
         });
-        simulation.clock.advance(3_600_000);
+        await simulation.jump(simulation.clock.now() + 3_600_000);
         await yieldToEventLoop();
         const isClosedEarly = isClosed;
         await files.writeTextFile(release, "");

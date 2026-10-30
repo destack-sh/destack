@@ -692,9 +692,11 @@ export class Compiler implements AsyncDisposable {
         }
         signal?.addEventListener("abort", abort, { once: true });
 
-        // send the request and wait for its response
+        // send the request and wait for its response as host work
         try {
-            return resultOf(await this.#send(request));
+            const { clock } = this.store.environment;
+
+            return resultOf(await clock.trackPeer(this.#send(request)));
         } finally {
             deadline.abort();
             signal?.removeEventListener("abort", abort);
