@@ -54,7 +54,6 @@ const OBSERVABILITY: TestPackage = {
     server: observabilityServer,
     connectors: [],
     servers: [],
-    bindables: [],
     providers: [],
 };
 
