@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { expectTypeOf, test } from "@destack/test";
 import { defineWorkflow, NO_OUTPUT } from "../src/index.ts";
-import { note } from "./fixture.ts";
+import { note } from "./workflow.ts";
 import { NOTES } from "./package.ts";
 
 /** A workflow waiting for nothing beside change requests. */

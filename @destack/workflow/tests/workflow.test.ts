@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { defineWorkflow } from "../src/index.ts";
-import { actor, alice, note, notesPackage, openWorkflow, type WorkflowFixture } from "./fixture.ts";
+import { actor, alice, note, notesPackage, openWorkflow, type TestWorkflow } from "./workflow.ts";
 import { NOTES } from "./package.ts";
 
 /** Write a draft, read it back, pause, then wait an hour for its approval note. */
@@ -18,7 +18,7 @@ const draft = defineWorkflow(
 
 test("advance a run step by step as its actor: call and read once, sleep, wait for an object, and complete", async () => {
     // write a note, read it, count its title, sleep five minutes and wait an hour for its approval
-    const fixture: WorkflowFixture = await openWorkflow(draft, async (step, input) => {
+    const fixture: TestWorkflow = await openWorkflow(draft, async (step, input) => {
         const spaceId = fixture.served.scope;
         const written = await step.call(
             "write",

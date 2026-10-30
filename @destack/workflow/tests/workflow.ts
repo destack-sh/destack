@@ -97,7 +97,7 @@ const servedNote = note.implement({
 export const notesPackage = PackageHandle.of(note.package, { objects: { note } });
 
 /** A space serving notes, the workflow package and a workflow, on a simulated clock. */
-export interface WorkflowFixture {
+export interface TestWorkflow {
     /** The store serving the space, called as its users. */
     readonly served: TestObjectStore;
     /** The simulated world the store and its controllers run in. */
@@ -132,7 +132,7 @@ export async function openWorkflow<Input, Output, Waits extends ObjectType>(
     code: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
     serving: (space: Environment<HostCapability>) => Promise<WorkflowServing> = async () => ({}),
     objects: readonly ObjectType[] = [],
-): Promise<WorkflowFixture> {
+): Promise<TestWorkflow> {
     // serve the workflow in the space's world
     const simulation = testSimulation();
     const served = await serving(simulation.environment(SPACE_NODE));
@@ -155,7 +155,7 @@ export async function openServed<Input, Output>(
     invoked: readonly InvokedServing[] = [],
     objects: readonly ObjectType[] = [],
     simulation: Simulation = testSimulation(),
-): Promise<WorkflowFixture> {
+): Promise<TestWorkflow> {
     // declare the notes, the further objects and the workflows as the notes application
     const workflows = [workflow, ...invoked.map((each) => each.workflow)];
     const declared = [
@@ -291,15 +291,10 @@ export async function openServed<Input, Output>(
             schema.string().parse(left["id"]).localeCompare(schema.string().parse(right["id"])),
         );
 
-    // run the world until the condition holds, failing on the controllers' errors first
+    // run the world idle, then until the condition holds, the controllers' reports failing it
     const when = async (isMet: () => Promise<boolean>) => {
-        try {
-            await simulation.until(isMet, clock.now() + UNTIL_MILLISECONDS);
-        } catch (error) {
-            await served.settle();
-            throw error;
-        }
-        await served.settle();
+        await simulation.idle();
+        await simulation.until(isMet, clock.now() + UNTIL_MILLISECONDS);
     };
 
     // run the world until the runs meet the condition, failing with their states

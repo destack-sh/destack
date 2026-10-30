@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Task, TaskInput, TaskOutput, defineWorkflow } from "../src/index.ts";
-import { alice, note, openServed } from "./fixture.ts";
+import { alice, note, openServed } from "./workflow.ts";
 import { TEST_START } from "@destack/object/test";
 import { NOTES } from "./package.ts";
 

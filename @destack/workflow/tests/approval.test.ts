@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { principal } from "@destack/access";
 import objectPackage from "@destack/object/package";
-import { expect, test } from "@destack/test";
+import { expect, single, test } from "@destack/test";
 import { type Approval, approval, changeRequest } from "@destack/object";
 import { defineWorkflow } from "../src/index.ts";
 import {
@@ -12,8 +12,8 @@ import {
     note,
     notesPackage,
     openWorkflow,
-    type WorkflowFixture,
-} from "./fixture.ts";
+    type TestWorkflow,
+} from "./workflow.ts";
 import { NOTES } from "./package.ts";
 import { TEST_START } from "@destack/object/test";
 
@@ -36,12 +36,12 @@ const review = defineWorkflow(
 
 /** Serve the review workflow and write the note it asks about. */
 async function openReview(): Promise<{
-    readonly fixture: WorkflowFixture;
+    readonly fixture: TestWorkflow;
     readonly id: string;
     readonly decide: (approver: "alice" | "bob", decision: "approve" | "reject") => Promise<void>;
 }> {
     // review a note as its two approvers' run
-    const fixture: WorkflowFixture = await openWorkflow(review, async (step, input, context) =>
+    const fixture: TestWorkflow = await openWorkflow(review, async (step, input, context) =>
         step.approve(
             "review",
             { packageId: note.package.id, type: note.name, scope: context.scope, id: input.id },
@@ -114,7 +114,7 @@ test("answer a review nobody decides as requested once its hour passed", async (
 
 /** Decide an approval as its approver through the package's client. */
 async function decideApproval(
-    fixture: WorkflowFixture,
+    fixture: TestWorkflow,
     approver: typeof alice,
     asked: Approval,
     decision: "approve" | "reject",
@@ -138,7 +138,7 @@ const release = defineWorkflow(
 
 test("wait at a call alice's grant gives once approved, ask her in a change request, and answer the call once she approves", async () => {
     // publish a note in a run alice starts, her grant to the serving installation giving publish once approved
-    const fixture: WorkflowFixture = await openWorkflow(release, async (step, input) => {
+    const fixture: TestWorkflow = await openWorkflow(release, async (step, input) => {
         const publish = note.call("publish", {
             spaceId: fixture.served.scope,
             id: input.id,
@@ -161,14 +161,9 @@ test("wait at a call alice's grant gives once approved, ask her in a change requ
 
     // start the run, and approve as alice once the change request asks her
     await fixture.start(() => release.start({ id }, actor()));
-    let asked: Approval | undefined;
-    for (let look = 0; look < 1000 && asked === undefined; look++) {
-        await fixture.until(() => true);
-        [asked] = await fixture.served.database.select().from(approval.table);
-    }
-    if (asked === undefined) {
-        throw new TypeError("alice was not asked");
-    }
+    const approvals = () => fixture.served.database.select().from(approval.table);
+    await fixture.when(async () => (await approvals()).length > 0);
+    const asked = single(await approvals());
     await decideApproval(fixture, alice, asked, "approve");
     const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
 
@@ -183,7 +178,7 @@ test("wait at a call alice's grant gives once approved, ask her in a change requ
 
 test("fail a run whose call a role gives on two approvals, which a change asking only its delegator cannot gather", async () => {
     // publish a note in a run bob starts, bob's role giving publish once two others approve
-    const fixture: WorkflowFixture = await openWorkflow(release, async (step, input) => {
+    const fixture: TestWorkflow = await openWorkflow(release, async (step, input) => {
         const publish = note.call("publish", {
             spaceId: fixture.served.scope,
             id: input.id,

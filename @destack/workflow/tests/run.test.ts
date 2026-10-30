@@ -7,7 +7,7 @@ import { Scope } from "@destack/sync";
 import { Failure } from "@destack/error";
 import { expect, refusal, test } from "@destack/test";
 import { defineWorkflow, Run } from "../src/index.ts";
-import { actor, alice, bob, note, openWorkflow, type WorkflowFixture } from "./fixture.ts";
+import { actor, alice, bob, note, openWorkflow, type TestWorkflow } from "./workflow.ts";
 import { TEST_START } from "@destack/object/test";
 import { NOTES } from "./package.ts";
 import { NO_OUTPUT } from "../src/index.ts";
@@ -376,7 +376,7 @@ test("make a preparing call once across a crash between its commit and its step'
         },
         NOTES,
     );
-    const fixture: WorkflowFixture = await openWorkflow(
+    const fixture: TestWorkflow = await openWorkflow(
         press,
         async (step) => {
             const spaceId = fixture.served.scope;

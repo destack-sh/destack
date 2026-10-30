@@ -3,7 +3,7 @@ import { CallError } from "@destack/object";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { defineWorkflow } from "../src/index.ts";
-import { actor, alice, openServed } from "./fixture.ts";
+import { actor, alice, openServed } from "./workflow.ts";
 import { NOTES } from "./package.ts";
 import { NO_OUTPUT } from "../src/index.ts";
 
@@ -150,7 +150,7 @@ test("cancel a child run once its parent is cancelled, and leave an abandoned on
             .objects(actor().actor)
             .call(watch.run.name, "cancel", watch.run.target({ scope: fixture.served.scope, id }));
     }
-    await fixture.served.settle();
+    await fixture.served.simulation.idle();
 
     // expect the first nap cancelled with its watch, and the abandoned one still sleeping
     const naps = await fixture.served.database.select().from(nap.run.table);

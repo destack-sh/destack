@@ -5,7 +5,7 @@ import { RequestId } from "@destack/sync";
 import { Change } from "@destack/db";
 import { expect, refusal, test } from "@destack/test";
 import { defineWorkflow, StandardSignature } from "../src/index.ts";
-import { alice, note, notesPackage, openServed, openWorkflow } from "./fixture.ts";
+import { alice, note, notesPackage, openServed, openWorkflow } from "./workflow.ts";
 import { TEST_START } from "@destack/object/test";
 import { NOTES } from "./package.ts";
 import { NO_OUTPUT } from "../src/index.ts";
@@ -267,7 +267,6 @@ test("renew an idle change trigger's slot past a week, starting a run for a late
     await fixture.until(() => true);
     for (let day = 1; day <= 8; day++) {
         await fixture.simulation.jump(TEST_START + day * DAY);
-        await fixture.served.settle();
     }
     const now = fixture.simulation.clock.now();
     await fixture.served.database.log.compact(now, now);
@@ -306,11 +305,10 @@ test("stop a change trigger paused past its slot's retention, and start over fro
 
     // let the paused trigger's slot expire past a week, compact the log, and resume it
     await fixture.simulation.jump(TEST_START + 8 * DAY);
-    await fixture.served.settle();
     const now = fixture.simulation.clock.now();
     await database.log.compact(now, now);
     await triggers.call(urgent.trigger.name, "resume", { id });
-    await fixture.served.settle();
+    await fixture.served.simulation.idle();
     const [stopped] = await database.select().from(urgent.trigger.table);
 
     // reset the stopped trigger, and write another urgent note

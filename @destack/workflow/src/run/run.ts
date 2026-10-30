@@ -14,7 +14,7 @@ import {
     type ObjectReconciliation,
     type ObjectType,
 } from "@destack/object";
-import { CallError } from "@destack/object";
+import { CallError, ObjectError } from "@destack/object";
 import { RetryPolicy } from "@destack/environment";
 import { Duration, present, schema } from "@destack/schema";
 import { type Call, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
@@ -24,6 +24,9 @@ import { type RunContext, Step, Suspension } from "../step/step.ts";
 import { recorded, type RunType, type WaitOf, type Workflow } from "../workflow/workflow.ts";
 import type {} from "@destack/package/import-meta";
 import { WorkflowError } from "../error/index.ts";
+
+/** The outcome of an advance that ended the run, or found it moved on by another transition. */
+const ENDED: Outcome = { wake: undefined, isEnded: true };
 
 /** The states of a run: due, waiting to wake, paused by its actor, or ended. */
 export const RUN_STATES = [
@@ -257,7 +260,10 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             const failure = Failure.of(
                 WorkflowError.of("RUN_TIMED_OUT", `run ${this.row.id} timed out`),
             );
-            await reconciliation.mutate([this.workflow.run.call("fail", { ...target, failure })]);
+            await this.#transition(
+                reconciliation,
+                this.workflow.run.call("fail", { ...target, failure }),
+            );
             await this.#releaseSlot(database);
 
             return undefined;
@@ -272,35 +278,41 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
         if (this.row.startedAt === null) {
             const limited = await this.#takeStart(database, now);
             if (limited !== undefined) {
-                await reconciliation.mutate([
+                const isDelayed = await this.#transition(
+                    reconciliation,
                     this.workflow.run.call("delay", {
                         ...target,
                         attempts: this.row.attempts,
                         wakeAt: now + limited,
                         failure: this.row.failure,
                     }),
-                ]);
+                );
 
-                return this.#waitUntil(now + limited, now);
+                return isDelayed ? this.#waitUntil(now + limited, now) : undefined;
             }
-            await reconciliation.mutate([
+            const isBegun = await this.#transition(
+                reconciliation,
                 this.workflow.run.call("begin", { ...target, startedAt: now }),
-            ]);
+            );
+            if (!isBegun) {
+                return undefined;
+            }
         }
 
         // take a concurrency slot while advancing, delaying the run until one frees
         const slot = await this.#takeSlot(database, now);
         if (slot !== undefined && slot.kind === "busy") {
-            await reconciliation.mutate([
+            const isDelayed = await this.#transition(
+                reconciliation,
                 this.workflow.run.call("delay", {
                     ...target,
                     attempts: this.row.attempts,
                     wakeAt: slot.lapsesAt,
                     failure: this.row.failure,
                 }),
-            ]);
+            );
 
-            return this.#waitUntil(slot.lapsesAt, now);
+            return isDelayed ? this.#waitUntil(slot.lapsesAt, now) : undefined;
         }
 
         // advance the run while renewing its slot
@@ -349,14 +361,13 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             const output = await code(steps, input, { id: this.row.id, scope: this.row.scope });
 
             // complete the run with its output
-            await reconciliation.mutate([
-                this.workflow.run.call("complete", {
-                    ...target,
-                    output: recorded(this.workflow.output.parse(output)),
-                }),
-            ]);
+            const completed = this.workflow.run.call("complete", {
+                ...target,
+                output: recorded(this.workflow.output.parse(output)),
+            });
+            await this.#transition(reconciliation, completed);
 
-            return { wake: undefined, isEnded: true };
+            return ENDED;
         } catch (error) {
             // wait at a waiting step until its time, or for its type's writes, unless the run waits so already
             if (error instanceof Suspension) {
@@ -369,19 +380,20 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
                 ) {
                     return { wake: error.at, isEnded: false };
                 }
-                await reconciliation.mutate([
-                    this.workflow.run.call("wait", { ...target, waitType, wakeAt }),
-                ]);
+                const waited = this.workflow.run.call("wait", { ...target, waitType, wakeAt });
+                const isWaiting = await this.#transition(reconciliation, waited);
 
-                return { wake: error.at, isEnded: false };
+                return isWaiting ? { wake: error.at, isEnded: false } : ENDED;
             }
             // fail on a final refusal, or an input or output its schema refuses
             else if (CallError.refusal(error) !== undefined || error instanceof schema.Error) {
-                await reconciliation.mutate([
-                    this.workflow.run.call("fail", { ...target, failure: Failure.of(error) }),
-                ]);
+                const failed = this.workflow.run.call("fail", {
+                    ...target,
+                    failure: Failure.of(error),
+                });
+                await this.#transition(reconciliation, failed);
 
-                return { wake: undefined, isEnded: true };
+                return ENDED;
             }
             // retry another failure after its backoff while attempts remain, else fail with it
             else {
@@ -391,18 +403,38 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
                     const drawn = RetryPolicy.draw(`${this.row.id} ${attempts}`);
                     const wakeAt =
                         now + RetryPolicy.interval(this.workflow.retries, attempts, () => drawn);
-                    await reconciliation.mutate([
-                        this.workflow.run.call("delay", { ...target, attempts, wakeAt, failure }),
-                    ]);
+                    const delayed = this.workflow.run.call("delay", {
+                        ...target,
+                        attempts,
+                        wakeAt,
+                        failure,
+                    });
+                    const isDelayed = await this.#transition(reconciliation, delayed);
 
-                    return { wake: wakeAt, isEnded: false };
+                    return isDelayed ? { wake: wakeAt, isEnded: false } : ENDED;
                 }
-                await reconciliation.mutate([
+                await this.#transition(
+                    reconciliation,
                     this.workflow.run.call("fail", { ...target, failure }),
-                ]);
+                );
 
-                return { wake: undefined, isEnded: true };
+                return ENDED;
             }
+        }
+    }
+
+    /** Apply one of the run's transitions, false once another transition moved it first. */
+    async #transition(reconciliation: ObjectReconciliation, call: Call): Promise<boolean> {
+        try {
+            await reconciliation.mutate([call]);
+
+            return true;
+        } catch (error) {
+            // take a refused transition as the run moved on, rethrowing anything else
+            if (ObjectError.is(error, "TRANSITION_INVALID")) {
+                return false;
+            }
+            throw error;
         }
     }
 
