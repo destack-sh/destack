@@ -3,7 +3,7 @@ import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { Release } from "../release/index.ts";
-import { createRootKey, UpdateFixture } from "../test/index.ts";
+import { createRootKey, TestUpdate } from "../test/index.ts";
 import { SignedRepository, type SigningKey } from "../publish/index.ts";
 import { Distribution } from "./distribution.ts";
 
@@ -14,7 +14,7 @@ let fixture: string;
 
 beforeAll(async () => {
     rootKeys = await Promise.all(Array.from({ length: 3 }, () => createRootKey(testHost().crypto)));
-    fixture = await UpdateFixture.compile();
+    fixture = await TestUpdate.compile();
 }, 10000);
 
 afterAll(async () => {
@@ -23,11 +23,11 @@ afterAll(async () => {
 
 test("stage a newer release once, keeping it staged while none newer is published", async () => {
     // run 2026.9.0 of a distribution following the fixture's repository
-    await using repository = await UpdateFixture.open(
+    await using repository = await TestUpdate.open(
         fixture,
         rootKeys,
         "2026.9.1",
-        UpdateFixture.world(),
+        TestUpdate.world(),
     );
     const home = await repository.environment.files.makeTemporaryDirectory("destack-distribution-");
     const distribution = new Distribution({

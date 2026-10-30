@@ -360,7 +360,7 @@ async function extractArchive(
     root: string,
 ): Promise<void> {
     // write each safe entry in turn, draining every entry after the first refusal or failed write
-    const { clock, files } = environment;
+    const { scheduler, files } = environment;
     let rejected: FamilyError<UpdateReason> | undefined;
     let written = Promise.resolve();
     const parser = new Parser({
@@ -390,15 +390,16 @@ async function extractArchive(
     for await (const chunk of handle.readable()) {
         const bytes = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
         if (!parser.write(bytes)) {
-            await clock.trackPeer(
+            await scheduler.track(
                 new Promise<void>((drained) => {
                     parser.once("drain", drained);
                 }),
+                "peer",
             );
         }
     }
     parser.end();
-    await clock.trackPeer(parsed);
+    await scheduler.track(parsed, "peer");
     await written;
 
     // refuse the first unsafe entry once the archive drained

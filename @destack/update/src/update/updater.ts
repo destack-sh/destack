@@ -273,14 +273,12 @@ async function verifyRelease(
         stderr: "pipe",
         signal: clock.timeout(VERIFY_TIMEOUT_MILLISECONDS),
     });
-    // run the check, its child's lifetime tracked on the world's clock
-    const [exit, stdout, stderr] = await clock.trackHost(
-        Promise.all([
-            child.exited,
-            new Response(child.stdout).text(),
-            new Response(child.stderr).text(),
-        ]),
-    );
+    // run the check to its exit
+    const [exit, stdout, stderr] = await Promise.all([
+        child.exited,
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+    ]);
     if (exit !== 0) {
         throw UpdateError.of(
             "VERIFICATION_FAILED",

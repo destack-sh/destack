@@ -37,7 +37,7 @@ export class Fetcher extends BaseFetcher {
         handler: (file: string) => Promise<Result>,
     ): Promise<Result> {
         // write the fetched bytes into a temporary file, refusing more than the signed length
-        const { clock, files } = this.#environment;
+        const { scheduler, files } = this.#environment;
         const directory = await files.makeTemporaryDirectory("destack-tuf-");
         try {
             const file = join(directory, "download");
@@ -55,7 +55,7 @@ export class Fetcher extends BaseFetcher {
             await writer.close();
 
             // verify it as TUF does, its own file reads tracked as a library boundary
-            return await clock.trackHost(handler(file));
+            return await scheduler.track(handler(file), "host");
         } finally {
             await files.remove(directory, { recursive: true });
         }

@@ -39,12 +39,13 @@ test("recover macOS activation after bundle replacement", async () => {
                 applicationIdentifier: "org.example.editor",
             }),
         );
-        await HOST.files.mkdir(join(installer.directory, "staged.json"));
         const staging = join(installer.directory, "staged.json");
+        await HOST.files.mkdir(staging);
+        await HOST.files.writeTextFile(join(staging, "blocking"), "");
         expect(await refusal(installer.recover())).toEqual([
-            "INTERNAL_SERVER_ERROR",
-            "FILE_SYSTEM_FAILED",
-            `cannot remove ${staging}: ERR_FS_EISDIR`,
+            "CONFLICT",
+            "ALREADY_EXISTS",
+            `cannot remove ${staging}: ENOTEMPTY`,
         ]);
         expect(await HOST.files.readTextFile(join(destination, "Contents/Info.plist"))).toBe(
             await HOST.files.readTextFile(join(application, "Contents/Info.plist")),

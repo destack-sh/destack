@@ -1,4 +1,4 @@
-import { UpdateFixture } from "../test/index.ts";
+import { TestUpdate } from "../test/index.ts";
 import { expect, test, refusal } from "@destack/test";
 import { SigningKey } from "./key.ts";
 import { TrustedRoot } from "./root.ts";
@@ -6,7 +6,7 @@ import { Metadata, MetadataKind } from "@tufjs/models";
 
 test("require independent RSA root signatures and both quorums during rotation", async () => {
     // run in a world paused at the system's time, near the wall clock TUF checks expiry on
-    const world = UpdateFixture.world().environment("test");
+    const world = TestUpdate.world().environment("test");
 
     // exercise the same RSA-PSS scheme used by the hardware without persisting private keys
     const first = await SigningKey.generate("rsassa-pss-sha256", world.crypto);

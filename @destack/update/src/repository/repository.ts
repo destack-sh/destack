@@ -174,11 +174,14 @@ export class UpdateRepository {
         }
 
         // authenticate an installer archive by its signed length and hashes
-        const { clock } = this.environment;
+        const { scheduler } = this.environment;
         const downloader = this.#updater(
             new Fetcher({ kind: "archive", total: artifact.length, options }, this.environment),
         );
-        const cached = await clock.trackHost(downloader.findCachedTarget(artifact, candidate));
+        const cached = await scheduler.track(
+            downloader.findCachedTarget(artifact, candidate),
+            "host",
+        );
         if (candidate !== undefined && candidate !== "" && cached === undefined) {
             throw UpdateError.of("VERIFICATION_FAILED", "installer archive failed verification");
         }

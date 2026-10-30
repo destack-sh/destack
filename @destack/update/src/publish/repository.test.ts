@@ -1,4 +1,4 @@
-import { UpdateFixture } from "../test/index.ts";
+import { TestUpdate } from "../test/index.ts";
 import { expect, test } from "@destack/test";
 import { Metadata, MetadataKind, Targets } from "@tufjs/models";
 import { join } from "node:path";
@@ -10,7 +10,7 @@ import { COMMIT } from "../test/index.ts";
 
 test("renew freshness while preserving exact targets authorization", async () => {
     // run in a world paused at the system's time, near the wall clock TUF checks expiry on
-    const world = UpdateFixture.world().environment("test");
+    const world = TestUpdate.world().environment("test");
 
     // prepare independent roles and a quorum using disposable keys
     const first = await SigningKey.generate("ed25519", world.crypto);

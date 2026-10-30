@@ -41,7 +41,7 @@ const ROOT_LIFETIME_MILLISECONDS = 365 * 86_400_000;
 export const COMMIT = "2c9f1e7d5b3a8f60c4e1d2b7a9f0e3c5d8b1a4f6";
 
 /** A real signed repository and isolated installation served in a simulated world. */
-export class UpdateFixture implements AsyncDisposable {
+export class TestUpdate implements AsyncDisposable {
     /** The caller's world the repository and the device updating run in. */
     readonly simulation: Simulation;
     /** Temporary files owned by this scenario. */
@@ -127,7 +127,7 @@ export class UpdateFixture implements AsyncDisposable {
             const script = `#!/bin/sh\nprintf '%s\\n' '${REPORT}'\n`;
             await files.writeTextFile(outfile, script, { mode: 0o755 });
         } else {
-            await UpdateFixture.#build(outfile);
+            await TestUpdate.#build(outfile);
         }
 
         // archive it with an empty desktop as a distribution
@@ -174,11 +174,11 @@ export class UpdateFixture implements AsyncDisposable {
         rootKeys: SigningKey[],
         version: string,
         simulation: Simulation,
-    ): Promise<UpdateFixture> {
+    ): Promise<TestUpdate> {
         // copy shared immutable inputs into a repository of its own, and publish the version
         const { files } = simulation.environment(DEVICE_NODE);
         const directory = await files.makeTemporaryDirectory("destack-updater-");
-        const repository = await UpdateFixture.create(directory, rootKeys, simulation);
+        const repository = await TestUpdate.create(directory, rootKeys, simulation);
         try {
             await files.copy(join(fixture, "source"), repository.source);
             await files.copyFile(join(fixture, "release.tar.gz"), repository.archive);
@@ -210,7 +210,7 @@ export class UpdateFixture implements AsyncDisposable {
         directory: string,
         rootKeys: SigningKey[],
         simulation: Simulation,
-    ): Promise<UpdateFixture> {
+    ): Promise<TestUpdate> {
         // establish independent online trust with the shared offline signers
         const { clock, crypto } = simulation.environment(DEVICE_NODE);
         const keys = {
@@ -233,7 +233,7 @@ export class UpdateFixture implements AsyncDisposable {
             await key.sign(root);
         }
 
-        return new UpdateFixture(directory, rootKeys, keys, root, simulation);
+        return new TestUpdate(directory, rootKeys, keys, root, simulation);
     }
 
     /** Stop the repository's listener and remove all scenario files. */

@@ -11,7 +11,7 @@ import { distribution } from "../object/index.ts";
 import updatePackage from "../package.ts";
 import { SignedRepository, type SigningKey } from "../publish/index.ts";
 import { Release } from "../release/index.ts";
-import { createRootKey, UpdateFixture } from "../test/index.ts";
+import { createRootKey, TestUpdate } from "../test/index.ts";
 import { distributionServer } from "./server.ts";
 
 /** Offline signers shared as immutable key material. */
@@ -21,7 +21,7 @@ let fixture: string;
 
 beforeAll(async () => {
     rootKeys = await Promise.all(Array.from({ length: 3 }, () => createRootKey(testHost().crypto)));
-    fixture = await UpdateFixture.compile();
+    fixture = await TestUpdate.compile();
 }, 10000);
 
 afterAll(async () => {
@@ -30,11 +30,11 @@ afterAll(async () => {
 
 test("record a device's distribution once and stage the published release as the device, refusing another device", async () => {
     // run 2026.9.0 of a distribution following the fixture's repository
-    await using repository = await UpdateFixture.open(
+    await using repository = await TestUpdate.open(
         fixture,
         rootKeys,
         "2026.9.1",
-        UpdateFixture.world(),
+        TestUpdate.world(),
     );
     const home = await repository.environment.files.makeTemporaryDirectory("destack-distribution-");
     onTestFinished(() => repository.environment.files.remove(home, { recursive: true }));
@@ -63,7 +63,7 @@ test("record a device's distribution once and stage the published release as the
         visibility: "private",
         simulation: repository.simulation,
     });
-    await served.settle();
+    await served.simulation.idle();
 
     // read the row as the device, and refuse another device
     const other = principal.device.reference(
