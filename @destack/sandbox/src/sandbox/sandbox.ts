@@ -1,5 +1,5 @@
 import type { FamilyError } from "@destack/error";
-import type { Clock, Environment, ProcessChannel, Subprocess } from "@destack/environment";
+import type { Environment, ProcessChannel, Scheduler, Subprocess } from "@destack/environment";
 import { isAbsolute } from "node:path";
 import { launcherCommand } from "../bun/command.ts";
 import { SandboxError, type SandboxReason } from "../error/index.ts";
@@ -36,16 +36,20 @@ export class Sandbox implements AsyncDisposable {
     readonly #watched: WatchedLauncher;
     /** Shared completion of the first shutdown request. */
     #stopping: Promise<SandboxExit> | undefined;
+    /** The scheduler a stop's wait for the launcher's exit counts on, as a peer. */
+    readonly #scheduler: Scheduler;
 
     /** Retain one launcher and the workload's standard streams it passes through. */
     private constructor(
         launcher: Launcher,
         watched: WatchedLauncher,
         exited: Promise<SandboxExit>,
+        scheduler: Scheduler,
     ) {
-        // retain the launcher, its watched channel and the streams it passes through
+        // retain the launcher, its watched channel, the streams it passes through and the scheduler
         this.#launcher = launcher;
         this.#watched = watched;
+        this.#scheduler = scheduler;
         this.stdin = launcher.stdin;
         this.stdout = launcher.stdout;
         this.stderr = launcher.stderr;
@@ -84,12 +88,17 @@ export class Sandbox implements AsyncDisposable {
         );
         try {
             configure(launcher, options, watched.ready);
-            await environment.clock.trackHost(watched.ready.promise);
+            await environment.scheduler.track(watched.ready.promise, "host");
 
             // expose failures after startup through the public completion promise
-            return new Sandbox(launcher, watched, closed.then(watched.outcome));
+            return new Sandbox(
+                launcher,
+                watched,
+                closed.then(watched.outcome),
+                environment.scheduler,
+            );
         } catch (error) {
-            await release(launcher, watched, environment.clock);
+            await release(launcher, watched, environment);
             await closed;
             throw error;
         } finally {
@@ -127,7 +136,7 @@ export class Sandbox implements AsyncDisposable {
             }
         }
 
-        return await this.exited;
+        return await this.#scheduler.track(this.exited, "peer");
     }
 
     /** Stop execution before releasing the sandbox. */
@@ -150,11 +159,11 @@ interface WatchedLauncher {
 
 /** Refuse platforms without runtime paths and hosts missing the enforcement tools. */
 async function requireSupport(environment: Environment<"host">): Promise<void> {
-    // load the upstream manager on first start, since it costs hundreds of milliseconds to import
-    const [{ SandboxManager }, { RUNTIME_PATHS }] = await Promise.all([
-        import("@anthropic-ai/sandbox-runtime"),
-        import("../launcher/launcher.ts"),
-    ]);
+    // load the upstream manager on first start as host work, since it costs hundreds of milliseconds to import
+    const [{ SandboxManager }, { RUNTIME_PATHS }] = await environment.scheduler.track(
+        Promise.all([import("@anthropic-ai/sandbox-runtime"), import("../launcher/launcher.ts")]),
+        "host",
+    );
 
     // refuse an unsupported platform or missing tools
     const { os } = environment.host;
@@ -196,6 +205,7 @@ function spawnLauncher(
     const command = launcherCommand(environment.process);
 
     return environment.process.fork([command.executable, ...command.arguments], {
+        tracking: "none",
         workingDirectory: directory,
         variables: {
             PATH: LAUNCHER_PATH,
@@ -286,18 +296,22 @@ function configure(
 }
 
 /** Disconnect a failed launcher and wait for it to exit, killing it after a grace period. */
-async function release(launcher: Launcher, watched: WatchedLauncher, clock: Clock): Promise<void> {
+async function release(
+    launcher: Launcher,
+    watched: WatchedLauncher,
+    environment: Pick<Environment, "clock" | "scheduler">,
+): Promise<void> {
     // disconnect, and kill the launcher once the grace period passes
     if (watched.isConnected()) {
         launcher.channel.disconnect();
     }
     const cleanup = new AbortController();
-    void clock.sleep(CLEANUP_TIMEOUT_MILLISECONDS, cleanup.signal).then(
+    void environment.clock.sleep(CLEANUP_TIMEOUT_MILLISECONDS, cleanup.signal).then(
         () => launcher.kill("SIGKILL"),
         () => undefined,
     );
     try {
-        await watched.closed;
+        await environment.scheduler.track(watched.closed, "peer");
     } finally {
         cleanup.abort();
     }
