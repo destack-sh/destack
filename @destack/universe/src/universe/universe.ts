@@ -176,31 +176,33 @@ export class Universe implements AsyncDisposable {
         });
 
         // serve the account, setting and universe packages over one store, each as its base installation
-        const base = (handle: (typeof UNIVERSE_PACKAGES)[number]) =>
-            Installation.base(Scope.universe, handle, options.environment.crypto);
-        const store: ObjectStore = new ObjectStore({
-            servers: [
-                objectServer.at(await base(objectPackage)),
-                accountServer({
-                    resolver: new DnsOverHttps((request) => network.fetch(request)),
-                    stacks: definition.stacks,
-                    signIn: signIn.promise,
-                    releases,
-                }).at(await base(accountPackage)),
-                settingServer({
-                    declared: Setting.declared((value) =>
-                        releases.open(
-                            value.packageId,
-                            present(value.release, `the release of ${value.name}`),
-                        ),
+        const implementations = [
+            objectServer,
+            accountServer({
+                resolver: new DnsOverHttps((request) => network.fetch(request)),
+                stacks: definition.stacks,
+                signIn: signIn.promise,
+                releases,
+            }),
+            settingServer({
+                declared: Setting.declared((value) =>
+                    releases.open(
+                        value.packageId,
+                        present(value.release, `the release of ${value.name}`),
                     ),
-                    after: [],
-                }).at(await base(settingPackage)),
-                implementPackage(universePackage, {
-                    objects: applied.objects,
-                    controllers: applied.controllers,
-                }).at(await base(universePackage)),
-            ],
+                ),
+                after: [],
+            }),
+            implementPackage(universePackage, {
+                objects: applied.objects,
+                controllers: applied.controllers,
+            }),
+        ];
+        const { crypto } = options.environment;
+        const store: ObjectStore = new ObjectStore({
+            servers: await Promise.all(
+                implementations.map((server) => server.base(Scope.universe, crypto)),
+            ),
             // follow no chain at the universe, the root of every chain
             chain: async () => undefined,
             principal: Scope.universe,
