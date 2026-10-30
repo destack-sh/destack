@@ -268,10 +268,11 @@ export class EventArchive {
         filter: EventFilter,
         after: EventCursor | undefined,
         order: EventOrder,
+        database: DatabaseConnection = this.#database,
     ): Promise<ChosenSegment[]> {
         // choose by time range and key values
         const range = EventFilter.range(filter);
-        const segments = await this.#database
+        const segments = await database
             .select(chosenSegment)
             .from(eventSegment)
             .where(
@@ -299,7 +300,7 @@ export class EventArchive {
         if ((id === undefined && grams.length === 0) || held.length === 0) {
             return held;
         }
-        const filters = await this.#database
+        const filters = await database
             .select({ id: eventSegment.id, ids: eventSegment.ids, grams: eventSegment.grams })
             .from(eventSegment)
             .where(
@@ -319,6 +320,24 @@ export class EventArchive {
         );
 
         return held.filter((segment) => holding.has(segment.id));
+    }
+
+    /** Read a scope's flushed event of a kind by its identity, absent when no segment holds it. */
+    async find(
+        kind: EventKind,
+        scope: string,
+        id: string,
+        database: DatabaseConnection = this.#database,
+    ): Promise<Event | undefined> {
+        // choose the segments whose identity filters may hold it, then decode them
+        const filter = { scopes: [scope], where: { id } } as const;
+        const chosen = await this.choose(kind, filter, undefined, "ascending", database);
+        const events = present(
+            await this.decode(kind, chosen, filter, undefined),
+            `the segments holding event ${id}`,
+        );
+
+        return events.find((event) => event.id === id);
     }
 
     /** Decode the selected events of chosen segments, absent once one was compacted away. */

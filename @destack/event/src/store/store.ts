@@ -28,7 +28,13 @@ import type { Bucket } from "@destack/bucket";
 import type { Controller } from "@destack/db";
 import { ArchiveController } from "../archive/controller.ts";
 import { EventArchive } from "../archive/archive.ts";
-import { type Event, type EventKeyFields, EventKind, type SettingRetention } from "../kind/kind.ts";
+import {
+    type Event,
+    type EventKeyFields,
+    EventKind,
+    EventTime,
+    type SettingRetention,
+} from "../kind/kind.ts";
 import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
 import { EventCursor, EventFilter, type EventOrder } from "./filter.ts";
 import { Fold, type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
@@ -81,6 +87,8 @@ export class EventStore {
     readonly #archive: EventArchive;
     /** The keyring sealing personal values. */
     readonly #personal: PersonalKeyring | undefined;
+    /** The clock that tells a late event from a recent one, as segments flush by it. */
+    readonly #clock: Clock;
     /** The instruments capturing the dropped writes of events stored at most once. */
     readonly #telemetry: TelemetryScope;
 
@@ -118,6 +126,7 @@ export class EventStore {
             settings: options.settings,
         });
         this.#personal = options.personal;
+        this.#clock = options.clock;
         this.controllers = [new ArchiveController(this.#archive, kinds, options.clock)];
     }
 
@@ -135,8 +144,12 @@ export class EventStore {
             );
         }
 
-        // check and seal the events
-        const stored = await this.#prepare(kind, events, transaction);
+        // check and seal the events, leaving out late repeats of flushed ones
+        const prepared = await this.#prepare(kind, events, transaction);
+        const stored =
+            kind.delivery === "exactly-once"
+                ? await this.#skipFlushed(kind, prepared, transaction)
+                : prepared;
         if (stored.length === 0) {
             return;
         }
@@ -386,6 +399,36 @@ export class EventStore {
         if (repeated.length > 0) {
             await this.#requireRepeats(kind, repeated, transaction);
         }
+    }
+
+    /** Skip late events a segment holds already, refusing one stored with other contents. */
+    async #skipFlushed(
+        kind: EventKind,
+        prepared: readonly Event[],
+        transaction: DatabaseConnection | undefined,
+    ): Promise<Event[]> {
+        // look up only events past the out-of-order window, which a flush may have taken
+        // NOTE #Robustness: a flush committing between this lookup and the insert lets a late repeat through
+        const horizon = EventTime.horizon(this.#clock.now());
+        const unflushed: Event[] = [];
+        for (const event of prepared) {
+            const flushed =
+                event.time < horizon
+                    ? await this.#archive.find(kind, event.scope, event.id, transaction)
+                    : undefined;
+
+            // keep a new event, leave out an equal repeat, and refuse a changed one
+            if (flushed === undefined) {
+                unflushed.push(event);
+            } else if (searchedText(kind, flushed) !== searchedText(kind, event)) {
+                throw EventError.of(
+                    "CONTENTS_DIFFER",
+                    `event ${event.id} of ${kind.key} is already stored with other contents`,
+                );
+            }
+        }
+
+        return unflushed;
     }
 
     /** Require stored events to repeat their time, keys and data. */

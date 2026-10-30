@@ -181,7 +181,7 @@ test("flush a scope's hot events at the row cap into segments that queries read 
     ]);
 });
 
-test("store an event once while it is within the out-of-order window, a row cap flush taking only settled ones", async () => {
+test("store an event once, refusing a changed repeat whether hot or flushed and keeping an equal one once", async () => {
     const fixture = await open();
     const { store, database } = fixture;
 
@@ -192,15 +192,22 @@ test("store an event once while it is within the out-of-order window, a row cap 
     );
     await pass(fixture, 3);
 
-    // repeat the fourth with another value, then unchanged
+    // repeat the hot fourth and the flushed first with other values
     const changed = await refusal(store.append(reading, [measured("r4", 4, "db.bytes", 99)]));
-    await store.append(reading, [measured("r4", 4, "db.bytes", 4)]);
+    const late = await refusal(store.append(reading, [measured("r1", 1, "db.bytes", 99)]));
 
-    // keep each reading once, the repeated one unchanged
+    // repeat both unchanged
+    await store.append(reading, [
+        measured("r4", 4, "db.bytes", 4),
+        measured("r1", 1, "db.bytes", 1),
+    ]);
+
+    // keep each reading once, the repeated ones unchanged
     const page = await store.query(reading, { scopes: ["space-1"] });
     const segments = await database.database.select().from(eventSegment);
     expect({
         changed,
+        late,
         segments: segments.map((segment) => segment.rows),
         events: page.events.map((event) => [event.id, event.keys.value]),
     }).toEqual({
@@ -208,6 +215,11 @@ test("store an event once while it is within the out-of-order window, a row cap 
             "CONFLICT",
             "CONTENTS_DIFFER",
             `event r4 of ${reading.key} is already stored with other contents`,
+        ],
+        late: [
+            "CONFLICT",
+            "CONTENTS_DIFFER",
+            `event r1 of ${reading.key} is already stored with other contents`,
         ],
         segments: [3],
         events: [
