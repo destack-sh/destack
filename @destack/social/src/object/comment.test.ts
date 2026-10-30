@@ -4,15 +4,15 @@ import { expect, refusal, test } from "@destack/test";
 import { Comment, comment } from "./index.ts";
 
 test("thread comments on an article, which commenters reply to, authors and editors resolve, and owners moderate", async () => {
-    await using kit = await TestSocial.open();
-    const { scope, actors } = kit;
+    await using fixture = await TestSocial.open();
+    const { scope, actors } = fixture;
 
     // share an article with an editor, a commenter and a viewer
-    const draft = await kit.call(
+    const draft = await fixture.call(
         "alice",
         article.call("create", { ...scope, title: "Launch plan" }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -21,7 +21,7 @@ test("thread comments on an article, which commenters reply to, authors and edit
             subject: actors.dave,
         }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -30,7 +30,7 @@ test("thread comments on an article, which commenters reply to, authors and edit
             subject: actors.bob,
         }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -41,7 +41,7 @@ test("thread comments on an article, which commenters reply to, authors and edit
     );
 
     // start a thread on a selection of the article's text, and let the commenter reply to it
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("edit", {
             ...scope,
@@ -55,7 +55,7 @@ test("thread comments on an article, which commenters reply to, authors and edit
         anchor: { element: { run: "alice.1", offset: 0 }, side: "before" },
         head: { element: { run: "alice.1", offset: 9 }, side: "after" },
     };
-    const first = await kit.call(
+    const first = await fixture.call(
         "alice",
         comment.call("create", {
             ...scope,
@@ -64,14 +64,14 @@ test("thread comments on an article, which commenters reply to, authors and edit
             selection,
         }),
     );
-    const reply = await kit.call(
+    const reply = await fixture.call(
         "bob",
         comment.call("reply", { ...scope, id: first.id, text: "Done" }),
     );
 
     // show the viewer the thread, and refuse the viewer a comment
     expect(
-        (await kit.list("carol", comment)).map((row) => [
+        (await fixture.list("carol", comment)).map((row) => [
             row.body,
             row.authorId,
             row.threadId,
@@ -83,7 +83,7 @@ test("thread comments on an article, which commenters reply to, authors and edit
     ]);
     expect(
         await refusal(
-            kit.call(
+            fixture.call(
                 "carol",
                 comment.call("create", {
                     ...scope,
@@ -95,8 +95,11 @@ test("thread comments on an article, which commenters reply to, authors and edit
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: comment"]);
 
     // refuse a reply to a reply, and a reply's mentions past the end of its text
-    const nested = kit.call("bob", comment.call("reply", { ...scope, id: reply.id, text: "Nope" }));
-    const unspanned = kit.call(
+    const nested = fixture.call(
+        "bob",
+        comment.call("reply", { ...scope, id: reply.id, text: "Nope" }),
+    );
+    const unspanned = fixture.call(
         "bob",
         comment.call("reply", {
             ...scope,
@@ -121,7 +124,7 @@ test("thread comments on an article, which commenters reply to, authors and edit
     // refuse a selection of elements the text never had
     expect(
         await refusal(
-            kit.call(
+            fixture.call(
                 "bob",
                 comment.call("create", {
                     ...scope,
@@ -140,7 +143,7 @@ test("thread comments on an article, which commenters reply to, authors and edit
     ).toEqual(["BAD_REQUEST", "SELECTION_UNKNOWN", "body has no such selection"]);
 
     // refuse a selection of a field with no text, and mentions past the end of the text
-    const titled = kit.call(
+    const titled = fixture.call(
         "bob",
         comment.call("create", {
             ...scope,
@@ -149,7 +152,7 @@ test("thread comments on an article, which commenters reply to, authors and edit
             selection: { ...selection, field: "title" },
         }),
     );
-    const overlong = kit.call(
+    const overlong = fixture.call(
         "bob",
         comment.call("create", {
             ...scope,
@@ -167,8 +170,8 @@ test("thread comments on an article, which commenters reply to, authors and edit
     ]);
 
     // let only the author edit a comment, stamping the edit
-    const editedAt = kit.clock.now();
-    const edited = await kit.call(
+    const editedAt = fixture.clock.now();
+    const edited = await fixture.call(
         "bob",
         comment.call("update", {
             ...scope,
@@ -183,7 +186,7 @@ test("thread comments on an article, which commenters reply to, authors and edit
     ]);
     expect(
         await refusal(
-            kit.call(
+            fixture.call(
                 "alice",
                 comment.call("update", {
                     ...scope,
@@ -196,46 +199,55 @@ test("thread comments on an article, which commenters reply to, authors and edit
 
     // refuse a commenter resolving another's thread
     expect(
-        await refusal(kit.call("bob", comment.call("resolve", { ...scope, id: first.id }))),
+        await refusal(fixture.call("bob", comment.call("resolve", { ...scope, id: first.id }))),
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: resolve"]);
 
     // let an editor resolve the thread through its first comment once, and its author reopen it
-    const resolvedAt = kit.clock.now();
-    const resolved = await kit.call("dave", comment.call("resolve", { ...scope, id: first.id }));
+    const resolvedAt = fixture.clock.now();
+    const resolved = await fixture.call(
+        "dave",
+        comment.call("resolve", { ...scope, id: first.id }),
+    );
     expect(new Comment(resolved).resolution).toEqual({ at: resolvedAt, by: actors.dave });
     expect(
-        await refusal(kit.call("dave", comment.call("resolve", { ...scope, id: first.id }))),
+        await refusal(fixture.call("dave", comment.call("resolve", { ...scope, id: first.id }))),
     ).toEqual(["CONFLICT", "THREAD_RESOLVED", "thread is already resolved"]);
     expect(
-        await refusal(kit.call("dave", comment.call("resolve", { ...scope, id: reply.id }))),
+        await refusal(fixture.call("dave", comment.call("resolve", { ...scope, id: reply.id }))),
     ).toEqual([
         "BAD_REQUEST",
         "FIRST_COMMENT_REQUIRED",
         "only a thread's first comment takes replies and resolves it",
     ]);
-    const reopened = await kit.call("alice", comment.call("reopen", { ...scope, id: first.id }));
+    const reopened = await fixture.call(
+        "alice",
+        comment.call("reopen", { ...scope, id: first.id }),
+    );
     expect(new Comment(reopened).resolution).toBeUndefined();
     expect(
-        await refusal(kit.call("alice", comment.call("reopen", { ...scope, id: first.id }))),
+        await refusal(fixture.call("alice", comment.call("reopen", { ...scope, id: first.id }))),
     ).toEqual(["CONFLICT", "THREAD_OPEN", "thread is already open"]);
 
     // let the owner delete another's comment, and refuse a commenter another's
     expect(
-        (await kit.call("alice", article.call("get", { ...scope, id: draft.id }))).commentCount,
+        (await fixture.call("alice", article.call("get", { ...scope, id: draft.id }))).commentCount,
     ).toBe(2);
-    await kit.call("alice", comment.call("delete", { ...scope, id: reply.id }));
-    await kit.call("alice", comment.call("reply", { ...scope, id: first.id, text: "Reworded" }));
+    await fixture.call("alice", comment.call("delete", { ...scope, id: reply.id }));
+    await fixture.call(
+        "alice",
+        comment.call("reply", { ...scope, id: first.id, text: "Reworded" }),
+    );
     expect(
-        await refusal(kit.call("bob", comment.call("delete", { ...scope, id: first.id }))),
+        await refusal(fixture.call("bob", comment.call("delete", { ...scope, id: first.id }))),
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: delete"]);
 
     // count the article's comments, and delete the thread's replies with its first comment
     expect(
-        (await kit.call("alice", article.call("get", { ...scope, id: draft.id }))).commentCount,
+        (await fixture.call("alice", article.call("get", { ...scope, id: draft.id }))).commentCount,
     ).toBe(2);
-    await kit.call("alice", comment.call("delete", { ...scope, id: first.id }));
+    await fixture.call("alice", comment.call("delete", { ...scope, id: first.id }));
     expect([
-        await kit.list("alice", comment),
-        (await kit.call("alice", article.call("get", { ...scope, id: draft.id }))).commentCount,
+        await fixture.list("alice", comment),
+        (await fixture.call("alice", article.call("get", { ...scope, id: draft.id }))).commentCount,
     ]).toEqual([[], 0]);
 });

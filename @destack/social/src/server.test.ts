@@ -5,17 +5,17 @@ import { Body, comment, type Mention } from "./index.ts";
 import { type Actor, article, TestSocial } from "./test/index.ts";
 
 test("record activities for mentioned principals, announce threads and replies to their subscribers, and answer a mention with a reply", async () => {
-    await using kit = await TestSocial.open();
-    const { scope, actors } = kit;
+    await using fixture = await TestSocial.open();
+    const { scope, actors } = fixture;
     const activities = async (actor: Actor) =>
-        (await kit.list(actor, activity)).map((row) => [row.name, row.parentType, row.reason]);
+        (await fixture.list(actor, activity)).map((row) => [row.name, row.parentType, row.reason]);
 
     // share an article with two commenters and a viewer subscribing to it
-    const draft = await kit.call(
+    const draft = await fixture.call(
         "alice",
         article.call("create", { ...scope, title: "Launch plan" }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -24,7 +24,7 @@ test("record activities for mentioned principals, announce threads and replies t
             subject: actors.bob,
         }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -33,7 +33,7 @@ test("record activities for mentioned principals, announce threads and replies t
             subject: actors.carol,
         }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -42,13 +42,13 @@ test("record activities for mentioned principals, announce threads and replies t
             subject: actors.dave,
         }),
     );
-    await kit.call(
+    await fixture.call(
         "dave",
         subscription.call("create", { ...scope, ...TestSocial.host(article, draft.id) }),
     );
 
     // start a thread mentioning a commenter, announcing it to the article's other subscribers for their reasons
-    const first = await kit.call(
+    const first = await fixture.call(
         "bob",
         comment.call("create", {
             ...scope,
@@ -59,7 +59,7 @@ test("record activities for mentioned principals, announce threads and replies t
             },
         }),
     );
-    await kit.settle();
+    await fixture.simulation.idle();
     expect([
         await activities("alice"),
         await activities("bob"),
@@ -73,7 +73,7 @@ test("record activities for mentioned principals, announce threads and replies t
     ]);
 
     // carry an excerpt of the mentioning comment and its thread
-    const mentioned = nth(await kit.list("carol", activity), 0);
+    const mentioned = nth(await fixture.list("carol", activity), 0);
     expect([mentioned.payload, mentioned.thread]).toEqual([
         {
             author: actors.bob,
@@ -85,9 +85,9 @@ test("record activities for mentioned principals, announce threads and replies t
     ]);
 
     // announce replies to the thread's subscribers for their reasons except the mentioned
-    await kit.call("carol", comment.call("reply", { ...scope, id: first.id, text: "Agreed" }));
-    await kit.settle();
-    await kit.call(
+    await fixture.call("carol", comment.call("reply", { ...scope, id: first.id, text: "Agreed" }));
+    await fixture.simulation.idle();
+    await fixture.call(
         "alice",
         comment.call("reply", {
             ...scope,
@@ -96,7 +96,7 @@ test("record activities for mentioned principals, announce threads and replies t
             mentions: [{ offset: 0, length: 4, principal: actors.bob }],
         }),
     );
-    await kit.settle();
+    await fixture.simulation.idle();
     expect([
         await activities("alice"),
         await activities("bob"),
@@ -117,10 +117,10 @@ test("record activities for mentioned principals, announce threads and replies t
 
     // answer bob's mention from its activity, replying in its thread
     const bobMentioned = present(
-        (await kit.list("bob", activity)).find((row) => row.name === "mention"),
+        (await fixture.list("bob", activity)).find((row) => row.name === "mention"),
         "bob's mention",
     );
-    await kit.call(
+    await fixture.call(
         "bob",
         activity.call("act", {
             ...scope,
@@ -129,7 +129,7 @@ test("record activities for mentioned principals, announce threads and replies t
             text: "Shipping",
         }),
     );
-    const thread = (await kit.list("bob", comment)).map((row) => [
+    const thread = (await fixture.list("bob", comment)).map((row) => [
         Body.parse(row.body).text,
         row.authorId,
         row.threadId,
@@ -143,15 +143,15 @@ test("record activities for mentioned principals, announce threads and replies t
 });
 
 test("notify a principal mentioned twice in one comment once, and answer a reply with the reply it creates", async () => {
-    await using kit = await TestSocial.open();
-    const { scope, actors } = kit;
+    await using fixture = await TestSocial.open();
+    const { scope, actors } = fixture;
 
     // share an article with a commenter, and mention them twice in one comment
-    const draft = await kit.call(
+    const draft = await fixture.call(
         "alice",
         article.call("create", { ...scope, title: "Launch plan" }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -160,7 +160,7 @@ test("notify a principal mentioned twice in one comment once, and answer a reply
             subject: actors.bob,
         }),
     );
-    const first = await kit.call(
+    const first = await fixture.call(
         "alice",
         comment.call("create", {
             ...scope,
@@ -174,10 +174,10 @@ test("notify a principal mentioned twice in one comment once, and answer a reply
             },
         }),
     );
-    await kit.settle();
+    await fixture.simulation.idle();
 
     // give bob one mention activity
-    const activities = (await kit.list("bob", activity)).map((row) => [
+    const activities = (await fixture.list("bob", activity)).map((row) => [
         row.name,
         row.parentType,
         row.reason,
@@ -198,7 +198,7 @@ test("notify a principal mentioned twice in one comment once, and answer a reply
     ]);
 
     // reply in the thread, answered with the new reply and not the thread's first comment
-    const replied = await kit.call(
+    const replied = await fixture.call(
         "bob",
         comment.call("reply", { ...scope, id: first.id, text: "Done" }),
     );
@@ -206,17 +206,17 @@ test("notify a principal mentioned twice in one comment once, and answer a reply
 });
 
 test("subscribe thread authors, repliers and mentioned principals to the thread, each principal's subscription private to it", async () => {
-    await using kit = await TestSocial.open();
-    const { scope, actors } = kit;
+    await using fixture = await TestSocial.open();
+    const { scope, actors } = fixture;
     const subscriptions = async (actor: Actor) =>
-        (await kit.list(actor, subscription)).map((row) => [row.parentType, row.reason]);
+        (await fixture.list(actor, subscription)).map((row) => [row.parentType, row.reason]);
 
     // subscribe the article's creator, and let a commenter subscribe before anyone mentions them
-    const draft = await kit.call(
+    const draft = await fixture.call(
         "alice",
         article.call("create", { ...scope, title: "Launch plan" }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -225,7 +225,7 @@ test("subscribe thread authors, repliers and mentioned principals to the thread,
             subject: actors.bob,
         }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -234,7 +234,7 @@ test("subscribe thread authors, repliers and mentioned principals to the thread,
             subject: actors.carol,
         }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -243,7 +243,7 @@ test("subscribe thread authors, repliers and mentioned principals to the thread,
             subject: actors.agent,
         }),
     );
-    await kit.call(
+    await fixture.call(
         "bob",
         subscription.call("create", { ...scope, ...TestSocial.host(article, draft.id) }),
     );
@@ -251,7 +251,7 @@ test("subscribe thread authors, repliers and mentioned principals to the thread,
     // refuse mentioning someone who cannot read the article
     const text = "@bob, @carol and @dave, see the agent's notes";
     const create = (mentions: readonly Mention[]) =>
-        kit.call(
+        fixture.call(
             "alice",
             comment.call("create", {
                 ...scope,
@@ -288,7 +288,7 @@ test("subscribe thread authors, repliers and mentioned principals to the thread,
     ]);
 
     // subscribe a replier and whom the reply mentions to the thread
-    const answer = await kit.call(
+    const answer = await fixture.call(
         "bob",
         comment.call("reply", {
             ...scope,
@@ -309,15 +309,15 @@ test("subscribe thread authors, repliers and mentioned principals to the thread,
     ]);
 
     // unsubscribe from the thread by deleting, and subscribe only principals an edit mentions for the first time
-    const kept = nth(await kit.list("carol", subscription), 1);
-    await kit.call(
+    const kept = nth(await fixture.list("carol", subscription), 1);
+    await fixture.call(
         "carol",
         subscription.call("delete", {
             ...scope,
             id: present(kept.id, "carol's thread subscription"),
         }),
     );
-    await kit.call(
+    await fixture.call(
         "bob",
         comment.call("update", {
             ...scope,
@@ -337,7 +337,7 @@ test("subscribe thread authors, repliers and mentioned principals to the thread,
     ]);
 
     // subscribe an unsubscribed principal to the thread again once a new reply mentions it
-    await kit.call(
+    await fixture.call(
         "bob",
         comment.call("reply", {
             ...scope,

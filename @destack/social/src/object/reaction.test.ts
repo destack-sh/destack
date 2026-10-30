@@ -3,15 +3,15 @@ import { expect, refusal, test } from "@destack/test";
 import { comment, reaction } from "./index.ts";
 
 test("let commenters react once per emoji to articles and their comments, counted on each", async () => {
-    await using kit = await TestSocial.open();
-    const { scope, actors } = kit;
+    await using fixture = await TestSocial.open();
+    const { scope, actors } = fixture;
 
     // share an article with a commenter, an agent commenting on it and a viewer, and start a thread
-    const draft = await kit.call(
+    const draft = await fixture.call(
         "alice",
         article.call("create", { ...scope, title: "Launch plan" }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -20,7 +20,7 @@ test("let commenters react once per emoji to articles and their comments, counte
             subject: actors.bob,
         }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -29,7 +29,7 @@ test("let commenters react once per emoji to articles and their comments, counte
             subject: actors.agent,
         }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -38,7 +38,7 @@ test("let commenters react once per emoji to articles and their comments, counte
             subject: actors.carol,
         }),
     );
-    const first = await kit.call(
+    const first = await fixture.call(
         "alice",
         comment.call("create", {
             ...scope,
@@ -48,13 +48,13 @@ test("let commenters react once per emoji to articles and their comments, counte
     );
 
     // let the commenter react to the article once per emoji, and the agent too
-    const thumbs = await kit.call(
+    const thumbs = await fixture.call(
         "bob",
         reaction.call("create", { ...scope, ...TestSocial.host(article, draft.id), emoji: "👍" }),
     );
     expect(
         await refusal(
-            kit.call(
+            fixture.call(
                 "bob",
                 reaction.call("create", {
                     ...scope,
@@ -64,15 +64,15 @@ test("let commenters react once per emoji to articles and their comments, counte
             ),
         ),
     ).toEqual(["CONFLICT", "DUPLICATE", "another reaction has the same parent, author, and emoji"]);
-    await kit.call(
+    await fixture.call(
         "bob",
         reaction.call("create", { ...scope, ...TestSocial.host(article, draft.id), emoji: "👨🏻‍❤️‍💋‍👨🏼" }),
     );
-    await kit.call(
+    await fixture.call(
         "agent",
         reaction.call("create", { ...scope, ...TestSocial.host(article, draft.id), emoji: "👍" }),
     );
-    await kit.call(
+    await fixture.call(
         "agent",
         reaction.call("create", { ...scope, ...TestSocial.host(comment, first.id), emoji: "🎉" }),
     );
@@ -80,7 +80,7 @@ test("let commenters react once per emoji to articles and their comments, counte
     // refuse the viewer a reaction to the article and to its comment, since reactions follow commenting
     expect(
         await refusal(
-            kit.call(
+            fixture.call(
                 "carol",
                 reaction.call("create", {
                     ...scope,
@@ -92,7 +92,7 @@ test("let commenters react once per emoji to articles and their comments, counte
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: react"]);
     expect(
         await refusal(
-            kit.call(
+            fixture.call(
                 "carol",
                 reaction.call("create", {
                     ...scope,
@@ -105,16 +105,18 @@ test("let commenters react once per emoji to articles and their comments, counte
 
     // count the reactions on the article and on the comment
     expect([
-        (await kit.call("carol", article.call("get", { ...scope, id: draft.id }))).reactionCount,
-        (await kit.call("carol", comment.call("get", { ...scope, id: first.id }))).reactionCount,
+        (await fixture.call("carol", article.call("get", { ...scope, id: draft.id })))
+            .reactionCount,
+        (await fixture.call("carol", comment.call("get", { ...scope, id: first.id })))
+            .reactionCount,
     ]).toEqual([3, 1]);
 
     // take back a reaction only as its author
     expect(
-        await refusal(kit.call("agent", reaction.call("delete", { ...scope, id: thumbs.id }))),
+        await refusal(fixture.call("agent", reaction.call("delete", { ...scope, id: thumbs.id }))),
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"]);
-    await kit.call("bob", reaction.call("delete", { ...scope, id: thumbs.id }));
-    const reactions = (await kit.list("bob", reaction)).map((row) => [
+    await fixture.call("bob", reaction.call("delete", { ...scope, id: thumbs.id }));
+    const reactions = (await fixture.list("bob", reaction)).map((row) => [
         row.parentType,
         row.emoji,
         row.authorId,
@@ -125,6 +127,6 @@ test("let commenters react once per emoji to articles and their comments, counte
         ["comment", "🎉", actors.agent.id],
     ]);
     expect(
-        (await kit.call("bob", article.call("get", { ...scope, id: draft.id }))).reactionCount,
+        (await fixture.call("bob", article.call("get", { ...scope, id: draft.id }))).reactionCount,
     ).toBe(2);
 });

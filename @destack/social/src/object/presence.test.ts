@@ -4,13 +4,13 @@ import { expect, refusal, test } from "@destack/test";
 import { presence } from "./index.ts";
 
 test("show an article's readers who is on it once per writer, what they do and where, until they leave", async () => {
-    await using kit = await TestSocial.open();
-    const { scope, actors } = kit;
-    const draft = await kit.call(
+    await using fixture = await TestSocial.open();
+    const { scope, actors } = fixture;
+    const draft = await fixture.call(
         "alice",
         article.call("create", { ...scope, title: "Launch plan" }),
     );
-    await kit.call(
+    await fixture.call(
         "alice",
         article.call("grant", {
             ...scope,
@@ -21,11 +21,11 @@ test("show an article's readers who is on it once per writer, what they do and w
     );
 
     // let the owner edit the article while the viewer follows who is on it
-    const alice = await kit.follow("alice");
+    const alice = await fixture.follow("alice");
     expect(await rows(alice)).toEqual([]);
-    const bob = await kit.follow("bob");
+    const bob = await fixture.follow("bob");
     expect(await rows(bob)).toEqual([]);
-    const editing = await kit.call(
+    const editing = await fixture.call(
         "alice",
         presence.call("create", {
             ...scope,
@@ -40,7 +40,7 @@ test("show an article's readers who is on it once per writer, what they do and w
     ]);
 
     // show the owner typing as the cursor moves
-    await kit.call(
+    await fixture.call(
         "alice",
         presence.call("update", {
             ...scope,
@@ -57,7 +57,7 @@ test("show an article's readers who is on it once per writer, what they do and w
     // refuse presence to a stranger, and show the stranger nobody
     expect(
         await refusal(
-            kit.call(
+            fixture.call(
                 "carol",
                 presence.call("create", {
                     ...scope,
@@ -67,11 +67,11 @@ test("show an article's readers who is on it once per writer, what they do and w
             ),
         ),
     ).toEqual(["NOT_FOUND", "NOT_FOUND", `article ${draft.id} not found`]);
-    const carol = await kit.follow("carol");
+    const carol = await fixture.follow("carol");
     expect(await rows(carol)).toEqual([]);
 
     // let the viewer join, and only its own client move its presence
-    const viewing = await kit.call(
+    const viewing = await fixture.call(
         "bob",
         presence.call("create", {
             ...scope,
@@ -86,7 +86,7 @@ test("show an article's readers who is on it once per writer, what they do and w
     expect([await rows(alice), await rows(bob)]).toEqual([joined, joined]);
     expect(
         await refusal(
-            kit.call(
+            fixture.call(
                 "alice",
                 presence.call("update", { ...scope, id: viewing.id, status: "idle" }),
             ),
@@ -94,13 +94,13 @@ test("show an article's readers who is on it once per writer, what they do and w
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"]);
 
     // show the viewer alone once the owner leaves
-    await kit.call("alice", presence.call("delete", { ...scope, id: editing.id }));
+    await fixture.call("alice", presence.call("delete", { ...scope, id: editing.id }));
     expect(await rows(bob)).toEqual([[actors.bob.id, "viewing", null]]);
 
     // refuse a principal's second presence from one writer
     expect(
         await refusal(
-            kit.call(
+            fixture.call(
                 "bob",
                 presence.call("create", {
                     ...scope,
@@ -116,7 +116,7 @@ test("show an article's readers who is on it once per writer, what they do and w
     ]);
 
     // let another principal reuse the writer only for its own row
-    const reused = await kit.call(
+    const reused = await fixture.call(
         "bob",
         presence.call("create", {
             ...scope,
@@ -131,7 +131,7 @@ test("show an article's readers who is on it once per writer, what they do and w
     ]);
     expect(
         await refusal(
-            kit.call(
+            fixture.call(
                 "alice",
                 presence.call("update", { ...scope, id: reused.id, status: "editing" }),
             ),

@@ -1,7 +1,11 @@
 import { testHost } from "@destack/test/host";
 import { principal } from "@destack/access";
 import * as account from "@destack/account/object";
-import type { Simulation, SimulatedClock } from "@destack/environment/simulation";
+import {
+    type Simulation,
+    type SimulatedClock,
+    SimulatedScheduler,
+} from "@destack/environment/simulation";
 import { notification } from "@destack/notification";
 import { TestNotification } from "@destack/notification/test";
 import {
@@ -26,7 +30,7 @@ import socialPackage from "../package.ts";
 import socialServer from "../server.ts";
 import { articlesPackage, articlesServer } from "./article.ts";
 
-/** When the kit's simulation starts: 16 October 2026, UTC. */
+/** When the fixture's simulation starts: 16 October 2026, UTC. */
 export const START = Date.UTC(2026, 9, 16);
 
 /** The packages the space installs, in dependency order. */
@@ -73,19 +77,19 @@ const ListPage = schema.looseObject({
     items: schema.array(schema.looseObject({ id: schema.string(), createdAt: schema.number() })),
 });
 
-/** The world the kit writes on its space once: the agent's installation. */
+/** The world the fixture writes on its space once: the agent's installation. */
 const SocialWorld = schema.object({
     /** The agent package's installation. */
     agent: schema.string(),
 });
 
-/** The world the kit writes on its space once. */
+/** The world the fixture writes on its space once. */
 type SocialWorld = schema.Infer<typeof SocialWorld>;
 
-/** The space the kit's tests copy: its packages, shipped servers and start. */
+/** The space the fixture's tests copy: its packages, shipped servers and start. */
 const SPACE_OPTIONS = { ...TestPackage.options(PACKAGES), start: START };
 
-/** The template of the kit's space, which the run writes once and every test copies. */
+/** The template of the fixture's space, which the run writes once and every test copies. */
 export const SOCIAL_TEMPLATE = TestSpace.template(SPACE_OPTIONS, {
     name: "social",
     value: SocialWorld,
@@ -112,7 +116,7 @@ export class TestSocial implements AsyncDisposable {
     readonly #callers: Readonly<Record<Actor, TestCaller>>;
     /** The space's selection, which every call spreads. */
     readonly scope = { spaceId: ids.space };
-    /** The followers reading presence, closed once the kit closes. */
+    /** The followers reading presence, closed once the fixture closes. */
     readonly #followers: TestFollower[] = [];
 
     /** Keep a served space with its actors. */
@@ -259,11 +263,6 @@ export class TestSocial implements AsyncDisposable {
             .map((row) => Table.selectSchema<Type["table"]>(object.table).parse(row));
     }
 
-    /** Settle the space's controllers under the simulation. */
-    settle(): Promise<void> {
-        return this.space.settle(this.served);
-    }
-
     /** Follow the space's presence as an actor's client does, replicating it over HTTP. */
     async follow(actor: Actor): Promise<TestFollower> {
         // replicate presence into a local database through the actor's endpoint of social
@@ -286,7 +285,7 @@ export class TestSocial implements AsyncDisposable {
             },
         });
 
-        // keep the follower until the kit closes, reading its rows under the simulation
+        // keep the follower until the fixture closes, reading its rows under the simulation
         const follower = new TestFollower(client, resources, (work) => work);
         this.#followers.push(follower);
 
@@ -314,13 +313,11 @@ export class TestFollower {
     readonly #stopping = new AbortController();
     /** The client's run, settled once stopped. */
     readonly #running: Promise<void>;
-    /** The failures the client reported while running. */
-    readonly #failures: unknown[] = [];
     /** The presence rows after each local commit. */
     readonly #values: AsyncGenerator<readonly Record<string, unknown>[]>;
     /** The rows read last, as JSON. */
     #last: string | undefined;
-    /** Run work under the kit's simulation. */
+    /** Run work under the fixture's simulation. */
     readonly #settle: <Value>(work: Promise<Value>) => Promise<Value>;
 
     /** Run a client and watch its presence rows. */
@@ -333,7 +330,9 @@ export class TestFollower {
         this.#client = client;
         this.#resources = resources;
         this.#settle = settle;
-        this.#running = client.run(this.#stopping.signal, (error) => this.#failures.push(error));
+        this.#running = client.run(this.#stopping.signal, (error) =>
+            SimulatedScheduler.of(client.environment).fail(error),
+        );
         this.#values = client.query.presence.findMany().subscribe().watch(this.#stopping.signal);
     }
 
@@ -367,11 +366,6 @@ export class TestFollower {
         await this.#running;
         await this.#client.close();
         await this.#resources.disposeAsync();
-
-        // refuse a failure the client reported
-        if (this.#failures.length > 0) {
-            throw new AggregateError(this.#failures, "the presence follow failed");
-        }
     }
 }
 
