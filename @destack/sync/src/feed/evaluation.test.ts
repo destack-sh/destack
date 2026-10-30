@@ -231,7 +231,7 @@ test("read shared windows again once their decisions expire, under one key", asy
     await evaluation.collect(new View(database, position, feed));
 
     // swap the open note for the done note once the moment passed
-    clock.set(2000);
+    await simulation.jump(2000);
     const page = await evaluation.redecide(position, true, []);
     expect(page.changes.map((change) => [change.operation, change.row["id"]])).toEqual([
         ["insert", "b"],
@@ -263,7 +263,7 @@ test("wake every stream sharing an evaluation at its expiry, after another strea
             .then(() => woken.push(`second ${clock.now()}`)),
     ];
     void clock.sleep(500).then(() => stopping.abort());
-    await simulation.drive(Promise.all(waits));
+    await Promise.all(waits);
 
     // wake the second stream at the expiry the first one no longer waits for
     expect(woken).toEqual(["first 1500", "second 2000"]);

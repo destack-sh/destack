@@ -141,21 +141,19 @@ test("fail the commit of a transaction that read a chain before a fence, and sho
 
     // write into the space, fencing the account after the first attempt read the chain
     let attempts = 0;
-    const written = await simulation.drive(
-        Transaction.run(storage.database, async (transaction) => {
-            attempts += 1;
-            const chain = await Scope.chain(transaction.view(), "space");
-            if (attempts === 1) {
-                await Transaction.run(storage.database, (fencing) =>
-                    Scope.fence(fencing, "account", "machine-b", 1000),
-                );
-            }
-            const note = Table.complete(Scope.table, folder("note", "space", ["space", "account"]));
-            await transaction.write({ table: Scope.table, before: null, after: note });
+    const written = await Transaction.run(storage.database, async (transaction) => {
+        attempts += 1;
+        const chain = await Scope.chain(transaction.view(), "space");
+        if (attempts === 1) {
+            await Transaction.run(storage.database, (fencing) =>
+                Scope.fence(fencing, "account", "machine-b", 1000),
+            );
+        }
+        const note = Table.complete(Scope.table, folder("note", "space", ["space", "account"]));
+        await transaction.write({ table: Scope.table, before: null, after: note });
 
-            return chain.map((link) => link.movedTo);
-        }),
-    );
+        return chain.map((link) => link.movedTo);
+    });
 
     // commit the second attempt, which reads the fence
     const notes = await storage.database

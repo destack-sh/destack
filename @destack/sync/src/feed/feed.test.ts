@@ -20,9 +20,6 @@ import {
 import type { Item, Query } from "../query/query.ts";
 import { Simulation } from "@destack/environment/simulation";
 
-/** The tasks a stream gets to publish after the feed read a commit: ten, far more than it takes. */
-const QUIET_TASKS = 10;
-
 /** The commits the stress test writes. */
 const STRESS_COMMITS = 100;
 
@@ -44,7 +41,7 @@ test("repeat a caught-up stream's position at each heartbeat as the clock advanc
 
     // advance the clock past one heartbeat, and read the repeated position as the next page
     const repeated = nextValue(pages);
-    clock.advance(60_000);
+    await simulation.jump(clock.now() + 60_000);
     expect(await repeated).toEqual({
         reset: false,
         complete: true,
@@ -103,16 +100,12 @@ test("publish nothing past a commit outside a caught-up stream's queries until t
         async (transaction) =>
             await transaction.insert(note).values({ ...first, id: "archived", scope: "archive" }),
     );
-    const archived = await database.log.position();
     const next = nextValue(pages);
     let isSettled = false;
     void next.then(() => {
         isSettled = true;
     });
-    await expect.poll(() => feed.sequence).toBe(archived.sequence);
-    for (let turn = 0; turn < QUIET_TASKS; turn++) {
-        await Evaluation.nextTask(clock);
-    }
+    await simulation.idle();
     const isQuiet = !isSettled;
 
     // commit another, and read the current position at the next heartbeat
@@ -121,11 +114,11 @@ test("publish nothing past a commit outside a caught-up stream's queries until t
             await transaction.insert(note).values({ ...first, id: "later", scope: "archive" }),
     );
     const later = await database.log.position();
-    await expect.poll(() => feed.sequence).toBe(later.sequence);
-    clock.advance(60_000);
-    expect({ isQuiet, beat: await next }).toEqual({
+    const beat = await next;
+    expect({ isQuiet, beat, at: clock.now() - 1000 }).toEqual({
         isQuiet: true,
         beat: { reset: false, complete: true, changes: [], position: later },
+        at: 60_000,
     });
     await pages.return(undefined);
 });
@@ -350,8 +343,8 @@ test("follow the head through pages merged within an interval", async () => {
     await database.transaction(
         async (transaction) => await transaction.insert(note).values({ ...first, id: "c" }),
     );
-    const following = await simulation.drive(
-        until(pages, (page) => page.changes.some((change) => change.row["id"] === "c")),
+    const following = await until(pages, (page) =>
+        page.changes.some((change) => change.row["id"] === "c"),
     );
 
     // store each note as the pages leave it

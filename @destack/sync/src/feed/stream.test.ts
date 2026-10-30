@@ -26,11 +26,13 @@ test("publish a page at once after a quiet interval, and merge the pages within 
     source.push(page(3, [change("insert", "b")]));
     source.push(page(4, [change("delete", "b")]));
     source.push(page(5, [change("insert", "c")]));
-    await simulation.run({ to: simulation.clock.now() + EVERY - 1 });
+    await simulation.clock.sleep(EVERY - 1);
+    await simulation.idle();
     expect(merged.value).toBeUndefined();
 
     // publish each row's net change at the interval's end
-    await simulation.run({ to: simulation.clock.now() + 1 });
+    await simulation.clock.sleep(1);
+    await simulation.idle();
     expect(merged.value).toEqual({
         done: false,
         value: page(5, [change("update", "a", "Renamed"), change("insert", "c")]),
@@ -38,7 +40,8 @@ test("publish a page at once after a quiet interval, and merge the pages within 
 
     // publish at once again after a quiet interval
     const quiet = published.next();
-    await simulation.run({ to: simulation.clock.now() + EVERY });
+    await simulation.clock.sleep(EVERY);
+    await simulation.idle();
     source.push(page(6, [change("delete", "a")]));
     expect(await quiet).toEqual({ done: false, value: page(6, [change("delete", "a")]) });
 });

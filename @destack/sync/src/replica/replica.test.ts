@@ -349,7 +349,7 @@ test("replicate several scopes in one replica recorded elsewhere, storing each s
     await following;
 
     // store both scopes' notes, and find the one silent record past the lag as the replica of each scope with its row in the replica
-    simulation.clock.advance(LAG);
+    await simulation.jump(simulation.clock.now() + LAG);
     const silent = await Promise.all(
         [...scopes, "drafts", "universe"].map((scope) =>
             Replica.stale(local, "notes", [scope], LAG),
@@ -1119,7 +1119,7 @@ test("resume a follow after a backoff once its source refuses a fresh credential
         controller.signal,
         { synced: () => {} },
     );
-    await simulation.run({ until: () => controller.signal.aborted });
+    await simulation.until(() => controller.signal.aborted);
     await following;
 
     // request again a second later, at the policy's first interval
@@ -1158,7 +1158,7 @@ test("fail a follow whose source lapses five fresh credentials in a row before a
             isSettled = true;
         });
     const refused = refusal(following);
-    await simulation.run({ until: () => isSettled });
+    await simulation.until(() => isSettled);
 
     // try five times, doubling the wait from a second, then refuse the follow
     expect([requests, await refused]).toEqual([
@@ -1692,22 +1692,23 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
     const isLive = () => Replica.isLive(local, "notes", "inbox", LAG);
 
     // receive the snapshot, stay live through a beat inside the lag, then go silent past the lag
-    await simulation.run({ until: () => isLive() });
+    await simulation.until(() => isLive());
     const live = isLive();
-    clock.advance(20_000);
+    await simulation.jump(clock.now() + 20_000);
     beat.resolve();
-    await simulation.run({ to: clock.now() });
-    clock.advance(20_000);
-    await simulation.run({ to: clock.now() });
+    await simulation.clock.sleep(clock.now() - simulation.clock.now());
+    await simulation.idle();
+    await clock.sleep(20_000);
+    await simulation.idle();
     const beaten = isLive();
-    clock.advance(20_000);
-    await simulation.run({ to: clock.now() });
+    await clock.sleep(20_000);
+    await simulation.idle();
     const silent = isLive();
     const kept = streams;
 
     // end the silent stream to resume once the second lag passes without a page
-    clock.advance(30_000);
-    await simulation.run({ to: clock.now() });
+    await clock.sleep(30_000);
+    await simulation.idle();
     controller.abort();
     await following;
     expect({ live, beaten, silent, kept, streams, stopped: isLive() }).toEqual({
@@ -1744,7 +1745,9 @@ test("keep a replica live across its follows while its pages arrive within the l
             controller.signal,
             { synced: () => {}, lag: 30_000 },
         );
-        await simulation.run({ until: () => isLive() });
+        await simulation.until(
+            () => Replica.marked(local, "notes", "inbox")?.position.sequence === sequence,
+        );
         controller.abort();
         await following;
     };
@@ -1752,14 +1755,14 @@ test("keep a replica live across its follows while its pages arrive within the l
     // stay live past the first follow's stop and through the next follow, then release the lag after the last page
     await followOnce(4);
     const stopped = isLive();
-    clock.advance(20_000);
-    await simulation.run({ to: clock.now() });
+    await clock.sleep(20_000);
+    await simulation.idle();
     await followOnce(5);
-    clock.advance(20_000);
-    await simulation.run({ to: clock.now() });
+    await clock.sleep(20_000);
+    await simulation.idle();
     const continued = isLive();
-    clock.advance(10_000);
-    await simulation.run({ to: clock.now() });
+    await clock.sleep(10_000);
+    await simulation.idle();
     expect({ stopped, continued, lapsed: isLive() }).toEqual({
         stopped: true,
         continued: true,
