@@ -46,7 +46,7 @@ test("write a node's files at their host paths without moving its clock, and rem
     });
 });
 
-test("spawn a child with the node's variables in a directory, its exit an untracked wait", async () => {
+test("spawn a child with the node's variables in a directory, its lifetime tracked as a peer until it exits", async () => {
     // spawn a shell printing its variable and working directory in a temporary directory
     await using simulation = new Simulation({
         seed: 1,
@@ -66,13 +66,15 @@ test("spawn a child with the node's variables in a directory, its exit an untrac
     const child = node.process.spawn(["/bin/sh", "-c", 'printf "$GREETING from $PWD"'], {
         workingDirectory,
     });
-    const during = simulation.clock.inFlight;
+    const during = simulation.scheduler.inFlight;
 
-    // read its output and exit code, the clock counting no work
+    // read its output and exit code, its lifetime no longer in flight afterwards
     const [output, code] = await Promise.all([new Response(child.stdout).text(), child.exited]);
+    const after = simulation.scheduler.inFlight;
 
-    expect({ during, output, code }).toEqual({
-        during: 0,
+    expect({ during, after, output, code }).toEqual({
+        during: 1,
+        after: 0,
         output: `hello from ${workingDirectory}`,
         code: 0,
     });
@@ -169,14 +171,14 @@ test("count a node's WebCrypto operations on the clock until they settle, leavin
     await using simulation = new Simulation({ seed: 1, start: START });
     const subtle = simulation.environment("host").crypto;
     const digest = subtle.digest("SHA-256", new Uint8Array(4));
-    const during = simulation.clock.inFlight;
+    const during = simulation.scheduler.inFlight;
     const bytes = (await digest).byteLength;
 
     expect({
         during,
         bytes,
-        after: simulation.clock.inFlight,
-        settled: simulation.clock.settled,
+        after: simulation.scheduler.inFlight,
+        settled: simulation.scheduler.settled,
         isPatched: Object.hasOwn(crypto.subtle, "digest"),
     }).toEqual({ during: 1, bytes: 32, after: 0, settled: 1, isPatched: false });
 });
@@ -191,7 +193,11 @@ test("compress and decompress gzip in a world at once, without moving its clock 
         compressed.pipeThrough(compression.decompress("gzip")),
     ).text();
 
-    expect({ restored, at: simulation.clock.now(), inFlight: simulation.clock.inFlight }).toEqual({
+    expect({
+        restored,
+        at: simulation.clock.now(),
+        inFlight: simulation.scheduler.inFlight,
+    }).toEqual({
         restored: text,
         at: START,
         inFlight: 0,

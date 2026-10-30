@@ -1,4 +1,5 @@
 export * from "./clock/index.ts";
+export * from "./scheduler/index.ts";
 export * from "./random/index.ts";
 export * from "./crypto/index.ts";
 export * from "./network/index.ts";
@@ -10,3 +11,4 @@ export * from "./compression/index.ts";
 export * from "./telemetry/index.ts";
 export * from "./worker/index.ts";
 export * from "./environment/index.ts";
+export * from "./world/index.ts";

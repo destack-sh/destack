@@ -87,6 +87,32 @@ test("create a user's private runtime directory once, refusing another user's, o
     });
 });
 
+test("remove an empty directory without recursion and refuse a full one, and list entries in walk order", async () => {
+    // make an empty and a full directory, with names that sort apart from their walk order
+    const files = new BunFileSystem();
+    const directory = await files.makeTemporaryDirectory("remove-");
+    await files.mkdir(join(directory, "empty"));
+    await files.mkdir(join(directory, "full/inner"), { recursive: true });
+    await files.writeTextFile(join(directory, "full-note.txt"), "x");
+    const listed = (await files.readDirectory(directory, { recursive: true })).map(
+        (entry) => entry.name,
+    );
+
+    // remove the empty one, refuse the full one, then remove it recursively
+    await files.remove(join(directory, "empty"));
+    const refused = await refusal(files.remove(join(directory, "full")));
+    await files.remove(directory, { recursive: true });
+
+    expect({ listed, refused }).toEqual({
+        listed: ["empty", "full", "full/inner", "full-note.txt"],
+        refused: [
+            "CONFLICT",
+            "ALREADY_EXISTS",
+            `cannot remove ${join(directory, "full")}: ENOTEMPTY`,
+        ],
+    });
+});
+
 test("remove a missing path when forced, and refuse it as not found otherwise", async () => {
     // remove a path that never existed, forced and then not
     await using simulation = new Simulation({ seed: 1, start: START });

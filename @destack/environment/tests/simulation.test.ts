@@ -9,6 +9,8 @@ import {
 } from "../src/simulation/index.ts";
 import type { ServerSocket, Socket } from "../src/index.ts";
 import { BunNetwork } from "../src/network/bun.ts";
+import { BunFileSystem } from "../src/file/bun.ts";
+import type { WorldStep } from "../src/world/world.ts";
 import { join } from "node:path";
 
 /** The workers racing on host work in a replayed world. */
@@ -91,6 +93,91 @@ function draw(seed: number) {
     return [[...random.bytes(6)], Random.int(random, 1000)];
 }
 
+test("trace tracked work as spans on the world's clock, marking failed work, while tracing", async () => {
+    // track host work, jump a second, then track world work that fails
+    await using simulation = new Simulation({ seed: 1, start: START, isTracing: true });
+    const { scheduler } = simulation;
+    await scheduler.track(
+        new Promise<void>((resolve) => {
+            setTimeout(resolve, 1);
+        }),
+        "host",
+    );
+    await simulation.jump(START + 1000);
+    const failed = await scheduler
+        .track(Promise.reject(new Error("refused")), "world")
+        .catch((error: Error) => error.message);
+    await simulation.idle();
+
+    // read each span's name, who finished it, its status and its times from the start
+    const spans = simulation.telemetry.spans.map((span) => ({
+        name: span.name,
+        by: span.attributes["destack.simulation.by"],
+        status: span.status.code,
+        from: span.startTime[0] * 1000 - START,
+        to: span.endTime[0] * 1000 - START,
+    }));
+
+    expect({ failed, spans }).toEqual({
+        failed: "refused",
+        spans: [
+            { name: "destack.simulation.track", by: "host", status: 0, from: 0, to: 0 },
+            { name: "destack.simulation.track", by: "world", status: 2, from: 1000, to: 1000 },
+        ],
+    });
+});
+
+test("skew each node's clock from the seed, wait its own milliseconds on the world's timers, and bump it", async () => {
+    // read two skewed nodes' clocks against the world's
+    await using simulation = new Simulation({
+        seed: 1,
+        start: START,
+        skew: { offset: 500, drift: 100 },
+    });
+    const left = simulation.environment("left").clock;
+    const right = simulation.environment("right").clock;
+    const offsets = [left.now() - START, right.now() - START];
+
+    // sleep a node's ten seconds, reading how much world time passed
+    await left.sleep(10_000);
+    const slept = simulation.clock.now() - START;
+
+    // bump the right node back a second
+    const before = right.now();
+    simulation.bump("right", -1000);
+    const bumped = right.now() - before;
+
+    // draw offsets within half a second, the left node running slow by its drift
+    expect({ offsets, slept, bumped }).toEqual({
+        offsets: [-398, -329],
+        slept: 10_001,
+        bumped: -1000,
+    });
+
+    // refuse a bump of an unknown node, and of a node in a world without skew
+    await using plain = new Simulation({ seed: 1, start: START });
+    expect(() => plain.bump("node", 1)).toThrow(new TypeError("the world has no node node"));
+    plain.environment("node");
+    expect(() => plain.bump("node", 1)).toThrow(
+        new TypeError("node node reads the world's clock: give the world a skew"),
+    );
+});
+
+test("share files between nodes in memory, leaving the host's files untouched", async () => {
+    // write a file from one node and read it from another in a memory world
+    await using simulation = new Simulation({ seed: 1, start: START, files: "memory" });
+    const writer = simulation.environment("writer").files;
+    const reader = simulation.environment("reader").files;
+    const directory = await writer.makeTemporaryDirectory("notes-");
+    await writer.writeTextFile(join(directory, "note.txt"), "in memory");
+
+    // read it back, and look for it on the host
+    const read = await reader.readTextFile(join(directory, "note.txt"));
+    const isOnHost = await new BunFileSystem().exists(join(directory, "note.txt"));
+
+    expect({ read, isOnHost }).toEqual({ read: "in memory", isOnHost: false });
+});
+
 test("draw the same bytes and integers from the same seed, and others from another", () => {
     // match draws by seed
     const [first, again, other] = [draw(7), draw(7), draw(8)];
@@ -124,21 +211,40 @@ test("route requests between nodes through latency, partitions and loss, replaye
             .fetch(new Request("https://server.test/"))
             .catch((error: Error) => error.message);
 
-        return { body, partitioned, dropped, trace: simulation.trace };
+        // read the world's events from its telemetry, with their times and fields
+        const events = simulation.telemetry.logs.map((record) => ({
+            name: record.eventName,
+            at: record.hrTime,
+            attributes: record.attributes,
+        }));
+
+        return { body, partitioned, dropped, events };
     };
 
-    // replay the trace by seed
+    // replay the events by seed
     const [first, again] = [await run(3), await run(3)];
     expect({
         body: first.body,
         partitioned: first.partitioned,
         dropped: first.dropped,
-        replayed: first.trace,
+        names: first.events.map((event) => event.name),
+        replayed: first.events,
     }).toEqual({
         body: { path: "/notes" },
         partitioned: "fetch failed: client cannot reach server",
         dropped: "fetch failed: the request to https://server.test was lost",
-        replayed: again.trace,
+        names: [
+            "destack.simulation.degrade",
+            "destack.simulation.timer",
+            "destack.simulation.request",
+            "destack.simulation.timer",
+            "destack.simulation.partition",
+            "destack.simulation.refusal",
+            "destack.simulation.heal",
+            "destack.simulation.degrade",
+            "destack.simulation.loss",
+        ],
+        replayed: again.events,
     });
 });
 
@@ -226,7 +332,7 @@ test("hold time back while tracked work is in flight, move to the next timer onc
     let isFired = false;
     void simulation.clock.sleep(60_000).then(() => (isFired = true));
     const work = Promise.withResolvers<void>();
-    void simulation.clock.track(work.promise);
+    void simulation.scheduler.track(work.promise, "world");
     let held: [number, boolean] | undefined;
     setTimeout(() => {
         held = [simulation.clock.now() - START, isFired];
@@ -248,7 +354,7 @@ test("hold time back while tracked work is in flight, move to the next timer onc
         held,
         fired,
         reached: simulation.clock.now() - START,
-        inFlight: simulation.clock.inFlight,
+        inFlight: simulation.scheduler.inFlight,
         isLater,
     }).toEqual({ held: [0, false], fired: 60_000, reached: 90_000, inFlight: 0, isLater: true });
 });
@@ -276,8 +382,8 @@ test("hold the clock for an in-process call until its response head, and not for
     void simulation.clock.sleep(1000).then(() => undefined);
 
     // call both in process, tracking each until its head
-    const polled = await simulation.clock.track(Promise.resolve(longPoll()));
-    const answered = simulation.clock.track(answerSlowly()).then((response) => {
+    const polled = await simulation.scheduler.track(Promise.resolve(longPoll()), "world");
+    const answered = simulation.scheduler.track(answerSlowly(), "world").then((response) => {
         isAnswered = true;
 
         return response;
@@ -301,9 +407,9 @@ test("count a node's WebCrypto operations in flight on the world's clock", async
     await using simulation = new Simulation({ seed: 1, start: START });
     const { crypto } = simulation.environment("node");
     const digest = crypto.digest("SHA-256", new Uint8Array(4));
-    const during = simulation.clock.inFlight;
+    const during = simulation.scheduler.inFlight;
     const bytes = (await digest).byteLength;
-    const after = simulation.clock.inFlight;
+    const after = simulation.scheduler.inFlight;
 
     expect({ during, bytes, after }).toEqual({ during: 1, bytes: 32, after: 0 });
 });
@@ -343,6 +449,79 @@ test("crash a node, losing its memory and stopping its work, and start it again 
         crashed: 3,
         starts: 2,
         memory: { memory: "fresh" },
+    });
+});
+
+test("bridge the host into the world as a node, reaching an origin's requests and WebSockets at its .localhost name", async () => {
+    // serve echo.test's sockets in the world, and bridge the host in as the lab
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { events } = serveEcho(simulation, "server");
+    const bridge = simulation.network.bridge("lab");
+    const { port } = bridge.url;
+
+    // ask a plain request, which the echo refuses without an upgrade, and one for a host outside .localhost
+    const plain = await fetch(`http://echo.test.localhost:${port}/`);
+    const outside = await fetch(`http://127.0.0.1:${port}/`);
+
+    // open a host WebSocket through the bridge, send a message and read the echo
+    const socket = new WebSocket(`ws://echo.test.localhost:${port}/?name=lab`, ["echo"]);
+    const echoed = await new Promise<string>((resolve, reject) => {
+        socket.addEventListener("open", () => socket.send("hello"));
+        socket.addEventListener("message", (event) => resolve(String(event.data)));
+        socket.addEventListener("error", () => reject(new Error("the bridged socket failed")));
+    });
+    socket.close();
+    await bridge.stop(true);
+
+    expect({
+        plain: [plain.status, await plain.text()],
+        outside: [outside.status, await outside.text()],
+        echoed,
+        opened: events[0],
+    }).toEqual({
+        plain: [426, "no socket"],
+        outside: [421, "the bridge reaches only hosts below .localhost"],
+        echoed: "lab: hello",
+        opened: "open lab",
+    });
+});
+
+test("close a bridged WebSocket at the world's end when the host closes it, and refuse one the world refuses", async () => {
+    // open a host WebSocket to the echo through the bridge, then close it from the host
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { events } = serveEcho(simulation, "server");
+    simulation.network.server("server").http({
+        hostname: "plain.test",
+        port: 443,
+        fetch: () => new Response("no socket", { status: 426 }),
+    });
+    const bridge = simulation.network.bridge("lab");
+    const { port } = bridge.url;
+    const socket = new WebSocket(`ws://echo.test.localhost:${port}/?name=lab`, ["echo"]);
+    await new Promise<void>((resolve) => {
+        socket.addEventListener("open", () => resolve(), { once: true });
+    });
+    const closed = new Promise<void>((resolve) => {
+        socket.addEventListener("close", () => resolve(), { once: true });
+    });
+    socket.close(1000);
+    await closed;
+    await simulation.idle();
+
+    // ask for a WebSocket the world answers with a plain response
+    const refused = await fetch(`http://plain.test.localhost:${port}/`, {
+        headers: {
+            upgrade: "websocket",
+            connection: "upgrade",
+            "sec-websocket-version": "13",
+            "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==",
+        },
+    });
+    await bridge.stop(true);
+
+    expect({ events, refused: [refused.status, await refused.text()] }).toEqual({
+        events: ["open lab", "close lab 1000"],
+        refused: [502, "the world refused the WebSocket"],
     });
 });
 
@@ -697,10 +876,11 @@ test("refuse work that keeps busy without letting time move, naming the call sit
     const stop = new AbortController();
     const spinning = (async () => {
         while (!stop.signal.aborted) {
-            await simulation.clock.track(
+            await simulation.scheduler.track(
                 new Promise<void>((resolve) => {
                     setImmediate(resolve);
                 }),
+                "world",
             );
         }
     })();
@@ -715,7 +895,7 @@ test("refuse work that keeps busy without letting time move, naming the call sit
     const [heading, site = ""] = refused.split("\n");
     expect([heading, site.split(" ").slice(0, 2), simulation.clock.now() - START]).toEqual([
         "the simulation kept busy for 1000 turns without moving time:",
-        ["100x", "track"],
+        ["100x", "world"],
         0,
     ]);
 });
@@ -735,8 +915,9 @@ test("settle a slow host round trip without counting its wait as busy", async ()
     // wait on the round trip as host work while a timer waits
     try {
         await using simulation = new Simulation({ seed: 1, start: START });
-        const reply = simulation.clock.trackHost(
+        const reply = simulation.scheduler.track(
             fetch(server.url).then((response) => response.text()),
+            "host",
         );
         expect([await reply, simulation.clock.now() - START]).toEqual(["late", 0]);
     } finally {
@@ -760,10 +941,11 @@ test("hold the clock while a child writes its whole output, so a timer beside it
 test("refuse tracked work that never settles beside a timer, as time cannot move while it is in flight", async () => {
     // track work that never settles while a timer waits
     await using simulation = new Simulation({ seed: 1, start: START });
-    void simulation.clock.track(
+    void simulation.scheduler.track(
         new Promise<void>(() => {
             // never settle
         }),
+        "world",
     );
     const refused = await simulation.clock.sleep(1000).then(
         () => "settled",
@@ -773,7 +955,7 @@ test("refuse tracked work that never settles beside a timer, as time cannot move
     // refuse the deadlock naming the one work in flight, the time unmoved
     const [header, ...sites] = refused.split("\n");
     expect([header, sites.length, simulation.clock.now() - START]).toEqual([
-        "tracked work waits on simulated time, which cannot move while it is in flight:",
+        "the world's work waits on simulated time, which cannot move while it is in flight:",
         1,
         0,
     ]);
@@ -939,7 +1121,48 @@ test("fail a streamed response's body once its request aborts, cancelling the li
     });
 });
 
-test("publish a node's listener on the host at its port, answering host processes and nodes alike", async () => {
+test("send an upload whole and a response body's chunks across the link, cutting the rest once the link is cut", async () => {
+    // echo the uploaded body, then keep the response open for a chunk after it
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const streams: ReadableStreamDefaultController<Uint8Array>[] = [];
+    simulation.network.server("server").http({
+        hostname: "stream.test",
+        port: 443,
+        fetch: async (request) => {
+            const uploaded = await request.text();
+
+            return new Response(
+                new ReadableStream<Uint8Array>({
+                    start: (controller) => {
+                        controller.enqueue(new TextEncoder().encode(uploaded));
+                        streams.push(controller);
+                    },
+                }),
+            );
+        },
+    });
+
+    // read the echo, then cut the link and send a second chunk
+    const { network } = simulation.environment("client");
+    const response = await network.fetch(
+        new Request("https://stream.test/", { method: "POST", body: "uploaded" }),
+    );
+    const reader = present(response.body, "the streamed body").getReader();
+    const echo = new TextDecoder().decode((await reader.read()).value);
+    simulation.network.partition("client", "server");
+    present(streams[0], "the response stream").enqueue(new TextEncoder().encode("second"));
+    const rest = await reader.read().then(
+        () => "read",
+        (error: Error) => [error.name, error.message],
+    );
+
+    expect({ echo, rest }).toEqual({
+        echo: "uploaded",
+        rest: ["TypeError", "the body from server to client was cut off"],
+    });
+});
+
+test("publish a node's listener at a world address for nodes and a host address for host processes", async () => {
     // publish a node's listener, answering each request with its path
     await using simulation = new Simulation({ seed: 1, start: START });
     const published = simulation.network.publish("server", {
@@ -948,11 +1171,12 @@ test("publish a node's listener on the host at its port, answering host processe
         fetch: (request) => new Response(new URL(request.url).pathname),
     });
 
-    // call it from the host and from another node at the same address
-    const fromHost = await simulation.clock.trackPeer(
-        BunNetwork.fetch(new Request(new URL("/host", published.url))).then((response) =>
+    // call it from the host at its host address, and from another node at its world address
+    const fromHost = await simulation.scheduler.track(
+        BunNetwork.fetch(new Request(new URL("/host", published.hostUrl))).then((response) =>
             response.text(),
         ),
+        "peer",
     );
     const { network } = simulation.environment("client");
     const fromNode = await network
@@ -960,20 +1184,206 @@ test("publish a node's listener on the host at its port, answering host processe
         .then((response) => response.text());
     await published.stop(true);
 
-    expect({ fromHost, fromNode }).toEqual({ fromHost: "/host", fromNode: "/node" });
+    expect({ fromHost, fromNode, world: published.url.port }).toEqual({
+        fromHost: "/host",
+        fromNode: "/node",
+        world: "49152",
+    });
 });
 
-test("refuse leaf host work stalled past the stall timeout, failing the waits on the world", async () => {
-    // track host work that never settles under a short host timeout
-    await using simulation = new Simulation({ seed: 1, start: START, stallTimeout: 50 });
-    void simulation.clock.trackHost(new Promise<void>(() => {}));
-    const refused = await simulation.clock.sleep(1000).then(
-        () => "settled",
-        (error: Error) => error.message.split("\n").length,
-    );
+test("refuse leaf host work stalled past the stall timeout, and peer work past the peer one, naming each", async () => {
+    // read a stall's message, its milliseconds and call sites left out
+    const stallOf = async (by: "host" | "peer") => {
+        await using simulation = new Simulation({
+            seed: 1,
+            start: START,
+            stallTimeout: 50,
+            peerStallTimeout: 80,
+        });
+        void simulation.scheduler.track(new Promise<void>(() => {}), by);
+        const message = await simulation.clock.sleep(1000).then(
+            () => "settled",
+            (error: Error) => error.message,
+        );
+        const [heading = "", ...items] = message.split("\n");
 
-    // refuse the sleep with the stall, naming the one work in flight
-    expect(refused).toBe(2);
+        return [
+            heading.replace(/\d+ ms/u, "N ms"),
+            items.map((item) => item.split(" ").slice(0, 2)),
+        ];
+    };
+
+    expect([await stallOf("host"), await stallOf("peer")]).toEqual([
+        [
+            "work stayed in flight for N ms without settling, 1 of 1 host and peer work running and 0 settled:",
+            [["host", "running"]],
+        ],
+        [
+            "work stayed in flight for N ms without settling, 0 of 1 host and peer work running and 0 settled:",
+            [["peer", "running"]],
+        ],
+    ]);
+});
+
+test("answer settled host work in the order it began, recording each release with its kind, and list what runs", async () => {
+    // track two host works settling in reverse, and a peer that stays running
+    await using simulation = new Simulation({ seed: 1, start: START, isTracing: true });
+    const { scheduler } = simulation;
+    const order: string[] = [];
+    const settle = (name: string, after: number) =>
+        scheduler.track(
+            new Promise<void>((resolve) => {
+                setTimeout(resolve, after);
+            }).then(() => order.push(name)),
+            "host",
+        );
+    const peer = Promise.withResolvers<void>();
+    void scheduler.track(peer.promise, "peer");
+    const [first, second] = [settle("first", 20), settle("second", 1)];
+    const answered: string[] = [];
+    void first.then(() => answered.push("first"));
+    void second.then(() => answered.push("second"));
+    while (answered.length < 2) {
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 5);
+        });
+    }
+    const pending = scheduler.pending().map((line) => line.split(" ").slice(0, 2));
+    peer.resolve();
+    await simulation.idle();
+
+    // settle on the host in reverse, answer in start order, and record each release by kind
+    const releases = simulation.telemetry.logs
+        .filter((record) => record.eventName === "destack.simulation.release")
+        .map((record) => [
+            record.attributes["destack.simulation.order"],
+            record.attributes["destack.simulation.by"],
+        ]);
+    expect({ order, answered, pending, releases }).toEqual({
+        order: ["second", "first"],
+        answered: ["first", "second"],
+        pending: [["peer", "running"]],
+        releases: [
+            [1, "host"],
+            [2, "host"],
+            [0, "peer"],
+        ],
+    });
+});
+
+test("leave a service child untracked, so time moves while it runs", async () => {
+    // spawn a sleeping child as a service, then sleep a simulated minute
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { process, clock } = simulation.environment("node");
+    const child = process.spawn(["/bin/sleep", "5"], { tracking: "none" });
+    const during = simulation.scheduler.inFlight;
+    await clock.sleep(60_000);
+    const moved = clock.now() - START;
+    child.kill("SIGKILL");
+    await child.exited;
+
+    expect({ during, moved }).toEqual({ during: 0, moved: 60_000 });
+});
+
+test("fork a world with its skew and its memory files", async () => {
+    // fork a skewed memory world, and write a file in the fork
+    await using simulation = new Simulation({
+        seed: 1,
+        start: START,
+        files: "memory",
+        skew: { offset: 100, drift: 0 },
+    });
+    await using forked = simulation.fork("branch");
+    const { files } = forked.environment("node");
+    await files.writeTextFile("note.txt", "in the fork");
+
+    // read it in the fork, find it nowhere on the host, and bump the fork's skewed node
+    const read = await files.readTextFile("note.txt");
+    const isOnHost = await new BunFileSystem().exists(join(forked.root, "note.txt"));
+    forked.bump("node", 10);
+
+    expect({ read, isOnHost }).toEqual({ read: "in the fork", isOnHost: false });
+});
+
+test("take every shared world step, recording each as the world's event", async () => {
+    // take each step on a skewed world with two nodes
+    await using simulation = new Simulation({
+        seed: 1,
+        start: START,
+        isTracing: true,
+        skew: { offset: 0, drift: 0 },
+    });
+    simulation.environment("left");
+    simulation.environment("right");
+    const steps: WorldStep[] = [
+        { action: "partition", nodes: ["left", "right"] },
+        { action: "heal", nodes: ["left", "right"] },
+        { action: "isolate", node: "left" },
+        { action: "rejoin", node: "left" },
+        { action: "degrade", drop: 0.5, delay: { least: 1, most: 2 } },
+        { action: "bump", node: "right", milliseconds: -5 },
+        { action: "crash", node: "right" },
+        { action: "run", milliseconds: 1000 },
+        { action: "jump", milliseconds: 60_000 },
+    ];
+    for (const step of steps) {
+        await simulation.take(step);
+    }
+
+    // record one event per step at the time it was taken
+    const events = simulation.telemetry.logs.map((record) => [
+        record.eventName?.replace("destack.simulation.", ""),
+        record.hrTime[0] * 1000 + record.hrTime[1] / 1_000_000 - START,
+    ]);
+    expect(events).toEqual([
+        ["partition", 0],
+        ["heal", 0],
+        ["partition", 0],
+        ["heal", 0],
+        ["degrade", 0],
+        ["bump", 0],
+        ["crash", 0],
+        ["timer", 1000],
+        ["jump", 61_000],
+    ]);
+});
+
+test("read a drifted node's time in whole milliseconds", async () => {
+    // drift a node's clock, then read its time after an odd stretch of world time
+    await using simulation = new Simulation({
+        seed: 3,
+        start: START,
+        skew: { offset: 0, drift: 100 },
+    });
+    const { clock } = simulation.environment("node");
+    await simulation.take({ action: "jump", milliseconds: 1_234_567 });
+
+    expect(Number.isInteger(clock.now())).toBe(true);
+});
+
+test("release a crashed node's children, workers and file locks", async () => {
+    // start a child, a worker and a lock on a node, then crash it
+    await using simulation = new Simulation({ seed: 1, start: START, files: "memory" });
+    simulation.workers.define(new URL("https://app.test/idle.worker.js"), () => {});
+    const node = simulation.environment("node");
+    const child = node.process.spawn(["/bin/sleep", "5"], { tracking: "none" });
+    const worker = node.workers.start(new URL("https://app.test/idle.worker.js"));
+    const answers: unknown[] = [];
+    worker.addEventListener("message", (event) => answers.push(event.data));
+    await node.files.lock("/lock", "exclusive");
+    simulation.node("node").crash();
+
+    // end the child, take the lock from another node, and deliver nothing from the worker
+    const code = await child.exited;
+    const other = await simulation.environment("other").files.tryLock("/lock", "exclusive");
+    worker.postMessage("after the crash");
+    await simulation.idle();
+
+    expect({ code, isLocked: other !== undefined, answers }).toEqual({
+        code: 137,
+        isLocked: true,
+        answers: [],
+    });
 });
 
 test("run timers by deadline and, within one, in start order, a zero-delay timer first and an overflowing one a millisecond later, across many waits", async () => {
@@ -1035,10 +1445,11 @@ test("answer idle once the work due now settled, and wait for a condition throug
     let done: number | undefined;
     void (async () => {
         await clock.sleep(0);
-        await clock.trackHost(
+        await simulation.scheduler.track(
             new Promise<void>((resolve) => {
                 setTimeout(resolve, 5);
             }),
+            "host",
         );
         await clock.sleep(0);
         done = clock.now() - START;

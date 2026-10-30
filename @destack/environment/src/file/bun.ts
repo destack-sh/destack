@@ -14,28 +14,29 @@ import {
     realpath,
     rename,
     rm,
+    rmdir,
     stat,
     symlink,
     writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import type {
+import {
     DirectoryEntry,
-    FileEvent,
-    FileHandle,
-    FileStatus,
-    FileKind,
-    FileLock,
-    FileLockMode,
-    FileSystem,
-    MkdirOptions,
-    ReadDirectoryOptions,
-    TemporaryDirectoryOptions,
-    OpenOptions,
-    RemoveOptions,
-    WatchOptions,
-    WriteFileOptions,
+    type FileEvent,
+    type FileHandle,
+    type FileStatus,
+    type FileKind,
+    type FileLock,
+    type FileLockMode,
+    type FileSystem,
+    type MkdirOptions,
+    type ReadDirectoryOptions,
+    type TemporaryDirectoryOptions,
+    type OpenOptions,
+    type RemoveOptions,
+    type WatchOptions,
+    type WriteFileOptions,
 } from "./file.ts";
 import { FileSystemError } from "./error.ts";
 import { BunFileLock } from "./lock/lock.ts";
@@ -122,10 +123,12 @@ export class BunFileSystem implements FileSystem {
                 recursive: options.recursive === true,
             });
 
-            return entries.map((entry) => ({
-                name: relative(path, join(entry.parentPath, entry.name)),
-                kind: BunFileSystem.#kind(entry),
-            }));
+            return entries
+                .map((entry) => ({
+                    name: relative(path, join(entry.parentPath, entry.name)),
+                    kind: BunFileSystem.#kind(entry),
+                }))
+                .toSorted((left, right) => DirectoryEntry.compare(left, right));
         });
     }
 
@@ -148,11 +151,33 @@ export class BunFileSystem implements FileSystem {
         );
     }
 
-    /** Remove a path. */
+    /** Remove a path, an empty directory without recursion, as Deno's `remove` does. */
     remove(path: string, options: RemoveOptions = {}): Promise<void> {
-        return BunFileSystem.#run(`remove ${path}`, () =>
-            rm(path, { recursive: options.recursive ?? false, force: options.force ?? false }),
-        );
+        return BunFileSystem.#run(`remove ${path}`, async () => {
+            // remove a directory without recursion only when empty
+            const recursive = options.recursive ?? false;
+            const force = options.force ?? false;
+            const status = recursive
+                ? undefined
+                : await lstat(path).catch((error: unknown) => {
+                      if (
+                          force &&
+                          error instanceof Error &&
+                          "code" in error &&
+                          error.code === "ENOENT"
+                      ) {
+                          return undefined;
+                      }
+                      throw error;
+                  });
+            if (status?.isDirectory() === true) {
+                await rmdir(path);
+            }
+            // remove anything else as rm does
+            else {
+                await rm(path, { recursive, force });
+            }
+        });
     }
 
     /** Move a path to another, replacing a file there. */
@@ -509,15 +534,6 @@ export class BunFileSystem implements FileSystem {
         }
 
         // refuse by the error code, keeping the host's failure as the cause
-        const message = `cannot ${action}: ${error.code}`;
-        if (error.code === "ENOENT" || error.code === "ENOTDIR") {
-            return FileSystemError.of("NOT_FOUND", message, { cause: error });
-        } else if (error.code === "EEXIST" || error.code === "ENOTEMPTY") {
-            return FileSystemError.of("ALREADY_EXISTS", message, { cause: error });
-        } else if (error.code === "EACCES" || error.code === "EPERM") {
-            return FileSystemError.of("PERMISSION_DENIED", message, { cause: error });
-        } else {
-            return FileSystemError.of("FILE_SYSTEM_FAILED", message, { cause: error });
-        }
+        return FileSystemError.posix(error.code, action, error);
     }
 }

@@ -1,4 +1,4 @@
-import type { Clock } from "../clock/clock.ts";
+import type { Scheduler } from "../scheduler/scheduler.ts";
 
 /** The WebCrypto operations code runs, each settling on a worker thread outside the event loop. */
 export const CRYPTO_OPERATIONS = [
@@ -65,8 +65,8 @@ export const Crypto = {
         };
     },
 
-    /** Count each operation of a crypto on a clock as host work until it settles. */
-    track<Subtle extends object>(subtle: Subtle, clock: Clock): Subtle {
+    /** Count each operation of a crypto as host work on a scheduler until it settles. */
+    track<Subtle extends object>(subtle: Subtle, scheduler: Scheduler): Subtle {
         // count the listed operations, and read every other member as it is
         const operations: ReadonlySet<PropertyKey> = new Set(CRYPTO_OPERATIONS);
 
@@ -87,7 +87,7 @@ export const Crypto = {
                         data !== null &&
                         Symbol.asyncIterator in data;
 
-                    return isStream ? result : clock.trackHost(Promise.resolve(result));
+                    return isStream ? result : scheduler.track(Promise.resolve(result), "host");
                 };
             },
         });

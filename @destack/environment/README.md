@@ -16,10 +16,12 @@ backup(world); // the same code in a seeded world
 
 ## Base
 
-Every target has the clock, randomness, WebCrypto, network, compression, telemetry, locale and time zone.
+Every target has the clock, scheduler, randomness, WebCrypto, network, compression, telemetry, locale and time zone.
 
 ```ts
 await environment.clock.sleep(30_000, signal); // rejects with the signal's reason once it aborts
+await environment.scheduler.yield(); // the web's scheduler.yield()
+await environment.scheduler.track(statement, "peer"); // work a world counts until it settles: "world", "host" or "peer"
 environment.random.bytes(16);
 await environment.crypto.digest("SHA-256", bytes); // crypto.subtle's operations
 await environment.network.fetch(new Request("https://notes.test/today"));
@@ -74,24 +76,50 @@ const tab = new BrowserSimulation(simulation).environment("tab");
 
 ## Simulation
 
-A `Simulation` gives each node an environment on one clock, randomness and network, and moves time once its work settles.
+A `Simulation` runs nodes on one clock, scheduler, randomness and network, and moves time only once no tracked work runs.
 
 ```ts
 await using simulation = new Simulation({
     seed: 7,
     start: Date.UTC(2026, 9, 24),
-    timeZone: "Europe/Vienna",
+    files: "memory", // the nodes' files in memory, "host" by default
+    skew: { offset: 500, drift: 100 }, // each node's clock off by up to 500 ms, drifting up to 100 ppm
+    isTracing: true, // each event a log record and each tracked work a span, on simulated time
 });
-const host = simulation.node("host"); // its environment, process and network identity
+const host = simulation.node("host");
 await host.start((environment, signal) => Host.start(environment, signal));
 simulation.network.degrade({ drop: 0.01, delay: { least: 5, most: 80 } }); // a lost message breaks its socket
 simulation.network.partition("tab", "host");
-simulation.network.publish("host", { hostname: "127.0.0.1", port: 0, fetch }); // its port on the host too, for real child processes
-host.crash(); // drops its memory, listeners and sockets, keeps its files and database
-await simulation.run({ until: () => run.state === "completed" }); // skips time to each next timer
+simulation.network.publish("host", { hostname: "127.0.0.1", port: 0, fetch }); // url in the world, hostUrl on the host
+simulation.network.bridge("lab"); // http://<origin>.localhost:<port> reaches https://<origin> in the world
+simulation.workers.define(new URL("./db.worker.ts", import.meta.url), serve); // a worker body, run as a node
+host.crash(); // drops its memory, listeners, sockets, children, workers and locks, keeps its files
+await simulation.idle(); // the next point with nothing left before the next timer
+await simulation.until(() => run.state === "completed", deadline); // moving time to each next timer
 await simulation.jump(simulation.clock.now() + 30 * DAY); // a 30-day sleep: each due wait wakes once
-simulation.telemetry.spans; // every span the nodes ended
-// work that never settles fails the run as busy, and a condition no timer meets as idle
-// a child's output() holds time as host work, and simulated breaks fail with ECONNRESET as Bun's do
-new Simulation({ seed: 7, start, isTracing: true }).trace; // every start, crash, timer and delivery, off by default
+simulation.scheduler.pending(); // the work in flight: who finishes it, running or settled, and where it began
+simulation.fingerprint; // equal across runs of one seed and the same work
+// a stalled host work fails the run after 10 s, a stalled peer after 2 min, busy work without time as a livelock
+```
+
+A `World` is a simulation as data: its seed, start and steps, the shared ones taken by `Simulation.take`.
+
+```ts
+import { World } from "@destack/environment";
+
+const world: World<AppStep> = {
+    seed: 7,
+    start,
+    steps: [
+        { action: "partition", nodes: ["laptop", "home"] },
+        { action: "run", milliseconds: 60_000 },
+        { action: "open", computer: "laptop" }, // a driver's own step
+    ],
+};
+await using simulation = Simulation.of(world);
+for (const step of world.steps) {
+    await (World.isStep(step) ? simulation.take(step) : driver.act(step));
+}
+World.scrub(world, 2); // its first two steps
+World.branch(world, 1, [{ action: "crash", node: "home" }]); // its first step, then new ones
 ```

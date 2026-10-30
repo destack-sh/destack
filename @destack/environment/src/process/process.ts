@@ -61,6 +61,8 @@ export interface SpawnOptions {
     readonly signal?: AbortSignal;
     /** Run it in its own process group, unwaited, its streams ignored by default. */
     readonly isDetached?: boolean;
+    /** How a world tracks it: a peer whose life stops time, or none for a service. */
+    readonly tracking?: "peer" | "none";
 }
 
 /** The CPU time a process used, in seconds, by mode. */
@@ -114,6 +116,22 @@ export interface SubprocessOutput {
     /** The bytes of its standard error, empty unless piped. */
     readonly stderr: Uint8Array;
 }
+
+/** Subprocesses. */
+export const Subprocess = {
+    /** Read a child's streams to their end beside its exit. */
+    async output(
+        child: Pick<Subprocess, "stdout" | "stderr" | "exited" | "signal">,
+    ): Promise<SubprocessOutput> {
+        const [stdout, stderr, code] = await Promise.all([
+            new Response(child.stdout).bytes(),
+            new Response(child.stderr).bytes(),
+            child.exited,
+        ]);
+
+        return { code, signal: child.signal, stdout, stderr };
+    },
+};
 
 /** The running process: its arguments, variables, standard streams, signals and children. */
 export interface Process {

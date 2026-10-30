@@ -6,7 +6,7 @@ import { BrowserError } from "./error.ts";
 import { LockManager } from "./lock/lock.ts";
 import { Navigation } from "./navigation/navigation.ts";
 import { Storage } from "./storage/storage.ts";
-import { Workers } from "../worker/worker.ts";
+import { WorkerHost } from "../worker/worker.ts";
 
 /** The browser's environment: the base and the browser's capabilities. */
 export type BrowserEnvironment = Environment<BrowserCapability>;
@@ -20,7 +20,7 @@ export const BrowserEnvironment = {
     get system(): Environment<"workers" | BrowserCapability> {
         system ??= {
             ...Environment.system,
-            workers: Workers.system,
+            workers: WorkerHost.system,
             storage: Storage.system,
             locks: LockManager.system,
             broadcast: Broadcast.system,

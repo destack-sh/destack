@@ -14,16 +14,16 @@ export interface WorkerThread {
     readonly terminate: () => void;
 }
 
-/** The starting of worker threads from module scripts. */
-export interface Workers {
+/** The host of worker threads, which starts them from module scripts. */
+export interface WorkerHost {
     /** Start a worker thread from a module script. */
     readonly start: (url: URL, options?: WorkerOptions) => WorkerThread;
 }
 
 /** Worker hosts. */
-export const Workers = {
+export const WorkerHost = {
     /** The platform's module workers. */
     system: {
         start: (url, options = {}) => new Worker(url, { ...options, type: "module" }),
-    } satisfies Workers,
+    } satisfies WorkerHost,
 };

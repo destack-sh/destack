@@ -6,6 +6,7 @@ import type { HeldLock, LockMode, LockOptions, LockManager } from "./lock/lock.t
 import type { Storage } from "./storage/storage.ts";
 import type { Environment } from "../environment/environment.ts";
 import type { SimulatedClock } from "../clock/simulated.ts";
+import type { Scheduler } from "../scheduler/scheduler.ts";
 import type { Simulation } from "../simulation/simulation.ts";
 import type { BrowserCapability } from "./capability.ts";
 
@@ -160,16 +161,16 @@ interface SimulatedPort {
 
 /** One origin's broadcast channels, shared by every node of a browser simulation. */
 export class SimulatedBroadcast {
-    /** The clock deliveries count on. */
-    readonly #clock: SimulatedClock;
+    /** The scheduler deliveries count on. */
+    readonly #scheduler: Scheduler;
     /** The open ports of each channel by name. */
     readonly #ports = new Map<string, Set<SimulatedPort>>();
     /** What listeners threw, as a browser's reportError reports it, in order. */
     readonly errors: unknown[] = [];
 
-    /** Deliver messages on a clock. */
-    constructor(clock: SimulatedClock) {
-        this.#clock = clock;
+    /** Deliver messages on a scheduler. */
+    constructor(scheduler: Scheduler) {
+        this.#scheduler = scheduler;
     }
 
     /** Read a node's view of the channels, its ports closed once it crashes. */
@@ -207,8 +208,9 @@ export class SimulatedBroadcast {
                 // deliver a copy after this turn to the other ports still open then
                 const copy: unknown = structuredClone(message);
                 const others = [...ports].filter((each) => each !== port);
-                void this.#clock.track(
+                void this.#scheduler.track(
                     Promise.resolve().then(() => this.errors.push(...deliver(others, copy))),
+                    "world",
                 );
             },
             on: (listener) => {
@@ -480,7 +482,7 @@ export class BrowserSimulation {
         // store the simulation and its options, and open the shared channels
         this.#simulation = simulation;
         this.#options = options;
-        this.broadcast = new SimulatedBroadcast(simulation.clock);
+        this.broadcast = new SimulatedBroadcast(simulation.scheduler);
 
         // release a crashed node's locks and ports
         simulation.onCrash((node) => {

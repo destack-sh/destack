@@ -3,7 +3,7 @@ import { BunCrypto } from "./crypto/bun.ts";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { Environment, type HostCapability } from "./environment/environment.ts";
 import { Telemetry } from "./telemetry/telemetry.ts";
-import { Workers } from "./worker/worker.ts";
+import { WorkerHost } from "./worker/worker.ts";
 import { BunFileSystem } from "./file/bun.ts";
 import { BunHost } from "./host/bun.ts";
 import { BunProcess } from "./process/bun.ts";
@@ -37,7 +37,7 @@ function buildSystem() {
         process: new BunProcess(),
         server: BunServer,
         host: BunHost.read(),
-        workers: Workers.system,
+        workers: WorkerHost.system,
     } satisfies Environment<HostCapability>;
 }
 

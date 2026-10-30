@@ -6,21 +6,31 @@ import { Crypto } from "../crypto/crypto.ts";
 import type { Environment, HostCapability } from "../environment/environment.ts";
 import type { Host } from "../host/host.ts";
 import { BunProcess } from "../process/bun.ts";
-import { Workers } from "../worker/worker.ts";
+import { SimulatedWorkerHost } from "../worker/simulated.ts";
 import { SimulatedCompression } from "../compression/simulated.ts";
+import { MemoryFileSystem } from "../file/memory.ts";
 import { SimulatedFileSystem } from "../file/simulated.ts";
 import { SimulatedTelemetry } from "../telemetry/simulated.ts";
 import { type ProcessOptions, SimulatedProcess } from "../process/simulated.ts";
 import { SimulatedClock } from "../clock/simulated.ts";
+import { SeverityNumber } from "@opentelemetry/api";
+import { SIMULATION_SCOPE, SimulatedScheduler } from "../scheduler/simulated.ts";
+import type { Finisher } from "../scheduler/scheduler.ts";
 import { SimulatedNetwork } from "../network/simulated.ts";
 import { SimulatedRandom } from "../random/simulated.ts";
+import { Random } from "../random/random.ts";
+import type { World, WorldStep } from "../world/world.ts";
 import { Clock } from "../clock/clock.ts";
+import { yieldToEventLoop } from "../clock/wait.ts";
 
-/** The turns the world's own work may spin between host answers: at about 1 µs a turn, 200 ms. */
+/** The turns world work may spin between host answers: at about 1 µs a turn, 200 ms. */
 const LIVELOCK_TURNS = 200_000;
 
-/** The real time host work may stall in flight before a run fails, ten seconds. */
+/** The real time leaf host work may stall in flight before a run fails, ten seconds. */
 const STALL_TIMEOUT = 10_000;
+
+/** The real time peer work may run without progress before a run fails: past a build. */
+const PEER_STALL_TIMEOUT = 120_000;
 
 /** The real time tracked work may wait beside a pending timer without progress: 100 ms. */
 const DEADLOCK_MILLISECONDS = 100;
@@ -47,6 +57,9 @@ const ROOT_BYTES = 8;
 
 /** The FNV-1a 32-bit offset basis and prime, hashing a simulation's events. */
 const FNV = { basis: 0x811c9dc5, prime: 0x01000193 } as const;
+
+/** Parts per million, the unit clock drift is given in. */
+const PARTS_PER_MILLION = 1_000_000;
 
 /** The locale every node of a simulation formats in unless it gives another. */
 const LOCALE = "en-US";
@@ -114,12 +127,36 @@ export type SimulationEvent =
           readonly node: string;
       }
     | {
+          /** The faults every delivery meets changing. */
+          readonly kind: "degrade";
+          /** When, in the simulation's UTC epoch milliseconds. */
+          readonly at: number;
+          /** The share of deliveries lost, from 0 to 1. */
+          readonly drop: number;
+          /** The least milliseconds a delivery takes. */
+          readonly least: number;
+          /** The most milliseconds a delivery takes. */
+          readonly most: number;
+      }
+    | {
+          /** A node's clock jumping by some milliseconds, as a clock fault moves it. */
+          readonly kind: "bump";
+          /** When, in the simulation's UTC epoch milliseconds. */
+          readonly at: number;
+          /** The node. */
+          readonly node: string;
+          /** The milliseconds the node's clock moved, back when negative. */
+          readonly by: number;
+      }
+    | {
           /** Settled host work answered to the simulation, in the order it began. */
           readonly kind: "release";
           /** When, in the simulation's UTC epoch milliseconds. */
           readonly at: number;
           /** The order the host work began in. */
           readonly order: number;
+          /** Who finished it: the host, or a peer. */
+          readonly by: Finisher;
       };
 
 /** Start a node's work in its environment, stopping it once the signal aborts. */
@@ -132,7 +169,7 @@ export type NodeStart<Running> = (
 export class SimulatedNode {
     /** The node's name, which partitions and the trace use. */
     readonly name: string;
-    /** The node's environment: the world's clock, randomness and files, and its own process. */
+    /** The node's environment: the world's clock and randomness, its files and its process. */
     readonly environment: Environment<HostCapability>;
     /** The simulation the node runs in. */
     readonly #simulation: Simulation;
@@ -153,7 +190,7 @@ export class SimulatedNode {
         spawn: () => SimulatedProcess,
         release: () => void,
     ) {
-        // keep the node's effects, its process read through the current one
+        // store the node's effects, its process read through the current one
         this.name = name;
         this.#simulation = simulation;
         this.#spawn = spawn;
@@ -180,7 +217,7 @@ export class SimulatedNode {
         this.#stop = stop;
         this.#simulation.record({
             kind: "start",
-            at: this.environment.clock.now(),
+            at: this.#simulation.clock.now(),
             node: this.name,
         });
 
@@ -192,10 +229,11 @@ export class SimulatedNode {
         // stop the node's work, give it a fresh process, and release its sockets and listeners
         this.#simulation.record({
             kind: "crash",
-            at: this.environment.clock.now(),
+            at: this.#simulation.clock.now(),
             node: this.name,
         });
         this.#stop?.abort(new Error(`node ${this.name} crashed`));
+        this.#process.release();
         this.#stop = undefined;
         this.#process = this.#spawn();
         this.#release();
@@ -212,12 +250,26 @@ export interface SimulationOptions {
     readonly locale?: string;
     /** The time zone each node formats in. */
     readonly timeZone?: string;
-    /** The real milliseconds host work may stall in flight before a run fails. */
+    /** The real milliseconds leaf host work may stall in flight before a run fails. */
     readonly stallTimeout?: number;
-    /** The turns the world's own work may spin between host answers before it fails as busy. */
+    /** The real milliseconds peer work may run without progress before a run fails. */
+    readonly peerStallTimeout?: number;
+    /** The turns world work may spin between host answers before it fails as busy. */
     readonly livelockTurns?: number;
-    /** Whether the trace records what happens, off by default as it grows with every event. */
+    /** Whether the world's telemetry records its events and tracked work, off by default. */
     readonly isTracing?: boolean;
+    /** The most each node's clock is off the world's and drifts from it, none by default. */
+    readonly skew?: Skew;
+    /** Where the nodes' files live: on the host under the world's root, or in memory. */
+    readonly files?: "host" | "memory";
+}
+
+/** How far nodes' clocks stray from the world's: each node draws its offset and drift within. */
+export interface Skew {
+    /** The most milliseconds a node's clock is ahead of or behind the world's. */
+    readonly offset: number;
+    /** The most parts per million a node's clock runs fast or slow. */
+    readonly drift: number;
 }
 
 /** A simulated world of simulated time, seeded randomness, a faulty network and nodes. */
@@ -226,28 +278,30 @@ export class Simulation {
     readonly seed: number;
     /** The simulated time. */
     readonly clock: SimulatedClock;
+    /** The scheduler the world's work runs under, its host results answered in order. */
+    readonly scheduler: SimulatedScheduler;
     /** The seeded randomness. */
     readonly random: SimulatedRandom;
     /** The network between the nodes. */
     readonly network: SimulatedNetwork;
-    /** What happened, in order, empty unless the simulation traces. */
-    readonly trace: SimulationEvent[] = [];
-    /** The host directory of the nodes' files, removed on dispose. */
+    /** The worker threads, each a node running the body defined for its module. */
+    readonly workers: SimulatedWorkerHost;
+    /** The directory of the nodes' files, on the host and removed on dispose, or in memory. */
     readonly root: string;
+    /** The files every node shares in a memory world, absent when they live on the host. */
+    readonly #memory: MemoryFileSystem | undefined;
+    /** Each skewed node's view of the world's clock, which a bump moves. */
+    readonly #views = new Map<string, ReturnType<SimulatedClock["view"]>>();
+    /** Each node's files, whose locks its crash releases. */
+    readonly #files = new Map<string, MemoryFileSystem | SimulatedFileSystem>();
     /** The telemetry every node emits, recorded in memory. */
     readonly telemetry: SimulatedTelemetry;
-    /** The process each node runs as. */
+    /** How the nodes run, as given, which a fork runs with too. */
+    readonly #options: SimulationOptions;
+    /** The process each node runs as, the host's in the world's root unless given. */
     readonly #process: ProcessOptions;
-    /** The machine each node runs on. */
+    /** The machine each node runs on, with its home in the world's root unless given. */
     readonly #host: Host;
-    /** The real milliseconds host work may stall in flight before a run fails. */
-    readonly #stallTimeout: number;
-    /** The turns the world's own work may spin between host answers before it fails as busy. */
-    readonly #livelockTurns: number;
-    /** The locale each node formats in. */
-    readonly #locale: string;
-    /** The time zone each node formats in. */
-    readonly #timeZone: string;
     /** The nodes, by name. */
     readonly #nodes = new Map<string, SimulatedNode>();
     /** The listeners of node crashes. */
@@ -265,15 +319,13 @@ export class Simulation {
     /** The wake of the loop waiting for new work, absent while it works. */
     #wake: (() => void) | undefined;
     /** The waits for the next idle point after time moves, each with the moves at its start. */
-    readonly #steps: { readonly answer: PromiseWithResolvers<void>; readonly moves: number }[] = [];
+    #steps: { readonly answer: PromiseWithResolvers<void>; readonly moves: number }[] = [];
     /** The times the loop moved the world's time, to a timer or by a jump. */
     #moves = 0;
     /** The failure of the loop, refusing later waits, thrown at dispose unless a wait took it. */
     #failure: { readonly error: unknown; readonly isTaken: boolean } | undefined;
     /** The world's disposal, absent until it began. */
     #disposed: Promise<void> | undefined;
-    /** Whether the trace records events. */
-    readonly #isTracing: boolean;
     /** The events that happened, traced or not, which the loop reads as progress. */
     #events = 0;
     /** The FNV-1a hash of every event so far, equal across runs of one seed and work. */
@@ -288,20 +340,37 @@ export class Simulation {
         this.#setTime = owned.move;
         this.random = new SimulatedRandom(options.seed);
         this.telemetry = new SimulatedTelemetry({ clock: this.clock, random: this.random });
-        this.#isTracing = options.isTracing ?? false;
-        this.network = new SimulatedNetwork(this.clock, this.random, (event) => this.record(event));
+        this.#options = options;
+        this.scheduler = new SimulatedScheduler({
+            isOrdered: true,
+            world: this,
+            ...(options.isTracing === true ? { telemetry: this.telemetry } : {}),
+        });
+        this.network = new SimulatedNetwork(this.clock, this.scheduler, this.random, (event) =>
+            this.record(event),
+        );
+        this.workers = new SimulatedWorkerHost({
+            scheduler: this.scheduler,
+            start: (node, body) => void this.node(node).start(body),
+            crash: (node) => this.node(node).crash(),
+        });
 
         // give the nodes their process, machine and a root for their files
         const name = crypto.getRandomValues(new Uint8Array(ROOT_BYTES)).toHex();
         this.root = join(realpathSync(ROOT_DIRECTORY), `destack-simulation-${name}`);
         const home = join(this.root, "home");
         mkdirSync(home, { recursive: true });
+        this.#memory =
+            options.files === "memory"
+                ? MemoryFileSystem.create({
+                      clock: this.clock,
+                      random: this.random,
+                      workingDirectory: this.root,
+                      directories: [home],
+                  })
+                : undefined;
         this.#process = options.process ?? Simulation.#hostProcess(this.root, home);
         this.#host = options.host ?? { ...HOST, home };
-        this.#stallTimeout = options.stallTimeout ?? STALL_TIMEOUT;
-        this.#livelockTurns = options.livelockTurns ?? LIVELOCK_TURNS;
-        this.#locale = options.locale ?? LOCALE;
-        this.#timeZone = options.timeZone ?? TIME_ZONE;
 
         // run the world
         this.#moving = this.#move();
@@ -322,15 +391,7 @@ export class Simulation {
 
     /** Fork this world by a label into a world of the split seed at this world's time. */
     fork(label: string): Simulation {
-        return Simulation.fork({ seed: this.seed, start: this.clock.now() }, label, {
-            process: this.#process,
-            host: this.#host,
-            locale: this.#locale,
-            timeZone: this.#timeZone,
-            stallTimeout: this.#stallTimeout,
-            livelockTurns: this.#livelockTurns,
-            isTracing: this.#isTracing,
-        });
+        return Simulation.fork({ seed: this.seed, start: this.clock.now() }, label, this.#options);
     }
 
     /** Stop the world's loop, remove the nodes' files, and stop the telemetry's context, once. */
@@ -347,6 +408,7 @@ export class Simulation {
         this.#wake?.();
         await this.#moving;
         this.clock.detach();
+        this.scheduler.detach();
         this.telemetry.context.disable();
         await rm(this.root, { recursive: true, force: true });
         if (this.#failure !== undefined && !this.#failure.isTaken) {
@@ -367,9 +429,20 @@ export class Simulation {
         }
         this.#fingerprint = hash;
 
-        // trace it
-        if (this.#isTracing) {
-            this.trace.push(event);
+        // emit it into the world's telemetry at its time while tracing
+        if (this.#options.isTracing === true) {
+            const { kind, at, ...fields } = event;
+            this.telemetry.loggers.getLogger(SIMULATION_SCOPE).emit({
+                eventName: `${SIMULATION_SCOPE}.${kind}`,
+                timestamp: at,
+                observedTimestamp: at,
+                attributes: Object.fromEntries(
+                    Object.entries(fields).map(([name, value]) => [
+                        `${SIMULATION_SCOPE}.${name}`,
+                        value,
+                    ]),
+                ),
+            });
         }
     }
 
@@ -392,26 +465,108 @@ export class Simulation {
         }
 
         // give the node its effects, a fresh process per start, and its release on a crash
-        const { clock, random } = this;
+        const { scheduler, random } = this;
         const effects = {
-            clock,
+            clock: this.#clockOf(name),
+            scheduler,
             random,
-            crypto: Crypto.track(BunCrypto, clock),
+            crypto: Crypto.track(BunCrypto, scheduler),
             network: this.network.of(name),
             compression: SimulatedCompression,
             telemetry: this.telemetry,
-            locale: this.#locale,
-            timeZone: this.#timeZone,
-            workers: Workers.system,
+            locale: this.#options.locale ?? LOCALE,
+            timeZone: this.#options.timeZone ?? TIME_ZONE,
+            workers: this.workers.of(name),
             server: this.network.server(name),
-            files: new SimulatedFileSystem(this.root, clock, random),
+            files: this.#filesOf(name),
             host: this.#host,
         };
-        const spawn = () => new SimulatedProcess(this.#process, clock);
+        const spawn = () => new SimulatedProcess(this.#process, scheduler);
         const node = new SimulatedNode(name, this, effects, spawn, () => this.#release(name));
         this.#nodes.set(name, node);
 
         return node;
+    }
+
+    /** Start a world's simulation from its seed and start, its steps left to take. */
+    static of(world: World<unknown>, options: SimulationOptions = {}): Simulation {
+        return new Simulation({ ...options, seed: world.seed, start: world.start });
+    }
+
+    /** Take a step every world shares, then wait for the world's next idle point. */
+    async take(step: WorldStep): Promise<void> {
+        // run the world on time, or move its clock at once
+        const { network } = this;
+        if (step.action === "run") {
+            await this.run(this.clock.now() + step.milliseconds);
+        } else if (step.action === "jump") {
+            await this.jump(this.clock.now() + step.milliseconds);
+        }
+        // cut, join or isolate nodes
+        else if (step.action === "partition") {
+            network.partition(...step.nodes);
+        } else if (step.action === "heal") {
+            network.heal(...(step.nodes ?? []));
+        } else if (step.action === "isolate") {
+            network.isolate(step.node);
+        } else if (step.action === "rejoin") {
+            network.rejoin(step.node);
+        }
+        // crash a node, degrade the network, or bump a node's clock
+        else if (step.action === "crash") {
+            this.node(step.node).crash();
+        } else if (step.action === "degrade") {
+            network.degrade(step);
+        } else {
+            this.bump(step.node, step.milliseconds);
+        }
+
+        await this.idle();
+    }
+
+    /** Jump a node's clock by some milliseconds, back when negative, as a clock fault does. */
+    bump(node: string, by: number): void {
+        // refuse an unknown node, and one reading the world's clock
+        const view = this.#views.get(node);
+        if (!this.#nodes.has(node)) {
+            throw new TypeError(`the world has no node ${node}`);
+        } else if (view === undefined) {
+            throw new TypeError(`node ${node} reads the world's clock: give the world a skew`);
+        }
+
+        // move it, recording the bump
+        view.bump(by);
+        this.record({ kind: "bump", at: this.clock.now(), node, by });
+    }
+
+    /** Make a node's files: a view of the world's memory, or the host's below its root. */
+    #filesOf(node: string): MemoryFileSystem | SimulatedFileSystem {
+        const files =
+            this.#memory?.view() ?? new SimulatedFileSystem(this.root, this.scheduler, this.random);
+        this.#files.set(node, files);
+
+        return files;
+    }
+
+    /** Make a node's clock: the world's, or a view of it drawn from the seed within the skew. */
+    #clockOf(node: string): Clock {
+        // read the world's clock without a skew
+        const { skew } = this.#options;
+        if (skew === undefined) {
+            return this.clock;
+        }
+
+        // draw the node's offset and drift within the bounds
+        const offset = (Random.fraction(this.random) * 2 - 1) * skew.offset;
+        const drift = (Random.fraction(this.random) * 2 - 1) * skew.drift;
+
+        const view = this.clock.view({
+            offset: Math.round(offset),
+            rate: 1 + drift / PARTS_PER_MILLION,
+        });
+        this.#views.set(node, view);
+
+        return view;
     }
 
     /** Call a listener on each node crash until the subscription disposes. */
@@ -423,7 +578,10 @@ export class Simulation {
 
     /** Release a crashed node's sockets and listeners, and tell the crash listeners. */
     #release(node: string): void {
+        // release its sockets, listeners, locks and workers, then tell the listeners
         this.network.release(node);
+        this.#files.get(node)?.release();
+        this.workers.release(node);
         for (const listener of this.#crashListeners) {
             listener(node);
         }
@@ -471,6 +629,12 @@ export class Simulation {
         }
     }
 
+    /** Run the world on time to a later time, each timer firing at its time, until idle. */
+    async run(to: number): Promise<void> {
+        await this.clock.sleep(to - this.clock.now());
+        await this.idle();
+    }
+
     /** Jump to a later time at once, waking each due timer once, until the world is idle. */
     jump(to: number): Promise<void> {
         // refuse a jump on a failed world, and a second one at once
@@ -510,6 +674,7 @@ export class Simulation {
             while (this.#isRunning) {
                 // settle the work at the current time
                 await this.#settle();
+                this.#requireRunning();
                 const { next } = this.clock;
                 const now = this.clock.now();
                 const jump = this.#jump;
@@ -527,11 +692,7 @@ export class Simulation {
                 // answer the steps begun before the last move, then settle the work they start
                 else if (this.#steps.some((step) => step.moves < this.#moves)) {
                     const moved = this.#steps.filter((step) => step.moves < this.#moves);
-                    this.#steps.splice(
-                        0,
-                        this.#steps.length,
-                        ...this.#steps.filter((step) => !moved.includes(step)),
-                    );
+                    this.#steps = this.#steps.filter((step) => step.moves === this.#moves);
                     for (const step of moved) {
                         step.answer.resolve();
                     }
@@ -562,13 +723,28 @@ export class Simulation {
                     const woken = new Promise<void>((resolve) => {
                         this.#wake = resolve;
                     });
-                    await Promise.race([woken, this.clock.nextActivity()]);
+                    await Promise.race([
+                        woken,
+                        this.clock.nextActivity(),
+                        this.scheduler.nextActivity(),
+                    ]);
                     this.#wake = undefined;
                 }
             }
         } catch (error) {
+            // record the failure with the work in flight into the world's telemetry
+            const at = this.clock.now();
+            this.telemetry.loggers.getLogger(SIMULATION_SCOPE).emit({
+                eventName: `${SIMULATION_SCOPE}.failure`,
+                timestamp: at,
+                observedTimestamp: at,
+                severityNumber: SeverityNumber.ERROR,
+                exception: error,
+                attributes: { [`${SIMULATION_SCOPE}.pending`]: this.scheduler.pending() },
+            });
+
             // fail the clock's waits, the idle waits and the jump with the loop, keeping the failure
-            const failed = this.clock.fail(error);
+            const failed = this.clock.fail(error) + this.scheduler.fail(error);
             const idlers = [
                 ...this.#idlers.splice(0),
                 ...this.#steps.splice(0).map((step) => step.answer),
@@ -605,72 +781,74 @@ export class Simulation {
     }
 
     /** Let pending work run until a macrotask turn passes without progress or tracked work. */
-    /** Let pending work run until a macrotask turn passes without progress or tracked work. */
     async #settle(): Promise<void> {
         // start from the current progress, nothing counted as busy
         let progress = this.#progress();
         let busy = 0;
         let isMoving = true;
         let movedAt = Clock.system.now();
+        const stallTimeout = this.#options.stallTimeout ?? STALL_TIMEOUT;
+        const peerStallTimeout = this.#options.peerStallTimeout ?? PEER_STALL_TIMEOUT;
+        const livelockTurns = this.#options.livelockTurns ?? LIVELOCK_TURNS;
         for (;;) {
             // yield one turn while work moves or no host work is in flight
-            const { clock } = this;
-            if (isMoving || clock.hostInFlight === 0) {
-                await new Promise<void>((resolve) => {
-                    setImmediate(resolve);
-                });
+            const { clock, scheduler } = this;
+            if (isMoving || scheduler.hosts === 0) {
+                await yieldToEventLoop();
             }
             // answer the settled host work in the order it began, once no leaf of it is pending
-            else if (clock.hostPending === 0 && clock.hostReady > 0) {
+            else if (scheduler.hostPending === 0 && scheduler.hostReady > 0) {
                 const at = clock.now();
-                for (const order of clock.answer()) {
-                    this.record({ kind: "release", at, order });
+                for (const { order, by } of scheduler.answer()) {
+                    this.record({ kind: "release", at, order, by });
                 }
                 busy = 0;
-                await new Promise<void>((resolve) => {
-                    setImmediate(resolve);
-                });
+                await yieldToEventLoop();
             }
             // wait for host work to begin or settle, checking for a stall at the host's stall limit
             else {
                 const watchdog = new AbortController();
                 const stall = Clock.system
-                    .sleep(this.#stallTimeout, watchdog.signal)
+                    .sleep(Math.min(stallTimeout, peerStallTimeout), watchdog.signal)
                     .catch(() => undefined);
-                await Promise.race([clock.nextActivity(), stall]);
+                await Promise.race([scheduler.nextActivity(), stall]);
                 watchdog.abort();
             }
 
-            // stop once the turn made no progress and no tracked work is in flight
+            // fail with a failure the world's work reported, then stop once a turn made no progress and no work is in flight
+            this.#requireRunning();
             const next = this.#progress();
-            if (next === progress && clock.inFlight === 0) {
+            if (next === progress && scheduler.inFlight === 0) {
                 return;
             }
             isMoving = next !== progress;
             progress = next;
             movedAt = isMoving ? Clock.system.now() : movedAt;
 
-            // refuse leaf host work stalled past its limit, listing the work in flight
+            // refuse leaf host work stalled past its limit, and peer work past the far longer one, listing the work in flight
             const stalled = Clock.system.now() - movedAt;
-            if (clock.hostPending > 0 && stalled >= this.#stallTimeout) {
+            const isLeafStalled = scheduler.hostPending > 0 && stalled >= stallTimeout;
+            const isPeerStalled = scheduler.hosts > 0 && stalled >= peerStallTimeout;
+            if (isLeafStalled || isPeerStalled) {
+                const { hosts, hostPending, hostReady } = scheduler;
                 throw new Error(
-                    `host work stayed in flight for ${stalled} ms without settling:\n${clock.flights().join("\n")}`,
+                    `work stayed in flight for ${stalled} ms without settling, ${hostPending} of ${hosts} host and peer work running and ${hostReady} settled:\n${this.scheduler.pending().join("\n")}`,
                 );
             }
 
-            // refuse tracked work waiting on a pending timer, which cannot fire while the work is in flight
+            // refuse world work waiting on a pending timer, which fires only after the work settles
             const isWaitingOnTime =
-                clock.inFlight > 0 && clock.hostInFlight === 0 && clock.next !== undefined;
+                scheduler.inFlight > 0 && scheduler.hosts === 0 && clock.next !== undefined;
             if (isWaitingOnTime && stalled >= DEADLOCK_MILLISECONDS) {
                 throw new Error(
-                    `tracked work waits on simulated time, which cannot move while it is in flight:\n${clock.flights().join("\n")}`,
+                    `the world's work waits on simulated time, which cannot move while it is in flight:\n${this.scheduler.pending().join("\n")}`,
                 );
             }
 
             // refuse the world's own work spinning between host answers without moving time, listing its call sites
-            busy += clock.hostInFlight === 0 ? 1 : 0;
-            if (busy >= this.#livelockTurns) {
-                const sites = [...(await this.#busy()), ...clock.flights()];
+            busy += scheduler.hosts === 0 ? 1 : 0;
+            if (busy >= livelockTurns) {
+                const sites = [...(await this.#busy()), ...this.scheduler.pending()];
                 throw new Error(
                     `the simulation kept busy for ${busy} turns without moving time:\n${sites.join("\n")}`,
                 );
@@ -680,17 +858,15 @@ export class Simulation {
 
     /** Record what the next turns begin, by call site, most frequent first. */
     async #busy(): Promise<string[]> {
-        // record a few turns
-        const stop = this.clock.record();
+        // record a few turns of waits and tracked work
+        const stops = [this.clock.record(), this.scheduler.record()];
         for (let turn = 0; turn < RECORDED_TURNS; turn += 1) {
-            await new Promise<void>((resolve) => {
-                setImmediate(resolve);
-            });
+            await yieldToEventLoop();
         }
 
         // count each call site
         const counts = new Map<string, number>();
-        for (const site of stop()) {
+        for (const site of stops.flatMap((stop) => stop())) {
             counts.set(site, (counts.get(site) ?? 0) + 1);
         }
 
@@ -700,10 +876,18 @@ export class Simulation {
             .map(([site, count]) => `${count}x ${site}`);
     }
 
+    /** Refuse to go on once the world's work reported a failure. */
+    #requireRunning(): void {
+        const { failure } = this.scheduler;
+        if (failure !== undefined) {
+            throw failure.error;
+        }
+    }
+
     /** Read the simulation's progress: waits, settles, events and deliveries, each only growing. */
     #progress(): number {
-        const { clock, network } = this;
+        const { clock, scheduler, network } = this;
 
-        return clock.begun + clock.settled + this.#events + network.sent + network.delivered;
+        return clock.begun + scheduler.settled + this.#events + network.sent + network.delivered;
     }
 }

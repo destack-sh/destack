@@ -1,16 +1,16 @@
 import { ProcessError } from "./error.ts";
 import { closeSync, openSync, writeSync } from "node:fs";
 import type { BunPlugin, FileSink } from "bun";
-import type {
-    Input,
-    Output,
-    Process,
-    ProcessChannel,
-    ProcessUsage,
-    Runtime,
-    Signal,
-    SpawnOptions,
-    StandardStream,
+import {
+    type Input,
+    type Output,
+    type Process,
+    type ProcessChannel,
+    type ProcessUsage,
+    type Runtime,
+    type Signal,
+    type SpawnOptions,
+    type StandardStream,
     Subprocess,
 } from "./process.ts";
 
@@ -296,10 +296,12 @@ export class BunProcess implements Process {
 
     /** Read a Bun subprocess as a subprocess. */
     static #subprocess(child: Bun.Subprocess): Subprocess {
+        // read its streams, and its output through them
         const stdout = BunProcess.#readable(child.stdout);
         const stderr = BunProcess.#readable(child.stderr);
 
-        return {
+        // answer it as a subprocess
+        const subprocess: Subprocess = {
             id: child.pid,
             stdin: BunProcess.#sink(child.stdin),
             stdout,
@@ -309,22 +311,10 @@ export class BunProcess implements Process {
                 return child.signalCode ?? undefined;
             },
             kill: (signal) => child.kill(signal),
-            output: async () => {
-                // read both streams to their end beside the exit
-                const [output, errors, code] = await Promise.all([
-                    new Response(stdout).bytes(),
-                    new Response(stderr).bytes(),
-                    child.exited,
-                ]);
-
-                return {
-                    code,
-                    signal: child.signalCode ?? undefined,
-                    stdout: output,
-                    stderr: errors,
-                };
-            },
+            output: () => Subprocess.output(subprocess),
         };
+
+        return subprocess;
     }
 
     /** Open a file a child's stream reads or appends to, once per spawn and mode. */

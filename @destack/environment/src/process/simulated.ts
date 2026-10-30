@@ -1,15 +1,15 @@
-import type { Clock } from "../clock/index.ts";
+import type { Scheduler } from "../scheduler/scheduler.ts";
 import { BunProcess } from "./bun.ts";
 import { ProcessError } from "./error.ts";
-import type {
-    Input,
-    Output,
-    Process,
-    ProcessChannel,
-    ProcessUsage,
-    Runtime,
-    Signal,
-    SpawnOptions,
+import {
+    type Input,
+    type Output,
+    type Process,
+    type ProcessChannel,
+    type ProcessUsage,
+    type Runtime,
+    type Signal,
+    type SpawnOptions,
     Subprocess,
 } from "./process.ts";
 
@@ -68,13 +68,13 @@ export class SimulatedProcess implements Process {
     readonly #failures = new Set<(error: unknown) => Promise<void> | void>();
     /** The host's process, which starts the children. */
     readonly #host = new BunProcess();
-    /** The clock a child's whole output counts on as host work. */
-    readonly #clock: Clock;
+    /** The scheduler each child's lifetime counts on. */
+    readonly #scheduler: Scheduler;
     /** The ids of the children the node started that have not exited. */
     readonly #children = new Set<number>();
 
-    /** Give a node its process from given values, its children's output counted on a clock. */
-    constructor(options: ProcessOptions, clock: Clock) {
+    /** Give a node its process from given values, its children counted on a scheduler. */
+    constructor(options: ProcessOptions, scheduler: Scheduler) {
         // store the given values
         this.arguments = options.arguments;
         this.variables = options.variables;
@@ -84,7 +84,7 @@ export class SimulatedProcess implements Process {
         this.executable = options.executable;
         this.runtime = options.runtime;
         this.parent = options.parent;
-        this.#clock = clock;
+        this.#scheduler = scheduler;
     }
 
     /** Find a command on the process's search path, on the host's files. */
@@ -109,7 +109,7 @@ export class SimulatedProcess implements Process {
 
     /** Send a signal to the node, a child it started, or that child's group by its negated id. */
     kill(id: number, signal: Signal = "SIGTERM"): void {
-        // deliver a signal to the node's own listeners
+        // deliver a signal to the node's listeners
         if (id === this.id) {
             this.raise(signal);
         }
@@ -152,9 +152,19 @@ export class SimulatedProcess implements Process {
         throw new Error(`the process exited with code ${code}`);
     }
 
-    /** Start a real child with the node's variables, counting its whole output as host work. */
+    /** Kill every child the node started, as their parent's end does. */
+    release(): void {
+        for (const id of this.#children) {
+            this.#host.kill(id, "SIGKILL");
+        }
+    }
+
+    /** Start a real child with the node's variables, counting its lifetime as its option says. */
     spawn(command: readonly string[], options: SpawnOptions = {}): Subprocess {
-        return this.#adopt(this.#host.spawn(command, this.#options(options)));
+        return this.#adopt(
+            this.#host.spawn(command, this.#options(options)),
+            SimulatedProcess.#tracking(options),
+        );
     }
 
     /** Start a command connected to this process by a channel. */
@@ -162,22 +172,80 @@ export class SimulatedProcess implements Process {
         command: readonly string[],
         options: SpawnOptions = {},
     ): Subprocess & { readonly channel: ProcessChannel } {
-        return this.#adopt(this.#host.fork(command, this.#options(options)));
+        return this.#adopt(
+            this.#host.fork(command, this.#options(options)),
+            SimulatedProcess.#tracking(options),
+        );
     }
 
-    /** Count a child as the node's until it exits, and its whole output as host work. */
-    #adopt<Child extends Subprocess>(child: Child): Child {
+    /** Count a child as the node's until it exits, tracking its exit and streams as a peer's. */
+    #adopt<Child extends Subprocess>(child: Child, tracking: "peer" | "none"): Child {
         // know the child's id while it runs
         this.#children.add(child.id);
         void child.exited.finally(() => this.#children.delete(child.id));
 
-        return {
+        // leave a service untracked, as time moves while it runs
+        if (tracking === "none") {
+            return child;
+        }
+
+        // track its exit, each read of its output and each write to its input
+        const exited = this.#scheduler.track(child.exited, "peer");
+        const stdout = this.#readable(child.stdout);
+        const stderr = this.#readable(child.stderr);
+        const stdin = this.#writable(child.stdin);
+
+        // answer it with the tracked streams and exit, its output read through them
+        const adopted: Child = {
             ...child,
+            stdin,
+            stdout,
+            stderr,
+            exited,
             get signal() {
                 return child.signal;
             },
-            output: () => this.#clock.trackHost(child.output()),
+            output: () => Subprocess.output(adopted),
         };
+
+        return adopted;
+    }
+
+    /** Read how a child is tracked: as a peer by default, and none when detached. */
+    static #tracking(options: SpawnOptions): "peer" | "none" {
+        return options.tracking ?? (options.isDetached === true ? "none" : "peer");
+    }
+
+    /** Read a child's stream on demand, each read tracked as a peer's. */
+    #readable(stream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+        const reader = stream.getReader();
+
+        return new ReadableStream<Uint8Array>(
+            {
+                pull: async (controller) => {
+                    // pass each chunk on, closing at the end
+                    const { done, value } = await this.#scheduler.track(reader.read(), "peer");
+                    if (done) {
+                        controller.close();
+                    } else {
+                        controller.enqueue(value);
+                    }
+                },
+                cancel: (reason) => reader.cancel(reason),
+            },
+            { highWaterMark: 0 },
+        );
+    }
+
+    /** Write a child's input, each write tracked as a peer's. */
+    #writable(stream: WritableStream<Uint8Array>): WritableStream<Uint8Array> {
+        const writer = stream.getWriter();
+
+        return new WritableStream<Uint8Array>({
+            write: (chunk) => this.#scheduler.track(writer.write(chunk), "peer"),
+            close: () => this.#scheduler.track(writer.close(), "peer"),
+            abort: (reason) => this.#scheduler.track(writer.abort(reason), "peer"),
+        });
     }
 
     /** Default a child's working directory and variables to the process's. */

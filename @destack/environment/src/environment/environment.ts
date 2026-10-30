@@ -6,9 +6,10 @@ import { Network } from "../network/network.ts";
 import type { Host } from "../host/host.ts";
 import type { Process } from "../process/process.ts";
 import { Random } from "../random/random.ts";
+import { Scheduler } from "../scheduler/scheduler.ts";
 import type { Server } from "../server/server.ts";
 import { Telemetry } from "../telemetry/telemetry.ts";
-import type { Workers } from "../worker/worker.ts";
+import type { WorkerHost } from "../worker/worker.ts";
 
 /** The effects some targets have beside the base, each requested by name. */
 export interface Capability {
@@ -21,7 +22,7 @@ export interface Capability {
     /** The machine. */
     readonly host: Host;
     /** The starting of worker threads. */
-    readonly workers: Workers;
+    readonly workers: WorkerHost;
 }
 
 /** The capabilities a host process has beside the base. */
@@ -31,6 +32,8 @@ export type HostCapability = "files" | "process" | "server" | "host" | "workers"
 export type Environment<Name extends keyof Capability = never> = {
     /** The time. */
     readonly clock: Clock;
+    /** The scheduler its work runs under. */
+    readonly scheduler: Scheduler;
     /** The randomness. */
     readonly random: Random;
     /** The WebCrypto operations. */
@@ -59,6 +62,7 @@ export const Environment = {
             const { locale, timeZone } = Intl.DateTimeFormat().resolvedOptions();
             system = {
                 clock: Clock.system,
+                scheduler: Scheduler.system,
                 random: Random.system,
                 crypto: Crypto.system,
                 network: Network.system,

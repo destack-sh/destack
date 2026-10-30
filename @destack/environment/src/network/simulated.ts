@@ -21,7 +21,10 @@ import {
     type Socket,
 } from "./socket/socket.ts";
 import { Random } from "../random/random.ts";
+import { SimulatedCompression } from "../compression/simulated.ts";
+import { copyRequest } from "./request.ts";
 import type { SimulatedClock } from "../clock/simulated.ts";
+import type { Scheduler } from "../scheduler/scheduler.ts";
 import type { SimulationEvent } from "../simulation/simulation.ts";
 import { ABNORMAL_CLOSURE, NORMAL_CLOSURE, SimulatedWebSocket } from "./websocket.ts";
 
@@ -41,6 +44,15 @@ const DEFAULT_PORTS: Readonly<Record<string, string>> = {
 
 /** The close code of a server going away (RFC 6455). */
 const GOING_AWAY = 1001;
+
+/** The suffix of a bridged host name, which browsers resolve to the loopback address (RFC 6761). */
+const LOOPBACK_SUFFIX = ".localhost";
+
+/** The status of a request a bridge cannot route, as its host names no world origin (RFC 9110). */
+const MISDIRECTED = 421;
+
+/** The status of a WebSocket the world refused, as a gateway answers it (RFC 9110). */
+const BAD_GATEWAY = 502;
 
 /** The faults a simulated network applies to every delivery beside its partitions. */
 export interface NetworkFaults {
@@ -260,14 +272,23 @@ export class SimulatedNetwork {
     #faults: NetworkFaults = {};
     /** The simulation's clock, which latency waits on. */
     readonly #clock: SimulatedClock;
+    /** The scheduler the network's work runs under. */
+    readonly #scheduler: Scheduler;
     /** The simulation's randomness, which latency and loss draw from. */
     readonly #random: Random;
     /** Record what happens, in order. */
     readonly #record: (event: SimulationEvent) => void;
 
     /** Connect the network to its simulation's clock, randomness and trace. */
-    constructor(clock: SimulatedClock, random: Random, record: (event: SimulationEvent) => void) {
+    constructor(
+        clock: SimulatedClock,
+        scheduler: Scheduler,
+        random: Random,
+        record: (event: SimulationEvent) => void,
+    ) {
+        // store the effects the network runs on
         this.#clock = clock;
+        this.#scheduler = scheduler;
         this.#random = random;
         this.#record = record;
     }
@@ -288,7 +309,7 @@ export class SimulatedNetwork {
             fetch: async (request, options) => {
                 // send through a Unix socket on the host to a host process, which may call back in
                 if (options?.unix !== undefined) {
-                    return this.#clock.trackPeer(BunNetwork.fetch(request, options));
+                    return this.#scheduler.track(BunNetwork.fetch(request, options), "peer");
                 }
 
                 // refuse a private host by its name, the simulated network routing by name
@@ -327,25 +348,110 @@ export class SimulatedNetwork {
         };
     }
 
-    /** Publish a node's listener on the host at its port, outside the simulated links. */
-    publish<Attachment>(node: string, options: ServeOptions<Attachment>): Listener<Attachment> {
-        // listen on the host at a free port unless given, counting its answers as the world's work
+    /** Publish a node's listener on the host, as a container port: a world and a host address. */
+    publish<Attachment>(
+        node: string,
+        options: ServeOptions<Attachment>,
+    ): Listener<Attachment> & { readonly hostUrl: URL } {
+        // serve the node at its world address, a port the world draws unless given
+        const simulated = this.#serve(node, options);
+
+        // listen on the host at a free port, counting its answers as the world's work
         const host = BunServer.http({
             ...options,
+            port: 0,
             fetch: (request, listener) =>
-                this.#clock.track(Promise.resolve(options.fetch(request, listener))),
+                this.#scheduler.track(Promise.resolve(options.fetch(request, listener)), "world"),
         });
-
-        // serve the node at the same address, stopping both together
-        const simulated = this.#serve(node, { ...options, port: Number(host.url.port) });
 
         return {
             url: simulated.url,
+            hostUrl: host.url,
             upgrade: simulated.upgrade,
             stop: async (isClosingActive) => {
                 await Promise.all([host.stop(isClosingActive), simulated.stop(isClosingActive)]);
             },
         };
+    }
+
+    /** Bridge the host into the world as a node, `<host>.localhost` reaching `https://<host>`. */
+    bridge(node: string, options: { readonly port?: number } = {}): Listener<SimulatedWebSocket> {
+        // listen on the loopback address, counting each answer as the world's work
+        return BunServer.http<SimulatedWebSocket>({
+            hostname: "127.0.0.1",
+            port: options.port ?? 0,
+            fetch: (request, listener) =>
+                this.#scheduler.track(this.#bridged(node, request, listener), "world"),
+            websocket: {
+                // pass the world's messages and close to the host's socket
+                open: (socket) => {
+                    // read the world's bytes as buffers, and pass text and bytes on as they are
+                    const world = socket.attachment;
+                    world.binaryType = "arraybuffer";
+                    world.addEventListener("message", (event: MessageEvent<unknown>) => {
+                        const { data } = event;
+                        socket.send(
+                            data instanceof ArrayBuffer ? new Uint8Array(data) : String(data),
+                        );
+                    });
+                    world.addEventListener("close", (event) =>
+                        socket.close(event.code, event.reason),
+                    );
+                },
+                // pass the host's messages and close to the world's socket
+                message: (socket, message) => socket.attachment.send(message),
+                close: (socket, code, reason) => socket.attachment.close(code, reason),
+            },
+        });
+    }
+
+    /** Send a bridged request into the world as a node, or open its WebSocket there first. */
+    async #bridged(
+        node: string,
+        request: Request,
+        listener: Listener<SimulatedWebSocket>,
+    ): Promise<Response | undefined> {
+        // refuse a host that names no world origin
+        const url = new URL(request.url);
+        if (!url.hostname.endsWith(LOOPBACK_SUFFIX)) {
+            return new Response(`the bridge reaches only hosts below ${LOOPBACK_SUFFIX}`, {
+                status: MISDIRECTED,
+            });
+        }
+        const hostname = url.hostname.slice(0, -LOOPBACK_SUFFIX.length);
+
+        // send a plain request to the world origin as the node
+        const isUpgrade = request.headers.get("upgrade")?.toLowerCase() === "websocket";
+        if (!isUpgrade) {
+            const target = `https://${hostname}${url.pathname}${url.search}`;
+
+            return await this.of(node).fetch(new Request(target, request));
+        }
+
+        // open the world's socket first, then accept the host's with it attached
+        const protocols =
+            request.headers
+                .get("sec-websocket-protocol")
+                ?.split(",")
+                .map((each) => each.trim()) ?? [];
+        const world = this.#websocket(
+            node,
+            `wss://${hostname}${url.pathname}${url.search}`,
+            protocols,
+        );
+        const settled = new AbortController();
+        const isOpen = await new Promise<boolean>((resolve) => {
+            world.addEventListener("open", () => resolve(true), { signal: settled.signal });
+            world.addEventListener("close", () => resolve(false), { signal: settled.signal });
+        });
+        settled.abort();
+        if (!isOpen) {
+            return new Response("the world refused the WebSocket", { status: BAD_GATEWAY });
+        }
+        const headers = world.protocol === "" ? {} : { "sec-websocket-protocol": world.protocol };
+        listener.upgrade(request, { attachment: world, headers });
+
+        return undefined;
     }
 
     /** Cut the network between two nodes, both ways, breaking their connections. */
@@ -444,9 +550,18 @@ export class SimulatedNetwork {
         this.#record({ kind: "heal", at: this.#clock.now(), nodes });
     }
 
-    /** Set the faults every delivery meets. */
+    /** Set the faults every delivery meets, recording them. */
     degrade(faults: NetworkFaults): void {
+        // take the faults, and record them
         this.#faults = faults;
+        const { least, most } = faults.delay ?? { least: 0, most: 0 };
+        this.#record({
+            kind: "degrade",
+            at: this.#clock.now(),
+            drop: faults.drop ?? 0,
+            least,
+            most,
+        });
     }
 
     /** Drop a node's listeners and break its connections, as its process ends. */
@@ -799,9 +914,15 @@ export class SimulatedNetwork {
 
     /** Send a request to its endpoint and its response back, each way through the network. */
     async #roundTrip(from: string, request: Request): Promise<Response> {
-        // hand the listener a copy of the request, refusing an upgrade answered to a plain request
+        // send the request across the link, its body as one delivery per chunk
         const endpoint = await this.#reach(from, request);
-        const answer = await endpoint.answer(new Request(request));
+        const target = `${request.method} ${request.url}`;
+        const sent = request.body && this.#cross(request.body, from, endpoint.node, target);
+
+        // hand the listener a copy of the request, refusing an upgrade answered to a plain request
+        const answer = await endpoint.answer(
+            sent === null ? new Request(request) : copyRequest(request, { body: sent }),
+        );
         if (answer.kind === "socket") {
             throw new TypeError(`${new URL(request.url).origin} upgraded a plain request`);
         }
@@ -811,19 +932,45 @@ export class SimulatedNetwork {
         const { origin } = new URL(request.url);
         const isCut = this.#isCut(from, endpoint.node);
         if (isCut || this.#resolve(new URL(request.url)) !== endpoint) {
-            const target = `${request.method} ${request.url}`;
             this.#record({ kind: "loss", at: this.#clock.now(), from, target });
             throw refusal(`fetch failed: the response from ${origin} was lost`, "ConnectionClosed");
         }
 
-        // hand the node a copy of the response whose body fails once the request aborts, as fetch does
+        // send the body back across the link, failing it once the request aborts, as fetch does
         const { body, status, statusText, headers } = answer.response;
+        const crossed = body === null ? null : this.#cross(body, endpoint.node, from, target);
         const delivered =
-            body === null
-                ? null
-                : body.pipeThrough(new TransformStream(), { signal: request.signal });
+            crossed?.pipeThrough(new TransformStream(), { signal: request.signal }) ?? null;
 
         return new Response(delivered, { status, statusText, headers });
+    }
+
+    /** Send a response body from a server to the requesting node, each chunk one delivery. */
+    #cross(
+        body: ReadableStream<Uint8Array>,
+        server: string,
+        client: string,
+        target: string,
+    ): ReadableStream<Uint8Array> {
+        return body.pipeThrough(
+            new TransformStream<Uint8Array, Uint8Array>({
+                transform: (chunk, controller) => {
+                    // lose the rest of the body on a cut link, as a reset connection does
+                    if (this.#isCut(client, server)) {
+                        this.#record({ kind: "loss", at: this.#clock.now(), from: client, target });
+                        throw refusal(
+                            `the body from ${server} to ${client} was cut off`,
+                            "ConnectionClosed",
+                        );
+                    }
+
+                    // deliver the chunk, counted as sent and delivered
+                    this.#sent += 1;
+                    this.#delivered += 1;
+                    controller.enqueue(chunk);
+                },
+            }),
+        );
     }
 
     /** Open a node's socket to a listener. */
@@ -1073,11 +1220,11 @@ function decoded(response: Response): Response {
         return response;
     }
 
-    // decode the body, and describe the decoded bytes
+    // decode the body in the world's turn, and describe the decoded bytes
     const headers = new Headers(response.headers);
     headers.delete("content-encoding");
     headers.delete("content-length");
-    const body = response.body.pipeThrough(new DecompressionStream(encoding));
+    const body = response.body.pipeThrough(SimulatedCompression.decompress(encoding));
 
     return new Response(body, {
         status: response.status,

@@ -24,6 +24,24 @@ export interface DirectoryEntry {
     readonly kind: FileKind;
 }
 
+/** Directory entries. */
+export const DirectoryEntry = {
+    /** Order entries as Go's `WalkDir` visits them: by name, a directory before its entries. */
+    compare(left: DirectoryEntry, right: DirectoryEntry): number {
+        // compare name by name, a directory before the entries below it
+        const lefts = left.name.split("/");
+        const rights = right.name.split("/");
+        for (let index = 0; index < Math.min(lefts.length, rights.length); index += 1) {
+            const [one = "", other = ""] = [lefts[index], rights[index]];
+            if (one !== other) {
+                return one < other ? -1 : 1;
+            }
+        }
+
+        return lefts.length - rights.length;
+    },
+};
+
 /** A change a watch reports. */
 export interface FileEvent {
     /** What changed, as Deno's `FsEvent` has it: a path that appeared, changed or went away. */
