@@ -65,17 +65,29 @@ export class LocalPackageStore
     extends PackageStore<Environment<"files" | "process" | "host">, LocalBlobStorage>
     implements AsyncDisposable
 {
+    /** The directory with the store's blobs, database and trees. */
+    readonly directory: string;
     /** The directory of the dependency trees its builds are materialized in, one per manifest. */
     readonly trees: string;
     /** What disposal releases: the database the store opened, and a temporary store's directory. */
     readonly #disposables: AsyncDisposableStack;
+    /** The store that renews the builds' retention, absent when this one does. */
+    readonly #maintainer: LocalPackageStore | undefined;
+    /** The builds a view used, renewed by its maintainer once the view closes. */
+    readonly #used = new Set<Digest>();
 
     /** Store builds in a directory's blobs indexed in a database, and what disposal releases. */
-    private constructor(options: LocalPackageStoreOptions, disposables: AsyncDisposableStack) {
-        // store the blobs, the database, the trees and the disposables
+    private constructor(
+        options: LocalPackageStoreOptions,
+        disposables: AsyncDisposableStack,
+        maintainer: LocalPackageStore | undefined,
+    ) {
+        // store the blobs, the database, the trees, the disposables and the store renewing retention
         super(options);
+        this.directory = options.directory;
         this.trees = join(options.directory, TREES_DIRECTORY);
         this.#disposables = disposables;
+        this.#maintainer = maintainer;
     }
 
     /** Store builds in blobs and an opened database, their trees below a directory. */
@@ -87,8 +99,9 @@ export class LocalPackageStore
     static async #create(
         options: LocalPackageStoreOptions,
         disposables: AsyncDisposableStack,
+        maintainer?: LocalPackageStore,
     ): Promise<LocalPackageStore> {
-        const store = new LocalPackageStore(options, disposables);
+        const store = new LocalPackageStore(options, disposables, maintainer);
         await options.environment.files.mkdir(store.trees, { recursive: true });
 
         return store;
@@ -99,6 +112,7 @@ export class LocalPackageStore
         directory: string,
         environment: Environment<"files" | "process" | "host">,
         disposables: AsyncDisposableStack,
+        maintainer?: LocalPackageStore,
     ): Promise<LocalPackageStore> {
         // open the blobs, then the database, closed on disposal
         const storage = await LocalBlobStorage.open(join(directory, FILES_DIRECTORY), environment);
@@ -111,7 +125,31 @@ export class LocalPackageStore
         await database.migrate(packageStoreDatabase.tables);
         const blobs = new BlobStore({ storage, database, environment });
 
-        return await LocalPackageStore.#create({ blobs, directory, environment }, disposables);
+        return await LocalPackageStore.#create(
+            { blobs, directory, environment },
+            disposables,
+            maintainer,
+        );
+    }
+
+    /** View this store's directory through another environment, this store renewing retention. */
+    async view(environment: Environment<"files" | "process" | "host">): Promise<LocalPackageStore> {
+        // renew the builds the view used once it closes, then close this store with it
+        const disposables = new AsyncDisposableStack();
+        disposables.defer(() => this[Symbol.asyncDispose]());
+        const view = await LocalPackageStore.#openDirectory(
+            this.directory,
+            environment,
+            disposables,
+            this,
+        );
+        disposables.defer(async () => {
+            for (const digest of view.#used) {
+                await this.#use(digest);
+            }
+        });
+
+        return view;
     }
 
     /** Store a build, retaining it a week past this use. */
@@ -131,6 +169,13 @@ export class LocalPackageStore
 
     /** Lease a build a week on once a day it is used, retaining it and its files. */
     async #use(digest: Digest): Promise<void> {
+        // record the use for the maintaining store to renew once this view closes
+        if (this.#maintainer !== undefined) {
+            this.#used.add(digest);
+
+            return;
+        }
+
         // read the build's lease, renewing one a day or more old
         const now = this.environment.clock.now();
         const [leased] = await this.database
@@ -170,7 +215,7 @@ export class LocalPackageStore
         await files.remove(join(this.trees, STAGING_DIRECTORY), { recursive: true, force: true });
         await this.blobs.storage.clean();
 
-        // drop the unused cache entries, then delete the builds and blobs nothing keeps
+        // drop the unused cache entries, then delete the builds and blobs nothing retains
         await this.expire();
         await this.blobs.collect();
 

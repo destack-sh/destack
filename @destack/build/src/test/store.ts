@@ -11,13 +11,19 @@ import { LocalPackageStore } from "../store/local.ts";
 import { PackageStore } from "../store/store.ts";
 import { packageStoreDatabase } from "../store/table.ts";
 
-/** Open the store of builds tests share across runs and processes, below the checkout. */
-export function testStore(): Promise<LocalPackageStore> {
-    return LocalPackageStore.checkout(
-        fileURLToPath(new URL(".", import.meta.url)),
-        "test",
-        testHost(),
-    );
+/** Open the store of builds tests share across runs, the host's, or a world's view of it. */
+export async function testStore(
+    world?: Environment<"files" | "process" | "host">,
+): Promise<LocalPackageStore> {
+    // open and maintain the shared store on the host, as one piece of host work in a world
+    const here = fileURLToPath(new URL(".", import.meta.url));
+    const host = LocalPackageStore.checkout(here, "test", testHost());
+    if (world === undefined) {
+        return await host;
+    }
+
+    // give the world a view of it through its own effects
+    return await (await world.scheduler.track(host, "host")).view(world);
 }
 
 /** A package store over a test's blobs and index, in memory or below a directory. */

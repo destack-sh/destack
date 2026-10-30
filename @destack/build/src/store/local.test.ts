@@ -228,6 +228,37 @@ test("retain an unrooted build a week past its last use, and collect it on the f
     expect({ kept, dropped }).toEqual({ kept: [true, true], dropped: [false, false] });
 });
 
+test("renew a build a world's view used once the view closes, retaining it a week past that use", async () => {
+    // store an unrooted build, and use it six days later through a view another node opens
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const directory = await environment.files.makeTemporaryDirectory("test-stores-");
+    const { clock } = simulation;
+    let used: Digest;
+    {
+        await using store = await LocalPackageStore.open(directory, environment);
+        used = await store.put(await written("export const answer = 45;\n", environment.crypto));
+    }
+    await simulation.jump(clock.now() + DAY_MILLISECONDS * 6);
+    {
+        const host = await LocalPackageStore.open(directory, environment);
+        await using view = await host.view(simulation.environment("world"));
+        await view.contents(used);
+    }
+
+    // read whether an idle open keeps it past the week after storing it, then a week after its use
+    const contains = async () => {
+        await using store = await LocalPackageStore.open(directory, environment);
+
+        return await store.contains(used);
+    };
+    await simulation.jump(clock.now() + DAY_MILLISECONDS * 2);
+    const kept = await contains();
+    await simulation.jump(clock.now() + WEEK_MILLISECONDS);
+    const dropped = await contains();
+    expect({ kept, dropped }).toEqual({ kept: true, dropped: false });
+});
+
 test("refuse an empty cache directory the environment sets for a checkout's store", async () => {
     // run in a world whose cache directory variable is empty
     const host = testHost();

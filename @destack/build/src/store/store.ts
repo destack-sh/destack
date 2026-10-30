@@ -1,4 +1,4 @@
-import type { Environment } from "@destack/environment";
+import { type Environment, until } from "@destack/environment";
 import { Digest, type DigestCrypto, present } from "@destack/schema";
 import type { BlobStorage } from "@destack/resource";
 import { and, asc, type BlobStore, type DatabaseConnection, eq, inArray, lte } from "@destack/db";
@@ -83,6 +83,8 @@ export class PackageStore<
     readonly #building = new Map<string, Promise<Digest>>();
     /** The runtime builds being derived, by build and runtime. */
     readonly #attaching = new Map<string, Promise<Digest>>();
+    /** The builds in flight to the store, by manifest digest, each stored once. */
+    readonly #putting = new Map<Digest, Promise<Digest>>();
     /** The read-only builds the store reads in place, indexed once. */
     readonly #layer: Promise<BuildLayer>;
 
@@ -112,13 +114,44 @@ export class PackageStore<
 
     /** Store each missing file of a build, then its manifest, returning the manifest's digest. */
     async put(source: BuildReader, signal?: AbortSignal): Promise<Digest> {
-        // take a stored build by its manifest
+        // join the storing of the build in flight, or begin it, forgetting it once it settles
+        signal?.throwIfAborted();
         const bytes = encodeManifest(PackageManifest.parse(source.manifest));
         const digest = await Digest.of(bytes, this.environment.crypto);
-        if (await this.contains(digest)) {
-            return digest;
+        let storing = this.#putting.get(digest);
+        if (storing === undefined) {
+            storing = this.#storeOnce(source, digest, bytes);
+            this.#putting.set(digest, storing);
+            const forget = () => this.#putting.delete(digest);
+            void storing.then(forget, forget);
         }
 
+        // wait for it under this caller's own signal, the storing going on for the others
+        return await (signal === undefined
+            ? storing
+            : Promise.race([
+                  storing,
+                  until(signal).then(() => {
+                      throw signal.reason;
+                  }),
+              ]));
+    }
+
+    /** Store a build unless the store has it, under no single caller's signal. */
+    async #storeOnce(
+        source: BuildReader,
+        digest: Digest,
+        bytes: Uint8Array<ArrayBuffer>,
+    ): Promise<Digest> {
+        return (await this.contains(digest)) ? digest : await this.#store(source, digest, bytes);
+    }
+
+    /** Store a build's missing files, then its manifest and record. */
+    async #store(
+        source: BuildReader,
+        digest: Digest,
+        bytes: Uint8Array<ArrayBuffer>,
+    ): Promise<Digest> {
         // lease the build's blobs, refusing reserved and duplicate file paths
         const list = await source.distributed();
         requireDistinctPaths(list);
@@ -130,12 +163,11 @@ export class PackageStore<
         const missing = new Set(await storage.missing(files.map((file) => file.digest)));
         await inBatches(
             files.filter((file) => missing.has(file.digest)),
-            signal,
+            undefined,
             async (file) => {
-                await storage.write(await source.stream(file.path, signal), file.digest);
+                await storage.write(await source.stream(file.path), file.digest);
             },
         );
-        signal?.throwIfAborted();
         await this.#write(digest, bytes);
 
         // record the build
@@ -456,8 +488,8 @@ export class PackageStore<
     }
 
     /** Lease a build or file until a moment, retaining it and what it references until then. */
-    async lease(digest: Digest, until: Date): Promise<void> {
-        await this.blobs.lease([digest], until.getTime());
+    async lease(digest: Digest, expiresAt: Date): Promise<void> {
+        await this.blobs.lease([digest], expiresAt.getTime());
     }
 
     /** Set the builds a root retains, such as a space's, leaving what it drops to a collection. */

@@ -442,6 +442,31 @@ test("retain a leased build until its lease ends, then collect it with every blo
     });
 });
 
+test("store a build once for callers putting it at once, refusing only the caller whose signal aborts", async () => {
+    // put one build three times at once, one caller aborting while the storing goes on
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using opened = await openStore(await temporary(environment.files), environment);
+    const { store } = opened;
+    const build = await written(SOURCES, environment.crypto);
+    const aborting = new AbortController();
+    const first = store.put(build);
+    const left = store.put(build, aborting.signal).then(
+        () => "stored",
+        (error: unknown) => (error instanceof Error ? error.message : error),
+    );
+    const last = store.put(build);
+    aborting.abort(new Error("caller left"));
+
+    // answer the others with the one digest and its stored files, the aborted caller with its reason
+    const digest = await first;
+    expect({ last: await last, left: await left, stored: await listing(store) }).toEqual({
+        last: digest,
+        left: "caller left",
+        stored: await blobsOf(store, [digest]),
+    });
+});
+
 test("rescue a blob a collection listed as garbage once a writer leases it, and store it again", async () => {
     // collect an unrooted build down to garbage rows, its blobs not deleted yet
     await using simulation = testSimulation();
