@@ -560,6 +560,7 @@ export class Simulation {
         const offset = (Random.fraction(this.random) * 2 - 1) * skew.offset;
         const drift = (Random.fraction(this.random) * 2 - 1) * skew.drift;
 
+        // view the clock at that offset and rate
         const view = this.clock.view({
             offset: Math.round(offset),
             rate: 1 + drift / PARTS_PER_MILLION,

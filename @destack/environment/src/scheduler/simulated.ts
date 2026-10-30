@@ -81,9 +81,9 @@ export class SimulatedScheduler implements Scheduler {
         return scheduler;
     }
 
-    /** Let the host's event loop run once, tracked as host work. */
+    /** Let the host's event loop run once, tracked as the world's work, as no host answers it. */
     yield(): Promise<void> {
-        return this.track(yieldToEventLoop(), "host");
+        return this.track(yieldToEventLoop(), "world");
     }
 
     /** Count work in flight until it settles, answering host work in the order it began. */
