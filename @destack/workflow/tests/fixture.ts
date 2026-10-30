@@ -294,7 +294,7 @@ export async function openServed<Input, Output>(
     // run the world until the condition holds, failing on the controllers' errors first
     const when = async (isMet: () => Promise<boolean>) => {
         try {
-            await simulation.run({ until: isMet, to: clock.now() + UNTIL_MILLISECONDS });
+            await simulation.until(isMet, clock.now() + UNTIL_MILLISECONDS);
         } catch (error) {
             await served.settle();
             throw error;

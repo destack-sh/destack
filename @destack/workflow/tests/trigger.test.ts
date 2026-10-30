@@ -115,7 +115,8 @@ test("fire a declared schedule's occurrences once each, skipping one that overla
     });
 
     // run four minutes
-    await fixture.simulation.run({ to: TEST_START + 4 * MINUTE });
+    await fixture.simulation.clock.sleep(TEST_START + 4 * MINUTE - fixture.simulation.clock.now());
+    await fixture.simulation.idle();
     const runs = await fixture.until(() => true);
     const [declared] = await fixture.served.database.select().from(minutely.trigger.table);
 
