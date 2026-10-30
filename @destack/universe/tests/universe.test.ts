@@ -23,7 +23,7 @@ test("start a universe over its definition, answering the account package below 
         .looseObject({ issuer: schema.string() })
         .parse(await discovery.json());
     const outside = await universe.fetch(new Request(`${origin}/auth/sign-in`));
-    await started.settle();
+    await started.simulation.idle();
     expect([discovery.status, discovered, outside.status]).toEqual([200, issuer, 404]);
 });
 

@@ -1,3 +1,4 @@
+import type { Simulation } from "@destack/environment/simulation";
 import { principal } from "@destack/access";
 import { defineDatabase, type LogPosition, Snapshot } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
@@ -214,8 +215,8 @@ export class TestMachine implements AsyncDisposable {
 
     /** Publish where the machine answers, as a machine does once it listens there. */
     async publish(url: string): Promise<void> {
-        // read the account the machine belongs to from the directory once it follows the universe
-        await this.settle();
+        // read the account the machine belongs to from the directory once the world is idle
+        await this.simulation.idle();
         const row = await Snapshot.live(this.#storage.database)
             .read(machine.table)
             .findFirst({ where: { id: this.id } });
@@ -233,18 +234,18 @@ export class TestMachine implements AsyncDisposable {
             url,
             requestId: RequestId.create(this.environment),
         });
-        await this.settle();
+        await this.simulation.idle();
     }
 
-    /** Wait until the replica follows the universe up to a position of its log, then settle it. */
+    /** Wait until the replica reaches a position of the universe's log, then run the world idle. */
     async follow(head: LogPosition, signal: AbortSignal): Promise<void> {
         await this.#replica.store.wait({ scope: Scope.universe.id, ...head }, signal);
-        await this.#replica.settle();
+        await this.simulation.idle();
     }
 
-    /** Settle the replica's store, failing on a reported failure. */
-    async settle(): Promise<void> {
-        await this.#replica.settle();
+    /** The simulation running the machine's world. */
+    get simulation(): Simulation {
+        return this.#replica.simulation;
     }
 
     /** Read the keyring secrets of the spaces' keys, as a template's value keeps them. */
@@ -252,7 +253,7 @@ export class TestMachine implements AsyncDisposable {
         return { secrets: Object.fromEntries(this.#keychain.secrets) };
     }
 
-    /** Name a test machine after the end of its id, as the universe's kit enrolls it. */
+    /** Name a test machine after the end of its id, as the universe's fixture enrolls it. */
     static nameOf(id: Identifier<"machine">): string {
         return `machine-${id.slice(-12)}`;
     }

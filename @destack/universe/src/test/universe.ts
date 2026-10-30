@@ -128,7 +128,7 @@ export interface TestUniverseOptions {
     readonly simulation?: Simulation;
     /** The registry it opens packages' releases from, refusing every release by default. */
     readonly releases?: ReleaseRegistry;
-    /** The stacks its spaces are born with, the account test kit's by default. */
+    /** The stacks its spaces are born with, the account test fixture's by default. */
     readonly stacks?: UniverseDefinition["stacks"];
     /** The policies of other packages it decides access for, none by default. */
     readonly policies?: UniverseOptions["policies"];
@@ -187,7 +187,7 @@ export class TestUniverse implements AsyncDisposable {
     /** The origin the universe answers at on its simulation's network. */
     readonly origin = TEST_ORIGIN;
     /** The simulation the universe answers on. */
-    readonly #simulation: Simulation;
+    readonly simulation: Simulation;
     /** The cloud machine of each residency, with the keychain keeping its key. */
     readonly #machines: ReadonlyMap<ResidencyCode, DeclaredMachine>;
     /** The machines opened as spaces' hosts, which disposal stops first. */
@@ -198,8 +198,6 @@ export class TestUniverse implements AsyncDisposable {
     readonly #issuer: Issuer;
     /** The authenticator each stepped-up person enrolled, by person. */
     readonly #authenticators: Map<string, string>;
-    /** The failures the universe reported to no one, which settling throws. */
-    readonly #failures: unknown[];
     /** The universe keyring's secret. */
     readonly #keyring: string;
     /** Each person signed in, by email. */
@@ -221,7 +219,6 @@ export class TestUniverse implements AsyncDisposable {
         mail: TestMail,
         environment: Environment,
         machines: ReadonlyMap<ResidencyCode, DeclaredMachine>,
-        failures: unknown[],
         disposables: AsyncDisposableStack,
         world: Pick<UniverseWorld, "keyring" | "people" | "authenticators">,
         simulation: Simulation,
@@ -233,9 +230,8 @@ export class TestUniverse implements AsyncDisposable {
         this.environment = environment;
         this.#machines = machines;
         this.#disposables = disposables;
-        this.#failures = failures;
         this.#keyring = world.keyring;
-        this.#simulation = simulation;
+        this.simulation = simulation;
 
         // reach the issuer over the network, and index the object types it serves
         this.#issuer = new Issuer(
@@ -278,8 +274,6 @@ export class TestUniverse implements AsyncDisposable {
         const keyring = await LocalKeyring.read(secret, environment);
         const key = CallKey.of(keyring, environment.crypto);
         const mail = new TestMail();
-        const failures: unknown[] = [];
-        const failed = Promise.withResolvers<never>();
 
         // declare one cloud machine per residency, keeping its keychain to serve as it, the world's keys when restored
         const residencies = options.residencies ?? [{ code: TEST_RESIDENCY, name: "Europe" }];
@@ -332,10 +326,7 @@ export class TestUniverse implements AsyncDisposable {
                 blobs: new MemoryBlobStorage(environment.crypto),
                 ipAddress: { disableIpTracking: true },
                 environment,
-                report: (error) => {
-                    failures.push(error);
-                    failed.reject(error);
-                },
+                report: (error) => simulation.scheduler.fail(error),
                 releases: () =>
                     options.releases ?? {
                         open: async (packageId, release) => {
@@ -350,10 +341,9 @@ export class TestUniverse implements AsyncDisposable {
         );
 
         // serve once the run applied the definition, failing on the universe's first failure
-        failed.promise.catch(() => undefined);
         await Promise.race([
             Promise.all([...universe.servers.values()].map((server) => server.ready())),
-            failed.promise,
+            simulation.scheduler.failed,
         ]);
 
         // answer at the origin on the simulation's network
@@ -377,7 +367,6 @@ export class TestUniverse implements AsyncDisposable {
             mail,
             environment,
             machines,
-            failures,
             opening.move(),
             world,
             simulation,
@@ -386,7 +375,7 @@ export class TestUniverse implements AsyncDisposable {
 
     /** Send a machine's requests to the universe from its node on the network. */
     #sender(machineId: Identifier<"machine">): (request: Request) => Promise<Response> {
-        return (request) => this.#simulation.network.of(machineId).fetch(request);
+        return (request) => this.simulation.network.of(machineId).fetch(request);
     }
 
     /** The clock the universe runs at, its environment's. */
@@ -439,7 +428,7 @@ export class TestUniverse implements AsyncDisposable {
                 invitationId: invited.id,
                 requestId: RequestId.create(this.environment),
             });
-            await this.settle();
+            await this.simulation.idle();
         }
     }
 
@@ -478,7 +467,7 @@ export class TestUniverse implements AsyncDisposable {
             issuer: this.#issuer,
             mail: this.mail,
             origin: TEST_ORIGIN,
-            fetch: (request: Request) => this.#simulation.network.of(CLIENT_NODE).fetch(request),
+            fetch: (request: Request) => this.simulation.network.of(CLIENT_NODE).fetch(request),
             environment: this.environment,
             residencyId: TEST_RESIDENCY,
         };
@@ -664,7 +653,7 @@ export class TestUniverse implements AsyncDisposable {
     #browser(): TestBrowser {
         return new TestBrowser(
             `${PackageMount.url(TEST_ORIGIN, accountPackage.id)}${OAUTH_PATH}`,
-            (request) => this.#simulation.network.of(CLIENT_NODE).fetch(request),
+            (request) => this.simulation.network.of(CLIENT_NODE).fetch(request),
             BROWSER_LANGUAGE,
         );
     }
@@ -833,15 +822,6 @@ export class TestUniverse implements AsyncDisposable {
         const id = await InstallationId.of(home, RESIDENCY_RELAY, this.environment.crypto);
 
         return principal.installation.reference(home.id, id);
-    }
-
-    /** Settle once no controller of any package has work due, failing on a reported failure. */
-    async settle(): Promise<void> {
-        await this.universe.idle();
-        const failures = this.#failures.splice(0);
-        if (failures.length > 0) {
-            throw new AggregateError(failures, "the test universe failed");
-        }
     }
 
     /** Stop the machines, then the universe, then remove its database. */

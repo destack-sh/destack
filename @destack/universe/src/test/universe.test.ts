@@ -15,7 +15,7 @@ test("sign a person up through the mailed code a native client redeems, make an 
         { objects: { account: [{ object: group, method: "create", input: { name: "Friends" } }] } },
         ada,
     );
-    await universe.settle();
+    await universe.simulation.idle();
 
     // read the group as ada, and refuse a scope or a type the universe does not serve
     const listed = await ada.client(accountPackage).group.list({ scope: ada.account });
@@ -36,8 +36,7 @@ test("place a person's home on their residency's cloud machine, as the machine's
     await using universe = await TestUniverse.open();
     const ada = await universe.signIn("ada@example.test");
     const machine = await universe.machine();
-    await universe.settle();
-    await machine.settle();
+    await universe.simulation.idle();
 
     // read the placement of her home in the replica
     const home = Account.home(ada.account);
@@ -50,8 +49,7 @@ test("enroll a person's machine of their account, published at its name through 
     await using universe = await TestUniverse.open();
     const ada = await universe.signIn("ada@example.test");
     const machine = await universe.enroll(ada, ada.account, "https://eu.relay.test");
-    await universe.settle();
-    await machine.settle();
+    await universe.simulation.idle();
 
     // locate the machine at its name below her handle
     const name = { machine: TestMachine.nameOf(machine.id), handle: ada.handle };
