@@ -137,7 +137,7 @@ export class TestSocial implements AsyncDisposable {
         const { space, world } = await TestSpace.copy(SOCIAL_TEMPLATE, SPACE_OPTIONS);
 
         // serve it, settling the work under the fork
-        return space.simulation.settle(TestSocial.#open(space, world));
+        return TestSocial.#open(space, world);
     }
 
     /** Serve a copied space to its people and the agent. */
@@ -154,16 +154,13 @@ export class TestSocial implements AsyncDisposable {
             agent: TestSocial.#mentioned(principal.installation, world.agent),
         };
 
-        // call as the people and the agent's installation, settled under the simulation
-        const settle = <Value>(work: Promise<Value>) => simulation.settle(work);
+        // call as the people and the agent's installation
         const callers = {
-            alice: space.person(served, nth(people, 0)).driven(settle),
-            bob: space.person(served, nth(people, 1)).driven(settle),
-            carol: space.person(served, nth(people, 2)).driven(settle),
-            dave: space.person(served, nth(people, 3)).driven(settle),
-            agent: served
-                .as(principal.installation.reference(ids.space, world.agent))
-                .driven(settle),
+            alice: space.person(served, nth(people, 0)),
+            bob: space.person(served, nth(people, 1)),
+            carol: space.person(served, nth(people, 2)),
+            dave: space.person(served, nth(people, 3)),
+            agent: served.as(principal.installation.reference(ids.space, world.agent)),
         };
 
         return new TestSocial({ space, served, simulation, actors, callers });
@@ -240,7 +237,8 @@ export class TestSocial implements AsyncDisposable {
         const result = await this.#callers[actor].call(called, { writerId });
 
         // step the world past the call's millisecond, so the next write orders after it by time
-        await this.simulation.run({ to: this.clock.now() + 1 });
+        await this.simulation.clock.sleep(1);
+        await this.simulation.idle();
 
         return result;
     }
@@ -263,7 +261,7 @@ export class TestSocial implements AsyncDisposable {
 
     /** Settle the space's controllers under the simulation. */
     settle(): Promise<void> {
-        return this.simulation.settle(this.space.settle(this.served));
+        return this.space.settle(this.served);
     }
 
     /** Follow the space's presence as an actor's client does, replicating it over HTTP. */
@@ -289,9 +287,7 @@ export class TestSocial implements AsyncDisposable {
         });
 
         // keep the follower until the kit closes, reading its rows under the simulation
-        const follower = new TestFollower(client, resources, (work) =>
-            this.simulation.settle(work),
-        );
+        const follower = new TestFollower(client, resources, (work) => work);
         this.#followers.push(follower);
 
         return follower;
@@ -300,13 +296,11 @@ export class TestSocial implements AsyncDisposable {
     /** End the follows, stop serving the space, then close it. */
     async [Symbol.asyncDispose](): Promise<void> {
         // end the follows before the databases close
-        await this.simulation.settle(
-            Promise.all(this.#followers.map((follower) => follower.close())),
-        );
+        await Promise.all(this.#followers.map((follower) => follower.close()));
 
         // stop serving, then close the space, under the simulation
-        await this.simulation.settle(this.served[Symbol.asyncDispose]());
-        await this.simulation.settle(this.space[Symbol.asyncDispose]());
+        await this.served[Symbol.asyncDispose]();
+        await this.space[Symbol.asyncDispose]();
     }
 }
 

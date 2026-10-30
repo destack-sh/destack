@@ -37,7 +37,8 @@ test("give each reader one receipt and one favourite of an article, marked again
 
     // move the viewer's receipt to the next read, and keep its one star
     const readAt = kit.clock.now() + 1000;
-    await kit.simulation.run({ to: readAt });
+    await kit.simulation.clock.sleep(readAt - kit.simulation.clock.now());
+    await kit.simulation.idle();
     const again = await mark("bob");
     const restarred = await star("bob");
     expect([again.id, again.updatedAt, restarred.id]).toEqual([theirs.id, readAt, starred.id]);
