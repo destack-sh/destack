@@ -384,7 +384,7 @@ export class TestNotification implements AsyncDisposable {
         return serving;
     }
 
-    /** Serve another space the world hosts, such as the account's home, until the fixture closes. */
+    /** Serve another space of the world, such as the account's home, until the fixture closes. */
     async serve(id: Identifier<"space">): Promise<void> {
         const space = present(this.#spaces.get(id), `the hosted space ${id}`);
         const served = await space.serve();
