@@ -2,16 +2,13 @@ import { SettingError } from "../error/index.ts";
 import { DeclarationReference } from "@destack/package/declare";
 import { type DatabaseConnection, Log, Snapshot, type Select } from "@destack/db";
 import { deviceSetting, type DeviceSettingValue } from "./device-setting.ts";
-import { Scope, type Subject } from "@destack/sync";
-import { ObjectClient } from "@destack/object/client";
-import type { ClientOptions } from "@destack/object/client";
+import { Scope } from "@destack/sync";
 import { Setting, SettingMetadata, SettingScope } from "../setting/setting.ts";
 import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
 import { Duration, type Identifier, schema, Version } from "@destack/schema";
 import { DeclarationName, type Package, PackageId } from "@destack/package";
 import { SETTING_MODES } from "../setting/mode.ts";
-import type { Environment } from "@destack/environment";
 
 /** A setting value placed in a scope. */
 export const setting = defineObject({
@@ -187,77 +184,6 @@ export const SettingValue = {
                       ],
                   },
               });
-    },
-
-    /** Replicate a scope's values from their store into a database, yielding each change. */
-    async *replicate(
-        options: {
-            /** The store serving the scope's setting values, such as the universe's. */
-            readonly endpoint: ClientOptions;
-            /** The scope whose values are replicated, such as a person. */
-            readonly scope: string;
-            /** The principal reading them. */
-            readonly caller: Subject;
-            /** The database with the replica, of `ObjectClient.tables({ setting })`. */
-            readonly database: DatabaseConnection;
-            /** The settings yielded. */
-            readonly settings: readonly DeclarationReference[];
-            /** The environment the replica runs in. */
-            readonly environment: Environment;
-        },
-        signal: AbortSignal,
-    ): AsyncGenerator<SettingChain> {
-        // open a client of the scope's values over the database
-        const { endpoint, scope, caller, database, environment } = options;
-        const client = await ObjectClient.open({
-            environment,
-            database,
-            objects: { setting },
-            scope,
-            caller,
-            endpoint,
-            reconnect: (machine) => {
-                throw new TypeError(
-                    `setting values of ${scope} cannot move, but moved to ${machine}`,
-                );
-            },
-        });
-
-        // record the first failure, which stops following
-        const failed = Promise.withResolvers<never>();
-        failed.promise.catch(() => undefined);
-        const stopping = new AbortController();
-        const following = AbortSignal.any([signal, stopping.signal]);
-
-        // run the client and subscribe to the values
-        const running = client.run(following, (error) => {
-            failed.reject(error);
-            stopping.abort();
-        });
-        const live = client.query.setting.findMany({}).subscribe();
-
-        // yield once the values and the chain's access rows are replicated, and after each change
-        try {
-            await Promise.race([live.ready, failed.promise]);
-            await Promise.race([
-                database.log.until(
-                    async () => (await client.access.position(database)) !== undefined,
-                    following,
-                ),
-                failed.promise,
-            ]);
-            yield* SettingValue.follow(database, options.settings, { scope }, following);
-
-            // fail with the replica's failure, which alone stops following before the caller does
-            if (stopping.signal.aborted) {
-                await failed.promise;
-            }
-        } finally {
-            stopping.abort();
-            await live.close();
-            await running;
-            await client.close();
-        }
     },
 
     /** Yield settings' values along a scope's chain and on a device, now and after each change. */

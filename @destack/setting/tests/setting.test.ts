@@ -206,14 +206,14 @@ test("compare required structured values independently of key order", async () =
 });
 
 test("describe a setting and read the settings a build declares", async () => {
-    // describe the value schema as JSON Schema
+    // describe the value schema as JSON Schema, its fields in the key order a build stores
     const layout = defineSetting(
         {
             ...editor.definition,
             name: "layout",
             schema: schema.object({
-                width: schema.number().int().min(1),
                 compact: schema.boolean(),
+                width: schema.number().int().min(1),
             }),
             default: { width: 80, compact: false },
         },
@@ -488,7 +488,7 @@ test("convert stored values of earlier releases, and skip values of later releas
         ),
     ).toThrow(
         new TypeError(
-            "conversion of editor.mode is keyed by 2026.10.0, after its release 2026.9.0",
+            "conversion of editor.mode is keyed by 2026.10.0, after its version 2026.9.0",
         ),
     );
 });
