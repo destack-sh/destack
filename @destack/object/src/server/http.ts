@@ -556,9 +556,11 @@ export class Server implements AsyncDisposable {
             .sleep(this.#options.drainTimeout, disarm.signal)
             .then(() => {
                 // list the requests still open
-                const open = [...this.#requests.values()].map(
-                    (request) => `${request.method} ${new URL(request.url).pathname}`,
-                );
+                const open = [...this.#requests.values()].map((request) => {
+                    const url = new URL(request.url);
+
+                    return `${request.method} ${url.host}${url.pathname}`;
+                });
                 const error = new DOMException(
                     `server drain deadline exceeded with requests open: ${open.join(", ")}`,
                     "TimeoutError",

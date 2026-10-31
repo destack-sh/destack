@@ -115,7 +115,7 @@ afterAll(async () => {
     await world[Symbol.asyncDispose]();
 });
 
-test("start the workload with its installation's settings, serve a forwarded caller below the mount of each package the workload serves, and export telemetry with only its release to the host with the runner's secret", async () => {
+test("start the workload with its installation's settings, serve a forwarded caller below the mount of each package the workload serves, and export its start's traces and logs with only its release to the host with the runner's secret once it starts", async () => {
     const node = world.environment("test");
     // capture the telemetry the runner exports to its host
     const exported: {
@@ -201,6 +201,10 @@ test("start the workload with its installation's settings, serve a forwarded cal
         },
     );
 
+    // read what it exported once its start settled
+    await world.idle();
+    const started = exported.map((request) => request.events);
+
     // refuse a request without the host's secret
     const mount = `http://runner.test${PackageMount.path(notes.id)}`;
     const unauthorized = await runner.fetch(new Request(`${mount}/notes`));
@@ -243,6 +247,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
     await runner.close();
 
     expect({
+        started,
         settings,
         unauthorized: [unauthorized.status, refusal],
         served,
@@ -250,6 +255,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
         other: other.status,
         exported: exported.filter((request) => request.events.length > 0),
     }).toEqual({
+        started: [["workload.started"]],
         settings: { [`${notes.id}/language`]: "de" },
         unauthorized: [
             401,

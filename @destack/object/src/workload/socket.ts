@@ -265,17 +265,23 @@ export class HibernationHost {
             );
         }
 
-        // close the socket of the identifier, a closed one at once, or replace its stored value, or send to it
+        // drop a call to a closed socket, as a WebSocket discards sends once closed
         const id = decodeURIComponent(pathname.slice(SOCKET_PATH.length + 1));
         const socket = sockets.get(id);
-        if (request.method === "DELETE") {
-            socket?.close();
-        } else if (socket === undefined) {
-            throw ObjectError.of("SOCKET_NOT_FOUND", `hibernated socket ${id} not found`);
-        } else if (request.method === "PUT") {
+        if (socket === undefined) {
+            await request.body?.cancel();
+        }
+        // close the socket
+        else if (request.method === "DELETE") {
+            socket.close();
+        }
+        // replace its stored value
+        else if (request.method === "PUT") {
             const attachment = schema.json().parse(await request.json());
             socket.attachment.acceptance = { ...socket.attachment.acceptance, attachment };
-        } else {
+        }
+        // send to it otherwise
+        else {
             socket.send(new Uint8Array(await request.arrayBuffer()));
         }
 

@@ -58,6 +58,9 @@ export interface RunnerOptions {
     readonly environment: Environment;
 }
 
+/** The telemetry a runner exports through, flushed after its work and shut down at its end. */
+export type RunnerTelemetry = Environment["telemetry"] & Pick<Telemetry, "shutdown" | "flush">;
+
 /** A workload instance a host started, on any runtime. */
 export class WorkloadRunner implements AsyncDisposable {
     /** The host's start message. */
@@ -73,16 +76,25 @@ export class WorkloadRunner implements AsyncDisposable {
     /** The WebSockets the host hibernates for the instance. */
     readonly #hibernation: Hibernation;
     /** The telemetry that exports to the host, which relays it to observability. */
-    readonly #telemetry: Environment["telemetry"] & Pick<Telemetry, "shutdown">;
+    readonly #telemetry: RunnerTelemetry;
+    /** The scheduler each export runs under as tracked work. */
+    readonly #scheduler: Environment["scheduler"];
+    /** Report a failure no caller sees, such as a failed export. */
+    readonly #report: (error: unknown) => void;
+    /** Whether the runner stops, its telemetry exporting what remains as it shuts down. */
+    #isClosing = false;
+
     /** Create the runner with a started instance and its telemetry. */
     private constructor(
         start: WorkloadStart,
         instance: WorkloadInstance,
         packages: ReadonlyMap<string, PackageHandle>,
-        running: Environment["telemetry"] & Pick<Telemetry, "shutdown">,
+        running: RunnerTelemetry,
         packageId: PackageId,
         connections: AsyncDisposableStack,
         hibernation: Hibernation,
+        scheduler: Environment["scheduler"],
+        report: (error: unknown) => void,
     ) {
         // set the instance and what it runs with
         this.start = start;
@@ -92,6 +104,8 @@ export class WorkloadRunner implements AsyncDisposable {
         this.#telemetry = running;
         this.#connections = connections;
         this.#hibernation = hibernation;
+        this.#scheduler = scheduler;
+        this.#report = report;
     }
 
     /** Start a workload of a build as a host's start asks. */
@@ -102,7 +116,7 @@ export class WorkloadRunner implements AsyncDisposable {
         startTelemetry: (
             options: TelemetryOptions,
             environment: Environment,
-        ) => Promise<Environment["telemetry"] & Pick<Telemetry, "shutdown">>,
+        ) => Promise<RunnerTelemetry>,
         report: (error: unknown) => void,
     ): Promise<WorkloadRunner> {
         // export the package's telemetry to its host, the instance's environment emitting through it
@@ -148,7 +162,8 @@ export class WorkloadRunner implements AsyncDisposable {
                 instance: start.instance,
             });
 
-            return new WorkloadRunner(
+            // export the start's traces and logs
+            const started = new WorkloadRunner(
                 start,
                 instance,
                 packages,
@@ -156,7 +171,12 @@ export class WorkloadRunner implements AsyncDisposable {
                 runner.workload.package.id,
                 connections,
                 hibernation,
+                runner.environment.scheduler,
+                report,
             );
+            started.#export();
+
+            return started;
         } catch (error) {
             await connections.disposeAsync();
             await running.shutdown();
@@ -233,8 +253,18 @@ export class WorkloadRunner implements AsyncDisposable {
         return this.instance.signal;
     }
 
-    /** Serve a forwarded request below the mount of one of the workload's packages. */
+    /** Serve a forwarded request, exporting its traces and logs once it is answered. */
     fetch(request: Request): Promise<Response> {
+        // serve it, then export once it is answered or refused
+        const answered = this.#serveRequest(request);
+        const exported = () => this.#export();
+        void answered.then(exported, exported);
+
+        return answered;
+    }
+
+    /** Serve a forwarded request below the mount of one of the workload's packages. */
+    #serveRequest(request: Request): Promise<Response> {
         // refuse a request without the host's secret before anything serves it
         if (request.headers.get("authorization") !== `Bearer ${this.start.secret}`) {
             return Promise.resolve(
@@ -325,9 +355,26 @@ export class WorkloadRunner implements AsyncDisposable {
         }
     }
 
-    /** Run the controllers at the host's wake-up. */
+    /** Run the controllers at the host's wake-up, exporting their traces and logs once they ran. */
     alarm(deadline: number): Promise<void> {
-        return this.instance.alarm(deadline);
+        // run them, then export once they ran or failed
+        const ran = this.instance.alarm(deadline);
+        const exported = () => this.#export();
+        void ran.then(exported, exported);
+
+        return ran;
+    }
+
+    /** Export the buffered spans and log records as tracked work, as serverless runtimes do. */
+    #export(): void {
+        // leave what remains to the shutdown once the runner stops
+        if (this.#isClosing) {
+            return;
+        }
+        void this.#scheduler.track(
+            () => this.#telemetry.flush(["traces", "logs"]).catch(this.#report),
+            "world",
+        );
     }
 
     /** Hand the workload its store's request to run a hook, answering a refusal as it is. */
@@ -359,6 +406,7 @@ export class WorkloadRunner implements AsyncDisposable {
             await this.instance.close();
             await this.#connections.disposeAsync();
         } finally {
+            this.#isClosing = true;
             await this.#telemetry.shutdown();
         }
     }

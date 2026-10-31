@@ -513,7 +513,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
         message: "Cannot parse response body, please check the response body and content-type.",
         cause: {
             name: "TimeoutError",
-            message: "server drain deadline exceeded with requests open: GET /work",
+            message: "server drain deadline exceeded with requests open: GET test.local/work",
         },
     });
 

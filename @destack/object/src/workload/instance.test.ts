@@ -243,7 +243,7 @@ test("retain shared resources until an overdue request observes cancellation", a
     const response = instance.fetch(first, new Request("https://fixture.test/work"));
     const responseFailure = expect(response).rejects.toMatchObject({
         name: "TimeoutError",
-        message: "server drain deadline exceeded with requests open: GET /work",
+        message: "server drain deadline exceeded with requests open: GET fixture.test/work",
     });
     await accepted.promise;
     const closing = instance.close();
@@ -252,7 +252,7 @@ test("retain shared resources until an overdue request observes cancellation", a
         errors: [
             {
                 name: "TimeoutError",
-                message: "server drain deadline exceeded with requests open: GET /work",
+                message: "server drain deadline exceeded with requests open: GET fixture.test/work",
             },
         ],
     });

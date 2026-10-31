@@ -120,7 +120,6 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     SCOPE_NOT_CONTAINED: { code: "NOT_FOUND" },
     SCOPE_NOT_FOUND: { code: "NOT_FOUND" },
     SCOPE_OUTSIDE_REQUEST: { code: "NOT_FOUND" },
-    SOCKET_NOT_FOUND: { code: "NOT_FOUND" },
     TYPE_NOT_IN_SCOPE: { code: "NOT_FOUND" },
     PACKAGE_UNKNOWN: { code: "NOT_FOUND" },
     TYPE_UNKNOWN: { code: "NOT_FOUND" },
