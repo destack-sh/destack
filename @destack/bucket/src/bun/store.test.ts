@@ -1,5 +1,7 @@
 import { testSimulation } from "@destack/test/world";
-import { expect, test } from "@destack/test";
+import { join } from "node:path";
+import { expect, refusal, test } from "@destack/test";
+import { Digest } from "@destack/schema";
 import { LocalBlobStorage } from "./store.ts";
 
 /** Yield text as one chunk of bytes. */
@@ -25,6 +27,37 @@ test("keep a body once under its digest, list the kept blobs and delete one, twi
         listed: await Array.fromAsync(store.digests()),
         files: (await world.files.readDirectory(directory)).map((entry) => entry.name),
     }).toEqual({ again: kept, listed: [kept], files: [kept] });
+});
+
+test("move a file into its blob once, refusing one whose bytes do not match its digest", async () => {
+    // keep a blob by moving a file, move a second copy of it, and move a file under a wrong digest
+    await using simulation = testSimulation();
+    const world = simulation.environment("host");
+    const { files } = world;
+    const directory = await files.makeTemporaryDirectory("moves-");
+    const store = await LocalBlobStorage.open(join(directory, "blobs"), world);
+    const expected = await store.write(bytesOf("moved"));
+    await store.delete(expected);
+    await files.writeTextFile(join(directory, "first"), "moved");
+    await files.writeTextFile(join(directory, "second"), "moved");
+    await files.writeTextFile(join(directory, "wrong"), "other");
+    const first = await store.move(join(directory, "first"), expected);
+    const second = await store.move(join(directory, "second"), expected);
+    const refused = await refusal(store.move(join(directory, "wrong"), expected));
+    const other = await Digest.of(new TextEncoder().encode("other"), world.crypto);
+
+    // keep the blob once, consume both copies, and leave the refused file where it was
+    expect({
+        moved: [first, second],
+        blobs: await Array.fromAsync(store.digests()),
+        left: (await files.readDirectory(directory)).map((entry) => entry.name).toSorted(),
+        refused,
+    }).toEqual({
+        moved: [expected, expected],
+        blobs: [expected],
+        left: ["blobs", "wrong"],
+        refused: ["BAD_REQUEST", "BAD_DIGEST", `expected blob ${expected}, got ${other}`],
+    });
 });
 
 test("read a range of a blob at an unaligned offset across read-sized chunks, and nothing of an empty range", async () => {

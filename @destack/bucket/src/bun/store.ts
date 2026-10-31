@@ -136,6 +136,31 @@ export class LocalBlobStorage implements BlobStorage {
         }
     }
 
+    /** Keep a file this store may consume under its digest, moving it into the directory. */
+    async move(path: string, expected: Digest): Promise<Digest> {
+        // hash the file where it is
+        const digest = Digest.parse(
+            createHash("sha256")
+                .update(await this.#files.readFile(path))
+                .digest("hex"),
+        );
+        if (digest !== expected) {
+            throw BucketError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
+        }
+
+        // keep the file under its digest once
+        if (await this.#files.exists(this.path(digest))) {
+            await this.#files.remove(path);
+        } else {
+            await this.#files.rename(path, this.path(digest));
+            if (this.#synchronous === "full") {
+                await syncDirectory(this.directory, this.#files);
+            }
+        }
+
+        return digest;
+    }
+
     /** Keep the blobs the directory lacks among some digests, read from another store. */
     async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "batch">): Promise<void> {
         for await (const { digest, body } of source.batch(
