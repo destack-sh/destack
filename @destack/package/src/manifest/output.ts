@@ -56,7 +56,7 @@ export const OutputContent = PackageOutput.omit({ files: true });
 export type OutputContent = schema.Input<typeof OutputContent>;
 
 /** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
-export const ImportMap = schema.object({
+const importMap = schema.object({
     /** The URL of each specifier the page's own modules import. */
     imports: schema.record(schema.string().min(1), schema.string()),
     /** The URL of each specifier the modules below a URL prefix import, by prefix. */
@@ -66,4 +66,16 @@ export const ImportMap = schema.object({
     ),
 });
 /** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
-export type ImportMap = schema.Infer<typeof ImportMap>;
+export const ImportMap = Object.assign(importMap, {
+    /** Write the script element of an import map, escaped for HTML. */
+    script(map: ImportMap): string {
+        return `<script type="importmap">${JSON.stringify(map).replaceAll("<", "\\u003c")}</script>`;
+    },
+
+    /** Insert an import map at the start of a page's head, before every module it loads. */
+    insert(html: string, map: ImportMap): string {
+        return html.replace(/<head(?:\s[^>]*)?>/u, (head) => `${head}${ImportMap.script(map)}`);
+    },
+});
+/** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
+export type ImportMap = schema.Infer<typeof importMap>;

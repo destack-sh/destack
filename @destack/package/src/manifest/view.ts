@@ -37,9 +37,6 @@ export const ViewCategory = schema.enum(VIEW_CATEGORIES);
 /** A role a client opens a view in. */
 export type ViewCategory = schema.Infer<typeof ViewCategory>;
 
-/** A path below a view's base, such as a static view's prerendered page. */
-const ViewPath = schema.string().regex(/^\/[^\s?#]*$/u);
-
 /** How a build's manifest says a view renders. */
 const viewRender = schema.discriminatedUnion("mode", [
     schema.object({
@@ -47,10 +44,8 @@ const viewRender = schema.discriminatedUnion("mode", [
         mode: schema.literal("client"),
     }),
     schema.object({
-        /** Prerendered at build, its pages hydrating in the browser. */
+        /** Prerendered at build into its pages directory, its pages hydrating in the browser. */
         mode: schema.literal("static"),
-        /** The paths prerendered below the view's base, each a page of the browser output. */
-        pages: schema.array(ViewPath),
     }),
     schema.object({
         /** Rendered per request by the package's workload, as the visitor. */
@@ -62,7 +57,7 @@ const viewRender = schema.discriminatedUnion("mode", [
 
 /** How a view renders: in the browser, prerendered at build, or on the server per request. */
 export const ViewRender = Object.assign(viewRender, {
-    /** How a view's declaration says it renders, with a static view's site, before its build. */
+    /** How a view's declaration says it renders, before its build. */
     declaration: schema.discriminatedUnion("mode", [
         schema.object({
             /** Rendered by the browser. */
@@ -73,12 +68,8 @@ export const ViewRender = Object.assign(viewRender, {
             mode: schema.literal("static"),
             /** The site's public origin. */
             origin: schema.url(),
-            /** The paths prerendered below the view's base. */
-            paths: schema.array(ViewPath),
-            /** The path rendering the not-found page, null for none. */
-            notFound: schema.string().nullable(),
-            /** The files the site publishes beside its pages, as JSON its view build reads. */
-            metadata: schema.json().nullable(),
+            /** How its pages hydrate: whole, or only their islands. */
+            hydrate: schema.enum(["page", "islands"]),
         }),
         schema.object({
             /** Rendered per request on the server. */
@@ -94,6 +85,8 @@ const viewDescription = schema
     .object({
         /** The emitted chunk mounting the view. */
         entrypoint: PackagePath,
+        /** The stylesheets the view's pages link, in order. */
+        stylesheets: schema.array(PackagePath),
         /** The browser features the view may use beyond the bare sandbox. */
         sandbox: Sandbox,
         /** The object types the view presents, so opening an object picks its view. */
@@ -136,6 +129,11 @@ export const ViewDescription = Object.assign(viewDescription, {
         }
 
         return views;
+    },
+
+    /** Read the directory of a static view's pages in the browser output describing it. */
+    pages(output: { readonly directory: string }, view: string): string {
+        return `${output.directory}/view/${view}`;
     },
 
     /** List view names by rank: views of no type first, then by strength and name. */

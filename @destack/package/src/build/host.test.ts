@@ -2,7 +2,7 @@ import { testSimulation } from "@destack/test/world";
 import { expect, test, refusal } from "@destack/test";
 import { join } from "node:path";
 import { rolldown } from "rolldown";
-import { HostModules } from "./host.ts";
+import { HostModuleResolver } from "./host.ts";
 
 test("classify host modules a runtime keeps, modules a package replaces with nothing, and the rest as unavailable", async () => {
     // write a package whose browser field replaces node:fs and a package with nothing
@@ -16,8 +16,8 @@ test("classify host modules a runtime keeps, modules a package replaces with not
     const importer = join(directory, "index.js");
 
     // classify on Bun, then in a browser through that package
-    const bun = new HostModules("bun", files);
-    const browser = new HostModules("browser", files);
+    const bun = new HostModuleResolver("bun", files);
+    const browser = new HostModuleResolver("browser", files);
     expect([
         await bun.classify("node:fs", undefined),
         await browser.classify("node:fs", importer),
@@ -31,7 +31,7 @@ test("refuse a host module the runtime lacks and the importing package keeps", a
     // resolve a host module the browser lacks for a module of no package
     await using simulation = testSimulation();
     const { files } = simulation.environment("test");
-    const hosts = new HostModules("browser", files);
+    const hosts = new HostModuleResolver("browser", files);
 
     expect(await refusal(hosts.resolve("node:path", "/app/index.js"))).toEqual([
         "UNPROCESSABLE_CONTENT",
@@ -59,7 +59,7 @@ test("bundle a host module the runtime keeps as an import, and one its package r
         const build = await rolldown({
             cwd: directory,
             input: "index.js",
-            plugins: [new HostModules(runtime, files).plugin()],
+            plugins: [new HostModuleResolver(runtime, files).plugin()],
         });
         const { output } = await build.generate({ format: "esm" });
 

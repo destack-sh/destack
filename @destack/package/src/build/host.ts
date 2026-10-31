@@ -1,5 +1,5 @@
 import { type FileSystem, FileSystemError } from "@destack/environment";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import type { Plugin } from "vite";
 import { schema } from "@destack/schema";
 import type { Runtime } from "../runtime/index.ts";
@@ -22,8 +22,8 @@ const BrowserField = schema.looseObject({
 /** How a compilation takes a host module: kept external, or bundled as an empty module. */
 export type HostResolution = "external" | "empty";
 
-/** The host modules one runtime supplies, and the modules packages replace with nothing. */
-export class HostModules {
+/** Resolve host modules for one runtime: kept external, replaced with nothing, or refused. */
+export class HostModuleResolver {
     /** The runtime the compilation targets. */
     readonly runtime: Runtime;
     /** The modules each package's `browser` field replaces with nothing, by directory. */
@@ -103,9 +103,9 @@ export class HostModules {
 
     /** Report whether the importer's `browser` field replaces a bare module with nothing. */
     async #isReplaced(specifier: string, importer: string | undefined): Promise<boolean> {
-        // replace nothing on Bun, for an entry, or for a path the bundler maps itself
+        // replace nothing on Bun, for an entry or a generated module, or for a path the bundler maps itself
         const isPath = specifier.startsWith(".") || specifier.startsWith("/");
-        if (this.runtime === "bun" || importer === undefined || isPath) {
+        if (this.runtime === "bun" || importer === undefined || !isAbsolute(importer) || isPath) {
             return false;
         }
 

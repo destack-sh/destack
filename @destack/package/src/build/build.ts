@@ -1,6 +1,6 @@
 import type { Environment } from "@destack/environment";
-import type { Manifest, Plugin, PluginOption } from "vite";
-import { type Digest, schema } from "@destack/schema";
+import type { Plugin, PluginOption } from "vite";
+import type { Digest } from "@destack/schema";
 import type { Sandbox } from "../definition/sandbox.ts";
 import type { Package } from "../definition/package.ts";
 import type { DeclarationDescription } from "../definition/declaration.ts";
@@ -17,15 +17,29 @@ export interface BuildExtension {
     readonly compile?: (compilation: Compilation) => readonly PluginOption[];
     /** Describe the workloads and views of one compiled module output. */
     readonly describe?: (compilation: Compilation, compiled: CompiledOutput) => OutputDescription;
-    /** The output kinds this dependency compiles in a pass of its own, such as web applications. */
-    readonly outputs?: Readonly<Record<string, OutputKind>>;
-    /** Request the outputs a package's own declarations need, such as a static view's, by name. */
-    readonly request?: (
-        context: Pick<Compilation, "package" | "directory" | "declarations" | "locate">,
-    ) => Readonly<Record<string, OutputRequest>>;
+    /** Render a package's pages once its module outputs compiled, returning their files by path. */
+    readonly prerender?: (
+        context: PrerenderContext,
+    ) => Promise<ReadonlyMap<string, Uint8Array<ArrayBuffer>>>;
 }
 
-/** What modules compile for: package, runtime, server rendering, and per-extension options. */
+/** A package build once its module outputs compiled, as extensions render pages from it. */
+export interface PrerenderContext {
+    /** The package the build compiles. */
+    readonly package: Package;
+    /** The package's source directory. */
+    readonly directory: string;
+    /** The build directory, its module outputs written and its dependency builds linked. */
+    readonly build: string;
+    /** The package's own declarations. */
+    readonly declarations: readonly DeclarationDescription[];
+    /** The compiled module outputs, by name. */
+    readonly outputs: Readonly<Record<string, OutputContent>>;
+    /** The clock, files and processes the pages render with. */
+    readonly environment: Environment<"files" | "process">;
+}
+
+/** What modules compile for: package, runtime and server rendering. */
 export interface TransformContext {
     /** The package directory. */
     readonly directory: string;
@@ -33,8 +47,6 @@ export interface TransformContext {
     readonly runtime: Runtime;
     /** Whether a server renders the modules' pages before the browser hydrates them. */
     readonly server: boolean;
-    /** The options an output gives each extension, by the name of the extension's package. */
-    readonly options: Readonly<Record<string, unknown>>;
     /** The build's content-addressed cache of derived files, absent where builds keep none. */
     readonly cache?: TransformCache;
     /** The directory of each Destack dependency's build, by package name. */
@@ -49,66 +61,6 @@ export interface TransformCache {
     readonly read: (key: Digest) => Promise<Uint8Array<ArrayBuffer> | undefined>;
     /** Keep bytes under a key for later builds. */
     readonly write: (key: Digest, bytes: Uint8Array<ArrayBuffer>) => Promise<void>;
-}
-
-/** An output kind compiled in one pass into several outputs, such as a web app's two sides. */
-export interface OutputKind {
-    /** Expand a request into the outputs it compiles, by output name. */
-    readonly expand: (
-        name: string,
-        request: OutputRequest,
-    ) => Readonly<Record<string, ExpandedOutput>>;
-    /** Compile the expanded outputs together and describe each one's manifest output. */
-    readonly compile: (
-        name: string,
-        request: OutputRequest,
-        compilations: Readonly<Record<string, Compilation>>,
-        pass: Pass,
-    ) => Promise<Readonly<Record<string, OutputContent>>>;
-}
-
-/** A requested output of a kind an extension compiles, such as a web app, with its settings. */
-export const OutputRequest = schema.looseObject({
-    /** The output kind. */
-    kind: schema.string().min(1),
-});
-/** A requested output of a kind an extension compiles, such as a web app, with its settings. */
-export type OutputRequest = schema.Infer<typeof OutputRequest>;
-
-/** An output a kind expands a request into, inspected like a module output. */
-export interface ExpandedOutput {
-    /** The runtime the output runs on. */
-    readonly runtime: Runtime;
-    /** Package-relative modules compiled as the package's exports. */
-    readonly entries: Readonly<Record<string, string>>;
-    /** Package-relative modules inspected beside the entries, such as framework entries. */
-    readonly files: readonly string[];
-}
-
-/** What a build lends an output kind's pass: its standard plugins, files and checks. */
-export interface Pass {
-    /** Return the plugins retaining sources, directories and module metadata for every output. */
-    readonly plugins: () => Plugin[];
-    /** Return the plugins of the dependency closure's extensions, transforming the modules. */
-    readonly transforms: (
-        context: Omit<TransformContext, "directory" | "dependencies" | "environment">,
-    ) => PluginOption[];
-    /** The clock, files and process the build runs on, which a pass spawns its renderers from. */
-    readonly environment: Environment<"files" | "process">;
-    /** Return the plugin recording what one Vite environment compiles, into its output if any. */
-    readonly record: (environment: string, output?: string) => Plugin;
-    /** Map a generated file's source map source to its package path. */
-    readonly mapSource: (source: string, map: string, generated: string) => string;
-    /** Describe a Vite asset manifest by package paths instead of paths below a root. */
-    readonly describeAssets: (manifest: Manifest, root: string) => Manifest;
-    /** Stage the package in a temporary directory that resolves its dependencies. */
-    readonly stage: () => Promise<AsyncDisposable & { readonly directory: string }>;
-    /** Keep a generated file in the build. */
-    readonly file: (path: string, bytes: Uint8Array<ArrayBuffer>) => void;
-    /** Copy a generated file into the build. */
-    readonly copy: (path: string, source: string) => Promise<void>;
-    /** Keep a generated file's source map. */
-    readonly sourceMap: (generated: string, map: string) => void;
 }
 
 /** One output a package build compiles, as extensions compile and describe it. */
@@ -137,6 +89,8 @@ export interface CompiledOutput {
     readonly exports: Readonly<Record<string, string>>;
     /** Select the declarations in an entrypoint's modules, refusing imports its runtime lacks. */
     readonly declarations: (entrypoint: string) => DeclarationDescription[];
+    /** List the stylesheets an entrypoint's chunks import, statically or on demand. */
+    readonly stylesheets: (entrypoint: string) => string[];
 }
 
 /** The workloads and views an extension describes in one output. */

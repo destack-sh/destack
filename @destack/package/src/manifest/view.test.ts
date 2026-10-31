@@ -4,6 +4,7 @@ import { ViewDescription } from "./view.ts";
 /** A view of no type, as an output compiles it. */
 const VIEW: ViewDescription = {
     entrypoint: "home.js",
+    stylesheets: [],
     sandbox: {},
     presents: [],
     categories: [],
