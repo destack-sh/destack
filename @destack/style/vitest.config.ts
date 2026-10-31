@@ -16,7 +16,6 @@ export default defineConfiguration(
                 dependencies: {},
                 runtime: "browser",
                 server: false,
-                options: {},
                 environment: BunEnvironment.system,
             }),
         ],
