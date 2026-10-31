@@ -101,7 +101,7 @@ export class SqliteWorkQueue {
         // keep the other worlds waiting for the file from moving time past it
         for (const waiting of this.#waiting.keys()) {
             if (waiting !== scheduler) {
-                void waiting.track(settled, "peer");
+                void waiting.track(() => settled, "peer");
             }
         }
 
@@ -119,7 +119,7 @@ export class SqliteWorkQueue {
         this.#waiting.set(scheduler, (this.#waiting.get(scheduler) ?? 0) + 1);
         const running = this.#running;
         if (running !== undefined && running.scheduler !== scheduler) {
-            void scheduler.track(running.settled, "peer");
+            void scheduler.track(() => running.settled, "peer");
         }
 
         // race the turn against the wait on the clock, which the turn stops

@@ -99,7 +99,10 @@ export class TestDatabase<
         options: TestDatabaseOptions,
     ): Promise<TestDatabase<Models>> {
         // count the harness's file and schema work in flight as a peer on the database's scheduler
-        return options.environment.scheduler.track(TestDatabase.#create(tables, options), "peer");
+        return options.environment.scheduler.track(
+            () => TestDatabase.#create(tables, options),
+            "peer",
+        );
     }
 
     /** Create an isolated database, as `create` tracks it. */
@@ -158,7 +161,7 @@ export class TestDatabase<
 
         // copy each database, counting the harness's copying in flight on the fork's scheduler
         const copied = await environment.scheduler.track(
-            TestDatabase.#copyDatabases(template, image, environment),
+            () => TestDatabase.#copyDatabases(template, image, environment),
             "peer",
         );
         const databases = mapValues<Databases, TemplateStorage<Databases>>(
@@ -400,36 +403,39 @@ export class TestDatabase<
         options: TestDatabaseOptions,
         template?: string,
     ): Promise<TestDatabase<Models>> {
-        // copy the template's or the migrated database into a temporary file, each step tracked as host work
+        // copy the template or the migrated database into a temporary file as host work
         const { environment } = options;
         const { scheduler } = environment;
         const directory = await scheduler.track(
-            HOST.files.makeTemporaryDirectory("destack-test-"),
+            () => HOST.files.makeTemporaryDirectory("destack-test-"),
             "host",
         );
         const file = join(directory, "test.db");
+
+        // migrate a template as peer work, as it runs the world's effects
         const source =
             template ??
             (options.isMigrated === true
                 ? await scheduler.track(
-                      sqliteTemplate(
-                          declared,
-                          options.isReplica ?? false,
-                          replicatedOf(tables),
-                          environment,
-                      ),
-                      "host",
+                      () =>
+                          sqliteTemplate(
+                              declared,
+                              options.isReplica ?? false,
+                              replicatedOf(tables),
+                              environment,
+                          ),
+                      "peer",
                   )
                 : undefined);
         if (source !== undefined) {
-            await scheduler.track(HOST.files.copyFile(source, file), "host");
+            await scheduler.track(() => HOST.files.copyFile(source, file), "host");
         }
 
         // open it, a world's copy keeping its log epoch
         return TestDatabase.#sqliteAt(
             file,
             tables,
-            () => scheduler.track(HOST.files.remove(directory, { recursive: true }), "host"),
+            () => scheduler.track(() => HOST.files.remove(directory, { recursive: true }), "host"),
             environment,
             template === undefined ? "renew" : "keep",
         );
@@ -479,13 +485,14 @@ export class TestDatabase<
         tables: declaration.Database<Other> | readonly Table[],
     ): Promise<ClosingConnection<Other>> {
         // require a reachable database
-        if (this.#open === undefined) {
+        const open = this.#open;
+        if (open === undefined) {
             throw new TypeError("an in-memory SQLite database has no further connections");
         }
 
         // track the connection, counting its opening in flight on the database's scheduler
         const connection = await this.database.state.environment.scheduler.track(
-            this.#open(tables),
+            () => open(tables),
             "peer",
         );
         this.#connections.add(connection);
@@ -499,7 +506,7 @@ export class TestDatabase<
         await Promise.all([...this.#connections].map((connection) => connection.close()));
         const { scheduler } = this.database.state.environment;
         await this.database.close();
-        await scheduler.track(this.#remove(), "peer");
+        await scheduler.track(() => this.#remove(), "peer");
     }
 }
 

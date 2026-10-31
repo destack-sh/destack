@@ -101,7 +101,7 @@ export class TransactionIdentity {
             () => commits.forget(token.value),
         );
         void this.#connection.environment.scheduler
-            .track(delivered, "peer")
+            .track(() => delivered, "peer")
             .catch(() => commits.forget(token.value));
     }
 

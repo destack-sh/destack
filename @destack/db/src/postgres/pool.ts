@@ -171,7 +171,7 @@ export class PostgresPool {
         const ended = Promise.withResolvers<void>();
         this.#waiters.push(released.resolve);
         if ([...this.#holders.values()].some((holder) => holder !== scheduler)) {
-            void scheduler.track(ended.promise, "peer");
+            void scheduler.track(() => ended.promise, "peer");
         }
         try {
             // race the release against the wait on the clock
