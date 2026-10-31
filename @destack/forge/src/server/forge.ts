@@ -314,10 +314,10 @@ export class Forge {
         objects: ObjectStore,
     ): Promise<Response> {
         return this.store.fetch(request, new URL("/", this.#options.endpoint), {
-            authorize: async (_request, digest) => {
+            pull: async (_request, digest) => {
                 await this.#readable(digest, context, objects);
             },
-            upload: async (upload, scope) => this.#authorizeUpload(upload, scope, context, objects),
+            push: async (upload, scope) => this.#authorizeUpload(upload, scope, context, objects),
         });
     }
 
