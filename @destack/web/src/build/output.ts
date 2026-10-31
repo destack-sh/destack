@@ -11,7 +11,7 @@ import {
     runtimeCss,
     runtimeTarget,
 } from "@destack/package/build";
-import type { OutputExport, PackageOutput } from "@destack/package/manifest";
+import type { OutputExport, OutputContent } from "@destack/package/manifest";
 import type { Runtime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
 import { SolidApplication, VIEW_PACKAGE } from "@destack/view/build";
@@ -176,7 +176,7 @@ export const webOutput: OutputKind = {
         }
 
         // keep each distributed side's files, describing Start's asset manifest by package paths
-        const outputs: Record<string, PackageOutput> = {};
+        const outputs: Record<string, OutputContent> = {};
         await keepSide(build, "client", browser);
         outputs[browser] = describeSide(build, "client", browser);
         if (server !== undefined) {
@@ -372,7 +372,7 @@ async function keepSide(build: WebBuild, side: "client" | "server", output: stri
 }
 
 /** Describe a side's output, distributing the server handler only when emitted. */
-function describeSide(build: WebBuild, side: "client" | "server", output: string): PackageOutput {
+function describeSide(build: WebBuild, side: "client" | "server", output: string): OutputContent {
     // describe the side's runtime, distribution and exports
     const { application } = build;
     const isServer = side === "server";

@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, expect, onTestFinished, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
-import { CompilerPool, type LocalPackageStore, type PackageBuild } from "@destack/build";
+import { CompilerPool, type LocalBuildStore, type PackageBuild } from "@destack/build";
 import { PackageCopy, testStore, testSimulation } from "@destack/build/test";
 import type { Simulation } from "@destack/environment/simulation";
 import { requests } from "../../tests/fixture/website/request.ts";
@@ -19,7 +19,7 @@ const WEBSITE_BUILD_MILLISECONDS = 60_000;
 /** The world the tests build in. */
 let simulation: Simulation;
 /** The checkout's test store. */
-let store: LocalPackageStore;
+let store: LocalBuildStore;
 /** The compilers building into the store. */
 let compilers: CompilerPool;
 /** The website's copy, which every test builds from. */
