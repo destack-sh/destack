@@ -86,7 +86,7 @@ const DOCUMENTS: TestPackage = {
 /** The shipped servers and builds of the packages the space installs, messages before documents. */
 const INSTALLED = TestPackage.options([MESSAGE, DOCUMENTS]);
 
-/** The space the fixture's tests copy: its installed packages beside the vault's tables, and start. */
+/** The space the fixture's tests copy: its packages beside the vault's tables, and start. */
 const SPACE_OPTIONS = {
     ...INSTALLED,
     packages: [...INSTALLED.packages, vaultPackage],
