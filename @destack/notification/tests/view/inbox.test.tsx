@@ -5,6 +5,7 @@ import { Loading, type JSX } from "@destack/view";
 import { renderView } from "@destack/view/test";
 import { NotificationBadge, NotificationInbox } from "../../src/view/index.ts";
 import { openHome, type Home } from "./home.ts";
+import type {} from "@destack/package/import-meta";
 
 /** The German catalog this package ships of its built-in messages. */
 const GERMAN = Catalog.of("locale/de.json", germanCatalog, t`Unread`.package);
@@ -22,10 +23,9 @@ function drawInHome(
     document.body.append(container);
     onTestFinished(() => container.remove());
     onTestFinished(
-        renderView(
-            () => <Loading>{element()}</Loading>,
-            container,
-            {
+        renderView(() => <Loading>{element()}</Loading>, container, {
+            package: import.meta.destack.package,
+            mount: {
                 context: home.context,
                 clients: new Map(Object.entries(home.clients)),
                 packages: new Map(),
@@ -34,8 +34,8 @@ function drawInHome(
                 },
             },
             localization,
-            home.environment,
-        ),
+            environment: home.environment,
+        }),
     );
 
     return container;
