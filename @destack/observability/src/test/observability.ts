@@ -83,7 +83,7 @@ type ObservabilityWorld = schema.Infer<typeof ObservabilityWorld>;
 /** The shipped servers and builds of the packages the space installs. */
 const INSTALLED = TestPackage.options(PACKAGES);
 
-/** The space the fixture's tests copy: its installed packages beside social, for comments on issues. */
+/** The space the fixture's tests copy: its packages beside social, for comments on issues. */
 const SPACE_OPTIONS = { ...INSTALLED, packages: [...INSTALLED.packages, socialPackage] };
 
 /** Every permission an observer of the space's issues, alerts and silences needs. */
@@ -205,7 +205,7 @@ export class TestObservability implements AsyncDisposable {
         });
     }
 
-    /** Define the template of the fixture's space at a start, which every test at that start copies. */
+    /** Define the fixture's space's template at a start, which every test at that start copies. */
     static template(start = START) {
         return TestSpace.template(
             { ...SPACE_OPTIONS, start },
