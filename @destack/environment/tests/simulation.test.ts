@@ -1571,6 +1571,31 @@ test("replay a seed's racing host work in one order with one fingerprint", async
     expect(second.fingerprint).toBe(first.fingerprint);
 });
 
+test("keep one fingerprint across plays whose host work differs, as a warm cache skips work, and tell apart a world event", async () => {
+    // play a timer twice, the second play's host skipping the read the first one made
+    const play = async (isCached: boolean, wait: number) => {
+        await using simulation = new Simulation({ seed: 3, start: START });
+        const { clock, scheduler } = simulation.environment("node");
+        if (!isCached) {
+            await scheduler.track(async () => "read", "host");
+        }
+        await clock.sleep(wait);
+
+        return simulation.fingerprint;
+    };
+    const [cold, warm, later] = [
+        await play(false, 1000),
+        await play(true, 1000),
+        await play(true, 2000),
+    ];
+
+    // equal across the host's work, different for another timer
+    expect({ isEqual: warm === cold, isOther: later !== warm }).toEqual({
+        isEqual: true,
+        isOther: true,
+    });
+});
+
 test("move a world's time to each next timer once idle, as plain awaits wait on them", async () => {
     // await the world's timers plainly
     await using simulation = new Simulation({ seed: 1, start: START });

@@ -416,18 +416,20 @@ export class Simulation {
         }
     }
 
-    /** Count an event as progress, fold it into the fingerprint, and trace it when tracing. */
+    /** Count an event as progress, fold a world event into the fingerprint, and trace it. */
     record(event: SimulationEvent): void {
         // count the event
         this.#events += 1;
 
-        // fold its encoding into the fingerprint with FNV-1a
-        const encoded = JSON.stringify(event);
-        let hash = this.#fingerprint;
-        for (let index = 0; index < encoded.length; index += 1) {
-            hash = Math.imul(hash ^ encoded.charCodeAt(index), FNV.prime) >>> 0;
+        // fold a world event's encoding into the fingerprint with FNV-1a, leaving out releases of host and peer work, whose count follows the host's caches
+        if (event.kind !== "release") {
+            const encoded = JSON.stringify(event);
+            let hash = this.#fingerprint;
+            for (let index = 0; index < encoded.length; index += 1) {
+                hash = Math.imul(hash ^ encoded.charCodeAt(index), FNV.prime) >>> 0;
+            }
+            this.#fingerprint = hash;
         }
-        this.#fingerprint = hash;
 
         // emit it into the world's telemetry at its time while tracing
         if (this.#options.isTracing === true) {
@@ -446,7 +448,7 @@ export class Simulation {
         }
     }
 
-    /** The hash of every event so far, equal across runs of one seed and the same work. */
+    /** The hash of the world's events so far, equal across plays of one seed. */
     get fingerprint(): number {
         return this.#fingerprint;
     }
