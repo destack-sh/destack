@@ -16,7 +16,6 @@ function iconPlugin(): Plugin {
             directory: "/package",
             runtime: "browser",
             server: false,
-            options: {},
             dependencies: {},
             environment: simulation.environment("test"),
         }) ?? [];
