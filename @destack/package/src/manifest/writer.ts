@@ -6,7 +6,8 @@ import { PackageDefinition } from "../definition/index.ts";
 import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
 import type { SourceMapReference } from "../source/map.ts";
-import { PackageManifest } from "./manifest.ts";
+import { CATALOG_DIRECTORY, MANIFEST_FORMAT, PackageManifest } from "./manifest.ts";
+import { type OutputContent, PackageOutput } from "./output.ts";
 import { type BuildReader, MANIFEST_PATH } from "./reader.ts";
 
 /** The path of each list a build's manifest references, inside the build. */
@@ -16,6 +17,12 @@ const MANIFEST_LISTS = {
     sourceMaps: "manifest/sourceMaps.json",
     declarations: "manifest/declarations.json",
 } as const;
+
+/** The directory of each output's list of the files its runtime loads, inside the build. */
+const OUTPUT_LISTS = "manifest/outputs";
+
+/** The files a runtime never loads: source maps and type declarations. */
+const UNLOADED_PATTERN = /\.map$|\.d\.[cm]?ts$/u;
 
 /** The package manifests a build retains, which define its exports, runtimes and stamps. */
 const DEFINITION_FILES: ReadonlySet<string> = new Set(["package.json", "destack.json"]);
@@ -43,7 +50,7 @@ export interface BuildContent {
     /** The commit the build compiled, absent for a working tree with uncommitted changes. */
     readonly commit?: Commit;
     /** The named outputs, none when absent. */
-    readonly outputs?: PackageManifest["outputs"];
+    readonly outputs?: Readonly<Record<string, OutputContent>>;
     /** The exact dependencies the compiler used, by name and version, none when absent. */
     readonly dependencies?: Readonly<Record<string, DependencyResolution>>;
     /** The source maps of generated files, none when absent. */
@@ -182,8 +189,17 @@ export class BuildWriter {
             ),
         };
 
+        // list the files each output's runtime loads
+        const outputs: PackageManifest["outputs"] = {};
+        for (const [name, output] of Object.entries(contents.outputs ?? {})) {
+            const loaded = files.filter((file) =>
+                BuildWriter.#isLoaded(file.path, output.directory),
+            );
+            const list = await this.#writeJson(`${OUTPUT_LISTS}/${name}.json`, loaded);
+            outputs[name] = PackageOutput.parse({ ...output, files: list });
+        }
+
         // digest what dependents' compilations read of the build
-        const outputs = contents.outputs ?? {};
         const interfaceDigest = await Digest.json(
             {
                 package: contents.package,
@@ -205,7 +221,7 @@ export class BuildWriter {
 
         // write the manifest last, which makes the build readable
         const manifest: PackageManifest = {
-            formatVersion: 1,
+            formatVersion: MANIFEST_FORMAT,
             package: contents.package,
             language: "typescript",
             ...(contents.commit === undefined ? {} : { commit: contents.commit }),
@@ -216,6 +232,13 @@ export class BuildWriter {
         await this.#storage.write(MANIFEST_PATH, PackageManifest.serialize(manifest));
 
         return manifest;
+    }
+
+    /** Report whether an output's runtime loads a file: its code, the package.json or a catalog. */
+    static #isLoaded(path: string, directory: string): boolean {
+        const isOwn = path.startsWith(`${directory}/`) && !UNLOADED_PATTERN.test(path);
+
+        return isOwn || path === "package.json" || path.startsWith(`${CATALOG_DIRECTORY}/`);
     }
 
     /** Report whether a file was written with these bytes, refusing other bytes at its path. */

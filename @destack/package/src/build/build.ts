@@ -4,7 +4,7 @@ import { type Digest, schema } from "@destack/schema";
 import type { Sandbox } from "../definition/sandbox.ts";
 import type { Package } from "../definition/package.ts";
 import type { DeclarationDescription } from "../definition/declaration.ts";
-import type { PackageOutput } from "../manifest/index.ts";
+import type { OutputContent, PackageOutput } from "../manifest/index.ts";
 import type { Runtime } from "../runtime/index.ts";
 
 export type { Plugin, PluginOption };
@@ -60,7 +60,7 @@ export interface OutputKind {
         request: OutputRequest,
         compilations: Readonly<Record<string, Compilation>>,
         pass: Pass,
-    ) => Promise<Readonly<Record<string, PackageOutput>>>;
+    ) => Promise<Readonly<Record<string, OutputContent>>>;
 }
 
 /** A requested output of a kind an extension compiles, such as a web app, with its settings. */

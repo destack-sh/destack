@@ -4,6 +4,12 @@ import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
 import { PackageOutput } from "./output.ts";
 
+/** The manifest format a build writes. */
+export const MANIFEST_FORMAT = 2;
+
+/** The directory of a build's catalogs, which every runtime loads. */
+export const CATALOG_DIRECTORY = "locale";
+
 /** The list files of a build, each read on demand and verified by its digest. */
 export const ManifestLists = schema.object({
     /** The exact dependencies the compiler used. */
@@ -21,7 +27,7 @@ export type ManifestLists = schema.Infer<typeof ManifestLists>;
 /** The portable structure of a package build manifest. */
 const manifest = schema.object({
     /** The manifest format version, independent of the package version. */
-    formatVersion: schema.literal(1),
+    formatVersion: schema.literal(MANIFEST_FORMAT),
     /** The package being built: a Destack package, or an npm release built as a unit. */
     package: schema.union([Package, NpmPackage]),
     /** The package's source language. */

@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { DependencyName, DependencyRelease } from "../definition/index.ts";
-import { PackagePath } from "../file/index.ts";
+import { PackageFile, PackagePath } from "../file/index.ts";
 import { Runtime } from "../runtime/index.ts";
 import { WorkloadDescription } from "./workload.ts";
 import { ViewDescription } from "./view.ts";
@@ -43,10 +43,17 @@ export const PackageOutput = schema.object({
     dependencies: schema.record(DependencyName, DependencyRelease),
     /** The peers its package declares, which each package depending on it provides beside it. */
     peers: schema.record(DependencyName, OutputPeer).default({}),
+    /** The list of the files its runtime loads: its own, the package.json and the catalogs. */
+    files: PackageFile,
 });
 
 /** Compiled files for one execution target. */
 export type PackageOutput = schema.Infer<typeof PackageOutput>;
+
+/** An output as a build writes it, before the writer lists the files its runtime loads. */
+export const OutputContent = PackageOutput.omit({ files: true });
+/** An output as a build writes it, before the writer lists the files its runtime loads. */
+export type OutputContent = schema.Input<typeof OutputContent>;
 
 /** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
 export const ImportMap = schema.object({

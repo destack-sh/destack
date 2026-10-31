@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
-import { Digest, schema } from "@destack/schema";
+import { Digest, found, schema } from "@destack/schema";
 import { Package } from "../definition/package.ts";
 import { PackageFile } from "../file/file.ts";
 import { BuildReader } from "./reader.ts";
@@ -106,3 +106,65 @@ test("write one manifest for one closure listed in any order", async () => {
     // digest the dependency list and the manifest alike, as a store keys builds by them
     expect(backward).toEqual(forward);
 });
+
+test("list each output's loaded files: its own but maps and types, the package.json and the catalogs", async () => {
+    // write a build with a Bun and a browser output beside its sources, a catalog and a readme
+    await using simulation = testSimulation();
+    const { crypto } = simulation.environment("test");
+    const stored = new Map<string, Uint8Array<ArrayBuffer>>();
+    const writer = new BuildWriter(
+        { write: async (path, bytes) => void stored.set(path, bytes) },
+        crypto,
+    );
+    const paths = [
+        "package.json",
+        "README.md",
+        "src/index.ts",
+        "locale/de.json",
+        "bun/index.js",
+        "bun/index.js.map",
+        "bun/index.d.ts",
+        "browser/index.js",
+    ];
+    for (const path of paths) {
+        await writer.write(path, new TextEncoder().encode(path));
+    }
+    const manifest = await writer.finish({
+        package: app,
+        outputs: { bun: output("bun"), browser: output("browser") },
+    });
+
+    // read each output's list, and the maps the Bun output carries beside it
+    const reader = new BuildReader(
+        manifest,
+        async (path) => new Blob([found(stored, path)]).stream(),
+        crypto,
+    );
+    expect({
+        bun: pathsOf(await reader.loaded("bun")),
+        browser: pathsOf(await reader.loaded("browser")),
+        maps: pathsOf(await reader.maps("bun")),
+    }).toEqual({
+        bun: ["bun/index.js", "locale/de.json", "package.json"],
+        browser: ["browser/index.js", "locale/de.json", "package.json"],
+        maps: ["bun/index.js.map"],
+    });
+});
+
+/** Describe an output of a runtime at its directory, exporting and depending on nothing. */
+function output(runtime: "bun" | "browser") {
+    return {
+        runtime,
+        emit: true,
+        workloads: {},
+        views: {},
+        directory: runtime,
+        exports: {},
+        dependencies: {},
+    };
+}
+
+/** List files' paths in order. */
+function pathsOf(files: readonly PackageFile[]): string[] {
+    return files.map((file) => file.path);
+}

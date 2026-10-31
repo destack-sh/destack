@@ -74,7 +74,12 @@ export const MemoryBuild = {
         const files = new Map(further);
         const encoder = new TextEncoder();
         const definitions = {
-            "package.json": { name: owner.name, version: owner.version, type: "module" },
+            "package.json": {
+                name: owner.name,
+                version: owner.version,
+                type: "module",
+                exports: {},
+            },
             "destack.json": { $schema: DEFINITION_SCHEMA, id: owner.id, language: "typescript" },
         };
         for (const [path, definition] of Object.entries(definitions)) {

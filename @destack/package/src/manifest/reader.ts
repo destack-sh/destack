@@ -1,4 +1,4 @@
-import type { Compression, Crypto, FileSystem } from "@destack/environment";
+import type { Compression, Crypto, FileHandle, FileSystem } from "@destack/environment";
 import { Tarball, TarballEntry } from "../archive/tarball.ts";
 import { present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
@@ -107,6 +107,33 @@ export class BuildReader {
         );
     }
 
+    /** Read the files an output's runtime loads, by the output's name. */
+    loaded(name: string): Promise<readonly PackageFile[]> {
+        const output = present(this.manifest.outputs[name], `the output ${name}`);
+
+        return this.read(output.files, schema.array(PackageFile));
+    }
+
+    /** Read the source maps of an output's files, which symbolicate what its runtime loads. */
+    async maps(name: string): Promise<readonly PackageFile[]> {
+        const { directory } = present(this.manifest.outputs[name], `the output ${name}`);
+
+        return (await this.files()).filter(
+            (file) => file.path.startsWith(`${directory}/`) && file.path.endsWith(".map"),
+        );
+    }
+
+    /** List the files a pull of an output carries: the lists, its loaded files and its maps. */
+    async outputFiles(name: string): Promise<PackageFile[]> {
+        const files = [
+            ...this.references(),
+            ...(await this.loaded(name)),
+            ...(await this.maps(name)),
+        ];
+
+        return [...new Map(files.map((file) => [file.path, file])).values()];
+    }
+
     /** Read generated-file and source-map associations. */
     sourceMaps(): Promise<readonly SourceMapReference[]> {
         return this.#sourceMaps.get(() =>
@@ -114,9 +141,11 @@ export class BuildReader {
         );
     }
 
-    /** List the files the manifest lists directly. */
+    /** List the files the manifest lists directly: its lists and each output's. */
     references(): PackageFile[] {
-        return Object.values(this.manifest.lists);
+        const outputs = Object.values(this.manifest.outputs).map((output) => output.files);
+
+        return [...Object.values(this.manifest.lists), ...outputs];
     }
 
     /** Collect all distributed file records for complete downloads and verification. */
@@ -254,20 +283,25 @@ export class BuildReader {
         );
     }
 
-    /** Read a whole remote package in one request for its archive, its manifest verified first. */
+    /** Read a remote build, whole or one output's, in one request for its archive. */
     static async archive(
         location: PackageLocation,
         fetch: (input: URL, init: RequestInit) => Promise<Response>,
         environment: { readonly crypto: Crypto; readonly compression: Compression },
-        signal?: AbortSignal,
+        options: {
+            /** The signal ending the request. */
+            readonly signal?: AbortSignal | undefined;
+            /** The output whose runtime's files and maps to take, every file when absent. */
+            readonly output?: string;
+        } = {},
     ): Promise<BuildReader> {
         // read the archive's entries, the manifest first, refusing one not matching its digest
         location = PackageLocation.parse(location);
-        const response = await BuildReader.#request(
-            new URL("archive", BuildReader.#base(location)),
-            fetch,
-            signal,
-        );
+        const url = new URL("archive", BuildReader.#base(location));
+        if (options.output !== undefined) {
+            url.searchParams.set("output", options.output);
+        }
+        const response = await BuildReader.#request(url, fetch, options.signal);
         const files = new Map<string, Uint8Array<ArrayBuffer>>();
         for await (const entry of Tarball.read(
             present(response.body, "a package's archive"),
@@ -335,20 +369,39 @@ export class BuildReader {
     }
 }
 
-/** Stream a file's bytes, closing it at its end, on cancel, a failure or once a signal aborts. */
+/** A file opened for streaming: its handle and the reader of its bytes. */
+interface OpenedFile {
+    /** The open file. */
+    readonly handle: FileHandle;
+    /** The reader of its bytes. */
+    readonly reader: ReturnType<typeof readerOf>;
+}
+
+/** Read an open file's bytes as its stream's reader. */
+function readerOf(handle: FileHandle) {
+    return handle.readable().getReader();
+}
+
+/** Stream a file, opening it on the first read, so an unread stream holds no handle. */
 async function streamFile(
     file: string,
     files: FileSystem,
     signal: AbortSignal | undefined,
 ): Promise<ReadableStream<Uint8Array>> {
-    // open the file and read its chunks
+    // open the file at the first read, closing it once whichever of its end, a failure, a cancel or the abort comes first
     signal?.throwIfAborted();
-    const handle = await files.open(file, { read: true });
-    const reader = handle.readable().getReader();
-
-    // close the file once, whichever of its end, a failure, a cancel or the abort comes first
+    let opened: Promise<OpenedFile> | undefined;
     let closing: Promise<void> | undefined;
-    const close = () => (closing ??= handle.close());
+    const open = (): Promise<OpenedFile> => {
+        opened ??= files
+            .open(file, { read: true })
+            .then((handle): OpenedFile => ({ handle, reader: readerOf(handle) }));
+
+        return opened;
+    };
+    const close = () =>
+        (closing ??=
+            opened === undefined ? Promise.resolve() : opened.then(({ handle }) => handle.close()));
     signal?.addEventListener("abort", () => void close(), { once: true });
 
     return new ReadableStream<Uint8Array>({
@@ -356,7 +409,7 @@ async function streamFile(
             try {
                 // pass the next chunk on, refusing a read after the abort
                 signal?.throwIfAborted();
-                const next = await reader.read();
+                const next = await (await open()).reader.read();
 
                 // close the file at its end
                 if (next.done) {
@@ -373,7 +426,10 @@ async function streamFile(
             }
         },
         cancel: async () => {
-            await reader.cancel();
+            // cancel an opened read, then close the file
+            if (opened !== undefined) {
+                await (await opened).reader.cancel();
+            }
             await close();
         },
     });

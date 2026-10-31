@@ -22,11 +22,11 @@ const BrowserField = schema.looseObject({
 /** How a compilation takes a host module: kept external, or bundled as an empty module. */
 export type HostResolution = "external" | "empty";
 
-/** The host modules one runtime supplies, and those the importing packages replace with nothing. */
+/** The host modules one runtime supplies, and the modules packages replace with nothing. */
 export class HostModules {
     /** The runtime the compilation targets. */
     readonly runtime: Runtime;
-    /** The host modules each package's `browser` field replaces with nothing, by directory. */
+    /** The modules each package's `browser` field replaces with nothing, by directory. */
     readonly #replaced = new Map<string, Promise<ReadonlySet<string>>>();
     /** The files the package manifests are read from. */
     readonly #files: FileSystem;
@@ -55,7 +55,7 @@ export class HostModules {
         return resolution;
     }
 
-    /** Classify a host module: kept, replaced with nothing, or unavailable; nothing for others. */
+    /** Classify a module: a kept host module, replaced with nothing, or unavailable. */
     async classify(
         specifier: string,
         importer: string | undefined,
@@ -64,7 +64,7 @@ export class HostModules {
         if (isRuntimeModule(specifier, this.runtime)) {
             return "external";
         }
-        // take the empty module for a host module the importing package replaces with nothing
+        // take the empty module for a module the importing package replaces with nothing
         else if (await this.#isReplaced(specifier, importer)) {
             return "empty";
         }
@@ -101,10 +101,11 @@ export class HostModules {
         };
     }
 
-    /** Report whether the importer's `browser` field replaces a host module with nothing. */
+    /** Report whether the importer's `browser` field replaces a bare module with nothing. */
     async #isReplaced(specifier: string, importer: string | undefined): Promise<boolean> {
-        // replace nothing on Bun, which supplies every host module, or for an entry
-        if (this.runtime === "bun" || importer === undefined || !isHostModule(specifier)) {
+        // replace nothing on Bun, for an entry, or for a path the bundler maps itself
+        const isPath = specifier.startsWith(".") || specifier.startsWith("/");
+        if (this.runtime === "bun" || importer === undefined || isPath) {
             return false;
         }
 

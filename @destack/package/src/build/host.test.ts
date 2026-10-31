@@ -4,14 +4,14 @@ import { join } from "node:path";
 import { rolldown } from "rolldown";
 import { HostModules } from "./host.ts";
 
-test("classify host modules a runtime keeps, a package replaces with nothing, and the rest as unavailable", async () => {
-    // write a package whose browser field replaces node:fs with nothing
+test("classify host modules a runtime keeps, modules a package replaces with nothing, and the rest as unavailable", async () => {
+    // write a package whose browser field replaces node:fs and a package with nothing
     await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const directory = await files.makeTemporaryDirectory("host-");
     await files.writeTextFile(
         join(directory, "package.json"),
-        JSON.stringify({ browser: { "node:fs": false } }),
+        JSON.stringify({ browser: { "node:fs": false, "source-map-js": false } }),
     );
     const importer = join(directory, "index.js");
 
@@ -22,8 +22,9 @@ test("classify host modules a runtime keeps, a package replaces with nothing, an
         await bun.classify("node:fs", undefined),
         await browser.classify("node:fs", importer),
         await browser.classify("node:path", importer),
+        await browser.classify("source-map-js", importer),
         await browser.classify("@example/other", importer),
-    ]).toEqual(["external", "empty", "unavailable", undefined]);
+    ]).toEqual(["external", "empty", "unavailable", "empty", undefined]);
 });
 
 test("refuse a host module the runtime lacks and the importing package keeps", async () => {
