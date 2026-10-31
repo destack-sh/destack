@@ -13,6 +13,7 @@ import { MeterProvider, type MeterProviderOptions } from "@opentelemetry/sdk-met
 import { TracerProvider, type TracerProviderOptions } from "@opentelemetry/sdk-trace";
 import { type Environment, TraceIdGenerator, W3C_PROPAGATOR } from "@destack/environment";
 import { emitException, exceptionAttributes } from "../scope/index.ts";
+import type { OtlpSignal } from "../otlp/index.ts";
 import { Diagnostics } from "./diagnostic.ts";
 import {
     SESSION_EVENTS,
@@ -20,6 +21,9 @@ import {
     type Session,
     SessionProcessor,
 } from "../session/index.ts";
+/** The three OpenTelemetry signals, which a full flush exports. */
+const SIGNALS: readonly OtlpSignal[] = ["traces", "metrics", "logs"];
+
 /** Configure one application's identity and its three telemetry providers. */
 export interface TelemetryOptions {
     /** The running service or frontend name. */
@@ -75,6 +79,10 @@ export class Telemetry {
     #stopped: Promise<void> | undefined;
     /** The flush in progress, settled. */
     #flushing: Promise<void> = Promise.resolve();
+    /** The flush queued behind the one in progress, which later calls it covers join. */
+    #queued:
+        | { readonly signals: ReadonlySet<OtlpSignal>; readonly flushing: Promise<void> }
+        | undefined;
 
     /** Construct providers on an environment's clock and randomness, in a context manager. */
     constructor(
@@ -202,20 +210,30 @@ export class Telemetry {
         return telemetry;
     }
 
-    /** Export buffered signals before a request or application finishes. */
-    flush(): Promise<void> {
+    /** Export buffered signals, every one by default, after the flush in progress. */
+    flush(signals: readonly OtlpSignal[] = SIGNALS): Promise<void> {
+        // refuse a flush once stopped
         if (this.#stopped) {
             return Promise.reject(new Error("telemetry is shut down"));
         }
 
-        // run after the flush in progress, whose processors skip a concurrent one
-        const flushing = this.#flushing.then(() =>
-            complete([
-                this.tracers.forceFlush(),
-                this.meters.forceFlush(),
-                this.loggers.forceFlush(),
-            ]),
-        );
+        // join a queued flush covering these signals
+        const queued = this.#queued;
+        if (queued !== undefined && signals.every((signal) => queued.signals.has(signal))) {
+            return queued.flushing;
+        }
+
+        // queue it after the one in progress, keeping the chain settled
+        const flushing = this.#flushing.then(() => {
+            // start it, letting later calls queue another
+            if (this.#queued?.flushing === flushing) {
+                this.#queued = undefined;
+            }
+            const providers = { traces: this.tracers, metrics: this.meters, logs: this.loggers };
+
+            return complete(signals.map((signal) => providers[signal].forceFlush()));
+        });
+        this.#queued = { signals: new Set(signals), flushing };
         this.#flushing = flushing.catch(() => {});
 
         return flushing;
