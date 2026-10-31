@@ -198,7 +198,7 @@ export class PackageArchive {
             commit,
         );
         const encoder = new TextEncoder();
-        const description = encoder.encode(JSON.stringify(manifest));
+        const description = PackageManifest.serialize(manifest);
         const generated = new Map<string, Uint8Array<ArrayBuffer>>([
             ["package/package.json", encoder.encode(JSON.stringify(metadata))],
             ["package/build/manifest.json", description],

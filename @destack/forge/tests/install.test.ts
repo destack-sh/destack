@@ -63,7 +63,7 @@ test.for(MANAGER_NAMES)(
         const selected = MANAGERS[manager];
         const { scheduler } = forge.home.simulation;
         await scheduler.track(
-            run(selected.install(join(directory, "cache", manager)), consumer),
+            () => run(selected.install(join(directory, "cache", manager)), consumer),
             "peer",
         );
 

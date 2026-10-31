@@ -1,7 +1,7 @@
 import objectPackage from "@destack/object/package";
 import type { TestPerson } from "@destack/account/test";
 import { expect, refusal, test } from "@destack/test";
-import { encodeManifest, PackageStore } from "@destack/build/store";
+import { PackageStore } from "@destack/build/store";
 import { TestPackageStore } from "@destack/build/test";
 import { PackageManifest } from "@destack/package/manifest";
 import { Commit, Digest } from "@destack/schema";
@@ -79,7 +79,7 @@ test("refuse uploads outside a package, and a manifest push from a caller who ma
     const forge = await TestForge.open();
     await forge.publish((await fixtureBuild("answer")).reader);
     const build = await fixtureBuild("answer", "2026.9.1");
-    const manifest = encodeManifest(PackageManifest.parse(build.manifest));
+    const manifest = PackageManifest.serialize(build.manifest);
     const digest = await Digest.of(manifest, testHost().crypto);
     const stranger = await forge.signIn(STRANGER_EMAIL);
 
@@ -130,7 +130,7 @@ test("authorize a manifest push from the forge's replica of the account, followi
     await forge.publish((await fixtureBuild("answer")).reader);
     const build = await fixtureBuild("answer", "2026.9.1");
     const digest = await Digest.of(
-        encodeManifest(PackageManifest.parse(build.manifest)),
+        PackageManifest.serialize(build.manifest),
         forge.environment.crypto,
     );
     const stranger = await forge.signIn(STRANGER_EMAIL);
