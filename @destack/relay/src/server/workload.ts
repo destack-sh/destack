@@ -1,4 +1,5 @@
 import { principal } from "@destack/access";
+import { copyRequest } from "@destack/environment";
 import { defineDatabase, Snapshot } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { DOMAINS } from "@destack/account/address";
@@ -129,14 +130,14 @@ async function serveRoot(
         },
     });
 
-    // hand the route's requests to the router, and reconcile the tunnels' names
+    // reconcile the tunnels' names, and hand the route's requests to the router until they end
     const handler = store.package(relayPackage);
     const served: PackageHandler = {
         ...handler,
         controllers: [...(handler.controllers ?? []), new NameController(relay)],
         fetch: async (request, requestContext) =>
             new URL(request.url).pathname === ROUTE_PATH
-                ? relay.fetch(restore(request))
+                ? relay.fetch(copyRequest(restore(request), { signal: requestContext.closing }))
                 : handler.fetch?.(request, requestContext),
     };
 

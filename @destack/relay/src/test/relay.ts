@@ -239,7 +239,11 @@ export class TestRelay implements AsyncDisposable {
                 },
                 build,
                 // record the workload's telemetry in the world, as its node's
-                async () => ({ ...environment.telemetry, shutdown: async () => {} }),
+                async () => ({
+                    ...environment.telemetry,
+                    flush: async () => {},
+                    shutdown: async () => {},
+                }),
                 (error) =>
                     TelemetryScope.of(
                         import.meta.destack.package,
@@ -271,6 +275,7 @@ export class TestRelay implements AsyncDisposable {
                     method: addressed.request.method,
                     headers,
                     body: addressed.request.body,
+                    signal: addressed.request.signal,
                 }),
             );
 
@@ -308,6 +313,7 @@ export class TestRelay implements AsyncDisposable {
                     method: request.method,
                     headers,
                     body: request.body,
+                    signal: request.signal,
                 }),
             );
 

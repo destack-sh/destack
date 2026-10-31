@@ -143,15 +143,22 @@ export class Relay {
             return this.#relay(request);
         }
 
-        // accept the machine's handshake and open its tunnel, answering a refusal's status alone
+        // accept the machine's handshake and open its tunnel while the request lasts
         try {
             const handshake = await this.handshake(request);
 
             return await this.call(handshake.machineId, "open", {
                 method: "POST",
                 headers: { [HANDSHAKE_HEADER]: JSON.stringify(handshake) },
+                signal: request.signal,
             });
         } catch (error) {
+            // rethrow once the client or the server aborted the request
+            if (request.signal.aborted) {
+                throw error;
+            }
+
+            // answer a refusal's status alone
             const reported = reportError(error, this.#telemetry);
 
             return new Response(null, { status: reported.status });
@@ -298,6 +305,11 @@ export class Relay {
                 ? this.#forward(request, false)
                 : this.#forward(restored, true));
         } catch (error) {
+            // rethrow once the client or the server aborted the request
+            if (request.signal.aborted) {
+                throw error;
+            }
+
             return refusal(error, this.#telemetry);
         }
     }
@@ -355,6 +367,7 @@ export class Relay {
                 headers,
                 body: request.body,
                 ...(request.body === null ? {} : { duplex: "half" }),
+                signal: request.signal,
             });
         }
 

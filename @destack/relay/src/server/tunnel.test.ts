@@ -69,7 +69,7 @@ function openTunnel() {
         attachment: attachments.get(id) ?? null,
         send: (message) =>
             void simulation.scheduler.track(
-                Promise.resolve().then(() => machines.get(id)?.receive(message)),
+                () => Promise.resolve().then(() => machines.get(id)?.receive(message)),
                 "world",
             ),
         close: () => machines.get(id)?.terminate(),
@@ -134,7 +134,8 @@ function openTunnel() {
             {
                 send: (message) =>
                     void simulation.scheduler.track(
-                        Promise.resolve().then(() => void running.message(socket(id), message)),
+                        () =>
+                            Promise.resolve().then(() => void running.message(socket(id), message)),
                         "world",
                     ),
                 close: () => {},

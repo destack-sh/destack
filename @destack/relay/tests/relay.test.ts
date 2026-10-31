@@ -6,6 +6,7 @@ import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import relayPackage from "../src/package.ts";
 import { TUNNEL_TOKEN_LIFETIME_MILLISECONDS, Relay, Tunnel } from "../src/server/index.ts";
+import { RelayError } from "../src/error/index.ts";
 import { type Renewal, TUNNEL_PROTOCOL, TunnelProtocol } from "../src/session/index.ts";
 import { TestTunnelMachine } from "../src/test/index.ts";
 
@@ -60,6 +61,30 @@ test("forward a request for a space's name through its machine's tunnel, preserv
         "hello POST /notes/1 pinned",
         [`POST ${computer.notes}/notes/1`],
         [event(computer, "tunnel.open")],
+    ]);
+});
+
+test("end a forwarded request at its machine once the relay stops while the machine streams its answer", async () => {
+    // answer with a stream the machine leaves open until its request aborts
+    await using computer = await TestTunnelMachine.open();
+    const relay = await computer.relay();
+    const aborted = Promise.withResolvers<unknown>();
+    await computer.tunnel(relay, {
+        fetch: async (request) => {
+            request.signal.addEventListener("abort", () => aborted.resolve(request.signal.reason));
+
+            return new Response(new ReadableStream({ start: () => {} }));
+        },
+    });
+
+    // stop the relay once the answer's head arrives, its listeners first and then its instances
+    const response = await computer.simulation.network
+        .of("caller")
+        .fetch(new Request(`${relay.origin}/notes`, { headers: { host: computer.notes } }));
+    await relay[Symbol.asyncDispose]();
+    expect([response.status, await aborted.promise]).toEqual([
+        200,
+        RelayError.of("SESSION_CLOSED", "session is closed"),
     ]);
 });
 
