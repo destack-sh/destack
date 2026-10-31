@@ -47,6 +47,7 @@ const PURE_CRYPTO = new Set([
     "Hash",
     "Hmac",
     "KeyObject",
+    "X509Certificate",
 ]);
 
 /** The host globals whose every member is an effect, and the environment taking their place. */
