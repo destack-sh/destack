@@ -1,6 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import type { Environment } from "@destack/environment";
 import { Package } from "@destack/package";
+import { schema } from "@destack/schema";
 import { BuildWriter } from "@destack/package/manifest";
 import { afterEach, expect, test, vi } from "@destack/test";
 import { dirname, join } from "node:path";
@@ -39,6 +40,8 @@ function fixtures(): Plugin {
                 return `import "virtual:stylex.css";\nimport "/fixture/teal";\nvoid import("/fixture/page");\n`;
             } else if (id.endsWith("/fixture/bare.ts")) {
                 return `void import("/fixture/page");\n`;
+            } else if (id.endsWith("/fixture/pair.ts")) {
+                return `import "/fixture/teal";\nimport "/fixture/plum";\n`;
             } else if (id.endsWith("/fixture/solo.ts")) {
                 return `import "virtual:stylex.css";\nimport "/fixture/teal";\n`;
             }
@@ -221,6 +224,25 @@ test("keep a build's rules for the builds depending on it when no module imports
     expect(source).toEqual(
         '[["src/build/fixture/plum.ts",[["xjjgwud",{"ltr":".xjjgwud{color:plum}","rtl":null},3000]]]]',
     );
+});
+
+test("keep a build's rules sorted by module path, whatever order the modules compile in", async () => {
+    // read the rules file of a bundle compiling teal before plum
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const result = await bundle(environment, "/fixture/pair");
+    const outputs = (Array.isArray(result) ? result : [result]).flatMap((each) =>
+        "output" in each ? each.output : [],
+    );
+    const rules = outputs.find((each) => each.fileName === "stylex.json");
+    const source = rules?.type === "asset" ? String(rules.source) : "";
+
+    // list plum before teal, so equal sources keep equal bytes
+    const modules = schema
+        .array(schema.tuple([schema.string(), schema.unknown()]))
+        .parse(JSON.parse(source))
+        .map(([module]) => module);
+    expect(modules).toEqual(["src/build/fixture/plum.ts", "src/build/fixture/teal.ts"]);
 });
 
 test("add the rules each dependency's build keeps to the stylesheet, ordered with the build's own", async () => {

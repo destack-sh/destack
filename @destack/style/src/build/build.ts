@@ -1,9 +1,8 @@
 import { unplugin } from "@stylexjs/unplugin";
 import type { Environment } from "@destack/environment";
-import { Features } from "lightningcss";
 import type { ViteDevServer } from "vite";
 import { basename, join, relative } from "node:path";
-import type { BuildExtension, Plugin } from "@destack/package/build";
+import { type BuildExtension, LIGHT_DARK_FEATURE, type Plugin } from "@destack/package/build";
 import { schema } from "@destack/schema";
 import { BuildReader } from "@destack/package/manifest";
 
@@ -61,7 +60,7 @@ export const styleExtension = {
             importSources: IMPORT_SOURCES,
             useCSSLayers: { before: ["base"] },
             // keep light-dark() native, as the theme's own tokens need it and lowering it needs CSS-declared color schemes
-            lightningcssOptions: { exclude: Features.LightDark },
+            lightningcssOptions: { exclude: LIGHT_DARK_FEATURE },
             unstable_moduleResolution: { rootDir: directory, type: "commonJS" },
             cssInjectionTarget: (path) => path === sheet.file,
             devMode: "css-only",
@@ -148,10 +147,11 @@ function sheetPlugin(
                 const holder = chunks.find((chunk) => chunk.moduleIds.includes(RESOLVED_SHEET_ID));
                 sheet.file = holder?.viteMetadata?.importedCss.values().next().value;
 
-                // keep the build's own rules for the builds depending on it, by module path in the package
+                // keep the build's own rules for the builds depending on it, sorted by module path in the package
                 const rules = [...stylex.__stylexGetSharedStore().rulesById]
-                    .filter(([module]) => !relative(directory, module).startsWith(".."))
-                    .map(([module, rule]) => [relative(directory, module), rule]);
+                    .map(([module, rule]) => [relative(directory, module), rule] as const)
+                    .filter(([module]) => !module.startsWith(".."))
+                    .toSorted(([left], [right]) => (left < right ? -1 : Number(left > right)));
                 if (rules.length > 0) {
                     this.emitFile({
                         type: "asset",
