@@ -4,4 +4,4 @@ export {
     type RelationshipSelection,
 } from "./relationship.ts";
 export * from "./table.ts";
-export { type Link, LinkSecret } from "./link.ts";
+export { LinkSecret } from "./link.ts";

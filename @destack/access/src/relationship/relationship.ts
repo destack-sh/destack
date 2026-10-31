@@ -1,7 +1,5 @@
 import { nth } from "@destack/schema";
 import { Table } from "@destack/db";
-import { anyone } from "../declare/principal.ts";
-import { LinkSecret, type Link } from "./link.ts";
 import { accessRole, OWNER_ROLE } from "../role/table.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import {
@@ -518,28 +516,6 @@ export const Relationship = {
 
             return relationship;
         });
-    },
-
-    /** Relate the holder of a new secret to an object and return the secret once. */
-    async link(
-        request: {
-            readonly object: ObjectReference;
-            readonly relation: string;
-            readonly expiresAt?: number;
-        },
-        authorization: Authorization,
-    ): Promise<Link> {
-        const linkSecret = await LinkSecret.create(authorization.environment);
-        const relationship = await Relationship.grant(
-            {
-                ...request,
-                subject: anyone.reference("*", "*"),
-                linkSecret: linkSecret.digest,
-            },
-            authorization,
-        );
-
-        return { id: relationship.id, secret: linkSecret.secret };
     },
 
     /** Replace a selection's relationships with exactly the wanted ones, as the caller may. */

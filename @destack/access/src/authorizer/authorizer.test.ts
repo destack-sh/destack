@@ -11,7 +11,7 @@ import {
     text,
 } from "@destack/db";
 import { nth, Identifier } from "@destack/schema";
-import { Scope, type Subject } from "@destack/sync";
+import { type ObjectReference, Scope, type Subject } from "@destack/sync";
 import {
     AccessError,
     type AccessReason,
@@ -31,6 +31,7 @@ import {
     ANONYMOUS,
     Invitation,
     Relationship,
+    anyone,
 } from "../index.ts";
 import {
     account,
@@ -254,7 +255,7 @@ databaseTest(
             () => alice,
             environment,
             (authorization) =>
-                Relationship.link(
+                link(
                     {
                         object: node.reference("personal", "b"),
                         relation: "subtree-editor",
@@ -297,7 +298,7 @@ databaseTest(
             () => alice,
             environment,
             (authorization) =>
-                Relationship.link(
+                link(
                     {
                         object: node.reference("personal", "a"),
                         relation: "viewer",
@@ -311,7 +312,7 @@ databaseTest(
             () => alice,
             environment,
             (authorization) =>
-                Relationship.link(
+                link(
                     {
                         object: node.reference("personal", "a"),
                         relation: "viewer",
@@ -1149,6 +1150,24 @@ databaseTest("evaluate more rows than one query may bind", async ({ fixture }) =
     // permit editing every copy of the two unlocked cells of alice
     expect(permitted.permitted.size).toBe(copies.filter((copy) => copy.locked === 0).length);
 });
+
+/** Link an object to anyone presenting a fresh secret, as a client creates a share link. */
+async function link(
+    request: {
+        readonly object: ObjectReference;
+        readonly relation: string;
+        readonly expiresAt?: number;
+    },
+    authorization: Authorization,
+): Promise<{ readonly id: string; readonly secret: string }> {
+    const secret = await LinkSecret.create(authorization.environment);
+    const granted = await Relationship.grant(
+        { ...request, subject: anyone.reference("*", "*"), linkSecret: secret.digest },
+        authorization,
+    );
+
+    return { id: granted.id, secret: secret.secret };
+}
 
 /** Require the nodes of a type a context may edit to be exactly the expected ones. */
 async function expectEditable(
