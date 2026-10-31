@@ -5,7 +5,7 @@ import { Simulation } from "../src/simulation/index.ts";
 /** The simulations' start: 2026-10-24 at midnight UTC. */
 const START = Date.UTC(2026, 9, 24);
 
-test("store values and move through session history on a node, telling listeners each move once, within its ends", async () => {
+test("store values and move through session history on a node, telling listeners each move once, within its ends, and record document loads", async () => {
     // store a value, and navigate, replace and traverse while listening
     await using simulation = new Simulation({ seed: 1, start: START });
     const browsers = new BrowserSimulation(simulation, { url: "https://notes.test/" });
@@ -20,14 +20,16 @@ test("store values and move through session history on a node, telling listeners
     navigation.go(-1);
     navigation.go(-1);
     navigation.go(5);
+    navigation.assign("/blog/");
 
     expect({
         stored: [storage.getItem("theme"), storage.getItem("missing")],
         current: navigation.currentEntry,
         moves,
+        loads: navigation.loads,
     }).toEqual({
         stored: ["dark", null],
-        current: { url: "https://notes.test/settings", index: 2, state: { tab: "privacy" } },
+        current: { url: "https://notes.test/blog/", index: 3, state: undefined },
         moves: [
             "https://notes.test/inbox",
             "https://notes.test/inbox?page=2",
@@ -35,7 +37,9 @@ test("store values and move through session history on a node, telling listeners
             "https://notes.test/inbox?page=2",
             "https://notes.test/",
             "https://notes.test/settings",
+            "https://notes.test/blog/",
         ],
+        loads: ["https://notes.test/blog/"],
     });
 });
 

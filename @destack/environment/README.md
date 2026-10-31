@@ -69,6 +69,7 @@ const port = environment.broadcast.open("destack:space");
 using _subscription = port.on((message) => apply(message));
 await environment.storage.persist(); // the Storage Standard's persist(), beside localStorage's getItem and setItem
 environment.navigation.navigate("/inbox"); // the Navigation API
+environment.navigation.assign("/blog/"); // Location.assign, a new document
 environment.display.media("(prefers-color-scheme: dark)"); // matchMedia
 // each node a tab of one origin, sharing its locks and broadcast channels
 const tab = new BrowserSimulation(simulation).environment("tab");

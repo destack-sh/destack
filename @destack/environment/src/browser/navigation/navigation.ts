@@ -20,8 +20,10 @@ export interface NavigateOptions {
 export interface Navigation {
     /** The current entry. */
     readonly currentEntry: NavigationEntry;
-    /** Go to a URL, adding or replacing an entry. */
+    /** Go to a URL within the document, adding or replacing an entry. */
     readonly navigate: (url: string, options?: NavigateOptions) => void;
+    /** Load a URL as a new document, as `Location.assign`. */
+    readonly assign: (url: string) => void;
     /** Move through history by a number of entries at once, back for a negative one. */
     readonly go: (delta: number) => void;
     /** Call a listener on each change of the current entry until the subscription disposes. */
@@ -58,6 +60,11 @@ class BrowserNavigation implements Navigation {
             history.pushState({ index: index + 1, state: options.state }, "", url);
         }
         this.#emit();
+    }
+
+    /** Load a URL as a new document. */
+    assign(url: string): void {
+        location.assign(url);
     }
 
     /** Move through history by a number of entries at once. */

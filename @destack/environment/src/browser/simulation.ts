@@ -258,6 +258,8 @@ export class SimulatedNavigation implements Navigation {
     #changes = 0;
     /** The listeners of entry changes. */
     readonly #listeners = new Set<(entry: NavigationEntry) => void>();
+    /** The URLs loaded as new documents, oldest first. */
+    readonly #loads: string[] = [];
 
     /** Start a history at a URL. */
     constructor(url: string) {
@@ -282,6 +284,17 @@ export class SimulatedNavigation implements Navigation {
             this.#entries.splice(this.#index, Infinity, entry);
         }
         this.#emit();
+    }
+
+    /** Load a URL as a new document: a new entry, recorded among the loads. */
+    assign(url: string): void {
+        this.navigate(url);
+        this.#loads.push(this.currentEntry.url);
+    }
+
+    /** The URLs loaded as new documents, oldest first. */
+    get loads(): readonly string[] {
+        return this.#loads;
     }
 
     /** Move through the entries by a number at once, within the first and the last. */
