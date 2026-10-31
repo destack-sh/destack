@@ -232,6 +232,7 @@ export async function fixtureBuild(
                             presents: [{ packageId, type: "note", priority: "option" }],
                             categories: [],
                             packages: [],
+                            render: { mode: "client" },
                         },
                         editor: {
                             entrypoint: "editor.js",
@@ -239,6 +240,7 @@ export async function fixtureBuild(
                             presents: [{ packageId, type: "note", priority: "default" }],
                             categories: [],
                             packages: [],
+                            render: { mode: "client" },
                         },
                     },
                 },

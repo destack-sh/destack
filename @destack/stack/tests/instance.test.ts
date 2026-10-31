@@ -194,6 +194,7 @@ async function notesBuild(
                           presents: [],
                           categories: [],
                           packages: [],
+                          render: { mode: "client" },
                       },
                   },
     });

@@ -9,7 +9,7 @@ import type {
     WorkloadStart,
 } from "@destack/object/workload";
 import type { BuildReader } from "@destack/package/manifest";
-import { connectBunSqlite } from "@destack/db/bun";
+import { bunSqliteConnector, connectBunSqlite } from "@destack/db/bun";
 import type { Environment } from "@destack/environment";
 import { spaceRunner } from "../client/index.ts";
 import { BunEnvironment } from "@destack/environment/bun";
@@ -30,14 +30,18 @@ export class BunWorkload {
         this.resources = resources;
     }
 
-    /** Build the workload's runner in an environment, its ephemeral objects in memory. */
+    /** Build the workload's runner in an environment: SQLite files, its ephemeral objects in memory. */
     runner(environment: Environment): RunnerOptions {
         // store ephemeral objects in a memory database on the environment's clock
         const ephemeral: EphemeralHost = {
             open: (tables) => connectBunSqlite(":memory:", tables, { environment }),
         };
 
-        return { ...spaceRunner(this.workload, this.resources, environment), ephemeral };
+        return {
+            ...spaceRunner(this.workload, this.resources, environment),
+            connectors: { [bunSqliteConnector.code]: bunSqliteConnector },
+            ephemeral,
+        };
     }
 
     /** Start the workload in this process from its host's start, on an environment. */
