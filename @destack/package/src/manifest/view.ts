@@ -37,6 +37,58 @@ export const ViewCategory = schema.enum(VIEW_CATEGORIES);
 /** A role a client opens a view in. */
 export type ViewCategory = schema.Infer<typeof ViewCategory>;
 
+/** A path below a view's base, such as a static view's prerendered page. */
+const ViewPath = schema.string().regex(/^\/[^\s?#]*$/u);
+
+/** How a build's manifest says a view renders. */
+const viewRender = schema.discriminatedUnion("mode", [
+    schema.object({
+        /** Rendered by the browser from the view's mount module. */
+        mode: schema.literal("client"),
+    }),
+    schema.object({
+        /** Prerendered at build, its pages hydrating in the browser. */
+        mode: schema.literal("static"),
+        /** The paths prerendered below the view's base, each a page of the browser output. */
+        pages: schema.array(ViewPath),
+    }),
+    schema.object({
+        /** Rendered per request by the package's workload, as the visitor. */
+        mode: schema.literal("server"),
+        /** The export of the package's server output rendering the view. */
+        entrypoint: PackagePath,
+    }),
+]);
+
+/** How a view renders: in the browser, prerendered at build, or on the server per request. */
+export const ViewRender = Object.assign(viewRender, {
+    /** How a view's declaration says it renders, with a static view's site, before its build. */
+    declaration: schema.discriminatedUnion("mode", [
+        schema.object({
+            /** Rendered by the browser. */
+            mode: schema.literal("client"),
+        }),
+        schema.object({
+            /** Prerendered at build. */
+            mode: schema.literal("static"),
+            /** The site's public origin. */
+            origin: schema.url(),
+            /** The paths prerendered below the view's base. */
+            paths: schema.array(ViewPath),
+            /** The path rendering the not-found page, null for none. */
+            notFound: schema.string().nullable(),
+            /** The files the site publishes beside its pages, as JSON its view build reads. */
+            metadata: schema.json().nullable(),
+        }),
+        schema.object({
+            /** Rendered per request on the server. */
+            mode: schema.literal("server"),
+        }),
+    ]),
+});
+/** How a view renders. */
+export type ViewRender = schema.Infer<typeof ViewRender>;
+
 /** A view a browser output compiles, as manifests describe it. */
 const viewDescription = schema
     .object({
@@ -50,15 +102,18 @@ const viewDescription = schema
         categories: schema.array(ViewCategory),
         /** The packages the view calls as its person. */
         packages: schema.array(PackageId),
+        /** How the view renders. */
+        render: ViewRender,
     })
     .strict();
 
 /** A view a browser output compiles, as manifests describe it. */
 export const ViewDescription = Object.assign(viewDescription, {
-    /** A view as its declaration describes it: its name, presented types and called packages. */
-    declaration: viewDescription
-        .pick({ presents: true, categories: true, packages: true })
-        .extend({ name: schema.string().min(1) }),
+    /** A view as its declaration describes it: name, presented types, packages and render mode. */
+    declaration: viewDescription.pick({ presents: true, categories: true, packages: true }).extend({
+        name: schema.string().min(1),
+        render: ViewRender.declaration,
+    }),
 
     /** List the views a build's outputs compile, by name. */
     list(manifest: {

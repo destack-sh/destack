@@ -19,6 +19,10 @@ export interface BuildExtension {
     readonly describe?: (compilation: Compilation, compiled: CompiledOutput) => OutputDescription;
     /** The output kinds this dependency compiles in a pass of its own, such as web applications. */
     readonly outputs?: Readonly<Record<string, OutputKind>>;
+    /** Request the outputs a package's own declarations need, such as a static view's, by name. */
+    readonly request?: (
+        context: Pick<Compilation, "package" | "directory" | "declarations" | "locate">,
+    ) => Readonly<Record<string, OutputRequest>>;
 }
 
 /** What modules compile for: package, runtime, server rendering, and per-extension options. */

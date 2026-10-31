@@ -8,6 +8,7 @@ const VIEW: ViewDescription = {
     presents: [],
     categories: [],
     packages: [],
+    render: { mode: "client" },
 };
 
 test("list the views every output compiles by name, refusing a name two outputs compile", async () => {
