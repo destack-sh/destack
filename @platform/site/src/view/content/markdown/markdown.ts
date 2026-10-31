@@ -1,7 +1,5 @@
 import type { Element, ElementContent, Root, RootContent } from "hast";
 import type * as mdast from "mdast";
-import { existsSync } from "node:fs";
-import { extname, relative, resolve } from "node:path";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
@@ -26,13 +24,17 @@ const ALERT = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|ABSTRACT)\]\s*/u;
 /** The video files a figure plays as a looping animation. */
 const VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".ogv"]);
 
-/** An asset collected while rendering a content page. */
-export type ContentAsset = { importName: string; path: string; placeholder: string };
-/** Link and asset resolution for one Markdown source. */
+/** An asset collected while rendering a content page, by its path below the package. */
+export type ContentAsset = { path: string; placeholder: string };
+/** Link and asset resolution for one Markdown source, by paths below the package. */
 export type MarkdownContext = {
     assets: ContentAsset[];
-    documentDirectory?: string;
+    /** The directory the assets of its collection stay within. */
+    collectionDirectory?: string;
+    /** The directory of the Markdown source. */
     markdownDirectory?: string;
+    /** The files the collections hold, which links and assets resolve against. */
+    files?: ReadonlySet<string>;
     kind?: string;
     ownHeadings?: Set<string>;
     route?: string;
@@ -314,7 +316,7 @@ function shapeFigure(paragraph: mdast.Paragraph, context: MarkdownContext): void
 
     // carry a YouTube player, a video file as a looping animation, or an image
     const youtube = youtubeVideo(image.url);
-    const isAnimation = VIDEO_EXTENSIONS.has(extname(pathOf(image.url)).toLowerCase());
+    const isAnimation = VIDEO_EXTENSIONS.has(extensionOf(pathOf(image.url)).toLowerCase());
     const media =
         youtube !== undefined
             ? {
@@ -623,7 +625,7 @@ function resolveLink(href: string, context: MarkdownContext) {
     // route a link to another Markdown source and check its heading
     const markdownLink = /^(.+\.md)(#[a-z0-9-]+)?$/u.exec(href);
     if (markdownLink != undefined) {
-        const target = resolve(
+        const target = resolvePath(
             requireContext(context.markdownDirectory, "markdown directory", context),
             captured(markdownLink, 1),
         );
@@ -672,7 +674,17 @@ function isBareAssetLink(href: string) {
         return false;
     }
 
-    return extname(pathOf(href)) !== "";
+    return extensionOf(pathOf(href)) !== "";
+}
+
+/** Resolve a relative path against a directory below the package, as URLs resolve. */
+function resolvePath(directory: string, path: string): string {
+    return new URL(path, `file://${directory}/`).pathname;
+}
+
+/** Read a path's extension with its dot, empty for none. */
+function extensionOf(path: string): string {
+    return /\.[^./]+$/u.exec(path)?.[0] ?? "";
 }
 
 /** Strip the query and fragment from a link. */
@@ -682,24 +694,19 @@ function pathOf(href: string) {
 
 /** Resolve one content asset into a build-time placeholder. */
 function resolveAsset(href: string, context: MarkdownContext) {
-    // resolve the asset against its content directory
-    const target = resolve(
+    // resolve the asset against its Markdown source's directory
+    const target = resolvePath(
         requireContext(context.markdownDirectory, "markdown directory", context),
         href,
     );
-    const contentDirectory = requireContext(
-        context.kind === "document" ? context.documentDirectory : context.markdownDirectory,
-        "content directory",
-        context,
-    );
-    const relativeTarget = relative(contentDirectory, target);
+    const collection = requireContext(context.collectionDirectory, "collection directory", context);
 
-    // require an existing non-Markdown file inside the content directory
-    if (relativeTarget.startsWith("..") || relativeTarget === "") {
+    // require an existing non-Markdown file inside the collection
+    if (!target.startsWith(`${collection}/`)) {
         throw new Error(`asset escapes content directory in ${context.slug}: ${href}`);
-    } else if (!existsSync(target)) {
+    } else if (!requireContext(context.files, "files", context).has(target)) {
         throw new Error(`missing asset in ${context.slug}: ${href}`);
-    } else if (extname(target) === ".md") {
+    } else if (extensionOf(target) === ".md") {
         throw new Error(`asset points at markdown in ${context.slug}: ${href}`);
     }
 
@@ -711,11 +718,7 @@ function resolveAsset(href: string, context: MarkdownContext) {
 
     // collect a new asset under the next placeholder
     const index = context.assets.length;
-    const asset = {
-        importName: `asset${index}`,
-        path: target,
-        placeholder: `__CONTENT_ASSET_${index}__`,
-    };
+    const asset = { path: target, placeholder: `__CONTENT_ASSET_${index}__` };
     context.assets.push(asset);
 
     return asset.placeholder;
@@ -726,7 +729,8 @@ export function headingsFor(markdown: string) {
     // collect the headings with their unique slugs
     const slugs = new Map<string, number>();
 
-    return parser.parse(markdown)
+    return parser
+        .parse(markdown)
         .children.filter((node): node is mdast.Heading => node.type === "heading")
         .map((heading) => ({
             depth: heading.depth,

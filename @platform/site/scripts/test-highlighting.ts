@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { highlightCode } from "./highlight.ts";
+import { highlightCode } from "../src/view/content/markdown/highlight.ts";
 
 /** A TypeScript snippet. */
 const typescriptSource = `const port: number = 300;`;

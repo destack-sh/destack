@@ -11,7 +11,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@destack/ui/sheet";
 import { createEffect, createMemo, createSignal } from "@destack/view";
 import { createAppearance } from "@destack/view/document";
-import { Link, useLocation } from "@destack/view/router";
 
 import { agentPrompt } from "../content/site";
 import { InstallList } from "../install/install";
@@ -37,9 +36,8 @@ import { commandEvents } from "./command";
 import { typeScale, tracking } from "./type.stylex";
 
 /** Render the global site navigation. */
-export function TopBar() {
-    // hold the route and the phone menu
-    const location = useLocation();
+export function TopBar(properties: { readonly path: string }) {
+    // hold the phone menu
     const [isMenuOpen, setIsMenuOpen] = createSignal(false);
 
     // hold the visitor's appearance, which the toggle and the command palette both set
@@ -64,7 +62,7 @@ export function TopBar() {
     const active = createMemo(
         () =>
             primaryDestinations
-                .filter((destination) => location.pathname.startsWith(destination.href))
+                .filter((destination) => properties.path.startsWith(destination.href))
                 .toSorted((left, right) => right.href.length - left.href.length)[0],
     );
 
@@ -75,10 +73,10 @@ export function TopBar() {
                     <div {...style.attrs(lattice.frame, lattice.ruleBottom, styles.bar)}>
                         {/* run the head as a dictionary page does: the headword, its guide words, then the controls */}
                         <div {...style.attrs(styles.content)}>
-                            <Link href={home.href} {...style.attrs(styles.brand)}>
+                            <a href={home.href} {...style.attrs(styles.brand)}>
                                 <Mark />
                                 <span {...style.attrs(styles.headword)}>Destack</span>
-                            </Link>
+                            </a>
                             <nav
                                 aria-label="Primary navigation"
                                 {...style.attrs(styles.navigation)}
@@ -141,13 +139,13 @@ export function TopBar() {
                     xstyle={styles.menu}
                 >
                     <div {...style.attrs(styles.menuHeader)}>
-                        <Link
+                        <a
                             href={home.href}
                             {...style.attrs(styles.menuBrand)}
                             onClick={() => setIsMenuOpen(false)}
                         >
                             Destack
-                        </Link>
+                        </a>
                         <SheetClose variant="ghost" size="icon" aria-label="Close menu">
                             <Icon icon={xIcon} />
                         </SheetClose>
@@ -164,7 +162,7 @@ export function TopBar() {
                     >
                         {menu.map((destination) =>
                             isLive(destination) ? (
-                                <Link
+                                <a
                                     href={destination.href}
                                     {...style.attrs(
                                         styles.menuLink,
@@ -173,7 +171,7 @@ export function TopBar() {
                                 >
                                     {destination.label}
                                     <Icon icon={arrowRight} />
-                                </Link>
+                                </a>
                             ) : (
                                 <span
                                     aria-disabled="true"
@@ -246,12 +244,12 @@ function MenuLink(properties: {
     }
 
     return (
-        <Link
+        <a
             href={destination.href}
             {...style.attrs(styles.link, properties.isActive && styles.active)}
         >
             {destination.label}
-        </Link>
+        </a>
     );
 }
 

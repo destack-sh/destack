@@ -1,4 +1,5 @@
 import { Icon } from "@destack/icon";
+import type { BrowserEnvironment } from "@destack/environment/browser";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import check from "@destack/icon/phosphor/check";
 import magnifyingGlass from "@destack/icon/phosphor/magnifying-glass";
@@ -21,7 +22,6 @@ import { createMemo, createSignal, For, onSettled, Show, useEnvironment } from "
 import type { LocalAppearance } from "@destack/view/document";
 import { Accelerator, isCommandPlatform } from "@destack/view/palette";
 import { createShortcut } from "@destack/view/primitives/keyboard";
-import { useNavigate } from "@destack/view/router";
 
 import {
     type PaletteCommand,
@@ -57,8 +57,8 @@ const COPIED_TIME = 700;
 /** Search the site's pages, sections and commands from anywhere, on ⌘K, Ctrl+K or a slash. */
 export function CommandPalette(properties: { appearance: LocalAppearance }) {
     // hold whether the palette is open, its menu, the search and the loaded entries
-    const { clock } = useEnvironment();
-    const navigate = useNavigate();
+    const environment = useEnvironment();
+    const { clock } = environment;
     const { selected: download } = createDownloads();
     const [isOpen, setIsOpen] = createSignal(false);
     const [menu, setMenu] = createSignal<Menu>("root");
@@ -120,7 +120,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
             sections: currentSections(),
             hasStack: document.querySelector("[data-figure-label]") !== null,
         });
-        setRecent(readRecent());
+        setRecent(readRecent(environment.storage));
         setIsOpen(true);
 
         // load the index once, leaving a load in flight or done alone
@@ -130,7 +130,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
         setIsLoading(true);
         setFailure(undefined);
         try {
-            setEntries(await loadSearchEntries());
+            setEntries(await loadSearchEntries(environment.network));
         } catch (error: unknown) {
             setFailure(error instanceof Error ? error.message : String(error));
         } finally {
@@ -176,7 +176,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
             document.dispatchEvent(new CustomEvent(action.event));
         } else {
             setIsOpen(false);
-            setRecent(writeRecent(command, recent()));
+            setRecent(writeRecent(command, recent(), environment.storage));
             follow(action.href);
         }
     };
@@ -188,7 +188,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
                 behavior: "smooth",
             });
         } else if (href.startsWith("/")) {
-            navigate(href);
+            environment.navigation.assign(href);
         } else {
             window.open(href, "_blank", "noopener,noreferrer");
         }
@@ -421,9 +421,9 @@ function currentSections(): readonly PageSection[] {
 }
 
 /** Read the recently opened commands, none where storage is empty or refused. */
-function readRecent(): readonly string[] {
+function readRecent(storage: BrowserEnvironment["storage"]): readonly string[] {
     try {
-        const stored: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+        const stored: unknown = JSON.parse(storage.getItem(RECENT_KEY) ?? "[]");
 
         return schema.array(schema.string()).parse(stored);
     } catch {
@@ -432,14 +432,18 @@ function readRecent(): readonly string[] {
 }
 
 /** Put a followed page first among the recent ones, and store them where storage allows. */
-function writeRecent(command: PaletteCommand, recent: readonly string[]): readonly string[] {
+function writeRecent(
+    command: PaletteCommand,
+    recent: readonly string[],
+    storage: BrowserEnvironment["storage"],
+): readonly string[] {
     // keep pages and sections only, sections of this page drop out on others
     const next =
         command.kind === "page" || command.kind === "section"
             ? [command.id, ...recent.filter((id) => id !== command.id)].slice(0, RECENT_LIMIT)
             : recent;
     try {
-        localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+        storage.setItem(RECENT_KEY, JSON.stringify(next));
     } catch {
         // keep the list for this visit where storage refuses
     }

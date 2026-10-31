@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { renderMarkdown } from "./markdown.ts";
+import { renderMarkdown } from "../src/view/content/markdown/markdown.ts";
 
 /** A page with a fence, an alert, a quotation, a footnote, a table, a figure and an abstract. */
 const page = `## Setup

@@ -17,14 +17,13 @@ import {
     type ContentComponents,
     type ContentElementProperties,
 } from "@destack/ui/content";
-import { CopyButton } from "../layout/copy";
+import Copy from "../islands/copy";
+import AnimationIsland from "../islands/animation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@destack/ui/table";
 
 import { palette } from "../palette.stylex";
 import { media } from "@destack/style/media.stylex";
-import { createEffect, createSignal } from "@destack/view";
 import { ImageMetadata, Picture } from "@destack/view/media";
-import { createReducedMotion } from "@destack/view/motion";
 import { typeScale, tracking } from "../layout/type.stylex";
 
 /** The components that stand in for the elements of the site's articles. */
@@ -82,7 +81,7 @@ function Listing(properties: ContentElementProperties) {
                 <CodeBlockHeader>
                     <CodeBlockTitle>{title}</CodeBlockTitle>
                     <span {...style.attrs(text.footnote, styles.format)}>{format}</span>
-                    <CopyButton value={source} />
+                    <Copy value={source} />
                 </CodeBlockHeader>
             )}
             <CodeBlockContent
@@ -125,7 +124,7 @@ function Figure(properties: ContentElementProperties) {
                     {...style.attrs(styles.frame)}
                 >
                     {kind === "animation" ? (
-                        <Animation
+                        <AnimationIsland
                             source={attribute(properties, "data-src") ?? ""}
                             alt={alt}
                             poster={image}
@@ -295,42 +294,6 @@ function textOf(node: ElementContent): string {
 /** Wrap nodes as a tree to render on their own. */
 function rootOf(children: readonly ElementContent[]): Root {
     return { type: "root", children: [...children] };
-}
-
-/** Play a video as a silent looping animation, held on its poster frame while motion is reduced. */
-function Animation(properties: { source: string; alt: string; poster: ImageMetadata | undefined }) {
-    // play while motion runs, and hold the poster frame while it is reduced
-    const [video, setVideo] = createSignal<HTMLVideoElement>();
-    const isStill = createReducedMotion(video);
-    createEffect(
-        () => ({ element: video(), still: isStill() }),
-        ({ element, still }) => {
-            if (element === undefined) {
-                return;
-            }
-            if (still) {
-                element.pause();
-            } else {
-                void element.play();
-            }
-        },
-    );
-
-    return (
-        <video
-            ref={setVideo}
-            muted
-            loop
-            playsinline
-            preload="metadata"
-            aria-label={properties.alt}
-            src={properties.source}
-            poster={properties.poster?.src}
-            width={properties.poster?.width}
-            height={properties.poster?.height}
-            {...style.attrs(styles.media)}
-        />
-    );
 }
 
 /** Read the published image a figure carries, its source or poster frame, none if external. */

@@ -1,0 +1,4 @@
+/* move between the site's pages with a cross-document view transition */
+@view-transition {
+    navigation: auto;
+}

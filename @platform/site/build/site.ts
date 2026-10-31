@@ -1,158 +1,46 @@
-import { CompilerPool, LocalPackageStore, PackageBuild, Workspace } from "@destack/build";
-import { DevelopmentServer, type MetadataOptions, type WebOptions } from "@destack/web/build";
-import type { Environment } from "@destack/environment";
-import { cp, mkdir, readFile, rm } from "node:fs/promises";
-import process from "node:process";
+import { CompilerPool, LocalBuildStore, outputsOf, Workspace } from "@destack/build";
+import { DevelopmentServer } from "@destack/view/build";
+import { type Environment, FileSystemError } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { watchContent } from "./content.ts";
-import { prerenderRoutes } from "../src/view/content/generated/prerender-routes.ts";
-import { posts } from "../src/view/content/generated/posts.ts";
-import { Document } from "../src/view/content/document.ts";
-import { origin, tagline } from "../src/view/content/site.ts";
 
-/** The address security reports go to. */
-const SECURITY_CONTACT = "mailto:florian@symbol.industries";
-
-/** How long the security contact stays valid after a build. */
-const SECURITY_LIFETIME = 183 * 24 * 60 * 60 * 1000;
+/** The site's static view. */
+const VIEW = "site";
 
 /** Absolute package directory for development and production builds. */
 const directory = fileURLToPath(new URL("../", import.meta.url));
 
-/** Build static pages or serve the same application with live updates. */
+/** Build the site, or serve it with live updates. */
 export async function run(
     command: string | undefined,
     environment: Environment<"files" | "process" | "host">,
 ): Promise<void> {
-    const application: WebOptions = {
-        kind: "web",
-        ssr: { runtime: "bun", emit: false },
-        minify: true,
-        app: "src/view/app.tsx",
-        document: "src/view/document.tsx",
-        entryServer: "src/view/entry-server.tsx",
-        entryClient: "src/view/entry-client.tsx",
-        site: origin,
-        prerender: { routes: prerenderRoutes, notFound: "/404" },
-        metadata: await metadataOptions(),
-    };
+    // open the site's workspace on the checkout's store
+    await using store = await LocalBuildStore.checkout(directory, "development", environment);
+    await using compilers = await CompilerPool.open(store);
+    const workspace = await Workspace.open(directory, compilers);
 
-    // retain the development server until the process receives a shutdown signal
+    // serve the view, rendering each page on request, until the process receives a shutdown signal
     if (command === "dev") {
         await using development = await DevelopmentServer.start({
-            directory,
-            application,
+            workspace,
+            view: VIEW,
             environment,
             server: { port: 3737, strictPort: true, watch: { ignored: ["**/.output/**"] } },
         });
-        await using content = watchContent(directory, development);
         development.vite.printUrls();
         await new Promise<void>((resolve) => {
-            process.once("SIGINT", resolve);
-            process.once("SIGTERM", resolve);
+            environment.process.on("SIGINT", resolve);
+            environment.process.on("SIGTERM", resolve);
         });
     }
-    // publish only the browser output, keeping inspection and source files private
+    // build the site and write its build, which a machine serves, into the output directory
     else if (command === "build") {
-        await using store = await LocalPackageStore.checkout(directory, "development", environment);
-        await using compilers = await CompilerPool.open(store);
-        const workspace = await Workspace.open(directory, compilers);
-        await using build = await workspace.build({ outputs: { website: application } });
-
-        // write the package, then copy its browser output to the public directory
+        const build = await workspace.build({ outputs: outputsOf(workspace.root.packageJson) });
         const output = join(directory, ".output");
-        await rm(output, { recursive: true, force: true });
-        await mkdir(output, { recursive: true });
-        await build.reader.writeDirectory(join(output, "package"), environment.files);
-        await mkdir(join(output, "public"), { recursive: true });
-        const browser = build.manifest.outputs["website-browser"];
-        if (browser === undefined) {
-            throw new Error("missing website-browser output in the build manifest");
-        }
-        await cp(join(output, "package", browser.directory), join(output, "public"), {
-            recursive: true,
-        });
+        await environment.files.remove(output, { recursive: true }).catch(FileSystemError.absent);
+        await build.writeDirectory(output, environment.files);
     } else {
         throw new Error("expected build or dev");
     }
-}
-
-/** Publish the sitemap, crawler rules, blog feed, model guide, manifest and security contact. */
-async function metadataOptions(): Promise<MetadataOptions> {
-    // read each documentation page's title, summary and Markdown from its generated metadata
-    const documentation = await Promise.all(
-        prerenderRoutes
-            .filter((route) => route.startsWith("/docs/"))
-            .map(async (route) =>
-                Document.parse(
-                    JSON.parse(
-                        await readFile(
-                            join(directory, "public/_content", route, "index.json"),
-                            "utf8",
-                        ),
-                    ),
-                ),
-            ),
-    );
-
-    return {
-        sitemap: prerenderRoutes,
-        robots: { rules: [{ userAgent: "*", allow: ["/"] }] },
-        feed: {
-            path: "/blog/feed.xml",
-            home: "/blog/",
-            title: "Destack blog",
-            subtitle: "Updates around Destack.",
-            author: { name: "Florian" },
-            entries: posts.map((post) => ({
-                title: post.title,
-                path: post.route,
-                published: post.date,
-                summary: post.subtitle,
-            })),
-        },
-        llms: {
-            title: "Destack",
-            summary: tagline,
-            details: "Every page is also published as Markdown: add .md to its address.",
-            sections: [
-                {
-                    title: "Docs",
-                    links: documentation.map((document) => ({
-                        title: document.title,
-                        path: document.markdownRoute,
-                        description: document.description,
-                    })),
-                },
-                {
-                    title: "Blog",
-                    links: posts.map((post) => ({
-                        title: post.title,
-                        path: post.markdownRoute,
-                        description: post.subtitle,
-                    })),
-                },
-            ],
-        },
-        manifest: {
-            name: "Destack",
-            shortName: "Destack",
-            description: tagline,
-            display: "standalone",
-            backgroundColor: "#0b2029",
-            themeColor: "#0b2029",
-            icons: [
-                { src: "/brand/icon/icon-180.png", sizes: "180x180", type: "image/png" },
-                { src: "/brand/icon/icon-256.png", sizes: "256x256", type: "image/png" },
-                { src: "/brand/icon/icon-512.png", sizes: "512x512", type: "image/png" },
-                { src: "/brand/favicon/favicon.svg", sizes: "any", type: "image/svg+xml" },
-            ],
-        },
-        security: {
-            contact: [SECURITY_CONTACT],
-            expires: new Date(Date.now() + SECURITY_LIFETIME).toISOString(),
-            preferredLanguages: ["en", "de"],
-        },
-    };
 }

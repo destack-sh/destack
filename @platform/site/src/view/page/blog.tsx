@@ -1,8 +1,9 @@
 import * as style from "@destack/style";
 import { Metadata } from "@destack/view/document";
 
-import { blogIndex, posts } from "../content/generated/posts";
-import { createDirectory, DirectoryArchive, DirectoryContent } from "../reader/directory";
+import { blogIndex, posts } from "../content/collection";
+import Archive from "../islands/archive";
+import Directory from "../islands/directory";
 import { publicationStyles } from "../reader/publication.stylex";
 import { Reader } from "../reader/reader";
 
@@ -15,7 +16,6 @@ export function Blog() {
         date: post.date,
         cover: post.cover,
     }));
-    const directory = createDirectory(() => entries);
 
     return (
         <>
@@ -36,16 +36,16 @@ export function Blog() {
                                 Blog
                             </a>
                         </div>
-                        <DirectoryArchive directory={directory} />
+                        <Archive entries={entries} />
                     </nav>
                 )}
                 publication="journal"
                 source={blogIndex}
             >
-                <DirectoryContent
+                <Directory
                     title="Blog"
                     description="Notes from building Destack."
-                    directory={directory}
+                    entries={entries}
                 />
             </Reader>
         </>

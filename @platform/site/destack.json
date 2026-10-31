@@ -5,9 +5,5 @@
     "runtimes": [
         "browser",
         "bun"
-    ],
-    "entrypoints": [
-        "src/view/entry-client.tsx",
-        "src/view/entry-server.tsx"
     ]
 }

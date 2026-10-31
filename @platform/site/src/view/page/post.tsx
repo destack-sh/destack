@@ -1,24 +1,18 @@
 import { present } from "@destack/schema";
-import { createMemo, Show } from "@destack/view";
-import { query, type RoutePreloadFuncArgs, type RouteSectionProps } from "@destack/view/router";
+import { Show } from "@destack/view";
+import type { RouteSectionProps } from "@destack/view/router";
 import { Metadata } from "@destack/view/document";
 
-import { loadPost, type PostContent, postBySlug, posts } from "../content/generated/posts";
+import { postContent, posts } from "../content/collection";
 import { BlogArticle } from "../reader/blog";
 import { MissingPage } from "./missing";
 
-/** Load a post's rendered body once per slug, for the preload and the page alike. */
-const content = query(loadPost, "post");
-
-/** Load the requested post's body while the route is preloading. */
-export function preload(arguments_: RoutePreloadFuncArgs): Promise<PostContent | undefined> {
-    return content(present(arguments_.params["slug"], "a blog post slug"));
-}
-
 /** Render one blog post, or the missing post page for an unknown slug. */
-export function Post(properties: RouteSectionProps<Promise<PostContent | undefined>>) {
-    const post = () => postBySlug.get(present(properties.params["slug"], "a blog post slug"));
-    const loaded = createMemo(() => properties.data);
+export function Post(properties: RouteSectionProps) {
+    // find the post and its body by the slug
+    const slug = () => present(properties.params["slug"], "a blog post slug");
+    const post = () => posts.find((each) => each.slug === slug());
+    const loaded = () => postContent.get(slug());
 
     return (
         <Show keyed fallback={<MissingPost />} when={post()}>

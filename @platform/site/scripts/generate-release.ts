@@ -11,8 +11,6 @@ const generatedFile = join(
     repositoryDirectory,
     "@platform/site/src/view/content/generated/release.ts",
 );
-/** The public release document. */
-const publicFile = join(repositoryDirectory, "@platform/site/public/release.json");
 /** Whether this run checks the generated files instead of writing them. */
 const isCheck = process.argv.includes("--check");
 
@@ -39,16 +37,12 @@ const generatedSource = await formatSource(
     `/** The current Destack release. */\n` +
         `export const release = ${JSON.stringify(release)} as const;\n`,
 );
-/** The public release document source. */
-const publicSource = await formatSource(publicFile, `${JSON.stringify(release)}\n`);
 
-// check or replace both representations together
+// check or replace the generated module
 if (isCheck) {
     requireGeneratedFile(generatedFile, generatedSource);
-    requireGeneratedFile(publicFile, publicSource);
 } else {
     writeGeneratedFile(generatedFile, generatedSource);
-    writeGeneratedFile(publicFile, publicSource);
 }
 
 /** Require one generated file to match its expected contents. */

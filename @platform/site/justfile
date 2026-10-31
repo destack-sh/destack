@@ -10,10 +10,6 @@ _default:
 build:
     bun run build
 
-# deploy
-deploy:
-    CLOUDFLARE_API_TOKEN="${CLOUDFLARE_COMPANY_API_TOKEN:?CLOUDFLARE_COMPANY_API_TOKEN is required}" bun run wrangler deploy
-
 # format
 format:
     bun run format
@@ -31,7 +27,6 @@ generate-check:
     bun run scripts/generate-release.ts --check
     bun run scripts/generate-pricing.ts --check
     bun run scripts/generate-headword.ts --check
-    bun run scripts/generate-content.ts --check
 
 # typecheck
 typecheck:

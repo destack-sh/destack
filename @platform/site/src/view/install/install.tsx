@@ -12,6 +12,7 @@ import { Glyph } from "../home/figure/glyph";
 import { screen } from "../layout/screen.stylex";
 import { createCopy } from "../layout/copy";
 import { typeScale } from "../layout/type.stylex";
+import { brand } from "../brand";
 
 /** The detected system and published build the download field shows. */
 type Desktop = Pick<ReturnType<typeof createDownloads>, "system" | "selected">;
@@ -76,7 +77,7 @@ function DownloadField(properties: { system: System | undefined; download: Downl
 function Product() {
     return (
         <span {...style.attrs(styles.product)}>
-            <img alt="" src="/brand/icon/icon-rounded.svg" {...style.attrs(styles.icon)} />
+            <img alt="" src={brand.iconRounded} {...style.attrs(styles.icon)} />
             Destack Desktop
         </span>
     );

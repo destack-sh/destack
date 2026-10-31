@@ -10,6 +10,7 @@ import { Favicon, Glyph } from "../figure/glyph";
 import { Mark, type Option, type OptionMark } from "../figure/picker";
 import { type Tool, tools } from "../tool/tool";
 import { assistant, builder, chat, chatgpt, claude, gemini, grok, terminal } from "./chat.stylex";
+import { brand } from "../../brand";
 import {
     BEAT,
     CHARACTERS_PER_BEAT,
@@ -431,11 +432,7 @@ function Connectors(properties: { isOpen: boolean; connectors: readonly Connecto
                     <span {...style.attrs(styles.logos)}>
                         {properties.isOpen ? (
                             <span {...style.attrs(styles.logo)}>
-                                <img
-                                    alt=""
-                                    src="/brand/favicon/favicon.svg"
-                                    {...style.attrs(styles.server)}
-                                />
+                                <img alt="" src={brand.favicon} {...style.attrs(styles.server)} />
                             </span>
                         ) : (
                             properties.connectors.slice(0, SHOWN_CONNECTORS).map(([icon, tint]) => (
@@ -681,11 +678,7 @@ function ToolCall(properties: {
                         {...style.attrs(styles.toolHead)}
                     >
                         {item().server === "destack" ? (
-                            <img
-                                alt=""
-                                src="/brand/favicon/favicon.svg"
-                                {...style.attrs(styles.server)}
-                            />
+                            <img alt="" src={brand.favicon} {...style.attrs(styles.server)} />
                         ) : item().server === SHELL ? (
                             <Glyph name="file" size={13} />
                         ) : (

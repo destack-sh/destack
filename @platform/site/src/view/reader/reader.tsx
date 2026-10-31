@@ -1,22 +1,18 @@
 import { frame } from "../layout/frame.stylex";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import { formatReadTime } from "../content/presentation";
-import { Icon } from "@destack/icon";
 import { text } from "@destack/theme/text";
-import caretDown from "@destack/icon/phosphor/caret-down";
-import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
-import { createSignal, type JSX, onSettled, useEnvironment, useTelemetry } from "@destack/view";
-import type { Display } from "@destack/environment/browser";
+import type { JSX } from "@destack/view";
+import Contents from "../islands/contents";
+import ReaderBehavior from "../islands/reader";
+import Source from "../islands/source";
+import type { BrowserEnvironment } from "@destack/environment/browser";
 import * as style from "@destack/style";
 
 import type { PageSource } from "../content/source";
-import { createPageSourceCommands, type PageSourceCommands, SourceActions } from "./source";
 import { lattice } from "../layout/lattice.stylex";
-import { playVideo } from "./media";
-import { renderDiagrams } from "./diagram";
 import { publicationStyles } from "./publication.stylex";
 import { screen } from "../layout/screen.stylex";
-import { createEventListener } from "@destack/view/primitives/event-listener";
 import { requestFrame } from "@destack/view/primitives/raf";
 
 /** Properties for the shared reading frame. */
@@ -51,8 +47,8 @@ type ReaderToolbarProperties = {
     /** The collection navigation shown beside the article. */
     navigation: () => JSX.Element;
 
-    /** The shared page source commands. */
-    sourceCommands: PageSourceCommands;
+    /** The portable source files for the current page. */
+    source: PageSource;
 
     /** The approximate token count shown for authored pages. */
     tokenCount?: number | undefined;
@@ -60,36 +56,12 @@ type ReaderToolbarProperties = {
 
 /** Render the common blog and documentation reading frame. */
 export function Reader(properties: ReaderProperties) {
-    // hold the article and its source commands
-    let article: HTMLElement | undefined;
-    const sourceCommands = createPageSourceCommands(properties.source);
-    const telemetry = useTelemetry();
-    const environment = useEnvironment();
-
-    // render diagrams after the article mounts
-    onSettled(() => {
-        if (!article) {
-            throw new TypeError("the reader rendered without its article");
-        }
-
-        return renderDiagrams(article, telemetry, environment.display);
-    });
-
-    // align direct links once the webfonts load and on each hash change
-    onSettled(() => {
-        void document.fonts.ready.then(() => scrollAfterLayout(environment.display));
-    });
-    createEventListener(
-        () => window,
-        "hashchange",
-        () => scrollAfterLayout(environment.display),
-    );
-
     return (
         <div
             {...style.attrs(lattice.frame, lattice.ruleBottom, publicationStyles.layout)}
             data-publication={properties.publication}
         >
+            <ReaderBehavior />
             <aside {...style.attrs(text.subheadline, lattice.ruleRight, publicationStyles.sidebar)}>
                 <div {...style.attrs(publicationStyles.sidebarContent)}>
                     {properties.navigation()}
@@ -97,17 +69,15 @@ export function Reader(properties: ReaderProperties) {
             </aside>
 
             <article
-                ref={article}
                 {...style.attrs(publicationStyles.article)}
                 data-markdown-route={properties.source.markdownRoute}
                 data-page-source
                 data-text-route={properties.source.textRoute}
-                onClick={playVideo}
             >
                 <ReaderToolbar
                     location={properties.location}
                     navigation={properties.navigation}
-                    sourceCommands={sourceCommands}
+                    source={properties.source}
                     tokenCount={properties.tokenCount}
                 />
 
@@ -120,30 +90,9 @@ export function Reader(properties: ReaderProperties) {
 
 /** Render one toolbar at its responsive DOM position. */
 function ReaderToolbar(properties: ReaderToolbarProperties) {
-    // hold whether the narrow contents menu is open
-    const [isMenuOpen, setIsMenuOpen] = createSignal(false);
-
     return (
         <header {...style.attrs(text.subheadline, styles.toolbar)}>
-            <Popover open={isMenuOpen()} onOpenChange={setIsMenuOpen}>
-                <PopoverTrigger variant="ghost" size="sm" xstyle={styles.menu}>
-                    Contents
-                    <Icon icon={caretDown} />
-                </PopoverTrigger>
-                <PopoverContent side="bottom" align="start" xstyle={text.subheadline}>
-                    <div
-                        {...style.attrs(styles.menuBody)}
-                        onClick={(event) => {
-                            // close once a link in the contents is followed
-                            if (event.target instanceof Element && event.target.closest("a")) {
-                                setIsMenuOpen(false);
-                            }
-                        }}
-                    >
-                        {properties.navigation()}
-                    </div>
-                </PopoverContent>
-            </Popover>
+            <Contents>{properties.navigation()}</Contents>
 
             <div {...style.attrs(styles.location)}>{properties.location()}</div>
             <div {...style.attrs(styles.toolbarTools)}>
@@ -160,24 +109,27 @@ function ReaderToolbar(properties: ReaderToolbarProperties) {
                         </span>
                     </>
                 )}
-                <SourceActions commands={properties.sourceCommands} />
+                <Source source={properties.source} />
             </div>
         </header>
     );
 }
 
 /** Scroll to the heading the URL names once layout settles, on the display's next frame. */
-function scrollAfterLayout(display: Display) {
-    requestFrame(scrollToHeading, display);
+export function scrollAfterLayout(environment: Pick<BrowserEnvironment, "display" | "navigation">) {
+    requestFrame(() => scrollToHeading(environment.navigation), environment.display);
 }
 
 /** Scroll to the heading the URL names. */
-function scrollToHeading() {
-    const identifier = decodeURIComponent(window.location.hash.slice(1));
+function scrollToHeading(navigation: BrowserEnvironment["navigation"]) {
+    // read the heading from the address, none without a fragment
+    const { hash } = new URL(navigation.currentEntry.url);
+    const identifier = decodeURIComponent(hash.slice(1));
     if (identifier === "") {
         return;
     }
 
+    // scroll it to the top
     document.getElementById(identifier)?.scrollIntoView({ block: "start" });
 }
 
@@ -204,18 +156,6 @@ const styles = style.create({
     location: {
         minWidth: 0,
         overflow: "hidden",
-    },
-    menu: {
-        minWidth: 0,
-        display: { default: "inline-flex", [screen.reader]: "none" },
-    },
-    menuBody: {
-        display: "grid",
-        gap: "1.25rem",
-        maxHeight: "min(32rem, 65svh)",
-        overflowY: "auto",
-        overscrollBehavior: "contain",
-        width: "min(22rem, calc(100vw - 2rem))",
     },
     toolbar: {
         alignItems: "center",

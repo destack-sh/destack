@@ -2,11 +2,12 @@ import { text } from "@destack/theme/text";
 import { color, font } from "@destack/theme/tokens.stylex";
 import { Content } from "@destack/ui/content";
 import { Prose } from "@destack/ui/prose";
-import { type Heading, TableOfContents } from "./table-of-contents";
+import Outline from "../islands/outline";
+import type { Heading } from "./table-of-contents";
 import { Show } from "@destack/view";
 import * as style from "@destack/style";
 
-import { type Post, type PostContent } from "../content/generated/posts";
+import type { Post, RenderedContent } from "../content/collection";
 import { Breadcrumbs } from "./breadcrumbs";
 import { publicationStyles } from "./publication.stylex";
 import { blocks } from "./blocks";
@@ -20,7 +21,7 @@ const HEADER_OFFSET = 96;
 /** Properties for one rendered blog article. */
 type BlogArticleProperties = {
     /** The rendered post body. */
-    content: PostContent;
+    content: RenderedContent;
 
     /** The current post. */
     post: Post;
@@ -58,11 +59,7 @@ function BlogNavigation(properties: { contents: readonly Heading[] }) {
                 </a>
             </div>
             <div {...style.attrs(publicationStyles.collectionList)}>
-                <TableOfContents
-                    headings={properties.contents}
-                    offset={HEADER_OFFSET}
-                    xstyle={[text.subheadline, publicationStyles.outline]}
-                />
+                <Outline headings={properties.contents} offset={HEADER_OFFSET} />
             </div>
         </div>
     );

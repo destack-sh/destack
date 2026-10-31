@@ -12,7 +12,7 @@ import { publicationStyles } from "./publication.stylex";
 import { blocks } from "./blocks";
 import { Reader } from "./reader";
 import { PageHeader } from "./header";
-import { createDirectory, DirectoryContent } from "./directory";
+import Directory from "../islands/directory";
 
 /** Properties for one rendered manual chapter. */
 type DocumentArticleProperties = {
@@ -69,18 +69,16 @@ function DocumentDirectory(properties: {
     entries: NonNullable<Document["entries"]>;
     tree: Root;
 }) {
-    const directory = createDirectory(() => properties.entries);
-
     return (
-        <DirectoryContent
+        <Directory
             title={properties.document.title}
             description={properties.document.lead}
-            directory={directory}
+            entries={properties.entries}
         >
             <Prose data-lead xstyle={[publicationStyles.reading, publicationStyles.intro]}>
                 <Content tree={properties.tree} components={blocks} />
             </Prose>
-        </DirectoryContent>
+        </Directory>
     );
 }
 

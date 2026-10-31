@@ -1,8 +1,7 @@
 import { schema } from "@destack/schema";
 
 import { ContentEntry } from "./presentation.ts";
-import { loadContent, type RenderedContent } from "./load.ts";
-import { loadAsset } from "./asset.ts";
+import { documents, type RenderedContent } from "./collection.ts";
 
 /** A published document destination. */
 export const DocumentLink = schema.object({
@@ -30,8 +29,6 @@ export type TableOfContentsEntry = schema.Infer<typeof TableOfContentsEntry>;
 export const Document = schema.object({
     /** Immediate collection entries. */
     entries: schema.array(ContentEntry).exactOptional(),
-    /** The static rendered HTML route. */
-    contentRoute: schema.string(),
     /** The concise chapter description. */
     description: schema.string(),
     /** The optional introductory sentence. */
@@ -79,32 +76,7 @@ export type LoadedDocument = {
     content: DocumentContent;
 };
 
-/** Load one published document and its rendered body. */
-export async function loadDocument(route: string): Promise<LoadedDocument | undefined> {
-    if (!route.startsWith("/docs/") || route.includes("..")) {
-        return undefined;
-    }
-    const metadataRoute = `/_content${route}index.json`;
-    const document = await loadDocumentMetadata(metadataRoute);
-    if (document == undefined) {
-        return undefined;
-    }
-    if (document.route !== route) {
-        throw new Error(`invalid document route: ${document.route}`);
-    }
-    const content = await loadContent(document.contentRoute);
-
-    return { content, document };
-}
-
-/** Load and validate one document metadata record. */
-async function loadDocumentMetadata(route: string): Promise<Document | undefined> {
-    // load the metadata, or none for a missing route
-    const text = await loadAsset(route);
-    if (text === undefined) {
-        return undefined;
-    }
-
-    // reject metadata of the wrong shape
-    return Document.parse(JSON.parse(text));
+/** Find a published document and its rendered body by its route, none for an unknown route. */
+export function documentAt(route: string): LoadedDocument | undefined {
+    return documents.find((each) => each.document.route === route);
 }

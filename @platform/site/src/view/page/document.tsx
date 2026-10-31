@@ -1,22 +1,14 @@
-import { createMemo, Show } from "@destack/view";
-import { query, type RoutePreloadFuncArgs, type RouteSectionProps } from "@destack/view/router";
+import { Show } from "@destack/view";
+import type { RouteSectionProps } from "@destack/view/router";
 import { Metadata } from "@destack/view/document";
 
-import { type LoadedDocument, loadDocument } from "../content/document";
+import { documentAt } from "../content/document";
 import { DocumentArticle } from "../reader/document";
 import { MissingPage } from "./missing";
 
-/** Load a document and its rendered body once per route, for the preload and the page alike. */
-const document = query(loadDocument, "document");
-
-/** Load the requested document while the route is preloading. */
-export function preload(arguments_: RoutePreloadFuncArgs): Promise<LoadedDocument | undefined> {
-    return document(routeOf(arguments_.params["path"]));
-}
-
 /** Render a documentation chapter or index, or the missing document page for an unknown path. */
-export function Document(properties: RouteSectionProps<Promise<LoadedDocument | undefined>>) {
-    const loaded = createMemo(() => properties.data);
+export function Document(properties: RouteSectionProps) {
+    const loaded = () => documentAt(routeOf(properties.params["path"]));
 
     return (
         <Show
