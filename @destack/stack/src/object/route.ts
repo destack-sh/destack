@@ -5,7 +5,7 @@ import { DeclarationName } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { installation } from "@destack/object";
 import { HostnamePattern, space } from "@destack/account/object";
-import type { ObjectReference } from "@destack/sync";
+import { ObjectReference } from "@destack/sync";
 
 /** The HTTP statuses a route redirects with. */
 export const REDIRECT_STATUSES = [301, 302, 303, 307, 308] as const;
@@ -20,15 +20,17 @@ export const route = defineObject(
         fields: {
             /** The hostname of the space's account the route serves, such as `example.com`. */
             hostname: field.string(HostnamePattern),
-            /** The absolute URL path without a query or fragment. */
-            path: field.string(schema.string().regex(/^\/[^\s?#]*$/u)),
+            /** The absolute URL path: `/`, or segments without a trailing slash or query. */
+            path: field.string(schema.string().regex(/^\/(?:[^\s?#/]+(?:\/[^\s?#/]+)*)?$/u)),
             /** Whether the path matches exactly or as a prefix. */
             match: field.enum(["exact", "prefix"]),
             // the installation destinations
             /** The serving installation. */
             installation: field.reference(installation, { delete: "restrict" }).optional(),
-            /** The view the installed package declares. */
+            /** The view the installed package declares, serving below the route's path. */
             view: field.string(DeclarationName).optional(),
+            /** The object the view opens for, as its target. */
+            object: field.json(ObjectReference).optional(),
             /** The adapter the installed package declares. */
             adapter: field.string(DeclarationName).optional(),
 
@@ -52,14 +54,29 @@ export const route = defineObject(
                             redirect: { isNull: true },
                             redirectStatus: { isNull: true },
                             OR: [
-                                { view: { isNull: true }, adapter: { isNotNull: true } },
-                                { view: { isNotNull: true }, adapter: { isNull: true } },
+                                {
+                                    view: { isNull: true },
+                                    adapter: { isNull: true },
+                                    object: { isNull: true },
+                                    match: "prefix",
+                                },
+                                {
+                                    view: { isNull: true },
+                                    adapter: { isNotNull: true },
+                                    object: { isNull: true },
+                                },
+                                {
+                                    view: { isNotNull: true },
+                                    adapter: { isNull: true },
+                                    match: "prefix",
+                                },
                             ],
                         },
                         {
                             installationId: { isNull: true },
                             view: { isNull: true },
                             adapter: { isNull: true },
+                            object: { isNull: true },
                             redirect: { isNotNull: true },
                             redirectStatus: { in: [...REDIRECT_STATUSES] },
                         },
@@ -75,7 +92,7 @@ export const route = defineObject(
         list: method.list("read"),
         update: method.update("write", {
             visibility: "package",
-            fields: ["installationId", "view", "adapter", "redirect", "redirectStatus"],
+            fields: ["installationId", "view", "object", "adapter", "redirect", "redirectStatus"],
         }),
         delete: method.delete("write", { visibility: "package" }),
     }),
@@ -84,12 +101,17 @@ export const route = defineObject(
 /** A persisted route record. */
 export type Route = Select<typeof route.table>;
 
-/** Where a route sends its requests: an installation's view or adapter, or a redirect. */
+/** Where a route sends its requests: an installation's origin, view or adapter, or a redirect. */
 export type RouteDestination =
+    | {
+          readonly kind: "installation";
+          readonly installationId: Identifier<"installation">;
+      }
     | {
           readonly kind: "view";
           readonly installationId: Identifier<"installation">;
           readonly view: string;
+          readonly object: ObjectReference | null;
       }
     | {
           readonly kind: "adapter";
@@ -141,7 +163,7 @@ export const Route = {
 
     /** Read a route's destination from the columns the table's check groups together. */
     destination(row: Route): RouteDestination {
-        const { installationId, view, adapter, redirect, redirectStatus } = row;
+        const { installationId, view, object, adapter, redirect, redirectStatus } = row;
 
         // read a redirect
         if (redirect !== null && redirectStatus !== null) {
@@ -149,11 +171,15 @@ export const Route = {
         }
         // read an installation's view
         else if (installationId !== null && view !== null) {
-            return { kind: "view", installationId, view };
+            return { kind: "view", installationId, view, object };
         }
         // read an installation's adapter
         else if (installationId !== null && adapter !== null) {
             return { kind: "adapter", installationId, adapter };
+        }
+        // read an installation's whole origin, served below the route's path
+        else if (installationId !== null) {
+            return { kind: "installation", installationId };
         }
         // refuse a row the table's check forbids
         else {

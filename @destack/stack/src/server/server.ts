@@ -48,6 +48,7 @@ import settingPackage from "@destack/setting/package";
 import { Rollout, rollout } from "../object/index.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
+import { SPACE_KERNEL } from "../declare/index.ts";
 import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
 import { Binder, ResourceBindable, ObjectBindable } from "./resource/binding.ts";
 import { implementDeployment, implementInstance } from "./deployment/deployment.ts";
@@ -211,6 +212,9 @@ function stackServer(
     });
 }
 
+/** The packages every space is born with as base installations: the installer and its kernel. */
+export const SPACE_BASE_PACKAGES = [stackPackage, ...SPACE_KERNEL];
+
 /** List a primary's controllers: assignments, placement, consumers and retention. */
 function primaryControllers(
     options: SpaceOptions,
@@ -238,9 +242,6 @@ function primaryControllers(
         ),
     ];
 }
-
-/** The packages every space is born with as base installations: the installer and what it uses. */
-export const SPACE_KERNEL = [stackPackage, objectPackage, settingPackage];
 
 /** Serve a space's stack and other packages over its one database, the stack first. */
 export function serveSpace(options: SpaceOptions): {

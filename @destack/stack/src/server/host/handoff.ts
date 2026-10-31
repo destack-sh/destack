@@ -336,7 +336,7 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
         else if (part === "builds" && request.method === "GET") {
             const mount = new URL(`${url.origin}${HandoffPath.of(spaceId, "builds")}/`);
             const answer = await options.builds.space.fetch(request, mount, {
-                authorize: async (_request, manifest) => {
+                pull: async (_request, manifest) => {
                     await content.requireBuild(record, manifest);
                 },
             });

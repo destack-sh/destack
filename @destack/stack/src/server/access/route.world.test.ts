@@ -1,6 +1,7 @@
 import { asc } from "@destack/db";
 import { Claim } from "@destack/object";
 import { found, present } from "@destack/schema";
+import { ObjectReference } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { Route, route } from "../../object/index.ts";
 import { TestRoute } from "../../test/index.ts";
@@ -122,7 +123,13 @@ test("locate the route serving a host's path, the most specific first", async ()
     const wildcard = await fixture.serve(fixture.accountId, "*.example.com");
     const installation = { id: found(fixture.installations, first) };
 
-    // declare a view, a redirect and an adapter on the hostname, and an adapter on its wildcard
+    // declare a view, a view of an object, a whole origin, a redirect and an adapter on the hostname, and an adapter on its wildcard
+    const roadmap = ObjectReference.parse({
+        packageId: "package-01996ab0-0000-7000-8000-0000000000c1",
+        type: "note",
+        scope: first,
+        id: "note-01996ab0-0000-7000-8000-0000000000aa",
+    });
     await fixture.apply(first, {
         home: {
             hostname: notes,
@@ -130,6 +137,20 @@ test("locate the route serving a host's path, the most specific first", async ()
             match: "prefix",
             installation,
             view: "notes",
+        },
+        roadmap: {
+            hostname: notes,
+            path: "/roadmap",
+            match: "prefix",
+            installation,
+            view: "notes",
+            object: roadmap,
+        },
+        docs: {
+            hostname: notes,
+            path: "/docs",
+            match: "prefix",
+            installation,
         },
         old: {
             hostname: notes,
@@ -167,16 +188,21 @@ test("locate the route serving a host's path, the most specific first", async ()
 
         return [served.scope, row.managerName, Route.destination(row)];
     };
-    const view = { kind: "view", installationId: installation.id, view: "notes" };
+    const view = { kind: "view", installationId: installation.id, view: "notes", object: null };
     const adapter = { kind: "adapter", installationId: installation.id, adapter: "notes" };
     const redirect = { kind: "redirect", location: "https://blog.example/", status: 308 };
+    const origin = { kind: "installation", installationId: installation.id };
     expect([
+        await located(notes, "/roadmap"),
+        await located(notes, "/docs/guide"),
         await located(notes, "/blog"),
         await located(notes, "/blog/2026"),
         await located(notes, "/api/v1/notes"),
         await located("blog.example.com", "/anything"),
         await located("example.org", "/"),
     ]).toEqual([
+        [first, "roadmap", { ...view, object: roadmap }],
+        [first, "docs", origin],
         [first, "old", redirect],
         [first, "home", view],
         [first, "api", adapter],

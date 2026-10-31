@@ -2,7 +2,7 @@ import { testHost } from "@destack/test/host";
 import { Failure } from "@destack/error";
 import { principal } from "@destack/access";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
-import { BuildReader } from "@destack/package/manifest";
+import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { Digest, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
@@ -102,7 +102,7 @@ test("run a checkout's build as its machine and read it back from the build stor
         finished: [
             "succeeded",
             COMMIT,
-            await Digest.of(JSON.stringify(reader.manifest), testHost().crypto),
+            await Digest.of(PackageManifest.serialize(reader.manifest), testHost().crypto),
         ],
         read: [reader.manifest, await reader.files()],
     });

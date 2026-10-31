@@ -1184,7 +1184,7 @@ export const InstallationRevision = {
         // read the installable packages it depends on, at the releases it compiled against
         const { builds, registry, blobs } = options;
         const read = (dependency: PackageId, manifest: Digest) =>
-            builds.pull(registry, dependency, manifest);
+            builds.read(registry, dependency, manifest);
         const dependencies = await installableReleases(reader, read);
 
         // describe the state each declaration requires: main's tables, an installation's pinned release, a resource's own
@@ -1408,7 +1408,7 @@ async function mainTables(
         return undefined;
     }
 
-    // read the types the builds of the packages it needs declare, pulling none of a package the pool knows
+    // read the types the builds of the packages it needs declare, reading none of a package the pool knows
     const pooled = ObjectType.known(objects, Object.values(accountPackage.objects));
     const known = new Set(objects.map((type) => ObjectTypeReference.key(type.typeReference)));
     const pooledPackages = new Set(pooled.map((type) => type.package.id));
@@ -1424,9 +1424,9 @@ async function mainTables(
             )
             .map(async (dependency) => {
                 const { id } = dependency.package;
-                const pulled = await options.builds.pull(options.registry, id, dependency.manifest);
+                const read = await options.builds.read(options.registry, id, dependency.manifest);
 
-                return ObjectDescription.installed(await pulled.declarations());
+                return ObjectDescription.installed(await read.declarations());
             }),
     );
     const unserved = depended.flat().filter((each) => !known.has(ObjectDescription.key(each)));

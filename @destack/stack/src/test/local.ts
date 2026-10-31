@@ -91,12 +91,12 @@ export class LocalRuntime implements Runtime {
         }
     }
 
-    /** Forward a request below an instance's installation to its workload as a verified caller. */
+    /** Forward a request below an instance's installation to its workload, as its caller. */
     async fetch(
         instanceId: Identifier<"instance">,
         path: string,
         request: Request,
-        authentication: Authentication,
+        authentication: Authentication | undefined,
     ): Promise<Response> {
         // forward at the path below the installation with the runner's secret and the verified caller
         const { runner, secret } = this.#registry.require(instanceId);

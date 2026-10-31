@@ -96,7 +96,7 @@ test("retain each source's latest builds and every build a revision applies", as
             Digest.parse("d".repeat(64)),
             fixture.releases.source.manifest,
             Digest.parse("e".repeat(64)),
-        ],
+        ].toSorted(),
         [{ id: dropped, scope: ids.space }],
     ]);
 });

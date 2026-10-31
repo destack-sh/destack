@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import manifest from "../../package.json" with { type: "json" };
 import stackPackage from "../package.ts";
-import { SPACE_KERNEL } from "./server.ts";
+import { SPACE_KERNEL } from "../declare/index.ts";
 
 /** A workspace package's manifest module, whose exports list `./package` for installable ones. */
 const Module = schema.looseObject({
@@ -60,7 +60,7 @@ test("serve as a space's kernel the installer and each package it depends on wit
             ),
         ),
     ];
-    expect([names(SPACE_KERNEL), names(derived)]).toEqual([
+    expect([names([stackPackage, ...SPACE_KERNEL]), names(derived)]).toEqual([
         ["@destack/object", "@destack/setting", "@destack/stack"],
         ["@destack/object", "@destack/setting", "@destack/stack"],
     ]);

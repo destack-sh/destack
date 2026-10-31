@@ -508,7 +508,7 @@ test("follow a distribution tag, recording the version of the release it points 
 });
 
 test("open the build each package's installation in a space follows, refusing a package the space does not install", async () => {
-    // install two packages at different releases
+    // install two packages at different releases, publishing the second's
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const now = fixture.machine.clock.now();
@@ -554,6 +554,8 @@ test("open the build each package's installation in a space follows, refusing a 
                     .where(eq(rollout.table.id, id)),
         );
     };
+    const { crypto } = fixture.machine.environment;
+    await fixture.registry.release(await fixtureBuild(ids.stackPackage, "2026.10.0", crypto));
     await follow(ids.package, "2026.9.0", "e1");
     await follow(ids.stackPackage, "2026.10.0", "e2");
 

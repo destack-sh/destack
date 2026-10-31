@@ -73,12 +73,12 @@ export interface Runtime {
     readonly isRunning: (instanceId: Identifier<"instance">) => boolean;
     /** Find the run of the instance a secret proves, absent for any other secret. */
     readonly identify: (secret: string) => InstanceSpec | undefined;
-    /** Forward a verified caller's request below an instance's installation. */
+    /** Forward a request below an instance's installation, as its verified caller or anonymous. */
     readonly fetch: (
         instanceId: Identifier<"instance">,
         path: string,
         request: Request,
-        authentication: Authentication,
+        authentication: Authentication | undefined,
         partition?: string,
     ) => Promise<Response>;
     /** Call an export of a build's module once with JSON arguments, as it runs package code. */

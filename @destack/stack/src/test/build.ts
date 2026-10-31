@@ -1,14 +1,14 @@
 import type { Crypto } from "@destack/environment";
 import { StackDefinition } from "../declare/index.ts";
+import { CallError } from "@destack/object";
 import { StackError } from "../error/index.ts";
 import { type Digest, type JsonObject, schema } from "@destack/schema";
 import { Package, PackageId } from "@destack/package";
-import { type BuildReader, type OutputExport, PackageOutput } from "@destack/package/manifest";
+import { type BuildReader, OutputContent, type OutputExport } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { Registry } from "../server/index.ts";
 import type { ReleaseRegistry } from "@destack/account/server";
-import { PackageStore, RUNTIME_REFERRER } from "@destack/build/store";
-import { Runtime } from "@destack/package/runtime";
+import { PackageStore } from "@destack/build/store";
 import { PackageManifest } from "@destack/package/manifest";
 
 /** The releases the fixture's distribution tags point at, as the forge resolves `<name>@<tag>`. */
@@ -69,11 +69,11 @@ const DECLARED: Readonly<
 /** Complete fixture build outputs with their directory, exporting each workload's entrypoint. */
 export function fixtureOutputs(
     outputs: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
-): Readonly<Record<string, PackageOutput>> {
+): Readonly<Record<string, OutputContent>> {
     return Object.fromEntries(
         Object.entries(outputs).map(([name, output]) => {
             // export each workload's entrypoint as a module importing no dependency, as a build does
-            const parsed = PackageOutput.parse({
+            const parsed = OutputContent.parse({
                 directory: name,
                 exports: {},
                 dependencies: {},
@@ -88,7 +88,7 @@ export function fixtureOutputs(
 
             return [
                 name,
-                PackageOutput.parse({
+                OutputContent.parse({
                     ...parsed,
                     exports: { ...Object.fromEntries(exported), ...parsed.exports },
                 }),
@@ -107,19 +107,35 @@ export class TestRegistry implements Registry, ReleaseRegistry {
     /** The manifests of the pushed releases, by package and version. */
     readonly #pushed = new Map<string, Digest>();
 
-    /** Serve the releases from a store: one in memory, or the run's build store. */
-    constructor(store: PackageStore) {
+    /** The fixture app whose declared releases it serves, absent where it serves released ones. */
+    readonly #fixture: PackageId | undefined;
+
+    /** Serve the releases released to it from a store, and a fixture app's declared releases. */
+    constructor(store: PackageStore, fixture?: PackageId) {
         this.#store = store;
+        this.#fixture = fixture;
     }
 
-    /** Find a pushed release, else store a fixture build at a version or at a tag's release. */
+    /** Find a release at a version or a tag: one released to it, or the fixture app's. */
     async find(packageId: PackageId, release: string): Promise<Digest> {
+        // find a release published to the registry
         const version = TAGS[release] ?? release;
+        const pushed = this.#pushed.get(`${packageId}@${version}`);
+        if (pushed !== undefined) {
+            return pushed;
+        }
+        // serve a declared release of the fixture app, built as its forge stored it
+        else if (packageId === this.#fixture && Object.hasOwn(DECLARED, version)) {
+            const crypto = this.#store.environment.crypto;
 
-        return (
-            this.#pushed.get(`${packageId}@${version}`) ??
-            this.#publish(await fixtureBuild(packageId, version, this.#store.environment.crypto))
-        );
+            return this.#store.put(await fixtureBuild(packageId, version, crypto));
+        }
+        // refuse any other release, as a forge does
+        else {
+            throw CallError.http("NOT_FOUND", {
+                message: `${packageId} has no release ${release}`,
+            });
+        }
     }
 
     /** Open a release's build, as the universe opens the stacks it applies. */
@@ -131,36 +147,28 @@ export class TestRegistry implements Registry, ReleaseRegistry {
     async release(build: BuildReader, units: readonly BuildReader[] = []): Promise<Digest> {
         // store the units, then the build, and record its manifest under its release
         for (const unit of units) {
-            await this.#publish(unit);
+            await this.#store.put(unit);
         }
-        const manifest = await this.#publish(build);
+        const manifest = await this.#store.put(build);
         const released = PackageManifest.package(build.manifest);
         this.#pushed.set(`${released.id}@${released.version}`, manifest);
 
         return manifest;
     }
 
-    /** Receive a stored build with its npm units, deriving its runtime builds as its forge does. */
+    /** Receive a stored build with its npm units, as its forge does. */
     async push(store: Pick<PackageStore, "contents" | "units">, manifest: Digest): Promise<Digest> {
-        // copy each npm unit, then the build with its runtime builds
+        // copy each npm unit, then the build
         const build = await store.contents(manifest);
         const packageId = PackageManifest.package(build.manifest).id;
         for (const unit of await store.units(manifest, packageId)) {
-            await this.#publish(await store.contents(unit));
+            await this.#store.put(await store.contents(unit));
         }
-        await this.#publish(build);
+        await this.#store.put(build);
 
         // record the build under its release
         const released = PackageManifest.package(build.manifest);
         this.#pushed.set(`${released.id}@${released.version}`, manifest);
-
-        return manifest;
-    }
-
-    /** Store a build with the runtime build of each emitted output, as its forge publishes it. */
-    async #publish(build: BuildReader): Promise<Digest> {
-        const manifest = await this.#store.put(build);
-        await this.#store.attachRuntimes(manifest);
 
         return manifest;
     }
@@ -175,23 +183,13 @@ export class TestRegistry implements Registry, ReleaseRegistry {
         return this.#store.contains(manifest);
     }
 
-    /** Read a fixture build's attachment at a path, deriving runtime builds as a forge does. */
-    async referrer(_packageId: PackageId, manifest: Digest, path: string) {
-        const [prefix, runtime] = path.split("/");
-        const parsed = Runtime.safeParse(runtime);
-
-        return prefix === RUNTIME_REFERRER && parsed.success
-            ? await this.#store.attachRuntime(manifest, parsed.data)
-            : (await this.#store.referrer(manifest, path))?.digest;
-    }
-
     /** Locate a stored fixture build by its manifest's digest, read through the store's fetch. */
     async locate(_packageId: PackageId, manifest: Digest) {
         return {
             location: { manifest, url: new URL(`${manifest}/`, REGISTRY_MOUNT).href },
             fetch: (input: URL, request: RequestInit) =>
                 this.#store.fetch(new Request(input.href, request), REGISTRY_MOUNT, {
-                    authorize: async () => {},
+                    pull: async () => {},
                 }),
         };
     }

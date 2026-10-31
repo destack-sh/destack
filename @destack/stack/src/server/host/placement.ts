@@ -14,16 +14,14 @@ import {
 } from "@destack/db";
 import { Installation, installation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { SPACE_KERNEL } from "../server.ts";
 import { Digest, type Identifier, type JsonObject, present } from "@destack/schema";
 import type { ReconcileController } from "@destack/db";
 import { Scope, RequestId } from "@destack/sync";
 import { database, rollout, SPACE_PROVIDER } from "../../object/index.ts";
 import { BuildStore, type Registry } from "../installation/build.ts";
 import type { PackageId } from "@destack/package";
-
-/** The name of the installation applying the stack of a space from its creation. */
-const STACK_INSTALLATION = "stack";
+import { STACK_INSTALLATION } from "../../package.ts";
+import { SPACE_BASE_PACKAGES } from "../server.ts";
 
 /** The build store, the spaces' main database, and the registry the stacks' releases copy from. */
 export interface PlacementOptions {
@@ -233,7 +231,7 @@ export class PlacementController implements ReconcileController {
                 this.#store.environment,
             );
             const scope = space.reference(replicated.scope, spaceId);
-            await Installation.receive(authorization, scope, ancestors, SPACE_KERNEL);
+            await Installation.receive(authorization, scope, ancestors, SPACE_BASE_PACKAGES);
         });
     }
 
@@ -269,7 +267,7 @@ export class PlacementController implements ReconcileController {
         const { builds, registry } = this.#options;
         const reader = await builds.pull(registry, stack.package.id, stack.manifest);
         const read = (packageId: PackageId, manifest: Digest) =>
-            builds.pull(registry, packageId, manifest);
+            builds.read(registry, packageId, manifest);
 
         return declaredStack(reader, stack.export, stack.settings, read);
     }

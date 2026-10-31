@@ -2,10 +2,11 @@ import { DeclarationReference } from "@destack/package/declare";
 import { graph, type PackageId, type PackageRelease } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { type Digest, type JsonObject, JsonValue, schema } from "@destack/schema";
-import { Installation, PackageDescription } from "@destack/object";
+import { Installation, ObjectDescription, PackageDescription } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
 import { install, InstallationDefinition } from "./installation.ts";
+import { SPACE_KERNEL } from "./kernel.ts";
 
 /** The database every space has, which no stack declares. */
 export const MAIN_DATABASE = "main";
@@ -91,6 +92,10 @@ export async function declaredStack(
             installed.selection.manifest,
         ]),
     );
+    const born = new Set([
+        import.meta.destack.package.id,
+        ...SPACE_KERNEL.map((kernel) => kernel.id),
+    ]);
     const closures = await Promise.all(
         Object.values(pinned).map(async (installed) => {
             // read the installation's package and the packages only its optional capabilities need
@@ -110,10 +115,12 @@ export async function declaredStack(
                 }
             }
 
-            // list its installable dependencies the stack leaves out
+            // list its installable dependencies the stack leaves out, except the installer and its kernel
             return releases.filter(
                 (release) =>
-                    !declaredManifests.has(release.package.id) && !optional.has(release.package.id),
+                    !declaredManifests.has(release.package.id) &&
+                    !optional.has(release.package.id) &&
+                    !born.has(release.package.id),
             );
         }),
     );
@@ -144,17 +151,21 @@ export async function declaredStack(
     });
 }
 
-/** List the releases a build depends on that declare a package, leaving libraries out. */
+/** List the releases a build depends on that declare a package with a type stored in a space. */
 export async function installableReleases(
     reader: BuildReader,
     read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
 ): Promise<PackageRelease[]> {
     const installable = await Promise.all(
         (await reader.releases()).map(async (release) => {
+            // take a dependency declaring a package with a type stored in a space
             const dependency = await read(release.package.id, release.manifest);
             const declared = await PackageDescription.of(dependency);
+            const types = ObjectDescription.installed(await dependency.declarations());
+            const isInstallable =
+                declared !== undefined && types.some((type) => ObjectDescription.isInSpace(type));
 
-            return declared === undefined ? [] : [release];
+            return isInstallable ? [release] : [];
         }),
     );
 

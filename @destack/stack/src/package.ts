@@ -19,6 +19,9 @@ import {
 } from "./object/index.ts";
 import { StackError } from "./error/error.ts";
 
+/** The name of the installation applying a space's stack from its creation. */
+export const STACK_INSTALLATION = "stack";
+
 /** The path of the space-move data plane below the stack package's mount. */
 export const HANDOFF_PATH = "/handoff";
 

@@ -62,7 +62,7 @@ export interface CommitBuildOptions {
     /** The space's builds, read through to the machine's cache. */
     readonly builds: BuildStore;
     /** The registry of the releases a stack's build depends on. */
-    readonly registry: Pick<Registry, "locate" | "referrer">;
+    readonly registry: Pick<Registry, "locate">;
 }
 
 /** The build of the commit an installation's selected reference resolves to. */
@@ -252,7 +252,7 @@ export class CommitBuild {
         // read the stack the build declares at the export
         const reader = await options.builds.contents(Build.manifest(built));
         const definition = await declaredStack(reader, exported, {}, (packageId, manifest) =>
-            options.builds.pull(options.registry, packageId, manifest),
+            options.builds.read(options.registry, packageId, manifest),
         );
 
         return { export: exported, parameters, definition };

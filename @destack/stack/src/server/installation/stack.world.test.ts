@@ -741,7 +741,7 @@ async function fixtureRelease(
     environment: Environment,
     id: string = Identifier.create("package", environment),
 ): Promise<FixtureRelease> {
-    // describe the package as installable, else as a library
+    // describe the package as installable with a type stored in a space, else as a library
     const owner = Package.parse({ id, name, version });
     const declared = isInstallable
         ? [
@@ -750,6 +750,12 @@ async function fixtureRelease(
                   kindPackageId: objectPackage.id,
                   name: "default",
                   description: describePackage(PackageHandle.of(owner, { objects: {} })),
+              },
+              {
+                  kind: "object",
+                  kindPackageId: objectPackage.id,
+                  name: "meter",
+                  description: describeObject(meter),
               },
           ]
         : [];

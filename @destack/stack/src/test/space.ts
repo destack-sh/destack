@@ -87,6 +87,7 @@ import { BuildCache, BuildStore } from "../server/installation/build.ts";
 import { REFUSAL_REASONS } from "../server/installation/application.ts";
 import { StackDocument, type StackTypes } from "../declare/stack.ts";
 import { Handoff } from "../server/host/handoff.ts";
+import { SPACE_BASE_PACKAGES } from "../server/server.ts";
 import * as object from "../object/index.ts";
 import {
     SocketRegistry,
@@ -95,7 +96,6 @@ import {
     SpaceHost,
     type SpaceMachine,
     type SpaceOptions,
-    SPACE_KERNEL,
     type StoreProvider,
     type SpaceProvider,
 } from "../server/index.ts";
@@ -940,7 +940,7 @@ export class TestSpace implements AsyncDisposable {
         const { source } = await TestSpace.releases(environment.crypto);
         const packages = await TestPackageStore.create(environment);
         defer(() => packages[Symbol.asyncDispose]());
-        const registry = new TestRegistry(packages);
+        const registry = new TestRegistry(packages, ids.package);
         const universe = await TestUniverse.open({
             stacks: { person: source, residency: source, account: source, space: source },
             releases: registry,
@@ -1591,7 +1591,7 @@ export class TestSpace implements AsyncDisposable {
 
         // receive the space's and the test's own base installations on each start, with roles from the types they serve
         const born = [
-            ...SPACE_KERNEL,
+            ...SPACE_BASE_PACKAGES,
             ...own
                 .filter(
                     (server) =>
