@@ -391,15 +391,16 @@ async function extractArchive(
         const bytes = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
         if (!parser.write(bytes)) {
             await scheduler.track(
-                new Promise<void>((drained) => {
-                    parser.once("drain", drained);
-                }),
+                () =>
+                    new Promise<void>((drained) => {
+                        parser.once("drain", drained);
+                    }),
                 "peer",
             );
         }
     }
     parser.end();
-    await scheduler.track(parsed, "peer");
+    await scheduler.track(() => parsed, "peer");
     await written;
 
     // refuse the first unsafe entry once the archive drained
