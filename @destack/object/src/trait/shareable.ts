@@ -61,14 +61,14 @@ export const GrantFields = {
     /** The declared relation to grant. */
     relation: AccessName.exactOptional(),
     /** The role to bind. */
-    role: schema.string().min(1).exactOptional(),
+    role: schema.identifier("role").exactOptional(),
     ...SubjectFields,
 };
 
 /** A relationship sharing methods grant: through exactly one declared relation or role. */
 export const GrantInput = schema.union([
     schema.object({ ...SubjectFields, relation: AccessName }),
-    schema.object({ ...SubjectFields, role: schema.string().min(1) }),
+    schema.object({ ...SubjectFields, role: schema.identifier("role") }),
 ]);
 
 /** Read a grant through exactly one declared relation or role, refusing both or neither. */
@@ -137,7 +137,7 @@ export type RolePermission = (typeof ROLE_PERMISSIONS)[number];
 
 /** Sharing through the roles: owners, editors, commenters and viewers, shared by `manage`. */
 export interface RolesDefinition {
-    /** Whether anyone may read through the public relation without membership, as for links. */
+    /** Whether anyone may have the roles below owner, as Drive's general access and links allow. */
     readonly isPublic?: true;
 }
 
@@ -224,9 +224,7 @@ export const Roles = {
         )?.[1];
         const taken = [
             ...(owner !== undefined && owner.type !== "subject" ? ["owner"] : []),
-            ...[...ROLES, ...(roles.isPublic === true ? ["public"] : [])].filter((name) =>
-                Object.hasOwn(definition.relations ?? {}, name),
-            ),
+            ...ROLES.filter((name) => Object.hasOwn(definition.relations ?? {}, name)),
         ];
         if (taken.length > 0) {
             throw new TypeError(
@@ -240,12 +238,14 @@ export const Roles = {
             principal.installation,
             principal.group.members("member"),
         ];
+
+        // add anyone below owner on a public type
+        const shared = roles.isPublic === true ? [...subjects, anyone.all()] : subjects;
         const relations: Record<string, ObjectRelationInput> = {
             ...(definition.isScope === true ? { owner: { subjects } } : {}),
-            editor: { subjects },
-            commenter: { subjects },
-            viewer: { subjects },
-            ...(roles.isPublic === true ? { public: { subjects: [anyone.all()] } } : {}),
+            editor: { subjects: shared },
+            commenter: { subjects: shared },
+            viewer: { subjects: shared },
         };
 
         return {
@@ -271,12 +271,9 @@ export const Roles = {
                 .toReversed()
                 .map((role) => relation(role));
 
-        // widen each by what the definition adds, and reading by the public relation
-        const isPublic = Roles.of(definition)?.isPublic === true;
-        const added = (name: RolePermission) => [
-            ...(name === "read" && isPublic ? [relation("public")] : []),
-            ...(declared[name] === undefined ? [] : [declared[name]]),
-        ];
+        // widen each by what the definition adds
+        const added = (name: RolePermission) =>
+            declared[name] === undefined ? [] : [declared[name]];
 
         // inherit from each enclosing scope shared through the roles
         const enclosing = (name: RolePermission) =>

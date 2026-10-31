@@ -91,8 +91,8 @@ export class BrowserTab<
         readonly scope: string;
         /** The calling principal. */
         readonly caller: Subject;
-        /** The browser's device, whose partition stores local objects scoped to devices. */
-        readonly device: Subject;
+        /** The browser's device storing device-scoped local objects, absent for a visitor. */
+        readonly device?: Subject;
         /** Where and how to call the server serving the objects. */
         readonly endpoint: ClientOptions;
         /** Where and how to call the machine serving a moved scope now. */

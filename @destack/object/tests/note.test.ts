@@ -52,7 +52,7 @@ test("store notes private until shared, move them between notebooks and sync the
                 id: research.id,
                 requestId: RequestId.create(environment),
                 relation: "editor",
-                role: "reader",
+                role: "role-01996ab0-0000-7000-8000-0000000000a8",
                 subject: principal.user.reference("universe", users.bob),
             }),
         ),

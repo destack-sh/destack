@@ -298,7 +298,7 @@ test("derive the roles of a shared partition without sharing methods on its row,
             ["relationships", "grant", "revoke", "invite", "accept", "withdraw"].includes(name),
         ),
     }).toEqual({
-        relations: ["commenter", "editor", "owner", "public", "viewer"],
+        relations: ["commenter", "editor", "owner", "viewer"],
         sharing: [],
     });
 

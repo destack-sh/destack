@@ -208,7 +208,7 @@ test("share page trees with members and links, and move pages within them", asyn
         spaceId,
         id: handbook.id,
         requestId: RequestId.create(world),
-        relation: "public",
+        relation: "viewer",
         subject: anyone.reference("*", "*"),
         linkSecret: link.digest,
     });
