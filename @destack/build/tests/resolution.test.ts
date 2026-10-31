@@ -7,7 +7,7 @@ import { expect, refusal, test } from "@destack/test";
 import { Compiler, Workspace, CompilerPool } from "../src/index.ts";
 import { resolutionPlugin } from "../src/compile/dependency.ts";
 import { PackageSource } from "../src/source/index.ts";
-import { LocalPackageStore } from "../src/store/local.ts";
+import { LocalBuildStore } from "../src/store/local.ts";
 
 /** The schema every package definition names. */
 const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
@@ -152,7 +152,7 @@ test("refuse an unsupported dependency in a build as the development server does
         join(directory, "src", "index.ts"),
         'export { server } from "./server.ts";\n',
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const workspace = await Workspace.open(directory, compilers);
     await using build = await workspace.build({
@@ -244,7 +244,7 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
     expect((await environment.process.spawn(["git", "init", "--quiet", root]).output()).code).toBe(
         0,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const workspace = await Workspace.open(directory, compilers);
     await using build = await workspace.build({
@@ -284,7 +284,7 @@ test("refuse indexing star exports that lead back into a module, listing the cyc
         join(directory, "src", "right.ts"),
         'export * from "./left.ts";\nexport const right = 2;\n',
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store });
     expect(await refusal(compiler.index({ directory, runtime: "bun", dependencies: {} }))).toEqual([
         "UNPROCESSABLE_CONTENT",

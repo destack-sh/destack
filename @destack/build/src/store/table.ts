@@ -87,7 +87,7 @@ export const buildCache = defineTable(
 );
 
 /** The tables of a package store's index, which its owner declares in its database. */
-export const PACKAGE_STORE_TABLES = [
+export const BUILD_STORE_TABLES = [
     buildManifest,
     buildOutput,
     buildReference,
@@ -97,7 +97,7 @@ export const PACKAGE_STORE_TABLES = [
 ];
 
 /** The database of a store of its own, such as a toolchain's on its machine's disk. */
-export const packageStoreDatabase = defineDatabase({
+export const buildStoreDatabase = defineDatabase({
     name: "builds",
-    tables: [...PACKAGE_STORE_TABLES, ...BLOB_TABLES],
+    tables: [...BUILD_STORE_TABLES, ...BLOB_TABLES],
 });

@@ -98,12 +98,12 @@ const release = await installation.store(unit, convert); // { kind: "npm", ..., 
 
 ## Store
 
-`PackageStore` keeps builds in a bucket by content, and `fetch` serves their manifests, files and archives below a mount.
+`BuildStore` keeps builds in a bucket by content, and `fetch` serves their manifests, files and archives below a mount.
 
 ```ts
-import { PackageStore, Retention } from "@destack/build/store";
+import { BuildStore, Retention } from "@destack/build/store";
 
-const store = new PackageStore(bucket, environment);
+const store = new BuildStore(bucket, environment);
 const digest = await store.put(build.reader);
 const response = await store.fetch(request, new URL("https://packages.example.com/"), access);
 const now = environment.clock.now();
@@ -112,12 +112,12 @@ await store.sweep(retained, new Date(now - 60 * 60 * 1000), Retention.none, new 
 
 ## Local store
 
-`LocalPackageStore` caches one toolchain's builds on disk for a week, keyed by the files a build reads.
+`LocalBuildStore` caches one toolchain's builds on disk for a week, keyed by the files a build reads.
 
 ```ts
-import { LocalPackageStore } from "@destack/build";
+import { LocalBuildStore } from "@destack/build";
 
-await using store = await LocalPackageStore.checkout(directory, "test", environment); // <checkout root>/node_modules/.cache/destack/test, or $DESTACK_CACHE_DIRECTORY/test
+await using store = await LocalBuildStore.checkout(directory, "test", environment); // <checkout root>/node_modules/.cache/destack/test, or $DESTACK_CACHE_DIRECTORY/test
 await store.rootDirectory(directory, manifests); // retained until the directory is gone
 ```
 

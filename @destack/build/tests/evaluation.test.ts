@@ -4,7 +4,7 @@ import { testSimulation } from "../src/test/world.ts";
 import { join } from "node:path";
 import { expect, onTestFinished, test } from "@destack/test";
 import { type PackageBuild, Workspace, CompilerPool } from "../src/index.ts";
-import { LocalPackageStore } from "../src/store/local.ts";
+import { LocalBuildStore } from "../src/store/local.ts";
 import { writeThing } from "./fixture.ts";
 
 /** One Bun module output of the app. */
@@ -78,7 +78,7 @@ async function read(path: string): Promise<string> {
     );
 
     // see no user, a refused file and the sandbox proxy's refusal
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     await using build = await (
         await Workspace.open(directory, compilers)
@@ -105,7 +105,7 @@ test("reinspect edited modules a declaration imports in a retained compiler", as
         join(directory, "src/noisy.ts"),
         '/** Log a name and return it. */\nexport function noisy(name: string): string {\n    console.info("inspecting", name);\n\n    return name;\n}\n',
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const build = async () =>
         await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });

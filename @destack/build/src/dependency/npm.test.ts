@@ -5,7 +5,7 @@ import { expect, refusal, test } from "@destack/test";
 import { NpmInstallation } from "./npm.ts";
 import { testSimulation } from "../test/world.ts";
 import { copy, moduleFailure, writeStore } from "./test/store.ts";
-import { LocalPackageStore } from "../store/local.ts";
+import { LocalBuildStore } from "../store/local.ts";
 
 /** The toolchain identity the units key by, as one call's workspace reads it. */
 const CONTEXT = Digest.parse("802596258260ddeb8be4565d4ec5b9afd34a32b950022f39c64bcda3ac575316");
@@ -24,7 +24,7 @@ function call(value: unknown, ...parameters: unknown[]): unknown {
 
 /** Place a unit's output for a runtime in a node_modules directory, its modules read as ESM. */
 async function place(
-    store: LocalPackageStore,
+    store: LocalBuildStore,
     manifest: Digest,
     name: string,
     runtime: "bun" | "workerd",
@@ -56,7 +56,7 @@ async function place(
 }
 
 /** List the runtimes a stored unit's build has outputs for. */
-async function runtimesOf(store: LocalPackageStore, manifest: Digest): Promise<string[]> {
+async function runtimesOf(store: LocalBuildStore, manifest: Digest): Promise<string[]> {
     return Object.keys((await store.contents(manifest)).manifest.outputs);
 }
 
@@ -79,7 +79,7 @@ test("build an npm unit per runtime, as installed for Bun and as ESM for workerd
         },
         files,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const unit = await installation.open(copy(root, "greeting"));
     const stored = await installation.store(unit, "workerd");
@@ -147,7 +147,7 @@ test("convert for workerd what its conditions import, replacing what a `browser`
         },
         files,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
         await installation.store(await installation.open(copy(root, name)), "workerd");
@@ -203,7 +203,7 @@ test("convert a CommonJS module whose own binding takes the name rolldown gives 
         },
         files,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const unit = await installation.open(copy(root, "colliding"));
     const built = await installation.store(unit, "workerd");
@@ -234,7 +234,7 @@ test("convert a package for workerd past the tsconfig it publishes, which extend
         },
         files,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const built = await installation.store(
         await installation.open(copy(root, "colors")),
@@ -278,7 +278,7 @@ test("fail an absent optional dependency's require when it runs, and an absent o
         },
         files,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     const placed = join(root, "placed");
     for (const name of ["fallback", "loader"]) {
         const installation = new NpmInstallation(locked, store, CONTEXT, environment);
@@ -331,7 +331,7 @@ test("refuse an npm unit with a missing dependency or a cycle, and a native addo
         },
         files,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
         await installation.store(await installation.open(copy(root, name)), "workerd");

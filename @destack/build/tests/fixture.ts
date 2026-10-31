@@ -8,7 +8,7 @@ import { expect } from "@destack/test";
 import type { graph } from "@destack/package";
 import { type PackageBuildOptions, Compiler, type PackageBuild } from "../src/index.ts";
 import { comparePath } from "../src/build/serialization.ts";
-import { LocalPackageStore } from "../src/store/local.ts";
+import { LocalBuildStore } from "../src/store/local.ts";
 import { linkDependencies } from "../src/source/index.ts";
 import { copySource } from "../src/test/source.ts";
 
@@ -191,7 +191,7 @@ export class Fixture implements AsyncDisposable {
     /** Copied package source directory. */
     readonly source: string;
     /** The store the fixture's compiler builds into. */
-    readonly #store: LocalPackageStore;
+    readonly #store: LocalBuildStore;
     /** The compiler building and indexing the copy. */
     readonly #compiler: Compiler;
     /** The file system the checkout lives on. */
@@ -202,7 +202,7 @@ export class Fixture implements AsyncDisposable {
         fixture: URL,
         directory: string,
         source: string,
-        built: { readonly store: LocalPackageStore; readonly compiler: Compiler },
+        built: { readonly store: LocalBuildStore; readonly compiler: Compiler },
         files: FileSystem,
     ) {
         this.fixture = fixture;
@@ -227,7 +227,7 @@ export class Fixture implements AsyncDisposable {
             await copySource(fileURLToPath(new URL("source/", fixture)), source, files);
             await linkDependencies(fileURLToPath(new URL("source/", fixture)), source, files);
 
-            const store = await LocalPackageStore.temporary(environment);
+            const store = await LocalBuildStore.temporary(environment);
             const compiler = await Compiler.start(source, { store });
 
             return new Fixture(fixture, directory, source, { store, compiler }, files);
@@ -324,6 +324,6 @@ export function isNoteModule(module: object): module is NoteModule {
 }
 
 /** Count the blobs a store has. */
-export async function countObjects(store: LocalPackageStore): Promise<number> {
+export async function countObjects(store: LocalBuildStore): Promise<number> {
     return (await Array.fromAsync(store.blobs.storage.digests())).length;
 }

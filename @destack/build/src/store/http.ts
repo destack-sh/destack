@@ -1,7 +1,7 @@
 import { Digest } from "@destack/schema";
 import { type PackageFile, PackagePath } from "@destack/package/file";
 import { CallError } from "@destack/object";
-import { PackageStore } from "./store.ts";
+import { BuildStore } from "./store.ts";
 
 /** The most bytes one upload has: 64 MiB, which bounds its memory. */
 const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
@@ -30,7 +30,7 @@ export function isUnchanged(request: Request, etag: string): boolean {
 
 /** Serve immutable manifests, selected files and archives, as the host decides each read. */
 export async function serveStore(
-    store: PackageStore,
+    store: BuildStore,
     mount: URL,
     request: Request,
     access: PackageAccess,
@@ -53,7 +53,7 @@ export async function serveStore(
 
 /** Receive an upload: check a file, store a file by digest, or store a complete manifest. */
 async function write(
-    store: PackageStore,
+    store: BuildStore,
     request: Request,
     access: PackageAccess,
     path: string,
@@ -97,7 +97,7 @@ async function write(
 
 /** Authorize the containing build before resolving paths or cache conditions. */
 async function read(
-    store: PackageStore,
+    store: BuildStore,
     mount: URL,
     request: Request,
     access: PackageAccess,
@@ -150,7 +150,7 @@ async function read(
 
 /** Find the manifest or a listed file by its path, answering malformed or unknown paths. */
 async function select(
-    store: PackageStore,
+    store: BuildStore,
     digest: Digest,
     selected: string,
 ): Promise<PackageFile | Response> {
@@ -178,7 +178,7 @@ async function select(
 }
 
 /** Describe a referrer of a build by its encoded path, answering an unknown one as missing. */
-async function referrer(store: PackageStore, digest: Digest, encoded: string): Promise<Response> {
+async function referrer(store: BuildStore, digest: Digest, encoded: string): Promise<Response> {
     const path = decodePath(encoded);
     const described = path === undefined ? undefined : await store.referrer(digest, path);
 
@@ -189,7 +189,7 @@ async function referrer(store: PackageStore, digest: Digest, encoded: string): P
 
 /** Serve a manifest or a file under HTTP cache conditions and byte ranges. */
 async function serve(
-    store: PackageStore,
+    store: BuildStore,
     request: Request,
     digest: Digest,
     selected: string,
@@ -242,7 +242,7 @@ async function serve(
 }
 
 /** Serve a stored build as one whole archive, answering cache conditions without file reads. */
-async function archive(store: PackageStore, request: Request, digest: Digest): Promise<Response> {
+async function archive(store: BuildStore, request: Request, digest: Digest): Promise<Response> {
     // require the stored build before promising its archive
     await store.head(digest);
     const etag = `"${digest}.tar.gz"`;

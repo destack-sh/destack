@@ -2,7 +2,7 @@ import { resolve, sep } from "node:path";
 import { locateWorkspace } from "@destack/check/workspace";
 import { nth } from "@destack/schema";
 import { Compiler, CompilerCommand } from "./compiler.ts";
-import type { LocalPackageStore } from "../store/local.ts";
+import type { LocalBuildStore } from "../store/local.ts";
 
 /** The warm compilers a machine runs at once: 4, each a TypeScript program of a few hundred MB. */
 const MAX_WARM_COMPILERS = 4;
@@ -39,7 +39,7 @@ interface Waiter {
 /** Warm compilers building into one store, each leased to one package at a time. */
 export class CompilerPool implements AsyncDisposable {
     /** The store every compiler builds into. */
-    readonly store: LocalPackageStore;
+    readonly store: LocalBuildStore;
     /** The command the pool starts each compiler with. */
     readonly #command: CompilerCommand;
     /** The warm compilers. */
@@ -54,13 +54,13 @@ export class CompilerPool implements AsyncDisposable {
     readonly #failures: unknown[] = [];
 
     /** Store compilers started with a command into a store. */
-    private constructor(store: LocalPackageStore, command: CompilerCommand) {
+    private constructor(store: LocalBuildStore, command: CompilerCommand) {
         this.store = store;
         this.#command = command;
     }
 
     /** Open a pool starting the current compiler, building into a store. */
-    static async open(store: LocalPackageStore): Promise<CompilerPool> {
+    static async open(store: LocalBuildStore): Promise<CompilerPool> {
         return new CompilerPool(store, await CompilerCommand.current(store.environment));
     }
 

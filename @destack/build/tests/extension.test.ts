@@ -7,7 +7,7 @@ import { expect, refusal, test } from "@destack/test";
 import { Compiler, PackageBuild, Workspace, CompilerPool } from "../src/index.ts";
 import { loadExtensions } from "../src/compile/extension.ts";
 import { readPackageJson } from "../src/source/index.ts";
-import { LocalPackageStore } from "../src/store/local.ts";
+import { LocalBuildStore } from "../src/store/local.ts";
 
 /** The schema every package definition names. */
 const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
@@ -201,7 +201,7 @@ test("apply the extensions of a package's runtime dependency closure, its depend
         await DependencyTree.read({}, files),
         files,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store });
     await using transformed = await compiler.build({ directory, dependencies: {}, outputs });
     expect([loaded.map((entry) => entry.directory), await readEntry(transformed, ".")]).toEqual([
@@ -246,7 +246,7 @@ test("compile a package through a listed extension and leave a development depen
         ).map((entry) => entry.directory);
     // build without the development dependency's extension
     const developed = await extensions();
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store });
     await using untouched = await compiler.build({ directory, dependencies: {}, outputs });
 
@@ -314,7 +314,7 @@ test("load a listed package's extension without walking its dependencies, and bu
             await DependencyTree.read({}, files),
             files,
         );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const units = async () =>
         (await Workspace.open(directory, compilers)).units.map((unit) => unit.name);
@@ -392,7 +392,7 @@ test("refuse what a module an extension generates imports until the package decl
         dependencies: {},
         outputs: { bun: { kind: "module", runtime: "bun" } },
     } as const;
-    await using refusing = await LocalPackageStore.temporary(environment);
+    await using refusing = await LocalBuildStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store: refusing });
     expect(await refusal(compiler.build(request))).toEqual([
         "UNPROCESSABLE_CONTENT",
@@ -406,7 +406,7 @@ test("refuse what a module an extension generates imports until the package decl
     expect((await environment.process.spawn(["git", "init", "--quiet", root]).output()).code).toBe(
         0,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const workspace = await Workspace.open(directory, compilers);
     await using build = await workspace.build({ outputs: request.outputs });

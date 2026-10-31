@@ -11,7 +11,7 @@ import { BuildError } from "../error/index.ts";
 import { locateWorkspace } from "@destack/check/workspace";
 import { present } from "@destack/schema";
 import { PackageFile } from "@destack/package/file";
-import type { LocalPackageStore } from "../store/local.ts";
+import type { LocalBuildStore } from "../store/local.ts";
 import type { PackageBuildOptions } from "./build.ts";
 import { DependencyTree } from "../dependency/tree.ts";
 import { readLockedReleases, readLockfile } from "../source/index.ts";
@@ -116,7 +116,7 @@ export interface CompilerOptions {
     /** The command starting it, absent for this process's compiler. */
     readonly command?: CompilerCommand;
     /** The store whose cache its builds reuse and fill. */
-    readonly store: LocalPackageStore;
+    readonly store: LocalBuildStore;
 }
 
 /** A sandboxed compiler retained across builds of a workspace's packages. */
@@ -124,7 +124,7 @@ export class Compiler implements AsyncDisposable {
     /** The workspace whose packages it builds. */
     readonly workspace: string;
     /** The store whose cache its builds reuse and fill. */
-    readonly store: LocalPackageStore;
+    readonly store: LocalBuildStore;
     /** The compiler's files, its temporary files and the builds it writes, removed on shutdown. */
     readonly #temporary: string;
     /** The directories the compiler reads: the workspace, its tools and the store's trees. */
@@ -166,7 +166,7 @@ export class Compiler implements AsyncDisposable {
     /** Retain the workspace, store, compiler files, read paths, command and started compiler. */
     private constructor(
         workspace: string,
-        store: LocalPackageStore,
+        store: LocalBuildStore,
         temporary: string,
         read: readonly string[],
         compiler: CompilerCommand,

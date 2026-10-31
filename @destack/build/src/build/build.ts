@@ -5,7 +5,7 @@ import {
     type PackageJson,
     TEST_EXPORT,
 } from "@destack/package";
-import type { LocalPackageStore } from "../store/local.ts";
+import type { LocalBuildStore } from "../store/local.ts";
 import { mapExports } from "../source/source.ts";
 import type { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
@@ -54,7 +54,7 @@ export class PackageBuild implements AsyncDisposable {
 
     /** Write a stored build's files and manifest into a directory. */
     static async restore(
-        store: LocalPackageStore,
+        store: LocalBuildStore,
         digest: Digest,
         destination: string,
     ): Promise<PackageBuild> {

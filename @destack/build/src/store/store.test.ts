@@ -16,8 +16,8 @@ import {
 } from "@destack/package/manifest";
 import { CallError } from "@destack/object";
 import { Digest, found, present } from "@destack/schema";
-import { type PackageAccess, PackageClient, PackageStore } from "./index.ts";
-import { buildManifest, packageStoreDatabase } from "./table.ts";
+import { type PackageAccess, PackageClient, BuildStore } from "./index.ts";
+import { buildManifest, buildStoreDatabase } from "./table.ts";
 
 /** The mount the tests serve stores below. */
 const MOUNT = new URL("https://packages.test/packages/");
@@ -166,7 +166,7 @@ async function read(stream: ReadableStream<Uint8Array>): Promise<Uint8Array<Arra
 /** A store over blobs and a database in a directory, closing its database on disposal. */
 interface OpenedStore extends AsyncDisposable {
     /** The store. */
-    readonly store: PackageStore;
+    readonly store: BuildStore;
 }
 
 /** Open a store over the blobs and the database in a directory, created once. */
@@ -175,13 +175,13 @@ async function openStore(
     environment: Environment<"files" | "process">,
 ): Promise<OpenedStore> {
     const storage = await LocalBlobStorage.open(join(directory, "files"), environment);
-    const database = await connectBunSqlite(join(directory, "store.db"), packageStoreDatabase, {
+    const database = await connectBunSqlite(join(directory, "store.db"), buildStoreDatabase, {
         environment,
     });
-    await database.migrate(packageStoreDatabase.tables);
+    await database.migrate(buildStoreDatabase.tables);
 
     return {
-        store: new PackageStore({
+        store: new BuildStore({
             blobs: new BlobStore({ storage, database, environment }),
             environment,
         }),
@@ -190,12 +190,12 @@ async function openStore(
 }
 
 /** List the digests of a store's blobs in order. */
-async function listing(store: PackageStore): Promise<string[]> {
+async function listing(store: BuildStore): Promise<string[]> {
     return (await Array.fromAsync(store.blobs.storage.digests())).toSorted();
 }
 
 /** List the blobs of some stored builds: their manifests and every file they list. */
-async function blobsOf(store: PackageStore, manifests: readonly Digest[]): Promise<string[]> {
+async function blobsOf(store: BuildStore, manifests: readonly Digest[]): Promise<string[]> {
     const files = await Promise.all(
         manifests.map(async (digest) => (await store.contents(digest)).distributed()),
     );
@@ -758,7 +758,7 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
 
 /** Upload a body to a store path as a host decides, returning the status and error. */
 async function upload(
-    store: PackageStore,
+    store: BuildStore,
     path: string,
     body: BodyInit,
     access: PackageAccess,
@@ -957,7 +957,7 @@ test("retain rooted builds past their leases, passing over a dependency the stor
 
 /** Expire the cache and collect blobs, answering the deleted builds and the next deadline. */
 async function collect(
-    store: PackageStore,
+    store: BuildStore,
 ): Promise<{ readonly manifests: readonly Digest[]; readonly next: number | undefined }> {
     // expire and collect, looking again at the earlier deadline
     const before = await recorded(store);
@@ -973,7 +973,7 @@ async function collect(
 }
 
 /** List the builds a store records. */
-async function recorded(store: PackageStore): Promise<Digest[]> {
+async function recorded(store: BuildStore): Promise<Digest[]> {
     const rows = await store.database.select({ digest: buildManifest.digest }).from(buildManifest);
 
     return rows.map(({ digest }) => digest).toSorted();

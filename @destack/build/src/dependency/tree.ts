@@ -22,7 +22,7 @@ import { Digest, present, schema } from "@destack/schema";
 import { BunLockfile } from "@destack/check/bun";
 import { locateWorkspace } from "@destack/check/workspace";
 import { BuildError } from "../error/index.ts";
-import type { LocalPackageStore } from "../store/local.ts";
+import type { LocalBuildStore } from "../store/local.ts";
 
 /** The directory below the trees staging what a materialization writes before moving it in. */
 export const STAGING_DIRECTORY = ".staging";
@@ -91,7 +91,7 @@ export class DependencyTree {
     static async install(
         dependencies: Readonly<Record<string, DependencyResolution>>,
         directory: string,
-        store: LocalPackageStore,
+        store: LocalBuildStore,
     ): Promise<DependencyTree> {
         // write each build once in the store's trees, linking the npm packages the workspace installed
         const builds = Object.values(dependencies).filter(
@@ -104,7 +104,7 @@ export class DependencyTree {
 
     /** Write builds and theirs once each under a directory by manifest, with their npm packages. */
     static async materialize(
-        store: LocalPackageStore,
+        store: LocalBuildStore,
         dependencies: readonly DependencyRelease[],
         directory: string,
         options: {
@@ -208,7 +208,7 @@ export class DependencyTree {
 
     /** Write one build into its place below a directory: its files, links and package.json. */
     static async #place(
-        store: LocalPackageStore,
+        store: LocalBuildStore,
         dependency: DependencyBuild,
         recorded: Readonly<Record<string, DependencyRelease>>,
         directory: string,
@@ -281,7 +281,7 @@ export class DependencyTree {
 
     /** Read what a build's host output runs with, as far as its exports import it. */
     static async #hosted(
-        store: LocalPackageStore,
+        store: LocalBuildStore,
         manifest: PackageManifest,
         dependency: DependencyBuild,
     ): Promise<Readonly<Record<string, DependencyRelease>>> {
@@ -301,7 +301,7 @@ export class DependencyTree {
 
     /** Place the npm units a build's outputs record, each beside the others as its peers. */
     static async #placeRecorded(
-        store: LocalPackageStore,
+        store: LocalBuildStore,
         recorded: Readonly<Record<string, DependencyRelease>>,
         directory: string,
         run: TreeRun | undefined,
@@ -411,7 +411,7 @@ export class DependencyTree {
 
     /** Find where an npm unit is placed: by its manifest, and by its peers' places if any. */
     static async #npmRoot(
-        store: LocalPackageStore,
+        store: LocalBuildStore,
         dependency: NpmDependency,
         directory: string,
         scope: ReadonlyMap<string, NpmDependency>,
@@ -476,7 +476,7 @@ export class DependencyTree {
 
     /** Place an npm unit's Bun output once, its dependencies' units and its peers beside it. */
     static async #placeNpm(
-        store: LocalPackageStore,
+        store: LocalBuildStore,
         dependency: NpmDependency,
         directory: string,
         scope: ReadonlyMap<string, NpmDependency>,

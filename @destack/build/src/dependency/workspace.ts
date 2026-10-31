@@ -17,8 +17,8 @@ import type { InspectOptions } from "../inspection/inspection.ts";
 import type { PackageInspection } from "@destack/package/code";
 import { BuildError } from "../error/index.ts";
 import { readLockedReleases, readLockfile, readPackageJson } from "../source/index.ts";
-import { PackageStore } from "../store/index.ts";
-import type { LocalPackageStore } from "../store/local.ts";
+import { BuildStore } from "../store/index.ts";
+import type { LocalBuildStore } from "../store/local.ts";
 import type { DependencyBuild } from "./tree.ts";
 
 /** A Destack package of a workspace, built as one unit on its dependencies' builds. */
@@ -248,7 +248,7 @@ export class Workspace {
     }
 
     /** The store the workspace's units build into. */
-    get #store(): LocalPackageStore {
+    get #store(): LocalBuildStore {
         return this.#compilers.store;
     }
 
@@ -580,7 +580,7 @@ export class Workspace {
         await using build = await this.#use(unit, (compiler) =>
             compiler.compile(options, declarations),
         );
-        const manifest = await PackageStore.digest(build.manifest, this.#store.environment.crypto);
+        const manifest = await BuildStore.digest(build.manifest, this.#store.environment.crypto);
         await this.#store.cache(key, { kind: "build", manifest });
 
         return manifest;

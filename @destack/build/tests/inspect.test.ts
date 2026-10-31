@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { schema } from "@destack/schema";
 import { TestDeclaration } from "../src/typescript/test.ts";
 import { Workspace, CompilerPool } from "../src/index.ts";
-import { LocalPackageStore } from "../src/store/local.ts";
+import { LocalBuildStore } from "../src/store/local.ts";
 import { THING_FILES } from "./fixture.ts";
 
 /** The installed vitest, whose test function the inspected tests import. */
@@ -27,7 +27,7 @@ test("inspect test bodies and fixture extensions without declaring what they con
     expect(
         (await environment.process.spawn(["git", "init", "--quiet", directory]).output()).code,
     ).toBe(0);
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const workspace = await Workspace.open(directory, compilers);
     const dependencies = await workspace.storeDependencies({});
@@ -89,7 +89,7 @@ async function inspectApp(app: string): Promise<readonly string[]> {
     ).toBe(0);
 
     // inspect it on its dependencies' builds
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const dependencies = await (await Workspace.open(directory, compilers)).storeDependencies({});
     const inspected = await compilers.use(directory, (compiler) =>

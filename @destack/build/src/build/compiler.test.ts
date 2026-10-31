@@ -15,7 +15,7 @@ import {
     type NoteModule,
 } from "../../tests/fixture.ts";
 import { present } from "@destack/schema";
-import { LocalPackageStore } from "../store/local.ts";
+import { LocalBuildStore } from "../store/local.ts";
 import { copy, writeStore } from "../dependency/test/store.ts";
 
 /** How long a cancelled build runs before it aborts: well inside the library's build. */
@@ -34,7 +34,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
     try {
         // compile a real package
         await files.copy(fileURLToPath(new URL("source/", fixture)), source);
-        await using store = await LocalPackageStore.temporary(environment);
+        await using store = await LocalBuildStore.temporary(environment);
         await using builder = await Compiler.start(source, { store });
         await using build = await builder.build(library);
 
@@ -232,7 +232,7 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     const environment = simulation.environment("test");
     const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
     const library = { ...request, directory: source };
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using builder = await Compiler.start(source, { store });
     await using first = await builder.build(library);
     expect(
@@ -261,7 +261,7 @@ test("terminate compilation on cancellation and deadline, and build again with t
     );
     const library = { ...request, directory };
     const controller = new AbortController();
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using builder = await Compiler.start(directory, { store });
 
     // cancel a build once the compiler has it, as the library's build takes over a second
@@ -300,7 +300,7 @@ while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
 `,
     );
     const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     const builder = await Compiler.start(source, {
         command: {
             executable: environment.process.executable,
@@ -382,7 +382,7 @@ test("compile a package with the build extension it declares", async () => {
         }
 
         // build the package and read the greeting its extension wrote in
-        await using store = await LocalPackageStore.temporary(environment);
+        await using store = await LocalBuildStore.temporary(environment);
         await using builder = await Compiler.start(directory, { store });
         const outputs = { library: { kind: "module", runtime: "bun" } } as const;
         await using built = await builder.build({
@@ -415,7 +415,7 @@ test("refuse a workerd output importing an npm unit that workerd cannot load", a
         },
         files,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     const release = present(locked["native@1.0.0"], "the native release");
 
     // write a workerd package importing it, locked in its lockfile
@@ -505,7 +505,7 @@ test("check every output's entries with the package's ambient declarations", asy
     }
 
     // build both outputs, the browser's program rooted at its entries
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using builder = await Compiler.start(directory, { store });
     await using built = await builder.build({
         directory,

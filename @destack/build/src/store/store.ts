@@ -56,7 +56,7 @@ export type ManifestRead = (
 ) => Promise<PackageManifest | undefined>;
 
 /** The blobs a store keeps builds in, and the environment it runs in. */
-export interface PackageStoreOptions<StoreEnvironment, Storage extends BlobStorage> {
+export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage> {
     /** The partition's blobs, whose database declares the store's tables beside its own. */
     readonly blobs: BlobStore<Storage>;
     /** The compression streaming archives, the crypto digesting files and the clock of leases. */
@@ -66,7 +66,7 @@ export interface PackageStoreOptions<StoreEnvironment, Storage extends BlobStora
 }
 
 /** Immutable package builds in a partition's blobs, kept while any of its rows references them. */
-export class PackageStore<
+export class BuildStore<
     StoreEnvironment extends Pick<Environment, "compression" | "crypto" | "clock"> = Pick<
         Environment,
         "compression" | "crypto" | "clock"
@@ -87,7 +87,7 @@ export class PackageStore<
     readonly #layer: BuildLayer;
 
     /** Store builds in a partition's blobs, reading some read-only builds in place. */
-    constructor(options: PackageStoreOptions<StoreEnvironment, Storage>) {
+    constructor(options: BuildStoreOptions<StoreEnvironment, Storage>) {
         // keep the blobs, the environment and the layer
         this.blobs = options.blobs;
         this.environment = options.environment;
@@ -293,7 +293,7 @@ export class PackageStore<
         }
 
         // lease the file for its manifest, then store it
-        await this.blobs.put(expected, async () => PackageStore.#chunks(bytes));
+        await this.blobs.put(expected, async () => BuildStore.#chunks(bytes));
     }
 
     /** Store an uploaded manifest with all its files, refusing other digests and missing files. */
@@ -322,7 +322,7 @@ export class PackageStore<
         requireDistinctPaths(list);
 
         // lease and store the manifest, then record the build
-        await this.blobs.put(digest, async () => PackageStore.#chunks(bytes));
+        await this.blobs.put(digest, async () => BuildStore.#chunks(bytes));
         await this.#record(digest, bytes.byteLength, parsed, distinctFiles(list));
     }
 
@@ -477,10 +477,10 @@ export class PackageStore<
                 .onConflictDoUpdate({ target: buildCache.key, set: { entry, usedAt } });
 
             // retain what it references under its root
-            await PackageStore.#replaceRoot(
+            await BuildStore.#replaceRoot(
                 transaction,
                 `${CACHE_ROOT_PREFIX}${digest}`,
-                new Set(PackageStore.#digests(entry)),
+                new Set(BuildStore.#digests(entry)),
             );
         });
     }
@@ -519,7 +519,7 @@ export class PackageStore<
     /** Set the builds a root retains, such as a space's, leaving what it drops to a collection. */
     async root(name: string, manifests: ReadonlySet<string>): Promise<void> {
         await this.database.transaction((transaction) =>
-            PackageStore.#replaceRoot(transaction, name, manifests),
+            BuildStore.#replaceRoot(transaction, name, manifests),
         );
     }
 
@@ -843,7 +843,7 @@ export class PackageStore<
     ): ReadableStream<Uint8Array> {
         return range === undefined
             ? this.#stream(file)
-            : PackageStore.#readable(this.#slice(file, range.offset, range.length));
+            : BuildStore.#readable(this.#slice(file, range.offset, range.length));
     }
 
     /** Stream a stored build, or one output of it, as a tarball of its manifest and files. */
@@ -872,7 +872,7 @@ export class PackageStore<
         const { storage } = this.blobs;
         const layer = this.#layer;
 
-        return PackageStore.#readable(
+        return BuildStore.#readable(
             (async function* () {
                 // stream a layered blob in place
                 const layered = layer.stream(file.digest);
@@ -909,7 +909,7 @@ export class PackageStore<
     /** Store bytes under their digest unless stored. */
     async #write(digest: Digest, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
         if (!(await this.has(digest))) {
-            await this.blobs.storage.write(PackageStore.#chunks(bytes), digest);
+            await this.blobs.storage.write(BuildStore.#chunks(bytes), digest);
         }
     }
 
@@ -945,7 +945,7 @@ export class PackageStore<
 
         // record the references, then the build
         await this.database.transaction(async (transaction) => {
-            await PackageStore.#reference(transaction, digest, referenced);
+            await BuildStore.#reference(transaction, digest, referenced);
             await transaction
                 .insert(buildManifest)
                 .values({ digest, size, isComplete: true })
@@ -969,7 +969,7 @@ export class PackageStore<
 
         // record the references, then the output
         await this.database.transaction(async (transaction) => {
-            await PackageStore.#reference(transaction, digest, referenced);
+            await BuildStore.#reference(transaction, digest, referenced);
             await transaction
                 .insert(buildManifest)
                 .values({ digest, size, isComplete: false })

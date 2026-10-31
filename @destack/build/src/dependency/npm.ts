@@ -12,7 +12,7 @@ import { NATIVE_ADDON_RUNTIMES, Runtime } from "@destack/package/runtime";
 import { NpmConversion } from "../compile/conversion.ts";
 import { Digest, found, nth, schema } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
-import type { PackageStore } from "../store/index.ts";
+import type { BuildStore } from "../store/index.ts";
 
 /** The files read at once, 64: well under macOS's default limit of 256 open files. */
 const CONCURRENT_READS = 64;
@@ -34,7 +34,7 @@ export class NpmInstallation {
     /** The npm releases the lockfile locks, by `name@version`. */
     readonly locked: Readonly<Record<string, NpmRelease>>;
     /** The store of the units' builds. */
-    readonly #store: PackageStore;
+    readonly #store: BuildStore;
     /** The identity of the npm conversion building the units, which their keys include. */
     readonly #conversion: Digest;
     /** The files the installed copies are read from, and the crypto keying their builds. */
@@ -47,7 +47,7 @@ export class NpmInstallation {
     /** Store the locked releases, and the store and conversion the units build with. */
     constructor(
         locked: Readonly<Record<string, NpmRelease>>,
-        store: PackageStore,
+        store: BuildStore,
         conversion: Digest,
         environment: Environment<"files">,
     ) {

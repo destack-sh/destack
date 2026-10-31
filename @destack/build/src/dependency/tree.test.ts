@@ -6,7 +6,7 @@ import { NpmInstallation } from "./npm.ts";
 import { testSimulation } from "../test/world.ts";
 import { copy, writeStore } from "./test/store.ts";
 import { DependencyTree } from "./tree.ts";
-import { LocalPackageStore } from "../store/local.ts";
+import { LocalBuildStore } from "../store/local.ts";
 
 /** The toolchain identity the units key by. */
 const CONTEXT = Digest.parse("802596258260ddeb8be4565d4ec5b9afd34a32b950022f39c64bcda3ac575316");
@@ -50,7 +50,7 @@ test("place npm units with the peers the packages beside them or their install p
         },
         files,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
         await installation.store(await installation.open(copy(root, name)), "bun");
@@ -121,7 +121,7 @@ test("place a running tree's npm units as their Bun outputs alone, under runtime
         },
         files,
     );
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const unit = await installation.store(await installation.open(copy(root, "store")), "bun");
 

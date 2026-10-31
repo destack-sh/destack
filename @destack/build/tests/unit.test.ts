@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CompilerPool, DependencyTree, PackageBuild, Workspace } from "../src/index.ts";
 import { PackageManifest } from "@destack/package/manifest";
-import { PackageStore } from "../src/store/index.ts";
-import { LocalPackageStore } from "../src/store/local.ts";
+import { BuildStore } from "../src/store/index.ts";
+import { LocalBuildStore } from "../src/store/local.ts";
 import { countObjects, exported, importBuilt, property } from "./fixture.ts";
 import { copySource } from "../src/test/source.ts";
 
@@ -80,7 +80,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     const environment = simulation.environment("test");
     const { files } = environment;
     const { directory, workspace, library, application } = await layOut(environment);
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const units = await Workspace.open(application, compilers);
     const build = async () =>
@@ -124,7 +124,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     const first = {
         kind: "destack",
         package: PackageManifest.package(built.manifest),
-        manifest: await PackageStore.digest(built.manifest, environment.crypto),
+        manifest: await BuildStore.digest(built.manifest, environment.crypto),
     } as const;
     const edited = rebuilt.manifest.outputs["bun"]?.dependencies?.[LIBRARY];
     if (edited?.kind !== "destack") {
@@ -195,7 +195,7 @@ test("refuse to cache a unit whose committed sources changed after the workspace
             "fixture",
         ),
     ];
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const stale = await Workspace.open(application, compilers);
     const greeting = join(library, "src", "greeting.ts");
@@ -235,7 +235,7 @@ test("build a package against the release of a Destack package installed from ou
     const application = join(directory, "application", "application");
     await copyUnit("unit-library", library, files);
     await initializeWorkspace(join(directory, "library"), { library: LIBRARY }, environment);
-    await using store = await LocalPackageStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     await using released = await (
         await Workspace.open(library, compilers)
@@ -245,7 +245,7 @@ test("build a package against the release of a Destack package installed from ou
     const release = {
         kind: "destack",
         package: PackageManifest.package(released.manifest),
-        manifest: await PackageStore.digest(released.manifest, crypto),
+        manifest: await BuildStore.digest(released.manifest, crypto),
     } as const;
 
     // install it into an application whose workspace has no library member

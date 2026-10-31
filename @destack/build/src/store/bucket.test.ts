@@ -5,7 +5,7 @@ import { Digest } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 import { BuildBucket } from "./bucket.ts";
-import { PackageStore } from "./store.ts";
+import { BuildStore } from "./store.ts";
 
 test("write a build once, read it back by its manifest's digest, and refuse a build the bucket lacks", async () => {
     // write a build, then again a minute later into the same bucket
@@ -22,7 +22,7 @@ test("write a build once, read it back by its manifest's digest, and refuse a bu
         },
         crypto,
     );
-    const digest = await PackageStore.digest(build.manifest, crypto);
+    const digest = await BuildStore.digest(build.manifest, crypto);
     const bucket = new MemoryBucket(clock);
     const builds = new BuildBucket(bucket, crypto);
     await builds.write(build, digest);

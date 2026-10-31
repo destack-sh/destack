@@ -7,7 +7,7 @@ import { DependencyTree } from "../dependency/tree.ts";
 import { Workspace, type WorkspaceCompilers } from "../dependency/workspace.ts";
 import { BuildError } from "../error/index.ts";
 import { readLockfile, readPackageJson } from "../source/index.ts";
-import { LocalPackageStore } from "../store/local.ts";
+import { LocalBuildStore } from "../store/local.ts";
 
 /** A package copied for one test, built on its workspace closure's stored units. */
 export class PackageCopy implements AsyncDisposable {
@@ -18,7 +18,7 @@ export class PackageCopy implements AsyncDisposable {
     /** The builds of the units it depends on, as its build takes them. */
     readonly dependencies: Readonly<Record<string, DependencyResolution>>;
     /** The store of the units' builds. */
-    readonly store: LocalPackageStore;
+    readonly store: LocalBuildStore;
     /** The compilers building the copy into the store. */
     readonly #compilers: WorkspaceCompilers;
 
