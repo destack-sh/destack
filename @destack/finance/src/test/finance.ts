@@ -164,7 +164,7 @@ const HOME_STACK = {
     },
 };
 
-/** The home the fixture's tests copy: its packages, forge's releases and the platform's publisher. */
+/** The home the fixture's tests copy: its packages, forge's releases and the publisher. */
 const HOME_OPTIONS = {
     ...TestPackage.options(PACKAGES),
     publishers: ["platform"],
