@@ -16,6 +16,15 @@ export const OutputExport = schema.object({
 /** An output's export: its emitted file and the dependency specifiers its chunks import. */
 export type OutputExport = schema.Infer<typeof OutputExport>;
 
+/** A peer an output's package declares, which its dependents provide. */
+export const OutputPeer = schema.object({
+    /** Whether a dependent may leave it out, as npm's peerDependenciesMeta marks it. */
+    isOptional: schema.boolean(),
+});
+
+/** A peer an output's package declares, which its dependents provide. */
+export type OutputPeer = schema.Infer<typeof OutputPeer>;
+
 /** Compiled files and dependencies for one runtime. */
 export const PackageOutput = schema.object({
     /** The runtime the output is compiled for. */
@@ -32,6 +41,8 @@ export const PackageOutput = schema.object({
     exports: schema.record(schema.string().min(1), OutputExport),
     /** Exact dependencies referenced by runtime code. */
     dependencies: schema.record(DependencyName, DependencyRelease),
+    /** The peers its package declares, which each package depending on it provides beside it. */
+    peers: schema.record(DependencyName, OutputPeer).default({}),
 });
 
 /** Compiled files for one execution target. */

@@ -71,18 +71,18 @@ export class BuildWriter {
         this.#crypto = crypto;
     }
 
-    /** Write a build again from another's files, lists and declarations under new outputs. */
+    /** Write a build again from another's files, source maps and declarations under new pins. */
     static async relink(
         source: BuildReader,
         storage: BuildStorage,
         crypto: Crypto,
-        outputs: Required<BuildContent>["outputs"],
+        pinned: Required<Pick<BuildContent, "outputs" | "dependencies">>,
     ): Promise<PackageManifest> {
         // read the source's lists, and whether its package extends its dependents' builds
         const read = source.manifest;
-        const [files, dependencies, sourceMaps, declarations] = await Promise.all([
+        const { outputs, dependencies } = pinned;
+        const [files, sourceMaps, declarations] = await Promise.all([
             source.files(),
-            source.dependencies(),
             source.sourceMaps(),
             source.read(read.lists.declarations, schema.array(Declaration)),
         ]);
