@@ -4,7 +4,8 @@ import { schema } from "@destack/schema";
 import type { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { type Accessor, createSignal, onCleanup } from "solid-js";
-import { useClient, useView } from "../page/view.ts";
+import { useView } from "../page/context.ts";
+import { useClient } from "../page/view.ts";
 import { ViewContext } from "../declare/context.ts";
 import { ViewError } from "../error/error.ts";
 

@@ -3,7 +3,7 @@ import { isServer } from "../solid/component.ts";
 import { onMount } from "../primitives/utils.ts";
 import * as head from "./head.ts";
 import type { Display } from "@destack/environment/browser";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 import { requestIdle } from "../primitives/scheduled.ts";
 
 /** When a third-party script loads. */

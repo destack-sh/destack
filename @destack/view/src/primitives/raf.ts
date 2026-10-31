@@ -1,7 +1,7 @@
 import { isServer } from "@solidjs/web";
 import { type Accessor, createMemo, createSignal, onCleanup, untrack } from "solid-js";
 import { access, callbackOf, type MaybeAccessor, TRANSPARENT } from "./utils.ts";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 import type { Display } from "@destack/environment/browser";
 
 /** The milliseconds since a frame counter started, with its controls. */

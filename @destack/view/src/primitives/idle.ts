@@ -1,7 +1,7 @@
 import { isServer } from "@solidjs/web";
 import { type Accessor, createSignal, onCleanup } from "solid-js";
 import { onMount } from "./utils.ts";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 
 /** An event that shows the person is active. */
 export type EventTypeName = keyof HTMLElementEventMap | keyof DocumentEventMap;

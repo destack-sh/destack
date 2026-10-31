@@ -2,7 +2,9 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { render } from "@solidjs/web";
 import { flush } from "solid-js";
-import { createRouter, defineRoutes, memoryHistory, useLocation, useNavigate } from "./index.ts";
+import { EnvironmentContext } from "../page/context.ts";
+import { testBrowser } from "../test/browser.ts";
+import { createRouter, defineRoutes, useLocation, useNavigate } from "./index.ts";
 import {
     createLoader,
     createSerializer,
@@ -88,8 +90,12 @@ test("write links to values, leaving defaults out and keeping the base's other v
     ]);
 });
 
-/** Render a router over a memory history at a path. */
+/** Render a router over a test tab's navigation at a path. */
 function renderPage<Exposed>(path: string, read: () => Exposed) {
+    // open the tab at the path
+    const environment = testBrowser();
+    environment.navigation.navigate(path, { history: "replace" });
+
     // route every path to a page exposing what it reads
     const exposed: { value?: Exposed; search?: () => string; back?: () => void } = {};
     const Page = () => {
@@ -101,15 +107,19 @@ function renderPage<Exposed>(path: string, read: () => Exposed) {
 
         return <p>page</p>;
     };
-    const Router = createRouter({
-        routes: defineRoutes([{ path: "*path", component: Page }]),
-        history: memoryHistory(path),
-    });
+    const Router = createRouter({ routes: defineRoutes([{ path: "*path", component: Page }]) });
 
     // mount and remove after the test
     const element = document.createElement("main");
     document.body.append(element);
-    const dispose = render(() => <Router />, element);
+    const dispose = render(
+        () => (
+            <EnvironmentContext value={environment}>
+                <Router />
+            </EnvironmentContext>
+        ),
+        element,
+    );
     onTestFinished(() => {
         dispose();
         element.remove();

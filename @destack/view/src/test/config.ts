@@ -23,7 +23,6 @@ export function defineConfiguration(
         directory: root,
         runtime: isDom ? "browser" : "bun",
         server: !isDom || options.isHydrated === true,
-        options: {},
         environment,
     });
 

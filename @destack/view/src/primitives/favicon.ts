@@ -5,7 +5,7 @@ import { access, type MaybeAccessor, TRANSPARENT } from "./utils.ts";
 import { ViewError } from "../error/error.ts";
 import type { Clock } from "@destack/environment";
 import type { Display } from "@destack/environment/browser";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 
 /** The relation of a favicon link. */
 export type FaviconRel = "icon" | "shortcut icon" | "apple-touch-icon";

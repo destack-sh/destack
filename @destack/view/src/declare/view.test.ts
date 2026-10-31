@@ -33,7 +33,7 @@ const budget = defineObject({
     permissions: { read: none() },
 });
 
-test("describe a declared view by its name, presented types, categories and packages without loading its component", () => {
+test("describe a declared view by its name, presented types, categories, packages and render mode without loading its component", () => {
     // declare a view of notes calling a package, whose component never loads
     const counter = PackageHandle.of(notes, {});
     const view = defineView(
@@ -48,7 +48,7 @@ test("describe a declared view by its name, presented types, categories and pack
         { package: notes },
     );
 
-    // describe the name, presented types, categories and packages, and keep the package and opened types
+    // describe the name, presented types, categories, packages and the client mode it renders in by default, and keep the package and opened types
     expect([view.package, view.objects, describeView(view)]).toEqual([
         notes,
         [note],
@@ -57,6 +57,7 @@ test("describe a declared view by its name, presented types, categories and pack
             presents: [{ packageId: note.package.id, type: "note", priority: "default" }],
             categories: ["home"],
             packages: [notes.id],
+            render: { mode: "client" },
         },
     ]);
 });
@@ -72,11 +73,7 @@ test("open each object type in the scopes it lives in: space types in the space 
         { package: notes },
     );
 
-    expect([view.opens("space"), view.opens("home"), view.opens("account")]).toEqual([
-        [note],
-        [note],
-        [budget],
-    ]);
+    expect([view.opens(space), view.opens(account)]).toEqual([[note], [budget]]);
 });
 
 test("describe a declared command by the method it calls and its key combination", () => {

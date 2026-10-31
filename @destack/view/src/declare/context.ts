@@ -1,5 +1,5 @@
 import { DeclarationName } from "@destack/package";
-import type { ImportMap } from "@destack/package/manifest";
+import { ImportMap } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { ViewError } from "../error/error.ts";
@@ -68,7 +68,7 @@ const viewContext = schema.object({
     user: Subject,
     /** The person's home space, absent where the host opens none for the view. */
     home: schema.string().min(1).exactOptional(),
-    /** The computer's device whose local objects the page reaches, absent for none. */
+    /** The computer's device whose local objects the page opens, absent for none. */
     device: schema.string().min(1).exactOptional(),
     /** The object the view opens for, from its address. */
     target: ObjectReference.exactOptional(),
@@ -87,11 +87,18 @@ export const ViewContext = Object.assign(viewContext, {
         return found;
     },
 
-    /** Write the document mounting a view with its context, import map and entry. */
-    document(context: ViewContext, entrypoint: string, map: ImportMap): Response {
-        // escape the context and the import map for script elements
+    /** Write the document mounting a view with its context, import map, stylesheets and entry. */
+    document(
+        context: ViewContext,
+        entrypoint: string,
+        stylesheets: readonly string[],
+        map: ImportMap,
+    ): Response {
+        // escape the context for its script element, and link the stylesheets below the base
         const json = JSON.stringify(viewContext.parse(context)).replaceAll("<", "\\u003c");
-        const imports = JSON.stringify(map).replaceAll("<", "\\u003c");
+        const links = stylesheets.map(
+            (stylesheet) => `<link rel="stylesheet" href="${context.base}/${stylesheet}">\n`,
+        );
         const html = `<!doctype html>
 <html>
 <head>
@@ -99,8 +106,8 @@ export const ViewContext = Object.assign(viewContext, {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <script type="application/json" id="${CONTEXT_ELEMENT}">${json}</script>
-<script type="importmap">${imports}</script>
-<script type="module" src="${context.base}/${entrypoint}"></script>
+${ImportMap.script(map)}
+${links.join("")}<script type="module" src="${context.base}/${entrypoint}"></script>
 </head>
 <body></body>
 </html>

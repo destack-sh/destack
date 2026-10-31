@@ -10,7 +10,7 @@ await space.mutate.note.update({ id, title: "Groceries" });
 
 ## Prior art
 
-`@destack/view` is Solid 2, `/router` is Solid Router 2 with nuqs' `useQueryState` and React Router's `useBlocker`, `/document` follows Next.js's `Metadata`, `next/font` and next-themes, `/media` follows `next/image`, and `/test` follows Testing Library's `render`.
+`@destack/view` is Solid 2, `/router` is Solid Router 2 with nuqs' `useQueryState` and React Router's `useBlocker`, `/document` follows Next.js's `Metadata`, `next/font` and next-themes, `/media` follows `next/image`, `/static` follows Astro's static pages, endpoints and islands, and `/test` follows Testing Library's `render`.
 
 ```tsx
 const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
@@ -35,6 +35,48 @@ export const notes = defineView({
     presents: [{ object: note, priority: "default" }],
     component: () => import("./app.tsx"),
 });
+```
+
+## Static views
+
+A static view prerenders its pages at build, after Astro: its `pages` module lists the paths and endpoints, and its islands alone hydrate.
+
+```ts
+export const site = defineView({
+    name: "site",
+    component: () => import("./app.tsx"),
+    render: {
+        mode: "static",
+        origin: "https://example.com",
+        hydrate: "islands", // only the components in islands/ directories hydrate, "page" hydrates the whole page
+        document: () => import("./document.tsx"),
+        pages: () => import("./pages.ts"), // runs on the server only
+    },
+});
+
+// pages.ts
+export const paths = ["/", "/about/", ...posts.map((post) => post.route)];
+export const notFound = "/404";
+export const endpoints = {
+    ...siteEndpoints({ sitemap: paths, robots: { rules: [{ userAgent: "*", allow: ["/"] }] } }),
+    "/search.json": () => Response.json(searchEntries),
+};
+```
+
+An island takes JSON properties and children, which keep their server HTML.
+
+```tsx
+// islands/disclosure.tsx
+export default function Disclosure(properties: { label: string; children?: JSX.Element }) {
+    const [isOpen, setIsOpen] = createSignal(false);
+    return <section><button onClick={() => setIsOpen(!isOpen())}>{properties.label}</button>{properties.children}</section>;
+}
+```
+
+`DevelopmentServer` serves a workspace's static view on Vite, rendering each page and endpoint on request.
+
+```ts
+await using development = await DevelopmentServer.start({ workspace, view: "site", environment, server: { port: 3737 } });
 ```
 
 ## Packages

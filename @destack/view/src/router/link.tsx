@@ -3,7 +3,7 @@ import type { JSX } from "@solidjs/web";
 import type { ObjectReference } from "@destack/sync";
 import { objectUrl } from "../declare/address.ts";
 import { omit } from "../solid/reactive.ts";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 
 /** Where a link goes: a path or URL, or an object opened in the view presenting it. */
 export type LinkTarget = string | ObjectReference;

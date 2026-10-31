@@ -2,7 +2,7 @@ import { MOTION_VARIABLE } from "@destack/theme";
 import { type Accessor, createMemo, createSignal, onCleanup } from "solid-js";
 import { createMediaQuery } from "../primitives/media.ts";
 import { createMutationObserver } from "../primitives/mutation-observer.ts";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 import { requestFrame } from "../primitives/raf.ts";
 
 /** The device preference a theme's motion scale follows unless a person pins the motion setting. */

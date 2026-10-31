@@ -1,4 +1,4 @@
-import { useNow } from "./view.ts";
+import { useNow } from "./now.ts";
 
 /** Show the view's time once mounted, and a placeholder before. */
 export function CurrentTime() {

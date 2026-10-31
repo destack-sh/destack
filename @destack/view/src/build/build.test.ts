@@ -59,7 +59,7 @@ test(
         await using compilers = await CompilerPool.open(store);
         const workspace = await Workspace.open(NOTEBOOK, compilers);
         const dependencies = await workspace.storeDependencies({});
-        await using build = await compilers.use(NOTEBOOK, (compiler) =>
+        const build = await compilers.use(NOTEBOOK, (compiler) =>
             compiler.build({
                 directory: NOTEBOOK,
                 dependencies,
@@ -103,6 +103,7 @@ test("generate the module mounting a view with its package's theme and commands,
             presents: [{ packageId: owner.id, type: "note", priority: "default" }],
             categories: ["home"],
             packages: [],
+            render: { mode: "client" },
         },
     };
     const declared = (
@@ -160,6 +161,7 @@ test("generate the module mounting a view with its package's theme and commands,
     const described = viewExtension.describe(compilation, {
         exports: { "./view/main": "output/browser/view-main.js" },
         declarations: () => [],
+        stylesheets: () => ["output/browser/view-main.css"],
     });
 
     // import the declaring module and mount its view with the package's own theme and commands
@@ -170,18 +172,24 @@ test("generate the module mounting a view with its package's theme and commands,
     expect([[...entries.keys()], loaded.split("\n"), described]).toEqual([
         ["./view/main"],
         [
+            'import "@destack/view/styles.css";',
+            'import "virtual:stylex.css";',
             'import { BrowserEnvironment, mount } from "@destack/view/browser";',
             'import { main as view } from "/package/src/view.ts";',
+            ``,
             `await mount(view, ${JSON.stringify({ commands, theme: ocean })}, BrowserEnvironment.system);`,
+            ``,
         ],
         {
             views: {
                 main: {
                     entrypoint: "output/browser/view-main.js",
+                    stylesheets: ["output/browser/view-main.css"],
                     sandbox: { camera: {} },
                     presents: [{ packageId: owner.id, type: "note", priority: "default" }],
                     categories: ["home"],
                     packages: [],
+                    render: { mode: "client" },
                 },
             },
         },

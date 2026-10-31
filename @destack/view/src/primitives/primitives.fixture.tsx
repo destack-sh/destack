@@ -37,7 +37,7 @@ import { createPointerList, createPointerListeners, createPointerPosition } from
 import { createMs, createRAF } from "./raf.ts";
 import { createElementSize, createResizeObserver, createWindowSize } from "./resize-observer.ts";
 import { createScheduled, debounce } from "./scheduled.ts";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 import { createPreventScroll, createScrollPosition, useWindowScrollPosition } from "./scroll.ts";
 import { createSelection } from "./selection.ts";
 import { createBattery } from "./sensors.ts";

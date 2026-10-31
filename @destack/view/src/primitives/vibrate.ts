@@ -1,6 +1,6 @@
 import type { Clock } from "@destack/environment";
 import { type Accessor, createEffect, createSignal, onCleanup, untrack } from "solid-js";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 import { access, type MaybeAccessor } from "./utils.ts";
 
 /** A vibration in milliseconds, or alternating vibration and pause durations. */

@@ -9,7 +9,7 @@ import {
     onCleanup,
     untrack,
 } from "solid-js";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 import { TRANSPARENT } from "./utils.ts";
 
 /** A delay in milliseconds, or an accessor of one that pauses the timer while false. */

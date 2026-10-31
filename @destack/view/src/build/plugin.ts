@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { present } from "@destack/schema";
-import solid, { type StartOptions } from "@solidjs/vite-plugin";
+import solid from "@solidjs/vite-plugin";
 import { parseSync, Visitor } from "rolldown/utils";
 import type { Plugin, PluginOption } from "@destack/package/build";
 import { ViewError } from "../error/error.ts";
@@ -13,14 +13,13 @@ export const VIEW_PACKAGE = "@destack/view";
 const RUNTIME_MODULE = `${VIEW_PACKAGE}/runtime`;
 
 /** Return the Solid and framework plugins, in tests too. */
-export function viewPlugins(ssr: boolean, start?: StartOptions): PluginOption[] {
+export function viewPlugins(ssr: boolean): PluginOption[] {
     return [
         frameworkPlugin(),
         solid({
             ssr,
             serverFunctions: false,
             solid: { moduleName: RUNTIME_MODULE, hydratable: ssr },
-            ...(start === undefined ? {} : { start: { ...start, env: start.env ?? false } }),
         }),
     ];
 }

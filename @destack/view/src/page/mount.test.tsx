@@ -7,7 +7,8 @@ import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import type { ViewContext } from "../declare/context.ts";
 import { renderView } from "./mount.ts";
-import { mountPackages, useNow, usePackage } from "./view.ts";
+import { useNow } from "./now.ts";
+import { mountPackages, usePackage } from "./view.ts";
 import { definePackage } from "@destack/object";
 import { defineObject, method } from "@destack/object";
 import { none } from "@destack/access";
@@ -18,6 +19,7 @@ import { Errored } from "../solid/flow.ts";
 import { useLocale } from "./locale.ts";
 import type { Catalog } from "@destack/locale";
 import { changed } from "../test/dom.ts";
+import type {} from "@destack/package/import-meta";
 
 /** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
@@ -61,18 +63,17 @@ function Status() {
 /** Render the status into a detached element in a language and read its text. */
 function readText(locale: LocaleTag, environment: BrowserEnvironment): string {
     const element = document.createElement("div");
-    const dispose = renderView(
-        Status,
-        element,
-        {
+    const dispose = renderView(Status, element, {
+        package: import.meta.destack.package,
+        mount: {
             context: CONTEXT,
             clients: new Map(),
             packages: new Map(),
             origin: noOrigin,
         },
-        Localization.of(locale, CATALOGS),
-        environment,
-    );
+        localization: Localization.of(locale, CATALOGS),
+        environment: environment,
+    });
     const text = element.textContent;
     dispose();
 
@@ -149,18 +150,17 @@ test("call a package the view declares where the host mounts it, and refuse it t
         ]),
     );
     const element = document.createElement("div");
-    const dispose = renderView(
-        Count,
-        element,
-        {
+    const dispose = renderView(Count, element, {
+        package: import.meta.destack.package,
+        mount: {
             context: CONTEXT,
             clients: new Map(),
             packages,
             origin: noOrigin,
         },
-        Localization.of(SOURCE_LOCALE, []),
-        new BrowserSimulation(simulation).environment("view"),
-    );
+        localization: Localization.of(SOURCE_LOCALE, []),
+        environment: new BrowserSimulation(simulation).environment("view"),
+    });
 
     // read the count through the declared package's mount
     await changed(element, () => element.textContent === "notes: 3", RENDER_MILLISECONDS);
@@ -181,13 +181,16 @@ test("call a package the view declares where the host mounts it, and refuse it t
         ),
         refused,
         {
-            context: CONTEXT,
-            clients: new Map(),
-            packages: new Map(),
-            origin: noOrigin,
+            package: import.meta.destack.package,
+            mount: {
+                context: CONTEXT,
+                clients: new Map(),
+                packages: new Map(),
+                origin: noOrigin,
+            },
+            localization: Localization.of(SOURCE_LOCALE, []),
+            environment: new BrowserSimulation(simulation).environment("view"),
         },
-        Localization.of(SOURCE_LOCALE, []),
-        new BrowserSimulation(simulation).environment("view"),
     );
     expect(refused.textContent).toBe(
         "FamilyError: the view does not declare package @example/counter",
@@ -208,18 +211,17 @@ test("show the time on the view's clock, moving on each second until the view go
     const { clock } = simulation;
     const start = clock.now();
     const element = document.createElement("div");
-    const dispose = renderView(
-        Now,
-        element,
-        {
+    const dispose = renderView(Now, element, {
+        package: import.meta.destack.package,
+        mount: {
             context: CONTEXT,
             clients: new Map(),
             packages: new Map(),
             origin: noOrigin,
         },
-        Localization.of(SOURCE_LOCALE, []),
-        new BrowserSimulation(simulation).environment("view"),
-    );
+        localization: Localization.of(SOURCE_LOCALE, []),
+        environment: new BrowserSimulation(simulation).environment("view"),
+    });
     const first = element.textContent;
 
     // move the clock a second, then two more once the view went

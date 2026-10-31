@@ -1,7 +1,7 @@
 import { isServer } from "@solidjs/web";
 import * as solid from "@solidjs/router";
 import type { Navigation } from "@destack/environment/browser";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 import { navigationHistory } from "./history.ts";
 
 export {

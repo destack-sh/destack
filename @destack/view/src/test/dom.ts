@@ -1,7 +1,7 @@
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import { setContext } from "@solidjs/signals";
 import { createComponent, createRoot } from "solid-js";
-import { EnvironmentContext } from "../page/view.ts";
+import { EnvironmentContext } from "../page/context.ts";
 import { onTestFinished } from "@destack/test";
 import type { JSX } from "@solidjs/web";
 import * as web from "@solidjs/web";
@@ -28,6 +28,8 @@ export interface RenderOptions {
     readonly container?: HTMLElement;
     /** Hydrate the server's HTML the container holds instead of rendering anew. */
     readonly hydrate?: boolean;
+    /** The id of the server root hydrated, such as an island's, the page's when absent. */
+    readonly renderId?: string;
     /** The environment an element renders in, the test's simulated tab by default. */
     readonly environment?: BrowserEnvironment;
 }
@@ -50,6 +52,21 @@ interface HydrationBootstrap {
     readonly r: Record<string, unknown>;
     /** Mark a hydration step. */
     readonly fe: () => void;
+}
+
+/** Install the bootstrap a document's hydration script installs, returning how to remove it. */
+export function installHydration(): () => void {
+    const bootstrap: HydrationBootstrap = {
+        events: [],
+        completed: new WeakSet(),
+        r: {},
+        fe() {},
+    };
+    Reflect.set(globalThis, "_$HY", bootstrap);
+
+    return () => {
+        Reflect.deleteProperty(globalThis, "_$HY");
+    };
 }
 
 /** Render an element, or an example as its hosts render it, into a container in the document. */
@@ -82,17 +99,15 @@ export function render<Properties extends object>(
         if (typeof element !== "function") {
             throw new TypeError("an example renders anew, so it cannot hydrate");
         }
-        const bootstrap: HydrationBootstrap = {
-            events: [],
-            completed: new WeakSet(),
-            r: {},
-            fe() {},
-        };
-        Reflect.set(globalThis, "_$HY", bootstrap);
-        const disposeHydration = web.hydrate(element, container);
+        const uninstall = installHydration();
+        const disposeHydration = web.hydrate(
+            element,
+            container,
+            options.renderId === undefined ? {} : { renderId: options.renderId },
+        );
         dispose = () => {
             disposeHydration();
-            Reflect.deleteProperty(globalThis, "_$HY");
+            uninstall();
         };
     } else if (typeof element === "function") {
         dispose = web.render(element, container);

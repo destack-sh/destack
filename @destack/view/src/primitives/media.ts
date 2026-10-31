@@ -2,7 +2,7 @@ import { isServer } from "@solidjs/web";
 import type { Accessor } from "solid-js";
 import { makeEventListener } from "./event-listener.ts";
 import type { Display } from "@destack/environment/browser";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 import { createHydratableStaticStore } from "./static-store.ts";
 import { createHydratableSignal } from "./utils.ts";
 

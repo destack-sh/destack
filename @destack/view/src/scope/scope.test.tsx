@@ -14,6 +14,7 @@ import { defineSetting } from "@destack/setting/declare";
 import { deviceSetting, setting } from "@destack/setting/object";
 import { changed } from "../test/dom.ts";
 import type { Environment } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
 
 /** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
@@ -136,13 +137,16 @@ test("show a query's rows after loading, and re-render only the row a predicted 
             ),
             element,
             {
-                context: CONTEXT,
-                clients: new Map([[BOARD_ID, client]]),
-                packages: new Map(),
-                origin: noOrigin,
+                package: import.meta.destack.package,
+                mount: {
+                    context: CONTEXT,
+                    clients: new Map([[BOARD_ID, client]]),
+                    packages: new Map(),
+                    origin: noOrigin,
+                },
+                localization: Localization.of(SOURCE_LOCALE, []),
+                environment: tab,
             },
-            Localization.of(SOURCE_LOCALE, []),
-            tab,
         ),
     );
     await changed(element, () => element.textContent === "ApplesBread", RENDER_MILLISECONDS);
@@ -175,13 +179,16 @@ test("fail access to an object type the view's space does not hold into the erro
             ),
             element,
             {
-                context: CONTEXT,
-                clients: new Map([[BOARD_ID, client]]),
-                packages: new Map(),
-                origin: noOrigin,
+                package: import.meta.destack.package,
+                mount: {
+                    context: CONTEXT,
+                    clients: new Map([[BOARD_ID, client]]),
+                    packages: new Map(),
+                    origin: noOrigin,
+                },
+                localization: Localization.of(SOURCE_LOCALE, []),
+                environment: tab,
             },
-            Localization.of(SOURCE_LOCALE, []),
-            tab,
         ),
     );
     expect(element.textContent).toBe("the client has no object board");
@@ -234,10 +241,9 @@ test("show a setting's value for the page's person, and the device's value once 
     // show the default, then the value the device stores
     const element = document.createElement("main");
     onTestFinished(
-        renderView(
-            () => <EditorMode />,
-            element,
-            {
+        renderView(() => <EditorMode />, element, {
+            package: import.meta.destack.package,
+            mount: {
                 context: {
                     ...CONTEXT,
                     space: "space-01996ab0-0000-7000-8000-000000000005",
@@ -248,9 +254,9 @@ test("show a setting's value for the page's person, and the device's value once 
                 packages: new Map(),
                 origin: noOrigin,
             },
-            Localization.of(SOURCE_LOCALE, []),
-            tab,
-        ),
+            localization: Localization.of(SOURCE_LOCALE, []),
+            environment: tab,
+        }),
     );
     await changed(element, () => element.textContent === "standard", RENDER_MILLISECONDS);
     await client.mutate(deviceSetting).create({
@@ -292,13 +298,16 @@ test("refuse following a space's setting as the page's person into the error bou
             ),
             element,
             {
-                context: CONTEXT,
-                clients: new Map([[BOARD_ID, client]]),
-                packages: new Map(),
-                origin: noOrigin,
+                package: import.meta.destack.package,
+                mount: {
+                    context: CONTEXT,
+                    clients: new Map([[BOARD_ID, client]]),
+                    packages: new Map(),
+                    origin: noOrigin,
+                },
+                localization: Localization.of(SOURCE_LOCALE, []),
+                environment: tab,
             },
-            Localization.of(SOURCE_LOCALE, []),
-            tab,
         ),
     );
     expect(element.textContent).toBe(

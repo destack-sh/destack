@@ -1,0 +1,11 @@
+{
+    "name": "@destack/build-islands-fixture",
+    "version": "2026.9.0",
+    "type": "module",
+    "exports": {
+        ".": "./src/view.ts"
+    },
+    "dependencies": {
+        "@destack/view": "workspace:*"
+    }
+}

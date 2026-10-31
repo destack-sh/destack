@@ -3,9 +3,12 @@
     "id": "package-01a0c80b-614f-73f1-896b-bb411e8814d4",
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
-    "entrypoints": ["src/test/browser.ts"],
+    "entrypoints": ["src/build/prerender/program.ts", "src/test/browser.ts"],
     "exports": {
         "./browser": {
+            "runtimes": ["browser"]
+        },
+        "./static/browser": {
             "runtimes": ["browser"]
         },
         "./example": {
@@ -15,6 +18,9 @@
             "runtimes": ["bun"]
         },
         "./build": {
+            "runtimes": ["bun"]
+        },
+        "./prerender": {
             "runtimes": ["bun"]
         },
         "./inspect": {

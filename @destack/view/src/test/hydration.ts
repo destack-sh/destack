@@ -24,7 +24,6 @@ export async function renderOnServer(module: string): Promise<Record<string, str
                 directory: root,
                 runtime: "bun",
                 server: true,
-                options: {},
                 environment: host,
             }),
         ],

@@ -16,7 +16,7 @@ import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import { CLIENT_PATH, CONTEXT_ELEMENT, HOME_PATH, ViewContext } from "../declare/context.ts";
 import type { CommandDeclaration } from "../declare/command.ts";
-import { user } from "@destack/account/object";
+import { account, space, user } from "@destack/account/object";
 import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
 import { Theme, type ThemeDescription } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
@@ -25,6 +25,7 @@ import { Presentation, type Page, PRESENTED_SETTINGS } from "./presentation.ts";
 import type { View } from "../declare/view.ts";
 import { CONTEXT_SCOPES } from "../declare/context.ts";
 import { renderView } from "../page/mount.ts";
+import { recordVisits } from "./visit.ts";
 import { mountPackages } from "../page/view.ts";
 import { listenForCommands } from "../palette/overlay.ts";
 import { ViewError } from "../error/error.ts";
@@ -105,13 +106,12 @@ export async function mount(
     const { default: Component } = await view.component();
     const rendering = await LocalizedRendering.open(
         (locale, localization) =>
-            renderView(
-                Component,
-                document.body,
-                { context, clients, packages, origin: call },
+            renderView(Component, document.body, {
+                package: { ...view.package, version: release },
+                environment: { ...environment, telemetry },
                 localization,
-                environment,
-            ),
+                mount: { context, clients, packages, origin: call },
+            }),
         {
             owner: view.package.id,
             locale: first.locale,
@@ -144,24 +144,8 @@ export async function mount(
     });
 
     // record a visit of the view as it loads and each time it moves to another path
-    const { visit } = TelemetryScope.of({ ...view.package, version: release }, telemetry);
-    let visitedPath = "";
-    const visited = (referrer?: string) => {
-        visitedPath = new URL(navigation.currentEntry.url).pathname;
-        visit(view.name, {
-            path: visitedPath,
-            title: document.title,
-            locale: environment.locale,
-            ...(referrer === undefined ? {} : { referrer }),
-        });
-    };
-    visited(document.referrer === "" ? undefined : new URL(document.referrer).host);
-    const following = navigation.on((entry) => {
-        if (new URL(entry.url).pathname !== visitedPath) {
-            visited();
-        }
-    });
-    stopping.signal.addEventListener("abort", () => following[Symbol.dispose](), { once: true });
+    const scope = TelemetryScope.of({ ...view.package, version: release }, telemetry);
+    recordVisits(view.name, scope, environment, stopping.signal);
 
     // release the page's rendering, tabs and telemetry on unmount
     const unmount = async () => {
@@ -440,7 +424,7 @@ async function openTabs(
     );
     for (const name of CONTEXT_SCOPES) {
         const scope = context[name];
-        const objects = view.opens(name);
+        const objects = view.opens(name === "account" ? account : space);
         if (scope !== undefined && objects.length > 0) {
             const named = Object.fromEntries(objects.map((object) => [object.name, object]));
             byScope.set(scope, { ...byScope.get(scope), ...named });

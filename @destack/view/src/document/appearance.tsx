@@ -4,7 +4,7 @@ import { createPrefersDark } from "../primitives/media.ts";
 import { createMutationObserver } from "../primitives/mutation-observer.ts";
 import { onMount } from "../primitives/utils.ts";
 import { type Accessor, createMemo, createSignal } from "../solid/reactive.ts";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 import { StoredItem } from "../primitives/storage.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";

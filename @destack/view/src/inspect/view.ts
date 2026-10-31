@@ -1,9 +1,9 @@
 import { graph } from "@destack/package";
-import { ViewDescription } from "@destack/package/manifest";
+import { ViewDescription, ViewRender } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import type { View } from "../declare/view.ts";
 
-/** Describe a view by its name, the types it presents, its roles and the packages it calls. */
+/** Describe a view by its name, presented types, roles, called packages and render mode. */
 export function describeView(view: View): schema.Infer<typeof ViewDescription.declaration> {
     return {
         name: view.name,
@@ -14,7 +14,20 @@ export function describeView(view: View): schema.Infer<typeof ViewDescription.de
         })),
         categories: [...view.categories],
         packages: view.packages.map((handle) => handle.id),
+        render: renderedOf(view),
     };
+}
+
+/** Describe how a view renders, with a static view's origin and hydration. */
+function renderedOf(view: View): schema.Infer<typeof ViewRender.declaration> {
+    // describe a client or server view by its mode
+    const { render } = view;
+    if (render.mode !== "static") {
+        return { mode: render.mode };
+    }
+
+    // describe a static view by its origin and hydration
+    return { mode: "static", origin: render.origin, hydrate: render.hydrate ?? "page" };
 }
 
 /** Present each object type a view presents. */

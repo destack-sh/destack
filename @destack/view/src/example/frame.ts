@@ -4,7 +4,7 @@ import { render } from "@solidjs/web";
 import { createComponent } from "solid-js";
 import { type Catalog, Localization, LocaleTag, SOURCE_LOCALE } from "@destack/locale";
 import { LocaleContext } from "../page/locale.ts";
-import { EnvironmentContext } from "../page/view.ts";
+import { EnvironmentContext } from "../page/context.ts";
 import type { Example } from "@destack/package/declare";
 import type { Globals } from "../scenario/interaction.ts";
 import { View } from "../declare/view.ts";

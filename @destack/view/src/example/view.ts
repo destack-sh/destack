@@ -1,5 +1,6 @@
 import type { Environment } from "@destack/environment";
 import { principal } from "@destack/access";
+import { account, space } from "@destack/account/object";
 import { WasmClient } from "@destack/db/browser";
 import { SqliteDatabase } from "@destack/db/sqlite";
 import type { ObjectType } from "@destack/object";
@@ -11,7 +12,7 @@ import type { View } from "../declare/view.ts";
 import { type Component, type JSX, createComponent } from "../solid/component.ts";
 import { Loading } from "../solid/flow.ts";
 import { createMemo, onCleanup } from "../solid/reactive.ts";
-import { useEnvironment, type ViewMount, ViewMountContext } from "../page/view.ts";
+import { useEnvironment, type ViewMount, ViewMountContext } from "../page/context.ts";
 import { ViewError } from "../error/error.ts";
 
 /** The sample space a sample view opens in. */
@@ -85,7 +86,7 @@ async function openSample(
     // open each scope the context opens, and make the example's calls there
     const clients = new Map<string, ObjectClient>();
     for (const name of CONTEXT_SCOPES) {
-        const opened = view.opens(name);
+        const opened = view.opens(name === "account" ? account : space);
         const scope = context[name];
         if (opened.length > 0 && scope !== undefined) {
             const client = await openScope(scope, opened, context.user, environment, signal);
@@ -134,7 +135,7 @@ async function openScope(
         name: "memory",
     });
 
-    // reach a service that never answers
+    // call a service that never answers
     const client = await ObjectClient.open({
         database,
         objects: named,

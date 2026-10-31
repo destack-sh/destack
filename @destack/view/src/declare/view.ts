@@ -1,11 +1,56 @@
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
 import type { ViewCategory, ViewPresentationPriority } from "@destack/package/manifest";
-import { account, space } from "@destack/account/object";
 import type { ObjectType } from "@destack/object";
-import type { ContextScope } from "./context.ts";
 import type { PackageHandle } from "@destack/object";
 import type { Component } from "solid-js";
+import type { Environment } from "@destack/environment";
 import { ViewError } from "../error/error.ts";
+
+/** How a view renders: in the browser, prerendered at build, or per request on the server. */
+export type ViewRender =
+    | {
+          /** Rendered by the browser from the view's mount module. */
+          readonly mode: "client";
+      }
+    | {
+          /** Prerendered at build, its pages hydrating in the browser. */
+          readonly mode: "static";
+          /** The site's public origin, for absolute URLs in the sitemap, the feed and links. */
+          readonly origin: string;
+          /** How its pages hydrate: whole by default, or only their `islands/` components. */
+          readonly hydrate?: "page" | "islands";
+          /** Load the page shell wrapping the component, the view runtime's when absent. */
+          readonly document?: () => Promise<{ readonly default: Component }>;
+          /** Load the module of its paths, not-found path and endpoints, on the server. */
+          readonly pages: () => Promise<StaticPages>;
+      }
+    | {
+          /** Rendered per request by the package's workload, as the visitor. */
+          readonly mode: "server";
+      };
+
+/** A static view's pages module, as Astro's getStaticPaths and static endpoints. */
+export interface StaticPages {
+    /** The paths prerendered below the view's base. */
+    readonly paths: readonly string[];
+    /** The path rendering the not-found page, published as 404.html, none when absent. */
+    readonly notFound?: string;
+    /** The files published beside the pages, each answering its path's request. */
+    readonly endpoints?: Readonly<Record<string, Endpoint>>;
+}
+
+/** Answer a request for one of a static view's files, such as its sitemap. */
+export type Endpoint = (context: EndpointContext) => Response | Promise<Response>;
+
+/** What an endpoint answers with: the request, the site's origin and the environment it runs in. */
+export interface EndpointContext {
+    /** The request. */
+    readonly request: Request;
+    /** The site's public origin. */
+    readonly origin: string;
+    /** The environment the endpoint runs in. */
+    readonly environment: Environment;
+}
 
 /** A view as its package defines it. */
 export interface ViewDefinition {
@@ -21,6 +66,8 @@ export interface ViewDefinition {
     readonly packages?: readonly PackageHandle[];
     /** Load the module whose default export is the root component. */
     readonly component: () => Promise<{ readonly default: Component }>;
+    /** How the view renders, in the browser when absent. */
+    readonly render?: ViewRender;
 }
 
 /** An object type a view presents: the one it opens by default, or one offered beside it. */
@@ -52,6 +99,8 @@ export class View {
     readonly packages: readonly PackageHandle[];
     /** Load the module whose default export is the root component. */
     readonly component: ViewDefinition["component"];
+    /** How the view renders. */
+    readonly render: ViewRender;
 
     /** Create a view from its package and definition. */
     constructor(owner: Package, definition: ViewDefinition) {
@@ -63,13 +112,11 @@ export class View {
         this.categories = definition.categories ?? [];
         this.packages = definition.packages ?? [];
         this.component = definition.component;
+        this.render = definition.render ?? { mode: "client" };
     }
 
-    /** List the object types the view opens in one of its context's scopes, by where each lives. */
-    opens(scope: ContextScope): readonly ObjectType[] {
-        // open space types in the space and the home, account types in the account, others anywhere
-        const lives = scope === "account" ? account : space;
-
+    /** List the object types the view opens in scopes of a type, with those living anywhere. */
+    opens(lives: ObjectType): readonly ObjectType[] {
         return this.objects.filter(
             (object) =>
                 object.scopes.length === 0 || object.scopes.some((each) => each.same(lives)),

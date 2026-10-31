@@ -1,7 +1,20 @@
-import { useLocation, useSearchParams } from "@solidjs/router";
-import { mapValues, type schema } from "@destack/schema";
-import { type Accessor, createEffect, createMemo, untrack } from "solid-js";
+import { getRequestEvent, isServer } from "@solidjs/web";
+import { mapValues, present, type schema } from "@destack/schema";
+import {
+    type Accessor,
+    createEffect,
+    createMemo,
+    createSignal,
+    onCleanup,
+    untrack,
+    useContext,
+} from "solid-js";
+import { RouterContext } from "@solidjs/router";
+import { useEnvironment } from "../page/context.ts";
 import { ViewError } from "../error/error.ts";
+
+/** The origin a router's location resolves against on the server. */
+const SERVER_ORIGIN = "http://page.invalid";
 
 /** How setting URL state moves through history, scrolls and treats defaults. */
 export interface Options {
@@ -359,17 +372,17 @@ export function useQueryStates<Built extends Parsers>(
     parsers: Built,
     options: QueryStatesOptions<Built> = {},
 ): [Accessor<Values<Built>>, SetValues<Built>] {
-    // read each value from its query key
-    const location = useLocation();
-    const [, setSearchParams] = useSearchParams();
-    const values = createMemo(() => readValues(parsers, location.query, options));
+    // read each value from its query key in the page's address
+    const address = usePageAddress();
+    const query = createMemo(() => queryTexts(address.url().searchParams));
+    const values = createMemo(() => readValues(parsers, query(), options));
 
     // replace a query with an invalid value, or a value set to its default, by its canonical form once hydrated
     createEffect(
-        () => canonicalChanges(parsers, location.query, values(), options),
+        () => canonicalChanges(parsers, query(), values(), options),
         (canonical) => {
             if (Object.keys(canonical).length > 0) {
-                setSearchParams(canonical, { replace: true, scroll: false });
+                address.write(canonical, "replace", false);
             }
         },
         { ssrSource: "client" },
@@ -384,25 +397,83 @@ export function useQueryStates<Built extends Parsers>(
 
             // write the values, pushing when the call or a changed value's parser asks to
             const texts = writeUpdates(parsers, next, options);
-            const isPush = (overrides.history ?? historyMode(parsers, next, options)) === "push";
-            setSearchParams(texts, {
-                replace: !isPush,
-                scroll: overrides.scroll ?? options.scroll ?? false,
-            });
+            const history = overrides.history ?? historyMode(parsers, next, options);
 
-            // resolve to the query as written
-            const written = new URLSearchParams(location.search);
+            return address.write(texts, history, overrides.scroll ?? options.scroll ?? false);
+        },
+    ];
+}
+
+/** The page's address as URL state reads it, and how URL state writes its query. */
+interface PageAddress {
+    /** The page's address. */
+    readonly url: Accessor<URL>;
+    /** Write query texts into the address, removing undefined ones, returning the query. */
+    readonly write: (
+        texts: Readonly<Record<string, string | undefined>>,
+        history: "push" | "replace",
+        isScrolled: boolean,
+    ) => URLSearchParams;
+}
+
+/** Follow the page's address: the request's on the server, the tab's in the browser. */
+function usePageAddress(): PageAddress {
+    // read the address on the server: the router's it renders inside, else the request's, which no write changes
+    if (isServer) {
+        const router = useContext(RouterContext);
+        const event = getRequestEvent();
+        if (router === undefined && event === undefined) {
+            throw ViewError.of(
+                "PAGE_ADDRESS_UNKNOWN",
+                "URL state renders on the server only under a router or a request",
+            );
+        }
+        const url =
+            router === undefined
+                ? new URL(present(event, "the request").request.url)
+                : new URL(`${router.location.pathname}${router.location.search}`, SERVER_ORIGIN);
+
+        return {
+            url: () => url,
+            write: () => {
+                throw ViewError.of("PAGE_ADDRESS_UNKNOWN", "URL state writes in the browser only");
+            },
+        };
+    }
+
+    // follow the tab's navigation, and write within the document
+    const { navigation } = useEnvironment();
+    const [url, setUrl] = createSignal(new URL(navigation.currentEntry.url), { ownedWrite: true });
+    const subscription = navigation.on((entry) => setUrl(new URL(entry.url)));
+    onCleanup(() => subscription[Symbol.dispose]());
+
+    return {
+        url,
+        write(texts, history, isScrolled) {
+            // write the texts into the current address
+            const next = new URL(navigation.currentEntry.url);
             for (const [key, text] of Object.entries(texts)) {
                 if (text === undefined) {
-                    written.delete(key);
+                    next.searchParams.delete(key);
                 } else {
-                    written.set(key, text);
+                    next.searchParams.set(key, text);
                 }
             }
 
-            return written;
+            // move to it, scrolling to the top when asked
+            navigation.navigate(next.href, { history });
+            if (isScrolled) {
+                globalThis.scrollTo({ top: 0 });
+            }
+
+            return next.searchParams;
         },
-    ];
+    };
+}
+
+/** Read each key's texts from a query. */
+function queryTexts(query: URLSearchParams): Record<string, string[]> {
+    return Object.fromEntries([...new Set(query.keys())].map((key) => [key, query.getAll(key)]));
 }
 
 /** Follow one value of the URL's query under a key as text, null where missing. */

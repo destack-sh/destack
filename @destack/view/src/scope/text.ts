@@ -2,7 +2,8 @@ import { type Undo, type ObjectType, TextChange } from "@destack/object";
 import { LiveText, type Submission } from "@destack/object/client";
 import { type Accessor, createMemo, onCleanup } from "../solid/reactive.ts";
 import type { ContextScope } from "../declare/context.ts";
-import { useClient, useView } from "../page/view.ts";
+import { useView } from "../page/context.ts";
+import { useClient } from "../page/view.ts";
 import { ViewContext } from "../declare/context.ts";
 
 /** Where a text field is followed. */

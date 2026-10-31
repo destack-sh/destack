@@ -2,7 +2,7 @@ import { isServer } from "@solidjs/web";
 import { type Accessor, createEffect, onSettled } from "solid-js";
 import { createEventListener, makeEventListener } from "./event-listener.ts";
 import { access, createHydratableSignal, type FalsyValue, type MaybeAccessor } from "./utils.ts";
-import { useEnvironment } from "../page/view.ts";
+import { useEnvironment } from "../page/context.ts";
 
 /** Call back as an element gains and loses the focus, until cleanup or the returned function. */
 export function makeFocusListener(

@@ -1,0 +1,89 @@
+import { afterAll, beforeAll, expect, test } from "@destack/test";
+import { CompilerPool, type LocalBuildStore, Workspace } from "@destack/build";
+import { PackageCopy, testStore } from "@destack/build/test";
+import { testHost } from "@destack/test/host";
+import { DevelopmentServer } from "./server.ts";
+
+/** The site fixture, a package declaring one static view. */
+const SITE = new URL("../../tests/fixture/site/source/", import.meta.url);
+
+/** The longest a development server takes to start on the site's workspace. */
+const START_MILLISECONDS = 60_000;
+
+/** The checkout's test store. */
+let store: LocalBuildStore;
+/** The compilers inspecting the site. */
+let compilers: CompilerPool;
+/** The site's copy. */
+let source: PackageCopy;
+
+beforeAll(async () => {
+    store = await testStore();
+    compilers = await CompilerPool.open(store);
+    source = await PackageCopy.open(SITE, compilers);
+}, START_MILLISECONDS);
+
+afterAll(async () => {
+    await source[Symbol.asyncDispose]();
+    await compilers[Symbol.asyncDispose]();
+    await store[Symbol.asyncDispose]();
+});
+
+/** List the text of a page's headings. */
+function headings(document: string): string[] {
+    return [...document.matchAll(/<h1[^>]*>([^<]*)<\/h1>/gu)].map((match) => match[1] ?? "");
+}
+
+test(
+    "serve a static view's pages, endpoints and public files on request, as its prerender writes them",
+    { timeout: START_MILLISECONDS },
+    async () => {
+        // serve the site from its workspace on a free port
+        const workspace = await Workspace.open(source.source, compilers);
+        await using development = await DevelopmentServer.start({
+            workspace,
+            view: "site",
+            environment: testHost(),
+            server: { port: 0 },
+        });
+        const address = development.vite.httpServer?.address();
+        const port = typeof address === "object" && address !== null ? address.port : 0;
+        const visit = async (path: string) => {
+            const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+                headers: { accept: "text/html" },
+            });
+
+            return { status: response.status, text: await response.text() };
+        };
+
+        // answer the pages with their headings and the browser entry, the sitemap, a public file and the missing page
+        const [home, about, sitemap, favicon, missing] = await Promise.all(
+            ["/", "/about/", "/sitemap.xml", "/favicon.svg", "/nowhere"].map(visit),
+        );
+        expect({
+            home: [home?.status, headings(home?.text ?? "")],
+            about: [about?.status, headings(about?.text ?? "")],
+            entry: home?.text.includes('src="/@id/__x00__virtual:@destack/view/view/site"'),
+            sitemap: [sitemap?.status, sitemap?.text],
+            favicon: [favicon?.status, favicon?.text],
+            missing: [missing?.status, headings(missing?.text ?? "")],
+        }).toEqual({
+            home: [200, ["Home"]],
+            about: [200, ["About"]],
+            entry: true,
+            sitemap: [
+                200,
+                [
+                    `<?xml version="1.0" encoding="UTF-8"?>`,
+                    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+                    `  <url><loc>https://example.test/</loc></url>`,
+                    `  <url><loc>https://example.test/about/</loc></url>`,
+                    `</urlset>`,
+                    ``,
+                ].join("\n"),
+            ],
+            favicon: [200, '<svg xmlns="http://www.w3.org/2000/svg"/>\n'],
+            missing: [404, ["Missing"]],
+        });
+    },
+);

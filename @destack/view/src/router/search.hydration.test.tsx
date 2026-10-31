@@ -20,8 +20,8 @@ test("render URL state on the server at its defaults, then hydrate without a mis
         container.innerHTML,
         new URL(testBrowser().navigation.currentEntry.url).search,
     ]).toEqual([
-        "<p _hk=007041002><!--$-->milk<!--/--> <!--$-->1<!--/--> <!--$-->?q=milk&amp;page=x<!--/--> <!--$-->unblocked<!--/--></p>",
-        '<p _hk="007041002"><!--$-->milk<!--/--> <!--$-->1<!--/--> <!--$-->?q=milk<!--/--> <!--$-->unblocked<!--/--></p>',
+        "<p _hk=007041003><!--$-->milk<!--/--> <!--$-->1<!--/--> <!--$-->?q=milk&amp;page=x<!--/--> <!--$-->unblocked<!--/--></p>",
+        '<p _hk="007041003"><!--$-->milk<!--/--> <!--$-->1<!--/--> <!--$-->?q=milk<!--/--> <!--$-->unblocked<!--/--></p>',
         "?q=milk",
     ]);
 });

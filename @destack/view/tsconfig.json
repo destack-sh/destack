@@ -34,5 +34,9 @@
         "jsxImportSource": "@destack/view"
     },
     "include": ["src", "tests", "*.config.ts"],
-    "exclude": ["tests/fixture/notebook"]
+    "exclude": [
+        "tests/fixture/islands/source",
+        "tests/fixture/notebook",
+        "tests/fixture/site/source"
+    ]
 }
