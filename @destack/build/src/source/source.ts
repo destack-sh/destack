@@ -46,6 +46,8 @@ export const PackageSource = {
             versions?: Readonly<Record<string, Version>>;
             /** The materialized directory of each Destack dependency's build, by package name. */
             tree: Readonly<Record<string, string>>;
+            /** Whether the entries render pages at build, on any runtime. */
+            isPrerender?: boolean;
         },
         environment: Environment<"files" | "process">,
     ): Promise<PackageSource> {
@@ -57,6 +59,7 @@ export const PackageSource = {
             options.entries,
             options.versions ?? {},
             files,
+            options.isPrerender ?? false,
         );
         const authored = resolve(definition.directory, options.configuration ?? "tsconfig.json");
 
@@ -93,6 +96,7 @@ async function readPackageSource(
     entries: Readonly<Record<string, string>> | undefined,
     versions: Readonly<Record<string, Version>>,
     files: FileSystem,
+    isPrerender: boolean,
 ): Promise<Omit<PackageSource, "configuration" | "entries" | "tree" | "environment">> {
     // read the package.json and destack.json
     directory = await files.realPath(directory);
@@ -111,7 +115,9 @@ async function readPackageSource(
     const types: Record<string, string> = {};
     for (const [name, entry] of Object.entries(authoredEntries)) {
         // compile concrete exports the runtime supports
-        if (!isCompiled(name, definition, runtime, entries !== undefined)) {
+        if (
+            !isCompiled(name, definition, isPrerender ? undefined : runtime, entries !== undefined)
+        ) {
             continue;
         }
 
@@ -145,7 +151,7 @@ async function readPackageSource(
 function isCompiled(
     name: string,
     definition: PackageDefinition,
-    runtime: Runtime,
+    runtime: Runtime | undefined,
     isSelected: boolean,
 ): boolean {
     // require a subpath export of a concrete module
@@ -158,8 +164,9 @@ function isCompiled(
         return false;
     }
 
-    // skip exports of other runtimes, refusing a selected entry of another runtime
-    const isSupported = PackageDefinition.runtimes(definition, name).includes(runtime);
+    // skip exports of other runtimes, refusing a selected entry of another runtime, any runtime rendering pages at build
+    const isSupported =
+        runtime === undefined || PackageDefinition.runtimes(definition, name).includes(runtime);
     if (!isSupported && isSelected) {
         throw PackageError.of(
             "TARGET_UNSUPPORTED",

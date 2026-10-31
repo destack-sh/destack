@@ -45,6 +45,9 @@ import { Writable } from "node:stream";
 import { PRIMARY_RUNTIMES, type Runtime } from "@destack/package/runtime";
 import type { ModuleDescription } from "@destack/package/code";
 
+/** The Bun output a build compiles for its pages when it ships none, never distributed. */
+const PRERENDER_OUTPUT = "prerender";
+
 /** This package's directory, whose dependencies include the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -277,8 +280,8 @@ export class CompilerWorker implements AsyncDisposable {
         destination: string,
         cache: TransformCache,
     ): Promise<Record<string, string[]>> {
-        // retain the manifests, template and catalogs, then compile every output
-        const opened = await this.#open(options);
+        // retain the manifests, template and catalogs, then compile every output, a prerender output among them when pages render
+        const opened = await this.#open(options, declarations);
         const files = new BuildDirectory(destination, this.environment);
         await retain(opened.primary, files);
         const compiled = await this.#compile(
@@ -292,8 +295,15 @@ export class CompilerWorker implements AsyncDisposable {
             opened.transformer,
         );
 
-        // render the extensions' pages from the compiled outputs into the build
-        await this.#prerender(opened, declarations, compiled.outputs, options.tree, files);
+        // render the extensions' pages from the compiled outputs into the build, distributing no prerender output
+        await this.#prerender(opened, compiled.outputs, options.tree, files);
+        const internal = compiled.outputs.get(PRERENDER_OUTPUT);
+        if (opened.isPrerenderOutput && internal !== undefined) {
+            compiled.outputs.set(PRERENDER_OUTPUT, {
+                ...internal,
+                output: { ...internal.output, emit: false },
+            });
+        }
 
         // write the manifest: the outputs, the sources and releases they bundle, and the declarations
         const source = opened.primary.packageJson.package;
@@ -319,9 +329,15 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Plan a package's outputs with its closure's extensions, and open each output's project. */
-    async #open(options: RequestedBuild): Promise<{
+    async #open(
+        options: RequestedBuild,
+        declarations: readonly EvaluatedDeclaration[] = [],
+    ): Promise<{
         readonly packageJson: PackageJson;
         readonly extensions: readonly BuildExtension[];
+        readonly rendering: readonly BuildExtension[];
+        readonly declarations: readonly DeclarationDescription[];
+        readonly isPrerenderOutput: boolean;
         readonly planned: ReadonlyMap<string, ModuleOptions>;
         readonly projects: ReadonlyMap<string, PackageSource>;
         readonly primary: PackageSource;
@@ -333,17 +349,38 @@ export class CompilerWorker implements AsyncDisposable {
         const tree = await DependencyTree.read(options.tree, system);
         const loaded = await loadExtensions(options.directory, packageJson, tree, system);
         const extensions = loaded.map((entry) => entry.extension);
-        const planned = plan(options.outputs);
+        const own = declarations
+            .map((declaration) => declaration.description)
+            .filter((declaration) => declaration.symbol.package.id === packageJson.package.id);
+        const rendering = extensions.filter(
+            (extension) => extension.prerender?.isRendering(own) === true,
+        );
+        const isPrerenderOutput =
+            rendering.length > 0 &&
+            !Object.values(options.outputs).some((output) => output.runtime === "bun");
+        const modules = [...new Set(own.map((declaration) => declaration.symbol.symbol.module))];
+        const planned = plan(options.outputs, isPrerenderOutput ? modules : undefined);
 
         // open each output's project
         const projects = new Map<string, PackageSource>();
         for (const [name, output] of planned) {
-            projects.set(name, await this.#project(options, output));
+            const isPrerender = isPrerenderOutput && name === PRERENDER_OUTPUT;
+            projects.set(name, await this.#project(options, output, isPrerender));
         }
         const primary = found(projects, CompilerWorker.#primary(planned));
         const transformer = this.#transformer(options, packageJson);
 
-        return { packageJson, extensions, planned, projects, primary, transformer };
+        return {
+            packageJson,
+            extensions,
+            rendering,
+            declarations: own,
+            isPrerenderOutput,
+            planned,
+            projects,
+            primary,
+            transformer,
+        };
     }
 
     /** Reuse the last build's module transformer while the stamps' inputs stay the same. */
@@ -379,7 +416,11 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Open the package with an output's entries. */
-    #project(options: RequestedBuild, output: ModuleOptions): Promise<PackageSource> {
+    #project(
+        options: RequestedBuild,
+        output: ModuleOptions,
+        isPrerender = false,
+    ): Promise<PackageSource> {
         return PackageSource.open(
             {
                 directory: options.directory,
@@ -388,6 +429,7 @@ export class CompilerWorker implements AsyncDisposable {
                     : { configuration: options.configuration }),
                 runtime: output.runtime,
                 ...(output.entries === undefined ? {} : { entries: output.entries }),
+                isPrerender,
                 ...(options.versions === undefined ? {} : { versions: options.versions }),
                 tree: options.tree,
             },
@@ -465,22 +507,28 @@ export class CompilerWorker implements AsyncDisposable {
             context.files.directory,
         );
         await writeFiles(compiled.files, compiled.paths, context.files);
-        checkInputs(compiled.inspection, compilation.runtime);
+        // check the runtime of each module a shipped output loads, as the prerender output ships none
+        if (name !== PRERENDER_OUTPUT) {
+            checkInputs(compiled.inspection, compilation.runtime);
+        }
 
         return compiled;
     }
 
     /** Render the extensions' pages from the compiled outputs, their dependency builds linked. */
     async #prerender(
-        opened: { readonly primary: PackageSource; readonly extensions: readonly BuildExtension[] },
-        declarations: readonly EvaluatedDeclaration[],
+        opened: {
+            readonly primary: PackageSource;
+            readonly rendering: readonly BuildExtension[];
+            readonly declarations: readonly DeclarationDescription[];
+        },
         outputs: ReadonlyMap<string, Pick<OutputBuild, "output" | "npm">>,
         tree: RequestedBuild["tree"],
         files: BuildDirectory,
     ): Promise<void> {
         // leave a build no extension renders pages of
-        const rendering = opened.extensions.filter((extension) => extension.prerender);
-        if (!rendering.length) {
+        const { rendering } = opened;
+        if (rendering.length === 0) {
             return;
         }
 
@@ -511,9 +559,7 @@ export class CompilerWorker implements AsyncDisposable {
                 package: owner,
                 directory: opened.primary.directory,
                 build: files.directory,
-                declarations: declarations
-                    .map((declaration) => declaration.description)
-                    .filter((declaration) => declaration.symbol.package.id === owner.id),
+                declarations: opened.declarations,
                 outputs: Object.fromEntries(
                     [...outputs].map(([name, { output }]) => [name, output]),
                 ),
@@ -522,7 +568,7 @@ export class CompilerWorker implements AsyncDisposable {
             for (const extension of rendering) {
                 let pages: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
                 try {
-                    pages = (await extension.prerender?.(context)) ?? new Map();
+                    pages = (await extension.prerender?.render(context)) ?? new Map();
                 } catch (cause) {
                     throw extensionFailureOf(cause);
                 }
@@ -597,8 +643,11 @@ async function releasedManifest(project: PackageSource): Promise<Uint8Array<Arra
     return new TextEncoder().encode(`${JSON.stringify({ ...manifest, version }, null, 4)}\n`);
 }
 
-/** Plan the requested module outputs, refusing an invalid name and a build of none. */
-function plan(requests: PackageBuildOptions["outputs"]): Map<string, ModuleOptions> {
+/** Plan the requested module outputs and the prerender output, refusing invalid plans. */
+function plan(
+    requests: PackageBuildOptions["outputs"],
+    prerendering: readonly string[] | undefined,
+): Map<string, ModuleOptions> {
     // refuse an invalid name
     for (const name of Object.keys(requests)) {
         if (!/^[a-z][a-z0-9-]*$/u.test(name)) {
@@ -606,8 +655,20 @@ function plan(requests: PackageBuildOptions["outputs"]): Map<string, ModuleOptio
         }
     }
 
-    // require at least one output
+    // refuse the prerender output's name, then add it when pages render and the build ships no Bun output
     const planned = new Map(Object.entries(requests));
+    if (planned.has(PRERENDER_OUTPUT)) {
+        throw BuildError.of(
+            "OUTPUT_INVALID",
+            `output ${PRERENDER_OUTPUT} is the build's prerender output`,
+        );
+    }
+    if (prerendering !== undefined) {
+        const entries = Object.fromEntries(prerendering.map((module) => [`./${module}`, module]));
+        planned.set(PRERENDER_OUTPUT, { kind: "module", runtime: "bun", entries });
+    }
+
+    // require at least one output
     if (!planned.size) {
         throw BuildError.of("OUTPUT_INVALID", "a build requires at least one output");
     }
