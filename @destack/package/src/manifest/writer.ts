@@ -1,12 +1,12 @@
 import type { Crypto } from "@destack/environment";
-import { type Commit, Digest, schema } from "@destack/schema";
+import { canonicalize, type Commit, Digest, schema } from "@destack/schema";
 import type { DependencyResolution, NpmPackage, Package } from "../definition/index.ts";
 import { Declaration } from "../graph/declaration.ts";
 import { PackageDefinition } from "../definition/index.ts";
 import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
 import type { SourceMapReference } from "../source/map.ts";
-import type { PackageManifest } from "./manifest.ts";
+import { PackageManifest } from "./manifest.ts";
 import { type BuildReader, MANIFEST_PATH } from "./reader.ts";
 
 /** The path of each list a build's manifest references, inside the build. */
@@ -213,10 +213,7 @@ export class BuildWriter {
             interface: interfaceDigest,
             outputs,
         };
-        await this.#storage.write(
-            MANIFEST_PATH,
-            new TextEncoder().encode(JSON.stringify(manifest)),
-        );
+        await this.#storage.write(MANIFEST_PATH, PackageManifest.serialize(manifest));
 
         return manifest;
     }
@@ -231,8 +228,8 @@ export class BuildWriter {
         return previous !== undefined;
     }
 
-    /** Write a description as readable JSON. */
+    /** Write a description as canonical JSON, whose bytes depend on its value alone. */
     #writeJson(path: string, value: unknown): Promise<PackageFile> {
-        return this.write(path, new TextEncoder().encode(`${JSON.stringify(value, null, 4)}\n`));
+        return this.write(path, new TextEncoder().encode(canonicalize(value)));
     }
 }

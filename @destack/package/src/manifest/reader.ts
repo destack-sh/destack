@@ -186,8 +186,8 @@ export class BuildReader {
         }
 
         // make the build readable only after every file is written
-        const manifest = JSON.stringify(this.manifest);
-        await files.writeTextFile(`${directory}/${MANIFEST_PATH}`, manifest, { createNew: true });
+        const manifest = PackageManifest.serialize(this.manifest);
+        await files.writeFile(`${directory}/${MANIFEST_PATH}`, manifest, { createNew: true });
     }
 
     /** Open the build a directory keeps in files: its manifest at the root and its files below. */

@@ -1,8 +1,10 @@
 import { isBuiltin } from "node:module";
-import { Features } from "lightningcss";
 import type { CSSOptions } from "vite";
 import { nth } from "@destack/schema";
 import type { Runtime } from "../runtime/index.ts";
+
+/** Lightning CSS's `light-dark()` flag, `Features.LightDark` in its `node/flags.js`. */
+export const LIGHT_DARK_FEATURE = 1_048_576;
 
 /** Workerd's Node modules then, per developers.cloudflare.com/workers/runtime-apis/nodejs. */
 const WORKERD_NODE_MODULES: ReadonlySet<string> = new Set([
@@ -70,7 +72,7 @@ export function runtimeCss(runtime: Runtime): CSSOptions {
     return runtime === "browser"
         ? {
               transformer: "lightningcss",
-              lightningcss: { targets: cssTargets(), exclude: Features.LightDark },
+              lightningcss: { targets: cssTargets(), exclude: LIGHT_DARK_FEATURE },
           }
         : {};
 }

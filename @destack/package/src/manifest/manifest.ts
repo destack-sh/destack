@@ -1,4 +1,4 @@
-import { Commit, Digest, Instant, schema } from "@destack/schema";
+import { canonicalize, Commit, Digest, Instant, schema } from "@destack/schema";
 import { DeclarationName, Language, NpmPackage, Package } from "../definition/index.ts";
 import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
@@ -50,6 +50,11 @@ export const PackageManifest = Object.assign(manifest, {
         }
 
         return value.package;
+    },
+
+    /** Serialize a manifest as its canonical bytes, whose digest identifies the build. */
+    serialize(value: PackageManifest): Uint8Array<ArrayBuffer> {
+        return new TextEncoder().encode(canonicalize(manifest.parse(value)));
     },
 });
 

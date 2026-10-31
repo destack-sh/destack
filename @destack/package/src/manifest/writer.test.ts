@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { Package } from "../definition/package.ts";
 import { PackageFile } from "../file/file.ts";
 import { BuildReader } from "./reader.ts";
@@ -65,4 +65,44 @@ test("write a file's equal bytes once, a concurrent writer waiting for them, and
         source: ["src/notes.js"],
         listed: ["src/notes.js"],
     });
+});
+
+test("write one manifest for one closure listed in any order", async () => {
+    // write the same two dependencies in both orders
+    await using simulation = testSimulation();
+    const { crypto } = simulation.environment("test");
+    const schemaRelease = {
+        package: Package.parse({
+            ...app,
+            name: "@example/schema",
+            id: "package-01996ab0-0000-7000-8000-000000000002",
+        }),
+        manifest: Digest.parse("1".repeat(64)),
+        kind: "destack" as const,
+    };
+    const dbRelease = {
+        package: Package.parse({
+            ...app,
+            name: "@example/db",
+            id: "package-01996ab0-0000-7000-8000-000000000003",
+        }),
+        manifest: Digest.parse("2".repeat(64)),
+        kind: "destack" as const,
+    };
+    const finish = (dependencies: Record<string, typeof schemaRelease>) =>
+        new BuildWriter({ write: () => Promise.resolve() }, crypto).finish({
+            package: app,
+            dependencies,
+        });
+    const forward = await finish({
+        "@example/schema@2026.9.0": schemaRelease,
+        "@example/db@2026.9.0": dbRelease,
+    });
+    const backward = await finish({
+        "@example/db@2026.9.0": dbRelease,
+        "@example/schema@2026.9.0": schemaRelease,
+    });
+
+    // digest the dependency list and the manifest alike, as a store keys builds by them
+    expect(backward).toEqual(forward);
 });
