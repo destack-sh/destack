@@ -1,14 +1,20 @@
 import { frame } from "../../layout/frame.stylex";
-import { color, font } from "@destack/theme/tokens.stylex";
+import { color, font, motion } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Crossfade } from "../figure/crossfade";
-import { type JSX, onSettled } from "@destack/view";
+import { createSignal, type JSX, onSettled } from "@destack/view";
 import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { media } from "@destack/style/media.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { typeScale, tracking } from "../../layout/type.stylex";
+
+/** A page whose scripts run, which draws each underline in once its entry shows. */
+const SCRIPTED = "@media (scripting: enabled)";
+
+/** The bottom band of the screen an entry rises past before its underline draws. */
+const SEEN_MARGIN = "0px 0px -20% 0px";
 
 /** One sense of a form: its definition, the passages underlined in it, and the phrase under it. */
 type Sense = {
@@ -54,8 +60,33 @@ export function Syllables(properties: { syllables: readonly string[] }) {
 
 /** Head a section with a dictionary entry. */
 export function Entry(properties: { form: Form; isTitle?: boolean }) {
+    // draw the definition's underline once, the first time the entry rises past the screen's bottom fifth
+    let header: HTMLElement | undefined;
+    const [isSeen, setIsSeen] = createSignal(false);
+    const sight = makeIntersectionObserver(
+        [],
+        (entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                setIsSeen(true);
+                sight.stop();
+            }
+        },
+        { rootMargin: SEEN_MARGIN },
+    );
+    onSettled(() => {
+        // require the rendered header
+        if (!header) {
+            throw new TypeError("the entry rendered without its header");
+        }
+        sight.add(header);
+    });
+
     return (
-        <header id={anchorOf(properties.form)} {...style.attrs(lattice.cell, styles.entry)}>
+        <header
+            ref={header}
+            id={anchorOf(properties.form)}
+            {...style.attrs(lattice.cell, styles.entry)}
+        >
             <p {...style.attrs(styles.kicker)}>
                 <b {...style.attrs(styles.headword)}>
                     <Syllables syllables={properties.form.syllables} />
@@ -68,11 +99,11 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
             </p>
             {properties.isTitle === true ? (
                 <h1 {...style.attrs(styles.definition)}>
-                    <Definition sense={properties.form.sense} />
+                    <Definition sense={properties.form.sense} isDrawn={isSeen()} />
                 </h1>
             ) : (
                 <h2 {...style.attrs(styles.definition)}>
-                    <Definition sense={properties.form.sense} />
+                    <Definition sense={properties.form.sense} isDrawn={isSeen()} />
                 </h2>
             )}
             <p {...style.attrs(styles.sentence)}>{properties.form.sense.sentence}</p>
@@ -126,8 +157,8 @@ export function FigureLabel(properties: {
     );
 }
 
-/** Set a definition with its highlighted passages underlined. */
-function Definition(properties: { sense: Sense }) {
+/** Set a definition with its highlighted passages underlined, drawn in from the left once shown. */
+function Definition(properties: { sense: Sense; isDrawn: boolean }) {
     // cut the definition into plain and underlined runs
     const runs = () => {
         // walk the passages in order
@@ -152,7 +183,14 @@ function Definition(properties: { sense: Sense }) {
         <span>
             {runs().map((run) =>
                 run.isHighlighted ? (
-                    <span {...style.attrs(styles.highlight)}>{run.text}</span>
+                    <span
+                        {...style.attrs(
+                            styles.highlight,
+                            properties.isDrawn && styles.highlightDrawn,
+                        )}
+                    >
+                        {run.text}
+                    </span>
                 ) : (
                     run.text
                 ),
@@ -242,10 +280,15 @@ const styles = style.create({
         textWrap: "pretty",
     },
     highlight: {
-        textDecorationColor: color.primary,
-        textDecorationLine: "underline",
-        textDecorationSkipInk: "none",
-        textDecorationThickness: "0.12em",
-        textUnderlineOffset: "0.14em",
+        backgroundImage: `linear-gradient(${color.primary}, ${color.primary})`,
+        backgroundPosition: "left 0 bottom 0.04em",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: { default: "100% 0.12em", [SCRIPTED]: "0% 0.12em" },
+        transitionDuration: motion.durationLong,
+        transitionProperty: "background-size",
+        transitionTimingFunction: motion.easingEmphasised,
+    },
+    highlightDrawn: {
+        backgroundSize: "100% 0.12em",
     },
 });
