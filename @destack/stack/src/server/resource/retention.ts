@@ -3,7 +3,7 @@ import { type ReconcileController, Snapshot } from "@destack/db";
 import { SettingValue } from "@destack/setting/object";
 import { build, installationRevision, restore, snapshot } from "../../object/index.ts";
 import { buildRetention } from "../../setting/index.ts";
-import type { BuildStore } from "../installation/build.ts";
+import type { SpaceBuilds } from "../installation/build.ts";
 import { expireSnapshots } from "./snapshot.ts";
 
 /** The key of the one retention the controller reconciles: the space's. */
@@ -18,12 +18,12 @@ export class RetentionController implements ReconcileController {
     /** The object store. */
     readonly #objects: Pick<ObjectStore, "database" | "as" | "mutate" | "clock" | "environment">;
     /** The space's builds. */
-    readonly #builds: BuildStore;
+    readonly #builds: SpaceBuilds;
 
     /** Retain a space's snapshots and builds. */
     constructor(
         objects: Pick<ObjectStore, "database" | "as" | "mutate" | "clock" | "environment">,
-        builds: BuildStore,
+        builds: SpaceBuilds,
     ) {
         // store the objects and the build store
         this.#objects = objects;

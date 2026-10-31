@@ -59,7 +59,7 @@ import {
 import { ObjectBindable } from "../resource/binding.ts";
 import { StoreProvider, type SpaceProvider } from "../resource/resource.ts";
 import stackPackage from "../../package.ts";
-import type { BuildStore } from "../installation/build.ts";
+import type { SpaceBuilds } from "../installation/build.ts";
 import type { SpaceRole } from "./space.ts";
 import { StackError } from "../../error/index.ts";
 import type {
@@ -113,7 +113,7 @@ export interface SpaceMachine {
     /** Send a request to another origin as it is. */
     readonly send: (request: Request) => Promise<Response>;
     /** The machine's builds, which installations' revisions read. */
-    readonly builds: Pick<BuildStore, "contents">;
+    readonly builds: Pick<SpaceBuilds, "contents">;
     /** The servers the machine runs in process, by their package. */
     readonly servers: readonly PackageImplementation[];
     /** The release the machine ships of each server's package. */

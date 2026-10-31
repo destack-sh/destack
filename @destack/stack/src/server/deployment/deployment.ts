@@ -57,7 +57,7 @@ import {
 import { StackError } from "../../error/index.ts";
 import type { ProviderIndex } from "../resource/resource.ts";
 import type { ObjectBindable } from "../resource/binding.ts";
-import type { BuildStore } from "../installation/build.ts";
+import type { SpaceBuilds } from "../installation/build.ts";
 
 /** The instance statuses of a recorded workload not stopped for good. */
 const UNSTOPPED_STATUSES = ["starting", "running", "failed"] as const;
@@ -72,7 +72,7 @@ export interface DeploymentOptions {
     /** The runtimes running the instances, by server runtime. */
     readonly runtimes: ReadonlyMap<string, Runtime>;
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: BuildStore;
+    readonly builds: SpaceBuilds;
     /** The providers of the machine's resource kinds, with the object each kind's resources are. */
     readonly providers: ProviderIndex;
     /** The kinds of package objects that bindings target other than resources, such as secrets. */

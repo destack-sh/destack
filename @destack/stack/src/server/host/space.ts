@@ -14,7 +14,7 @@ import { installation } from "@destack/object";
 import { Failure } from "@destack/error";
 import { installationRevision, Rollout, rollout } from "../../object/index.ts";
 import { Scheduler } from "./scheduler.ts";
-import type { BuildStore } from "../installation/build.ts";
+import type { SpaceBuilds } from "../installation/build.ts";
 
 /** The condition a space records its placement under, next to its entitlements' conditions. */
 const PLACEMENT_CONDITION = "placement";
@@ -27,7 +27,7 @@ export function implementSpace(options: {
     /** The keystore whose keys of a deleted space the machine forgets. */
     readonly keystore: IdentityKeystore;
     /** The space's builds, deleted with the space. */
-    readonly builds: BuildStore;
+    readonly builds: SpaceBuilds;
     /** The space's blobs, deleted with the space. */
     readonly blobs: BlobStore;
     /** The universe's uplink, receiving the space's status as the space. */

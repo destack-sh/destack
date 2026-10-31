@@ -22,7 +22,7 @@ import {
     rollout,
 } from "../../object/rollout.ts";
 import type { StackEvaluation } from "../../object/stack.ts";
-import type { BuildStore, CommitSource, Registry } from "./build.ts";
+import type { SpaceBuilds, CommitSource, Registry } from "./build.ts";
 import { SelectedRepository } from "./selection.ts";
 import { space } from "@destack/account/object";
 
@@ -60,7 +60,7 @@ export interface CommitBuildOptions {
     /** The repositories the installations select. */
     readonly forge: Forge;
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: BuildStore;
+    readonly builds: SpaceBuilds;
     /** The registry of the releases a stack's build depends on. */
     readonly registry: Pick<Registry, "locate">;
 }

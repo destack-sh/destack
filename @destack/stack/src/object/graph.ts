@@ -7,7 +7,7 @@ import { type DatabaseConnection, eq, type Insert, TABLE, type Table } from "@de
 import { PackageManifest } from "@destack/package/manifest";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { build, Build } from "./build.ts";
-import type { PackageStore } from "@destack/build/store";
+import type { BuildStore } from "@destack/build/store";
 import type { PackageFile } from "@destack/package/file";
 
 /** A relationship of a symbol to another, after SCIP's `Relationship`, resolved to its moniker. */
@@ -135,7 +135,7 @@ export const CodeIndex = Object.assign(
 
         /** Read the code index attached to a build, empty for a release pulled without one. */
         async read(
-            packages: Pick<PackageStore, "referrer" | "file">,
+            packages: Pick<BuildStore, "referrer" | "file">,
             manifest: Digest,
         ): Promise<CodeIndex> {
             // read an empty index of a build without one
@@ -232,9 +232,7 @@ export class GraphIndex {
     }
 
     /** Derive the rows of the build and its code index, stored once for its manifest. */
-    async rows(
-        packages: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">,
-    ): Promise<{
+    async rows(packages: Pick<BuildStore, "contains" | "contents" | "referrer" | "file">): Promise<{
         modules: Insert<typeof module.table>[];
         declarations: Insert<typeof declaration.table>[];
         symbols: Insert<typeof symbol.table>[];

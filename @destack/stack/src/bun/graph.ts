@@ -5,11 +5,11 @@ import { connectBunSqlite } from "@destack/db/bun";
 import { type DatabaseConnection, type DatabaseEnvironment, TABLE } from "@destack/db";
 import type { ObjectType } from "@destack/object";
 import type { ExternalStorage } from "@destack/object/server";
-import type { PackageStore } from "@destack/build/store";
+import type { BuildStore } from "@destack/build/store";
 import { LocalBlobStorage } from "@destack/bucket/bun";
 import type { PackageFile } from "@destack/package/file";
 import { Digest } from "@destack/schema";
-import type { BuildStore } from "../server/installation/build.ts";
+import type { SpaceBuilds } from "../server/installation/build.ts";
 import { catalog, declaration, GraphIndex, module, symbol } from "../object/graph.ts";
 
 /** The most parameters SQLite binds to a statement: SQLITE_MAX_VARIABLE_NUMBER since 3.32. */
@@ -28,7 +28,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** The database with the builds. */
     readonly #database: DatabaseConnection;
     /** The builds and code indexes the space and its machine store. */
-    readonly #builds: Pick<BuildStore, "store" | "contains" | "contents" | "referrer" | "file">;
+    readonly #builds: Pick<SpaceBuilds, "store" | "contains" | "contents" | "referrer" | "file">;
     /** The files the indexes are written in before they are stored. */
     readonly #files: FileSystem;
     /** The opened indexes, by build. */
@@ -37,7 +37,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** Index the builds a database records, attaching each index to its build where stored. */
     constructor(
         database: DatabaseConnection,
-        builds: Pick<BuildStore, "store" | "contains" | "contents" | "referrer" | "file">,
+        builds: Pick<SpaceBuilds, "store" | "contains" | "contents" | "referrer" | "file">,
         files: FileSystem,
     ) {
         // store the database, the builds and the files
@@ -105,7 +105,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** Write a manifest's index into a file, then store it attached to the build. */
     async #attach(
         index: GraphIndex,
-        store: PackageStore,
+        store: BuildStore,
         environment: DatabaseEnvironment,
     ): Promise<PackageFile> {
         // write the index in a private directory, removed once stored
@@ -142,7 +142,7 @@ interface OpenedIndex {
 /** Write a manifest's objects into a new index file, in the rollback journal mode readers open. */
 async function write(
     index: GraphIndex,
-    builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">,
+    builds: Pick<BuildStore, "contains" | "contents" | "referrer" | "file">,
     file: string,
     environment: DatabaseEnvironment,
 ): Promise<void> {

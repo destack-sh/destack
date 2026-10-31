@@ -8,7 +8,7 @@ import { type BuildReader, OutputContent, type OutputExport } from "@destack/pac
 import { MemoryBuild } from "@destack/package/test";
 import type { Registry } from "../server/index.ts";
 import type { ReleaseRegistry } from "@destack/account/server";
-import { PackageStore } from "@destack/build/store";
+import { BuildStore } from "@destack/build/store";
 import { PackageManifest } from "@destack/package/manifest";
 
 /** The releases the fixture's distribution tags point at, as the forge resolves `<name>@<tag>`. */
@@ -103,7 +103,7 @@ const REGISTRY_MOUNT = new URL("http://registry.test/builds/");
 /** The registry the fixture's releases come from. */
 export class TestRegistry implements Registry, ReleaseRegistry {
     /** The stored fixture builds. */
-    readonly #store: PackageStore;
+    readonly #store: BuildStore;
     /** The manifests of the pushed releases, by package and version. */
     readonly #pushed = new Map<string, Digest>();
 
@@ -111,7 +111,7 @@ export class TestRegistry implements Registry, ReleaseRegistry {
     readonly #fixture: PackageId | undefined;
 
     /** Serve the releases released to it from a store, and a fixture app's declared releases. */
-    constructor(store: PackageStore, fixture?: PackageId) {
+    constructor(store: BuildStore, fixture?: PackageId) {
         this.#store = store;
         this.#fixture = fixture;
     }
@@ -157,7 +157,7 @@ export class TestRegistry implements Registry, ReleaseRegistry {
     }
 
     /** Receive a stored build with its npm units, as its forge does. */
-    async push(store: Pick<PackageStore, "contents" | "units">, manifest: Digest): Promise<Digest> {
+    async push(store: Pick<BuildStore, "contents" | "units">, manifest: Digest): Promise<Digest> {
         // copy each npm unit, then the build
         const build = await store.contents(manifest);
         const packageId = PackageManifest.package(build.manifest).id;

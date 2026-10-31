@@ -83,7 +83,7 @@ import objectPackage from "@destack/object/package";
 import { ServerContext } from "@destack/object/workload";
 import { Simulation } from "@destack/environment/simulation";
 import { Database, InstallationRevision, Rollout } from "../object/index.ts";
-import { BuildCache, BuildStore } from "../server/installation/build.ts";
+import { BuildCache, SpaceBuilds } from "../server/installation/build.ts";
 import { REFUSAL_REASONS } from "../server/installation/application.ts";
 import { StackDocument, type StackTypes } from "../declare/stack.ts";
 import { Handoff } from "../server/host/handoff.ts";
@@ -122,8 +122,8 @@ import { BunGraphStorage } from "../bun/graph.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { StackSource } from "@destack/account/object";
-import { PackageClient, PackageStore } from "@destack/build/store";
-import { TestPackageStore } from "@destack/build/test";
+import { PackageClient, BuildStore } from "@destack/build/store";
+import { TestBuildStore } from "@destack/build/test";
 
 /** The main database of a space a test machine serves without other modules. */
 export const spaceDatabase = defineDatabase({
@@ -323,7 +323,7 @@ export class TestSpace implements AsyncDisposable {
     /** The space's blobs, in the machine's files directory, referenced from its database. */
     readonly blobs: BlobStore<LocalBlobStorage>;
     /** The space's builds, read through to the machine's cache. */
-    readonly #builds: BuildStore;
+    readonly #builds: SpaceBuilds;
     /** The packages the space serves in addition to the stack's, with their events and sockets. */
     readonly #packages: readonly Pick<PackageHandle, "objects" | "tables">[];
     /** The machine's connectors of bound resources, such as mail, by provider code. */
@@ -365,7 +365,7 @@ export class TestSpace implements AsyncDisposable {
         readonly buckets: LocalBucketHost;
         readonly main: string;
         readonly blobs: BlobStore<LocalBlobStorage>;
-        readonly builds: BuildStore;
+        readonly builds: SpaceBuilds;
         readonly packages: readonly Pick<PackageHandle, "objects" | "tables">[];
         readonly connectors: readonly Connector[];
         readonly beside: Required<Pick<TestSpaceOptions, "companions" | "providers">>;
@@ -911,14 +911,14 @@ export class TestSpace implements AsyncDisposable {
         // identify both by their manifests' digests
         const source = {
             ...STACKS.space,
-            manifest: await PackageStore.digest(empty.manifest, crypto),
+            manifest: await BuildStore.digest(empty.manifest, crypto),
         };
 
         return {
             space: empty,
             stack,
             source,
-            manifest: await PackageStore.digest(stack.manifest, crypto),
+            manifest: await BuildStore.digest(stack.manifest, crypto),
         };
     }
 
@@ -938,7 +938,7 @@ export class TestSpace implements AsyncDisposable {
         // open the universe opening releases from the world's registry
         const environment = simulation.environment(UNIVERSE_NODE);
         const { source } = await TestSpace.releases(environment.crypto);
-        const packages = await TestPackageStore.create(environment);
+        const packages = await TestBuildStore.create(environment);
         defer(() => packages[Symbol.asyncDispose]());
         const registry = new TestRegistry(packages, ids.package);
         const universe = await TestUniverse.open({
@@ -972,7 +972,7 @@ export class TestSpace implements AsyncDisposable {
             readonly files: {
                 readonly directory: string;
                 readonly buckets: LocalBucketHost;
-                readonly builds: TestPackageStore;
+                readonly builds: TestBuildStore;
                 readonly blobs: LocalBlobStorage;
                 readonly main: string;
             };
@@ -997,8 +997,8 @@ export class TestSpace implements AsyncDisposable {
             database: test.database,
             environment: machine.environment,
         });
-        const builds = new BuildStore(
-            new PackageStore({ blobs, environment: machine.environment }),
+        const builds = new SpaceBuilds(
+            new BuildStore({ blobs, environment: machine.environment }),
             new BuildCache(files.builds, ["bun", "browser"]),
         );
         const servers = [...(options.servers ?? []), ...(options.companions ?? [])];
@@ -1082,7 +1082,7 @@ export class TestSpace implements AsyncDisposable {
     ): Promise<{
         readonly directory: string;
         readonly buckets: LocalBucketHost;
-        readonly builds: TestPackageStore;
+        readonly builds: TestBuildStore;
         readonly blobs: LocalBlobStorage;
         readonly main: string;
     }> {
@@ -1098,7 +1098,7 @@ export class TestSpace implements AsyncDisposable {
             environment,
             credentials: async () => BUCKET_CREDENTIALS,
         });
-        const builds = await TestPackageStore.open(join(directory, "builds"), environment);
+        const builds = await TestBuildStore.open(join(directory, "builds"), environment);
         const blobs = await LocalBlobStorage.open(join(directory, "blobs"), environment);
         defer(async () => {
             await buckets[Symbol.asyncDispose]();
@@ -1304,7 +1304,7 @@ export class TestSpace implements AsyncDisposable {
     }
 
     /** The machine's build store. */
-    async builds(): Promise<BuildStore> {
+    async builds(): Promise<SpaceBuilds> {
         return this.#builds;
     }
 

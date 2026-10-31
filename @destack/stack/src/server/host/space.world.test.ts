@@ -1,7 +1,7 @@
 import accountPackage from "@destack/account/package";
 import { identityKey } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
-import { PackageStore } from "@destack/build/store";
+import { BuildStore } from "@destack/build/store";
 import { eq } from "@destack/db";
 import { RequestId, type Uplink } from "@destack/sync";
 import { expect, test } from "@destack/test";
@@ -15,7 +15,7 @@ test("delete a space at its home once its installations are gone, clearing its b
     const reader = await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto);
     await fixture.install(served, reader);
     await fixture.recordBuild(reader);
-    const manifest = await PackageStore.digest(reader.manifest, fixture.environment.crypto);
+    const manifest = await BuildStore.digest(reader.manifest, fixture.environment.crypto);
 
     // request the deletion at the universe as the owner stepped up, and settle the space removing itself
     const builds = await fixture.builds();

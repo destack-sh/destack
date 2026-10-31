@@ -1,5 +1,5 @@
 import { principal } from "@destack/access";
-import { PACKAGE_STORE_TABLES } from "@destack/build/table";
+import { BUILD_STORE_TABLES } from "@destack/build/table";
 import { defineAdapter, definePackage, installation } from "@destack/object";
 import { catalog, declaration, module, symbol } from "./object/graph.ts";
 import {
@@ -53,7 +53,7 @@ export default definePackage({
         catalog,
     },
     // the index of the space's builds, beside its objects
-    tables: PACKAGE_STORE_TABLES,
+    tables: BUILD_STORE_TABLES,
     adapters: {
         handoff: defineAdapter("handoff", { path: HANDOFF_PATH, callers: [principal.machine] }),
         push: defineAdapter("push", { path: PUSH_PATH, callers: [principal.machine] }),

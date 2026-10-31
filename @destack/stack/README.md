@@ -76,10 +76,10 @@ const { manifest } = await client.build.push({ spaceId, id: build.id, requestId 
 
 ## Build store
 
-A machine keeps every build and pulled release of its spaces by manifest digest in one `BuildStore`, and retention sweeps what no space's root keeps.
+A machine keeps every build and pulled release of its spaces by manifest digest in one `SpaceBuilds`, and retention sweeps what no space's root keeps.
 
 ```ts
-const builds = await BuildStore.of(host, { scope: machine, bucketId });
+const builds = await SpaceBuilds.of(host, { scope: machine, bucketId });
 const reader = await builds.installed(snapshot, spaceId, packageId);
 const release = await builds.open(registry, packageId, manifest); // copied from the registry once
 const declared = await builds.read(registry, packageId, manifest); // stored, else streamed without storing

@@ -9,7 +9,7 @@ import {
     type DurableObjectStub,
 } from "@destack/db/cloudflare";
 import type { ObjectType } from "@destack/object";
-import type { PackageStore } from "@destack/build/store";
+import type { BuildStore } from "@destack/build/store";
 import type { ExternalStorage } from "@destack/object/server";
 import { Digest, schema } from "@destack/schema";
 import { catalog, declaration, GraphIndex, module, symbol } from "../object/graph.ts";
@@ -88,7 +88,7 @@ export class DurableObjectGraphStorage implements ExternalStorage {
     /** The database with the builds. */
     readonly #database: DatabaseConnection;
     /** The builds and code indexes the spaces store. */
-    readonly #builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">;
+    readonly #builds: Pick<BuildStore, "contains" | "contents" | "referrer" | "file">;
     /** The index objects, one per manifest. */
     readonly #indexes: DurableObjectNamespace;
     /** How often a build views its index again, renewing the index's lease. */
@@ -99,7 +99,7 @@ export class DurableObjectGraphStorage implements ExternalStorage {
     /** Index the builds a database records and their spaces store, in one object per manifest. */
     constructor(
         database: DatabaseConnection,
-        builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">,
+        builds: Pick<BuildStore, "contains" | "contents" | "referrer" | "file">,
         indexes: DurableObjectNamespace,
         leaseMilliseconds = GRAPH_LEASE_MILLISECONDS,
     ) {

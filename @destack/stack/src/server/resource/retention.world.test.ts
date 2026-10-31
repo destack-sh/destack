@@ -2,7 +2,7 @@ import { buildManifest } from "@destack/build/table";
 import { eq } from "@destack/db";
 import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { PackageStore } from "@destack/build/store";
+import { BuildStore } from "@destack/build/store";
 import { build } from "../../object/index.ts";
 import { fixtureBuild, ids, TestSpace } from "../../test/index.ts";
 
@@ -32,7 +32,7 @@ test("expire a dropped build as builds change, and collect it with its graph onc
         const { build: id } = await fixture.recordBuild(built);
         recorded.push({
             id,
-            manifest: await PackageStore.digest(built.manifest, fixture.environment.crypto),
+            manifest: await BuildStore.digest(built.manifest, fixture.environment.crypto),
         });
 
         // read the first build's graph while it is live, attaching its index

@@ -24,7 +24,7 @@ import {
     reconcile,
     TestSpace,
 } from "../src/test/index.ts";
-import { PackageStore } from "@destack/build/store";
+import { BuildStore } from "@destack/build/store";
 import stackPackage from "../src/package.ts";
 
 /** The checkout the stack follows. */
@@ -241,7 +241,7 @@ test("install an application from a checkout by submitting its build, following 
     ).toEqual({
         installationId: notes.id,
         revisionId: followed.revisionId,
-        manifest: await PackageStore.digest(reader.manifest, fixture.environment.crypto),
+        manifest: await BuildStore.digest(reader.manifest, fixture.environment.crypto),
         view: "home",
         description: {
             entrypoint: "view.js",

@@ -1,7 +1,7 @@
 import type { PackageFile } from "@destack/package/file";
 import { principal } from "@destack/access";
 import { and, eq } from "@destack/db";
-import { type ManifestRead, PackageStore } from "@destack/build/store";
+import { type ManifestRead, BuildStore } from "@destack/build/store";
 import type { Runtime } from "@destack/package/runtime";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
@@ -38,7 +38,7 @@ export interface Registry {
     readonly find: (packageId: PackageId, release: string) => Promise<Digest>;
     /** Push a stored build with its npm units to its forge, answering its digest. */
     readonly push: (
-        store: Pick<PackageStore, "contents" | "units">,
+        store: Pick<BuildStore, "contents" | "units">,
         manifest: Digest,
         signal?: AbortSignal,
     ) => Promise<Digest>;
@@ -57,7 +57,7 @@ export interface BuildOptions {
     /** The machine running the spaces' commit builds. */
     readonly buildRunner: Identifier<"machine"> | null;
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: BuildStore;
+    readonly builds: SpaceBuilds;
     /** The registry the space's builds are pushed to. */
     readonly registry: Registry;
 }
@@ -65,14 +65,14 @@ export interface BuildOptions {
 /** A machine's cache of the builds it runs: pulled releases and copies of its spaces' builds. */
 export class BuildCache {
     /** The store keeping the cached builds. */
-    readonly store: PackageStore;
+    readonly store: BuildStore;
     /** The runtimes the machine serves: its instances' server runtime and its views' browser. */
     readonly runtimes: readonly Runtime[];
     /** The published builds opened in place, by manifest, each opened once. */
     readonly #opened = new Map<Digest, Promise<BuildReader>>();
 
     /** Cache builds in a store for the runtimes the machine serves. */
-    constructor(store: PackageStore, runtimes: readonly Runtime[]) {
+    constructor(store: BuildStore, runtimes: readonly Runtime[]) {
         this.store = store;
         this.runtimes = runtimes;
     }
@@ -223,16 +223,16 @@ export interface BrowserClosure {
 }
 
 /** A space's builds: its runners' pushes, read through to its machine's cache. */
-export class BuildStore {
+export class SpaceBuilds {
     /** The space's own builds, kept while its build rows reference them. */
-    readonly space: PackageStore;
+    readonly space: BuildStore;
     /** The machine's cache of what it runs. */
     readonly cache: BuildCache;
     /** The browser closure of each build served so far, by build and base path. */
     readonly #browsers = new Map<string, Promise<BrowserClosure>>();
 
     /** Keep a space's builds in its blobs, read through to the machine's cache. */
-    constructor(space: PackageStore, cache: BuildCache) {
+    constructor(space: BuildStore, cache: BuildCache) {
         this.space = space;
         this.cache = cache;
     }
@@ -337,7 +337,7 @@ export class BuildStore {
         const builds = new Set<Digest>([manifest]);
         const pending = [{ digest: manifest, scope: map.imports }];
         for (const { digest, scope } of pending) {
-            for (const output of BuildStore.#browserOutputs(await this.get(digest))) {
+            for (const output of SpaceBuilds.#browserOutputs(await this.get(digest))) {
                 const dependencies = Object.entries(output.dependencies).filter(([, release]) =>
                     reached.has(release.manifest),
                 );
@@ -345,7 +345,7 @@ export class BuildStore {
                     // map the dependency's exports to its files below its build's prefix
                     const prefix = `${base}${release.manifest}/`;
                     const dependency = await this.get(release.manifest);
-                    for (const each of BuildStore.#browserOutputs(dependency)) {
+                    for (const each of SpaceBuilds.#browserOutputs(dependency)) {
                         for (const [subpath, exported] of Object.entries(each.exports)) {
                             const specifier = subpath === "." ? name : `${name}${subpath.slice(1)}`;
                             scope[specifier] = `${prefix}${exported.path}`;
@@ -452,7 +452,7 @@ export class BuildStore {
     }
 
     /** Pick the store with a build: the space's when it has it, else the machine's cache. */
-    async store(manifest: Digest): Promise<PackageStore> {
+    async store(manifest: Digest): Promise<BuildStore> {
         return (await this.space.contains(manifest)) ? this.space : this.cache.store;
     }
 }

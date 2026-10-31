@@ -67,7 +67,7 @@ import {
     type Transfer,
     type Fence,
 } from "../../object/index.ts";
-import type { BuildStore } from "../installation/build.ts";
+import type { SpaceBuilds } from "../installation/build.ts";
 import { retireSnapshots } from "../resource/snapshot.ts";
 import type { SpaceRole } from "./space.ts";
 import type {} from "@destack/package/import-meta";
@@ -96,7 +96,7 @@ export interface TransferOptions {
     /** The space's blobs, which snapshots and restores write into. */
     readonly blobs: BlobStore;
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: BuildStore;
+    readonly builds: SpaceBuilds;
     /** The keystore of the machine's spaces. */
     readonly keystore: IdentityKeystore;
     /** The runtimes running the spaces' instances. */
@@ -622,7 +622,7 @@ export class SpaceTransfer {
     }
 
     /** Copy each of the space's own builds from the source, leaving releases to their registry. */
-    async #copyBuilds(source: Handoff, builds: BuildStore, signal: AbortSignal): Promise<void> {
+    async #copyBuilds(source: Handoff, builds: SpaceBuilds, signal: AbortSignal): Promise<void> {
         const manifests = await SpaceTransfer.manifests(
             Snapshot.live(this.space.database),
             this.spaceId,

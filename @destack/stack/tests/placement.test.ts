@@ -2,7 +2,7 @@ import { MAIN_DATABASE } from "@destack/stack/declare";
 import { eq, isNotNull } from "@destack/db";
 import { installation } from "@destack/object";
 import { Package } from "@destack/package";
-import { PackageStore } from "@destack/build/store";
+import { BuildStore } from "@destack/build/store";
 import { MemoryBuild } from "@destack/package/test";
 import { Identifier, nth, present, schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
@@ -52,7 +52,7 @@ test("give birth to placed spaces from their replicated rows with main in their 
         ],
         crypto,
     );
-    const manifest = await PackageStore.digest(stackBuild.manifest, crypto);
+    const manifest = await BuildStore.digest(stackBuild.manifest, crypto);
     const carrying = (name: string) => ({ package: stacked, manifest, export: name, settings: {} });
 
     // create a space carrying each stack at the universe, born on the residency's machine
@@ -134,8 +134,8 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
             crypto,
         );
     const builds = [await declaring(["home"]), await declaring(["home", "studio"])];
-    const first = await PackageStore.digest(nth(builds, 0).manifest, crypto);
-    const second = await PackageStore.digest(nth(builds, 1).manifest, crypto);
+    const first = await BuildStore.digest(nth(builds, 0).manifest, crypto);
+    const second = await BuildStore.digest(nth(builds, 1).manifest, crypto);
     const carried = { package: stacked, manifest: first, export: "home", settings: {} };
     const fixture = await TestSpace.open({ stack: carried, releases: builds });
 

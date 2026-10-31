@@ -71,9 +71,9 @@ import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { build, Build, type BuildSource } from "./build.ts";
 import accountPackage from "@destack/account/package";
-import type { BuildStore, Registry } from "../server/installation/build.ts";
+import type { SpaceBuilds, Registry } from "../server/installation/build.ts";
 import type { Forge } from "../server/installation/follow.ts";
-import type { PackageStore } from "@destack/build/store";
+import type { BuildStore } from "@destack/build/store";
 import { residency, space, Space } from "@destack/account/object";
 import { Submission } from "./stack.ts";
 import { StackError } from "../error/index.ts";
@@ -393,7 +393,7 @@ export type InstallationRollout = Rollout & {
 /** What targeting and describing revisions read: builds, the registry, blobs and the forge. */
 export interface RevisionOptions {
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: BuildStore;
+    readonly builds: SpaceBuilds;
     /** The registry of published releases. */
     readonly registry: Registry;
     /** The space's blobs, storing the states its revisions require. */
@@ -517,7 +517,7 @@ export const Rollout = {
         spaceId: Identifier<"space">,
         packageId: PackageId,
         installationId: Identifier<"installation"> | undefined,
-        packages: Pick<PackageStore, "contents">,
+        packages: Pick<BuildStore, "contents">,
     ): Promise<BuildReader> {
         // read the installation's rollout, refusing several of the package unless one is named
         const installed = await snapshot.read(installation.table).findMany({
@@ -1113,7 +1113,7 @@ export const InstallationRevision = {
     async reader(
         snapshot: Pick<Snapshot, "read">,
         revisionId: Identifier<"installation-revision">,
-        packages: Pick<PackageStore, "contents">,
+        packages: Pick<BuildStore, "contents">,
     ): Promise<BuildReader> {
         // read the revision, refusing an unknown one
         const revision = await snapshot

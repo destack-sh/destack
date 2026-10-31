@@ -1,12 +1,12 @@
-import { PackageStore } from "@destack/build/store";
-import { TestPackageStore } from "@destack/build/test";
+import { BuildStore } from "@destack/build/store";
+import { TestBuildStore } from "@destack/build/test";
 import { testSimulation } from "@destack/object/test";
 import { Package, type PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { Commit, type Digest } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { fixtureOutputs, TestRegistry, workload } from "../../test/build.ts";
-import { BuildCache, BuildStore } from "./build.ts";
+import { BuildCache, SpaceBuilds } from "./build.ts";
 
 /** The npm release the library's build depends on. */
 const TINY = { name: "tiny", version: "1.0.0", integrity: "sha512-dGlueQ==" };
@@ -32,7 +32,7 @@ test("pull the Bun outputs of a release's runtime closure, locating each build o
     // publish a library importing an npm unit, and an application whose workload imports the library
     const environment = testSimulation().environment("test");
     const { crypto } = environment;
-    await using registered = await TestPackageStore.create(environment);
+    await using registered = await TestBuildStore.create(environment);
     const registry = new TestRegistry(registered, APPLICATION.id);
     const packageJson = new TextEncoder().encode(JSON.stringify(TINY));
     const unit = await MemoryBuild.write(
@@ -49,7 +49,7 @@ test("pull the Bun outputs of a release's runtime closure, locating each build o
         },
         crypto,
     );
-    const unitManifest = await PackageStore.digest(unit.manifest, crypto);
+    const unitManifest = await BuildStore.digest(unit.manifest, crypto);
     const library = await MemoryBuild.of(LIBRARY, [], crypto, {
         commit: COMMIT,
         outputs: fixtureOutputs({
@@ -102,9 +102,9 @@ test("pull the Bun outputs of a release's runtime closure, locating each build o
             return registry.locate(packageId, manifest);
         },
     };
-    await using space = await TestPackageStore.create(environment);
-    await using pulled = await TestPackageStore.create(environment);
-    const builds = new BuildStore(space, new BuildCache(pulled, ["bun"]));
+    await using space = await TestBuildStore.create(environment);
+    await using pulled = await TestBuildStore.create(environment);
+    const builds = new SpaceBuilds(space, new BuildCache(pulled, ["bun"]));
     await builds.pull(recording, APPLICATION.id, applicationManifest);
 
     // locate each build once, storing the release whole and only the Bun outputs of the builds its closure reaches
