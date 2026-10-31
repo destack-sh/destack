@@ -1,6 +1,5 @@
 import { schema, type JsonValue } from "@destack/schema";
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
-import type { ResourceState } from "@destack/package/declare";
 import type { ResourceRecord } from "../provider/provider.ts";
 import { ResourceDescription } from "./declaration.ts";
 
