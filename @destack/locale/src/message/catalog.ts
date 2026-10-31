@@ -1,10 +1,10 @@
 import { PackageId } from "@destack/package";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, CATALOG_DIRECTORY, PackageManifest } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { LocaleTag } from "../locale/locale.ts";
 
 /** The path of a catalog in a build, capturing a dependency's package and the tag. */
-const CATALOG_PATH = /^locale\/(?:([^/]+)\/)?([^/]+)\.json$/u;
+const CATALOG_PATH = new RegExp(`^${CATALOG_DIRECTORY}/(?:([^/]+)/)?([^/]+)\\.json$`, "u");
 
 /** The translations of one package's messages into one locale. */
 const catalogSchema = schema.object({
@@ -42,8 +42,8 @@ export const Catalog = Object.assign(catalogSchema, {
     /** Write the build path of a catalog. */
     path(catalog: Pick<Catalog, "package" | "locale">, owner: PackageId): string {
         return catalog.package === owner
-            ? `locale/${catalog.locale}.json`
-            : `locale/${catalog.package}/${catalog.locale}.json`;
+            ? `${CATALOG_DIRECTORY}/${catalog.locale}.json`
+            : `${CATALOG_DIRECTORY}/${catalog.package}/${catalog.locale}.json`;
     },
 
     /** Read a catalog file of a build. */
