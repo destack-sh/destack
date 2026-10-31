@@ -1,4 +1,4 @@
-import { PACKAGE_STORE_TABLES } from "@destack/build/table";
+import { BUILD_STORE_TABLES } from "@destack/build/table";
 import { defineAdapter, definePackage } from "@destack/object";
 import {
     appInstallation,
@@ -34,7 +34,7 @@ export default definePackage({
         appInstallation,
     },
     // the store of pushed builds and npm archives, indexed beside the forge's objects
-    tables: PACKAGE_STORE_TABLES,
+    tables: BUILD_STORE_TABLES,
     adapters: {
         npm: defineAdapter("npm", { path: "/npm" }),
         builds: defineAdapter("builds", { path: "/builds" }),

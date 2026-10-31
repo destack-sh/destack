@@ -1,6 +1,6 @@
 import { Caller, principal } from "@destack/access";
 import { connectionShape, Runner } from "@destack/connection/server";
-import { PackageStore } from "@destack/build/store";
+import { BuildStore } from "@destack/build/store";
 import type { Environment } from "@destack/environment";
 import { BlobStore, eq, Snapshot, Transaction } from "@destack/db";
 import { Directory } from "@destack/account/address";
@@ -91,7 +91,7 @@ export class Forge {
     /** The handled types the forge serves. */
     readonly handled: readonly ObjectType[];
     /** The store of builds and npm archives. */
-    readonly store: PackageStore;
+    readonly store: BuildStore;
     /** The forge's options: its home, storage and endpoint. */
     readonly #options: ForgeOptions;
     /** The repositories hosted at GitHub, absent in a universe running no GitHub App. */
@@ -205,7 +205,7 @@ export class Forge {
     }
 
     /** Open the store of builds and npm archives in the home's blobs. */
-    static openStore(options: Pick<ForgeOptions, "blobs" | "environment">): PackageStore {
+    static openStore(options: Pick<ForgeOptions, "blobs" | "environment">): BuildStore {
         const { storage, database } = options.blobs;
         const blobs = new BlobStore({
             storage,
@@ -214,7 +214,7 @@ export class Forge {
             leaseMilliseconds: UNRELEASED_MILLISECONDS,
         });
 
-        return new PackageStore({ blobs, environment: options.environment });
+        return new BuildStore({ blobs, environment: options.environment });
     }
 
     /** Find the package claiming a global name in a forge's home, following the claims it needs. */

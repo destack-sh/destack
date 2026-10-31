@@ -1,8 +1,8 @@
 import objectPackage from "@destack/object/package";
 import type { TestPerson } from "@destack/account/test";
 import { expect, refusal, test } from "@destack/test";
-import { PackageStore } from "@destack/build/store";
-import { TestPackageStore } from "@destack/build/test";
+import { BuildStore } from "@destack/build/store";
+import { TestBuildStore } from "@destack/build/test";
 import { PackageManifest } from "@destack/package/manifest";
 import { Commit, Digest } from "@destack/schema";
 import { RequestId } from "@destack/sync";
@@ -34,7 +34,7 @@ test("serve a release's build by its digest to its package's readers only, yanke
     const forge = await TestForge.open();
     const published = await forge.publish((await fixtureBuild("answer")).reader);
     const { environment } = forge.home;
-    await using copied = await TestPackageStore.create(environment);
+    await using copied = await TestBuildStore.create(environment);
     const location = (digest: Digest) => ({
         manifest: digest,
         url: `${forge.origin}${forgePackage.adapters.builds.path}/${digest}/`,
@@ -251,7 +251,7 @@ test("serve a release's npm units and its Bun output by digest to its readers on
         { package: TINY, outputs: { bun: { ...output, exports: {}, dependencies: {} } } },
         crypto,
     );
-    const unitManifest = await PackageStore.digest(unit.manifest, crypto);
+    const unitManifest = await BuildStore.digest(unit.manifest, crypto);
     const dependency = {
         kind: "npm" as const,
         package: { name: TINY.name, version: TINY.version },
@@ -270,13 +270,13 @@ test("serve a release's npm units and its Bun output by digest to its readers on
             },
         },
     });
-    await using published = await TestPackageStore.create(environment);
+    await using published = await TestBuildStore.create(environment);
     await published.put(unit);
     const buildManifest = await published.put(build);
 
     // publish the build with its unit, then copy the unit and pull the build's Bun output as the owner
     await forge.publish(build, "private", published);
-    await using copied = await TestPackageStore.create(environment);
+    await using copied = await TestBuildStore.create(environment);
     const builds = `${forge.origin}${forgePackage.adapters.builds.path}`;
     const owner = as(forge, forge.owner);
     const located = (manifest: Digest) => ({ manifest, url: `${builds}/${manifest}/` });

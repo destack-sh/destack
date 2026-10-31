@@ -1,4 +1,4 @@
-import { type PackageStore } from "@destack/build/store";
+import { type BuildStore } from "@destack/build/store";
 import { type MethodContextOf, type NextOf, type ResultOf } from "@destack/object";
 import { Vocabulary } from "@destack/resource";
 import { present, Version, schema } from "@destack/schema";
@@ -15,7 +15,7 @@ const ARCHIVE_REFERRER = "npm";
 /** What releases pack with: the store of pushed builds and the forge's space. */
 export interface ReleaseOptions {
     /** The store of pushed builds and npm archives. */
-    readonly store: PackageStore;
+    readonly store: BuildStore;
 }
 
 /** The release methods' handlers: packing, publishing, resolving, deprecating and yanking. */

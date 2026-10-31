@@ -1,5 +1,5 @@
 import { Directory } from "@destack/account/address";
-import { PackageClient, type PackageStore } from "@destack/build/store";
+import { PackageClient, type BuildStore } from "@destack/build/store";
 import { Claim, ClaimLookup, claimTable } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
@@ -108,7 +108,7 @@ export class Registry {
 
     /** Push a stored build and its npm units to its package's forge. */
     async push(
-        store: Pick<PackageStore, "contents" | "units">,
+        store: Pick<BuildStore, "contents" | "units">,
         manifest: Digest,
         signal?: AbortSignal,
     ): Promise<Digest> {

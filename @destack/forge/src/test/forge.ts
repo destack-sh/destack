@@ -6,7 +6,7 @@ import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/
 import connectionServer, { connectionShape } from "@destack/connection/server";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
-import { PackageClient, PackageStore } from "@destack/build/store";
+import { PackageClient, BuildStore } from "@destack/build/store";
 import { Forge } from "../server/forge.ts";
 import { Snapshot, type Select } from "@destack/db";
 import type { Environment } from "@destack/environment";
@@ -541,7 +541,7 @@ export class TestForge {
     async publish(
         reader: BuildReader,
         visibility: Select<typeof packageObject.table>["visibility"] = "private",
-        store?: PackageStore,
+        store?: BuildStore,
     ): Promise<Published> {
         // create the package under the build's identity and name once
         const publisher = this.client(this.owner);
@@ -561,7 +561,7 @@ export class TestForge {
 
         // push the build, after its npm units from a store, whose runtime builds the forge derives itself
         const uploads = this.builds(packageId);
-        const manifest = await PackageStore.digest(reader.manifest, this.environment.crypto);
+        const manifest = await BuildStore.digest(reader.manifest, this.environment.crypto);
         if (store === undefined) {
             await uploads.push(reader);
         } else {
@@ -596,7 +596,7 @@ export class TestForge {
     }
 
     /** Open the store of builds and npm archives in the forge home's blobs. */
-    async store(): Promise<PackageStore> {
+    async store(): Promise<BuildStore> {
         return Forge.openStore({ blobs: this.served.store.blobs, environment: this.environment });
     }
 

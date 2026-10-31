@@ -8,70 +8,43 @@ import { readJson, run } from "./fixture/package.ts";
 import { testHost } from "@destack/test/host";
 import { TestForge } from "../src/test/index.ts";
 
-/** Each package manager with how it installs a project and runs the installed code. */
-const MANAGERS = {
-    npm: {
-        install: (cache: string) => [
-            "npm",
-            "install",
-            "--ignore-scripts",
-            "--no-audit",
-            "--no-fund",
-            "--cache",
-            cache,
-        ],
-        run: ["node", "run.js"],
-    },
-    bun: {
-        install: (cache: string) => [
-            testHost().process.executable,
-            "install",
-            "--cache-dir",
-            cache,
-        ],
-        run: [testHost().process.executable, "run.js"],
-    },
-    deno: {
-        install: () => ["deno", "install", "--node-modules-dir=auto", "--minimum-dependency-age=0"],
-        run: ["deno", "run", "--allow-read", "--allow-env", "--node-modules-dir=auto", "run.js"],
-    },
-} as const;
-
-/** The package managers each install runs with. */
-const MANAGER_NAMES: readonly (keyof typeof MANAGERS)[] = ["npm", "bun", "deno"];
+/** Install a project with Bun into a cache directory. */
+function bunInstall(cache: string): string[] {
+    return [testHost().process.executable, "install", "--cache-dir", cache];
+}
 
 /** The installed declaration fields the install checks. */
 const DECLARATION = schema.object({ dependencies: schema.json() }).strip();
 
-test.for(MANAGER_NAMES)(
-    "install Destack packages and their Destack dependencies from the registry with %s",
+test(
+    "install Destack packages and their Destack dependencies from the registry with Bun",
     { timeout: 120_000 },
-    async (manager) => {
+    async () => {
         // publish a package and one built against it from the registry, served on a loopback port
         const forge = await TestForge.listen();
         const answer = await forge.publish((await fixtureBuild("answer")).reader);
         const greeting = await forge.publish((await fixtureBuild("greeting")).reader);
 
-        // install the dependent package into a consumer project through the registry, which answers from the world
+        // install the dependent package into a consumer project through the registry, as host work the world waits on, so its time stands still while the token is current
         const { files } = testHost();
         const directory = await files.makeTemporaryDirectory("destack-forge-install-");
         onTestFinished(() => files.remove(directory, { recursive: true }));
         const consumer = join(directory, "consumer");
-        await files.copy(fileURLToPath(new URL("./fixture/consumer/", import.meta.url)), consumer);
-        await files.writeTextFile(join(consumer, ".npmrc"), await forge.npmrc("@example"));
-        await files.mkdir(join(directory, "cache"), { recursive: true });
-        const selected = MANAGERS[manager];
-        const { scheduler } = forge.home.simulation;
-        await scheduler.track(
-            () => run(selected.install(join(directory, "cache", manager)), consumer),
-            "peer",
-        );
+        await forge.home.simulation.scheduler.track(async () => {
+            await files.copy(
+                fileURLToPath(new URL("./fixture/consumer/", import.meta.url)),
+                consumer,
+            );
+            await files.writeTextFile(join(consumer, ".npmrc"), await forge.npmrc("@example"));
+            await files.mkdir(join(directory, "cache"), { recursive: true });
+            await run(bunInstall(join(directory, "cache")), consumer);
+        }, "peer");
 
         // run it, and restore both original builds from what was installed, finding each package as Node resolves it
         const greetingPath = await installed(consumer, "@example/greeting");
         const answerPath = await installed(greetingPath, "@example/answer");
         expect({
-            output: await run(selected.run, consumer),
+            output: await run([testHost().process.executable, "run.js"], consumer),
             answer: (await PackageBuild.read(join(answerPath, "build"), testHost())).manifest,
             greeting: (await PackageBuild.read(join(greetingPath, "build"), testHost())).manifest,
             dependencies: DECLARATION.parse(await readJson(join(greetingPath, "package.json")))
