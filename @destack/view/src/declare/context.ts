@@ -43,6 +43,9 @@ export const TARGET_PARAMETER = "target";
 /** The query parameter of a view's address with the access token launching it. */
 export const TOKEN_PARAMETER = "token";
 
+/** The query parameter of a view's address with a share link's secret. */
+export const LINK_PARAMETER = "link";
+
 /** The scopes a host opens for a view, by their key in its context. */
 export const CONTEXT_SCOPES = ["space", "account", "home"] as const;
 
@@ -59,7 +62,9 @@ const viewContext = schema.object({
     account: schema.string().min(1),
     /** The declared view's name. */
     view: DeclarationName,
-    /** The person using the view. */
+    /** The route path the page serves below, empty at its installation's own origin. */
+    base: schema.string().regex(/^(?:\/[^\s?#/]+)*$/u),
+    /** The person using the view, or an anonymous visitor. */
     user: Subject,
     /** The person's home space, absent where the host opens none for the view. */
     home: schema.string().min(1).exactOptional(),
@@ -95,7 +100,7 @@ export const ViewContext = Object.assign(viewContext, {
 <meta name="color-scheme" content="light dark">
 <script type="application/json" id="${CONTEXT_ELEMENT}">${json}</script>
 <script type="importmap">${imports}</script>
-<script type="module" src="/${entrypoint}"></script>
+<script type="module" src="${context.base}/${entrypoint}"></script>
 </head>
 <body></body>
 </html>

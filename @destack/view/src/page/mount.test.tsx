@@ -39,6 +39,7 @@ const CONTEXT: ViewContext = {
     space: "space-personal",
     account: "account-florian",
     view: "notes",
+    base: "",
     user: principal.user.reference(Scope.universe.id, "user-01996ab0-0000-7000-8000-000000000001"),
 };
 

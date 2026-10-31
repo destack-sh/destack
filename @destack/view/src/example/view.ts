@@ -44,7 +44,10 @@ export function ViewExample(properties: ViewExampleProperties): JSX.Element {
     const closing = new AbortController();
     onCleanup(() => closing.abort());
     const opened = createMemo(() =>
-        environment.scheduler.track(openSample(properties, environment, closing.signal), "world"),
+        environment.scheduler.track(
+            () => openSample(properties, environment, closing.signal),
+            "world",
+        ),
     );
 
     return createComponent(Loading, {
@@ -75,6 +78,7 @@ async function openSample(
         account: SAMPLE_ACCOUNT,
         home: SAMPLE_HOME,
         view: view.name,
+        base: "",
         user: principal.user.reference(Scope.universe.id, SAMPLE_USER),
     };
 
@@ -127,6 +131,7 @@ async function openScope(
     const memory = await WasmClient.memory(environment);
     const database = new SqliteDatabase(memory, ObjectClient.tables(named), "embedded", {
         environment,
+        name: "memory",
     });
 
     // reach a service that never answers

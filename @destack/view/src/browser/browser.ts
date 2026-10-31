@@ -10,6 +10,7 @@ import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import type { Subject } from "@destack/sync";
+import { principal } from "@destack/access";
 import type { ClientOptions } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
@@ -49,7 +50,7 @@ export async function mount(
     const { network, navigation } = environment;
     const exporter = OtlpExporter.http(
         {
-            endpoint: OTLP_ORIGIN_PATH,
+            endpoint: `${context.base}${OTLP_ORIGIN_PATH}`,
             isKeepalive: true,
             fetch: (request) => network.fetch(request),
         },
@@ -61,12 +62,19 @@ export async function mount(
         window,
     );
 
-    // open the view's scopes and the person's own on this browser's device over the origin's package path
+    // open the view's scopes below the page's base, a person's own scope on this browser's device
     const origin = new URL(navigation.currentEntry.url).origin;
-    const device = await new BrowserClient({ path: CLIENT_PATH, origin, environment }).device();
-    const call = pageOrigin(origin);
+    const root = `${origin}${context.base}`;
+    const isPerson = principal.user.is(context.user);
+    const device = isPerson
+        ? await new BrowserClient({
+              path: `${context.base}${CLIENT_PATH}`,
+              origin,
+              environment,
+          }).device()
+        : undefined;
+    const call = pageOrigin(root);
     const tabs = await openTabs(context, view, device, call, environment);
-    const own = present(tabs.get(context.user.id), "the person's own scope");
     const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
     const packages = mountPackages(view.packages, call);
 
@@ -77,7 +85,15 @@ export async function mount(
             ? destackTheme
             : new Theme(declared.theme.package, declared.theme);
     const page = { context, packageId: view.package.id, theme, commands: declared.commands };
-    const shown = follow(own, page, device, stopping.signal);
+    const shown =
+        device === undefined
+            ? visitor(page, environment.locale)
+            : follow(
+                  present(tabs.get(context.user.id), "the person's own scope"),
+                  page,
+                  device,
+                  stopping.signal,
+              );
     const opened = await shown.next();
     if (opened.done === true) {
         throw new TypeError("the person's presentation ended before the page showed");
@@ -101,7 +117,7 @@ export async function mount(
             locale: first.locale,
             signal: stopping.signal,
             environment,
-            origin,
+            origin: root,
         },
     );
 
@@ -174,7 +190,7 @@ interface RenderingOptions {
     readonly signal: AbortSignal;
     /** The page's network its catalogs load through. */
     readonly environment: Pick<BrowserEnvironment, "network">;
-    /** The page's origin, whose build serves the catalogs. */
+    /** The page's origin with its base, below which its build serves the catalogs. */
     readonly origin: string;
 }
 
@@ -344,6 +360,11 @@ async function* follow(
     }
 }
 
+/** Present a page to an anonymous visitor once, in the browser's language and the defaults. */
+async function* visitor(page: Page, locale: LocaleTag): AsyncGenerator<Presentation, void> {
+    yield Presentation.resolve(page, { locale, chain: [] }, [], []);
+}
+
 /** Apply the theme's style and the language the page shows. */
 function restyle(display: Presentation): void {
     // replace the root's custom properties and color scheme
@@ -376,7 +397,7 @@ async function fetchCatalogs(
         Locale.fallback(locale, SOURCE_LOCALE).map(async (tag) => {
             // fetch the catalog at its build path, a package without one answering not found
             const path = `/${Catalog.path({ package: packageId, locale: tag }, owner)}`;
-            const request = new Request(new URL(path, options.origin));
+            const request = new Request(`${options.origin}${path}`);
             const response = await options.environment.network.fetch(request);
             if (response.status === 404) {
                 await response.body?.cancel();
@@ -409,14 +430,14 @@ async function fetchCatalogs(
 async function openTabs(
     context: ViewContext,
     view: View,
-    device: Subject,
+    device: Subject | undefined,
     origin: (path: string) => ClientOptions,
     environment: Environment<"workers" | BrowserCapability>,
 ): Promise<Map<string, BrowserTab>> {
-    // follow the person's own settings and profile, and group the view's types by the scope each lives in
-    const byScope = new Map<string, Readonly<Record<string, ObjectType>>>([
-        [context.user.id, { setting, deviceSetting, user }],
-    ]);
+    // follow a person's own settings and profile, and group the view's types by the scope each lives in
+    const byScope = new Map<string, Readonly<Record<string, ObjectType>>>(
+        device === undefined ? [] : [[context.user.id, { setting, deviceSetting, user }]],
+    );
     for (const name of CONTEXT_SCOPES) {
         const scope = context[name];
         const objects = view.opens(name);
@@ -438,7 +459,7 @@ async function openTabs(
                     objects,
                     scope,
                     caller: context.user,
-                    device,
+                    ...(device === undefined ? {} : { device }),
                     endpoint: { url },
                     // reopen the same endpoint
                     reconnect: () => ({ url }),
@@ -454,7 +475,7 @@ async function openTabs(
     );
 }
 
-/** Call a path below the page's origin, which its session cookie authenticates. */
-function pageOrigin(origin: string): (path: string) => ClientOptions {
-    return (path) => ({ url: new URL(path, origin).href });
+/** Call a path below the page's origin and base, which its session cookie authenticates. */
+function pageOrigin(root: string): (path: string) => ClientOptions {
+    return (path) => ({ url: `${root}${path}` });
 }

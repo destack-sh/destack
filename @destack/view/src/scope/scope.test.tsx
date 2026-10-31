@@ -59,6 +59,7 @@ const CONTEXT = {
     space: BOARD_ID,
     account: "account-01996ab0-0000-7000-8000-000000000002",
     view: "cards",
+    base: "",
     user: principal.user.reference(Scope.universe.id, "user-01996ab0-0000-7000-8000-000000000003"),
 };
 

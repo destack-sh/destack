@@ -1,5 +1,6 @@
 import type { LocaleTag } from "@destack/locale";
 import type { PackageId } from "@destack/package";
+import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import type { DeviceSettingValue, SettingValue } from "@destack/setting/object";
 import { type Theme } from "@destack/theme";
@@ -44,10 +45,10 @@ export const Presentation = {
         values: readonly SettingValue[],
         device: readonly DeviceSettingValue[],
     ): Presentation {
-        // select the person in the page's space and its package's installation
+        // select the person, or an anonymous visitor's defaults, in the page's space and its package's installation
         const { context, packageId, theme } = page;
         const selection = {
-            scope: context.user.id,
+            scope: principal.user.is(context.user) ? context.user.id : null,
             package: packageId,
             space: schema.identifier("space").parse(context.space),
             installation: schema.identifier("installation").parse(context.installation),

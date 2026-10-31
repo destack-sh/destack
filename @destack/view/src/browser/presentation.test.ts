@@ -6,7 +6,7 @@ import { type Setting } from "@destack/setting";
 import { deviceSetting, setting } from "@destack/setting/object";
 import { DEFAULT_DISPLAY } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
-import { accessRelationship, principal } from "@destack/access";
+import { accessRelationship, ANONYMOUS, principal } from "@destack/access";
 import { expect, onTestFinished, test } from "@destack/test";
 import { CommandReference } from "../declare/command.ts";
 import { keybindings, sources } from "../palette/index.ts";
@@ -32,6 +32,7 @@ const page: Page = {
         space: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e4"),
         account: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-0000000000e5"),
         view: "home",
+        base: "",
         user: principal.user.reference("universe", PERSON),
         home: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e6"),
     },
@@ -121,5 +122,17 @@ test("present a page in its person's language, their display settings' style and
         },
         turnedOff: [],
         onDevice: destackTheme.variables({ ...DEFAULT_DISPLAY, appearance: "light" }),
+    });
+});
+
+test("present a page to an anonymous visitor in the browser's language, the theme's defaults and the package's own keybindings", () => {
+    // present the notes page to a visitor, who keeps no settings anywhere
+    const { home: _home, ...context } = page.context;
+    const visited: Page = { ...page, context: { ...context, user: ANONYMOUS } };
+
+    expect(Presentation.resolve(visited, { locale: "fr-FR", chain: [] }, [], [])).toEqual({
+        locale: "fr-FR",
+        style: destackTheme.variables(DEFAULT_DISPLAY),
+        keybindings: [{ command: `${notes.id}/complete`, keybinding: "mod+enter" }],
     });
 });
