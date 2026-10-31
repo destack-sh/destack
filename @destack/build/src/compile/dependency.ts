@@ -300,7 +300,12 @@ class DependencyRecorder {
                 ...(isExternal ? { package: key } : {}),
             });
         }
-        if (isExternal && !this.description.packages[key]) {
+        // record the release of a Destack package owning the asset
+        const isDestack =
+            isExternal &&
+            (this.resolutions[key] !== undefined ||
+                (await readPackageDefinition(owner.directory, this.resolver.files)) !== undefined);
+        if (isDestack && !this.description.packages[key]) {
             this.description.packages[key] = this.#release(
                 owner,
                 key,
@@ -330,10 +335,10 @@ class DependencyRecorder {
         path: string,
         key: string,
     ): Promise<void> {
-        // leave an installed npm package the output bundles, which no dependent reads as a release
+        // leave an npm package the output bundles, installed or a workspace member, which no dependent reads as a release
         const resolution = this.resolutions[key] ?? this.resolutions[source.name];
         const isInstalled = path.split(sep).includes("node_modules");
-        if (resolution === undefined && isInstalled && definition === undefined) {
+        if (resolution === undefined && definition === undefined) {
             return;
         }
         // match installed Destack code to the resolver's release

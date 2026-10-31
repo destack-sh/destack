@@ -7,7 +7,6 @@ import {
 } from "@destack/package";
 import type { LocalBuildStore } from "../store/local.ts";
 import { mapExports } from "../source/source.ts";
-import type { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
 import { type Commit, type Digest, schema, type Version } from "@destack/schema";
 import { join, resolve } from "node:path";
@@ -225,8 +224,8 @@ export type ModuleOptions = schema.Infer<typeof ModuleOptions>;
 export interface PackageBuildOptions {
     /** The source package directory, unchanged for the duration of this build. */
     directory: string;
-    /** Named module outputs, and outputs of kinds the dependency closure's extensions compile. */
-    outputs: Readonly<Record<string, ModuleOptions | OutputRequest>>;
+    /** The module outputs to compile, by name. */
+    outputs: Readonly<Record<string, ModuleOptions>>;
     /** Exact dependency releases selected by the package resolver. */
     dependencies: Readonly<Record<string, DependencyResolution>>;
     /** The TypeScript configuration, absent for the package defaults. */

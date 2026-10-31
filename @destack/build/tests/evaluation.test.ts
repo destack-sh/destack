@@ -2,7 +2,7 @@ import type { Environment, OperatingSystem } from "@destack/environment";
 import { testHost } from "@destack/test/host";
 import { testSimulation } from "../src/test/world.ts";
 import { join } from "node:path";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Workspace, CompilerPool } from "../src/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { LocalBuildStore } from "../src/store/local.ts";
@@ -129,4 +129,34 @@ test("reinspect edited modules a declaration imports in a retained compiler", as
         restored: first.manifest,
         files: await first.distributed(),
     });
+});
+
+test("refuse a declared kind function its module does not export, by its package export and name", async () => {
+    // declare the thing kind's vocabulary at an export its module lacks
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await thingPackage(
+        'import { defineThing } from "@example/owner";\n\nexport const greeting = defineThing({ name: "greeting" });\n',
+        environment,
+    );
+    const definition = join(directory, "../owner/destack.json");
+    const text = await files.readTextFile(definition);
+    const describe = '"function":"./inspect#describe"';
+    expect(text.includes(describe)).toBe(true);
+    await files.writeTextFile(
+        definition,
+        text.replace(describe, `${describe},"vocabulary":"./inspect#missing"`),
+    );
+
+    // refuse the build while it evaluates the declaration
+    await using store = await LocalBuildStore.temporary(environment);
+    const compilers = await CompilerPool.open(store);
+    const workspace = await Workspace.open(directory, compilers);
+
+    expect(await refusal(workspace.build({ outputs: OUTPUTS }))).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "INSPECTION_FAILED",
+        "declaration evaluation failed: @example/owner/inspect#missing is not an exported function",
+    ]);
 });

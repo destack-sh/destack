@@ -134,6 +134,49 @@ function bunOutputs(
     };
 }
 
+/** Describe a build's browser output: its exports' imports, its dependencies, and a view at an export. */
+function browserOutputs(
+    imports: Readonly<Record<string, readonly string[]>>,
+    dependencies: OutputContent["dependencies"],
+    view?: string,
+): Readonly<Record<string, OutputContent>> {
+    // export each subpath at a file of its own, mounting a view at one
+    const path = (subpath: string) => `browser/${subpath.slice(2) || "index"}.js`;
+    const exports = Object.fromEntries(
+        Object.entries(imports).map(([subpath, specifiers]) => [
+            subpath,
+            { path: path(subpath), imports: [...specifiers] },
+        ]),
+    );
+    const views =
+        view === undefined
+            ? {}
+            : {
+                  main: {
+                      entrypoint: path(view),
+                      stylesheets: [],
+                      sandbox: {},
+                      presents: [],
+                      categories: [],
+                      packages: [],
+                      render: { mode: "client" as const },
+                  },
+              };
+
+    return {
+        browser: {
+            runtime: "browser",
+            emit: true,
+            workloads: {},
+            views,
+            directory: "browser",
+            exports,
+            dependencies,
+            peers: {},
+        },
+    };
+}
+
 /** Describe a dependency on the tiny npm release, built as a unit at a manifest. */
 function npmRelease(manifest: Digest) {
     return {
@@ -978,3 +1021,55 @@ async function recorded(store: BuildStore): Promise<Digest[]> {
 
     return rows.map(({ digest }) => digest).toSorted();
 }
+
+test("map a view's browser modules and its dependencies' below a prefix, each build's imports in its scope", async () => {
+    // store a deep library, a library importing it, and an application whose view imports the library
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using opened = await openStore(await temporary(environment.files), environment);
+    const { store } = opened;
+    const { crypto } = environment;
+    const deep = await store.put(
+        await written({ "src/deep.ts": "export {};\n" }, crypto, browserOutputs({ ".": [] }, {})),
+    );
+    const middle = await store.put(
+        await written(
+            { "src/middle.ts": "export {};\n" },
+            crypto,
+            browserOutputs(
+                { ".": ["@example/deep"], "./static": [] },
+                { "@example/deep": library("@example/deep", deep) },
+            ),
+        ),
+    );
+    const application = await store.put(
+        await written(
+            SOURCES,
+            crypto,
+            browserOutputs(
+                { "./view": ["@example/middle/static", "@example/middle"] },
+                { "@example/middle": library("@example/middle", middle) },
+                "./view",
+            ),
+        ),
+    );
+
+    // map the application's imports at the root, the library's in its own scope
+    const closure = await store.browser(application, "/.destack/build/");
+
+    expect({ map: closure.map, builds: [...closure.builds] }).toEqual({
+        map: {
+            imports: {
+                "@example/middle": `/.destack/build/${middle}/browser/index.js`,
+                "@example/middle/static": `/.destack/build/${middle}/browser/static.js`,
+            },
+            scopes: {
+                [`/.destack/build/${middle}/`]: {
+                    "@example/deep": `/.destack/build/${deep}/browser/index.js`,
+                },
+                [`/.destack/build/${deep}/`]: {},
+            },
+        },
+        builds: [application, middle, deep],
+    });
+});

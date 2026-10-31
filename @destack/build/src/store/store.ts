@@ -12,8 +12,10 @@ import { PackageFile } from "@destack/package/file";
 import {
     BuildReader,
     BuildWriter,
+    type ImportMap,
     type PackageLocation,
     PackageManifest,
+    type PackageOutput,
 } from "@destack/package/manifest";
 import type { Runtime } from "@destack/package/runtime";
 import { BuildError } from "../error/index.ts";
@@ -808,6 +810,54 @@ export class BuildStore<
         return closure;
     }
 
+    /** Map a build's browser modules and its dependencies' below a URL prefix. */
+    async browser(
+        start: Digest,
+        base: string,
+        read: (digest: Digest) => Promise<PackageManifest> = async (digest) =>
+            present(await this.get(digest), `the manifest of build ${digest}`),
+    ): Promise<BrowserClosure> {
+        // read the builds its views' modules reach
+        const started = await read(start);
+        const reached = await this.closure(
+            start,
+            PackageManifest.package(started).id,
+            "browser",
+            read,
+        );
+
+        // map each reached dependency's exports in its dependent's scope, visiting each build once
+        const map: ImportMap = { imports: {}, scopes: {} };
+        const builds = new Set<Digest>([start]);
+        const pending = [{ digest: start, scope: map.imports }];
+        for (const { digest, scope } of pending) {
+            for (const output of browserOutputs(await read(digest))) {
+                const dependencies = Object.entries(output.dependencies).filter(([, release]) =>
+                    reached.has(release.manifest),
+                );
+                for (const [name, release] of dependencies) {
+                    // map the dependency's exports to its files below its build's prefix
+                    const prefix = `${base}${release.manifest}/`;
+                    for (const each of browserOutputs(await read(release.manifest))) {
+                        for (const [subpath, exported] of Object.entries(each.exports)) {
+                            const specifier = subpath === "." ? name : `${name}${subpath.slice(1)}`;
+                            scope[specifier] = `${prefix}${exported.path}`;
+                        }
+                    }
+
+                    // map the dependency's own imports in its scope
+                    if (!builds.has(release.manifest)) {
+                        builds.add(release.manifest);
+                        map.scopes[prefix] = {};
+                        pending.push({ digest: release.manifest, scope: map.scopes[prefix] });
+                    }
+                }
+            }
+        }
+
+        return { map, builds };
+    }
+
     /** Find the dependency tree the layer ships for a tree root's name. */
     layeredTree(name: string): string | undefined {
         return this.#layer.tree(name);
@@ -1106,4 +1156,17 @@ function requireDistinctPaths(list: readonly PackageFile[]): void {
         }
         paths.add(file.path);
     }
+}
+
+/** A build's browser closure: the import map of its modules and the builds the map reaches. */
+export interface BrowserClosure {
+    /** The import map of the build's browser modules and its dependencies'. */
+    readonly map: ImportMap;
+    /** The builds the map's URLs reach: the browser runtime build and its dependencies'. */
+    readonly builds: ReadonlySet<Digest>;
+}
+
+/** List a build's browser outputs. */
+function browserOutputs(manifest: PackageManifest): PackageOutput[] {
+    return Object.values(manifest.outputs).filter((output) => output.runtime === "browser");
 }

@@ -234,10 +234,10 @@ test("reject invalid outputs and recover the retained compiler", async () => {
             builder.build({
                 directory: source,
                 dependencies: {},
-                outputs: { website: { kind: "web", app: "src/app.tsx", ssr: false } },
+                outputs: { Library: { kind: "module", runtime: "bun" } },
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "OUTPUT_INVALID", "no dependency compiles outputs of kind web"]);
+    ).toEqual(["BAD_REQUEST", "OUTPUT_INVALID", "invalid output name: Library"]);
 
     // build the same package again with the same compiler after rejected requests
     const build = await builder.build(library);

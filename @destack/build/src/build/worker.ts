@@ -1,7 +1,7 @@
 import { ModuleTransformer } from "@destack/package/transform";
-import { type Environment, type Output } from "@destack/environment";
+import { type Environment, FileSystemError, type Output } from "@destack/environment";
 import { DependencyTree } from "../dependency/tree.ts";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
     type DependencyResolution,
@@ -10,15 +10,8 @@ import {
     type DeclarationDescription,
     type PackageJson,
 } from "@destack/package";
-import { nth, found, present, schema } from "@destack/schema";
-import {
-    type BuildExtension,
-    type ExpandedOutput,
-    type OutputKind,
-    type OutputRequest,
-    type TransformCache,
-} from "@destack/package/build";
-import type { OutputContent } from "@destack/package/manifest";
+import { found, present, schema } from "@destack/schema";
+import type { BuildExtension, TransformCache } from "@destack/package/build";
 import { type SourceMapReference } from "@destack/package/source";
 import { PackageLocator } from "@destack/package/locator";
 import { Toolchain } from "@destack/check";
@@ -29,7 +22,6 @@ import { DeclarationGraph } from "../graph/declaration.ts";
 import { PackageSource, readPackageJson } from "../source/index.ts";
 import { OutputCompilation, type OutputBuild } from "../compile/compilation.ts";
 import { loadExtensions } from "../compile/extension.ts";
-import { OutputPass } from "../compile/pass.ts";
 import { checkInputs, RuntimeCompiler } from "../compile/runtime.ts";
 import { Template } from "../template/index.ts";
 import { DomainError } from "@destack/error";
@@ -56,24 +48,7 @@ import type { ModuleDescription } from "@destack/package/code";
 /** This package's directory, whose dependencies include the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
-/** An output a build compiles: a module output, or one output of a kind's pass. */
-interface PlannedOutput {
-    /** The output's module settings. */
-    readonly options: ModuleOptions;
-    /** Package-relative modules inspected beside the entries. */
-    readonly files: readonly string[];
-    /** The kind's request compiling the output in a separate pass. */
-    readonly pass?: {
-        /** The requested output's name, shared by the outputs the kind expands it into. */
-        readonly name: string;
-        /** The output kind compiling the pass. */
-        readonly kind: OutputKind;
-        /** The request with the kind's settings. */
-        readonly request: OutputRequest;
-    };
-}
-
-/** What compiling one output or pass reads: the request, projects, declarations and build. */
+/** What compiling one output reads: the request, projects, declarations and build. */
 interface CompileContext {
     /** The requested build. */
     readonly options: RequestedBuild;
@@ -87,7 +62,7 @@ interface CompileContext {
     readonly files: BuildDirectory;
     /** The build's cache of files the extensions' transforms derive. */
     readonly cache: TransformCache;
-    /** The build's module transformer, stamping each module once across its passes. */
+    /** The build's module transformer, stamping each module once across its outputs. */
     readonly transformer: ModuleTransformer;
 }
 
@@ -302,8 +277,8 @@ export class CompilerWorker implements AsyncDisposable {
         destination: string,
         cache: TransformCache,
     ): Promise<Record<string, string[]>> {
-        // retain the manifests, template and catalogs, then compile every output and those the declarations request
-        const opened = await this.#open(options, declarations);
+        // retain the manifests, template and catalogs, then compile every output
+        const opened = await this.#open(options);
         const files = new BuildDirectory(destination, this.environment);
         await retain(opened.primary, files);
         const compiled = await this.#compile(
@@ -316,6 +291,9 @@ export class CompilerWorker implements AsyncDisposable {
             cache,
             opened.transformer,
         );
+
+        // render the extensions' pages from the compiled outputs into the build
+        await this.#prerender(opened, declarations, compiled.outputs, options.tree, files);
 
         // write the manifest: the outputs, the sources and releases they bundle, and the declarations
         const source = opened.primary.packageJson.package;
@@ -341,13 +319,10 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Plan a package's outputs with its closure's extensions, and open each output's project. */
-    async #open(
-        options: RequestedBuild,
-        declarations: readonly EvaluatedDeclaration[] = [],
-    ): Promise<{
+    async #open(options: RequestedBuild): Promise<{
         readonly packageJson: PackageJson;
         readonly extensions: readonly BuildExtension[];
-        readonly planned: ReadonlyMap<string, PlannedOutput>;
+        readonly planned: ReadonlyMap<string, ModuleOptions>;
         readonly projects: ReadonlyMap<string, PackageSource>;
         readonly primary: PackageSource;
         readonly transformer: ModuleTransformer;
@@ -358,8 +333,7 @@ export class CompilerWorker implements AsyncDisposable {
         const tree = await DependencyTree.read(options.tree, system);
         const loaded = await loadExtensions(options.directory, packageJson, tree, system);
         const extensions = loaded.map((entry) => entry.extension);
-        const requested = requestedOutputs(extensions, declarations, options, packageJson);
-        const planned = expand({ ...options.outputs, ...requested }, extensions);
+        const planned = plan(options.outputs);
 
         // open each output's project
         const projects = new Map<string, PackageSource>();
@@ -404,19 +378,16 @@ export class CompilerWorker implements AsyncDisposable {
         }
     }
 
-    /** Open the package with an output's entries and its kind's extra modules. */
-    #project(options: RequestedBuild, output: PlannedOutput): Promise<PackageSource> {
+    /** Open the package with an output's entries. */
+    #project(options: RequestedBuild, output: ModuleOptions): Promise<PackageSource> {
         return PackageSource.open(
             {
                 directory: options.directory,
                 ...(options.configuration === undefined
                     ? {}
                     : { configuration: options.configuration }),
-                runtime: output.options.runtime,
-                ...(output.options.entries === undefined
-                    ? {}
-                    : { entries: output.options.entries }),
-                files: output.files,
+                runtime: output.runtime,
+                ...(output.entries === undefined ? {} : { entries: output.entries }),
                 ...(options.versions === undefined ? {} : { versions: options.versions }),
                 tree: options.tree,
             },
@@ -425,21 +396,20 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Pick the output whose program reads the whole source, by the runtime declarations run on. */
-    static #primary(planned: ReadonlyMap<string, PlannedOutput>): string {
+    static #primary(planned: ReadonlyMap<string, ModuleOptions>): string {
         // prefer Bun, where declarations evaluate, then workerd, then the browser
         const outputs = [...planned].toSorted(
             ([, left], [, right]) =>
-                PRIMARY_RUNTIMES.indexOf(left.options.runtime) -
-                PRIMARY_RUNTIMES.indexOf(right.options.runtime),
+                PRIMARY_RUNTIMES.indexOf(left.runtime) - PRIMARY_RUNTIMES.indexOf(right.runtime),
         );
 
         return present(outputs[0], "a planned output")[0];
     }
 
-    /** Compile each output once, a kind's outputs in one pass, joining their dependencies. */
+    /** Compile each output at once, joining their dependencies. */
     async #compile(
         options: RequestedBuild,
-        planned: ReadonlyMap<string, PlannedOutput>,
+        planned: ReadonlyMap<string, ModuleOptions>,
         projects: ReadonlyMap<string, PackageSource>,
         declarations: readonly EvaluatedDeclaration[],
         extensions: readonly BuildExtension[],
@@ -451,40 +421,20 @@ export class CompilerWorker implements AsyncDisposable {
         sourceMaps: SourceMapReference[];
         resolved: Record<string, DependencyResolution>;
     }> {
-        // compile each request once, all at once
+        // compile every output at once
         const context = { options, projects, declarations, extensions, files, cache, transformer };
-        const started = new Map<
-            string,
-            Promise<{
-                outputs: Record<string, Pick<OutputBuild, "output" | "inspection" | "npm">>;
-                sourceMaps: SourceMapReference[];
-            }>
-        >();
-        for (const [name, output] of planned) {
-            const request = output.pass?.name ?? name;
-            if (!started.has(request)) {
-                started.set(
-                    request,
-                    output.pass === undefined
-                        ? this.#module(name, output, context)
-                        : this.#pass(output.pass, planned, context),
-                );
-            }
-        }
-        const requests = new Map(
-            await Promise.all(
-                [...started].map(async ([request, compiled]) => [request, await compiled] as const),
-            ),
+        const compiled = await Promise.all(
+            [...planned].map(async ([name, output]) => {
+                const built = await this.#module(name, output, context);
+
+                return [name, built] as const;
+            }),
         );
 
         // collect each output's description, the dependencies they resolve and every source map
         const outputs = new Map<string, Pick<OutputBuild, "output" | "inspection" | "npm">>();
         const resolved: Record<string, DependencyResolution> = {};
-        for (const [name, output] of planned) {
-            const described = found(requests, output.pass?.name ?? name).outputs[name];
-            if (described === undefined) {
-                throw BuildError.of("INVARIANT_VIOLATED", `output ${name} has no compilation`);
-            }
+        for (const [name, described] of compiled) {
             outputs.set(name, described);
             for (const [key, dependency] of Object.entries(described.inspection.packages)) {
                 resolved[key] = joinResolutions(key, resolved[key], dependency);
@@ -496,7 +446,7 @@ export class CompilerWorker implements AsyncDisposable {
             const key = `${dependency.package.name}@${dependency.package.version}`;
             resolved[key] = joinResolutions(key, resolved[key], dependency);
         }
-        const sourceMaps = [...requests.values()].flatMap((entry) => entry.sourceMaps);
+        const sourceMaps = compiled.flatMap(([, entry]) => entry.sourceMaps);
 
         return { outputs, sourceMaps, resolved };
     }
@@ -504,12 +454,9 @@ export class CompilerWorker implements AsyncDisposable {
     /** Compile a module output with the extensions' plugins and write its files. */
     async #module(
         name: string,
-        output: PlannedOutput,
+        output: ModuleOptions,
         context: CompileContext,
-    ): Promise<{
-        outputs: Record<string, Pick<OutputBuild, "output" | "inspection" | "npm">>;
-        sourceMaps: SourceMapReference[];
-    }> {
+    ): Promise<Pick<OutputBuild, "output" | "inspection" | "npm" | "sourceMaps">> {
         // compile the output and write its files
         const compilation = createCompilation(name, output, context);
         const compiled = await compilation.compile(
@@ -520,72 +467,72 @@ export class CompilerWorker implements AsyncDisposable {
         await writeFiles(compiled.files, compiled.paths, context.files);
         checkInputs(compiled.inspection, compilation.runtime);
 
-        return {
-            outputs: {
-                [name]: {
-                    output: compiled.output,
-                    inspection: compiled.inspection,
-                    npm: compiled.npm,
-                },
-            },
-            sourceMaps: compiled.sourceMaps,
-        };
+        return compiled;
     }
 
-    /** Compile the outputs of one kind's request in a separate pass and write their files. */
-    async #pass(
-        request: NonNullable<PlannedOutput["pass"]>,
-        planned: ReadonlyMap<string, PlannedOutput>,
-        context: CompileContext,
-    ): Promise<{
-        outputs: Record<string, Pick<OutputBuild, "output" | "inspection" | "npm">>;
-        sourceMaps: SourceMapReference[];
-    }> {
-        // lend the kind the build's inputs for the outputs its request expanded into
-        const plans = [...planned].filter(([, plan]) => plan.pass?.name === request.name);
-        const members = plans.map(([member]) => member);
-        const compilations = Object.fromEntries(
-            plans.map(([member, plan]) => [member, createCompilation(member, plan, context)]),
-        );
-        const pass = new OutputPass(
-            found(context.projects, nth(members, 0)),
-            context.options.dependencies,
-            context.files,
-            context.files.directory,
-            compilations,
-            context.extensions,
-            context.cache,
-            context.transformer,
-        );
-
-        // compile the outputs and write their files
-        let described: Readonly<Record<string, OutputContent>>;
-        try {
-            described = await request.kind.compile(
-                request.name,
-                request.request,
-                compilations,
-                pass,
-            );
-        } catch (cause) {
-            throw extensionFailureOf(cause);
+    /** Render the extensions' pages from the compiled outputs, their dependency builds linked. */
+    async #prerender(
+        opened: { readonly primary: PackageSource; readonly extensions: readonly BuildExtension[] },
+        declarations: readonly EvaluatedDeclaration[],
+        outputs: ReadonlyMap<string, Pick<OutputBuild, "output" | "npm">>,
+        tree: RequestedBuild["tree"],
+        files: BuildDirectory,
+    ): Promise<void> {
+        // leave a build no extension renders pages of
+        const rendering = opened.extensions.filter((extension) => extension.prerender);
+        if (!rendering.length) {
+            return;
         }
-        await writeFiles(pass.files, pass.paths, context.files);
 
-        // describe each output by the kind's manifest output and the pass's module graph
-        const outputs: Record<string, Pick<OutputBuild, "output" | "inspection" | "npm">> = {};
-        for (const member of members) {
-            const output = described[member];
-            if (output === undefined) {
+        // link the dependency builds and the outputs' npm packages, as installed beside the package
+        const { files: system } = this.environment;
+        const modules = join(files.directory, "node_modules");
+        const linked = await DependencyTree.read(tree, system);
+        await linked.link(modules, system);
+        const npm = new Set([...outputs.values()].flatMap((output) => [...output.npm]));
+        for (const name of [...npm].filter((each) => linked.directories[each] === undefined)) {
+            const installed = await system
+                .realPath(join(opened.primary.directory, "node_modules", name))
+                .catch(FileSystemError.absent);
+            if (installed === undefined) {
                 throw BuildError.of(
-                    "INVARIANT_VIOLATED",
-                    `the pass did not describe output ${member}`,
+                    "DEPENDENCY_UNRESOLVED",
+                    `npm package ${name} renders the pages but is not installed beside the package`,
                 );
             }
-            outputs[member] = { output, inspection: pass.inspection(member), npm: new Set() };
+            await system.mkdir(dirname(join(modules, name)), { recursive: true });
+            await system.symlink(installed, join(modules, name));
         }
 
-        return { outputs, sourceMaps: pass.sourceMaps };
+        // render and write the pages
+        try {
+            const owner = opened.primary.packageJson.package;
+            const context = {
+                package: owner,
+                directory: opened.primary.directory,
+                build: files.directory,
+                declarations: declarations
+                    .map((declaration) => declaration.description)
+                    .filter((declaration) => declaration.symbol.package.id === owner.id),
+                outputs: Object.fromEntries(
+                    [...outputs].map(([name, { output }]) => [name, output]),
+                ),
+                environment: this.environment,
+            };
+            for (const extension of rendering) {
+                let pages: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
+                try {
+                    pages = (await extension.prerender?.(context)) ?? new Map();
+                } catch (cause) {
+                    throw extensionFailureOf(cause);
+                }
+                for (const [path, bytes] of pages) {
+                    await files.write(path, bytes);
+                }
+            }
+        } finally {
+            await system.remove(modules, { recursive: true });
+        }
     }
 
     /** Run one request, answering its result or its failure. */
@@ -650,77 +597,17 @@ async function releasedManifest(project: PackageSource): Promise<Uint8Array<Arra
     return new TextEncoder().encode(`${JSON.stringify({ ...manifest, version }, null, 4)}\n`);
 }
 
-/** Read the outputs extensions request for a package's own declarations, refusing a taken name. */
-function requestedOutputs(
-    extensions: readonly BuildExtension[],
-    declarations: readonly EvaluatedDeclaration[],
-    options: Pick<RequestedBuild, "directory" | "outputs">,
-    packageJson: PackageJson,
-): PackageBuildOptions["outputs"] {
-    // describe the package's own declarations with the modules exporting them
-    const owner = packageJson.package;
-    const own = declarations.filter(
-        (declaration) => declaration.description.symbol.package.id === owner.id,
-    );
-    const located = new Map(own.map((declaration) => [declaration.description, declaration]));
-    const context = {
-        package: owner,
-        directory: options.directory,
-        declarations: [...located.keys()],
-        locate: (description: DeclarationDescription) => {
-            const { file, export: name } = found(located, description);
-
-            return { file, export: name };
-        },
-    };
-
-    // ask each extension, refusing a name the package or another extension takes
-    const requested: Record<string, PackageBuildOptions["outputs"][string]> = {};
-    for (const extension of extensions) {
-        for (const [name, request] of Object.entries(extension.request?.(context) ?? {})) {
-            if (Object.hasOwn(requested, name) || Object.hasOwn(options.outputs, name)) {
-                throw BuildError.of("OUTPUT_DUPLICATE", `output ${name} is requested twice`);
-            }
-            requested[name] = request;
-        }
-    }
-
-    return requested;
-}
-
-/** Expand the requested outputs into module outputs and the outputs of each kind's pass. */
-function expand(
-    requests: PackageBuildOptions["outputs"],
-    extensions: readonly BuildExtension[],
-): Map<string, PlannedOutput> {
-    // plan each requested output
-    const planned = new Map<string, PlannedOutput>();
-    for (const [name, request] of Object.entries(requests)) {
-        // plan a module output
-        if (isModuleRequest(request)) {
-            addOutput(planned, name, { options: request, files: [] });
-        }
-        // plan the outputs a kind expands its request into
-        else {
-            const kind = kindOf(request.kind, extensions);
-            let expanded: Readonly<Record<string, ExpandedOutput>>;
-            try {
-                expanded = kind.expand(name, request);
-            } catch (cause) {
-                throw extensionFailureOf(cause);
-            }
-            for (const [member, output] of Object.entries(expanded)) {
-                const { files, ...settings } = output;
-                addOutput(planned, member, {
-                    options: { kind: "module", ...settings },
-                    files,
-                    pass: { name, kind, request },
-                });
-            }
+/** Plan the requested module outputs, refusing an invalid name and a build of none. */
+function plan(requests: PackageBuildOptions["outputs"]): Map<string, ModuleOptions> {
+    // refuse an invalid name
+    for (const name of Object.keys(requests)) {
+        if (!/^[a-z][a-z0-9-]*$/u.test(name)) {
+            throw BuildError.of("OUTPUT_INVALID", `invalid output name: ${name}`);
         }
     }
 
     // require at least one output
+    const planned = new Map(Object.entries(requests));
     if (!planned.size) {
         throw BuildError.of("OUTPUT_INVALID", "a build requires at least one output");
     }
@@ -728,45 +615,18 @@ function expand(
     return planned;
 }
 
-/** Plan an output, refusing an invalid or taken name. */
-function addOutput(planned: Map<string, PlannedOutput>, name: string, output: PlannedOutput): void {
-    if (!/^[a-z][a-z0-9-]*$/u.test(name)) {
-        throw BuildError.of("OUTPUT_INVALID", `invalid output name: ${name}`);
-    }
-    if (planned.has(name)) {
-        throw BuildError.of("OUTPUT_INVALID", `duplicate output name: ${name}`);
-    }
-    planned.set(name, output);
-}
-
-/** Report whether an output request compiles package modules rather than a kind's output. */
-function isModuleRequest(request: ModuleOptions | OutputRequest): request is ModuleOptions {
-    return request.kind === "module";
-}
-
-/** Find the extension compiling an output kind. */
-function kindOf(name: string, extensions: readonly BuildExtension[]): OutputKind {
-    const kind = extensions.find((extension) => extension.outputs?.[name])?.outputs?.[name];
-    if (kind === undefined) {
-        throw BuildError.of("OUTPUT_INVALID", `no dependency compiles outputs of kind ${name}`);
-    }
-
-    return kind;
-}
-
 /** Create the compilation of one planned output. */
 function createCompilation(
     name: string,
-    output: PlannedOutput,
+    output: ModuleOptions,
     context: CompileContext,
 ): OutputCompilation {
     return new OutputCompilation(
         name,
-        output.options,
+        output,
         found(context.projects, name),
         context.declarations,
         context.extensions,
-        output.pass !== undefined,
         context.cache,
         context.transformer,
     );

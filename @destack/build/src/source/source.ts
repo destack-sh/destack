@@ -42,8 +42,6 @@ export const PackageSource = {
         options: InspectOptions & {
             /** Public modules selected for this output. */
             entries?: Readonly<Record<string, string>>;
-            /** Framework modules compiled in addition to package exports. */
-            files?: readonly string[];
             /** The versions the build releases its source packages at, by package name. */
             versions?: Readonly<Record<string, Version>>;
             /** The materialized directory of each Destack dependency's build, by package name. */
@@ -75,14 +73,7 @@ export const PackageSource = {
 
         // read the dependencies' builds and list the root modules
         const tree = await DependencyTree.read(options.tree, files);
-        const extra = (options.files ?? []).map((path) =>
-            resolve(definition.directory, PackagePath.parse(path)),
-        );
-        const roots = [
-            ...Object.values(definition.exports),
-            ...Object.values(definition.types),
-            ...extra,
-        ];
+        const roots = [...Object.values(definition.exports), ...Object.values(definition.types)];
         const entries = [...new Set(roots.filter((path) => /\.[cm]?[jt]sx?$/u.test(path)))];
 
         return {

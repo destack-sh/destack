@@ -1,4 +1,4 @@
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute, posix, resolve } from "node:path";
 import { build, type InlineConfig, type Plugin, type PluginOption } from "vite";
 import { rolldown } from "rolldown";
 import { dynamicImportVarsPlugin, importGlobPlugin } from "rolldown/experimental";
@@ -26,7 +26,7 @@ import {
     type Compilation,
     type CompiledOutput,
     type DeclarationModule,
-    HostModules,
+    HostModuleResolver,
     isHostModule,
     isRuntimeModule,
     type OutputDescription,
@@ -50,7 +50,7 @@ import { type ModuleOptions } from "../build/build.ts";
 import { BuildError, extensionFailureOf, bundleFailureOf } from "../error/index.ts";
 import { sourcePlugin, mapSource } from "./source.ts";
 import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts";
-import { assetPlugin, directoryPlugin } from "./asset.ts";
+import { ASSET, assetPlugin, directoryPlugin, rawPlugin } from "./asset.ts";
 import { transformPlugins } from "./extension.ts";
 
 /** A stylesheet import, by its extension, with or without a query. */
@@ -106,8 +106,6 @@ export class OutputCompilation implements Compilation {
     readonly #exported: ReadonlyMap<DeclarationDescription, DeclarationModule>;
     /** The extensions of the package and its dependencies. */
     readonly extensions: readonly BuildExtension[];
-    /** Whether an output kind compiles the output in its pass, where extensions emit no entries. */
-    readonly isLent: boolean;
     /** The build's cache of files the extensions' transforms derive. */
     readonly cache: TransformCache;
     /** The modules extensions emit, by package entrypoint. */
@@ -115,7 +113,7 @@ export class OutputCompilation implements Compilation {
     /** The build's module transformer, stamping each module once across its passes. */
     readonly #transformer: ModuleTransformer;
     /** The host modules the runtime supplies, and those importers replace with nothing. */
-    readonly #hosts: HostModules;
+    readonly #hosts: HostModuleResolver;
 
     /** Create the compilation of one output from its settings, package and inspection. */
     constructor(
@@ -124,7 +122,6 @@ export class OutputCompilation implements Compilation {
         project: PackageSource,
         declarations: readonly EvaluatedDeclaration[],
         extensions: readonly BuildExtension[],
-        isLent: boolean,
         cache: TransformCache,
         transformer: ModuleTransformer,
     ) {
@@ -140,10 +137,9 @@ export class OutputCompilation implements Compilation {
             ]),
         );
         this.extensions = extensions;
-        this.isLent = isLent;
         this.cache = cache;
         this.#transformer = transformer;
-        this.#hosts = new HostModules(project.runtime, project.environment.files);
+        this.#hosts = new HostModuleResolver(project.runtime, project.environment.files);
     }
 
     /** The package the build compiles. */
@@ -186,14 +182,6 @@ export class OutputCompilation implements Compilation {
 
     /** Emit a module as a chunk the package exports under an entrypoint. */
     entry(entrypoint: string, module: string): void {
-        // refuse an entry of an output its kind compiles in a pass
-        if (this.isLent) {
-            throw BuildError.of(
-                "EXTENSION_INVALID",
-                `output ${this.name} emits no entry: ${entrypoint}`,
-            );
-        }
-
         // refuse an entrypoint taken twice
         if (this.#entries.has(entrypoint) || Object.hasOwn(this.project.exports, entrypoint)) {
             throw BuildError.of("ENTRY_INVALID", `duplicate entrypoint: ${entrypoint}`);
@@ -249,7 +237,7 @@ export class OutputCompilation implements Compilation {
         this.#exportEntries(generated, compiled.exported, facades);
 
         // let each extension describe the compiled output's workloads and views, then record the exports' imports
-        this.#describeOutput(compiled, facades);
+        this.#describeOutput(generated, compiled, facades);
         this.#recordExports(compiled, facades);
 
         return compiled;
@@ -280,11 +268,16 @@ export class OutputCompilation implements Compilation {
     }
 
     /** Let each extension describe the compiled output's workloads and views. */
-    #describeOutput(compiled: OutputBuild, facades: ReadonlyMap<string, string>): void {
-        // expose the exports and the declarations of each entrypoint
+    #describeOutput(
+        generated: readonly (OutputChunk | OutputAsset)[],
+        compiled: OutputBuild,
+        facades: ReadonlyMap<string, string>,
+    ): void {
+        // expose the exports, and the declarations and stylesheets of each entrypoint
         const described: CompiledOutput = {
             exports: compiled.exported,
             declarations: (entrypoint) => this.#declarationsOf(entrypoint, compiled, facades),
+            stylesheets: (entrypoint) => this.#stylesheetsOf(entrypoint, generated, compiled),
         };
 
         // merge each extension's description into the output
@@ -317,7 +310,6 @@ export class OutputCompilation implements Compilation {
             runtime: this.runtime,
             // render components on the server runtimes, which run them without a document
             server: this.runtime !== "browser",
-            options: {},
             dependencies: this.project.tree.directories,
             cache: this.cache,
             environment: this.project.environment,
@@ -393,6 +385,7 @@ export class OutputCompilation implements Compilation {
         const locations = new Map<string, ModuleSource>();
         const flattened = [
             serverStylePlugin(),
+            rawPlugin(project.environment.files),
             assetPlugin(project.environment.files),
             ...this.#packagePlugins(compiled, facades, input, locations),
             ...(await flattenPlugins(plugins)),
@@ -492,11 +485,14 @@ export class OutputCompilation implements Compilation {
                 format: "esm",
                 // preserve function and class names in minified server modules, as error families and telemetry read them
                 keepNames: !isBrowser,
-                // keep each module its own file, as runtimes load them unbundled and browsers by an import map
+                // keep each module its own file below the package, as runtimes load them unbundled and browsers by an import map
                 preserveModules: true,
+                preserveModulesRoot: project.directory,
                 entryFileNames: "[name].js",
                 chunkFileNames: "[name]-[hash].js",
-                assetFileNames: "asset/[name]-[hash][extname]",
+                // name each asset by its file's name alone, wherever its source lives
+                assetFileNames: ({ names: [name = "asset"] }) =>
+                    `asset/${posix.basename(name, posix.extname(name))}-[hash][extname]`,
                 sourcemapPathTransform(source, map) {
                     const generatedMap = `${directory}/${relativePath(destination, map)}`;
 
@@ -614,8 +610,8 @@ export class OutputCompilation implements Compilation {
             return false;
         }
 
-        // compile the package's own modules into the output
-        if (this.#isBundled(specifier)) {
+        // compile the package's own modules into the output, and a dependency's stylesheets and assets, which no runtime loads by import
+        if (this.#isBundled(specifier) || STYLESHEET.test(specifier) || ASSET.test(specifier)) {
             return false;
         }
 
@@ -718,6 +714,40 @@ export class OutputCompilation implements Compilation {
                 paths.get(`${owner.name}@${owner.version}`)?.has(declaration.source.file) === true
             );
         });
+    }
+
+    /** List the stylesheets an entry's chunks import, statically or on demand, once each. */
+    #stylesheetsOf(
+        entrypoint: string,
+        generated: readonly (OutputChunk | OutputAsset)[],
+        compiled: OutputBuild,
+    ): string[] {
+        // start from the entry's chunk
+        const directory = `${compiled.output.directory}/`;
+        const emitted = compiled.exported[entrypoint];
+        if (emitted === undefined) {
+            throw BuildError.of("INVARIANT_VIOLATED", `no emitted entrypoint: ${entrypoint}`);
+        }
+        const chunks = new Map(
+            generated.flatMap((entry) => (entry.type === "chunk" ? [[entry.fileName, entry]] : [])),
+        );
+
+        // collect each reached chunk's stylesheets, following its imports
+        const pending = [emitted.slice(directory.length)];
+        const visited = new Set<string>();
+        const stylesheets = new Set<string>();
+        for (let file = pending.shift(); file !== undefined; file = pending.shift()) {
+            const chunk = chunks.get(file);
+            if (chunk !== undefined && !visited.has(file)) {
+                visited.add(file);
+                for (const stylesheet of chunk.viteMetadata?.importedCss ?? []) {
+                    stylesheets.add(`${directory}${stylesheet}`);
+                }
+                pending.push(...chunk.imports, ...chunk.dynamicImports);
+            }
+        }
+
+        return [...stylesheets];
     }
 
     /** List the dependency specifiers an entry's chunks import, refusing ones nothing provides. */

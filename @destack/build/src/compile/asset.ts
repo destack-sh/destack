@@ -14,13 +14,13 @@ import { type ModuleSource } from "./dependency.ts";
 import { mapSource } from "./source.ts";
 
 /** An imported file a build emits as an asset: a `?url` import, or a media or font file. */
-const ASSET = /(?:\?url$|\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|mp3|mp4|webm|wav)$)/u;
+export const ASSET =
+    /(?:\?url$|\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|mp3|mp4|webm|wav)$)/u;
 
 /** Emit each imported file as an asset whose URL the module exports by default, as Vite does. */
 export function assetPlugin(files: FileSystem): Plugin {
     return {
         name: "@destack/build/asset",
-        enforce: "pre",
         load: {
             filter: { id: ASSET },
             async handler(id) {
@@ -30,6 +30,22 @@ export function assetPlugin(files: FileSystem): Plugin {
                 const reference = this.emitFile({ type: "asset", name: basename(path), source });
 
                 return `export default import.meta.ROLLUP_FILE_URL_${reference};\n`;
+            },
+        },
+    };
+}
+
+/** Load each `?raw` import as its file's text, as Vite does. */
+export function rawPlugin(files: FileSystem): Plugin {
+    return {
+        name: "@destack/build/raw",
+        enforce: "pre",
+        load: {
+            filter: { id: /\?raw$/u },
+            async handler(id) {
+                const [path = id] = id.split("?");
+
+                return `export default ${JSON.stringify(await files.readTextFile(path))};\n`;
             },
         },
     };

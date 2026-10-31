@@ -386,6 +386,8 @@ function generateEntry(entries: readonly string[], kinds: readonly CatalogedKind
             ([specifier, index]) =>
                 `import * as inspector${index} from ${JSON.stringify(specifier)};`,
         ),
+        // refuse a declared function its module does not export, by its package export and name
+        `function required(value, name) { if (typeof value !== "function") throw new TypeError(\`\${name} is not an exported function\`); return value; }`,
         `export const entries = [${entries.map((_, index) => `entry${index}`).join(", ")}];`,
         "export const recorded = declared;",
         `export const functions = [${functions.join(",\n")}];`,
@@ -412,7 +414,10 @@ function locateFunction(
     const index = modules.get(specifier) ?? modules.size;
     modules.set(specifier, index);
 
-    return `inspector${index}[${JSON.stringify(inspector.name)}]`;
+    // read the function by name, refusing one the module does not export
+    const label = `${specifier}#${inspector.name}`;
+
+    return `required(inspector${index}[${JSON.stringify(inspector.name)}], ${JSON.stringify(label)})`;
 }
 
 /** Evaluate a generated entry, refusing a failed evaluation as an inspection failure. */
@@ -465,7 +470,6 @@ async function bundleAndEvaluate(
                         directory: project.directory,
                         runtime: HOST_RUNTIME,
                         server: true,
-                        options: {},
                         dependencies: project.tree.directories,
                         environment: project.environment,
                     },

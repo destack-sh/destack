@@ -2,7 +2,6 @@ import { graph } from "@destack/package";
 import { PackageInspection } from "@destack/package/code";
 import { deserialize, serialize } from "node:v8";
 import { DependencyResolution, PackageName } from "@destack/package";
-import { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
 import { Commit, Digest, schema, Version } from "@destack/schema";
 import { Failure } from "@destack/error";
@@ -76,10 +75,8 @@ const HEADER_BYTES = 4;
 export const RequestedBuild = schema.object({
     /** The source package directory. */
     directory: schema.string(),
-    /** Named module outputs, and outputs of kinds the dependency closure's extensions compile. */
-    outputs: schema
-        .record(schema.string(), schema.union([ModuleOptions, OutputRequest]))
-        .readonly(),
+    /** The module outputs to compile, by name. */
+    outputs: schema.record(schema.string(), ModuleOptions).readonly(),
     /** Exact dependency releases selected by the package resolver. */
     dependencies: schema.record(schema.string(), DependencyResolution).readonly(),
     /** The TypeScript configuration, absent for the package defaults. */

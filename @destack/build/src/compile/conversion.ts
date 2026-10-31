@@ -4,7 +4,7 @@ import { dirname, join, relative, sep } from "node:path";
 import * as lexer from "cjs-module-lexer";
 import { type Plugin, rolldown } from "rolldown";
 import { DependencyName } from "@destack/package";
-import { HostModules, isHostModule, runtimeConditions } from "@destack/package/build";
+import { HostModuleResolver, isHostModule, runtimeConditions } from "@destack/package/build";
 import { present, schema } from "@destack/schema";
 import { type Runtime, WORKERD_SCHEME } from "@destack/package/runtime";
 import { BuildError } from "../error/index.ts";
@@ -143,7 +143,7 @@ export class NpmConversion {
         seen: Set<string>,
     ): Plugin {
         // leave runtime modules, empty replaced ones, and take requires as Node's require(esm) does
-        const hosts = new HostModules(this.runtime, this.#environment.files);
+        const hosts = new HostModuleResolver(this.runtime, this.#environment.files);
         const { name, runtime } = this;
         const known = new Set([name, ...this.dependencies, ...this.peers]);
 
