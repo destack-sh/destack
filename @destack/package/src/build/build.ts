@@ -17,8 +17,16 @@ export interface BuildExtension {
     readonly compile?: (compilation: Compilation) => readonly PluginOption[];
     /** Describe the workloads and views of one compiled module output. */
     readonly describe?: (compilation: Compilation, compiled: CompiledOutput) => OutputDescription;
-    /** Render a package's pages once its module outputs compiled, returning their files by path. */
-    readonly prerender?: (
+    /** Render a package's pages at build, whatever runtimes it ships. */
+    readonly prerender?: Prerender;
+}
+
+/** How an extension renders a package's pages at build, as Astro prerenders on its server build. */
+export interface Prerender {
+    /** Report whether a package's own declarations have pages to render. */
+    readonly isRendering: (declarations: readonly DeclarationDescription[]) => boolean;
+    /** Render the pages once the module outputs compiled, returning their files by path. */
+    readonly render: (
         context: PrerenderContext,
     ) => Promise<ReadonlyMap<string, Uint8Array<ArrayBuffer>>>;
 }
