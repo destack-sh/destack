@@ -37,9 +37,16 @@ export const MemoryBuild = {
             await writer.write(path, bytes);
         }
 
+        // record the package by its identity alone, as a build of its package.json does
+        const owner = contents.package;
+        const identity =
+            "id" in owner
+                ? { id: owner.id, name: owner.name, version: owner.version }
+                : { name: owner.name, version: owner.version, integrity: owner.integrity };
+
         // read the written files back
         return new BuildReader(
-            await writer.finish(contents),
+            await writer.finish({ ...contents, package: identity }),
             async (path) => new Blob([found(stored, path)]).stream(),
             crypto,
         );
