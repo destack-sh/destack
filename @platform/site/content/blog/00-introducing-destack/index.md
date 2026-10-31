@@ -34,7 +34,7 @@ Probabilistic computing is finally here, and we _could_ infuse intelligence into
 Instead, we got "APIs" and now "MCPs".
 
 The familiar features that make modern software modern - cloud-based, multiplayer, multi-vendor, multi-stack - also make it hostile to agents.
-Fragmenting context and siloing control as thoroughly across the old stack is exactly the opposite of what personalised, malleable, intelligence-infused software needs. 
+Fragmenting context and control across the mosasic of the old stack is the opposite of what personalised, malleable, intelligence-infused software needs. 
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
@@ -56,7 +56,7 @@ We gradually remove ourselves from the cumbersome burden of having to spell out 
 Programming, then, is just reified problem solving: iterating, thinking, working to understand the shape of a problem and specifying its solution in some mechanically repeatable form.
 We used to solve software-shaped problems with artisanal next-character-prediction of symbolic code, but, really, programming doesn't have to be any formal language at all.
 
-Indeed, there was programming before code, there is programming after code - and programming _alongside_ code already has rich prior art!
+Indeed, there was programming before code, so there is programming after code - and programming _alongside_ code already has rich prior art!
 Game developers have iterated on multimodal software production over decades:
 early game development was a schlep! 
 Only a tiny guild of brilliant nerds managed to produce presentable commercial games.
