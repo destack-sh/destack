@@ -90,6 +90,66 @@ test("call and list objects by their descriptions, refusing input their methods'
     ]);
 });
 
+test("list every row across a server's pages, continuing each from its cursor, and stop at the limit", async () => {
+    // serve notes from a server cutting each page to one row, reading each call's page request
+    const served = await serveNotes();
+    const objects = ObjectTypePool.of([space]).declare([
+        ObjectDescription.of(notebook),
+        ObjectDescription.of(note),
+    ]);
+    const endpoint = served.endpoint(users.alice);
+    const pages: unknown[] = [];
+    const client = new DynamicObjectClient({
+        environment: served.environment,
+        objects,
+        scope: spaceId,
+        endpoint: {
+            ...endpoint,
+            fetch: async (request: Request) => {
+                const text = await request.text();
+                const page = /"limit":(\d+)/u.exec(text);
+                pages.push([page?.[1], text.includes('"cursor"')]);
+
+                return endpoint.fetch(
+                    new Request(request, {
+                        method: request.method,
+                        body: text.replace(/"limit":\d+/u, '"limit":1'),
+                    }),
+                );
+            },
+        },
+    });
+    const book = Identified.parse(await client.call("notebook", "create", { name: "Travel" }));
+    for (const title of ["Maps", "Tickets", "Visas"]) {
+        await client.call("note", "create", { parentId: book.id, title });
+    }
+    pages.splice(0);
+
+    // list them all page by page, then two of them
+    const query = { where: { parentId: book.id }, orderBy: { title: "asc" } } as const;
+    const all = await client.list("note", query);
+    const every = pages.splice(0);
+    const two = await client.list("note", { ...query, limit: 2 });
+    expect({
+        all: all.map((row) => row["title"]),
+        every,
+        two: two.map((row) => row["title"]),
+        limited: pages,
+    }).toEqual({
+        all: ["Maps", "Tickets", "Visas"],
+        every: [
+            ["1000", false],
+            ["1000", true],
+            ["1000", true],
+        ],
+        two: ["Maps", "Tickets"],
+        limited: [
+            ["2", false],
+            ["1", true],
+        ],
+    });
+});
+
 test("watch the rows a query selects through a replica of their table, after every change", async () => {
     // run in a world of its own
     const simulation = testSimulation();

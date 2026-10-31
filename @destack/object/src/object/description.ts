@@ -199,6 +199,14 @@ const objectDescription = schema.object({
     definition: schema.jsonObject(),
 });
 
+/** A scope as a description encodes it, read as the reference of its object type or its policy. */
+const EncodedScope = schema
+    .union([
+        schema.object({ $object: ObjectTypeReference }),
+        schema.object({ $policy: ObjectTypeReference }),
+    ])
+    .transform((scope) => ("$object" in scope ? scope.$object : scope.$policy));
+
 /** An object type as data, with the verbs reading a description. */
 export const ObjectDescription = Object.assign(objectDescription, {
     /** Encode an object type as data. */
@@ -225,6 +233,21 @@ export const ObjectDescription = Object.assign(objectDescription, {
     /** Read the name of the resource kind a description's type provisions, absent for none. */
     provisionedKind(description: ObjectDescription): string | undefined {
         return DescribedDefinition.parse(description.definition).provisioned?.kind.$kind.name;
+    },
+
+    /** Report whether a description's rows live in a space: in any scope or a space among them. */
+    isInSpace(description: ObjectDescription): boolean {
+        const { packageId, name } = accessExports.principal.space.definition;
+        const scopes = [description.definition["scope"] ?? []].flat();
+
+        return (
+            scopes.length === 0 ||
+            scopes.some((scope) => {
+                const reference = EncodedScope.safeParse(scope).data;
+
+                return reference?.packageId === packageId && reference.type === name;
+            })
+        );
     },
 
     /** Read the object descriptions among an installation's declarations. */

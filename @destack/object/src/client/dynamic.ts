@@ -20,6 +20,7 @@ import type { Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
 import { Method } from "../method/method.ts";
+import { MAX_PAGE_LIMIT } from "../method/page.ts";
 
 /** The hex digest digits of a watched query's identity: 64 bits, safe among watches. */
 const QUERY_NAME_LENGTH = 16;
@@ -33,7 +34,11 @@ const REQUEST_FIELD = "requestId";
 /** The rows a list method answers. */
 const Listed = schema.looseObject({
     items: schema.array(schema.jsonObject()),
+    cursor: schema.string().nullable(),
 });
+
+/** A list method's further inputs beside its query, such as the build a declaration list reads. */
+type ListInput = Readonly<Record<string, JsonValue>>;
 
 /** The results of a pushed mutation's calls, in call order. */
 const CALL_RESULTS = schema.array(schema.json());
@@ -168,10 +173,10 @@ export class DynamicObjectClient {
         return objects.map((object) => ObjectDescription.parse(object));
     }
 
-    /** List a type's rows through its list method, as JSON. */
+    /** List a type's rows through its list method as JSON, page by page up to the query's limit. */
     async list(
         type: string,
-        query: Pick<ObjectQuery, "where" | "orderBy" | "limit"> = {},
+        query: Pick<ObjectQuery, "where" | "orderBy" | "limit"> & ListInput = {},
     ): Promise<readonly JsonObject[]> {
         // find the type's list method
         const method = Object.entries(this.object(type).methods).find(
@@ -181,11 +186,25 @@ export class DynamicObjectClient {
             throw ObjectError.of("LIST_METHOD_MISSING", `${type} has no list method`);
         }
 
-        // call it with the query
+        // read pages until the last one or the limit, each continuing from the one before
         const input = schema.jsonObject().parse(query);
-        const listed = await this.call(type, method, input);
+        const { limit } = query;
+        const rows: JsonObject[] = [];
+        let cursor: string | null = null;
+        do {
+            const size = Math.min(MAX_PAGE_LIMIT, (limit ?? Infinity) - rows.length);
+            const page = Listed.parse(
+                await this.call(type, method, {
+                    ...input,
+                    limit: size,
+                    ...(cursor === null ? {} : { cursor }),
+                }),
+            );
+            rows.push(...page.items);
+            cursor = page.cursor;
+        } while (cursor !== null && rows.length < (limit ?? Infinity));
 
-        return Listed.parse(listed).items;
+        return rows;
     }
 
     /** Follow a query's rows into a local database, yielding JSON after each change. */
