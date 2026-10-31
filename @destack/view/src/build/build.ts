@@ -6,6 +6,7 @@ import type {
     CompiledOutput,
     DeclarationModule,
     Plugin,
+    PrerenderContext,
 } from "@destack/package/build";
 import { BROWSER_SANDBOX, type DeclarationDescription, Sandbox } from "@destack/package";
 import {
@@ -111,66 +112,72 @@ export const viewExtension: BuildExtension = {
 
         return { views };
     },
-    async prerender(context) {
-        // render each static view's pages and endpoints, beside the package's public files
-        const files = new Map<string, Uint8Array<ArrayBuffer>>();
-        for (const declaration of context.declarations) {
-            // select static views
-            const render = staticRender(declaration);
-            if (render === undefined) {
-                continue;
-            }
-
-            // find the browser output describing the view and the Bun module rendering it
-            const { name } = declaration;
-            const { output, view } = describedView(context.outputs, name);
-            const server = Object.values(context.outputs).find(
-                (each) => each.runtime === "bun" && each.exports[`./view/${name}`] !== undefined,
-            );
-            const module = server?.exports[`./view/${name}`]?.path;
-            if (module === undefined) {
-                throw ViewError.of(
-                    "RUNTIME_REQUIRED",
-                    `static view ${name} prerenders on bun: add bun to the package's runtimes`,
-                );
-            }
-
-            // render its routes with the view's entry and stylesheets
-            const rendered = await prerender(
-                join(context.build, module),
-                render.origin,
-                {
-                    script: `/${view.entrypoint}`,
-                    stylesheets: view.stylesheets.map((path) => `/${path}`),
-                },
-                context.environment,
-            );
-            const directory = ViewDescription.pages(output, name);
-            for (const [path, bytes] of rendered) {
-                publish(files, `${directory}/${path}`, bytes);
-            }
-
-            // publish the assets its pages load, and the package's public files, beside its pages
-            const { files: system } = context.environment;
-            const assets = join(
-                context.build,
-                present(server, "the view's bun output").directory,
-                ASSET_DIRECTORY,
-            );
-            for (const [path, bytes] of await filesBelow(assets, system)) {
-                publish(files, `${directory}/${ASSET_PATH}${path}`, bytes);
-            }
-            for (const [path, bytes] of await filesBelow(
-                join(context.directory, PUBLIC_DIRECTORY),
-                system,
-            )) {
-                publish(files, `${directory}/${path}`, bytes);
-            }
-        }
-
-        return files;
+    prerender: {
+        isRendering: (declarations) =>
+            declarations.some((declaration) => staticRender(declaration) !== undefined),
+        render: prerenderViews,
     },
 };
+
+/** Render each static view's pages and endpoints, beside the package's public files. */
+async function prerenderViews(
+    context: PrerenderContext,
+): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
+    // render each static view's pages and endpoints, beside the package's public files
+    const files = new Map<string, Uint8Array<ArrayBuffer>>();
+    for (const declaration of context.declarations) {
+        // select static views
+        const render = staticRender(declaration);
+        if (render === undefined) {
+            continue;
+        }
+
+        // find the browser output describing the view and the Bun module rendering it
+        const { name } = declaration;
+        const { output, view } = describedView(context.outputs, name);
+        const server = Object.values(context.outputs).find(
+            (each) => each.runtime === "bun" && each.exports[`./view/${name}`] !== undefined,
+        );
+        const module = server?.exports[`./view/${name}`]?.path;
+        if (module === undefined) {
+            throw new TypeError(`the build compiled no Bun output rendering view ${name}`);
+        }
+
+        // render its routes with the view's entry and stylesheets
+        const rendered = await prerender(
+            join(context.build, module),
+            render.origin,
+            {
+                script: `/${view.entrypoint}`,
+                stylesheets: view.stylesheets.map((path) => `/${path}`),
+            },
+            context.environment,
+        );
+        const directory = ViewDescription.pages(output, name);
+        for (const [path, bytes] of rendered) {
+            publish(files, `${directory}/${path}`, bytes);
+        }
+
+        // publish the assets its pages load, and the package's public files, beside its pages
+        const { files: system } = context.environment;
+        const assets = join(
+            context.build,
+            present(server, "the view's bun output").directory,
+            ASSET_DIRECTORY,
+        );
+        for (const [path, bytes] of await filesBelow(assets, system)) {
+            publish(files, `${directory}/${ASSET_PATH}${path}`, bytes);
+        }
+        for (const [path, bytes] of await filesBelow(
+            join(context.directory, PUBLIC_DIRECTORY),
+            system,
+        )) {
+            publish(files, `${directory}/${path}`, bytes);
+        }
+    }
+
+    return files;
+}
 
 /** Publish a file beside a static view's pages, refusing a path another file took. */
 function publish(

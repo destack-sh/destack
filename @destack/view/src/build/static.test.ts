@@ -171,12 +171,12 @@ async function imported(
 }
 
 test(
-    "prerender a static view's page as HTML but for its island, which the browser loads alone",
+    "prerender a browser-only package's static page on a Bun output it does not ship, its island alone loading",
     { timeout: SITE_BUILD_MILLISECONDS },
     async () => {
         // build the islands fixture
         await using islands = await PackageCopy.open(ISLANDS, compilers);
-        const build = await islands.build({ outputs: OUTPUTS });
+        const build = await islands.build({ outputs: { browser: OUTPUTS.browser } });
         const read = async (path: string) => new TextDecoder().decode(await build.load(path));
 
         // read the page, what its script loads of the package at once and on demand, and of other packages
@@ -196,12 +196,14 @@ test(
             isPageLoaded: loadedCode.some((code) => code.includes("Static heading")),
             deferred: deferred.map((path) => moduleName(path)).filter((name) => name === "counter"),
             imports: exported?.imports,
+            prerender: build.manifest.outputs["prerender"]?.emit,
         }).toEqual({
             headings: ["Static heading"],
             island: '<div data-island="/src/islands/counter.tsx" data-island-id="/src/islands/counter.tsx#0" data-island-properties="{&quot;start&quot;:3}"',
             isPageLoaded: false,
             deferred: ["counter"],
             imports: ["@destack/view", "@destack/view/runtime", "@destack/view/static/browser"],
+            prerender: false,
         });
     },
 );
