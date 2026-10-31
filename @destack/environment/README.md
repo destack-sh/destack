@@ -102,6 +102,8 @@ simulation.fingerprint; // equal across runs of one seed and the same work
 // a stalled host work fails the run after 10 s, a stalled peer after 2 min, busy work without time as a livelock
 ```
 
+## Worlds
+
 A `World` is a simulation as data: its seed, start and steps, the shared ones taken by `Simulation.take`.
 
 ```ts

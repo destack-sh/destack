@@ -1,4 +1,4 @@
-import { present, Uuid } from "@destack/schema";
+import { present, schema, Uuid } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { LONGEST_DELAY, Random } from "../src/index.ts";
 import {
@@ -18,6 +18,9 @@ const WORKERS = 8;
 
 /** The rounds of host work each racing worker takes. */
 const ROUNDS = 6;
+
+/** The sites a refused world work and its host work began at. */
+const Refusal = schema.object({ world: schema.string(), host: schema.string() });
 
 /** The simulations' start: 2026-10-16 at midnight UTC. */
 const START = Date.UTC(2026, 9, 16);
@@ -98,14 +101,15 @@ test("trace tracked work as spans on the world's clock, marking failed work, whi
     await using simulation = new Simulation({ seed: 1, start: START, isTracing: true });
     const { scheduler } = simulation;
     await scheduler.track(
-        new Promise<void>((resolve) => {
-            setTimeout(resolve, 1);
-        }),
+        () =>
+            new Promise<void>((resolve) => {
+                setTimeout(resolve, 1);
+            }),
         "host",
     );
     await simulation.jump(START + 1000);
     const failed = await scheduler
-        .track(Promise.reject(new Error("refused")), "world")
+        .track(() => Promise.reject(new Error("refused")), "world")
         .catch((error: Error) => error.message);
     await simulation.idle();
 
@@ -332,7 +336,7 @@ test("hold time back while tracked work is in flight, move to the next timer onc
     let isFired = false;
     void simulation.clock.sleep(60_000).then(() => (isFired = true));
     const work = Promise.withResolvers<void>();
-    void simulation.scheduler.track(work.promise, "world");
+    void simulation.scheduler.track(() => work.promise, "world");
     let held: [number, boolean] | undefined;
     setTimeout(() => {
         held = [simulation.clock.now() - START, isFired];
@@ -382,12 +386,14 @@ test("hold the clock for an in-process call until its response head, and not for
     void simulation.clock.sleep(1000).then(() => undefined);
 
     // call both in process, tracking each until its head
-    const polled = await simulation.scheduler.track(Promise.resolve(longPoll()), "world");
-    const answered = simulation.scheduler.track(answerSlowly(), "world").then((response) => {
-        isAnswered = true;
+    const polled = await simulation.scheduler.track(() => Promise.resolve(longPoll()), "world");
+    const answered = simulation.scheduler
+        .track(() => answerSlowly(), "world")
+        .then((response) => {
+            isAnswered = true;
 
-        return response;
-    });
+            return response;
+        });
     await simulation.until(() => isAnswered);
     const answeredAt = simulation.clock.now() - START;
     const ended = polled.text().then(() => simulation.clock.now() - START);
@@ -877,9 +883,10 @@ test("refuse work that keeps busy without letting time move, naming the call sit
     const spinning = (async () => {
         while (!stop.signal.aborted) {
             await simulation.scheduler.track(
-                new Promise<void>((resolve) => {
-                    setImmediate(resolve);
-                }),
+                () =>
+                    new Promise<void>((resolve) => {
+                        setImmediate(resolve);
+                    }),
                 "world",
             );
         }
@@ -916,7 +923,7 @@ test("settle a slow host round trip without counting its wait as busy", async ()
     try {
         await using simulation = new Simulation({ seed: 1, start: START });
         const reply = simulation.scheduler.track(
-            fetch(server.url).then((response) => response.text()),
+            () => fetch(server.url).then((response) => response.text()),
             "host",
         );
         expect([await reply, simulation.clock.now() - START]).toEqual(["late", 0]);
@@ -942,9 +949,10 @@ test("refuse tracked work that never settles beside a timer, as time cannot move
     // track work that never settles while a timer waits
     await using simulation = new Simulation({ seed: 1, start: START });
     void simulation.scheduler.track(
-        new Promise<void>(() => {
-            // never settle
-        }),
+        () =>
+            new Promise<void>(() => {
+                // never settle
+            }),
         "world",
     );
     const refused = await simulation.clock.sleep(1000).then(
@@ -1173,9 +1181,10 @@ test("publish a node's listener at a world address for nodes and a host address 
 
     // call it from the host at its host address, and from another node at its world address
     const fromHost = await simulation.scheduler.track(
-        BunNetwork.fetch(new Request(new URL("/host", published.hostUrl))).then((response) =>
-            response.text(),
-        ),
+        () =>
+            BunNetwork.fetch(new Request(new URL("/host", published.hostUrl))).then((response) =>
+                response.text(),
+            ),
         "peer",
     );
     const { network } = simulation.environment("client");
@@ -1200,7 +1209,7 @@ test("refuse leaf host work stalled past the stall timeout, and peer work past t
             stallTimeout: 50,
             peerStallTimeout: 80,
         });
-        void simulation.scheduler.track(new Promise<void>(() => {}), by);
+        void simulation.scheduler.track(() => new Promise<void>(() => {}), by);
         const message = await simulation.clock.sleep(1000).then(
             () => "settled",
             (error: Error) => error.message,
@@ -1225,6 +1234,64 @@ test("refuse leaf host work stalled past the stall timeout, and peer work past t
     ]);
 });
 
+test("refuse world work begun inside host work with both sites, failing the world, and allow it inside peer work", async () => {
+    // begin world work inside host work after a host turn, and inside peer work
+    const simulation = new Simulation({ seed: 1, start: START });
+    const { scheduler } = simulation;
+    const inside = (by: "host" | "peer") =>
+        scheduler
+            .track(
+                () =>
+                    Promise.resolve().then(() =>
+                        scheduler.track(() => Promise.resolve(by), "world"),
+                    ),
+                by,
+            )
+            .then(
+                (value) => value,
+                (error: Error) => {
+                    const { world, host } = Refusal.parse(error.cause);
+
+                    return [error.message, { world: typeof world, isHostSited: host !== "" }];
+                },
+            );
+    const peer = await inside("peer");
+    const host = await inside("host");
+
+    // read the refusal and the sites it began at, and the failed world refusing its disposal
+    const disposed = await simulation[Symbol.asyncDispose]().then(
+        () => "disposed",
+        (error: Error) => error.message,
+    );
+    const message =
+        "world work began inside host work, which stops the world's time until it settles: track the host work as peer";
+    expect({ peer, host, disposed }).toEqual({
+        peer: "peer",
+        host: [message, { world: "string", isHostSited: true }],
+        disposed: message,
+    });
+});
+
+test("reject work whose start throws before it returns a promise, as its own failure", async () => {
+    // start work that throws at once, as world and as host work
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { scheduler } = simulation;
+    const thrown = (by: "world" | "host") =>
+        scheduler
+            .track(() => {
+                throw new Error(`${by} refused`);
+            }, by)
+            .then(
+                () => "settled",
+                (error: Error) => error.message,
+            );
+
+    expect([await thrown("world"), await thrown("host")]).toEqual([
+        "world refused",
+        "host refused",
+    ]);
+});
+
 test("answer settled host work in the order it began, recording each release with its kind, and list what runs", async () => {
     // track two host works settling in reverse, and a peer that stays running
     await using simulation = new Simulation({ seed: 1, start: START, isTracing: true });
@@ -1232,13 +1299,14 @@ test("answer settled host work in the order it began, recording each release wit
     const order: string[] = [];
     const settle = (name: string, after: number) =>
         scheduler.track(
-            new Promise<void>((resolve) => {
-                setTimeout(resolve, after);
-            }).then(() => order.push(name)),
+            () =>
+                new Promise<void>((resolve) => {
+                    setTimeout(resolve, after);
+                }).then(() => order.push(name)),
             "host",
         );
     const peer = Promise.withResolvers<void>();
-    void scheduler.track(peer.promise, "peer");
+    void scheduler.track(() => peer.promise, "peer");
     const [first, second] = [settle("first", 20), settle("second", 1)];
     const answered: string[] = [];
     void first.then(() => answered.push("first"));
@@ -1446,9 +1514,10 @@ test("answer idle once the work due now settled, and wait for a condition throug
     void (async () => {
         await clock.sleep(0);
         await simulation.scheduler.track(
-            new Promise<void>((resolve) => {
-                setTimeout(resolve, 5);
-            }),
+            () =>
+                new Promise<void>((resolve) => {
+                    setTimeout(resolve, 5);
+                }),
             "host",
         );
         await clock.sleep(0);

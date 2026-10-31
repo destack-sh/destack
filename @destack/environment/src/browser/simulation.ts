@@ -209,7 +209,7 @@ export class SimulatedBroadcast {
                 const copy: unknown = structuredClone(message);
                 const others = [...ports].filter((each) => each !== port);
                 void this.#scheduler.track(
-                    Promise.resolve().then(() => this.errors.push(...deliver(others, copy))),
+                    () => Promise.resolve().then(() => this.errors.push(...deliver(others, copy))),
                     "world",
                 );
             },

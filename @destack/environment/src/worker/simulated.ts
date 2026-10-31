@@ -126,18 +126,19 @@ export class SimulatedWorkerHost {
     ): void {
         const data: unknown = structuredClone(message);
         void this.#scheduler.track(
-            Promise.resolve().then(() => {
-                // drop it once the worker terminated, as a terminated worker's port does
-                if (isTerminated()) {
-                    return;
-                }
+            () =>
+                Promise.resolve().then(() => {
+                    // drop it once the worker terminated, as a terminated worker's port does
+                    if (isTerminated()) {
+                        return;
+                    }
 
-                // call each listener with the copy
-                const event = new MessageEvent("message", { data });
-                for (const listener of listeners) {
-                    listener(event);
-                }
-            }),
+                    // call each listener with the copy
+                    const event = new MessageEvent("message", { data });
+                    for (const listener of listeners) {
+                        listener(event);
+                    }
+                }),
             "world",
         );
     }

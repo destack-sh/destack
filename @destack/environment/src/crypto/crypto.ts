@@ -78,8 +78,8 @@ export const Crypto = {
                 }
 
                 return (...parameters: unknown[]) => {
-                    // run the operation, and leave a streamed digest untracked, as it waits on its chunks
-                    const result: unknown = Reflect.apply(member, target, parameters);
+                    // run the operation as host work, and a streamed digest untracked, as it waits on its chunks
+                    const run = (): unknown => Reflect.apply(member, target, parameters);
                     const data = parameters[1];
                     const isStream =
                         property === "digest" &&
@@ -87,7 +87,7 @@ export const Crypto = {
                         data !== null &&
                         Symbol.asyncIterator in data;
 
-                    return isStream ? result : scheduler.track(Promise.resolve(result), "host");
+                    return isStream ? run() : scheduler.track(() => Promise.resolve(run()), "host");
                 };
             },
         });

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { SpanStatusCode } from "@opentelemetry/api";
 import { yieldToEventLoop } from "../clock/wait.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
@@ -57,6 +58,8 @@ export class SimulatedScheduler implements Scheduler {
     readonly #telemetry: Telemetry | undefined;
     /** The world the scheduler runs, absent for a scheduler outside one. */
     readonly world: Simulation | undefined;
+    /** The host work the running code started in, absent in the world's own code. */
+    readonly #host = new AsyncLocalStorage<Flight>();
 
     /** Schedule a world's work, its host results in order when ordered, traced with telemetry. */
     constructor(options: {
@@ -83,13 +86,34 @@ export class SimulatedScheduler implements Scheduler {
 
     /** Let the host's event loop run once, tracked as the world's work, as no host answers it. */
     yield(): Promise<void> {
-        return this.track(yieldToEventLoop(), "world");
+        return this.track(yieldToEventLoop, "world");
     }
 
-    /** Count work in flight until it settles, answering host work in the order it began. */
-    track<Value>(work: Promise<Value>, by: Finisher): Promise<Value> {
-        // count world work as it is
+    /** Start work and count it until it settles, answering host work in the order it began. */
+    track<Value>(start: () => Promise<Value>, by: Finisher): Promise<Value> {
+        // refuse world work begun by host work, as the world stops its time until host work settles
         const flight: Flight = { by, began: new Error(by), isSettled: false };
+        const host = this.#host.getStore();
+        if (by === "world" && host !== undefined) {
+            const error = new Error(
+                "world work began inside host work, which stops the world's time until it settles: track the host work as peer",
+                {
+                    cause: {
+                        world: SimulatedScheduler.#site(flight.began),
+                        host: SimulatedScheduler.#site(host.began),
+                    },
+                },
+            );
+            this.fail(error);
+
+            return Promise.reject(error);
+        }
+
+        // start host work inside its flight, so the world work it begins is refused
+        const work =
+            by === "host" ? this.#host.run(flight, () => Promise.try(start)) : Promise.try(start);
+
+        // count world work as it is
         if (by === "world") {
             return this.#count(work, flight);
         }

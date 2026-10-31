@@ -7,8 +7,8 @@ export type Finisher = "world" | "host" | "peer";
 export interface Scheduler {
     /** Let the host's event loop run its waiting tasks once, as the web's `scheduler.yield()`. */
     readonly yield: () => Promise<void>;
-    /** Count work in flight until it settles, by who finishes it. */
-    readonly track: <Value>(work: Promise<Value>, by: Finisher) => Promise<Value>;
+    /** Start work and count it in flight until it settles, by who finishes it. */
+    readonly track: <Value>(start: () => Promise<Value>, by: Finisher) => Promise<Value>;
 }
 
 /** Schedulers. */
@@ -16,6 +16,6 @@ export const Scheduler: { readonly system: Scheduler } = {
     /** The system's scheduler, counting nothing. */
     system: {
         yield: yieldToEventLoop,
-        track: (work) => work,
+        track: (start) => start(),
     },
 };

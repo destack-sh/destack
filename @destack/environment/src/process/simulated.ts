@@ -190,7 +190,7 @@ export class SimulatedProcess implements Process {
         }
 
         // track its exit, each read of its output and each write to its input
-        const exited = this.#scheduler.track(child.exited, "peer");
+        const exited = this.#scheduler.track(() => child.exited, "peer");
         const stdout = this.#readable(child.stdout);
         const stderr = this.#readable(child.stderr);
         const stdin = this.#writable(child.stdin);
@@ -224,7 +224,10 @@ export class SimulatedProcess implements Process {
             {
                 pull: async (controller) => {
                     // pass each chunk on, closing at the end
-                    const { done, value } = await this.#scheduler.track(reader.read(), "peer");
+                    const { done, value } = await this.#scheduler.track(
+                        () => reader.read(),
+                        "peer",
+                    );
                     if (done) {
                         controller.close();
                     } else {
@@ -242,9 +245,9 @@ export class SimulatedProcess implements Process {
         const writer = stream.getWriter();
 
         return new WritableStream<Uint8Array>({
-            write: (chunk) => this.#scheduler.track(writer.write(chunk), "peer"),
-            close: () => this.#scheduler.track(writer.close(), "peer"),
-            abort: (reason) => this.#scheduler.track(writer.abort(reason), "peer"),
+            write: (chunk) => this.#scheduler.track(() => writer.write(chunk), "peer"),
+            close: () => this.#scheduler.track(() => writer.close(), "peer"),
+            abort: (reason) => this.#scheduler.track(() => writer.abort(reason), "peer"),
         });
     }
 
