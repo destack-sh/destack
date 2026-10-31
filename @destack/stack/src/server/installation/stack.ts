@@ -29,14 +29,14 @@ import {
 } from "../../object/index.ts";
 import { Approval } from "./approval.ts";
 import { implementRelationship, implementRole } from "../access/role.ts";
-import { type SpaceBuilds, type Registry } from "./build.ts";
+import { type SpaceBuildStore, type Registry } from "./build.ts";
 import { Failure } from "@destack/error";
 import type { Forge } from "./follow.ts";
 
 /** What a machine applies stacks with: builds, the registry, blobs and repositories. */
 export interface StackOptions {
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: SpaceBuilds;
+    readonly builds: SpaceBuildStore;
     /** The registry of published releases. */
     readonly registry: Registry;
     /** The space's blobs, storing the states its revisions require. */

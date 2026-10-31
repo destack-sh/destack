@@ -228,6 +228,7 @@ export async function fixtureBuild(
                     views: {
                         home: {
                             entrypoint: "view.js",
+                            stylesheets: [],
                             sandbox: {},
                             presents: [{ packageId, type: "note", priority: "option" }],
                             categories: [],
@@ -236,6 +237,7 @@ export async function fixtureBuild(
                         },
                         editor: {
                             entrypoint: "editor.js",
+                            stylesheets: [],
                             sandbox: {},
                             presents: [{ packageId, type: "note", priority: "default" }],
                             categories: [],

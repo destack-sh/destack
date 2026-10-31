@@ -71,7 +71,7 @@ import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { build, Build, type BuildSource } from "./build.ts";
 import accountPackage from "@destack/account/package";
-import type { SpaceBuilds, Registry } from "../server/installation/build.ts";
+import type { SpaceBuildStore, Registry } from "../server/installation/build.ts";
 import type { Forge } from "../server/installation/follow.ts";
 import type { BuildStore } from "@destack/build/store";
 import { residency, space, Space } from "@destack/account/object";
@@ -393,7 +393,7 @@ export type InstallationRollout = Rollout & {
 /** What targeting and describing revisions read: builds, the registry, blobs and the forge. */
 export interface RevisionOptions {
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: SpaceBuilds;
+    readonly builds: SpaceBuildStore;
     /** The registry of published releases. */
     readonly registry: Registry;
     /** The space's blobs, storing the states its revisions require. */

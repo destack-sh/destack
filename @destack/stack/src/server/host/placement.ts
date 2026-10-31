@@ -18,7 +18,7 @@ import { Digest, type Identifier, type JsonObject, present } from "@destack/sche
 import type { ReconcileController } from "@destack/db";
 import { Scope, RequestId } from "@destack/sync";
 import { database, rollout, SPACE_PROVIDER } from "../../object/index.ts";
-import { SpaceBuilds, type Registry } from "../installation/build.ts";
+import { SpaceBuildStore, type Registry } from "../installation/build.ts";
 import type { PackageId } from "@destack/package";
 import { STACK_INSTALLATION } from "../../package.ts";
 import { SPACE_BASE_PACKAGES } from "../server.ts";
@@ -26,7 +26,7 @@ import { SPACE_BASE_PACKAGES } from "../server.ts";
 /** The build store, the spaces' main database, and the registry the stacks' releases copy from. */
 export interface PlacementOptions {
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: SpaceBuilds;
+    readonly builds: SpaceBuildStore;
     /** The registry the stacks' releases copy from. */
     readonly registry: Registry;
     /** The platform's declaration of every space's main database. */

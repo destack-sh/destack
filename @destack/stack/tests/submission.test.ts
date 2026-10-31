@@ -120,6 +120,7 @@ test("apply a submitted stack build and open its installations' views", async ()
         view: "home",
         description: {
             entrypoint: "view.js",
+            stylesheets: [],
             sandbox: {},
             presents: [{ packageId: ids.package, type: "note", priority: "option" }],
             categories: [],
@@ -246,6 +247,7 @@ test("install an application from a checkout by submitting its build, following 
         view: "home",
         description: {
             entrypoint: "view.js",
+            stylesheets: [],
             sandbox: {},
             presents: [{ packageId: ids.package, type: "note", priority: "option" }],
             categories: [],

@@ -65,7 +65,7 @@ import {
     type ResourceNeed,
 } from "../../object/index.ts";
 import type { Binder } from "../resource/binding.ts";
-import { SpaceBuilds, type Registry } from "./build.ts";
+import { SpaceBuildStore, type Registry } from "./build.ts";
 import { Approval } from "./approval.ts";
 import type { Forge } from "./follow.ts";
 import { HOOK_WORKLOAD } from "../../workload/hook.ts";
@@ -82,7 +82,7 @@ export interface ApplicationOptions {
     /** The kinds of objects bindings target and deployments capture. */
     readonly binder: Binder;
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: SpaceBuilds;
+    readonly builds: SpaceBuildStore;
     /** The registry of published releases. */
     readonly registry: Registry;
     /** The server runtimes the machine runs, in preference order. */

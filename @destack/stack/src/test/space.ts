@@ -83,7 +83,7 @@ import objectPackage from "@destack/object/package";
 import { ServerContext } from "@destack/object/workload";
 import { Simulation } from "@destack/environment/simulation";
 import { Database, InstallationRevision, Rollout } from "../object/index.ts";
-import { BuildCache, SpaceBuilds } from "../server/installation/build.ts";
+import { BuildCache, SpaceBuildStore } from "../server/installation/build.ts";
 import { REFUSAL_REASONS } from "../server/installation/application.ts";
 import { StackDocument, type StackTypes } from "../declare/stack.ts";
 import { Handoff } from "../server/host/handoff.ts";
@@ -323,7 +323,7 @@ export class TestSpace implements AsyncDisposable {
     /** The space's blobs, in the machine's files directory, referenced from its database. */
     readonly blobs: BlobStore<LocalBlobStorage>;
     /** The space's builds, read through to the machine's cache. */
-    readonly #builds: SpaceBuilds;
+    readonly #builds: SpaceBuildStore;
     /** The packages the space serves in addition to the stack's, with their events and sockets. */
     readonly #packages: readonly Pick<PackageHandle, "objects" | "tables">[];
     /** The machine's connectors of bound resources, such as mail, by provider code. */
@@ -365,7 +365,7 @@ export class TestSpace implements AsyncDisposable {
         readonly buckets: LocalBucketHost;
         readonly main: string;
         readonly blobs: BlobStore<LocalBlobStorage>;
-        readonly builds: SpaceBuilds;
+        readonly builds: SpaceBuildStore;
         readonly packages: readonly Pick<PackageHandle, "objects" | "tables">[];
         readonly connectors: readonly Connector[];
         readonly beside: Required<Pick<TestSpaceOptions, "companions" | "providers">>;
@@ -997,7 +997,7 @@ export class TestSpace implements AsyncDisposable {
             database: test.database,
             environment: machine.environment,
         });
-        const builds = new SpaceBuilds(
+        const builds = new SpaceBuildStore(
             new BuildStore({ blobs, environment: machine.environment }),
             new BuildCache(files.builds, ["bun", "browser"]),
         );
@@ -1304,7 +1304,7 @@ export class TestSpace implements AsyncDisposable {
     }
 
     /** The machine's build store. */
-    async builds(): Promise<SpaceBuilds> {
+    async builds(): Promise<SpaceBuildStore> {
         return this.#builds;
     }
 

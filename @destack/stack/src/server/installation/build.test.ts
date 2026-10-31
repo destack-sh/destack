@@ -6,7 +6,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { Commit, type Digest } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { fixtureOutputs, TestRegistry, workload } from "../../test/build.ts";
-import { BuildCache, SpaceBuilds } from "./build.ts";
+import { BuildCache, SpaceBuildStore } from "./build.ts";
 
 /** The npm release the library's build depends on. */
 const TINY = { name: "tiny", version: "1.0.0", integrity: "sha512-dGlueQ==" };
@@ -104,7 +104,7 @@ test("pull the Bun outputs of a release's runtime closure, locating each build o
     };
     await using space = await TestBuildStore.create(environment);
     await using pulled = await TestBuildStore.create(environment);
-    const builds = new SpaceBuilds(space, new BuildCache(pulled, ["bun"]));
+    const builds = new SpaceBuildStore(space, new BuildCache(pulled, ["bun"]));
     await builds.pull(recording, APPLICATION.id, applicationManifest);
 
     // locate each build once, storing the release whole and only the Bun outputs of the builds its closure reaches

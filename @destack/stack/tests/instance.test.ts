@@ -190,6 +190,7 @@ async function notesBuild(
                 : {
                       home: {
                           entrypoint: "view.js",
+                          stylesheets: [],
                           sandbox: Sandbox.select(sandbox, browser),
                           presents: [],
                           categories: [],

@@ -69,7 +69,7 @@ import { implementSpace, type SpaceRole } from "./host/space.ts";
 import { implementTransfer, type TransferOptions } from "./host/transfer.ts";
 import { type Handoff, handoffAdapter } from "./host/handoff.ts";
 import type { EventStore } from "@destack/event";
-import { SpaceBuilds, type Registry, implementBuild } from "./installation/build.ts";
+import { SpaceBuildStore, type Registry, implementBuild } from "./installation/build.ts";
 import type { Forge } from "./installation/follow.ts";
 import { AssignmentController } from "./deployment/assignment.ts";
 import { PlacementController } from "./host/placement.ts";
@@ -152,7 +152,7 @@ export interface SpaceOptions {
     /** The host of the spaces' buckets. */
     readonly buckets: CatalogueBucketHost;
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: SpaceBuilds;
+    readonly builds: SpaceBuildStore;
     /** The runtimes the machine runs its instances on, in preference order. */
     readonly runtimes: readonly Runtime[];
     /** The events of the spaces, recording their finished runs. */

@@ -1,17 +1,11 @@
 import type { PackageFile } from "@destack/package/file";
 import { principal } from "@destack/access";
 import { and, eq } from "@destack/db";
-import { type ManifestRead, BuildStore } from "@destack/build/store";
+import { type BrowserClosure, type ManifestRead, BuildStore } from "@destack/build/store";
 import type { Runtime } from "@destack/package/runtime";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
-import {
-    BuildReader,
-    type ImportMap,
-    type PackageLocation,
-    PackageManifest,
-    type PackageOutput,
-} from "@destack/package/manifest";
+import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
 import { PackageId } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
@@ -57,7 +51,7 @@ export interface BuildOptions {
     /** The machine running the spaces' commit builds. */
     readonly buildRunner: Identifier<"machine"> | null;
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: SpaceBuilds;
+    readonly builds: SpaceBuildStore;
     /** The registry the space's builds are pushed to. */
     readonly registry: Registry;
 }
@@ -214,16 +208,8 @@ interface Pulling {
     readonly pulled: Set<Digest>;
 }
 
-/** A build's browser closure: the import map of its modules and the builds the map reaches. */
-export interface BrowserClosure {
-    /** The import map of the build's browser modules and its dependencies'. */
-    readonly map: ImportMap;
-    /** The builds the map's URLs reach: the browser runtime build and its dependencies'. */
-    readonly builds: ReadonlySet<Digest>;
-}
-
-/** A space's builds: its runners' pushes, read through to its machine's cache. */
-export class SpaceBuilds {
+/** A space's build store: its runners' pushes, read through to its machine's cache and registry. */
+export class SpaceBuildStore {
     /** The space's own builds, kept while its build rows reference them. */
     readonly space: BuildStore;
     /** The machine's cache of what it runs. */
@@ -313,61 +299,12 @@ export class SpaceBuilds {
         const key = `${manifest} ${base}`;
         let found = this.#browsers.get(key);
         if (found === undefined) {
-            found = this.#browser(manifest, base);
+            found = this.cache.store.browser(manifest, base, (digest) => this.get(digest));
             this.#browsers.set(key, found);
             found.catch(() => this.#browsers.delete(key));
         }
 
         return found;
-    }
-
-    /** Walk a build's browser output and its pinned dependencies, mapping their exports. */
-    async #browser(manifest: Digest, base: string): Promise<BrowserClosure> {
-        // read the builds its views' modules reach, as a pull of its browser closure stores them
-        const started = await this.get(manifest);
-        const reached = await this.cache.store.closure(
-            manifest,
-            PackageManifest.package(started).id,
-            "browser",
-            (digest) => this.get(digest),
-        );
-
-        // map each reached dependency's exports in its dependent's scope, visiting each build once
-        const map: ImportMap = { imports: {}, scopes: {} };
-        const builds = new Set<Digest>([manifest]);
-        const pending = [{ digest: manifest, scope: map.imports }];
-        for (const { digest, scope } of pending) {
-            for (const output of SpaceBuilds.#browserOutputs(await this.get(digest))) {
-                const dependencies = Object.entries(output.dependencies).filter(([, release]) =>
-                    reached.has(release.manifest),
-                );
-                for (const [name, release] of dependencies) {
-                    // map the dependency's exports to its files below its build's prefix
-                    const prefix = `${base}${release.manifest}/`;
-                    const dependency = await this.get(release.manifest);
-                    for (const each of SpaceBuilds.#browserOutputs(dependency)) {
-                        for (const [subpath, exported] of Object.entries(each.exports)) {
-                            const specifier = subpath === "." ? name : `${name}${subpath.slice(1)}`;
-                            scope[specifier] = `${prefix}${exported.path}`;
-                        }
-                    }
-
-                    // map the dependency's own imports in its scope
-                    if (!builds.has(release.manifest)) {
-                        builds.add(release.manifest);
-                        map.scopes[prefix] = {};
-                        pending.push({ digest: release.manifest, scope: map.scopes[prefix] });
-                    }
-                }
-            }
-        }
-
-        return { map, builds };
-    }
-
-    /** List a build's browser outputs. */
-    static #browserOutputs(read: PackageManifest): PackageOutput[] {
-        return Object.values(read.outputs).filter((output) => output.runtime === "browser");
     }
 
     /** Read a build in place to inspect it: the space's own, else the cached or published one. */

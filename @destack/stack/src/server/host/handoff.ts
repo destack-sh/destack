@@ -21,7 +21,7 @@ import { ResourceId, type Rewrapper, type BlobEntry } from "@destack/resource";
 import { Tarball } from "@destack/package/archive";
 import { Recipient } from "@destack/identity";
 import { type Fence, snapshot, type Transfer } from "../../object/index.ts";
-import type { SpaceBuilds } from "../installation/build.ts";
+import type { SpaceBuildStore } from "../installation/build.ts";
 import { SpaceTransfer } from "./transfer.ts";
 import type { PackageLocation } from "@destack/package/manifest";
 import stackPackage, { HANDOFF_PATH } from "../../package.ts";
@@ -284,7 +284,7 @@ export interface HandoffOptions {
     /** The space's blobs, which a moving space's target reads its snapshots' blobs from. */
     readonly blobs: BlobStore;
     /** The space's builds, read through to the machine's cache. */
-    readonly builds: SpaceBuilds;
+    readonly builds: SpaceBuildStore;
 }
 
 /** Serve a moving space's target its rows, the blobs its snapshots read and the builds it runs. */
