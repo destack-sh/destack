@@ -234,8 +234,21 @@ export class CompilerWorker implements AsyncDisposable {
 
     /** Evaluate a package's declarations, each export entry once, in the first project with it. */
     async evaluate(options: RequestedBuild): Promise<EvaluatedDeclaration[]> {
-        // open the outputs' projects, then evaluate each export entry in the first project with it
-        const opened = await this.#open(options);
+        // open the outputs' projects with the exports' on the runtime declarations evaluate on
+        const packageJson = await readPackageJson(options.directory, this.environment.files);
+        const [primary] = Object.entries(outputsOf(packageJson)).toSorted(
+            ([, left], [, right]) =>
+                PRIMARY_RUNTIMES.indexOf(left.runtime) - PRIMARY_RUNTIMES.indexOf(right.runtime),
+        );
+        const opened = await this.#open({
+            ...options,
+            outputs: {
+                ...(primary === undefined ? {} : Object.fromEntries([primary])),
+                ...options.outputs,
+            },
+        });
+
+        // evaluate each export entry in the first project with it
         const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
         const evaluated = new Set([opened.primary, ...opened.projects.values()]);
         const { declarations } = await Evaluation.evaluate([...evaluated.values()], catalog, {
@@ -289,8 +302,8 @@ export class CompilerWorker implements AsyncDisposable {
         destination: string,
         cache: TransformCache,
     ): Promise<Record<string, string[]>> {
-        // retain the manifests, template and catalogs, then compile every output
-        const opened = await this.#open(options);
+        // retain the manifests, template and catalogs, then compile every output and those the declarations request
+        const opened = await this.#open(options, declarations);
         const files = new BuildDirectory(destination, this.environment);
         await retain(opened.primary, files);
         const compiled = await this.#compile(
@@ -328,7 +341,10 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Plan a package's outputs with its closure's extensions, and open each output's project. */
-    async #open(options: RequestedBuild): Promise<{
+    async #open(
+        options: RequestedBuild,
+        declarations: readonly EvaluatedDeclaration[] = [],
+    ): Promise<{
         readonly packageJson: PackageJson;
         readonly extensions: readonly BuildExtension[];
         readonly planned: ReadonlyMap<string, PlannedOutput>;
@@ -342,7 +358,8 @@ export class CompilerWorker implements AsyncDisposable {
         const tree = await DependencyTree.read(options.tree, system);
         const loaded = await loadExtensions(options.directory, packageJson, tree, system);
         const extensions = loaded.map((entry) => entry.extension);
-        const planned = expand(options.outputs, extensions);
+        const requested = requestedOutputs(extensions, declarations, options, packageJson);
+        const planned = expand({ ...options.outputs, ...requested }, extensions);
 
         // open each output's project
         const projects = new Map<string, PackageSource>();
@@ -631,6 +648,44 @@ async function releasedManifest(project: PackageSource): Promise<Uint8Array<Arra
     }
 
     return new TextEncoder().encode(`${JSON.stringify({ ...manifest, version }, null, 4)}\n`);
+}
+
+/** Read the outputs extensions request for a package's own declarations, refusing a taken name. */
+function requestedOutputs(
+    extensions: readonly BuildExtension[],
+    declarations: readonly EvaluatedDeclaration[],
+    options: Pick<RequestedBuild, "directory" | "outputs">,
+    packageJson: PackageJson,
+): PackageBuildOptions["outputs"] {
+    // describe the package's own declarations with the modules exporting them
+    const owner = packageJson.package;
+    const own = declarations.filter(
+        (declaration) => declaration.description.symbol.package.id === owner.id,
+    );
+    const located = new Map(own.map((declaration) => [declaration.description, declaration]));
+    const context = {
+        package: owner,
+        directory: options.directory,
+        declarations: [...located.keys()],
+        locate: (description: DeclarationDescription) => {
+            const { file, export: name } = found(located, description);
+
+            return { file, export: name };
+        },
+    };
+
+    // ask each extension, refusing a name the package or another extension takes
+    const requested: Record<string, PackageBuildOptions["outputs"][string]> = {};
+    for (const extension of extensions) {
+        for (const [name, request] of Object.entries(extension.request?.(context) ?? {})) {
+            if (Object.hasOwn(requested, name) || Object.hasOwn(options.outputs, name)) {
+                throw BuildError.of("OUTPUT_DUPLICATE", `output ${name} is requested twice`);
+            }
+            requested[name] = request;
+        }
+    }
+
+    return requested;
 }
 
 /** Expand the requested outputs into module outputs and the outputs of each kind's pass. */

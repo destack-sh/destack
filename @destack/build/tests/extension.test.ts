@@ -1,10 +1,11 @@
 import type { FileSystem } from "@destack/environment";
+import type { BuildReader } from "@destack/package/manifest";
 import { testSimulation } from "../src/test/world.ts";
 import { DependencyTree } from "../src/dependency/index.ts";
 import { join } from "node:path";
 import { present, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
-import { Compiler, PackageBuild, Workspace, CompilerPool } from "../src/index.ts";
+import { Compiler, Workspace, CompilerPool } from "../src/index.ts";
 import { loadExtensions } from "../src/compile/extension.ts";
 import { readPackageJson } from "../src/source/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
@@ -95,16 +96,20 @@ async function link(
     await files.symlink(join(root, name), join(root, dependent, "node_modules", "@fixture", name));
 }
 
-/** Run an entry of a build's Bun output, reading its exports. */
-async function readEntry(build: PackageBuild, name: string): Promise<Record<string, unknown>> {
-    const path = present(
-        build.reader.manifest.outputs["bun"]?.exports[name]?.path,
-        `entry ${name}`,
-    );
+/** Run an entry of a build's Bun output written into a directory, reading its exports. */
+async function readEntry(
+    build: BuildReader,
+    name: string,
+    files: FileSystem,
+): Promise<Record<string, unknown>> {
+    // write the build, then import the entry
+    const path = present(build.manifest.outputs["bun"]?.exports[name]?.path, `entry ${name}`);
+    const directory = join(await files.makeTemporaryDirectory("destack-entry-"), "build");
+    await build.writeDirectory(directory, files);
 
     return schema
         .record(schema.string(), schema.unknown())
-        .parse(await import(join(build.directory, path)));
+        .parse(await import(join(directory, path)));
 }
 
 /** Write an application whose two packages require one extension leaf, returning its root. */
@@ -201,13 +206,13 @@ test("apply the extensions of a package's runtime dependency closure, its depend
         await DependencyTree.read({}, files),
         files,
     );
-    await using store = await LocalBuildStore.temporary(environment);
+    const store = await LocalBuildStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store });
-    await using transformed = await compiler.build({ directory, dependencies: {}, outputs });
-    expect([loaded.map((entry) => entry.directory), await readEntry(transformed, ".")]).toEqual([
-        [await files.realPath(join(root, "leaf"))],
-        { marker: "transformed" },
-    ]);
+    const transformed = await compiler.build({ directory, dependencies: {}, outputs });
+    expect([
+        loaded.map((entry) => entry.directory),
+        await readEntry(transformed, ".", files),
+    ]).toEqual([[await files.realPath(join(root, "leaf"))], { marker: "transformed" }]);
 });
 
 test("compile a package through a listed extension and leave a development dependency's out", async () => {
@@ -246,19 +251,19 @@ test("compile a package through a listed extension and leave a development depen
         ).map((entry) => entry.directory);
     // build without the development dependency's extension
     const developed = await extensions();
-    await using store = await LocalBuildStore.temporary(environment);
+    const store = await LocalBuildStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store });
-    await using untouched = await compiler.build({ directory, dependencies: {}, outputs });
+    const untouched = await compiler.build({ directory, dependencies: {}, outputs });
 
     // list the leaf's extension, then build again through it
     await listExtensions(directory, ["@fixture/leaf"], files);
     const listed = await extensions();
-    await using transformed = await compiler.build({ directory, dependencies: {}, outputs });
+    const transformed = await compiler.build({ directory, dependencies: {}, outputs });
     expect([
         developed,
-        await readEntry(untouched, "."),
+        await readEntry(untouched, ".", files),
         listed,
-        await readEntry(transformed, "."),
+        await readEntry(transformed, ".", files),
     ]).toEqual([
         [],
         { marker: "unchanged" },
@@ -392,7 +397,7 @@ test("refuse what a module an extension generates imports until the package decl
         dependencies: {},
         outputs: { bun: { kind: "module", runtime: "bun" } },
     } as const;
-    await using refusing = await LocalBuildStore.temporary(environment);
+    const refusing = await LocalBuildStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store: refusing });
     expect(await refusal(compiler.build(request))).toEqual([
         "UNPROCESSABLE_CONTENT",
@@ -407,9 +412,9 @@ test("refuse what a module an extension generates imports until the package decl
         0,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store);
     const workspace = await Workspace.open(directory, compilers);
-    await using build = await workspace.build({ outputs: request.outputs });
+    const build = await workspace.build({ outputs: request.outputs });
 
     // run the generated entry with the leaf's build placed beside it, as a machine places it
     const leaf = build.manifest.outputs["bun"]?.dependencies["@fixture/leaf"];
@@ -417,7 +422,7 @@ test("refuse what a module an extension generates imports until the package decl
         throw new TypeError("the application's output records no leaf build");
     }
     const destination = join(root, "deployed");
-    await build.reader.writeDirectory(destination, files);
+    await build.writeDirectory(destination, files);
     const tree = await DependencyTree.materialize(store, [leaf], join(root, "builds"));
     await tree.link(join(destination, "node_modules"), files);
     const barrel = present(

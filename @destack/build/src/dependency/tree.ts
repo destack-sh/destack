@@ -253,7 +253,7 @@ export class DependencyTree {
             JSON.parse(new TextDecoder().decode(await reader.load("package.json"))),
         );
         const { installation, named, run } = workspace;
-        const hosted = await DependencyTree.#hosted(store, reader.manifest, dependency);
+        const hosted = await DependencyTree.#hosted(store, reader.manifest, dependency, run);
         const linked =
             installation === undefined || !installation.members.has(dependency.package.name)
                 ? await DependencyTree.#placeRecorded(store, hosted, directory, run)
@@ -279,23 +279,26 @@ export class DependencyTree {
         await DependencyTree.#move(staged, root, files);
     }
 
-    /** Read what a build's host output runs with, as far as its exports import it. */
+    /** Read the pins a build's host output runs with: the run's closure, else its exports'. */
     static async #hosted(
         store: LocalBuildStore,
         manifest: PackageManifest,
         dependency: DependencyBuild,
+        run: TreeRun | undefined,
     ): Promise<Readonly<Record<string, DependencyRelease>>> {
         const pinned = manifest.outputs[HOST_RUNTIME]?.dependencies ?? {};
-        const reached = await store.closure(
-            dependency.manifest,
-            dependency.package.id,
-            HOST_RUNTIME,
-            undefined,
-            "export",
-        );
+        const imported =
+            run?.closure ??
+            (await store.closure(
+                dependency.manifest,
+                dependency.package.id,
+                HOST_RUNTIME,
+                undefined,
+                "export",
+            ));
 
         return Object.fromEntries(
-            Object.entries(pinned).filter(([, each]) => reached.has(each.manifest)),
+            Object.entries(pinned).filter(([, each]) => imported.has(each.manifest)),
         );
     }
 
@@ -650,7 +653,7 @@ export class DependencyTree {
         return new DependencyTree(directories, exports);
     }
 
-    /** List the real roots a tree reaches from its packages through their links, each once. */
+    /** List the real roots a tree's packages link to, each once. */
     async roots(files: FileSystem): Promise<readonly string[]> {
         // start at each package's root
         const roots = new Set<string>();

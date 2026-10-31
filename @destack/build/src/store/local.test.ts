@@ -10,6 +10,7 @@ import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { testSimulation } from "../test/world.ts";
 import { LocalBuildStore } from "./local.ts";
+import { BuildStore } from "./store.ts";
 import { BuildLayer } from "./layer.ts";
 import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
 
@@ -32,7 +33,7 @@ async function written(
     built: { readonly id: string; readonly name: string } = ANSWER,
     dependencies: Readonly<Record<string, DependencyRelease>> = {},
 ): Promise<BuildReader> {
-    // write the module and its package file, then the format listing them
+    // write the module importing every dependency and its package file, then the format listing them
     const bytes = new Map<string, Uint8Array<ArrayBuffer>>();
     const writer = new BuildWriter(
         {
@@ -56,7 +57,7 @@ async function written(
                 workloads: {},
                 views: {},
                 directory: "src",
-                exports: { ".": { path: "src/answer.ts", imports: [] } },
+                exports: { ".": { path: "src/answer.ts", imports: Object.keys(dependencies) } },
                 dependencies,
                 peers: {},
             },
@@ -187,13 +188,13 @@ test("lay out a distribution's release trees once, linking a root to its tree in
     });
 });
 
-test("link a running tree's build to the dependencies its closure places alone, listing their roots", async () => {
-    // store an app pinning a library it runs with and a tool it only builds with
+test("link a running tree's build to the dependencies its closure places alone, never reading a build outside it", async () => {
+    // store an app pinning a library it runs with, and a tool it only builds with that the store never pulled
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files, crypto } = environment;
     await using store = await LocalBuildStore.temporary(environment);
-    const pin = async (name: string, id: string) => {
+    const pin = async (name: string, id: string, isStored: boolean) => {
         const reader = await written(`export const ${name} = 1;`, crypto, {
             id,
             name: `@example/${name}`,
@@ -202,11 +203,13 @@ test("link a running tree's build to the dependencies its closure places alone, 
         return {
             kind: "destack" as const,
             package: PackageManifest.package(reader.manifest),
-            manifest: await store.put(reader),
+            manifest: isStored
+                ? await store.put(reader)
+                : await BuildStore.digest(reader.manifest, crypto),
         };
     };
-    const library = await pin("library", "package-00000000-0000-7000-8000-00000000a002");
-    const tool = await pin("tool", "package-00000000-0000-7000-8000-00000000a003");
+    const library = await pin("library", "package-00000000-0000-7000-8000-00000000a002", true);
+    const tool = await pin("tool", "package-00000000-0000-7000-8000-00000000a003", false);
     const app = await written("export const app = 1;", crypto, ANSWER, {
         "@example/library": library,
         "@example/tool": tool,

@@ -18,7 +18,6 @@ import { readLockedReleases, readLockfile } from "../source/index.ts";
 import { PackageLocator } from "@destack/package/locator";
 import type { Runtime } from "@destack/package/runtime";
 import { type NpmDependency, NpmInstallation, NpmUnit } from "../dependency/npm.ts";
-import { PackageBuild } from "./build.ts";
 import {
     type BuildRequest,
     type BuildResponse,
@@ -197,9 +196,7 @@ export class Compiler implements AsyncDisposable {
         const read = [...new Set(await Promise.all(paths.map((path) => files.realPath(path))))];
 
         // start the compiler with a temporary directory
-        const temporary = await files.realPath(
-            await files.makeTemporaryDirectory("destack-compile-"),
-        );
+        const temporary = await files.realPath(await store.stage("compile-"));
         try {
             const sandbox = await spawn(workspace, temporary, read, started, environment);
 
@@ -366,12 +363,12 @@ export class Compiler implements AsyncDisposable {
     }
 
     /** Build a package's current source: evaluate its declarations, then compile and link it. */
-    async build(options: PackageBuildOptions): Promise<PackageBuild> {
+    async build(options: PackageBuildOptions): Promise<BuildReader> {
         return await this.compile(options, await this.evaluate(options));
     }
 
     /** Check a package's outputs, their types and the runtime globals they use, then build it. */
-    async check(options: PackageBuildOptions): Promise<PackageBuild> {
+    async check(options: PackageBuildOptions): Promise<BuildReader> {
         // check after the requests before it, then build
         await this.#serially(async () => {
             // send the check at the real directory, the dependencies materialized
@@ -413,11 +410,11 @@ export class Compiler implements AsyncDisposable {
         });
     }
 
-    /** Compile and link a package's current source on its evaluated declarations. */
+    /** Compile and link a package's source on its evaluated declarations, read from the store. */
     async compile(
         options: PackageBuildOptions,
         declarations: readonly EvaluatedDeclaration[],
-    ): Promise<PackageBuild> {
+    ): Promise<BuildReader> {
         // compile after the requests before it, then link outside them, since linking converts npm units
         const { files } = this.store.environment;
         const compiled = await this.#serially(() => this.#build(options, declarations));
@@ -443,7 +440,7 @@ export class Compiler implements AsyncDisposable {
         const tree = await this.#install(requested.dependencies);
         const request = { ...requested, tree: tree.directories };
         const written = join(this.#temporary, "builds", String(this.#builds++));
-        const destination = await files.makeTemporaryDirectory("destack-build-");
+        const destination = await this.store.stage("build-");
         try {
             const npm = await this.#compile(request, declarations, written, signal, timeout);
             await files.rename(written, destination);
@@ -459,8 +456,8 @@ export class Compiler implements AsyncDisposable {
         }
     }
 
-    /** Pin each output's npm imports to their units for its runtime, then store the build. */
-    async #link(compiled: CompilerOutput, signal: AbortSignal | undefined): Promise<PackageBuild> {
+    /** Pin each output's npm imports to its runtime's units, then move the build into the store. */
+    async #link(compiled: CompilerOutput, signal: AbortSignal | undefined): Promise<BuildReader> {
         // store the units each output imports for its runtime, with the peers they require
         const { store } = this;
         const { files, crypto } = store.environment;
@@ -495,10 +492,8 @@ export class Compiler implements AsyncDisposable {
             crypto,
             { outputs, dependencies: await reader.dependencies() },
         );
-        const linked = await BuildReader.openDirectory(destination, files, crypto);
-        await store.put(linked, signal);
 
-        return new PackageBuild(linked, destination, "temporary", files);
+        return await store.contents(await store.move(destination, signal));
     }
 
     /** Read the npm packages the workspace's lockfile locks, once. */

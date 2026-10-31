@@ -22,15 +22,15 @@ test.concurrent("relocate the library build and call its exports, refusing corru
     const environment = simulation.environment("test");
     const { files } = environment;
     await using input = await Fixture.open("library", environment);
-    await using build = await input.build(library.request);
+    const build = await input.build(library.request);
 
     // load the complete distribution after removing its source checkout
     const destination = join(input.directory, "build");
-    await build.reader.writeDirectory(destination, files);
+    await build.writeDirectory(destination, files);
     await files.remove(input.source, { recursive: true });
     const restored = await PackageBuild.read(destination, environment);
     expect(restored.manifest).toEqual(build.manifest);
-    await expectFiles(restored, build, files);
+    await expectFiles(restored.reader, build);
     await expectManifest(build, destination, environment);
 
     // reject corrupted description bytes
@@ -77,8 +77,8 @@ test.concurrent("ship a package's catalogs in its build, refusing a misnamed one
     await write("de.json", german);
 
     // read the shipped catalog back from the build
-    await using build = await input.build(library.request);
-    const shipped = await Catalog.read(build.reader);
+    const build = await input.build(library.request);
+    const shipped = await Catalog.read(build);
 
     // refuse a catalog named for another locale, then one of another package
     await write("de.json", { ...german, locale: "de-AT" });

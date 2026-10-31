@@ -4,13 +4,13 @@ import { type FileSystem, FileSystemError } from "@destack/environment";
 import type { BunLockfile } from "@destack/check/bun";
 import { DomainError } from "@destack/error";
 import { type DependencyResolution, type Package, PackageJson, type graph } from "@destack/package";
-import { PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
 import type { Runtime } from "@destack/package/runtime";
 import { Digest, found, nth } from "@destack/schema";
 import { Checkout } from "../cache/index.ts";
 import { NpmInstallation } from "./npm.ts";
-import { outputsOf, type PackageBuildOptions, PackageBuild } from "../build/build.ts";
+import { outputsOf, type PackageBuildOptions } from "../build/build.ts";
 import type { Compiler } from "../build/compiler.ts";
 import type { CompilerPool } from "../build/pool.ts";
 import type { InspectOptions } from "../inspection/inspection.ts";
@@ -252,8 +252,8 @@ export class Workspace {
         return this.#compilers.store;
     }
 
-    /** Build the root on its dependencies' builds with the given outputs, reusing stored units. */
-    async build(request: WorkspaceBuildOptions): Promise<PackageBuild> {
+    /** Build the root on its dependencies' builds with the given outputs, read from the store. */
+    async build(request: WorkspaceBuildOptions): Promise<BuildReader> {
         // build the root's dependency units, the root's commit separate
         const { signal, timeout, versions } = request;
         const shared = {
@@ -269,16 +269,12 @@ export class Workspace {
             ...this.#releasesOf(this.root, await this.#resolvedReleases()),
         };
 
-        // take the root's stored build, relinking or compiling it once when missing, then restore it
+        // take the root's stored build, relinking or compiling it once when missing
         const options = this.#options(this.root, request, dependencies);
         const manifest = await this.#cachedPut(this.root, options);
         await this.#rootUnit(this.root, manifest, dependencies);
 
-        return await PackageBuild.restore(
-            this.#store,
-            manifest,
-            await this.#store.environment.files.makeTemporaryDirectory("destack-build-"),
-        );
+        return await this.#store.contents(manifest);
     }
 
     /** Inspect the root against its dependencies' builds, reusing stored units. */
@@ -577,9 +573,7 @@ export class Workspace {
         }
 
         // else compile it, and key the build by its compile inputs
-        await using build = await this.#use(unit, (compiler) =>
-            compiler.compile(options, declarations),
-        );
+        const build = await this.#use(unit, (compiler) => compiler.compile(options, declarations));
         const manifest = await BuildStore.digest(build.manifest, this.#store.environment.crypto);
         await this.#store.cache(key, { kind: "build", manifest });
 

@@ -1,11 +1,11 @@
 import type { FileSystem } from "@destack/environment";
+import type { BuildReader } from "@destack/package/manifest";
 import { testSimulation } from "../src/test/world.ts";
 import { test } from "@destack/test";
 import { join } from "node:path";
 import { graph } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { present, schema } from "@destack/schema";
-import type { PackageBuild } from "../src/build/index.ts";
 import { Fixture } from "./fixture.ts";
 import * as library from "./fixture/library/request.ts";
 
@@ -119,8 +119,8 @@ async function writeCards(source: string, files: FileSystem): Promise<void> {
 }
 
 /** Read a build's file digests by path. */
-async function digests(build: PackageBuild): Promise<Map<string, string>> {
-    return new Map((await build.reader.files()).map((file) => [file.path, file.digest]));
+async function digests(build: BuildReader): Promise<Map<string, string>> {
+    return new Map((await build.files()).map((file) => [file.path, file.digest]));
 }
 
 test.concurrent("keep each output module an edit leaves unchanged byte for byte", async ({
@@ -131,14 +131,14 @@ test.concurrent("keep each output module an edit leaves unchanged byte for byte"
     const environment = simulation.environment("test");
     const { files } = environment;
     await using input = await Fixture.open("library", environment);
-    await using before = await input.build(library.request);
+    const before = await input.build(library.request);
     const note = join(input.source, "src/note.ts");
     const source = await files.readTextFile(note);
     await files.writeTextFile(
         note,
         source.replace("return { title, complete: false };", "return { complete: false, title };"),
     );
-    await using after = await input.build(library.request);
+    const after = await input.build(library.request);
 
     // leave the untouched module's output file as it was, and change the edited module's
     const [first, second] = await Promise.all([digests(before), digests(after)]);
@@ -229,7 +229,7 @@ test.concurrent("declare each example showing its symbol with controls and the p
     const { files } = environment;
     await using input = await Fixture.open("library", environment);
     await writeCards(input.source, files);
-    await using build = await input.build(library.request);
+    const build = await input.build(library.request);
     const { modules } = await input.index();
 
     // read the example module's declarations and edges, with monikers within the package

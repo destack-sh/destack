@@ -3,7 +3,8 @@ import { expect, refusal, test } from "@destack/test";
 import type { Environment, FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CompilerPool, DependencyTree, PackageBuild, Workspace } from "../src/index.ts";
+import { CompilerPool, DependencyTree, Workspace } from "../src/index.ts";
+import type { BuildReader } from "@destack/package/manifest";
 import { PackageManifest } from "@destack/package/manifest";
 import { BuildStore } from "../src/store/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
@@ -23,8 +24,8 @@ async function copyUnit(name: string, destination: string, files: FileSystem): P
 }
 
 /** List a build's files by path and digest. */
-async function digests(build: PackageBuild): Promise<string[][]> {
-    return (await build.reader.files()).map((file) => [file.path, file.digest]);
+async function digests(build: BuildReader): Promise<string[][]> {
+    return (await build.files()).map((file) => [file.path, file.digest]);
 }
 
 /** Lay out a git workspace whose application links its library unit. */
@@ -87,9 +88,9 @@ test("build a workspace's units on their dependencies' builds, restore every uni
         await (await Workspace.open(application, compilers)).build({ outputs: OUTPUTS });
 
     // build both units, then again unchanged without writing to the store
-    await using built = await build();
+    const built = await build();
     const stored = await countObjects(store);
-    await using restored = await build();
+    const restored = await build();
     const unchanged = await countObjects(store);
 
     // rebuild the application on the edited library's new build
@@ -97,13 +98,13 @@ test("build a workspace's units on their dependencies' builds, restore every uni
         join(library, "src", "greeting.ts"),
         (await files.readTextFile(join(library, "src", "greeting.ts"))).replace("hello", "hi"),
     );
-    await using rebuilt = await build();
+    const rebuilt = await build();
 
     // run each application output with its library build installed beside it
     const greetings: unknown[] = [];
     for (const [index, each] of [built, restored, rebuilt].entries()) {
         const destination = join(directory, `application-${index}`);
-        await each.reader.writeDirectory(destination, files);
+        await each.writeDirectory(destination, files);
         const dependency = each.manifest.outputs["bun"]?.dependencies?.[LIBRARY];
         if (dependency?.kind !== "destack") {
             throw new TypeError("the application's output records no library build");
@@ -155,8 +156,8 @@ test("build a workspace's units on their dependencies' builds, restore every uni
         greetings,
         conflict: await conflict,
         imports: built.manifest.outputs["bun"]?.exports["."]?.imports,
-        releases: await built.reader.releases(),
-        relinkedReleases: await rebuilt.reader.releases(),
+        releases: await built.releases(),
+        relinkedReleases: await rebuilt.releases(),
     }).toEqual({
         units: [LIBRARY, "@destack/build-unit-application-fixture"],
         restored: built.manifest,
@@ -204,9 +205,7 @@ test("refuse to cache a unit whose committed sources changed after the workspace
 
     // build from the stale listing, then from a fresh one
     const refused = await refusal(stale.build({ outputs: OUTPUTS }));
-    await using built = await (
-        await Workspace.open(application, compilers)
-    ).build({ outputs: OUTPUTS });
+    const built = await (await Workspace.open(application, compilers)).build({ outputs: OUTPUTS });
     const dependency = built.manifest.outputs["bun"]?.dependencies?.[LIBRARY];
     if (dependency?.kind !== "destack") {
         throw new TypeError("the application records no library build");
@@ -236,8 +235,8 @@ test("build a package against the release of a Destack package installed from ou
     await copyUnit("unit-library", library, files);
     await initializeWorkspace(join(directory, "library"), { library: LIBRARY }, environment);
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
-    await using released = await (
+    const compilers = await CompilerPool.open(store);
+    const released = await (
         await Workspace.open(library, compilers)
     ).build({
         outputs: OUTPUTS,
@@ -268,7 +267,7 @@ test("build a package against the release of a Destack package installed from ou
 
         return release;
     };
-    await using built = await (
+    const built = await (
         await Workspace.open(application, compilers, resolver)
     ).build({
         outputs: OUTPUTS,
@@ -279,7 +278,7 @@ test("build a package against the release of a Destack package installed from ou
         refused,
         asked,
         pinned: built.manifest.outputs["bun"]?.dependencies?.[LIBRARY],
-        releases: await built.reader.releases(),
+        releases: await built.releases(),
     }).toEqual({
         refused: [
             "UNPROCESSABLE_CONTENT",

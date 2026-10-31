@@ -153,9 +153,9 @@ test("refuse an unsupported dependency in a build as the development server does
         'export { server } from "./server.ts";\n',
     );
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store);
     const workspace = await Workspace.open(directory, compilers);
-    await using build = await workspace.build({
+    const build = await workspace.build({
         outputs: { bun: { kind: "module", runtime: "bun" } },
     });
     expect({
@@ -245,9 +245,9 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
         0,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store);
     const workspace = await Workspace.open(directory, compilers);
-    await using build = await workspace.build({
+    const build = await workspace.build({
         outputs: { browser: { kind: "module", runtime: "browser" } },
     });
 

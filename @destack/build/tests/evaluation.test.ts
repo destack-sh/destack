@@ -3,7 +3,8 @@ import { testHost } from "@destack/test/host";
 import { testSimulation } from "../src/test/world.ts";
 import { join } from "node:path";
 import { expect, onTestFinished, test } from "@destack/test";
-import { type PackageBuild, Workspace, CompilerPool } from "../src/index.ts";
+import { Workspace, CompilerPool } from "../src/index.ts";
+import type { BuildReader } from "@destack/package/manifest";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { writeThing } from "./fixture.ts";
 
@@ -27,8 +28,8 @@ async function thingPackage(
 }
 
 /** Read the names of a build's things. */
-async function thingNames(build: PackageBuild): Promise<unknown[]> {
-    const declarations = await build.reader.declarations();
+async function thingNames(build: BuildReader): Promise<unknown[]> {
+    const declarations = await build.declarations();
 
     return declarations.map((declaration) => declaration.description["name"]);
 }
@@ -79,10 +80,8 @@ async function read(path: string): Promise<string> {
 
     // see no user, a refused file and the sandbox proxy's refusal
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
-    await using build = await (
-        await Workspace.open(directory, compilers)
-    ).build({ outputs: OUTPUTS });
+    const compilers = await CompilerPool.open(store);
+    const build = await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });
     expect(await thingNames(build)).toEqual([
         `_${DENIED_READ[environment.host.os] ?? "unsupported"}_403`,
     ]);
@@ -106,28 +105,28 @@ test("reinspect edited modules a declaration imports in a retained compiler", as
         '/** Log a name and return it. */\nexport function noisy(name: string): string {\n    console.info("inspecting", name);\n\n    return name;\n}\n',
     );
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store);
     const build = async () =>
         await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });
-    await using first = await build();
+    const first = await build();
 
     // make the title call the noisy module, which writes to standard output, then restore it
     await files.writeTextFile(
         title,
         'import { noisy } from "./noisy.ts";\n\n/** Return the thing\'s name. */\nexport function title(): string {\n    return noisy("heading");\n}\n',
     );
-    await using edited = await build();
+    const edited = await build();
     await files.writeTextFile(title, original);
-    await using restored = await build();
+    const restored = await build();
 
     // describe the edited name, and restore the first manifest and every distributed file
     expect({
         names: [await thingNames(first), await thingNames(edited)],
         restored: restored.manifest,
-        files: await restored.reader.distributed(),
+        files: await restored.distributed(),
     }).toEqual({
         names: [["title"], ["heading"]],
         restored: first.manifest,
-        files: await first.reader.distributed(),
+        files: await first.distributed(),
     });
 });

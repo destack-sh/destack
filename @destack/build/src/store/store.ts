@@ -112,14 +112,29 @@ export class BuildStore<
     }
 
     /** Store each missing file of a build, then its manifest, returning the manifest's digest. */
-    async put(source: BuildReader, signal?: AbortSignal): Promise<Digest> {
+    put(source: BuildReader, signal?: AbortSignal): Promise<Digest> {
+        return this.keep(
+            source,
+            async (file) => {
+                await this.blobs.storage.write(await source.stream(file.path), file.digest);
+            },
+            signal,
+        );
+    }
+
+    /** Store a build, writing each file the store lacks with a write, joining one in flight. */
+    protected async keep(
+        source: BuildReader,
+        write: (file: PackageFile) => Promise<void>,
+        signal?: AbortSignal,
+    ): Promise<Digest> {
         // join the storing of the build in flight, or begin it, forgetting it once it settles
         signal?.throwIfAborted();
         const bytes = PackageManifest.serialize(source.manifest);
         const digest = await Digest.of(bytes, this.environment.crypto);
         let storing = this.#putting.get(digest);
         if (storing === undefined) {
-            storing = this.#storeOnce(source, digest, bytes);
+            storing = this.#storeOnce(source, digest, bytes, write);
             this.#putting.set(digest, storing);
             const forget = () => this.#putting.delete(digest);
             void storing.then(forget, forget);
@@ -141,8 +156,11 @@ export class BuildStore<
         source: BuildReader,
         digest: Digest,
         bytes: Uint8Array<ArrayBuffer>,
+        write: (file: PackageFile) => Promise<void>,
     ): Promise<Digest> {
-        return (await this.contains(digest)) ? digest : await this.#store(source, digest, bytes);
+        return (await this.contains(digest))
+            ? digest
+            : await this.#store(source, digest, bytes, write);
     }
 
     /** Store a build's missing files, then its manifest and record. */
@@ -150,6 +168,7 @@ export class BuildStore<
         source: BuildReader,
         digest: Digest,
         bytes: Uint8Array<ArrayBuffer>,
+        write: (file: PackageFile) => Promise<void>,
     ): Promise<Digest> {
         // lease the build's blobs, refusing reserved and duplicate file paths
         const list = await source.distributed();
@@ -158,14 +177,11 @@ export class BuildStore<
         await this.blobs.lease([digest, ...files.map((file) => file.digest)]);
 
         // store each missing file, a bounded number of streams at a time, then the manifest
-        const { storage } = this.blobs;
-        const missing = new Set(await storage.missing(files.map((file) => file.digest)));
+        const missing = new Set(await this.blobs.storage.missing(files.map((file) => file.digest)));
         await inBatches(
             files.filter((file) => missing.has(file.digest)),
             undefined,
-            async (file) => {
-                await storage.write(await source.stream(file.path), file.digest);
-            },
+            write,
         );
         await this.#write(digest, bytes);
 

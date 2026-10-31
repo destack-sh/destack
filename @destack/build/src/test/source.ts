@@ -2,7 +2,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FileSystem } from "@destack/environment";
 import { type DependencyResolution, PackageJson } from "@destack/package";
-import { type PackageBuildOptions, PackageBuild } from "../build/build.ts";
+import type { PackageBuildOptions } from "../build/build.ts";
+import type { BuildReader } from "@destack/package/manifest";
 import { DependencyTree } from "../dependency/tree.ts";
 import { Workspace, type WorkspaceCompilers } from "../dependency/workspace.ts";
 import { BuildError } from "../error/index.ts";
@@ -80,7 +81,7 @@ export class PackageCopy implements AsyncDisposable {
     /** Build the copy on its dependencies' builds with its warm compiler. */
     async build(
         request: Omit<PackageBuildOptions, "directory" | "dependencies">,
-    ): Promise<PackageBuild> {
+    ): Promise<BuildReader> {
         const options = { ...request, directory: this.source, dependencies: this.dependencies };
 
         return await this.#compilers.use(this.source, (compiler) => compiler.build(options));
@@ -89,17 +90,17 @@ export class PackageCopy implements AsyncDisposable {
     /** Check the copy's outputs, their types and runtime globals, then build them. */
     async check(
         request: Omit<PackageBuildOptions, "directory" | "dependencies">,
-    ): Promise<PackageBuild> {
+    ): Promise<BuildReader> {
         const options = { ...request, directory: this.source, dependencies: this.dependencies };
 
         return await this.#compilers.use(this.source, (compiler) => compiler.check(options));
     }
 
     /** Write a build into a directory with the builds its outputs import placed beside it. */
-    async deploy(build: PackageBuild, destination: string): Promise<void> {
+    async deploy(build: BuildReader, destination: string): Promise<void> {
         // write the build, then place the builds its outputs record and link them into it
         const { files } = this.store.environment;
-        await build.reader.writeDirectory(destination, files);
+        await build.writeDirectory(destination, files);
         const recorded = Object.values(build.manifest.outputs).flatMap((output) =>
             Object.values(output.dependencies),
         );

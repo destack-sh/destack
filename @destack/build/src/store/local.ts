@@ -8,11 +8,11 @@ import type { PackageFile } from "@destack/package/file";
 import { BuildStore } from "./store.ts";
 import { buildStoreDatabase } from "./table.ts";
 import { BuildError } from "../error/index.ts";
-import { type BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
+import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 import { BuildLayer, LAYER_TREES } from "./layer.ts";
 import { Toolchain } from "../cache/cache.ts";
 import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
-import { Digest, schema } from "@destack/schema";
+import { Digest, schema, Uuid } from "@destack/schema";
 import type { Runtime } from "@destack/package/runtime";
 
 /** The directory below a store's directory with its blobs, by digest. */
@@ -23,6 +23,9 @@ const DATABASE_FILE = "store.db";
 
 /** The directory below a store's directory with the dependency trees of its builds, by manifest. */
 const TREES_DIRECTORY = "trees";
+
+/** The directory below a store's directory that compilers write builds in, on the blobs' volume. */
+const STAGE_DIRECTORY = "stage";
 
 /** The prefix of a root a directory names, forgotten once the directory is gone. */
 const DIRECTORY_ROOT_PREFIX = "directory:";
@@ -221,6 +224,33 @@ export class LocalBuildStore
         await this.root(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests);
     }
 
+    /** Create a directory to write a build in beside the blobs, which idle collection removes. */
+    async stage(prefix: string): Promise<string> {
+        // create a fresh directory below the store's stage
+        const { files, random } = this.environment;
+        const directory = join(this.directory, STAGE_DIRECTORY, `${prefix}${Uuid.v4(random)}`);
+        await files.mkdir(directory, { recursive: true });
+
+        return directory;
+    }
+
+    /** Store a build written in a directory the store consumes, moving its files into the blobs. */
+    async move(directory: string, signal?: AbortSignal): Promise<Digest> {
+        // keep each missing file by moving it, then remove what the directory has left
+        const { files, crypto } = this.environment;
+        const source = await BuildReader.openDirectory(directory, files, crypto);
+        const digest = await this.keep(
+            source,
+            async (file) => {
+                await this.blobs.storage.move(join(directory, file.path), file.digest);
+            },
+            signal,
+        );
+        await files.remove(directory, { recursive: true, force: true });
+
+        return digest;
+    }
+
     /** Write releases with what they run to a layer directory, as a distribution ships them. */
     async writeLayer(
         roots: readonly Digest[],
@@ -271,8 +301,9 @@ export class LocalBuildStore
             await files.remove(join(directory, entry.name), { recursive: true });
         }
 
-        // lay out the releases' trees once, removing those of builds the layer no longer has
+        // lay out the releases' trees once, an empty directory for no releases, removing those of builds it no longer has
         const trees = join(directory, LAYER_TREES);
+        await files.mkdir(trees, { recursive: true });
         const released = await Promise.all(
             roots.map(async (digest) => ({
                 kind: "destack" as const,
@@ -330,9 +361,10 @@ export class LocalBuildStore
             }
         }
 
-        // delete what crashed materializations left staged, and what interrupted blob writes left
+        // delete what crashed materializations and compilers left staged, and what interrupted blob writes left
         const { files } = this.environment;
         await files.remove(join(this.trees, STAGING_DIRECTORY), { recursive: true, force: true });
+        await files.remove(join(this.directory, STAGE_DIRECTORY), { recursive: true, force: true });
         await this.blobs.storage.clean();
 
         // drop the unused cache entries, then delete the builds and blobs nothing retains

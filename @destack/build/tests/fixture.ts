@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Buffer } from "node:buffer";
 import { expect } from "@destack/test";
 import type { graph } from "@destack/package";
-import { type PackageBuildOptions, Compiler, type PackageBuild } from "../src/index.ts";
+import { type PackageBuildOptions, Compiler } from "../src/index.ts";
 import { comparePath } from "../src/build/serialization.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { linkDependencies } from "../src/source/index.ts";
@@ -156,12 +156,11 @@ export async function expectDirectory(
 
 /** Compare complete file sets without traversing each byte as an object property. */
 export async function expectFiles(
-    actualBuild: PackageBuild,
-    expectedBuild: PackageBuild,
-    files: FileSystem,
+    actualBuild: BuildReader,
+    expectedBuild: BuildReader,
 ): Promise<void> {
-    const actual = await readBuildFiles(actualBuild, files);
-    const expected = await readBuildFiles(expectedBuild, files);
+    const actual = await readBuildFiles(actualBuild);
+    const expected = await readBuildFiles(expectedBuild);
     expect([...actual.keys()]).toEqual([...expected.keys()]);
     for (const [path, bytes] of actual) {
         expect(Buffer.compare(bytes, found(expected, path)), path).toBe(0);
@@ -170,13 +169,12 @@ export async function expectFiles(
 
 /** Read fixture outputs for complete byte comparisons. */
 export async function readBuildFiles(
-    build: PackageBuild,
-    files: FileSystem,
+    build: BuildReader,
 ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     const read = new Map<string, Uint8Array<ArrayBuffer>>();
-    const records = (await build.reader.distributed()).toSorted(comparePath);
+    const records = (await build.distributed()).toSorted(comparePath);
     for (const file of records) {
-        read.set(file.path, await files.readFile(join(build.directory, file.path)));
+        read.set(file.path, await build.load(file.path));
     }
 
     return read;
@@ -240,7 +238,7 @@ export class Fixture implements AsyncDisposable {
     /** Build the copied package with the fixture's output selection. */
     async build(
         request: Omit<PackageBuildOptions, "directory" | "dependencies">,
-    ): Promise<PackageBuild> {
+    ): Promise<BuildReader> {
         return await this.#compiler.build({ directory: this.source, dependencies: {}, ...request });
     }
 
@@ -263,7 +261,7 @@ export class Fixture implements AsyncDisposable {
 
 /** Read each manifest list independently from a relocated package. */
 export async function expectManifest(
-    build: PackageBuild,
+    build: BuildReader,
     destination: string,
     environment: Environment<"files">,
 ): Promise<void> {
@@ -291,7 +289,7 @@ export async function expectManifest(
         const records = await read();
         const reference = build.manifest.lists[name];
         const expected: unknown = JSON.parse(
-            await files.readTextFile(join(build.directory, reference.path)),
+            new TextDecoder().decode(await build.load(reference.path)),
         );
         expect(records).toEqual(expected);
         expect(loaded).toEqual([reference.path]);
