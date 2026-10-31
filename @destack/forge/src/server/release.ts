@@ -73,16 +73,8 @@ export const ReleaseMethod = {
         await store.blobs.put(archive.file.digest, async () => archive.open());
         await store.attach(manifest, { ...archive.file, path: ARCHIVE_REFERRER });
 
-        // derive the runtime builds of the build and the npm units it depends on, then lease all of them, which its readers read with it
-        const npm = await store.units(manifest, parentId);
-        const attached = await Promise.all(
-            [...npm, manifest].map(async (subject) => {
-                await store.attachRuntimes(subject);
-
-                return store.attached(subject);
-            }),
-        );
-        const units = [...new Set([...npm, ...attached.flat().map(({ file }) => file.digest)])];
+        // lease the npm units it depends on, which its readers read with it
+        const units = await store.units(manifest, parentId);
         for (const each of units) {
             await store.lease(each, until);
         }

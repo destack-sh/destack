@@ -229,8 +229,8 @@ test("retain a pushed build once a release lists it, past its lease", async () =
     });
 });
 
-test("serve a release's npm units and runtime builds by digest to its readers only, and retain them past their leases", async () => {
-    // keep a build whose Bun output imports an npm unit, beside the unit, with their runtime builds
+test("serve a release's npm units and its Bun output by digest to its readers only, and retain them past their leases", async () => {
+    // keep a build whose Bun output imports an npm unit, beside the unit
     const forge = await TestForge.open();
     const { environment } = forge.home;
     const { crypto } = environment;
@@ -273,34 +273,35 @@ test("serve a release's npm units and runtime builds by digest to its readers on
     await using published = await TestPackageStore.create(environment);
     await published.put(unit);
     const buildManifest = await published.put(build);
-    const runtime = await published.attachRuntime(buildManifest, "bun");
 
-    // publish the build with its unit and runtime builds, then copy the unit and the runtime build as the owner
+    // publish the build with its unit, then copy the unit and pull the build's Bun output as the owner
     await forge.publish(build, "private", published);
     await using copied = await TestPackageStore.create(environment);
     const builds = `${forge.origin}${forgePackage.adapters.builds.path}`;
     const owner = as(forge, forge.owner);
-    const referred = await owner(new URL(`${builds}/${buildManifest}/referrers/runtime%2Fbun`), {});
-    const described: unknown = await referred.json();
-    for (const manifest of [unitManifest, runtime]) {
-        await copied.copy({ manifest, url: `${builds}/${manifest}/` }, owner);
-    }
+    const located = (manifest: Digest) => ({ manifest, url: `${builds}/${manifest}/` });
+    await copied.copy(located(unitManifest), owner);
+    await copied.pull(located(buildManifest), owner, "bun");
 
-    // refuse the runtime build to a stranger
+    // refuse the build to a stranger
     const stranger = await forge.signIn(STRANGER_EMAIL);
-    const refused = await as(forge, stranger)(new URL(`${builds}/${runtime}/manifest.json`), {});
+    const refused = await as(forge, stranger)(
+        new URL(`${builds}/${buildManifest}/manifest.json`),
+        {},
+    );
     await refused.body?.cancel();
 
     // retain both past their leases, as the release lists them
     const store = await forge.store();
     await forge.simulation.jump(forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000);
     expect({
-        referred: described,
-        copied: [await copied.contains(unitManifest), await copied.contains(runtime)],
+        copied: [
+            await copied.contains(unitManifest),
+            await copied.containsOutput(buildManifest, "bun"),
+        ],
         refused: refused.status,
-        kept: [await store.contains(unitManifest), await store.contains(runtime)],
+        kept: [await store.contains(unitManifest), await store.contains(buildManifest)],
     }).toEqual({
-        referred: { ...(await published.head(runtime)), path: "runtime/bun" },
         copied: [true, true],
         refused: 404,
         kept: [true, true],
