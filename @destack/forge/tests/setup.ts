@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import type { TestProject } from "vitest/node";
-import { CompilerPool, type PackageBuild } from "@destack/build";
+import { CompilerPool } from "@destack/build";
+import type { BuildReader } from "@destack/package/manifest";
 import { testStore } from "@destack/build/test";
 import { TestDatabase } from "@destack/db/test";
 import { TestRun } from "@destack/db/test/run";
@@ -64,7 +65,7 @@ async function build(builds: string): Promise<void> {
         const prerelease = await answer.uncommitted(PRERELEASE_VERSION);
 
         // keep each build by package and version, the uncommitted one by its state
-        const kept: readonly (readonly [FixturePackage, string, PackageBuild])[] = [
+        const kept: readonly (readonly [FixturePackage, string, BuildReader])[] = [
             ...answers.map((built) => ["answer", built.manifest.package.version, built] as const),
             ...greetings.map(
                 (built) => ["greeting", built.manifest.package.version, built] as const,
@@ -73,7 +74,8 @@ async function build(builds: string): Promise<void> {
             ["answer", PRERELEASE_VERSION, prerelease],
         ];
         for (const [name, version, built] of kept) {
-            await host.files.copy(built.directory, join(builds, name, version));
+            await host.files.mkdir(join(builds, name), { recursive: true });
+            await built.writeDirectory(join(builds, name, version), host.files);
         }
     } finally {
         await host.files.remove(sources, { recursive: true });

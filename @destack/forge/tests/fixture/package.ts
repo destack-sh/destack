@@ -1,6 +1,7 @@
 import { join } from "node:path";
+import type { BuildReader } from "@destack/package/manifest";
 import { fileURLToPath } from "node:url";
-import { CompilerPool, outputsOf, PackageBuild, type PackageBuildOptions } from "@destack/build";
+import { CompilerPool, outputsOf, type PackageBuildOptions } from "@destack/build";
 import { readPackageJson } from "@destack/build/local";
 import type { DependencyResolution } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
@@ -64,9 +65,9 @@ export class FixtureSource {
 
     /** Install the releases it depends on from their archives, and build each version on them. */
     async build(
-        releases: readonly PackageBuild[],
+        releases: readonly BuildReader[],
         versions: readonly string[],
-    ): Promise<PackageBuild[]> {
+    ): Promise<BuildReader[]> {
         // install each release from its npm archive, as an install from the registry unpacks it
         for (const release of releases) {
             await install(release, join(this.directory, "node_modules"));
@@ -84,7 +85,7 @@ export class FixtureSource {
         );
 
         // build each version
-        const builds: PackageBuild[] = [];
+        const builds: BuildReader[] = [];
         for (const version of versions) {
             await testHost().files.writeTextFile(
                 join(this.directory, "package.json"),
@@ -98,7 +99,7 @@ export class FixtureSource {
     }
 
     /** Build a working tree without a commit: the last version, or a prerelease of the next. */
-    async uncommitted(prerelease?: Version): Promise<PackageBuild> {
+    async uncommitted(prerelease?: Version): Promise<BuildReader> {
         if (this.#compiled === undefined) {
             throw new TypeError(`fixture ${this.name} has not been built`);
         }
@@ -124,7 +125,7 @@ export class FixtureSource {
     }
 
     /** Build the copy with a warm compiler of the pool. */
-    #build(request: Omit<PackageBuildOptions, "directory">): Promise<PackageBuild> {
+    #build(request: Omit<PackageBuildOptions, "directory">): Promise<BuildReader> {
         const options = { ...request, directory: this.directory };
 
         return this.#compilers.use(this.directory, (compiler) => compiler.build(options));
@@ -132,10 +133,10 @@ export class FixtureSource {
 }
 
 /** Unpack a release's npm archive into a node_modules directory, as npm installs a tarball. */
-async function install(release: PackageBuild, modules: string): Promise<void> {
+async function install(release: BuildReader, modules: string): Promise<void> {
     // pack the release as the registry serves it, and write the tarball beside the tree
     const host = testHost();
-    const archive = await PackageArchive.pack(release.reader, COMMIT, host);
+    const archive = await PackageArchive.pack(release, COMMIT, host);
     const destination = join(modules, archive.metadata.name);
     await host.files.mkdir(destination, { recursive: true });
     const tarball = join(modules, `${archive.metadata.name.replace("/", "-")}.tgz`);

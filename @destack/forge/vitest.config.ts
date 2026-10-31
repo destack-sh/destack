@@ -2,7 +2,7 @@ import { BunEnvironment } from "@destack/environment/bun";
 import { defineConfiguration } from "@destack/test/config";
 import { fileURLToPath } from "node:url";
 
-/** The tests running npm, bun and deno against a loopback registry. */
+/** The tests installing with Bun against a loopback registry. */
 const INTEGRATION = ["tests/install.test.ts"];
 
 export default defineConfiguration(
@@ -22,7 +22,7 @@ export default defineConfiguration(
                         exclude: INTEGRATION,
                     },
                 },
-                // run the package managers' installs once, on sqlite, in a project of their own
+                // run Bun's installs once, on sqlite, in a project of their own
                 {
                     extends: true,
                     test: {
