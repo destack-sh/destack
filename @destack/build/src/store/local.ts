@@ -8,11 +8,12 @@ import type { PackageFile } from "@destack/package/file";
 import { PackageStore } from "./store.ts";
 import { packageStoreDatabase } from "./table.ts";
 import { BuildError } from "../error/index.ts";
-import type { BuildReader } from "@destack/package/manifest";
-import type { BuildLayer } from "./layer.ts";
+import { type BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
+import { BuildLayer, LAYER_TREES } from "./layer.ts";
 import { Toolchain } from "../cache/cache.ts";
-import { STAGING_DIRECTORY } from "../dependency/tree.ts";
+import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
 import { Digest, schema } from "@destack/schema";
+import type { Runtime } from "@destack/package/runtime";
 
 /** The directory below a store's directory with its blobs, by digest. */
 const FILES_DIRECTORY = "files";
@@ -25,6 +26,9 @@ const TREES_DIRECTORY = "trees";
 
 /** The prefix of a root a directory names, forgotten once the directory is gone. */
 const DIRECTORY_ROOT_PREFIX = "directory:";
+
+/** The files placed at once: well below the default limit of 256 open files on macOS. */
+const PLACE_BATCH = 64;
 
 /** The file every process using a store locks shared. */
 const STORE_LOCK = "store.lock";
@@ -60,6 +64,14 @@ export interface LocalPackageStoreOptions {
     readonly environment: Environment<"files" | "process" | "host">;
     /** The read-only builds the store reads in place, such as a machine's shipped builds. */
     readonly layer?: BuildLayer;
+}
+
+/** A file a store writes to a path. */
+export interface FilePlacement {
+    /** The file. */
+    readonly file: PackageFile;
+    /** The path it is written to. */
+    readonly destination: string;
 }
 
 /** A store of builds on this machine's disk, its blobs in a directory, which processes share. */
@@ -149,7 +161,7 @@ export class LocalPackageStore
         disposables.defer(() =>
             scheduler === undefined
                 ? this.#release(view)
-                : scheduler.track(this.#release(view), "host"),
+                : scheduler.track(() => this.#release(view), "host"),
         );
         const view = await LocalPackageStore.#openDirectory(
             this.directory,
@@ -209,17 +221,100 @@ export class LocalPackageStore
         await this.root(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests);
     }
 
-    /** Write a file to a path, cloning a stored blob and reading a layered one from its build. */
-    async place(file: PackageFile, destination: string): Promise<void> {
-        // clone a stored file's blocks where the file system can
-        const { files } = this.environment;
-        await files.mkdir(dirname(destination), { recursive: true });
-        if ((await this.blobs.storage.missing([file.digest])).length === 0) {
-            await this.blobs.storage.copy(file.digest, destination);
+    /** Write releases with what they run to a layer directory, as a distribution ships them. */
+    async writeLayer(
+        roots: readonly Digest[],
+        runtimes: readonly Runtime[],
+        directory: string,
+    ): Promise<void> {
+        // collect each root and the builds its emitted outputs' exports import on the shipped runtimes
+        const builds = new Set<Digest>(roots);
+        for (const root of roots) {
+            const read = await this.get(root);
+            const packageId = PackageManifest.package(read).id;
+            const emitted = Object.values(read.outputs).filter(
+                (output) => output.emit && runtimes.includes(output.runtime),
+            );
+            for (const output of emitted) {
+                const exported = await this.closure(
+                    root,
+                    packageId,
+                    output.runtime,
+                    undefined,
+                    "export",
+                );
+                for (const reached of exported) {
+                    builds.add(reached);
+                }
+            }
         }
-        // write any other file's bytes, read from the layer or refused as unknown
-        else {
-            await files.writeFile(destination, await this.file(file));
+
+        // write each build missing its manifest, which a build writes last, and remove the builds left out
+        const { files } = this.environment;
+        await files.mkdir(directory, { recursive: true });
+        const readers = new Map<Digest, BuildReader>();
+        for (const digest of builds) {
+            const build = join(directory, digest);
+            const reader = await this.contents(digest);
+            readers.set(digest, reader);
+            if (!(await files.exists(join(build, MANIFEST_PATH)))) {
+                await files.remove(build, { recursive: true, force: true });
+                await reader.writeDirectory(build, files);
+            }
+        }
+        const kept = new Set<string>(builds);
+        const stale = (await files.readDirectory(directory)).filter(
+            (entry) =>
+                entry.kind === "directory" && entry.name !== LAYER_TREES && !kept.has(entry.name),
+        );
+        for (const entry of stale) {
+            await files.remove(join(directory, entry.name), { recursive: true });
+        }
+
+        // lay out the releases' trees once, removing those of builds the layer no longer has
+        const trees = join(directory, LAYER_TREES);
+        const released = await Promise.all(
+            roots.map(async (digest) => ({
+                kind: "destack" as const,
+                package: PackageManifest.package(await this.get(digest)),
+                manifest: digest,
+            })),
+        );
+        await DependencyTree.materialize(this, released, trees);
+        for (const entry of await files.readDirectory(trees)) {
+            const built = DependencyTree.manifestOf(entry.name);
+            if (built === undefined || !builds.has(built)) {
+                await files.remove(join(trees, entry.name), { recursive: true, force: true });
+            }
+        }
+
+        // write the index of its builds and their files last
+        await BuildLayer.writeIndex(directory, roots, readers, files);
+    }
+
+    /** Write files to paths, cloning stored blobs and layered files where the layer keeps them. */
+    async place(placements: readonly FilePlacement[]): Promise<void> {
+        // create each directory once, and find the files the store's own blobs lack
+        const { files } = this.environment;
+        const directories = new Set(placements.map(({ destination }) => dirname(destination)));
+        for (const directory of [...directories].toSorted()) {
+            await files.mkdir(directory, { recursive: true });
+        }
+        const lacking = new Set(
+            await this.blobs.storage.missing(placements.map(({ file }) => file.digest)),
+        );
+
+        // clone a stored file's blocks, and place any other through the layered build holding it, a batch at a time
+        for (let start = 0; start < placements.length; start += PLACE_BATCH) {
+            await Promise.all(
+                placements
+                    .slice(start, start + PLACE_BATCH)
+                    .map(({ file, destination }) =>
+                        lacking.has(file.digest)
+                            ? this.placeLayered(file, destination, files)
+                            : this.blobs.storage.copy(file.digest, destination),
+                    ),
+            );
         }
     }
 
@@ -244,14 +339,14 @@ export class LocalPackageStore
         await this.expire();
         await this.blobs.collect();
 
-        // delete the trees of the builds the store no longer has
+        // delete the trees of the builds whose manifests the store no longer has, whole or in part
         const entries = await files.readDirectory(this.trees);
         const trees = entries
             .filter((entry) => entry.kind === "directory" && entry.name !== STAGING_DIRECTORY)
             .map((entry) => entry.name);
         for (const tree of trees) {
-            const [manifest] = tree.split("+");
-            if (!(await this.contains(Digest.parse(manifest)))) {
+            const manifest = DependencyTree.manifestOf(tree);
+            if (manifest === undefined || !(await this.has(manifest))) {
                 await files.remove(join(this.trees, tree), { recursive: true, force: true });
             }
         }
@@ -290,18 +385,24 @@ export class LocalPackageStore
 
             // open the store sharing its lock, then collect it while no other process builds into it
             const disposables = new AsyncDisposableStack();
-            const shared = await files.lock(join(location, STORE_LOCK), "shared");
-            disposables.defer(() => shared.close());
-            const store = await LocalPackageStore.#openDirectory(
-                location,
-                environment,
-                disposables,
-            );
-            if (idle !== undefined) {
-                await store.#collectIdleIfDue(join(location, COLLECTED_FILE));
-            }
+            try {
+                const shared = await files.lock(join(location, STORE_LOCK), "shared");
+                disposables.defer(() => shared.close());
+                const store = await LocalPackageStore.#openDirectory(
+                    location,
+                    environment,
+                    disposables,
+                );
+                if (idle !== undefined) {
+                    await store.#collectIdleIfDue(join(location, COLLECTED_FILE));
+                }
 
-            return store;
+                return store;
+            } catch (error) {
+                // release the lock and whatever opened once opening fails
+                await disposables.disposeAsync();
+                throw error;
+            }
         } finally {
             await held.close();
         }

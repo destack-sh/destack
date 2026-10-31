@@ -7,7 +7,7 @@ import {
     RuntimeRequirements,
 } from "@destack/package";
 import { PackageLocator } from "@destack/package/locator";
-import { BuildReader, BuildWriter, type PackageOutput } from "@destack/package/manifest";
+import { BuildReader, BuildWriter, type OutputContent } from "@destack/package/manifest";
 import { NATIVE_ADDON_RUNTIMES, Runtime } from "@destack/package/runtime";
 import { NpmConversion } from "../compile/conversion.ts";
 import { Digest, found, nth, schema } from "@destack/schema";
@@ -87,7 +87,7 @@ export class NpmInstallation {
             throw BuildError.of("LOCKFILE_INVALID", `the lockfile has no ${key}`);
         }
 
-        // open each installed package it requires, leaving its peers to the tree it sits in
+        // open each installed package it requires, and each peer its install resolved outside its dependents
         const locator = new PackageLocator(this.#environment.files);
         const dependencies = new Map<string, NpmUnit>();
         const required = Object.keys({
@@ -114,10 +114,55 @@ export class NpmInstallation {
                 dependencies.set(name, await this.#open(real, next));
             }
         }
+        for (const peer of PackageJson.peers(manifest).toSorted()) {
+            // pin a peer the install linked beside it, leaving one leading back to it to the tree, whichever way it was opened
+            const installed = await locator.directory(peer, directory);
+            const real =
+                installed === undefined
+                    ? undefined
+                    : await this.#environment.files.realPath(installed);
+            const isLinked = real !== undefined && !dependencies.has(peer);
+            if (isLinked && !(await this.#reaches(real, directory))) {
+                dependencies.set(peer, await this.#open(real, next));
+            }
+        }
         const unit = new NpmUnit(release, directory, dependencies, manifest, this.#environment);
         this.#opened.set(directory, unit);
 
         return unit;
+    }
+
+    /** Report whether an installed package leads to another through its requirements or peers. */
+    async #reaches(from: string, target: string): Promise<boolean> {
+        // walk the installed packages each one requires, each once
+        const locator = new PackageLocator(this.#environment.files);
+        const seen = new Set<string>();
+        const pending = [from];
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            // stop at the target, else read the next copy's requirements and peers once
+            if (next === target) {
+                return true;
+            } else if (!seen.has(next)) {
+                seen.add(next);
+                const manifest = Manifest.parse(
+                    JSON.parse(
+                        await this.#environment.files.readTextFile(join(next, "package.json")),
+                    ),
+                );
+                const required = [
+                    ...Object.keys({ ...manifest.dependencies, ...manifest.optionalDependencies }),
+                    ...PackageJson.peers(manifest),
+                ];
+                for (const name of required) {
+                    const installed = await locator.directory(name, next);
+                    if (installed !== undefined) {
+                        pending.push(await this.#environment.files.realPath(installed));
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     /** Store a unit's build for a runtime once, keyed by conversion, release and closure. */
@@ -155,7 +200,7 @@ export class NpmUnit {
     readonly release: NpmRelease;
     /** The installed copy in Bun's store. */
     readonly directory: string;
-    /** The installed packages it requires, peers excepted, by the names it imports them by. */
+    /** The installed packages it requires and the peers its install linked, by import name. */
     readonly dependencies: ReadonlyMap<string, NpmUnit>;
     /** The dependencies, optional dependencies and peers its package.json declares. */
     readonly requirements: RuntimeRequirements;
@@ -228,7 +273,7 @@ export class NpmUnit {
                       [...this.dependencies.keys()],
                       this.peers,
                       runtime,
-                      this.#environment.files,
+                      this.#environment,
                   ).convert(files);
 
         // store the dependencies its modules import for the runtime, at once
@@ -248,7 +293,7 @@ export class NpmUnit {
         await Promise.all(
             [...converted.files].map(([path, bytes]) => writer.write(`${runtime}/${path}`, bytes)),
         );
-        const output: PackageOutput = {
+        const output: OutputContent = {
             runtime,
             emit: true,
             workloads: {},
@@ -261,6 +306,14 @@ export class NpmUnit {
                 ]),
             ),
             dependencies,
+            peers: Object.fromEntries(
+                this.peers
+                    .toSorted()
+                    .map((peer) => [
+                        peer,
+                        { isOptional: PackageJson.isOptional(this.requirements, peer) },
+                    ]),
+            ),
         };
         const { integrity } = this.release;
         const manifest = await writer.finish({

@@ -8,16 +8,15 @@ import { BlobStore } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
-import { BuildReader, PackageManifest } from "@destack/package/manifest";
+import {
+    BuildReader,
+    BuildWriter,
+    type OutputContent,
+    PackageManifest,
+} from "@destack/package/manifest";
 import { CallError } from "@destack/object";
 import { Digest, found, present } from "@destack/schema";
-import {
-    MAPS_REFERRER,
-    type PackageAccess,
-    PackageClient,
-    PackageStore,
-    RUNTIME_REFERRER,
-} from "./index.ts";
+import { type PackageAccess, PackageClient, PackageStore } from "./index.ts";
 import { buildManifest, packageStoreDatabase } from "./table.ts";
 
 /** The mount the tests serve stores below. */
@@ -43,11 +42,11 @@ const MINUTE_MILLISECONDS = 60_000;
 /** The builds the many-builds collection test stores, half of them retained. */
 const STRESS_BUILDS = 20;
 
-/** A host granting every read and every upload. */
-const UPLOADING: PackageAccess = { authorize: async () => {}, upload: async () => {} };
+/** A host granting every pull and every push. */
+const PUSHING: PackageAccess = { pull: async () => {}, push: async () => {} };
 
-/** A host granting every read and taking no uploads. */
-const READING: PackageAccess = { authorize: async () => {} };
+/** A host granting every pull at a read-only endpoint. */
+const PULLING: PackageAccess = { pull: async () => {} };
 
 /** Create a temporary directory in a world. */
 async function temporary(files: FileSystem): Promise<string> {
@@ -72,40 +71,19 @@ const TINY: PackageManifest["package"] = {
 async function written(
     sources: Readonly<Record<string, string>>,
     crypto: Crypto,
-    outputs: PackageManifest["outputs"] = {},
+    outputs: Readonly<Record<string, OutputContent>> = {},
     built: PackageManifest["package"] = ANSWER,
 ): Promise<BuildReader> {
-    // describe each source file
-    const encoder = new TextEncoder();
-    const bytes = new Map(
-        Object.entries(sources).map(([path, text]) => [path, encoder.encode(text)]),
+    // write each source file, then the lists and the manifest
+    const bytes = new Map<string, Uint8Array<ArrayBuffer>>();
+    const writer = new BuildWriter(
+        { write: async (path, contents) => void bytes.set(path, contents) },
+        crypto,
     );
-    const files = await Promise.all(
-        [...bytes].map(([path, contents]) =>
-            PackageFile.describe(path, "text/typescript", contents, crypto),
-        ),
-    );
-
-    // describe the file, dependency, source map and declaration lists
-    const index = async (path: string, value: unknown) => {
-        const contents = encoder.encode(JSON.stringify(value));
-        bytes.set(path, contents);
-
-        return PackageFile.describe(path, "application/json", contents, crypto);
-    };
-    const manifest = PackageManifest.parse({
-        formatVersion: 1,
-        package: built,
-        language: "typescript",
-        lists: {
-            dependencies: await index("manifest/dependencies.json", {}),
-            files: await index("manifest/files.json", files),
-            sourceMaps: await index("manifest/sourceMaps.json", []),
-            declarations: await index("manifest/declarations.json", []),
-        },
-        interface: await Digest.json({ package: built }, crypto),
-        outputs,
-    });
+    for (const [path, text] of Object.entries(sources)) {
+        await writer.write(path, new TextEncoder().encode(text));
+    }
+    const manifest = await writer.finish({ package: built, outputs });
 
     return new BuildReader(
         manifest,
@@ -117,9 +95,9 @@ async function written(
 /** Describe a build's Bun output: its exports' imports, its dependencies and its workloads. */
 function bunOutputs(
     imports: Readonly<Record<string, readonly string[]>>,
-    dependencies: PackageManifest["outputs"][string]["dependencies"],
+    dependencies: OutputContent["dependencies"],
     entries: readonly string[] = [],
-): PackageManifest["outputs"] {
+): Readonly<Record<string, OutputContent>> {
     // export each subpath at a file of its own, and run each entry as a workload
     const exports = Object.fromEntries(
         Object.entries(imports).map(([subpath, specifiers]) => [
@@ -151,6 +129,7 @@ function bunOutputs(
             directory: "bun",
             exports,
             dependencies,
+            peers: {},
         },
     };
 }
@@ -413,7 +392,7 @@ test("open one reader per stored build, and refuse a collected build", async () 
     // share the reader while the build is stored, and refuse it once collected
     expect({ isShared: first === second, reopened }).toEqual({
         isShared: true,
-        reopened: "package manifest not found",
+        reopened: `package manifest ${digest} not found`,
     });
 });
 
@@ -543,7 +522,7 @@ test("serve a stored build over HTTP after the host authorizes each read", async
 
     // grant bearers of the allowed token reads of the stored build
     const access = {
-        async authorize(request: Request, selected: string) {
+        async pull(request: Request, selected: string) {
             if (request.headers.get("authorization") !== "Bearer allowed" || selected !== digest) {
                 throw CallError.http("UNAUTHORIZED", { message: "package access denied" });
             }
@@ -647,7 +626,7 @@ test("copy a served build into another store by its digest in one request for it
     const fetchPackage = async (input: URL, options: RequestInit) => {
         paths.push(input.pathname.slice(`/packages/${digest}/`.length));
 
-        return source.fetch(new Request(input, options), MOUNT, { authorize: async () => {} });
+        return source.fetch(new Request(input, options), MOUNT, { pull: async () => {} });
     };
     const location = { manifest: digest, url: `https://packages.test/packages/${digest}/` };
 
@@ -689,7 +668,7 @@ test("push a stored build to a package target by its digest, uploading only the 
             uploads.push(new URL(request.url).pathname);
         }
 
-        return target.fetch(request, MOUNT, UPLOADING);
+        return target.fetch(request, MOUNT, PUSHING);
     };
 
     // push the build, then push it again, which uploads its manifest alone
@@ -743,11 +722,11 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
 
     // refuse each upload with its status and error
     expect([
-        await upload(receiving, `${digest}/manifest.json`, manifest, UPLOADING),
-        await upload(receiving, `files/${digest}`, new Uint8Array([1]), UPLOADING),
-        await upload(receiving, `files/${digest}`, oversized, UPLOADING),
-        await upload(receiving, `files/${digest}/extra`, new Uint8Array([1]), UPLOADING),
-        await upload(receiving, `${digest}/manifest.json`, manifest, READING),
+        await upload(receiving, `${digest}/manifest.json`, manifest, PUSHING),
+        await upload(receiving, `files/${digest}`, new Uint8Array([1]), PUSHING),
+        await upload(receiving, `files/${digest}`, oversized, PUSHING),
+        await upload(receiving, `files/${digest}/extra`, new Uint8Array([1]), PUSHING),
+        await upload(receiving, `${digest}/manifest.json`, manifest, PULLING),
     ]).toEqual([
         [
             400,
@@ -885,90 +864,65 @@ test("retain a rooted build with every build it depends on, as its outputs recor
     });
 });
 
-/** The files of a stored build beside its manifest's lists, by path. */
-async function filesOf(store: PackageStore, manifest: Digest): Promise<string[]> {
-    const files = await (await store.contents(manifest)).distributed();
-
-    return files
-        .map((file) => file.path)
-        .filter((path) => !path.startsWith("manifest/"))
-        .toSorted();
-}
-
-test("derive a build's runtime build once: the output's loaded files, its maps attached to it apart", async () => {
-    // store a build whose Bun output has a module, a native addon and a source map
+test("pull one output of a served build: what its runtime loads and its maps, none of its sources or types", async () => {
+    // serve a build whose Bun output has a module, a native addon, its types and a source map, beside its sources and a catalog
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
-    const { crypto } = environment;
-    await using opened = await openStore(await temporary(environment.files), environment);
-    const { store } = opened;
-    const built = await store.put(
+    const directory = await temporary(environment.files);
+    await using served = await openStore(join(directory, "served"), environment);
+    await using pulled = await openStore(join(directory, "pulled"), environment);
+    const digest = await served.store.put(
         await written(
             {
                 "package.json": "{}\n",
+                "src/serve.ts": "export const served = true;\n",
+                "locale/de.json": '{"locale":"de"}\n',
                 "bun/serve.js": "export {};\n",
                 "bun/addon.node": "addon\n",
-                "bun/serve.d.ts": "export {};\n",
-                "bun/serve.js.map": "{}\n",
+                "bun/serve.d.ts": "export declare const served: boolean;\n",
+                "bun/serve.js.map": '{"version":3}\n',
             },
-            crypto,
+            environment.crypto,
             bunOutputs({ "./serve": [] }, {}, ["./serve"]),
         ),
     );
+    const requested: string[] = [];
+    const fetchPackage = async (input: URL, options: RequestInit) => {
+        requested.push(`${input.pathname.slice(`/packages/${digest}/`.length)}${input.search}`);
 
-    // derive it twice at once, and read the runtime build, its maps and its attachment
-    const [first, again] = await Promise.all([
-        store.attachRuntime(built, "bun"),
-        store.attachRuntime(built, "bun"),
-    ]);
-    const maps = present(await store.referrer(first, MAPS_REFERRER), "the maps build");
+        return served.store.fetch(new Request(input, options), MOUNT, {
+            pull: async () => {},
+        });
+    };
+    const location = { manifest: digest, url: `https://packages.test/packages/${digest}/` };
+
+    // pull the Bun output twice, the second reading nothing, and read which files arrived
+    await pulled.store.pull(location, fetchPackage, "bun");
+    await pulled.store.pull(location, fetchPackage, "bun");
+    const reader = await pulled.store.contents(digest);
+    const files = (await reader.files()).filter((file) => !file.path.startsWith("manifest/"));
+    const stored = await Promise.all(files.map((file) => pulled.store.has(file.digest)));
     expect({
-        again,
-        attached: (await store.referrer(built, `${RUNTIME_REFERRER}/bun`))?.digest,
-        runtime: await filesOf(store, first),
-        maps: await filesOf(store, maps.digest),
-        listed: (await store.maps(first)).map((file) => file.path),
-        unmapped: await store.maps(built),
+        requested,
+        isComplete: await pulled.store.contains(digest),
+        hasOutput: await pulled.store.containsOutput(digest, "bun"),
+        arrived: files.filter((_, index) => stored[index] === true).map((file) => file.path),
     }).toEqual({
-        again: first,
-        attached: first,
-        runtime: ["bun/addon.node", "bun/serve.js", "package.json"],
-        maps: ["bun/serve.js.map"],
-        listed: ["bun/serve.js.map"],
-        unmapped: [],
+        requested: ["archive?output=bun"],
+        isComplete: false,
+        hasOutput: true,
+        arrived: [
+            "bun/addon.node",
+            "bun/serve.js",
+            "bun/serve.js.map",
+            "locale/de.json",
+            "package.json",
+        ],
     });
 });
 
-test("list a build that is its own runtime build once among its attached builds", async () => {
-    // derive the runtime build of a runtime build, which is itself
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const { crypto } = environment;
-    await using opened = await openStore(await temporary(environment.files), environment);
-    const { store } = opened;
-    const built = await store.put(
-        await written(
-            { "bun/serve.js": "export {};\n" },
-            crypto,
-            bunOutputs({ "./serve": [] }, {}, ["./serve"]),
-        ),
-    );
-    const runtime = await store.attachRuntime(built, "bun");
-    const again = await store.attachRuntime(runtime, "bun");
-
-    // list the runtime build's attachment to itself once
-    const attached = await store.attached(runtime);
-    expect({
-        again,
-        attached: attached.map(({ subject, file }) => [subject, file.digest]),
-    }).toEqual({
-        again: runtime,
-        attached: [[runtime, runtime]],
-    });
-});
-
-test("retain a rooted build's runtime build and its maps, passing over a dependency the store lacks", async () => {
-    // root a served build with its runtime build attached, and a build importing a library the store lacks
+test("retain rooted builds past their leases, passing over a dependency the store lacks", async () => {
+    // root a served build, and a build importing a library the store lacks
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { crypto } = environment;
@@ -994,13 +948,11 @@ test("retain a rooted build's runtime build and its maps, passing over a depende
         ),
     );
     await store.root("space-a", new Set([served, importing]));
-    const runtime = await store.attachRuntime(served, "bun");
-    const maps = present(await store.referrer(runtime, MAPS_REFERRER), "the maps build");
 
-    // retain both builds, the runtime build and its maps past their leases, passing over the lacking library
+    // retain both builds past their leases, passing over the lacking library
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await collect(store);
-    expect(await recorded(store)).toEqual([served, runtime, maps.digest, importing].toSorted());
+    expect(await recorded(store)).toEqual([served, importing].toSorted());
 });
 
 /** Expire the cache and collect blobs, answering the deleted builds and the next deadline. */

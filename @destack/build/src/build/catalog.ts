@@ -2,10 +2,8 @@ import { join } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import { Catalog } from "@destack/locale";
 import type { PackageId } from "@destack/package";
+import { CATALOG_DIRECTORY } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
-
-/** The directory of a package that stores its catalogs. */
-const CATALOG_DIRECTORY = "locale";
 
 /** Read a package's catalogs by path, refusing other files, packages or misnamed catalogs. */
 export async function readCatalogs(

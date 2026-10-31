@@ -1,10 +1,10 @@
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { Digest, present, schema } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 
 import { NpmInstallation } from "./npm.ts";
 import { testSimulation } from "../test/world.ts";
-import { copy, moduleFailure, writeStore } from "./test/store.ts";
+import { copy, writeStore } from "./test/store.ts";
 import { DependencyTree } from "./tree.ts";
 import { LocalPackageStore } from "../store/local.ts";
 
@@ -14,20 +14,29 @@ const CONTEXT = Digest.parse("802596258260ddeb8be4565d4ec5b9afd34a32b950022f39c6
 /** The default export of a module. */
 const DefaultExport = schema.looseObject({ default: schema.unknown() });
 
-test("place npm units with the peers the packages beside them provide, failing a missing peer once it loads", async () => {
-    // install a renderer whose peer is a core package, and a list depending on a store whose peer it is
+test("place npm units with the peers the packages beside them or their install provide, refusing a required peer left out and leaving an optional one", async () => {
+    // install a renderer whose peers are a core package and an optional theme, a styler whose install links its core peer, and a list depending on a store whose peer it is
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
     const { root, locked } = await writeStore(
         {
             renderer: {
-                manifest: { main: "index.js", peerDependencies: { core: "1.0.0" } },
+                manifest: {
+                    main: "index.js",
+                    peerDependencies: { core: "1.0.0", theme: "1.0.0" },
+                    peerDependenciesMeta: { theme: { optional: true } },
+                },
                 files: { "index.js": 'module.exports = "rendered with " + require("core");\n' },
             },
             core: {
                 manifest: { main: "index.js" },
                 files: { "index.js": 'module.exports = "core";\n' },
+            },
+            styler: {
+                manifest: { main: "index.js", peerDependencies: { core: "1.0.0" } },
+                files: { "index.js": 'module.exports = "styled with " + require("core");\n' },
+                links: ["core"],
             },
             store: {
                 manifest: { main: "index.js", dependencies: { lists: "1.0.0" } },
@@ -45,10 +54,11 @@ test("place npm units with the peers the packages beside them provide, failing a
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
         await installation.store(await installation.open(copy(root, name)), "bun");
-    const [renderer, core, lists] = [
+    const [renderer, core, lists, styler] = [
         await build("renderer"),
         await build("core"),
         await build("store"),
+        await build("styler"),
     ];
 
     // place the renderer beside its core, and the store, whose list requires it as its peer
@@ -61,15 +71,79 @@ test("place npm units with the peers the packages beside them provide, failing a
         DefaultExport.parse(await import(join(present(tree.directories[name], name), "index.js")))
             .default;
 
-    // render with the provided core, read the store through its list, and fail a renderer whose tree lacks the core once it loads
-    const lacking = await DependencyTree.materialize(store, [renderer], join(root, "lacking"));
-    const lacked = join(present(lacking.directories["renderer"], "renderer"), "index.js");
-    expect({ renderer: await exported("renderer"), store: await exported("store") }).toEqual({
+    // render with the provided core and no theme, read the store through its list, style with the core its install linked, and refuse a renderer without its core
+    const alone = await DependencyTree.materialize(store, [styler], join(root, "alone"));
+    const styled = DefaultExport.parse(
+        await import(join(present(alone.directories["styler"], "styler"), "index.js")),
+    ).default;
+    const lacking = await refusal(
+        DependencyTree.materialize(store, [renderer], join(root, "lacking")),
+    );
+    expect({
+        renderer: await exported("renderer"),
+        store: await exported("store"),
+        styled,
+        lacking,
+    }).toEqual({
         renderer: "rendered with core",
         store: "object",
+        styled: "styled with core",
+        lacking: [
+            "UNPROCESSABLE_CONTENT",
+            "DEPENDENCY_UNRESOLVED",
+            "renderer requires the peer core, which its dependent does not provide",
+        ],
     });
-    expect(await moduleFailure(import(lacked))).toEqual([
-        "MODULE_NOT_FOUND",
-        `Cannot find module 'core'\nRequire stack:\n- ${lacked}`,
-    ]);
+});
+
+test("place a running tree's npm units as their Bun outputs alone, under runtime roots, listing every root it reaches", async () => {
+    // install a store unit depending on a list unit, each shipping its types beside its module
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const { root, locked } = await writeStore(
+        {
+            store: {
+                manifest: { main: "index.js", dependencies: { lists: "1.0.0" } },
+                files: {
+                    "index.js": 'module.exports = require("lists");\n',
+                    "index.d.ts": "export declare const lists: string;\n",
+                },
+                links: ["lists"],
+            },
+            lists: {
+                manifest: { main: "index.js" },
+                files: {
+                    "index.js": 'module.exports = "lists";\n',
+                    "index.d.ts": "export declare const value: string;\n",
+                },
+            },
+        },
+        files,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const unit = await installation.store(await installation.open(copy(root, "store")), "bun");
+
+    // materialize it as a running tree on Bun, over the closure of both units
+    const lists = present(
+        (await store.get(unit.manifest)).outputs["bun"]?.dependencies["lists"],
+        "the lists unit",
+    );
+    const directory = join(root, "run");
+    const tree = await DependencyTree.materialize(store, [unit], directory, {
+        run: { runtime: "bun", closure: new Set([unit.manifest, lists.manifest]) },
+    });
+    const placed = present(tree.directories["store"], "the store unit");
+
+    // place the module but not its types, under roots named by the runtime, and list both roots
+    expect({
+        exported: DefaultExport.parse(await import(join(placed, "index.js"))).default,
+        isTyped: await files.exists(join(placed, "index.d.ts")),
+        roots: (await tree.roots(files)).map((each) => relative(directory, each)),
+    }).toEqual({
+        exported: "lists",
+        isTyped: false,
+        roots: [`${lists.manifest}.bun`, `${unit.manifest}.bun`].toSorted(),
+    });
 });

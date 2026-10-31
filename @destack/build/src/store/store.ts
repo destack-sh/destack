@@ -1,4 +1,4 @@
-import { type Environment, Pipe, until } from "@destack/environment";
+import { type Environment, type FileSystem, Pipe, until } from "@destack/environment";
 import { Digest, type DigestCrypto, present } from "@destack/schema";
 import type { BlobStorage } from "@destack/resource";
 import { and, asc, type BlobStore, type DatabaseConnection, eq, inArray, lte } from "@destack/db";
@@ -10,7 +10,6 @@ import {
 } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {
-    type BuildContent,
     BuildReader,
     BuildWriter,
     type PackageLocation,
@@ -22,8 +21,15 @@ import { Tarball, TarballEntry } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
 import type { CacheEntry } from "../cache/entry.ts";
 import { type PackageAccess, serveStore } from "./http.ts";
-import { buildCache, buildManifest, buildReference, buildReferrer, buildRoot } from "./table.ts";
-import { BuildLayer, type BuildReferrer } from "./layer.ts";
+import {
+    buildCache,
+    buildManifest,
+    buildOutput,
+    buildReference,
+    buildReferrer,
+    buildRoot,
+} from "./table.ts";
+import { BuildLayer } from "./layer.ts";
 
 /** The concurrent uploads of one store. */
 const CONCURRENT_UPLOADS = 8;
@@ -40,14 +46,8 @@ const USE_MILLISECONDS = 24 * 60 * 60_000;
 /** The prefix of the root a cache entry retains its blobs by, followed by its key. */
 const CACHE_ROOT_PREFIX = "cache:";
 
-/** The prefix of a build's runtime builds among its referrers, one per server runtime. */
-export const RUNTIME_REFERRER = "runtime";
-
-/** The referrer path of a runtime build's source maps. */
-export const MAPS_REFERRER = "maps";
-
-/** The type declaration files a runtime never loads, beside the modules they describe. */
-const TYPE_DECLARATION = /\.d\.[cm]?ts$/u;
+/** Where a closure starts: at what a build runs, or at every export a dependent may import. */
+export type ClosureEntries = "run" | "export";
 
 /** Read a build's manifest at a package's registry, absent where none is stored. */
 export type ManifestRead = (
@@ -81,8 +81,6 @@ export class PackageStore<
     readonly #readers = new Map<string, Promise<BuildReader>>();
     /** The builds of cache keys in flight, so callers asking at once build each key once. */
     readonly #building = new Map<string, Promise<Digest>>();
-    /** The runtime builds being derived, by build and runtime. */
-    readonly #attaching = new Map<string, Promise<Digest>>();
     /** The builds in flight to the store, by manifest digest, each stored once. */
     readonly #putting = new Map<Digest, Promise<Digest>>();
     /** The read-only builds the store reads in place. */
@@ -90,6 +88,7 @@ export class PackageStore<
 
     /** Store builds in a partition's blobs, reading some read-only builds in place. */
     constructor(options: PackageStoreOptions<StoreEnvironment, Storage>) {
+        // keep the blobs, the environment and the layer
         this.blobs = options.blobs;
         this.environment = options.environment;
         this.#layer = options.layer ?? BuildLayer.empty();
@@ -107,7 +106,7 @@ export class PackageStore<
 
     /** Identify a build by the digest of its manifest, as a store stores it. */
     static async digest(manifest: PackageManifest, crypto: DigestCrypto): Promise<Digest> {
-        const bytes = encodeManifest(PackageManifest.parse(manifest));
+        const bytes = PackageManifest.serialize(manifest);
 
         return Digest.of(bytes, crypto);
     }
@@ -116,7 +115,7 @@ export class PackageStore<
     async put(source: BuildReader, signal?: AbortSignal): Promise<Digest> {
         // join the storing of the build in flight, or begin it, forgetting it once it settles
         signal?.throwIfAborted();
-        const bytes = encodeManifest(PackageManifest.parse(source.manifest));
+        const bytes = PackageManifest.serialize(source.manifest);
         const digest = await Digest.of(bytes, this.environment.crypto);
         let storing = this.#putting.get(digest);
         if (storing === undefined) {
@@ -179,15 +178,32 @@ export class PackageStore<
     /** Report whether the store has a build, recorded once every blob it references is stored. */
     async contains(digest: Digest): Promise<boolean> {
         // take a layered build as contained
-        if (this.#layer.build(digest) !== undefined) {
+        if (this.#layer.hasBuild(digest)) {
             return true;
         }
 
-        // find a stored build
+        // find a complete stored build
         const [found] = await this.database
             .select({ digest: buildManifest.digest })
             .from(buildManifest)
-            .where(eq(buildManifest.digest, digest))
+            .where(and(eq(buildManifest.digest, digest), eq(buildManifest.isComplete, true)))
+            .limit(1);
+
+        return found !== undefined;
+    }
+
+    /** Report whether the store has an output of a build: the whole build, or that output. */
+    async containsOutput(digest: Digest, output: string): Promise<boolean> {
+        // take a whole build as containing each output
+        if (await this.contains(digest)) {
+            return true;
+        }
+
+        // find the output a pull stored
+        const [found] = await this.database
+            .select({ name: buildOutput.name })
+            .from(buildOutput)
+            .where(and(eq(buildOutput.manifest, digest), eq(buildOutput.name, output)))
             .limit(1);
 
         return found !== undefined;
@@ -210,7 +226,7 @@ export class PackageStore<
         }
 
         // read the served build whole from its archive, its manifest verified by its digest
-        const reader = await BuildReader.archive(location, fetch, this.environment, signal);
+        const reader = await BuildReader.archive(location, fetch, this.environment, { signal });
 
         // store each missing file as served, then the manifest
         const digest = await this.put(reader, signal);
@@ -220,6 +236,49 @@ export class PackageStore<
                 `expected build digest ${location.manifest}, got ${digest}`,
             );
         }
+    }
+
+    /** Pull one output of a served build with its maps, in one request for its archive. */
+    async pull(
+        location: PackageLocation,
+        fetch: (input: URL, init: RequestInit) => Promise<Response>,
+        output: string,
+        signal?: AbortSignal,
+    ): Promise<void> {
+        // return an output the store has
+        if (await this.containsOutput(location.manifest, output)) {
+            return;
+        }
+
+        // read the output's archive, its manifest verified by its digest, and list what it carries
+        const reader = await BuildReader.archive(location, fetch, this.environment, {
+            signal,
+            output,
+        });
+        const files = await reader.outputFiles(output);
+        await this.blobs.lease([location.manifest, ...files.map((file) => file.digest)]);
+
+        // store each missing file as served, then the manifest
+        const { storage } = this.blobs;
+        const missing = new Set(await storage.missing(files.map((file) => file.digest)));
+        await inBatches(
+            files.filter((file) => missing.has(file.digest)),
+            signal,
+            async (file) => {
+                await storage.write(await reader.stream(file.path), file.digest);
+            },
+        );
+        const bytes = PackageManifest.serialize(reader.manifest);
+        await this.#write(location.manifest, bytes);
+
+        // record the output beside the references it keeps
+        await this.#recordOutput(
+            location.manifest,
+            bytes.byteLength,
+            reader.manifest,
+            files,
+            output,
+        );
     }
 
     /** Lease and store an uploaded file under its digest, refusing bytes of another digest. */
@@ -286,35 +345,8 @@ export class PackageStore<
             .onConflictDoNothing();
     }
 
-    /** List a manifest's referrer builds and theirs in turn, each after its subject. */
-    async attached(subject: Digest): Promise<BuildReferrer[]> {
-        // visit each subject's referrers, then theirs in turn, each build once, as a unit may be its own runtime build
-        const attached: BuildReferrer[] = [];
-        const visited = new Set<Digest>([subject]);
-        const pending = [subject];
-        for (let next = pending.shift(); next !== undefined; next = pending.shift()) {
-            const builds = (await this.referrers(next)).filter(
-                (file) =>
-                    file.path.startsWith(`${RUNTIME_REFERRER}/`) || file.path === MAPS_REFERRER,
-            );
-            for (const file of builds) {
-                attached.push({ subject: next, file });
-                if (!visited.has(file.digest)) {
-                    visited.add(file.digest);
-                    pending.push(file.digest);
-                }
-            }
-        }
-
-        return attached;
-    }
-
     /** List a stored manifest's referrers, as OCI's referrers API lists a subject's artifacts. */
     async referrers(subject: Digest): Promise<PackageFile[]> {
-        // list the layer's referrers beside the stored ones
-        const layered = this.#layer.referrers
-            .filter((each) => each.subject === subject)
-            .map((each) => each.file);
         const rows = await this.database
             .select({
                 path: buildReferrer.path,
@@ -325,16 +357,11 @@ export class PackageStore<
             .from(buildReferrer)
             .where(eq(buildReferrer.subject, subject));
 
-        return [...layered, ...rows].toSorted((left, right) => comparePath(left, right));
+        return rows.toSorted((left, right) => comparePath(left, right));
     }
 
     /** Read the file attached to a manifest at a path, absent for a manifest without one. */
     async referrer(subject: Digest, path: string): Promise<PackageFile | undefined> {
-        // answer a layered referrer in place, else a stored one
-        const layered = this.#layer.referrer(subject, path);
-        if (layered !== undefined) {
-            return layered;
-        }
         const [found] = await this.database
             .select({
                 path: buildReferrer.path,
@@ -346,13 +373,6 @@ export class PackageStore<
             .where(and(eq(buildReferrer.subject, subject), eq(buildReferrer.path, path)));
 
         return found;
-    }
-
-    /** List the source map files attached to a build, none for a build without maps. */
-    async maps(digest: Digest): Promise<readonly PackageFile[]> {
-        const attached = await this.referrer(digest, MAPS_REFERRER);
-
-        return attached === undefined ? [] : (await this.contents(attached.digest)).files();
     }
 
     /** Read and verify a build's manifest. */
@@ -369,7 +389,7 @@ export class PackageStore<
         // read a layered build in place
         const layered = this.#layer.build(digest);
         if (layered !== undefined) {
-            return layered;
+            return await layered;
         }
 
         // refuse a build the store no longer records, whose reader may outlive it
@@ -565,140 +585,6 @@ export class PackageStore<
         this.#readers.clear();
     }
 
-    /** Collect builds with their runtime builds, maps and closures, as a machine ships them. */
-    async layer(roots: readonly Digest[], runtimes: readonly Runtime[]): Promise<BuildLayer> {
-        // attach each root's runtime builds for the runtimes it emits
-        for (const root of roots) {
-            const { outputs } = await this.get(root);
-            for (const output of Object.values(outputs)) {
-                if (output.emit && runtimes.includes(output.runtime)) {
-                    await this.attachRuntime(root, output.runtime);
-                }
-            }
-        }
-
-        // collect each root, its maps and runtime builds of the runtimes, and their closures
-        const builds = new Set<Digest>(roots);
-        const referrers: BuildReferrer[] = [];
-        const shipped = new Set<string>([
-            MAPS_REFERRER,
-            ...runtimes.map((runtime) => `${RUNTIME_REFERRER}/${runtime}`),
-        ]);
-        for (const root of roots) {
-            const { package: released } = await this.get(root);
-            const packageId = present(
-                "id" in released ? released.id : undefined,
-                `the package id of ${released.name}`,
-            );
-            for (const referrer of await this.attached(root)) {
-                // skip a file attached to a build left out, or of another runtime
-                if (!builds.has(referrer.subject) || !shipped.has(referrer.file.path)) {
-                    continue;
-                }
-                referrers.push(referrer);
-                builds.add(referrer.file.digest);
-
-                // add the builds a runtime build runs with
-                if (referrer.file.path !== MAPS_REFERRER) {
-                    for (const reached of await this.closure(referrer.file.digest, packageId)) {
-                        builds.add(reached);
-                    }
-                }
-            }
-        }
-
-        // read each build in place
-        const readers = await Promise.all([...builds].map((digest) => this.contents(digest)));
-
-        return await BuildLayer.of(readers, roots, referrers, this.environment.crypto);
-    }
-
-    /** Attach the runtime build of each emitted output of a stored build. */
-    async attachRuntimes(digest: Digest): Promise<void> {
-        const { outputs } = await this.get(digest);
-        await Promise.all(
-            Object.values(outputs)
-                .filter((output) => output.emit)
-                .map((output) => this.attachRuntime(digest, output.runtime)),
-        );
-    }
-
-    /** Read the runtime build of a stored build, deriving and attaching it once with its maps. */
-    attachRuntime(digest: Digest, runtime: Runtime): Promise<Digest> {
-        // share a derivation in flight, retrying one that failed
-        const key = `${digest} ${runtime}`;
-        const known = this.#attaching.get(key);
-        if (known !== undefined) {
-            return known;
-        }
-        const attaching = this.#deriveRuntime(digest, runtime);
-        this.#attaching.set(key, attaching);
-        attaching.catch(() => this.#attaching.delete(key));
-
-        return attaching;
-    }
-
-    /** Derive a build's runtime build: its output's loaded files, its maps attached to it apart. */
-    async #deriveRuntime(digest: Digest, runtime: Runtime): Promise<Digest> {
-        // answer the runtime build attached before
-        const path = `${RUNTIME_REFERRER}/${runtime}`;
-        const attached = await this.referrer(digest, path);
-        if (attached !== undefined) {
-            return attached.digest;
-        }
-
-        // read the build's output for the runtime, refusing a build without one
-        const reader = await this.contents(digest);
-        const read = reader.manifest;
-        const [name, output] = present(
-            Object.entries(read.outputs).find(([, each]) => each.runtime === runtime),
-            `the ${runtime} output of ${read.package.name}`,
-        );
-
-        // point each dependency at its runtime build, attaching it first
-        const dependencies = Object.fromEntries(
-            await Promise.all(
-                Object.entries(output.dependencies).map(
-                    async ([dependency, release]) =>
-                        [
-                            dependency,
-                            {
-                                ...release,
-                                manifest: await this.attachRuntime(release.manifest, runtime),
-                            },
-                        ] as const,
-                ),
-            ),
-        );
-
-        // write the output's files a runtime loads with the package.json, native addons and assets included
-        const files = await reader.distributed();
-        const inside = files.filter((file) => file.path.startsWith(`${output.directory}/`));
-        const maps = inside.filter((file) => file.path.endsWith(".map"));
-        const loaded = inside.filter(
-            (file) => !file.path.endsWith(".map") && !TYPE_DECLARATION.test(file.path),
-        );
-        const declared = files.filter((file) => file.path === "package.json");
-        const { commit } = read;
-        const built = await this.#build(reader, [...declared, ...loaded], {
-            package: read.package,
-            ...(commit === undefined ? {} : { commit }),
-            outputs: { [name]: { ...output, dependencies } },
-        });
-
-        // attach the maps to the runtime build when the output has any, then the runtime build to the build
-        if (maps.length > 0) {
-            const mapped = await this.#build(reader, maps, {
-                package: read.package,
-                ...(commit === undefined ? {} : { commit }),
-            });
-            await this.attachBuild(built, mapped, MAPS_REFERRER);
-        }
-        await this.attachBuild(digest, built, path);
-
-        return built;
-    }
-
     /** Store a build again with its Destack dependencies pinned to other builds. */
     async relink(
         digest: Digest,
@@ -725,36 +611,26 @@ export class PackageStore<
             ]),
         );
 
+        // pin the dependency list's Destack releases alike, by package name
+        const listed = Object.fromEntries(
+            Object.entries(await reader.dependencies()).map(([key, listing]) => [
+                key,
+                listing.kind === "destack"
+                    ? present(dependencies[listing.package.name], `the build of ${key}`)
+                    : listing,
+            ]),
+        );
+
         // write the manifest anew, streaming the build's files from the stored one
         const written = new Map<string, Uint8Array<ArrayBuffer>>();
         const manifest = await BuildWriter.relink(
             reader,
             { write: async (path, bytes) => void written.set(path, bytes) },
             this.environment.crypto,
-            outputs,
+            { outputs, dependencies: listed },
         );
 
         return await this.#putWritten(reader, written, manifest);
-    }
-
-    /** Store a build of some files of another build, answering its manifest's digest. */
-    async #build(
-        source: BuildReader,
-        files: readonly PackageFile[],
-        contents: BuildContent,
-    ): Promise<Digest> {
-        // record the source's files as they are, writing only the lists and the manifest
-        const written = new Map<string, Uint8Array<ArrayBuffer>>();
-        const writer = new BuildWriter(
-            { write: async (path, bytes) => void written.set(path, bytes) },
-            this.environment.crypto,
-        );
-        for (const file of files) {
-            writer.add(file);
-        }
-        const built = await writer.finish(contents);
-
-        return await this.#putWritten(source, written, built);
     }
 
     /** Store a build with its new files in memory, streaming the rest from its source build. */
@@ -776,11 +652,6 @@ export class PackageStore<
                 this.environment.crypto,
             ),
         );
-    }
-
-    /** Attach a stored build to another at a path, its manifest as the referrer's blob. */
-    async attachBuild(subject: Digest, attached: Digest, path: string): Promise<void> {
-        await this.attach(subject, { ...(await this.head(attached)), path });
     }
 
     /** List the npm units a build depends on, directly or through other units, as far as found. */
@@ -808,13 +679,15 @@ export class PackageStore<
         return [...units];
     }
 
-    /** Read the manifests a build runs with, as far as found: itself and its workloads' imports. */
+    /** Read the manifests a build's entries import on a runtime: what it runs, or every export. */
     async closure(
         start: Digest,
         packageId: PackageId,
+        runtime: Runtime,
         read: ManifestRead = (digest) => this.get(digest),
+        entries: ClosureEntries = "run",
     ): Promise<ReadonlySet<Digest>> {
-        // start at each output's workload entries and the exports its views mount, reading each manifest once
+        // start at what each output runs, its workloads and the exports its views mount, or at every export
         const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
         const once: ManifestRead = (digest, located) => {
             const reading = manifests.get(digest) ?? read(digest, located);
@@ -823,16 +696,22 @@ export class PackageStore<
             return reading;
         };
         const first = await once(start, packageId);
-        const pending = Object.values(first?.outputs ?? {}).flatMap((output) => {
+        const outputs = Object.values(first?.outputs ?? {}).filter(
+            (output) => output.runtime === runtime,
+        );
+        const pending = outputs.flatMap((output) => {
             const mounted = new Set(Object.values(output.views).map((view) => view.entrypoint));
-            const entries = [
-                ...Object.values(output.workloads).map((workload) => workload.entrypoint),
-                ...Object.entries(output.exports)
-                    .filter(([, exported]) => mounted.has(exported.path))
-                    .map(([subpath]) => subpath),
-            ];
+            const started =
+                entries === "export"
+                    ? Object.keys(output.exports)
+                    : [
+                          ...Object.values(output.workloads).map((workload) => workload.entrypoint),
+                          ...Object.entries(output.exports)
+                              .filter(([, exported]) => mounted.has(exported.path))
+                              .map(([subpath]) => subpath),
+                      ];
 
-            return entries.map((subpath) => ({
+            return started.map((subpath) => ({
                 manifest: start,
                 packageId,
                 runtime: output.runtime,
@@ -840,8 +719,14 @@ export class PackageStore<
             }));
         });
 
-        // follow each export once to the dependency exports its chunks import
-        const units = new Map<Digest, PackageId>();
+        // follow each export once to the dependency exports its chunks import, keeping each npm unit's importer
+        const units = new Map<
+            Digest,
+            {
+                readonly located: PackageId;
+                readonly beside: Readonly<Record<string, DependencyRelease>>;
+            }
+        >();
         const closure = new Set<Digest>([start]);
         const visited = new Set<string>();
         for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
@@ -849,9 +734,8 @@ export class PackageStore<
             const found = visited.has(key) ? undefined : await once(next.manifest, next.packageId);
             visited.add(key);
             if (found !== undefined) {
-                const { outputs } = found;
                 const output = present(
-                    Object.values(outputs).find((each) => each.runtime === next.runtime),
+                    Object.values(found.outputs).find((each) => each.runtime === next.runtime),
                     `the ${next.runtime} output of ${next.manifest}`,
                 );
                 const { imports } = present(
@@ -865,7 +749,10 @@ export class PackageStore<
                     );
                     closure.add(dependency.manifest);
                     if (dependency.kind === "npm") {
-                        units.set(dependency.manifest, next.packageId);
+                        units.set(dependency.manifest, {
+                            located: next.packageId,
+                            beside: output.dependencies,
+                        });
                     } else {
                         pending.push({
                             manifest: dependency.manifest,
@@ -878,14 +765,46 @@ export class PackageStore<
             }
         }
 
-        // add the npm units each imported unit depends on, found at its dependent's registry
-        for (const [unit, located] of units) {
-            for (const needed of await this.units(unit, located, once)) {
-                closure.add(needed);
+        // add the npm units each imported unit depends on, found at its dependent's registry, and the peers its importer provides
+        const peered = new Set<Digest>();
+        for (const [unit, { located, beside }] of units) {
+            const reaching = [unit];
+            for (let next = reaching.pop(); next !== undefined; next = reaching.pop()) {
+                // add the unit and those it depends on once, then each peer they declare
+                for (const needed of [next, ...(await this.units(next, located, once))]) {
+                    closure.add(needed);
+                    if (!peered.has(needed)) {
+                        peered.add(needed);
+                        const declared = Object.values(
+                            (await once(needed, located))?.outputs ?? {},
+                        );
+                        for (const peer of declared.flatMap((each) => Object.keys(each.peers))) {
+                            const provided = beside[peer];
+                            if (provided?.kind === "npm" && !closure.has(provided.manifest)) {
+                                reaching.push(provided.manifest);
+                            }
+                        }
+                    }
+                }
             }
         }
 
         return closure;
+    }
+
+    /** Find the dependency tree the layer ships for a tree root's name. */
+    layeredTree(name: string): string | undefined {
+        return this.#layer.tree(name);
+    }
+
+    /** Clone a layered file to a path from where its layer keeps it, refusing one it lacks. */
+    protected async placeLayered(
+        file: PackageFile,
+        destination: string,
+        files: FileSystem,
+    ): Promise<void> {
+        const layered = present(this.#layer.file(file.digest), `the layered file ${file.path}`);
+        await files.copyFile(layered, destination);
     }
 
     /** Read one complete file and verify its exact bytes. */
@@ -911,7 +830,7 @@ export class PackageStore<
             .from(buildManifest)
             .where(eq(buildManifest.digest, digest));
         if (!stored) {
-            throw BuildError.of("MANIFEST_UNKNOWN", "package manifest not found");
+            throw BuildError.of("MANIFEST_UNKNOWN", `package manifest ${digest} not found`);
         }
 
         return { path: "manifest.json", digest, size: stored.size, mediaType: "application/json" };
@@ -927,19 +846,22 @@ export class PackageStore<
             : PackageStore.#readable(this.#slice(file, range.offset, range.length));
     }
 
-    /** Stream a stored build as a tarball of its manifest and files in path order. */
-    export(digest: Digest): ReadableStream<Uint8Array<ArrayBuffer>> {
-        return Tarball.stream(this.#entries(digest), this.environment.compression);
+    /** Stream a stored build, or one output of it, as a tarball of its manifest and files. */
+    export(digest: Digest, output?: string): ReadableStream<Uint8Array<ArrayBuffer>> {
+        return Tarball.stream(this.#entries(digest, output), this.environment.compression);
     }
 
-    /** Read a stored build's manifest, then each file in path order. */
-    async *#entries(digest: Digest) {
+    /** Read a stored build's manifest, then its files or one output's, in path order. */
+    async *#entries(digest: Digest, output: string | undefined) {
         // yield the manifest first
         const contents = await this.contents(digest);
-        yield TarballEntry.of("manifest.json", encodeManifest(contents.manifest));
+        yield TarballEntry.of("manifest.json", PackageManifest.serialize(contents.manifest));
 
         // stream each file as stored, its receiver verifying its digest
-        const list = await contents.distributed();
+        const list =
+            output === undefined
+                ? await contents.distributed()
+                : await contents.outputFiles(output);
         for (const file of list.toSorted(comparePath)) {
             yield { path: file.path, size: file.size, body: this.#stream(file) };
         }
@@ -1023,15 +945,55 @@ export class PackageStore<
 
         // record the references, then the build
         await this.database.transaction(async (transaction) => {
-            for (let start = 0; start < referenced.length; start += BATCH_ROWS) {
-                const batch = referenced.slice(start, start + BATCH_ROWS);
-                await transaction
-                    .insert(buildReference)
-                    .values(batch.map((target) => ({ manifest: digest, digest: target })))
-                    .onConflictDoNothing();
-            }
-            await transaction.insert(buildManifest).values({ digest, size }).onConflictDoNothing();
+            await PackageStore.#reference(transaction, digest, referenced);
+            await transaction
+                .insert(buildManifest)
+                .values({ digest, size, isComplete: true })
+                .onConflictDoUpdate({ target: buildManifest.digest, set: { isComplete: true } });
         });
+    }
+
+    /** Record a pulled output with the references keeping its files and dependency builds. */
+    async #recordOutput(
+        digest: Digest,
+        size: number,
+        recorded: PackageManifest,
+        files: readonly PackageFile[],
+        output: string,
+    ): Promise<void> {
+        // list the output's files and the builds it depends on
+        const dependencies = Object.values(
+            present(recorded.outputs[output], `the output ${output}`).dependencies,
+        ).map((dependency) => dependency.manifest);
+        const referenced = [...new Set([...files.map((file) => file.digest), ...dependencies])];
+
+        // record the references, then the output
+        await this.database.transaction(async (transaction) => {
+            await PackageStore.#reference(transaction, digest, referenced);
+            await transaction
+                .insert(buildManifest)
+                .values({ digest, size, isComplete: false })
+                .onConflictDoNothing();
+            await transaction
+                .insert(buildOutput)
+                .values({ manifest: digest, name: output })
+                .onConflictDoNothing();
+        });
+    }
+
+    /** Record the blobs a build references, a batch of rows at a time. */
+    static async #reference(
+        transaction: DatabaseConnection,
+        manifest: Digest,
+        referenced: readonly Digest[],
+    ): Promise<void> {
+        for (let start = 0; start < referenced.length; start += BATCH_ROWS) {
+            const batch = referenced.slice(start, start + BATCH_ROWS);
+            await transaction
+                .insert(buildReference)
+                .values(batch.map((digest) => ({ manifest, digest })))
+                .onConflictDoNothing();
+        }
     }
 
     /** Replace the blobs a root retains. */
@@ -1097,11 +1059,6 @@ export class PackageStore<
                 return [entry.file.digest];
         }
     }
-}
-
-/** Encode a parsed manifest as its stored bytes, whose digest identifies the build. */
-export function encodeManifest(parsed: PackageManifest): Uint8Array<ArrayBuffer> {
-    return new TextEncoder().encode(JSON.stringify(parsed));
 }
 
 /** Take the first file of each digest. */

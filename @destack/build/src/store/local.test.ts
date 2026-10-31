@@ -3,15 +3,15 @@ import type { Crypto } from "@destack/environment";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Simulation } from "@destack/environment/simulation";
-import { Package } from "@destack/package";
-import { BuildReader, BuildWriter } from "@destack/package/manifest";
-import { Digest, found } from "@destack/schema";
+import { type DependencyRelease, Package } from "@destack/package";
+import { BuildReader, BuildWriter, PackageManifest } from "@destack/package/manifest";
+import { Digest, found, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { testSimulation } from "../test/world.ts";
 import { LocalPackageStore } from "./local.ts";
 import { BuildLayer } from "./layer.ts";
-import { STAGING_DIRECTORY } from "../dependency/tree.ts";
+import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
 
 /** A day, in milliseconds. */
 const DAY_MILLISECONDS = 24 * 60 * 60_000;
@@ -19,12 +19,20 @@ const DAY_MILLISECONDS = 24 * 60 * 60_000;
 /** A week and a moment, past which an idle open collects an unrooted build. */
 const WEEK_MILLISECONDS = 7 * 24 * 60 * 60_000 + 1;
 
+/** The package most builds here build. */
+const ANSWER = { id: "package-00000000-0000-7000-8000-00000000a001", name: "@example/answer" };
+
 /** The bytes a test stores as a blob. */
 const MARKER = new TextEncoder().encode("stored");
 
-/** Write a build of one module in memory, as a builder writes one. */
-async function written(text: string, crypto: Crypto): Promise<BuildReader> {
-    // write the module, then the format listing it
+/** Write a build of one module in memory, as a builder writes one, of a package with its pins. */
+async function written(
+    text: string,
+    crypto: Crypto,
+    built: { readonly id: string; readonly name: string } = ANSWER,
+    dependencies: Readonly<Record<string, DependencyRelease>> = {},
+): Promise<BuildReader> {
+    // write the module and its package file, then the format listing them
     const bytes = new Map<string, Uint8Array<ArrayBuffer>>();
     const writer = new BuildWriter(
         {
@@ -35,12 +43,24 @@ async function written(text: string, crypto: Crypto): Promise<BuildReader> {
         crypto,
     );
     await writer.write("src/answer.ts", new TextEncoder().encode(text));
+    await writer.write(
+        "package.json",
+        new TextEncoder().encode(JSON.stringify({ name: built.name, exports: {} })),
+    );
     const manifest = await writer.finish({
-        package: Package.parse({
-            id: "package-00000000-0000-7000-8000-00000000a001",
-            name: "@example/answer",
-            version: "2026.9.0",
-        }),
+        package: Package.parse({ ...built, version: "2026.9.0" }),
+        outputs: {
+            bun: {
+                runtime: "bun",
+                emit: true,
+                workloads: {},
+                views: {},
+                directory: "src",
+                exports: { ".": { path: "src/answer.ts", imports: [] } },
+                dependencies,
+                peers: {},
+            },
+        },
     });
 
     return new BuildReader(
@@ -77,17 +97,25 @@ test("keep one store in a directory, which a later open of any toolchain reads",
     });
 });
 
-test("place a stored file by its blob and a layered one from its build", async () => {
-    // store a blob, and layer a build the blobs lack over the same store
+test("place a stored file by its blob and a layered one from where its layer keeps it", async () => {
+    // store a blob, and layer a build another store wrote to a distribution over the same store
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files, crypto } = environment;
     const directory = await files.makeTemporaryDirectory("test-stores-");
-    await using store = await LocalPackageStore.open(directory, environment);
+    await using store = await LocalPackageStore.open(join(directory, "store"), environment);
     const marker = await Digest.of(MARKER, crypto);
     await store.receive(marker, MARKER);
     const build = await written("export const answer = 42;", crypto);
-    const layer = await BuildLayer.of([build], [], [], crypto);
+    {
+        await using distributor = await LocalPackageStore.temporary(environment);
+        await distributor.writeLayer(
+            [await distributor.put(build)],
+            [],
+            join(directory, "distribution"),
+        );
+    }
+    const layer = await BuildLayer.open(join(directory, "distribution"), environment);
     await using layered = await LocalPackageStore.of({
         blobs: store.blobs,
         directory: join(directory, "layered"),
@@ -101,15 +129,109 @@ test("place a stored file by its blob and a layered one from its build", async (
         stored: join(directory, "out", "stored"),
         layered: join(directory, "out", "src", "answer.ts"),
     };
-    await layered.place(
-        { path: "stored", digest: marker, size: MARKER.byteLength, mediaType: "text/plain" },
-        placed.stored,
-    );
-    await layered.place(module, placed.layered);
+    await layered.place([
+        {
+            file: {
+                path: "stored",
+                digest: marker,
+                size: MARKER.byteLength,
+                mediaType: "text/plain",
+            },
+            destination: placed.stored,
+        },
+        { file: module, destination: placed.layered },
+    ]);
     expect([
         await files.readTextFile(placed.stored),
         await files.readTextFile(placed.layered),
     ]).toEqual(["stored", "export const answer = 42;"]);
+});
+
+test("lay out a distribution's release trees once, linking a root to its tree instead of placing it", async () => {
+    // write a layer of a stored release to a directory, as a distribution does, and open it
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files, crypto } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    await using store = await LocalPackageStore.open(join(directory, "store"), environment);
+    const build = await written("export const answer = 42;", crypto);
+    const release = await store.put(build);
+    const distribution = join(directory, "distribution");
+    await store.writeLayer([release], [], distribution);
+    const layer = await BuildLayer.open(distribution, environment);
+    await using layered = await LocalPackageStore.of({
+        blobs: store.blobs,
+        directory: join(directory, "layered"),
+        environment,
+        layer,
+    });
+
+    // materialize the release over the layer
+    const tree = await DependencyTree.materialize(
+        layered,
+        [{ kind: "destack", package: PackageManifest.package(build.manifest), manifest: release }],
+        join(directory, "tree"),
+    );
+    const root = join(directory, "tree", release);
+    const module = join(present(tree.directories["@example/answer"], "answer"), "src/answer.ts");
+
+    // link the root to the shipped tree and read the module through it
+    expect({
+        shipped: layer.tree(release),
+        link: await files.readLink(root),
+        module: await files.readTextFile(module),
+    }).toEqual({
+        shipped: join(distribution, "trees", release),
+        link: join(distribution, "trees", release),
+        module: "export const answer = 42;",
+    });
+});
+
+test("link a running tree's build to the dependencies its closure places alone, listing their roots", async () => {
+    // store an app pinning a library it runs with and a tool it only builds with
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files, crypto } = environment;
+    await using store = await LocalPackageStore.temporary(environment);
+    const pin = async (name: string, id: string) => {
+        const reader = await written(`export const ${name} = 1;`, crypto, {
+            id,
+            name: `@example/${name}`,
+        });
+
+        return {
+            kind: "destack" as const,
+            package: PackageManifest.package(reader.manifest),
+            manifest: await store.put(reader),
+        };
+    };
+    const library = await pin("library", "package-00000000-0000-7000-8000-00000000a002");
+    const tool = await pin("tool", "package-00000000-0000-7000-8000-00000000a003");
+    const app = await written("export const app = 1;", crypto, ANSWER, {
+        "@example/library": library,
+        "@example/tool": tool,
+    });
+    const built = {
+        kind: "destack" as const,
+        package: PackageManifest.package(app.manifest),
+        manifest: await store.put(app),
+    };
+
+    // materialize it running on Bun over a closure leaving the tool out
+    const closure = new Set([built.manifest, library.manifest]);
+    const tree = await DependencyTree.materialize(store, [built], store.trees, {
+        run: { runtime: "bun", closure },
+    });
+    const modules = join(present(tree.directories["@example/answer"], "the app"), "..");
+
+    // link the library beside the app but not the tool, and list both roots
+    expect({
+        linked: (await files.readDirectory(modules)).map((entry) => entry.name).toSorted(),
+        roots: (await tree.roots(files)).map((root) => root.slice(root.lastIndexOf("/") + 1)),
+    }).toEqual({
+        linked: ["answer", "library"],
+        roots: [`${built.manifest}.bun`, `${library.manifest}.bun`].toSorted(),
+    });
 });
 
 test("share the store between opens, each reading what the other writes", async () => {

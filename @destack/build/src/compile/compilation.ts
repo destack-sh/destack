@@ -37,7 +37,7 @@ import {
 import type { BuildDescription } from "@destack/package/manifest";
 import { PackageJson, type Sandbox } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
-import { type PackageOutput } from "@destack/package/manifest";
+import { type OutputContent } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { modulePlugin } from "@destack/package/vite";
 import type { ModuleTransformer } from "@destack/package/transform";
@@ -67,7 +67,7 @@ export interface OutputBuild {
     /** Dependencies, module imports, and generated file membership. */
     inspection: BuildDescription;
     /** The target output description. */
-    output: PackageOutput;
+    output: OutputContent;
     /** The emitted file of each package export, recorded with its imports at the end. */
     exported: Record<string, string>;
     /** Generated files and captured source assets. */
@@ -257,7 +257,7 @@ export class OutputCompilation implements Compilation {
 
     /** Create the empty files and descriptions of the output under its output directory. */
     #createBuild(): OutputBuild {
-        const output: PackageOutput = {
+        const output: OutputContent = {
             runtime: this.project.runtime,
             emit: true,
             workloads: {},
@@ -265,6 +265,7 @@ export class OutputCompilation implements Compilation {
             directory: `output/${this.name}`,
             exports: {},
             dependencies: {},
+            peers: {},
         };
 
         return {
@@ -955,7 +956,7 @@ function describe(
 }
 
 /** Add an extension's workloads and views to an output, refusing a name described twice. */
-function merge(output: PackageOutput, described: OutputDescription): void {
+function merge(output: OutputContent, described: OutputDescription): void {
     mergeSection("workloads", output.workloads, described.workloads);
     mergeSection("views", output.views, described.views);
 }

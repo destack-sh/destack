@@ -1,197 +1,174 @@
 import { join } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
-import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
-import { PackageFile } from "@destack/package/file";
-import { Digest, type DigestCrypto, schema } from "@destack/schema";
-import { encodeManifest } from "./store.ts";
+import { BuildReader, MANIFEST_PATH } from "@destack/package/manifest";
+import type { PackageFile } from "@destack/package/file";
+import { Digest, schema } from "@destack/schema";
 
-/** The file of a layer directory listing its releases and referrers. */
-const INDEX_PATH = "index.json";
+/** The file of a layer directory indexing its releases, builds and files. */
+export const LAYER_INDEX = "index.json";
 
-/** A file attached to a subject build at a path, as OCI's referrers attach artifacts. */
-export const BuildReferrer = schema.object({
-    /** The build the file is attached to. */
-    subject: Digest,
-    /** The attached file: its path below the subject, its digest, size and media type. */
-    file: PackageFile,
-});
-/** A file attached to a subject build at a path. */
-export type BuildReferrer = schema.Infer<typeof BuildReferrer>;
+/** The directory of a layer with its releases' dependency trees, laid out once on writing. */
+export const LAYER_TREES = "trees";
 
-/** The index of a layer directory: its releases and the files attached to its builds. */
-const LayerIndex = schema.object({
+/** The index of a layer directory, written once with it, so opening it reads one file. */
+export const LayerIndex = schema.object({
     /** The releases the layer ships, each with what it runs. */
     releases: schema.array(Digest),
-    /** The files attached to the layered builds. */
-    referrers: schema.array(BuildReferrer),
+    /** The byte count of each layered build's manifest, by the manifest's digest. */
+    builds: schema.record(Digest, schema.int()),
+    /** Where each layered file lies below the layer, as its build's digest and path, by digest. */
+    files: schema.record(Digest, schema.string().min(1)),
 });
-
-/** A layered build's file: the reader holding it and its path there. */
-interface LayerFile {
-    /** The build reader holding the file. */
-    readonly reader: BuildReader;
-    /** The file's path in that build. */
-    readonly path: string;
-}
+/** The index of a layer directory. */
+export type LayerIndex = schema.Infer<typeof LayerIndex>;
 
 /** Read-only builds a store reads in place, as Nix substituters and OCI layers lend theirs. */
 export class BuildLayer {
-    /** The layered builds by their manifest's digest. */
-    readonly #builds: ReadonlyMap<Digest, BuildReader>;
-    /** The encoded manifest of each layered build, by its digest. */
-    readonly #manifests: ReadonlyMap<Digest, Uint8Array<ArrayBuffer>>;
-    /** The layered builds' files by their digest. */
-    readonly #files: ReadonlyMap<Digest, LayerFile>;
-    /** The releases the layer ships, each with what it runs. */
-    readonly releases: readonly Digest[];
-    /** The files attached to the layered builds. */
-    readonly referrers: readonly BuildReferrer[];
-    /** The attached files by their subject and path. */
-    readonly #attached: ReadonlyMap<string, PackageFile>;
+    /** The directory the layer lies in, none for an empty layer. */
+    readonly #directory: string;
+    /** The index of the layer's releases, builds and files. */
+    readonly #index: LayerIndex;
+    /** The trees laid out with the layer, by their roots' names. */
+    readonly #trees: ReadonlyMap<string, string>;
+    /** The environment reading the layer's files. */
+    readonly #environment: Pick<Environment<"files">, "files" | "crypto"> | undefined;
+    /** The layered builds' readers opened so far, each once, by manifest digest. */
+    readonly #readers = new Map<Digest, Promise<BuildReader>>();
 
-    /** Keep the indexes of a layer's builds. */
+    /** Keep a layer's directory, index and trees. */
     private constructor(
-        builds: ReadonlyMap<Digest, BuildReader>,
-        manifests: ReadonlyMap<Digest, Uint8Array<ArrayBuffer>>,
-        files: ReadonlyMap<Digest, LayerFile>,
-        releases: readonly Digest[],
-        referrers: readonly BuildReferrer[],
+        directory: string,
+        index: LayerIndex,
+        trees: ReadonlyMap<string, string>,
+        environment: Pick<Environment<"files">, "files" | "crypto"> | undefined,
     ) {
-        // keep the indexes, and index the referrers by subject and path
-        this.#builds = builds;
-        this.#manifests = manifests;
-        this.#files = files;
-        this.releases = releases;
-        this.referrers = referrers;
-        this.#attached = new Map(
-            referrers.map((each) => [`${each.subject} ${each.file.path}`, each.file] as const),
-        );
+        // keep the directory, the index, the trees and the files reading them
+        this.#directory = directory;
+        this.#index = index;
+        this.#trees = trees;
+        this.#environment = environment;
     }
 
     /** Make a layer without builds. */
     static empty(): BuildLayer {
-        return new BuildLayer(new Map(), new Map(), new Map(), [], []);
+        return new BuildLayer("", { releases: [], builds: {}, files: {} }, new Map(), undefined);
     }
 
-    /** Index some builds by their manifests' and files' digests, with releases and referrers. */
-    static async of(
-        readers: readonly BuildReader[],
-        releases: readonly Digest[],
-        referrers: readonly BuildReferrer[],
-        crypto: DigestCrypto,
-    ): Promise<BuildLayer> {
-        // digest each build's encoded manifest, as a store identifies it
-        const builds = new Map<Digest, BuildReader>();
-        const manifests = new Map<Digest, Uint8Array<ArrayBuffer>>();
-        const files = new Map<Digest, LayerFile>();
-        for (const reader of readers) {
-            const bytes = encodeManifest(PackageManifest.parse(reader.manifest));
-            const digest = await Digest.of(bytes, crypto);
-            builds.set(digest, reader);
-            manifests.set(digest, bytes);
-
-            // index each file the build distributes by its digest
-            for (const file of await reader.distributed()) {
-                files.set(file.digest, { reader, path: file.path });
-            }
-        }
-
-        return new BuildLayer(builds, manifests, files, releases, referrers);
-    }
-
-    /** Open the layer a directory keeps: a directory per build and its index. */
+    /** Open the layer a directory keeps by its index and its trees, opening no build. */
     static async open(
         directory: string,
         environment: Pick<Environment<"files">, "files" | "crypto">,
     ): Promise<BuildLayer> {
-        // read each build directory and the index
-        const { files, crypto } = environment;
-        const entries = await files.readDirectory(directory);
-        const readers = await Promise.all(
-            entries
-                .filter((entry) => entry.kind === "directory")
-                .map((entry) =>
-                    BuildReader.openDirectory(join(directory, entry.name), files, crypto),
-                ),
+        // read the index, then find the trees laid out with it by their roots' names
+        const { files } = environment;
+        const index = LayerIndex.parse(
+            JSON.parse(await files.readTextFile(join(directory, LAYER_INDEX))),
         );
-        const indexed = await files.readTextFile(join(directory, INDEX_PATH));
-        const { releases, referrers } = LayerIndex.parse(JSON.parse(indexed));
+        const trees = join(directory, LAYER_TREES);
+        const roots = (await files.readDirectory(trees)).filter(
+            (entry) => entry.kind === "directory",
+        );
 
-        return await BuildLayer.of(readers, releases, referrers, crypto);
+        return new BuildLayer(
+            directory,
+            index,
+            new Map(roots.map((entry) => [entry.name, join(trees, entry.name)])),
+            environment,
+        );
     }
 
-    /** Write the layer to a directory, keeping builds written before and removing others. */
-    async write(directory: string, files: FileSystem): Promise<void> {
-        // write each build missing its manifest, which a build writes last
-        await files.mkdir(directory, { recursive: true });
-        const written = await files.readDirectory(directory);
-        for (const [digest, reader] of this.#builds) {
-            const build = join(directory, digest);
-            if (!(await files.exists(join(build, MANIFEST_PATH)))) {
-                await files.remove(build, { recursive: true, force: true });
-                await reader.writeDirectory(build, files);
+    /** Write the index of builds written below a layer directory, listing each build's files. */
+    static async writeIndex(
+        directory: string,
+        releases: readonly Digest[],
+        builds: ReadonlyMap<Digest, BuildReader>,
+        files: FileSystem,
+    ): Promise<void> {
+        // locate each build's manifest and every file it distributes below the layer
+        const index: LayerIndex = { releases: [...releases], builds: {}, files: {} };
+        for (const [digest, reader] of builds) {
+            const manifest = await files.stat(join(directory, digest, MANIFEST_PATH));
+            index.builds[digest] = manifest.size;
+            for (const file of await reader.distributed()) {
+                index.files[file.digest] ??= `${digest}/${file.path}`;
             }
         }
-
-        // remove the builds the layer no longer has, then write the index
-        const kept = new Set<string>(this.#builds.keys());
-        const stale = written.filter(
-            (entry) => entry.kind === "directory" && !kept.has(entry.name),
-        );
-        for (const entry of stale) {
-            await files.remove(join(directory, entry.name), { recursive: true });
-        }
-        const index = { releases: this.releases, referrers: this.referrers };
-        await files.writeTextFile(join(directory, INDEX_PATH), JSON.stringify(index));
+        await files.writeTextFile(join(directory, LAYER_INDEX), JSON.stringify(index));
     }
 
-    /** Find a layered build by its manifest's digest. */
-    build(digest: Digest): BuildReader | undefined {
-        return this.#builds.get(digest);
+    /** List the releases the layer ships, each with what it runs. */
+    get releases(): readonly Digest[] {
+        return this.#index.releases;
+    }
+
+    /** Find the dependency tree the layer ships for a tree root's name. */
+    tree(name: string): string | undefined {
+        return this.#trees.get(name);
+    }
+
+    /** List the layered builds' manifest digests. */
+    builds(): readonly Digest[] {
+        return Object.keys(this.#index.builds).map((digest) => Digest.parse(digest));
+    }
+
+    /** Report whether the layer holds a build by its manifest's digest. */
+    hasBuild(digest: Digest): boolean {
+        return Object.hasOwn(this.#index.builds, digest);
+    }
+
+    /** Open a layered build once by its manifest's digest, absent for a build outside the layer. */
+    build(digest: Digest): Promise<BuildReader> | undefined {
+        // answer nothing outside the layer, and each build's one reader
+        const environment = this.#environment;
+        if (!this.hasBuild(digest) || environment === undefined) {
+            return undefined;
+        }
+        let opened = this.#readers.get(digest);
+        if (opened === undefined) {
+            const { files, crypto } = environment;
+            opened = BuildReader.openDirectory(join(this.#directory, digest), files, crypto);
+            this.#readers.set(digest, opened);
+        }
+
+        return opened;
+    }
+
+    /** Find where a layered file lies on disk by its digest, absent for one outside the layer. */
+    file(digest: Digest): string | undefined {
+        const located = this.#index.files[digest];
+
+        return located === undefined ? undefined : join(this.#directory, located);
     }
 
     /** Describe a layered build's manifest file, absent for a build outside the layer. */
     head(digest: Digest): PackageFile | undefined {
-        const bytes = this.#manifests.get(digest);
+        const size = this.#index.builds[digest];
 
-        return bytes === undefined
+        return size === undefined
             ? undefined
-            : {
-                  path: "manifest.json",
-                  digest,
-                  size: bytes.byteLength,
-                  mediaType: "application/json",
-              };
-    }
-
-    /** Read the file attached to a layered build at a path, absent for one without it. */
-    referrer(subject: Digest, path: string): PackageFile | undefined {
-        return this.#attached.get(`${subject} ${path}`);
+            : { path: MANIFEST_PATH, digest, size, mediaType: "application/json" };
     }
 
     /** Report whether the layer holds a blob: a build's manifest or one of its files. */
     has(digest: Digest): boolean {
-        return this.#manifests.has(digest) || this.#files.has(digest);
+        return this.hasBuild(digest) || Object.hasOwn(this.#index.files, digest);
     }
 
-    /** Stream a layered blob, absent for one outside the layer. */
+    /** Stream a layered blob from disk, absent for one outside the layer. */
     stream(digest: Digest): ReadableStream<Uint8Array> | undefined {
-        // stream a manifest's encoded bytes
-        const manifest = this.#manifests.get(digest);
-        if (manifest !== undefined) {
-            return new Blob([manifest]).stream();
-        }
-
-        // stream a file from the build holding it
-        const file = this.#files.get(digest);
-        if (file === undefined) {
+        // find a manifest's file or a file's location, none outside the layer
+        const location = this.hasBuild(digest)
+            ? join(this.#directory, digest, MANIFEST_PATH)
+            : this.file(digest);
+        const environment = this.#environment;
+        if (location === undefined || environment === undefined) {
             return undefined;
         }
-        const { reader, path } = file;
 
+        // read it whole as the stream starts
         return new ReadableStream<Uint8Array>({
             async start(controller) {
-                controller.enqueue(await reader.load(path));
+                controller.enqueue(await environment.files.readFile(location));
                 controller.close();
             },
         });

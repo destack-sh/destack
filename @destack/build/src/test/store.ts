@@ -17,13 +17,13 @@ export async function testStore(
 ): Promise<LocalPackageStore> {
     // open and maintain the shared store on the host, as one piece of host work in a world
     const here = fileURLToPath(new URL(".", import.meta.url));
-    const host = LocalPackageStore.checkout(here, "test", testHost());
+    const open = () => LocalPackageStore.checkout(here, "test", testHost());
     if (world === undefined) {
-        return await host;
+        return await open();
     }
 
     // give the world a view of it through its own effects
-    return await (await world.scheduler.track(host, "host")).view(world, world.scheduler);
+    return await (await world.scheduler.track(open, "host")).view(world, world.scheduler);
 }
 
 /** A package store over a test's blobs and index, in memory or below a directory. */

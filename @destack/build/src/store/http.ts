@@ -6,12 +6,12 @@ import { PackageStore } from "./store.ts";
 /** The most bytes one upload has: 64 MiB, which bounds its memory. */
 const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
 
-/** The host's decision on reading and uploading stored builds. */
+/** How a store endpoint authorizes pulls, and pushes where it takes them, as OCI actions. */
 export interface PackageAccess {
-    /** Authorize reading a build, refusing a request the host does not grant it. */
-    readonly authorize: (request: Request, digest: Digest) => Promise<void>;
-    /** Authorize an upload below a scope such as its package, absent where nobody uploads. */
-    readonly upload?: (request: Request, scope: string | undefined) => Promise<void>;
+    /** Authorize pulling a build, refusing a request the host does not grant it. */
+    readonly pull: (request: Request, digest: Digest) => Promise<void>;
+    /** Authorize a push below a scope such as its package, absent for a read-only endpoint. */
+    readonly push?: (request: Request, scope: string | undefined) => Promise<void>;
 }
 
 /** Decide whether a request's If-None-Match lists an entity tag, weakly compared. */
@@ -58,14 +58,14 @@ async function write(
     access: PackageAccess,
     path: string,
 ): Promise<Response> {
-    // refuse uploads and find no uploaded file where nobody uploads
-    if (access.upload === undefined) {
+    // refuse pushes and find no pushed file at a read-only endpoint, as a read-only OCI registry
+    if (access.push === undefined) {
         return request.method === "PUT"
             ? new Response(null, { status: 405, headers: { allow: "GET, HEAD" } })
             : new Response(null, { status: 404 });
     }
     const target = UploadTarget.parse(path);
-    await access.upload(request, target?.scope);
+    await access.push(request, target?.scope);
 
     // tell whether the store has a file
     if (request.method === "HEAD") {
@@ -127,7 +127,7 @@ async function read(
     const digest = parsed.data;
 
     // authorize the build
-    await access.authorize(request, digest);
+    await access.pull(request, digest);
 
     // stream the whole build as an archive, validated by the digest of the manifest it contains
     const selected = path.slice(separator + 1);
@@ -261,7 +261,10 @@ async function archive(store: PackageStore, request: Request, digest: Digest): P
         return new Response(null, { headers });
     }
 
-    return new Response(store.export(digest), { headers });
+    // stream the whole build, or the output the request asks for
+    const output = new URL(request.url).searchParams.get("output") ?? undefined;
+
+    return new Response(store.export(digest, output), { headers });
 }
 
 /** An upload's target: a file by its digest, or a manifest by the digest of its build. */

@@ -1,6 +1,7 @@
 import {
     BLOB_TABLES,
     blob,
+    boolean,
     defineDatabase,
     defineTable,
     index,
@@ -11,12 +12,22 @@ import {
 import { Digest } from "@destack/schema";
 import { CacheEntry } from "../cache/entry.ts";
 
-/** The builds a store has, each present once every blob it references is stored. */
+/** The builds a store has, each with its manifest and lists, and all its files once complete. */
 export const buildManifest = defineTable("manifest", {
     /** The digest of the manifest's bytes, a blob the record goes with. */
     digest: blob("digest", { onDelete: "cascade" }).primaryKey(),
     /** The manifest's byte count. */
     size: integer("size").notNull(),
+    /** Whether every blob the build references is stored, else only the outputs pulled. */
+    isComplete: boolean("is_complete").notNull(),
+});
+
+/** The outputs a store pulled of builds it has in part, each with its loaded files and maps. */
+export const buildOutput = defineTable("output", {
+    /** The build, whose manifest's deletion takes the record. */
+    manifest: blob("manifest", { onDelete: "cascade" }).primaryKey(),
+    /** The output's name in the build. */
+    name: text("name").primaryKey(),
 });
 
 /** The blobs each build's manifest references: its lists, files and dependency builds. */
@@ -78,6 +89,7 @@ export const buildCache = defineTable(
 /** The tables of a package store's index, which its owner declares in its database. */
 export const PACKAGE_STORE_TABLES = [
     buildManifest,
+    buildOutput,
     buildReference,
     buildReferrer,
     buildRoot,

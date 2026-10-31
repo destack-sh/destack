@@ -32,7 +32,10 @@ export class BuildBucket {
         for (const file of await reader.distributed()) {
             await this.bucket.put(`${directory}${file.path}`, await reader.load(file.path));
         }
-        await this.bucket.put(`${directory}${MANIFEST_PATH}`, JSON.stringify(reader.manifest));
+        await this.bucket.put(
+            `${directory}${MANIFEST_PATH}`,
+            PackageManifest.serialize(reader.manifest),
+        );
     }
 
     /** Open a kept build, streaming its files from the bucket. */

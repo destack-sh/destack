@@ -493,7 +493,7 @@ export class Compiler implements AsyncDisposable {
                 },
             },
             crypto,
-            outputs,
+            { outputs, dependencies: await reader.dependencies() },
         );
         const linked = await BuildReader.openDirectory(destination, files, crypto);
         await store.put(linked, signal);
@@ -695,7 +695,7 @@ export class Compiler implements AsyncDisposable {
         try {
             const { scheduler } = this.store.environment;
 
-            return resultOf(await scheduler.track(this.#send(request), "peer"));
+            return resultOf(await scheduler.track(() => this.#send(request), "peer"));
         } finally {
             deadline.abort();
             signal?.removeEventListener("abort", abort);

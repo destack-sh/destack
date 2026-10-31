@@ -2,7 +2,7 @@ import { Digest, type DigestCrypto } from "@destack/schema";
 import type { BuildReader } from "@destack/package/manifest";
 import { PackageManifest } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
-import { distinctFiles, encodeManifest, inBatches } from "./store.ts";
+import { distinctFiles, inBatches } from "./store.ts";
 
 /** The client of a package server, pushing builds by digest as registry clients push images. */
 export class PackageClient {
@@ -30,7 +30,7 @@ export class PackageClient {
 
         // upload the manifest last in the store's encoding, under the build's digest
         signal?.throwIfAborted();
-        const manifest = encodeManifest(PackageManifest.parse(build.manifest));
+        const manifest = PackageManifest.serialize(build.manifest);
         const digest = await Digest.of(manifest, this.#crypto);
         await this.#upload(
             new Request(`${this.url}${digest}/manifest.json`, {

@@ -12,7 +12,7 @@ import { Runtime } from "@destack/package/runtime";
 import { type Commit, type Digest, schema, type Version } from "@destack/schema";
 import { join, resolve } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
-import { BuildReader, MANIFEST_PATH, type PackageManifest } from "@destack/package/manifest";
+import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 import type { PackageFile } from "@destack/package/file";
 import { digestFile } from "./directory.ts";
 import { PackageError } from "@destack/package/error";
@@ -62,12 +62,19 @@ export class PackageBuild implements AsyncDisposable {
         const { files } = store.environment;
         const reader = await store.contents(digest);
         const { manifest } = reader;
-        for (const file of await reader.distributed()) {
-            await store.place(file, join(destination, file.path));
-        }
-        await files.writeTextFile(join(destination, MANIFEST_PATH), JSON.stringify(manifest), {
-            createNew: true,
-        });
+        await store.place(
+            (await reader.distributed()).map((file) => ({
+                file,
+                destination: join(destination, file.path),
+            })),
+        );
+        await files.writeFile(
+            join(destination, MANIFEST_PATH),
+            PackageManifest.serialize(manifest),
+            {
+                createNew: true,
+            },
+        );
 
         // read the written build back
         const written = await BuildReader.openDirectory(

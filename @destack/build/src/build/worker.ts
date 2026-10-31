@@ -18,7 +18,7 @@ import {
     type OutputRequest,
     type TransformCache,
 } from "@destack/package/build";
-import { type PackageOutput } from "@destack/package/manifest";
+import type { OutputContent } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { PackageLocator } from "@destack/package/locator";
 import { Toolchain } from "@destack/check";
@@ -473,6 +473,12 @@ export class CompilerWorker implements AsyncDisposable {
                 resolved[key] = joinResolutions(key, resolved[key], dependency);
             }
         }
+
+        // record the closure's releases the build resolved against, which external imports pin
+        for (const dependency of Object.values(options.dependencies)) {
+            const key = `${dependency.package.name}@${dependency.package.version}`;
+            resolved[key] = joinResolutions(key, resolved[key], dependency);
+        }
         const sourceMaps = [...requests.values()].flatMap((entry) => entry.sourceMaps);
 
         return { outputs, sourceMaps, resolved };
@@ -536,7 +542,7 @@ export class CompilerWorker implements AsyncDisposable {
         );
 
         // compile the outputs and write their files
-        let described: Readonly<Record<string, PackageOutput>>;
+        let described: Readonly<Record<string, OutputContent>>;
         try {
             described = await request.kind.compile(
                 request.name,

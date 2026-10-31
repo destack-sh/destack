@@ -1,4 +1,4 @@
-import type { FileSystem } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import { isBuiltin } from "node:module";
 import { dirname, join, relative, sep } from "node:path";
 import * as lexer from "cjs-module-lexer";
@@ -81,8 +81,8 @@ export class NpmConversion {
     readonly dependencies: ReadonlySet<string>;
     /** The peers it declares, which the tree it sits in provides. */
     readonly peers: ReadonlySet<string>;
-    /** The files the conversion reads and writes. */
-    readonly #files: FileSystem;
+    /** The files the conversion reads and writes, and the scheduler its bundler runs under. */
+    readonly #environment: Pick<Environment<"files">, "files" | "scheduler">;
 
     /** Store a package's name, dependencies and peers. */
     constructor(
@@ -90,43 +90,49 @@ export class NpmConversion {
         dependencies: readonly string[],
         peers: readonly string[],
         runtime: ConvertedRuntime,
-        files: FileSystem,
+        environment: Pick<Environment<"files">, "files" | "scheduler">,
     ) {
-        // store the package's requirements, its runtime and the files it converts
+        // store the package's requirements, its runtime and the environment it converts in
         this.name = name;
         this.runtime = runtime;
         this.dependencies = new Set(dependencies);
         this.peers = new Set(peers);
-        this.#files = files;
+        this.#environment = environment;
     }
 
     /** Convert an installed copy's exported modules, answering its files, exports and imports. */
-    async convert(files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>): Promise<ConvertedPackage> {
+    async convert(
+        installed: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+    ): Promise<ConvertedPackage> {
         // copy the package where rolldown keys its modules plainly
-        const root = await this.#files.realPath(
-            await this.#files.makeTemporaryDirectory("destack-npm-"),
-        );
+        const { files, scheduler } = this.#environment;
+        const root = await files.realPath(await files.makeTemporaryDirectory("destack-npm-"));
         try {
-            for (const [path, bytes] of files) {
-                await this.#files.mkdir(dirname(join(root, path)), { recursive: true });
-                await this.#files.writeFile(join(root, path), bytes);
+            for (const [path, bytes] of installed) {
+                await files.mkdir(dirname(join(root, path)), { recursive: true });
+                await files.writeFile(join(root, path), bytes);
             }
 
             // convert every module its exports import over the installed files
-            const exports = this.#exports(files);
+            const exports = this.#exports(installed);
             const modules = [...new Set(exports.values())].toSorted();
             const imported = new Set<string>();
-            const converted = new Map(files);
+            const converted = new Map(installed);
             if (modules.length > 0) {
-                await lexer.init();
-                for (const { path, code } of await this.#rolldown(root, modules, files, imported)) {
+                // bundle as peer work, as its plugin reads the world's files
+                const bundled = scheduler.track(
+                    () =>
+                        lexer.init().then(() => this.#rolldown(root, modules, installed, imported)),
+                    "peer",
+                );
+                for (const { path, code } of await bundled) {
                     converted.set(path, new TextEncoder().encode(code));
                 }
             }
 
             return { files: converted, exports: Object.fromEntries(exports), imported };
         } finally {
-            await this.#files.remove(root, { recursive: true });
+            await files.remove(root, { recursive: true });
         }
     }
 
@@ -137,7 +143,7 @@ export class NpmConversion {
         seen: Set<string>,
     ): Plugin {
         // leave runtime modules, empty replaced ones, and take requires as Node's require(esm) does
-        const hosts = new HostModules(this.runtime, this.#files);
+        const hosts = new HostModules(this.runtime, this.#environment.files);
         const { name, runtime } = this;
         const known = new Set([name, ...this.dependencies, ...this.peers]);
 
@@ -430,11 +436,12 @@ export class NpmConversion {
             plugins: [this.#plugin(root, files, imported)],
         });
         try {
-            // key each module's file by its path, and rolldown's runtime helpers below their directory
+            // key each module's file by its path below the root, and rolldown's helpers below their directory
+            const rooted = `${root}${sep}`.replaceAll(/[^\w]/gu, "_");
             const named = (id: string | null, name: string) =>
                 id !== null && id.startsWith(`${root}${sep}`)
                     ? relative(root, id)
-                    : `${HELPER_DIRECTORY}/${name.replaceAll(/[^\w]/gu, "_")}.js`;
+                    : `${HELPER_DIRECTORY}/${name.replaceAll(/[^\w]/gu, "_").replace(rooted, "")}.js`;
             const generated = await bundle.generate({
                 format: "esm",
                 preserveModules: true,

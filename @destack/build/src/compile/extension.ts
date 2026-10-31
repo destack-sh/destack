@@ -53,15 +53,17 @@ export async function loadExtensions(
         dependent: packageJson,
         from: directory,
         isRequired: required.includes(name),
+        isBuilt: false,
     }));
-    for (const { name, dependent, from, isRequired } of pending) {
+    for (const { name, dependent, from, isRequired, isBuilt } of pending) {
+        const placed = tree.directories[name];
         const installed = packages.has(name)
             ? undefined
-            : (tree.directories[name] ?? (await locator.directory(name, from)));
-        // take each package once, and skip an absent optional dependency
+            : (placed ?? (await locator.directory(name, from)));
+        // take each package once, and skip an absent optional one or an npm package a placed build left out
         if (
             packages.has(name) ||
-            (installed === undefined && PackageJson.isOptional(dependent, name))
+            (installed === undefined && (isBuilt || PackageJson.isOptional(dependent, name)))
         ) {
             continue;
         }
@@ -81,6 +83,7 @@ export async function loadExtensions(
                     dependent: read,
                     from: installed,
                     isRequired: true,
+                    isBuilt: placed !== undefined,
                 })),
             );
         }
