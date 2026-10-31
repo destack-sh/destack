@@ -1,4 +1,4 @@
-import { createSignal, onSettled, useTelemetry } from "@destack/view";
+import { createSignal, onSettled, useEnvironment, useTelemetry } from "@destack/view";
 
 import {
     type Download,
@@ -19,11 +19,12 @@ export function createDownloads() {
     const [selected, setSelected] = createSignal<Download>();
     const [error, setError] = createSignal<string>();
     const { captureException } = useTelemetry();
+    const { network } = useEnvironment();
 
     // load platform choices without delaying the rest of the landing page
     onSettled(() => {
         setSystem(systemOfAgent(navigator.userAgent));
-        published ??= readDownloads();
+        published ??= readDownloads(network);
         published
             .then((catalog) => {
                 setDownloads(catalog);

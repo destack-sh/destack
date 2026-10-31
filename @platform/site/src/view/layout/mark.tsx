@@ -27,7 +27,7 @@ const shadow = "#c64a17";
 /** The cream of the ring. */
 const cream = "#f1eadb";
 
-/** Render the Destack mark's planet without its tile, for the goo bars that already draw its space. */
+/** Render the Destack mark's planet without its tile, for goo bars drawing its space already. */
 export function Mark(properties: { xstyle?: style.Styles }) {
     return (
         <svg

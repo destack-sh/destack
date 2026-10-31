@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { Random } from "@destack/environment";
 import { type JSX, onSettled, useEnvironment } from "@destack/view";
 
 import { stir, waveAt } from "../../effect/wave";
@@ -230,7 +231,7 @@ export function Flotsam(properties: {
         // start each piece somewhere random, some already on the water and some still to come
         const width = () => water.clientWidth;
         const launch = (piece: Piece, x: number): Drift => {
-            const pace = slowest + Math.random() * (fastest - slowest);
+            const pace = slowest + Random.fraction(environment.random) * (fastest - slowest);
             return {
                 x,
                 pace,
@@ -239,7 +240,7 @@ export function Flotsam(properties: {
                 climb: 0,
                 sunk: undefined,
                 grab: undefined,
-                tag: Math.floor(Math.random() * piece.tags.length),
+                tag: Math.floor(Random.fraction(environment.random) * piece.tags.length),
                 rise: 0,
                 tagX: undefined,
                 tagSpeed: 0,
@@ -277,8 +278,8 @@ export function Flotsam(properties: {
             // start the path to throw with
             held = {
                 float,
-                path: [{ ...pointer, at: performance.now() }],
-                downAt: performance.now(),
+                path: [{ ...pointer, at: environment.clock.now() }],
+                downAt: environment.clock.now(),
             };
         };
 
@@ -288,8 +289,8 @@ export function Flotsam(properties: {
                 return;
             }
             pointer = locate(event);
-            held.path.push({ ...pointer, at: performance.now() });
-            held.path = held.path.filter((point) => performance.now() - point.at < 90);
+            held.path.push({ ...pointer, at: environment.clock.now() });
+            held.path = held.path.filter((point) => environment.clock.now() - point.at < 90);
         };
 
         // let go of the held piece
@@ -310,7 +311,7 @@ export function Flotsam(properties: {
             drift.grab = undefined;
 
             // sink the piece on a quick tap
-            if (performance.now() - held.downAt < 250 && travelled < 6 && drift.lift <= 0) {
+            if (environment.clock.now() - held.downAt < 250 && travelled < 6 && drift.lift <= 0) {
                 drift.sunk = 0;
                 bubble(drift.x + held.float.piece.width / 2);
             }
@@ -333,18 +334,19 @@ export function Flotsam(properties: {
                     throw new TypeError("expected class names for a bubble");
                 }
                 element.className = bubbleClass;
-                const size = 3 + Math.random() * 4;
-                element.style.cssText = `left:${(x + (Math.random() - 0.5) * 24).toFixed(1)}px;top:${(20 + Math.random() * 20).toFixed(1)}px;width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;animation-delay:${(index * 0.15).toFixed(2)}s`;
+                const size = 3 + Random.fraction(environment.random) * 4;
+                element.style.cssText = `left:${(x + (Random.fraction(environment.random) - 0.5) * 24).toFixed(1)}px;top:${(20 + Random.fraction(environment.random) * 20).toFixed(1)}px;width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;animation-delay:${(index * 0.15).toFixed(2)}s`;
                 water.append(element);
                 clock.setTimeout(() => element.remove(), 2400);
             }
         };
 
         // spread the first pieces out with room between them, the rest queued up off the left edge
-        let behind = width() * (0.2 + Math.random() * 0.5);
+        let behind = width() * (0.2 + Random.fraction(environment.random) * 0.5);
         const scatter = (piece: Piece) => {
             const drift = launch(piece, behind);
-            behind -= width() * leastGap + Math.random() * longestCalm * fastest;
+            behind -=
+                width() * leastGap + Random.fraction(environment.random) * longestCalm * fastest;
 
             return drift;
         };
@@ -394,7 +396,7 @@ export function Flotsam(properties: {
             // toss the pieces back up onto the refilled water, spread across it
             if (properties.surfacedAt !== surfaced) {
                 surfaced = properties.surfacedAt;
-                behind = width() * (0.35 + Math.random() * 0.4);
+                behind = width() * (0.35 + Random.fraction(environment.random) * 0.4);
                 for (const float of floats) {
                     float.drift = scatter(float.piece);
                     float.drift.rise = 1;
@@ -431,7 +433,11 @@ export function Flotsam(properties: {
                         drift.climb -= gravity * elapsed;
                         drift.lift += drift.climb * elapsed;
                         if (drift.lift <= 0) {
-                            stir(drift.x + piece.width / 2, Math.min(8, 1.5 - drift.climb / 150));
+                            stir(
+                                drift.x + piece.width / 2,
+                                Math.min(8, 1.5 - drift.climb / 150),
+                                seconds,
+                            );
                             drift.lift = 0;
                             drift.climb = 0;
                         }
@@ -446,7 +452,10 @@ export function Flotsam(properties: {
                 if (isGone || drift.x > width() + wireLength + tag.offsetWidth + 20) {
                     const trailing = Math.min(...floats.map((other) => other.drift.x));
                     const start = Math.min(-piece.width, trailing - width() * leastGap);
-                    const next = launch(piece, start - Math.random() * longestCalm * fastest);
+                    const next = launch(
+                        piece,
+                        start - Random.fraction(environment.random) * longestCalm * fastest,
+                    );
                     next.tag = (drift.tag + 1) % piece.tags.length;
                     float.drift = next;
                     tag.textContent = tagText(piece, next);

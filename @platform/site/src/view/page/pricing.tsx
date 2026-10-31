@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { createSignal, onSettled } from "@destack/view";
+import { createSignal, onSettled, useEnvironment } from "@destack/view";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 import { Metadata } from "@destack/view/document";
 
@@ -60,10 +60,9 @@ export function Pricing() {
 
     // show prices in the currency of the reader's region, which they can switch
     const [currency, setCurrency] = createSignal<Currency>("USD");
+    const { locale, timeZone } = useEnvironment();
     onSettled(() => {
-        setCurrency(
-            currencyOf(Intl.DateTimeFormat().resolvedOptions().timeZone, navigator.language),
-        );
+        setCurrency(currencyOf(timeZone, locale));
     });
 
     // keep whether the tools run destacked, flipped by the figure's switch

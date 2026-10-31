@@ -1,3 +1,4 @@
+import type { Network } from "@destack/environment";
 import { schema } from "@destack/schema";
 
 /** One searchable page or section. */
@@ -20,9 +21,9 @@ export type SearchEntry = schema.Infer<typeof SearchEntry>;
 export type SearchEntryKind = SearchEntry["kind"];
 
 /** Load and validate the generated full-text search index. */
-export async function loadSearchEntries(): Promise<readonly SearchEntry[]> {
+export async function loadSearchEntries(network: Network): Promise<readonly SearchEntry[]> {
     // fetch the index and reject a failed response
-    const response = await fetch("/search.json");
+    const response = await network.fetch(new Request("/search.json"));
     if (!response.ok) {
         throw new Error(`cannot load search index (${response.status})`);
     }

@@ -8,9 +8,9 @@ const rippleLife = 3;
 /** Recent stirs of the waterline: where across the water canvas, when in seconds, and how hard. */
 const ripples: { x: number; at: number; strength: number }[] = [];
 
-/** Stir the waterline at a position across the water canvas, sending ripples outward. */
-export function stir(x: number, strength: number) {
-    ripples.push({ x, at: performance.now() / 1000, strength });
+/** Stir the waterline at a position across the water canvas at a frame's time in seconds. */
+export function stir(x: number, strength: number, seconds: number) {
+    ripples.push({ x, at: seconds, strength });
     if (ripples.length > rippleCapacity) {
         ripples.shift();
     }

@@ -551,14 +551,14 @@ export function Remix(properties: {
     };
 
     // wake the cables after the layout changes or the layer comes into view, and rest them while off screen
-    const wake = { until: 0, isVisible: true, resume: () => {} };
+    const wake = { until: 0, isWaking: false, isVisible: true, resume: () => {} };
     const resizes = makeResizeObserver(() => {
-        wake.until = performance.now() + 300;
+        wake.isWaking = true;
     });
     const sight = makeIntersectionObserver([], (entries) => {
         for (const entry of entries) {
             wake.isVisible = entry.isIntersecting;
-            wake.until = performance.now() + 300;
+            wake.isWaking = true;
             if (entry.isIntersecting) {
                 wake.resume();
             }
@@ -979,7 +979,11 @@ export function Remix(properties: {
                 }
             }
 
-            // trace only while something moves: travelling cards, a drag, or a settling cable
+            // trace only while something moves: travelling cards, a drag, a settling cable, or a wake
+            if (wake.isWaking) {
+                wake.until = now + 300;
+                wake.isWaking = false;
+            }
             const isBusy =
                 drag() !== undefined || now - changedAt < 1500 || now < wake.until || isStirring;
             if (wake.isVisible && isBusy) {

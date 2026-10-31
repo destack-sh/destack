@@ -1,5 +1,6 @@
 import type { TelemetryScope } from "@destack/telemetry";
-import type { Display } from "@destack/environment/browser";
+import type { BrowserEnvironment } from "@destack/environment/browser";
+import { Uuid } from "@destack/schema";
 
 /** The media query for a system that prefers dark colors. */
 const PREFERS_DARK = "(prefers-color-scheme: dark)";
@@ -11,7 +12,7 @@ const leastScale = 0.75;
 export function renderDiagrams(
     article: HTMLElement,
     telemetry: TelemetryScope,
-    display: Display,
+    environment: Pick<BrowserEnvironment, "display" | "random">,
 ): () => void {
     // retain source for theme changes and failed renders
     const diagrams = Array.from(
@@ -31,7 +32,7 @@ export function renderDiagrams(
     }
 
     // serialize updates and discard results from an unmounted reader
-    const preference = display.media(PREFERS_DARK);
+    const preference = environment.display.media(PREFERS_DARK);
     let isDisposed = false;
     let pending = Promise.resolve();
     const update = () => {
@@ -97,7 +98,7 @@ export function renderDiagrams(
                         return;
                     }
                     try {
-                        const identifier = `diagram-${crypto.randomUUID()}`;
+                        const identifier = `diagram-${Uuid.v4(environment.random)}`;
                         const { svg } = await mermaid.render(identifier, source);
                         if (isDisposed) {
                             return;

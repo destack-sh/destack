@@ -9,7 +9,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@destack/ui/dropdown-menu";
-import { createSignal, onSettled, useTelemetry } from "@destack/view";
+import { createSignal, onSettled, useEnvironment, useTelemetry } from "@destack/view";
 
 import { commandEvents } from "../layout/command";
 import { origin } from "../content/site";
@@ -36,14 +36,15 @@ export type PageSourceCommands = {
 
 /** Create source commands shared by responsive article controls. */
 export function createPageSourceCommands(source: PageSource): PageSourceCommands {
-    // report failures to the page's telemetry
+    // report failures to the page's telemetry, loading through the page's network
     const { captureException } = useTelemetry();
+    const { network } = useEnvironment();
 
     // copy one source format to the clipboard
     const write = async (kind: SourceKind) => {
         // load the requested source format
         const route = kind === "md" ? source.markdownRoute : source.textRoute;
-        const response = await fetch(route);
+        const response = await network.fetch(new Request(route));
 
         // fail on unavailable generated sources
         if (!response.ok) {
@@ -81,10 +82,12 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
 export function SourceActions(properties: SourceActionsProperties) {
     // load the page's Markdown once the page settles, so the copy happens inside the click
     const { captureException } = useTelemetry();
+    const { network } = useEnvironment();
     const commands = properties.commands;
     const [markdown, setMarkdown] = createSignal<string>();
     onSettled(() => {
-        void fetch(commands.source.markdownRoute)
+        void network
+            .fetch(new Request(commands.source.markdownRoute))
             .then(async (response) => {
                 if (!response.ok) {
                     throw new Error(

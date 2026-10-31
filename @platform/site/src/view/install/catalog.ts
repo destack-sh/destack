@@ -1,3 +1,4 @@
+import type { Network } from "@destack/environment";
 import { schema } from "@destack/schema";
 
 /** One public archive or installer in the download catalog. */
@@ -63,9 +64,9 @@ export interface Download {
 }
 
 /** Read and validate the public download catalog. */
-export async function readDownloads(): Promise<Download[]> {
+export async function readDownloads(network: Network): Promise<Download[]> {
     // fetch the catalog and reject a failed response or shape
-    const response = await fetch("https://download.destack.sh/downloads.json");
+    const response = await network.fetch(new Request("https://download.destack.sh/downloads.json"));
     if (!response.ok) {
         throw new Error(`download catalog returned ${response.status}`);
     }
