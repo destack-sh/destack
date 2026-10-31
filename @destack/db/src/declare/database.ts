@@ -1,15 +1,9 @@
 import type { Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
 import { ModuleMetadata, type Package } from "@destack/package";
-import {
-    defineResourceKind,
-    ResourceDeclaration,
-    type Connector,
-    type ResourceBinding,
-} from "@destack/resource";
+import { defineResourceKind, ResourceDeclaration, type ResourceBinding } from "@destack/resource";
 import type { ResourceContext } from "@destack/resource/context";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { connectors } from "#connector";
 import { TABLE, type Table } from "../table/table.ts";
 import { expandTrees } from "../tree/tree.ts";
 import { DatabaseState } from "../migration/state.ts";
@@ -75,13 +69,6 @@ export class Database<
         this.tables = tables;
         this.relations = relations;
         this.replicated = new Set(description.spec.replicated);
-    }
-
-    /** The connectors opening databases on the running runtime. */
-    override get connectors(): Readonly<
-        Record<string, Connector<DatabaseConnection<Models>, this>>
-    > {
-        return connectors;
     }
 
     /** Decide whether the database stores a table's rows as a replica. */

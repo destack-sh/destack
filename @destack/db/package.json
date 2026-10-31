@@ -19,12 +19,6 @@
         "./cloudflare/durable": "./src/cloudflare/durable.ts",
         "./inspect": "./src/inspect/index.ts"
     },
-    "imports": {
-        "#connector": {
-            "bun": "./src/bun/connector.ts",
-            "default": "./src/declare/connector.ts"
-        }
-    },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
