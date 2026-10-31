@@ -175,6 +175,7 @@ const styles = style.create({
     console: {
         gridColumn: { default: "8 / -1", [screen.belowDesktop]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
-        minHeight: { default: 0, [screen.belowDesktop]: "22rem" },
+        height: { default: null, [screen.belowDesktop]: "36rem" },
+        minHeight: 0,
     },
 });
