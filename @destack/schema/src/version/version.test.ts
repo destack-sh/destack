@@ -49,27 +49,40 @@ test("accept only calendar versions", () => {
     ]);
 });
 
-test("list the releases after one release and up to another in release order", () => {
-    const releases = {
-        "2026.11.0": 5,
-        "2026.9.0": 2,
-        "2026.10.0": 4,
-        "2026.8.0": 1,
-        "2026.10.0-dev.1": 3,
-    };
+test("list the releases after one version's release and up to another's in release order", () => {
+    const releases = { "2026.11.0": 4, "2026.9.0": 2, "2026.10.0": 3, "2026.8.0": 1 };
 
+    // a dev build leads to its release and carries its entries
     expect([
         Version.between(releases, "2026.8.0", "2026.10.0"),
         Version.between(releases, "2026.10.0", "2026.10.0"),
         Version.between(releases, "2026.7.0", "2026.8.0"),
+        Version.between(releases, "2026.9.0", "2026.10.0-dev.1"),
+        Version.between(releases, "2026.10.0-dev.1", "2026.10.0-dev.2"),
+        Version.between(releases, "2026.10.0-dev.2", "2026.10.0"),
     ]).toEqual([
         [
             ["2026.9.0", 2],
-            ["2026.10.0-dev.1", 3],
-            ["2026.10.0", 4],
+            ["2026.10.0", 3],
         ],
         [],
         [["2026.8.0", 1]],
+        [["2026.10.0", 3]],
+        [],
+        [],
+    ]);
+});
+
+test("refuse conversion keys that are dev builds or follow the declaring version's release", () => {
+    // a dev build declares the conversions of the release it leads to
+    expect([
+        refusal({ "2026.9.0": 1 }, "2026.9.0-dev.1"),
+        refusal({ "2026.9.0-dev.1": 1 }, "2026.9.0"),
+        refusal({ "2026.10.0": 1 }, "2026.9.0-dev.4"),
+    ]).toEqual([
+        "accepted",
+        "TypeError: conversion key of user is not a release: 2026.9.0-dev.1",
+        "TypeError: conversion of user is keyed by 2026.10.0, after its version 2026.9.0-dev.4",
     ]);
 });
 
@@ -84,3 +97,15 @@ test("tell dev builds from releases", () => {
 
     expect(versions.map((version) => Version.isPrerelease(version))).toEqual([false, true, true]);
 });
+
+/** Check a version's conversion keys, reading a refusal as its message. */
+function refusal(keyed: Readonly<Record<string, number>>, version: string): string {
+    // accept the keys, or read why they are refused
+    try {
+        Version.requireUpTo(keyed, version, "user");
+
+        return "accepted";
+    } catch (error) {
+        return String(error);
+    }
+}

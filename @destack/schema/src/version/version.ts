@@ -26,6 +26,13 @@ export const Version = Object.assign(z.string().regex(VERSION), {
         return components(version).stage === 0;
     },
 
+    /** Read the release a version leads to: itself, or a dev build's release. */
+    release(version: string): string {
+        const { year, month, release } = components(version);
+
+        return `${year}.${month}.${release}`;
+    },
+
     /** Read the next release in a version's year and month. */
     next(version: string): string {
         const { year, month, release } = components(version);
@@ -33,33 +40,37 @@ export const Version = Object.assign(z.string().regex(VERSION), {
         return `${year}.${month}.${release + 1}`;
     },
 
-    /** List the entries keyed by releases after one release up to another, in release order. */
+    /** List the entries keyed by releases after one version's release up to another's, in order. */
     between<Value>(
         keyed: Readonly<Record<string, Value>>,
         after: string,
         upto: string,
     ): [string, Value][] {
+        // compare dev builds as the release they lead to, which carries its entries
+        const first = Version.release(after);
+        const last = Version.release(upto);
+
         return Object.entries(keyed)
             .filter(
                 ([release]) =>
-                    Version.compare(release, after) > 0 && Version.compare(release, upto) <= 0,
+                    Version.compare(release, first) > 0 && Version.compare(release, last) <= 0,
             )
             .toSorted(([left], [right]) => Version.compare(left, right));
     },
 
-    /** Refuse keys that are not releases or follow the declaring release, as for conversions. */
+    /** Refuse conversion keys that are not releases or follow the declaring version's release. */
     requireUpTo<Value>(
         keyed: Readonly<Record<string, Value>>,
-        release: string,
+        version: string,
         name: string,
     ): void {
         for (const key of Object.keys(keyed)) {
-            // refuse a key that is not a release or one after the declaring release
-            if (!Version.safeParse(key).success) {
+            // refuse a key that is not a release or one after the declaring version's release
+            if (!Version.safeParse(key).success || Version.isPrerelease(key)) {
                 throw new TypeError(`conversion key of ${name} is not a release: ${key}`);
-            } else if (Version.compare(key, release) > 0) {
+            } else if (Version.compare(key, Version.release(version)) > 0) {
                 throw new TypeError(
-                    `conversion of ${name} is keyed by ${key}, after its release ${release}`,
+                    `conversion of ${name} is keyed by ${key}, after its version ${version}`,
                 );
             }
         }
