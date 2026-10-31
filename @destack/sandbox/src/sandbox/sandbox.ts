@@ -88,7 +88,7 @@ export class Sandbox implements AsyncDisposable {
         );
         try {
             configure(launcher, options, watched.ready);
-            await environment.scheduler.track(watched.ready.promise, "host");
+            await environment.scheduler.track(() => watched.ready.promise, "host");
 
             // expose failures after startup through the public completion promise
             return new Sandbox(
@@ -136,7 +136,7 @@ export class Sandbox implements AsyncDisposable {
             }
         }
 
-        return await this.#scheduler.track(this.exited, "peer");
+        return await this.#scheduler.track(() => this.exited, "peer");
     }
 
     /** Stop execution before releasing the sandbox. */
@@ -161,7 +161,11 @@ interface WatchedLauncher {
 async function requireSupport(environment: Environment<"host">): Promise<void> {
     // load the upstream manager on first start as host work, since it costs hundreds of milliseconds to import
     const [{ SandboxManager }, { RUNTIME_PATHS }] = await environment.scheduler.track(
-        Promise.all([import("@anthropic-ai/sandbox-runtime"), import("../launcher/launcher.ts")]),
+        () =>
+            Promise.all([
+                import("@anthropic-ai/sandbox-runtime"),
+                import("../launcher/launcher.ts"),
+            ]),
         "host",
     );
 
@@ -311,7 +315,7 @@ async function release(
         () => undefined,
     );
     try {
-        await environment.scheduler.track(watched.closed, "peer");
+        await environment.scheduler.track(() => watched.closed, "peer");
     } finally {
         cleanup.abort();
     }
