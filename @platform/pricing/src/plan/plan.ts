@@ -33,7 +33,7 @@ export const PLANS = {
     // free: every account's default, a small allowance on shared machines, capped
     free: {
         name: t`Free`,
-        description: t`All of Destack, within a free allowance.`,
+        description: t`For your first apps, with all of Destack within a free allowance.`,
         isDefault: true,
         productFeatures: {
             database: database.grant(FREE_DATABASE),
@@ -48,7 +48,7 @@ export const PLANS = {
     // go: its fee in usage, then pay as you go, with early access
     go: {
         name: t`Go`,
-        description: t`All of Destack without caps, with early access.`,
+        description: t`For your personal stack, with all of Destack, no caps and early access.`,
         prices: Fee.prices({ USD: 800, CAD: 1100, EUR: 800, CHF: 800, GBP: 800, AUD: 1300 }),
         productFeatures: {
             database: database.grant(null),
@@ -64,7 +64,7 @@ export const PLANS = {
     // plus: more usage in its fee, with custom domains and email support
     plus: {
         name: t`Plus`,
-        description: t`Go, with custom domains and email support.`,
+        description: t`For your daily work, with custom domains and email support.`,
         prices: Fee.prices({ USD: 2000, CAD: 2800, EUR: 2000, CHF: 2000, GBP: 2000, AUD: 3200 }),
         productFeatures: {
             database: database.grant(null),
@@ -81,7 +81,7 @@ export const PLANS = {
     // pro: the most usage in its fee, with dedicated machines and priority support
     pro: {
         name: t`Pro`,
-        description: t`Plus, with dedicated machines and priority support.`,
+        description: t`For your critical software, with dedicated machines and priority support.`,
         prices: Fee.prices({
             USD: 10_000,
             CAD: 14_000,
