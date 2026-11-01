@@ -78,6 +78,21 @@ test("keep only the last hop a proxy on this computer appended, the client's own
     expect(received.headers.get("forwarded")).toBe("for=192.0.2.43");
 });
 
+test("tell this computer's host names, localhost and below it and loopback addresses, from others", () => {
+    expect(
+        [
+            "localhost",
+            "notes.space.localhost",
+            "127.0.0.1",
+            "127.8.0.3",
+            "[::1]",
+            "localhost.example",
+            "192.0.2.43",
+            "example.com",
+        ].map((name) => HostAddress.isLoopbackName(name)),
+    ).toEqual([true, true, true, true, true, false, false, false]);
+});
+
 test("count an IPv4 client by its address and an IPv6 client by its /64, without ports or brackets", () => {
     expect(
         [

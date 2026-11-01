@@ -128,6 +128,13 @@ export const HostAddress = {
             (ipv4 !== undefined && sameNetwork(ipv4, LOOPBACK_IPV4, LOOPBACK_PREFIX_LENGTH))
         );
     },
+
+    /** Report whether a host name is this computer's: localhost or a loopback address. */
+    isLoopbackName(hostname: string): boolean {
+        const name = hostname.toLowerCase();
+
+        return name === "localhost" || name.endsWith(".localhost") || HostAddress.isLoopback(name);
+    },
 };
 
 /** Read a dotted IPv4 address as a number, absent for any other text. */
