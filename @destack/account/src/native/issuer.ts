@@ -5,7 +5,7 @@ import type { StepUp } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
-import { createClient } from "@destack/object/client";
+import { Bookmark, BOOKMARK_HEADER, createClient } from "@destack/object/client";
 import { type PartitionId, Pkce } from "@destack/access/token";
 import {
     AUTHORIZATION_PATH,
@@ -126,12 +126,16 @@ export class Issuer {
     readonly #fetch: Fetch;
     /** The environment the calls run in. */
     readonly #environment: Environment;
+    /** The positions the caller's calls saw, which the issuer's answers add to. */
+    readonly #bookmark: Bookmark;
 
-    /** Call an issuer through a fetch, in an environment. */
-    constructor(url: string, fetch: Fetch, environment: Environment) {
+    /** Call an issuer through a fetch, in an environment, keeping the positions it answers. */
+    constructor(url: string, fetch: Fetch, environment: Environment, bookmark: Bookmark) {
+        // store the issuer's URL, the fetch, the environment and the bookmark
         this.url = url.replace(/\/$/u, "");
         this.#fetch = fetch;
         this.#environment = environment;
+        this.#bookmark = bookmark;
     }
 
     /** Start a browser sign-in returning to a loopback redirect, fresh for a step-up. */
@@ -421,15 +425,21 @@ export class Issuer {
         return { tokens: this.#granted(granted), userId: sub };
     }
 
-    /** Post a form to one of the issuer's endpoints. */
-    #post(path: string, form: Readonly<Record<string, string>>): Promise<Response> {
-        return this.#fetch(
+    /** Post a form to one of the issuer's endpoints, keeping the position it answers. */
+    async #post(path: string, form: Readonly<Record<string, string>>): Promise<Response> {
+        // post the form, then keep each position the answer reports
+        const response = await this.#fetch(
             new Request(`${this.url}${path}`, {
                 method: "POST",
                 headers: { "content-type": "application/x-www-form-urlencoded" },
                 body: new URLSearchParams(form),
             }),
         );
+        for (const watermark of Bookmark.parse(response.headers.get(BOOKMARK_HEADER)).watermarks) {
+            this.#bookmark.observe(watermark);
+        }
+
+        return response;
     }
 
     /** Read an issuer's JSON answer, failing as a bad gateway on a malformed answer. */

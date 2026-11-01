@@ -294,7 +294,7 @@ export const Entitlement = {
     },
 
     /** Follow the entitlements of the accounts of the spaces a database serves. */
-    follow: space.follow(entitlementShape, {
+    follow: entitlementShape.per(space, {
         key: async (row, view) => {
             // follow nothing for a space this database does not serve
             if (!(await Space.isServing(view, row.id))) {

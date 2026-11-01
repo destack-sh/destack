@@ -10,7 +10,7 @@ import type { Environment } from "@destack/environment";
 import { defineObject, device, field, ListPage } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { type Fetch, PACKAGE_PATH, PackageMount, type PackageHandle } from "@destack/object";
-import { type ClientOptions, createClient } from "@destack/object/client";
+import { type Bookmark, type ClientOptions, createClient } from "@destack/object/client";
 import { RequestId, ObjectReference, Scope, type Subject } from "@destack/sync";
 import { canonicalize, type Identifier, schema } from "@destack/schema";
 import { Account } from "../object/account.ts";
@@ -60,20 +60,29 @@ export class Login {
     readonly #fetch: Fetch;
     /** The environment the calls run in, whose clock the tokens are reused by. */
     readonly #environment: Environment;
+    /** The positions the device's calls saw, which later calls wait for. */
+    readonly #bookmark: Bookmark;
 
     /** Act as the person of a login through the refresh token a keychain stores for them. */
-    constructor(row: Login["row"], sessions: SessionStore, fetch: Fetch, environment: Environment) {
+    constructor(
+        row: Login["row"],
+        sessions: SessionStore,
+        fetch: Fetch,
+        environment: Environment,
+        bookmark: Bookmark,
+    ) {
         // require a person still signed in
         if (row.status !== "authenticated") {
             throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");
         }
 
-        // store the login, its issuer, the keychain, the fetch and the environment
+        // store the login, its issuer, the keychain, the fetch, the environment and the bookmark
         this.row = row;
-        this.issuer = new Issuer(row.issuer, fetch, environment);
+        this.issuer = new Issuer(row.issuer, fetch, environment, bookmark);
         this.#sessions = sessions;
         this.#fetch = fetch;
         this.#environment = environment;
+        this.#bookmark = bookmark;
     }
 
     /** The signed-in person. */
@@ -96,6 +105,7 @@ export class Login {
         return {
             url: PackageMount.url(new URL(this.issuer.url).origin, audience),
             fetch: (request) => this.send(request, audience),
+            bookmark: this.#bookmark,
         };
     }
 
@@ -130,6 +140,7 @@ export class Login {
             {
                 url: PackageMount.url(endpoint, handle.id),
                 fetch: (request) => this.send(request, handle.id, { partition }),
+                bookmark: this.#bookmark,
             },
             this.#environment,
         );
@@ -140,6 +151,7 @@ export class Login {
         return {
             url: `${origin}${PACKAGE_PATH}`,
             fetch: (request) => this.send(request, audience, { partition: spaceId }),
+            bookmark: this.#bookmark,
         };
     }
 

@@ -1,3 +1,4 @@
+import { Bookmark } from "@destack/object/client";
 import type { Environment, HostCapability } from "@destack/environment";
 import { type DatabaseConnection, type Dialect, eq, Snapshot } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
@@ -1277,7 +1278,7 @@ export class TestAccountStore implements AsyncDisposable {
 
         // serve each package to bearers, signing machines by their keys and spaces by their space's
         const fetch = (request: Request) => TestAccountStore.#route(store, served, request);
-        const issuer = new Issuer(ISSUER, fetch, environment);
+        const issuer = new Issuer(ISSUER, fetch, environment, new Bookmark());
         const sources = new Map<string, TokenSource>();
         const served: TestObjectStore = TestObjectStore.serve(store, {
             credential: {

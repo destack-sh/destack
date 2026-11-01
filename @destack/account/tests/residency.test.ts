@@ -336,6 +336,7 @@ test("relate a cloud machine as a server of its residency when declared or enrol
     const replicated = [
         await replicas(cloud, cloud.subject.id, ids.account),
         await replicas(cloud, cloud.subject.id, americanId),
+        await replicas(cloud, cloud.subject.id, cloud.subject.id),
     ];
 
     // release both once the operator revokes them
@@ -348,7 +349,7 @@ test("relate a cloud machine as a server of its residency when declared or enrol
     }
     expect([serving, replicated, await served()]).toEqual([
         ["eu", "us"],
-        ["done", ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"]],
+        ["done", ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"], "done"],
         [undefined, undefined],
     ]);
 });

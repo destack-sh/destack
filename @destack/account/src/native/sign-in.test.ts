@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import { and, eq } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { MemoryKeychain } from "@destack/identity";
-import { ObjectClient } from "@destack/object/client";
+import { Bookmark, ObjectClient } from "@destack/object/client";
 import { present, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, single, test } from "@destack/test";
@@ -99,7 +99,7 @@ async function native(accounts: TestAccountStore) {
     const { network } = laptop;
 
     // sign people in with the keychain's refresh tokens
-    const issuer = new Issuer(ISSUER, (request) => accounts.fetch(request), laptop);
+    const issuer = new Issuer(ISSUER, (request) => accounts.fetch(request), laptop, new Bookmark());
     const sessions = new SessionStore(new MemoryKeychain());
     const signIn = new NativeSignIn({
         issuer,
@@ -333,6 +333,12 @@ test("read a person's account through tokens refreshed after a mailed code signe
     // sign in with the mailed code and read the person's account through a refreshed token
     const started = await signIn.startEmail(EMAIL);
     const signedIn = await started.verify(await accounts.code());
-    const person = new Login(signedIn, sessions, (request) => accounts.fetch(request), laptop);
+    const person = new Login(
+        signedIn,
+        sessions,
+        (request) => accounts.fetch(request),
+        laptop,
+        new Bookmark(),
+    );
     expect(await person.account()).toBe(owner.account);
 });

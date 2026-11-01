@@ -1,3 +1,4 @@
+import { Bookmark } from "@destack/object/client";
 import { Uuid } from "@destack/schema";
 import { type Environment } from "@destack/environment";
 import { type Authentication, Caller, principal, universe } from "@destack/access";
@@ -138,7 +139,7 @@ export class TokenSource {
     async exchange(audience: PackageId, bound: TokenBinding): Promise<ExchangedToken> {
         const accountToken = await this.grantedToken(accountPackage.id);
 
-        return new Issuer(this.issuer, this.send, this.environment).exchange(
+        return new Issuer(this.issuer, this.send, this.environment, new Bookmark()).exchange(
             { token: accountToken, type: ACCESS_TOKEN_TYPE },
             audience,
             bound,

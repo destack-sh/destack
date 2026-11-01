@@ -3,7 +3,9 @@ import type { DatabaseConnection } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { CALL_ERROR_STATUSES, Failure } from "@destack/error";
 import type { JwtClaims, KeySet } from "@destack/identity";
+import { Bookmark, BOOKMARK_HEADER } from "@destack/object/client";
 import type { ObjectStore } from "@destack/object/server";
+import { Scope } from "@destack/sync";
 import type { AuthContext } from "better-auth";
 import {
     AUTHORIZATION_PATH,
@@ -97,12 +99,15 @@ export class AuthorizationServer {
     readonly #base: string;
     /** The endpoints, by their path below the issuer. */
     readonly #endpoints: ReadonlyMap<string, Endpoint>;
+    /** The account database, whose log position each answer reports. */
+    readonly #database: DatabaseConnection;
 
     /** Compose the server's endpoints. */
     constructor(options: AuthorizationServerOptions) {
         // compose the endpoints that decide and issue
         const { issuer, pages } = options;
         this.#base = new URL(issuer).pathname;
+        this.#database = options.database;
         this.authorization = new AuthorizationEndpoint({ ...options, ...pages });
         this.device = new DeviceAuthorizationEndpoint({ ...options, ...pages });
         this.token = new TokenEndpoint(
@@ -159,6 +164,12 @@ export class AuthorizationServer {
         if (!METADATA_PATHS.some((each) => each === path)) {
             response.headers.set("cache-control", "no-store");
         }
+
+        // answer the universe's position, so the caller's later calls read the sign-in's writes
+        const bookmark = new Bookmark();
+        const position = await this.#database.log.position();
+        bookmark.observe({ scope: Scope.universe.id, ...position });
+        response.headers.set(BOOKMARK_HEADER, bookmark.format());
 
         return response;
     }

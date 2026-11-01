@@ -1,3 +1,4 @@
+import { Bookmark } from "@destack/object/client";
 import { TEST_START, testSimulation } from "@destack/object/test";
 import type { Fetch } from "@destack/object";
 import { expect, refusal, test } from "@destack/test";
@@ -32,10 +33,12 @@ test("poll a device code into a grant, a wait, a slow down, a refusal, or a loud
     await using simulation = testSimulation();
     const environment = simulation.environment("issuer");
     const poll = (error: string | undefined) =>
-        new Issuer("https://accounts.destack.test/oauth", answer(error), environment).poll(
-            CLIENT,
-            "device-code",
-        );
+        new Issuer(
+            "https://accounts.destack.test/oauth",
+            answer(error),
+            environment,
+            new Bookmark(),
+        ).poll(CLIENT, "device-code");
     const answers = [
         undefined,
         "authorization_pending",
