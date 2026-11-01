@@ -18,9 +18,9 @@ import { PackageId } from "@destack/package";
 import { defineResourceKind, Plan, type Provider } from "@destack/resource";
 import { unreachablePlan } from "@destack/resource/error";
 import { canonicalize, Digest, present, schema } from "@destack/schema";
-import { Scope, RequestId } from "@destack/sync";
+import { ObjectReference, Scope, RequestId } from "@destack/sync";
 
-import { CONSUMER, defineObject, type Resource } from "../src/index.ts";
+import { CONSUMER, defineObject, Provisioned, type Resource } from "../src/index.ts";
 import { DRAINING } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -617,3 +617,22 @@ test("set a resource's name after another kind's resource in its space, refusing
 function conditions(row: { readonly conditions: Resource["conditions"] }) {
     return [row.conditions["Ready"]?.reason, row.conditions[DRAINING]?.status] as const;
 }
+
+test("read a resource's owning application installation from its owner columns, none for a stack's own resource", () => {
+    // store an installation's and its space's reference as owners, and none
+    const owned = ObjectReference.columns(
+        "owner",
+        principal.installation.reference(spaceId, installationId),
+    );
+    const spaceOwned = ObjectReference.columns(
+        "owner",
+        principal.space.reference(Scope.universe.id, spaceId),
+    );
+    const unowned = ObjectReference.columns("owner", undefined);
+
+    expect([owned, spaceOwned, unowned].map((row) => Provisioned.owner(row))).toEqual([
+        installationId,
+        undefined,
+        undefined,
+    ]);
+});
