@@ -25,7 +25,7 @@ const pricing: Form = {
         definition: "own the software, rent the hardware",
         highlight: ["own", "rent"],
         sentence:
-            "All your software in one place, for free. You pay for the hardware it runs on. Leave anytime.",
+            "All your software in one place. Pay only for the hardware it runs on, or bring your own. Leave anytime.",
     },
 };
 
@@ -136,7 +136,7 @@ const styles = style.create({
     // the entry, the label, the plan rows and the stack, one screen tall or more when the cards need it
     plans: {
         gridTemplateRows: {
-            default: "auto auto repeat(5, auto) minmax(auto, 1fr) auto",
+            default: "auto auto repeat(7, auto) minmax(auto, 1fr) auto",
             [screen.belowDesktop]: "auto",
         },
         height: "auto",

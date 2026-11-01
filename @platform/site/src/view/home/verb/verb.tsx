@@ -57,9 +57,9 @@ const verb: Form = {
     pronunciation: "/diːˈstak/",
     partOfSpeech: "verb",
     sense: {
-        definition: "to make your software yours",
+        definition: "to make software yours",
         highlight: ["yours"],
-        sentence: "Own your stack, make custom apps, empower your agents, in one open platform.",
+        sentence: "Own your whole stack, build great custom software, and bring all your agents.",
         gloss: "to standardise how software is made, shipped, and changed",
     },
 };
