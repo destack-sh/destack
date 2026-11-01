@@ -42,7 +42,11 @@ const handle = defineObject(
             name: { kind: "unique", on: ["scope", "name"] },
         },
     },
-    (method) => ({ create: method.create("create") }),
+    (method) => ({
+        create: method.create("create"),
+        claim: method.create("create", { keep: "name" }),
+        adopt: method.create("create", { keep: "id" }),
+    }),
 );
 
 test("report a create's conflicts only to callers the create permission allows, inside spaces they read", async () => {
@@ -161,6 +165,66 @@ const team = defineObject(
         create: method.create("update", { fields: ["name"], creator: "owner" }),
     }),
 );
+
+test("keep the object a creation's unique constraint matches, answering it to its creator and no one else", async () => {
+    // serve the handles in a public space
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { handle }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([handle]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database, world),
+        origin: { package: handle.package },
+    });
+    const call = (
+        user: Identifier<"user">,
+        method: "claim" | "adopt",
+        input: { readonly name: string; readonly id?: string },
+    ) => {
+        const context = userContext(user, spaceId, {
+            environment: world,
+            assurance: { level: 2, authenticatedAt: world.clock.now() },
+        });
+
+        return store
+            .mutate(context.access(), {
+                id: RequestId.create(world),
+                calls: [handle.call(method, { spaceId, holderId: user, ...input })],
+            })
+            .then(([written]) => written);
+    };
+
+    // claim a name twice as alice, then as bob, and adopt one identifier twice
+    const first = await call(users.alice, "claim", { name: "notes" });
+    const again = await call(users.alice, "claim", { name: "notes" });
+    const bob = await refusal(call(users.bob, "claim", { name: "notes" }));
+    const adopted = await call(users.alice, "adopt", { id: first.id, name: "tasks" });
+    const rows = await storage.database.select().from(handle.table);
+
+    // answer alice's handle again, by its name and its identifier, without another row; find nothing for bob
+    expect({
+        same: [again.id, adopted.id].map((id) => id === first.id),
+        names: rows.map((row) => row.name),
+        bob,
+    }).toEqual({
+        same: [true, true],
+        names: ["notes"],
+        bob: ["NOT_FOUND", "NOT_FOUND", "handle not found"],
+    });
+});
 
 test("create an object the caller has the permission on only as the creator its creation relates", async () => {
     // run in a world of its own

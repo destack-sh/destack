@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { FORWARDED_HEAD_HEADER, ForwardedRequest } from "./start.ts";
+import { CLIENT_HEAD_HEADER, ClientHead } from "./start.ts";
 
 test("restore a client's request a front door handed on with exactly its head and body, dropping the headers the hand-off added", async () => {
     // hand on a client's request with its own credential, beside the host's transport headers
@@ -11,7 +11,7 @@ test("restore a client's request a front door handed on with exactly its head an
     const handed = new Request("http://runner/.destack/route", {
         method: "POST",
         headers: {
-            [FORWARDED_HEAD_HEADER]: ForwardedRequest.head(client),
+            [CLIENT_HEAD_HEADER]: ClientHead.write(client),
             authorization: "Bearer host",
             "destack-partition": "tunnel-1",
         },
@@ -19,8 +19,8 @@ test("restore a client's request a front door handed on with exactly its head an
     });
 
     // restore the client's request, and nothing from one without a head
-    const restored = ForwardedRequest.restore(handed);
-    const unhanded = ForwardedRequest.restore(new Request("http://runner/"));
+    const restored = ClientHead.restore(handed);
+    const unhanded = ClientHead.restore(new Request("http://runner/"));
     expect({
         method: restored?.method,
         url: restored?.url,

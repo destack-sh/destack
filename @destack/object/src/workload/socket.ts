@@ -2,7 +2,7 @@ import { schema, type JsonValue } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
 import type {
     Environment,
-    Listener,
+    ServerUpgrade,
     ServerSocket,
     ServerSocketHandler,
 } from "@destack/environment";
@@ -226,12 +226,8 @@ export class HibernationHost {
         };
     }
 
-    /** Hibernate a WebSocket that an instance accepted in its answer to an upgrade. */
-    upgrade(
-        listener: Listener<HostSocket["attachment"]>,
-        request: Request,
-        answer: Response,
-    ): boolean {
+    /** Accept the WebSocket an instance accepted in its answer, hibernating it by its instance. */
+    accept(answer: Response): ServerUpgrade<HostSocket["attachment"]> {
         // read the instance's acceptance
         const accepted = answer.headers.get(SOCKET_HEADER);
         const instanceId = answer.headers.get(SOCKET_INSTANCE_HEADER);
@@ -244,12 +240,12 @@ export class HibernationHost {
         const acceptance = SocketAcceptance.parse(JSON.parse(accepted));
 
         // attach the instance and its acceptance to the socket
-        return listener.upgrade(request, {
+        return {
             attachment: { instance: instanceId, acceptance },
             ...(acceptance.protocol === undefined
                 ? {}
                 : { headers: { "sec-websocket-protocol": acceptance.protocol } }),
-        });
+        };
     }
 
     /** Answer an instance's listing of its sockets, or its send, attach or close of one. */

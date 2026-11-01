@@ -290,8 +290,8 @@ export class WorkloadRunner implements AsyncDisposable {
         else if (pathname === HOOK_PATH && request.method === "POST") {
             return this.#hook(request);
         }
-        // hand a routed request to the workload's package
-        else if (pathname === ROUTE_PATH) {
+        // hand a routed request to the workload's package, an adapter's below the route path
+        else if (pathname === ROUTE_PATH || pathname.startsWith(`${ROUTE_PATH}/`)) {
             return this.#route(request);
         }
         // serve the package the mount refers to

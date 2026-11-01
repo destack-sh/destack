@@ -13,7 +13,7 @@ import { WorkloadRunner } from "./runner.ts";
 import type { RequestContext } from "../server/index.ts";
 import type { WorkloadStart } from "./start.ts";
 import { defineWorkload, type EphemeralHost } from "./workload.ts";
-import { ForwardedRequest, FORWARDED_HEAD_HEADER, ROUTE_PATH, WEBHOOK_PATH } from "./start.ts";
+import { ClientHead, CLIENT_HEAD_HEADER, ROUTE_PATH, WEBHOOK_PATH } from "./start.ts";
 import { SOCKET_HEADER, SOCKET_PATH } from "./socket.ts";
 
 /** The OTLP logs export the observability service receives. */
@@ -471,7 +471,7 @@ test("hand a routed request to the workload's package at the route path, under t
                                     router: {},
                                     fetch: async (request: Request) =>
                                         new Response(
-                                            `${new URL(request.url).pathname} ${ForwardedRequest.restore(request)?.url}`,
+                                            `${new URL(request.url).pathname} ${ClientHead.restore(request)?.url}`,
                                         ),
                                 },
                             ],
@@ -502,7 +502,7 @@ test("hand a routed request to the workload's package at the route path, under t
             new Request(`http://runner.test${ROUTE_PATH}`, {
                 headers: {
                     authorization: "Bearer forwarding",
-                    [FORWARDED_HEAD_HEADER]: ForwardedRequest.head(
+                    [CLIENT_HEAD_HEADER]: ClientHead.write(
                         new Request("https://notes.acme.com/blog?page=2"),
                     ),
                 },

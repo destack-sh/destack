@@ -19,7 +19,7 @@ import {
 import type {} from "@destack/package/import-meta";
 import { PartitionRoute, RetryAfter, ScopeMove } from "./detail.ts";
 
-/** The failures every procedure declares with their statuses and data. */
+/** The failures every procedure declares to oRPC, by status alone, keeping a thrown one as is. */
 export const DECLARED_ERRORS = {
     NOT_IMPLEMENTED: { status: CALL_ERROR_STATUSES.NOT_IMPLEMENTED },
     UNAUTHORIZED: { status: CALL_ERROR_STATUSES.UNAUTHORIZED },
@@ -28,21 +28,19 @@ export const DECLARED_ERRORS = {
     NOT_FOUND: { status: CALL_ERROR_STATUSES.NOT_FOUND },
     CONFLICT: { status: CALL_ERROR_STATUSES.CONFLICT },
     PRECONDITION_FAILED: { status: CALL_ERROR_STATUSES.PRECONDITION_FAILED },
-    MISDIRECTED_REQUEST: {
-        status: CALL_ERROR_STATUSES.MISDIRECTED_REQUEST,
-        // where the call's scope is served: another machine, or another partition of the installation
-        data: schema.union([ScopeMove, PartitionRoute]),
-    },
+    MISDIRECTED_REQUEST: { status: CALL_ERROR_STATUSES.MISDIRECTED_REQUEST },
     UNPROCESSABLE_CONTENT: { status: CALL_ERROR_STATUSES.UNPROCESSABLE_CONTENT },
-    TOO_MANY_REQUESTS: {
-        status: CALL_ERROR_STATUSES.TOO_MANY_REQUESTS,
-        // how long until the call may be retried
-        data: RetryAfter,
-    },
+    TOO_MANY_REQUESTS: { status: CALL_ERROR_STATUSES.TOO_MANY_REQUESTS },
     SERVICE_UNAVAILABLE: { status: CALL_ERROR_STATUSES.SERVICE_UNAVAILABLE },
-} as const satisfies Partial<
-    Record<CallErrorCode, { readonly status: number; readonly data?: schema.Schema }>
->;
+} as const satisfies Partial<Record<CallErrorCode, { readonly status: number }>>;
+
+/** The data the failures of some declared codes carry, which their errors validate when made. */
+export const ERROR_DATA = {
+    /** Where the call's scope is served: another machine, or another partition. */
+    MISDIRECTED_REQUEST: schema.union([ScopeMove, PartitionRoute]),
+    /** How long until the call may be retried. */
+    TOO_MANY_REQUESTS: RetryAfter,
+} as const;
 
 /** What a call failure has beside its code, as gRPC's ErrorInfo beside its status. */
 export type CallErrorOptions<Data> = ORPCErrorOptions<Data> & {
@@ -155,19 +153,17 @@ export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code,
     static data(
         error: unknown,
         code: "MISDIRECTED_REQUEST",
-    ): schema.Infer<typeof DECLARED_ERRORS.MISDIRECTED_REQUEST.data> | undefined {
+    ): schema.Infer<typeof ERROR_DATA.MISDIRECTED_REQUEST> | undefined {
         const failure = CallError.of(error);
 
-        return failure?.code === code
-            ? DECLARED_ERRORS[code].data.safeParse(failure.data).data
-            : undefined;
+        return failure?.code === code ? ERROR_DATA[code].safeParse(failure.data).data : undefined;
     }
 
     /** Read the data of a response's failure of a code that declares data. */
     static async read(
         response: Response,
         code: "MISDIRECTED_REQUEST",
-    ): Promise<schema.Infer<typeof DECLARED_ERRORS.MISDIRECTED_REQUEST.data> | undefined> {
+    ): Promise<schema.Infer<typeof ERROR_DATA.MISDIRECTED_REQUEST> | undefined> {
         // skip other statuses without reading their body
         if (response.status !== CallError.status(code)) {
             return undefined;
@@ -179,7 +175,7 @@ export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code,
             .json()
             .catch(() => undefined);
         const failure = schema
-            .looseObject({ code: schema.literal(code), data: DECLARED_ERRORS[code].data })
+            .looseObject({ code: schema.literal(code), data: ERROR_DATA[code] })
             .safeParse(body);
 
         return failure.data?.data;
@@ -188,7 +184,7 @@ export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code,
     /** Send a call, and send it once more when it answers misdirected. */
     static async follow(
         send: (
-            misdirected?: schema.Infer<typeof DECLARED_ERRORS.MISDIRECTED_REQUEST.data>,
+            misdirected?: schema.Infer<typeof ERROR_DATA.MISDIRECTED_REQUEST>,
         ) => Promise<Response>,
     ): Promise<Response> {
         // answer anything but a misdirection

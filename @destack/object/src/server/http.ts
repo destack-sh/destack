@@ -430,12 +430,9 @@ export class Server implements AsyncDisposable {
         context: ProcedureContext<RequestContext>,
         options: ServerOptions,
     ): Promise<void> {
-        // require an identified caller on protected routes
-        if (
-            context.access.authentication !== "public" &&
-            Caller.isAnonymous(context.request.caller())
-        ) {
-            throw ObjectError.of("CREDENTIAL_MISSING", "missing caller credential");
+        // require a credential on protected routes, refusing a failed one
+        if (context.access.authentication !== "public") {
+            context.request.credential();
         }
 
         // renew the call's access

@@ -1,3 +1,4 @@
+import { CLIENT_HEAD_HEADER, ROUTE_PATH } from "../workload/start.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import type { BlobStorage } from "@destack/resource";
 import { ObjectError } from "../error/error.ts";
@@ -3789,18 +3790,13 @@ export class ObjectStore {
                 }),
             );
 
-        // serve the package's objects, refusing adapters a sandbox has no code to answer
+        // serve the package's objects, its adapters left to its workloads
         return local
             .filter((entry) => entry.kind === PACKAGE_DECLARATION)
             .map((entry) => PackageDescription.parse(entry.description))
             .flatMap((described): StorePackage[] => {
-                // refuse adapters, and leave a package of no objects unserved
-                const adapters = Object.keys(described.adapters);
-                if (adapters.length > 0) {
-                    throw new TypeError(
-                        `installation ${server.installation} declares adapters ${adapters.join(", ")}, but a sandbox cannot run them`,
-                    );
-                } else if (Object.keys(described.objects).length === 0) {
+                // leave a package of no objects unserved, its adapters to its workloads
+                if (Object.keys(described.objects).length === 0) {
                     return [];
                 }
 
@@ -3903,11 +3899,16 @@ export class ObjectStore {
         }
 
         return async (request, context) => {
-            // find the adapter whose path the request is at or below
+            // find the adapter a route names, else the one whose path the request is at or below
             const url = new URL(request.url);
-            const adapter = adapters.find(
-                ({ path }) => url.pathname === path || url.pathname.startsWith(`${path}/`),
+            const routed = adapters.find(
+                ({ name }) => url.pathname === `${ROUTE_PATH}/${encodeURIComponent(name)}`,
             );
+            const adapter =
+                routed ??
+                adapters.find(
+                    ({ path }) => url.pathname === path || url.pathname.startsWith(`${path}/`),
+                );
             if (adapter === undefined) {
                 return undefined;
             }
@@ -3936,10 +3937,23 @@ export class ObjectStore {
                 );
             }
 
-            // answer the request below the adapter's path
-            url.pathname = url.pathname.slice(adapter.path.length) || "/";
+            // answer below the route or the adapter's path, trusting a client's head from a route or the installation alone
+            const prefix =
+                routed === undefined
+                    ? adapter.path
+                    : `${ROUTE_PATH}/${encodeURIComponent(adapter.name)}`;
+            url.pathname = url.pathname.slice(prefix.length) || "/";
+            const headers = new Headers(request.headers);
+            if (routed === undefined && callers !== "self") {
+                headers.delete(CLIENT_HEAD_HEADER);
+            }
 
-            return adapter.fetch(copyRequest(request, {}, url.href), caller, context, store);
+            return adapter.fetch(
+                copyRequest(request, { headers }, url.href),
+                caller,
+                context,
+                store,
+            );
         };
     }
 

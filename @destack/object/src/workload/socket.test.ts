@@ -35,10 +35,7 @@ test("report a socket close its instance refuses, delivering the close once", as
     simulation.network.server("host").http({
         hostname: "host.test",
         port: 80,
-        fetch: (request, listener) =>
-            host.upgrade(listener, request, accepted)
-                ? undefined
-                : new Response(null, { status: 400 }),
+        fetch: () => host.accept(accepted),
         websocket: host.websocket,
     });
 
@@ -77,10 +74,7 @@ test("drop an instance's send, store and close to a socket once its client close
     simulation.network.server("host").http({
         hostname: "host.test",
         port: 80,
-        fetch: (request, listener) =>
-            host.upgrade(listener, request, accepted)
-                ? undefined
-                : new Response(null, { status: 400 }),
+        fetch: () => host.accept(accepted),
         websocket: host.websocket,
     });
     const socket = simulation.network.of("client").websocket("ws://host.test/");

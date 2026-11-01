@@ -32,6 +32,11 @@ export const Tag = schema.object({
 /** A release by version, or the one a distribution tag points at now. */
 export type ReleaseReference = schema.Infer<typeof Release> | schema.Infer<typeof Tag>;
 
+/** A published release an installation follows: by version, pinned or not, or by a tag. */
+export const ReleaseSelection = schema.discriminatedUnion("kind", [PinnedRelease, Tag]);
+/** A published release an installation follows. */
+export type ReleaseSelection = schema.Infer<typeof ReleaseSelection>;
+
 /** The release, repository reference or checkout an installation follows. */
 export const InstallationSelection = schema.discriminatedUnion("kind", [
     PinnedRelease,

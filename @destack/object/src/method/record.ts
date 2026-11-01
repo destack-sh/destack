@@ -131,6 +131,8 @@ export interface CreateOptions<
     readonly isPredicted?: boolean;
     /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    /** The unique key, `id` or a unique constraint, whose match the creation answers. */
+    readonly keep?: string;
 }
 
 /** How a bulk creation creates: its written fields and creator. */
@@ -1147,6 +1149,49 @@ export const RecordMethod = {
         };
     },
 
+    /** Read the object that already exists under a creation's unique key, as written. */
+    async existing(
+        context: MethodContext,
+        execution: StoreExecution,
+        key: string | undefined,
+    ): Promise<Row | undefined> {
+        // find nothing without a key
+        if (key === undefined) {
+            return undefined;
+        }
+
+        // read the key's columns: the identifier, or a unique key's
+        const declared = context.object.definition.constraints?.[key];
+        const isUnique =
+            declared?.kind === "unique" || (declared?.kind === "index" && declared.unique === true);
+        if (key !== "id" && (declared === undefined || !isUnique || !("on" in declared))) {
+            throw new TypeError(`${context.object.name} has no unique key ${key}`);
+        }
+        const columns = declared !== undefined && "on" in declared ? declared.on : ["id"];
+
+        // match the written values on those columns, the identifier the caller gives among them
+        const written = Table.values(
+            context.object.table,
+            Row.parse(await RecordMethod.createdValues(context, execution)),
+        );
+        const values = context.id === undefined ? written : { ...written, id: context.id };
+        if (columns.includes("id") && context.id === undefined) {
+            throw new TypeError(`keeping a ${context.object.name} by its id needs the caller's id`);
+        }
+        const matched = Object.fromEntries(columns.map((column) => [column, values[column]]));
+        const where = Condition.equal(MATCH.parse(matched));
+        const [row] = await context.read(context.object.table).findMany({ where, limit: 1 });
+        if (row === undefined) {
+            return undefined;
+        }
+
+        // answer it to a caller who could create it as written
+        const grants = await execution.authorization.reader(context.scope);
+        await RecordMethod.requirePermitted(context, execution, row, grants, "concealed");
+
+        return row;
+    },
+
     /** Insert a created object under an unused identifier within a savepoint. */
     async insertCreated(
         context: MethodContext,
@@ -1560,8 +1605,8 @@ export class MethodBuilder<
         permission: Permission,
         options: CreateOptions<Fields, Input, Prepared, Visibility, Sum, Filled> = {},
     ) {
-        // relate the creation's creator
-        const { creator, ...declared } = options;
+        // relate the creation's creator, and keep the object its unique constraint matches
+        const { creator, keep, ...declared } = options;
 
         return defineMethod<{
             kind: "create";
@@ -1614,6 +1659,12 @@ export class MethodBuilder<
                     await EventLog.append(context, execution, [row]);
 
                     return row;
+                }
+
+                // answer the object that already exists under the kept key
+                const existing = await RecordMethod.existing(context, execution, keep);
+                if (existing !== undefined) {
+                    return existing;
                 }
 
                 // insert under an unused identifier and record its access

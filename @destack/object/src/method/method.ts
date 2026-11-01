@@ -335,9 +335,9 @@ export const Method = {
         declared: Method<Configuration>,
         context: MethodContext,
     ): context is MethodContext<Configuration, PreparedOf<Configuration> | undefined> {
-        // require the target a targeted method loads and the identified caller a mutation needs
+        // require the target a targeted method loads and the caller a mutation tells apart
         const isTargeted = !Method.loads(declared) || context.target !== undefined;
-        const isIdentified = !declared.mutates || !Caller.isAnonymous(context.caller);
+        const isIdentified = !declared.mutates || Caller.isIdentified(context.caller);
 
         // require prepared work the method's schema reads, absent before it is done
         const prepared = declared.prepared;

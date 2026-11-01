@@ -1,4 +1,10 @@
-import type { Environment, Listener, Server } from "@destack/environment";
+import {
+    type Environment,
+    Forwarded,
+    HostAddress,
+    type Listener,
+    type Server,
+} from "@destack/environment";
 import { ObjectError } from "../error/error.ts";
 import { type HibernationHost, SOCKET_HEADER } from "../workload/socket.ts";
 
@@ -53,7 +59,7 @@ export interface BunProcessOptions {
 /** Serve each endpoint until shutdown and drain it on close. */
 export async function serveProcess(options: BunProcessOptions): Promise<void> {
     // shut down on process signals
-    const listeners: Pick<Listener<unknown>, "url" | "stop">[] = [];
+    const listeners: Pick<Listener, "url" | "stop">[] = [];
     const stopped = Promise.withResolvers<void>();
     const stop = () => stopped.resolve();
     const shutdown = () => options.shutdown();
@@ -86,7 +92,7 @@ export async function serveProcess(options: BunProcessOptions): Promise<void> {
 }
 
 /** Listen on an endpoint's socket or port, hibernating the WebSockets its answers accept. */
-function listen(server: Server, endpoint: BunEndpoint): Pick<Listener<unknown>, "url" | "stop"> {
+function listen(server: Server, endpoint: BunEndpoint): Pick<Listener, "url" | "stop"> {
     // answer each request plainly on an endpoint without sockets
     const { hibernation } = endpoint;
     const address =
@@ -94,25 +100,22 @@ function listen(server: Server, endpoint: BunEndpoint): Pick<Listener<unknown>, 
             ? { unix: endpoint.unix }
             : { hostname: endpoint.hostname, port: endpoint.port };
     if (hibernation === undefined) {
-        return server.http({ ...address, fetch: (request) => endpoint.fetch(request) });
+        return server.http({
+            ...address,
+            fetch: (request, peer) => endpoint.fetch(received(request, peer)),
+        });
     }
 
     // hibernate the WebSockets the instances accept
     return server.http({
         ...address,
-        fetch: async (request, listener) => {
-            // answer the request, and pass on anything but an accepted upgrade
-            const answer = await endpoint.fetch(request);
+        fetch: async (request, peer) => {
+            // answer the request, and hibernate the socket of an accepted upgrade
+            const answer = await endpoint.fetch(received(request, peer));
             const isAccepted =
                 request.headers.get("upgrade") === "websocket" && answer.headers.has(SOCKET_HEADER);
-            if (!isAccepted) {
-                return answer;
-            }
 
-            // hibernate the accepted socket, refusing an upgrade Bun does not take
-            return hibernation.upgrade(listener, request, answer)
-                ? undefined
-                : new Response(null, { status: 426 });
+            return isAccepted ? hibernation.accept(answer) : answer;
         },
         websocket: hibernation.websocket,
     });
@@ -180,4 +183,9 @@ async function startRunnerTelemetry(
     observeProcess(telemetry, options, environment);
 
     return telemetry;
+}
+
+/** Take a request as the front door receives it, trusting peers on this computer alone. */
+function received(request: Request, peer: string | undefined): Request {
+    return Forwarded.receive(request, peer, (trusted) => HostAddress.isLoopback(trusted));
 }

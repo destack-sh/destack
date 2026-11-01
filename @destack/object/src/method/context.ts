@@ -138,8 +138,8 @@ export class MethodContext<
 
     /** Store one call's fields. */
     constructor(fields: MethodContextOptions<Configuration, Prepared, Id, Target>) {
-        // refuse a mutation by a caller proving no identity
-        if (fields.method.mutates && Caller.isAnonymous(fields.caller)) {
+        // refuse a mutation by a caller no one tells apart from other callers
+        if (fields.method.mutates && !Caller.isIdentified(fields.caller)) {
             throw ObjectError.of("UNAUTHENTICATED", "a mutation needs an authenticated caller");
         }
 
