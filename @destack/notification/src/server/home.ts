@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { Account, space, user } from "@destack/account/object";
-import { defineShape, Follow, relationship } from "@destack/object";
+import { defineShape, type Follow, relationship } from "@destack/object";
 import type { RowImage } from "@destack/db";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
@@ -29,7 +29,7 @@ export const accountSpaceShape = defineShape({
 
 /** Follow a home's person's relationships and activities in related spaces, on their behalf. */
 export const HOME_FOLLOWS: readonly Follow[] = [
-    space.follow(relationshipShape, {
+    relationshipShape.per(space, {
         key: async (row, view, home) => {
             // follow the person's relationships where the store's own space is their home
             const person =
@@ -45,7 +45,7 @@ export const HOME_FOLLOWS: readonly Follow[] = [
                   };
         },
     }),
-    relationship.follow(activityShape, {
+    activityShape.per(relationship, {
         key: async (row, view, home) => {
             // follow nothing outside a home, or for another principal's relationship
             const person = home === undefined ? undefined : await Account.homeOwner(view, home);
@@ -61,7 +61,7 @@ export const HOME_FOLLOWS: readonly Follow[] = [
                 : { key: { scope: related, recipient: person.id }, subject: person };
         },
     }),
-    relationship.follow(accountSpaceShape, {
+    accountSpaceShape.per(relationship, {
         key: async (row, view, home) => {
             // follow the spaces of an account the person relates to, decided for the person
             const person = home === undefined ? undefined : await Account.homeOwner(view, home);
@@ -76,7 +76,7 @@ export const HOME_FOLLOWS: readonly Follow[] = [
             };
         },
     }),
-    space.follow(activityShape, {
+    activityShape.per(space, {
         key: async (row, view, home) => {
             // follow nothing outside a home, nor in the home itself
             const person = home === undefined ? undefined : await Account.homeOwner(view, home);
