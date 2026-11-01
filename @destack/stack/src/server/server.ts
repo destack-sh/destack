@@ -11,7 +11,7 @@ import type accountPackage from "@destack/account/package";
 import type { ClientOf } from "@destack/object/client";
 import { type IdentityKeystore } from "@destack/account/identity";
 import {
-    Follow,
+    type Follow,
     grantShape,
     type ObjectType,
     type HookSandbox,
@@ -504,13 +504,9 @@ function spaceFollows(
     const served = schema.identifier("space").parse(options.principal.id);
     const host = principal.machine.reference(Scope.universe.id, options.machine);
     const follows: Follow[] = [
-        Follow.of(spaceShape, {
-            keys: [
-                {
-                    key: { scope: Scope.universe.id, space: served, machine: options.machine },
-                    subject: host,
-                },
-            ],
+        spaceShape.at({
+            key: { scope: Scope.universe.id, space: served, machine: options.machine },
+            subject: host,
         }),
     ];
 
@@ -522,15 +518,15 @@ function spaceFollows(
     return [
         ...follows,
         // follow the residencies and its residency's residents as the space, a resident itself, so it decides on them
-        Follow.of(residencyShape, { keys: [{ key: { scope: Scope.universe.id } }] }),
-        residency.follow(residentsShape, {
+        residencyShape.at({ key: { scope: Scope.universe.id } }),
+        residentsShape.per(residency, {
             key: async (row) =>
                 row.space === served
                     ? { key: { scope: Scope.universe.id, residency: row.id } }
                     : undefined,
         }),
         // follow the profiles of the people related to the space once it is placed here
-        relationship.follow(profileShape, {
+        profileShape.per(relationship, {
             where: { subjectPackageId: user.typeReference.packageId, subjectType: user.name },
             key: async (row, view) => {
                 const placed = await view
@@ -544,7 +540,7 @@ function spaceFollows(
             },
         }),
         // follow the grants people delegate to the space once it is placed here
-        placement.follow(grantShape, {
+        grantShape.per(placement, {
             key: async (row) =>
                 row.id === served && row.machineId === options.machine
                     ? {
