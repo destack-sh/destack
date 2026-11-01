@@ -1,29 +1,16 @@
-<div align="center">
+# Destack
 
-## The Destack
+Own your whole stack, build great custom software, and bring all your agents.
 
-<p>
-    <a href="package.json"><img src="https://img.shields.io/badge/version-2026.9.0-2ea44f?style=for-the-badge" alt="Version"></a>
-    <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="MIT License"></a>
-    <a href="https://github.com/destack-sh/destack/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/release.yml?branch=main&label=Release&logo=github&style=for-the-badge" alt="Release"></a>
-    <a title="Discord" target="_blank" href="https://discord.gg/xUFQ45TWYd"><img alt="Chat with Destack people on Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white&style=for-the-badge"></a>
-</p>
-
-</div>
+[Website](https://destack.sh) · [Docs](https://destack.sh/docs/) · [Pricing](https://destack.sh/pricing/) · [Blog](https://destack.sh/blog/) · [Discord](https://discord.gg/xUFQ45TWYd)
 
 Destack is an open-source software engine for general purpose application software, just like Unity and Unreal are engines for games.
 Think GitHub + NPM + Convex + Vercel + Sentry in one, with all the boring decisions already made: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry and hosting.
-
-<img alt="Every app on its own stack, then every app in one stack" src=".github/readme/stack.webp">
 
 To destack is to take back control over your software, step by step:
  1. Build high quality custom software, easily, in a standardised pipeline.
  2. Grow _your_ own suite of custom software, in one unified platform.
  3. Own your data and context, and take your software wherever you want.
-
-<img alt="An app you made, glued across eight services, then the same app on Destack" src=".github/readme/engine.webp">
-
----
 
 The Destack comprises both the platform core for building malleable software _and_ standard apps for siloed SaaS applications (like Notion or Linear).
 All apps built on Destack - ours and yours - get the advantages of standardisation and integration out of the box and are thus fully hackable and programmable by your agents.
@@ -32,9 +19,7 @@ _Your_ entire Destack - your own personal superapp, with your complete personal 
 Or you can let us host it for you.
 Or any combination!
 
-<img alt="Twelve apps on twelve silos, then the same twelve apps in one space" src=".github/readme/space.webp">
-
----
+## Install
 
 Moving in to Destack is a single prompt - just ask your agent:
 ```md
@@ -46,8 +31,6 @@ Alternatively, you can install Destack manually:
 ```bash
 curl -fsSL https://destack.sh/install | sh
 ```
-
-Read more on [destack.sh](https://destack.sh): the [docs](https://destack.sh/docs/), the [hosted pricing](https://destack.sh/pricing/) and the [blog](https://destack.sh/blog/).
 
 ## Architecture
 
