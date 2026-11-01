@@ -940,12 +940,12 @@ export class SimulatedNetwork {
 
         return new ReadableStream<Uint8Array>({
             start: (controller) => {
-                // fail the body once the request aborts, as fetch does
+                // fail the body and cancel the sender's once the request aborts, as fetch does
                 signal?.addEventListener(
                     "abort",
                     () => {
                         controller.error(signal.reason);
-                        void reader.cancel(signal.reason);
+                        reader.cancel(signal.reason).catch(() => undefined);
                     },
                     { once: true },
                 );
