@@ -37,7 +37,7 @@ import {
 import type { BuildDescription } from "@destack/package/manifest";
 import { PackageJson, type Sandbox } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
-import { type OutputContent } from "@destack/package/manifest";
+import { type OutputContent, type OutputExport } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { modulePlugin } from "@destack/package/vite";
 import type { ModuleTransformer } from "@destack/package/transform";
@@ -70,6 +70,8 @@ export interface OutputBuild {
     output: OutputContent;
     /** The emitted file of each package export, recorded with its imports at the end. */
     exported: Record<string, string>;
+    /** The emitted file of each installed command, recorded with its imports at the end. */
+    bins: Record<string, string>;
     /** Generated files and captured source assets. */
     files: Map<string, Uint8Array<ArrayBuffer>>;
     /** Generated output paths written by Vite. */
@@ -209,9 +211,10 @@ export class OutputCompilation implements Compilation {
                 await project.environment.files.readFile(entry),
             );
         }
-        const entries = exported
-            .map(([, entry]) => entry)
-            .filter((entry) => !entry.endsWith(".css"));
+        const entries = [
+            ...exported.map(([, entry]) => entry).filter((entry) => !entry.endsWith(".css")),
+            ...Object.values(project.bins),
+        ];
         if (!entries.length && !this.#entries.size) {
             this.#recordExports(compiled, new Map());
 
@@ -260,6 +263,7 @@ export class OutputCompilation implements Compilation {
             inspection: { packages: {}, inputs: {}, outputs: {} },
             output,
             exported: {},
+            bins: {},
             files: new Map(),
             paths: [],
             sourceMaps: [],
@@ -292,6 +296,19 @@ export class OutputCompilation implements Compilation {
         for (const [name, path] of Object.entries(compiled.exported)) {
             const imports = facades.has(name) ? this.#importsOf(name, path, compiled) : [];
             compiled.output.exports[name] = { path, imports };
+        }
+
+        // record each command's emitted module with its imports, requiring it generated
+        const bins: Record<string, OutputExport> = {};
+        for (const command of Object.keys(this.project.bins)) {
+            const path = compiled.bins[command];
+            if (path === undefined) {
+                throw BuildError.of("INVARIANT_VIOLATED", `missing generated command: ${command}`);
+            }
+            bins[command] = { path, imports: this.#importsOf(command, path, compiled) };
+        }
+        if (Object.keys(bins).length > 0) {
+            compiled.output.bins = bins;
         }
     }
 
@@ -527,6 +544,13 @@ export class OutputCompilation implements Compilation {
                     entry.fileName === relativePath(project.directory, source)
                 ) {
                     compiled.exported[name] = path;
+                }
+            }
+
+            // take a command's chunk
+            for (const [command, source] of Object.entries(project.bins)) {
+                if (entry.type === "chunk" && entry.facadeModuleId === source) {
+                    compiled.bins[command] = path;
                 }
             }
 

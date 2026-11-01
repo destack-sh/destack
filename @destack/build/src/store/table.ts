@@ -1,14 +1,4 @@
-import {
-    BLOB_TABLES,
-    blob,
-    boolean,
-    defineDatabase,
-    defineTable,
-    index,
-    integer,
-    json,
-    text,
-} from "@destack/db";
+import { blob, boolean, defineTable, index, integer, json, text } from "@destack/db";
 import { Digest } from "@destack/schema";
 import { CacheEntry } from "../cache/entry.ts";
 
@@ -95,9 +85,3 @@ export const BUILD_STORE_TABLES = [
     buildRoot,
     buildCache,
 ];
-
-/** The database of a store of its own, such as a toolchain's on its machine's disk. */
-export const buildStoreDatabase = defineDatabase({
-    name: "builds",
-    tables: [...BUILD_STORE_TABLES, ...BLOB_TABLES],
-});

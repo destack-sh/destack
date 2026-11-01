@@ -19,12 +19,14 @@ const TOOLCHAIN_SOURCES: ReadonlySet<string> = new Set([
     "@destack/locale/src/message/catalog.ts",
 ]);
 
-/** The modules converting npm packages, whose bytes alone shape an npm unit's build. */
+/** The modules converting npm packages, whose bytes shape an npm unit's build. */
 const CONVERSION_MODULES = [
     new URL("../compile/conversion.ts", import.meta.url),
     new URL("../dependency/npm.ts", import.meta.url),
-    new URL("../../../package/src/manifest/writer.ts", import.meta.url),
 ];
+
+/** The writer of build manifests, whose module closure shapes every manifest's bytes. */
+const MANIFEST_WRITER = new URL("../../../package/src/manifest/writer.ts", import.meta.url);
 
 /** The npm releases converting npm packages: the bundler and the CommonJS lexer. */
 const CONVERSION_RELEASES: ReadonlySet<string> = new Set(["rolldown", "cjs-module-lexer"]);
@@ -84,17 +86,19 @@ export class Toolchain {
             return await this.digest();
         }
 
-        // identify Bun, the conversion's modules and the releases they run
+        // identify Bun, the conversion's modules, the manifest writer's closure and the releases they run
         const compiler = await ModuleClosure.read(fileURLToPath(COMPILER_ENTRY), this.environment);
         const modules = await Promise.all(
             CONVERSION_MODULES.map((module) => this.#file(fileURLToPath(module))),
         );
+        const writer = await ModuleClosure.read(fileURLToPath(MANIFEST_WRITER), this.environment);
 
         return await Digest.json(
             {
                 layout: KEY_LAYOUT,
                 bun: this.environment.process.runtime.revision,
                 modules,
+                manifest: await writer.digest(this.environment.crypto),
                 releases: await compiler
                     .releases(CONVERSION_RELEASES)
                     .digest(this.environment.crypto),

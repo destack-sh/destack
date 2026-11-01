@@ -19,7 +19,7 @@ import { type TypeScriptInspection, TypeScriptCompiler } from "../typescript/ind
 import { inspectModules, type InspectOptions } from "../inspection/inspection.ts";
 import { ConstructorCatalog, Evaluation, type EvaluatedDeclaration } from "../declaration/index.ts";
 import { DeclarationGraph } from "../graph/declaration.ts";
-import { PackageSource, readPackageJson } from "../source/index.ts";
+import { exportedDeclarations, PackageSource, readPackageJson } from "../source/index.ts";
 import { OutputCompilation, type OutputBuild } from "../compile/compilation.ts";
 import { loadExtensions } from "../compile/extension.ts";
 import { checkInputs, RuntimeCompiler } from "../compile/runtime.ts";
@@ -709,6 +709,11 @@ async function retain(project: PackageSource, files: BuildDirectory): Promise<vo
     files.retain("package.json", await releasedManifest(project));
     const system = project.environment.files;
     files.retain("destack.json", await system.readFile(resolve(project.directory, "destack.json")));
+
+    // retain the declaration files the package exports, whichever outputs it builds
+    for (const path of exportedDeclarations(project.packageJson)) {
+        files.retain(path, await system.readFile(resolve(project.directory, path)));
+    }
 
     // retain the package's catalogs
     const owner = project.packageJson.package.id;

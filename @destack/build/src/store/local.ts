@@ -6,7 +6,6 @@ import { locateWorkspace } from "@destack/check/workspace";
 import type { Environment } from "@destack/environment";
 import type { PackageFile } from "@destack/package/file";
 import { BuildStore } from "./store.ts";
-import { buildStoreDatabase } from "./table.ts";
 import { BuildError } from "../error/index.ts";
 import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 import { BuildLayer, LAYER_TREES } from "./layer.ts";
@@ -140,11 +139,11 @@ export class LocalBuildStore
         });
         const database = await connectBunSqlite(
             join(directory, DATABASE_FILE),
-            buildStoreDatabase,
+            BuildStore.database,
             { environment },
         );
         disposables.defer(() => database.close());
-        await database.migrate(buildStoreDatabase.tables);
+        await database.migrate(BuildStore.database.tables);
         const blobs = new BlobStore({ storage, database, environment });
 
         return await LocalBuildStore.#create(

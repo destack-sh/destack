@@ -9,7 +9,6 @@ import type { Environment } from "@destack/environment";
 import { testHost } from "@destack/test/host";
 import { LocalBuildStore } from "../store/local.ts";
 import { BuildStore } from "../store/store.ts";
-import { buildStoreDatabase } from "../store/table.ts";
 
 /** Open the store of builds tests share across runs, the host's, or a world's view of it. */
 export async function testStore(
@@ -66,8 +65,8 @@ export class TestBuildStore extends BuildStore implements AsyncDisposable {
 
     /** Connect to an index database, migrated to the store's tables. */
     static async #migrated(file: string, environment: Environment): Promise<SqliteDatabase> {
-        const database = await connectBunSqlite(file, buildStoreDatabase, { environment });
-        await database.migrate(buildStoreDatabase.tables);
+        const database = await connectBunSqlite(file, BuildStore.database, { environment });
+        await database.migrate(BuildStore.database.tables);
 
         return database;
     }

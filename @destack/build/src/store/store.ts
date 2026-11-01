@@ -1,7 +1,17 @@
 import { type Environment, type FileSystem, Pipe, until } from "@destack/environment";
 import { Digest, type DigestCrypto, present } from "@destack/schema";
 import type { BlobStorage } from "@destack/resource";
-import { and, asc, type BlobStore, type DatabaseConnection, eq, inArray, lte } from "@destack/db";
+import {
+    and,
+    asc,
+    BLOB_TABLES,
+    type BlobStore,
+    type DatabaseConnection,
+    defineDatabase,
+    eq,
+    inArray,
+    lte,
+} from "@destack/db";
 import {
     DependencyName,
     DependencyRelease,
@@ -24,6 +34,7 @@ import { comparePath } from "../build/serialization.ts";
 import type { CacheEntry } from "../cache/entry.ts";
 import { type PackageAccess, serveStore } from "./http.ts";
 import {
+    BUILD_STORE_TABLES,
     buildCache,
     buildManifest,
     buildOutput,
@@ -75,6 +86,12 @@ export class BuildStore<
     >,
     Storage extends BlobStorage = BlobStorage,
 > {
+    /** The database of a store of its own, such as a toolchain's on its machine's disk. */
+    static readonly database = defineDatabase({
+        name: "builds",
+        tables: [...BUILD_STORE_TABLES, ...BLOB_TABLES],
+    });
+
     /** The partition's blobs, keeping the builds' files and manifests. */
     readonly blobs: BlobStore<Storage>;
     /** The compression, crypto and clock the store archives, digests and expires with. */
@@ -919,9 +936,9 @@ export class BuildStore<
 
     /** Read a stored build's manifest, then its files or one output's, in path order. */
     async *#entries(digest: Digest, output: string | undefined) {
-        // yield the manifest first
+        // yield the manifest first, as the bytes its digest keys
         const contents = await this.contents(digest);
-        yield TarballEntry.of("manifest.json", PackageManifest.serialize(contents.manifest));
+        yield TarballEntry.of("manifest.json", await this.file(await this.head(digest)));
 
         // stream each file as stored, its receiver verifying its digest
         const list =

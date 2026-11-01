@@ -17,7 +17,7 @@ import {
 import { CallError } from "@destack/object";
 import { Digest, found, present } from "@destack/schema";
 import { type PackageAccess, PackageClient, BuildStore } from "./index.ts";
-import { buildManifest, buildStoreDatabase } from "./table.ts";
+import { buildManifest } from "./table.ts";
 
 /** The mount the tests serve stores below. */
 const MOUNT = new URL("https://packages.test/packages/");
@@ -134,18 +134,22 @@ function bunOutputs(
     };
 }
 
-/** Describe a build's browser output: its exports' imports, its dependencies, and a view at an export. */
+/** Place a browser export's file by its subpath. */
+function browserPath(subpath: string): string {
+    return `browser/${subpath.slice(2) || "index"}.js`;
+}
+
+/** Describe a build's browser output with its exports' imports, dependencies and a view. */
 function browserOutputs(
     imports: Readonly<Record<string, readonly string[]>>,
     dependencies: OutputContent["dependencies"],
     view?: string,
 ): Readonly<Record<string, OutputContent>> {
     // export each subpath at a file of its own, mounting a view at one
-    const path = (subpath: string) => `browser/${subpath.slice(2) || "index"}.js`;
     const exports = Object.fromEntries(
         Object.entries(imports).map(([subpath, specifiers]) => [
             subpath,
-            { path: path(subpath), imports: [...specifiers] },
+            { path: browserPath(subpath), imports: [...specifiers] },
         ]),
     );
     const views =
@@ -153,7 +157,7 @@ function browserOutputs(
             ? {}
             : {
                   main: {
-                      entrypoint: path(view),
+                      entrypoint: browserPath(view),
                       stylesheets: [],
                       sandbox: {},
                       presents: [],
@@ -218,10 +222,10 @@ async function openStore(
     environment: Environment<"files" | "process">,
 ): Promise<OpenedStore> {
     const storage = await LocalBlobStorage.open(join(directory, "files"), environment);
-    const database = await connectBunSqlite(join(directory, "store.db"), buildStoreDatabase, {
+    const database = await connectBunSqlite(join(directory, "store.db"), BuildStore.database, {
         environment,
     });
-    await database.migrate(buildStoreDatabase.tables);
+    await database.migrate(BuildStore.database.tables);
 
     return {
         store: new BuildStore({

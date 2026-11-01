@@ -509,6 +509,106 @@ test("check every output's entries with the package's ambient declarations", asy
     expect(Object.keys(built.manifest.outputs).toSorted()).toEqual(["browser", "server"]);
 });
 
+test("compile each command the package installs into its Bun output, keeping its hashbang", async () => {
+    // write a package installing a command beside its root export
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(
+        await files.makeTemporaryDirectory("destack-build-command-"),
+    );
+    const contents: Record<string, string> = {
+        "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+        "destack.json": JSON.stringify({
+            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            id: "package-01996ab0-0000-7000-8000-000000000011",
+            language: "typescript",
+            runtimes: ["bun"],
+        }),
+        "package.json": JSON.stringify({
+            name: "@example/greet",
+            version: "2026.9.0",
+            type: "module",
+            bin: { greet: "./src/main.ts" },
+            exports: { ".": "./src/index.ts" },
+        }),
+        "tsconfig.json": JSON.stringify({
+            compilerOptions: { strict: true, module: "Preserve", moduleResolution: "Bundler" },
+            include: ["src"],
+        }),
+        "src/index.ts": '/** The greeting. */\nexport const greeting = "hello";\n',
+        "src/main.ts":
+            '#!/usr/bin/env bun\nimport { greeting } from "./index.ts";\n\nconsole.log(greeting);\n',
+    };
+    for (const [path, text] of Object.entries(contents)) {
+        await files.mkdir(join(directory, path, ".."), { recursive: true });
+        await files.writeTextFile(join(directory, path), text);
+    }
+
+    // build the Bun output and read the command's emitted module
+    await using store = await LocalBuildStore.temporary(environment);
+    await using builder = await Compiler.start(directory, { store });
+    const built = await builder.build({
+        directory,
+        dependencies: {},
+        outputs: { bun: { kind: "module", runtime: "bun" } },
+    });
+    const bins = built.manifest.outputs["bun"]?.bins;
+    expect(bins).toEqual({ greet: { path: "output/bun/src/main.js", imports: [] } });
+    await built.writeDirectory(join(directory, "build"), files);
+    const emitted = await files.readTextFile(join(directory, "build/output/bun/src/main.js"));
+    expect(emitted.split("\n")[0]).toBe("#!/usr/bin/env bun");
+});
+
+test("keep the declaration file a package exports for another runtime in a Bun build", async () => {
+    // write a Bun package exporting ambient declarations for browsers
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(
+        await files.makeTemporaryDirectory("destack-build-declaration-"),
+    );
+    const contents: Record<string, string> = {
+        "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+        "destack.json": JSON.stringify({
+            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            id: "package-01996ab0-0000-7000-8000-000000000012",
+            language: "typescript",
+            runtimes: ["bun"],
+            exports: { "./browser": { runtimes: ["browser"] } },
+        }),
+        "package.json": JSON.stringify({
+            name: "@example/ambient",
+            version: "2026.9.0",
+            type: "module",
+            exports: { ".": "./src/index.ts", "./browser": "./src/browser.d.ts" },
+        }),
+        "tsconfig.json": JSON.stringify({
+            compilerOptions: { strict: true, module: "Preserve", moduleResolution: "Bundler" },
+            include: ["src"],
+        }),
+        "src/browser.d.ts": "/** A greeting browsers show. */\ndeclare const GREETING: string;\n",
+        "src/index.ts": '/** The greeting. */\nexport const greeting = "hello";\n',
+    };
+    for (const [path, text] of Object.entries(contents)) {
+        await files.mkdir(join(directory, path, ".."), { recursive: true });
+        await files.writeTextFile(join(directory, path), text);
+    }
+
+    // build the Bun output and read the declaration file from the written build
+    await using store = await LocalBuildStore.temporary(environment);
+    await using builder = await Compiler.start(directory, { store });
+    const built = await builder.build({
+        directory,
+        dependencies: {},
+        outputs: { bun: { kind: "module", runtime: "bun" } },
+    });
+    await built.writeDirectory(join(directory, "build"), files);
+    expect(await files.readTextFile(join(directory, "build/src/browser.d.ts"))).toBe(
+        contents["src/browser.d.ts"],
+    );
+});
+
 /** Read the file an output exports at its root, failing when the manifest lacks it. */
 function rootExport(manifest: PackageManifest, output: string): string {
     const path = manifest.outputs[output]?.exports["."]?.path;

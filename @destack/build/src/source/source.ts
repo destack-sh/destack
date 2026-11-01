@@ -25,6 +25,8 @@ export interface PackageSource {
     exports: Record<string, string>;
     /** Source declarations keyed by public export name. */
     types: Record<string, string>;
+    /** Source modules of the commands the package installs, by command name, on Bun alone. */
+    bins: Record<string, string>;
     /** The runtime used for conditional dependency resolution and compilation. */
     runtime: Runtime;
     /** The package's root modules: exports, type declarations and extra modules. */
@@ -76,7 +78,11 @@ export const PackageSource = {
 
         // read the dependencies' builds and list the root modules
         const tree = await DependencyTree.read(options.tree, files);
-        const roots = [...Object.values(definition.exports), ...Object.values(definition.types)];
+        const roots = [
+            ...Object.values(definition.exports),
+            ...Object.values(definition.types),
+            ...Object.values(definition.bins),
+        ];
         const entries = [...new Set(roots.filter((path) => /\.[cm]?[jt]sx?$/u.test(path)))];
 
         return {
@@ -137,12 +143,22 @@ async function readPackageSource(
         throw PackageError.of("TARGET_UNSUPPORTED", `no exports for runtime: ${runtime}`);
     }
 
+    // compile the commands the package installs into its whole Bun output
+    const isBinOutput = runtime === "bun" && entries === undefined;
+    const bins = Object.fromEntries(
+        Object.entries(isBinOutput ? packageJson.bin : {}).map(([command, path]) => [
+            command,
+            resolve(directory, PackagePath.parse(path.replace(/^\.\//u, ""))),
+        ]),
+    );
+
     return {
         directory,
         packageJson,
         versions,
         exports,
         types,
+        bins,
         runtime,
     };
 }
@@ -226,6 +242,7 @@ export async function readPackageJson(
         },
         definition: configuration,
         ...(metadata["exports"] === undefined ? {} : { exports: metadata["exports"] }),
+        bin: field(metadata, "bin"),
         dependencies: field(metadata, "dependencies"),
         peerDependencies: field(metadata, "peerDependencies"),
         peerDependenciesMeta: field(metadata, "peerDependenciesMeta"),
@@ -305,6 +322,17 @@ async function expandPatterns(
     }
 
     return expanded;
+}
+
+/** List the declaration files a package exports, which no runtime compiles. */
+export function exportedDeclarations(packageJson: PackageJson): string[] {
+    const conditions = new Set(["types", "import", "default"]);
+
+    return Object.entries(mapExports(packageJson)).flatMap(([name, entry]) => {
+        const type = name.includes("*") ? undefined : selectType(entry, conditions);
+
+        return type !== undefined && /\.d\.[cm]?ts$/u.test(type) ? [type] : [];
+    });
 }
 
 /** Key a package's exports by export name, such as `.` and `./server`. */
