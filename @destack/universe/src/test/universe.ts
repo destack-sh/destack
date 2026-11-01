@@ -1,3 +1,4 @@
+import { Bookmark } from "@destack/object/client";
 import { Issuer } from "@destack/account/native";
 import { MemoryBlobStorage } from "@destack/resource";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
@@ -236,6 +237,7 @@ export class TestUniverse implements AsyncDisposable {
             `${PackageMount.url(TEST_ORIGIN, accountPackage.id)}${OAUTH_PATH}`,
             (request) => simulation.network.of(CLIENT_NODE).fetch(request),
             environment,
+            new Bookmark(),
         );
         this.#types = new Map(
             UNIVERSE_PACKAGES.flatMap((handle) =>
