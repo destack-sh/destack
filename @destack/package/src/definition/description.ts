@@ -32,6 +32,8 @@ const packageJson = schema.object({
     definition: PackageDefinition,
     /** Authored exports, retaining conditional order and fallback lists. */
     exports: PackageExport.exactOptional(),
+    /** The commands the package installs, each its source module by command name. */
+    bin: schema.record(schema.string().min(1), schema.string().min(1)),
     /** Required runtime dependencies. */
     dependencies: REQUIREMENTS,
     /** Dependencies supplied by the consuming package. */

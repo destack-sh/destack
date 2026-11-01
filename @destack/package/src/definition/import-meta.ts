@@ -8,5 +8,3 @@ declare global {
         readonly destack: ModuleMetadata;
     }
 }
-
-export {};

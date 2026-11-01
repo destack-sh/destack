@@ -43,6 +43,8 @@ export const PackageOutput = schema.object({
     dependencies: schema.record(DependencyName, DependencyRelease),
     /** The peers its package declares, which each package depending on it provides beside it. */
     peers: schema.record(DependencyName, OutputPeer).default({}),
+    /** The commands its package installs, each its emitted module by name, absent for none. */
+    bins: schema.record(schema.string().min(1), OutputExport).exactOptional(),
     /** The list of the files its runtime loads: its own, the package.json and the catalogs. */
     files: PackageFile,
 });
