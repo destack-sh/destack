@@ -12,7 +12,6 @@ import type { Clock, Environment } from "@destack/environment";
 import { LocalKeyring, MemoryKeychain } from "@destack/identity";
 import {
     type Fetch,
-    Follow,
     type ObjectType,
     PackageHandle,
     PackageMount,
@@ -67,11 +66,7 @@ export class TestMachine implements AsyncDisposable {
         name: "machine",
         ...tablesOf({
             packages: [objectPackage],
-            follows: [
-                Follow.of(directoryShape, { keys: [] }),
-                Follow.of(identityShape, { keys: [] }),
-                Follow.of(machineShape, { keys: [] }),
-            ],
+            follows: [directoryShape.at(), identityShape.at(), machineShape.at()],
             tables: [],
         }),
     });
@@ -261,9 +256,9 @@ export class TestMachine implements AsyncDisposable {
     /** List the follows of a machine: the directory, the identities and its assignments. */
     static #follows(id: Identifier<"machine">) {
         return [
-            Follow.of(directoryShape, { keys: [{ key: { scope: Scope.universe.id } }] }),
-            Follow.of(identityShape, { keys: [{ key: { scope: Scope.universe.id } }] }),
-            Follow.of(machineShape, { keys: [{ key: { scope: Scope.universe.id, machine: id } }] }),
+            directoryShape.at({ key: { scope: Scope.universe.id } }),
+            identityShape.at({ key: { scope: Scope.universe.id } }),
+            machineShape.at({ key: { scope: Scope.universe.id, machine: id } }),
         ];
     }
 
