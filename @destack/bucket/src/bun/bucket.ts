@@ -6,7 +6,6 @@ import { BucketKey } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { CatalogueBucket } from "../catalogue/bucket.ts";
 import { CatalogueStorage } from "../catalogue/storage.ts";
-import { catalogueDatabase } from "../catalogue/stack/index.ts";
 import { syncDirectory } from "./directory.ts";
 import { LocalBlobStorage } from "./store.ts";
 
@@ -119,12 +118,12 @@ async function prepare(
 ): Promise<SqliteDatabase> {
     // migrate the catalogue, creating the log of a new bucket
     await using preparing = new AsyncDisposableStack();
-    const database = await connectBunSqlite(catalogue, catalogueDatabase, { environment });
+    const database = await connectBunSqlite(catalogue, CatalogueStorage.database, { environment });
     preparing.defer(() => database.close());
     if (created !== undefined) {
         await database.log.create(created);
     }
-    await database.migrate(catalogueDatabase.tables);
+    await database.migrate(CatalogueStorage.database.tables);
 
     // persist the initial catalogue and lock entries before accepting writes
     await syncDirectory(directory, environment.files);
@@ -152,7 +151,7 @@ function openedStorage(
         environment,
         migrate: async (beside) => {
             // migrate while no other opener migrates, then reopen the connection declaring every table
-            const tables = [...catalogueDatabase.tables, ...beside];
+            const tables = [...CatalogueStorage.database.tables, ...beside];
             await migrating(dirname(catalogue), files, () => opened.migrate(tables));
             await opened.close();
             opened = await connectBunSqlite(catalogue, tables, { environment });

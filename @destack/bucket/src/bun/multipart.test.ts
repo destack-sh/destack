@@ -5,7 +5,8 @@ import { expect, refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { sql } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
-import { catalogueDatabase, part, upload } from "../catalogue/stack/db.ts";
+import { part, upload } from "../catalogue/stack/db.ts";
+import { CatalogueStorage } from "../catalogue/storage.ts";
 import type { UploadedPart } from "../bucket/index.ts";
 import { LocalBucket } from "./index.ts";
 import { Simulation } from "@destack/environment/simulation";
@@ -132,9 +133,13 @@ test("reclaim expired multipart contents once a reopened bucket sweeps", async (
     }
 
     // advance the stored expiration while the bucket is closed
-    const database = await connectBunSqlite(join(directory, "bucket.db"), catalogueDatabase, {
-        environment: world,
-    });
+    const database = await connectBunSqlite(
+        join(directory, "bucket.db"),
+        CatalogueStorage.database,
+        {
+            environment: world,
+        },
+    );
     try {
         await database.transaction(
             async (transaction) => await transaction.run(sql`UPDATE ${upload} SET expires = 0`),

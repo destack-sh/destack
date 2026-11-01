@@ -11,6 +11,7 @@ import {
     lt,
     lte,
     type DatabaseHandle,
+    defineDatabase,
     type SQL,
     type Table,
 } from "@destack/db";
@@ -57,6 +58,12 @@ export interface Catalogue extends DatabaseHandle {
 
 /** A bucket's catalogue and the blobs its files keep. */
 export class CatalogueStorage implements AsyncDisposable {
+    /** The private catalogue database of a local bucket. */
+    static readonly database = defineDatabase({
+        name: "catalogue",
+        tables: [file, segment, upload, part],
+    });
+
     /** The catalogue, reopened by its host when it gains tables. */
     readonly #catalogue: Catalogue;
     /** Operations that select or replace blobs. */

@@ -1,13 +1,4 @@
-import {
-    check,
-    index,
-    integer,
-    json,
-    defineTable,
-    text,
-    defineDatabase,
-    textEnum,
-} from "@destack/db";
+import { check, index, integer, json, defineTable, text, textEnum } from "@destack/db";
 import { Digest, schema } from "@destack/schema";
 import { DIGEST_ALGORITHMS, STORAGE_CLASSES } from "../../bucket/index.ts";
 
@@ -140,9 +131,3 @@ export const part = defineTable(
         constraints: (table) => [index("part_blob").on(table.blob)],
     },
 );
-
-/** The private catalogue database of a local bucket. */
-export const catalogueDatabase = defineDatabase({
-    name: "catalogue",
-    tables: [file, segment, upload, part],
-});

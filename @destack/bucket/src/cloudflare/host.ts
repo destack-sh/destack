@@ -7,7 +7,7 @@ import {
     CatalogueBucketHost,
     type CatalogueEnvironment,
     type CatalogueStore,
-    catalogueDatabase,
+    CatalogueStorage,
 } from "../catalogue/index.ts";
 import { BucketError } from "../error/index.ts";
 import type { BucketReference, S3Credentials } from "../s3/index.ts";
@@ -116,7 +116,7 @@ export class R2BucketHost extends CatalogueBucketHost {
         const isFenced = (await this.#files.head(`${bucketId}/${FENCE_FILE}`)) !== null;
 
         // connect to the catalogue, logging it in its scope once, and migrate it
-        const tables = catalogueDatabase.tables;
+        const tables = CatalogueStorage.database.tables;
         let database = await this.#catalogues.connect(bucketId, tables);
         try {
             if (isNew) {
