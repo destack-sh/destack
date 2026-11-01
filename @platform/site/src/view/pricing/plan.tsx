@@ -60,8 +60,8 @@ type Plan = (typeof plans)[number];
 /** Who a plan is shown to: a person, or an organisation. */
 export type Audience = "personal" | "organisation";
 
-/** The specs every card lists on the same rows, under its usage: retention and support. */
-const SPECS = ["retention", "support"] as const;
+/** The specs every card lists on the same rows, under its usage. */
+const SPECS = ["hosting", "ai", "retention", "support"] as const;
 
 /** What a plan unlocks, listed where it first appears and stacking from there. */
 const EXTRAS = ["early", "domains", "machines"] as const;
@@ -281,7 +281,7 @@ function PlanCard(properties: {
                 {isFree ? "Start for free" : `Get ${plan.name}`}
             </a>
 
-            {/* retention and support, on the same rows on every card */}
+            {/* hosting, AI, retention and support, on the same rows on every card */}
             {SPECS.map((topic, index) => (
                 <BenefitRow
                     benefit={present(benefitOf(plan, topic), "spec")}
@@ -313,7 +313,7 @@ function Usage(properties: { plan: Plan; fee: number; currency: Currency }) {
                 detail="Past the included amount, usage is billed at the prices below, up to a monthly limit you set."
             />
             <br />
-            then billed up to your limit
+            then pay as you go
         </p>
     ) : (
         <p {...style.attrs(styles.usage)}>
@@ -347,8 +347,22 @@ function BenefitRow(properties: { benefit: Benefit; isFirst: boolean; isInherite
 
 /** Return what a plan gives on a topic, or nothing where it gives nothing there. */
 function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
+    // read where the plan runs and which AI it uses, the same on every plan
+    if (topic === "hosting") {
+        return {
+            icon: "monitor",
+            text: "Self-hosting",
+            detail: "Run Destack on your own machines, or on ours.",
+        };
+    } else if (topic === "ai") {
+        return {
+            icon: "sparkle",
+            text: "Bring your own AI",
+            detail: "Use your subscriptions, your API keys or local models.",
+        };
+    }
     // read how long the plan keeps events
-    if (topic === "retention") {
+    else if (topic === "retention") {
         const span = plan.retention >= YEAR_DAYS ? "1-year" : `${plan.retention}-day`;
 
         return {

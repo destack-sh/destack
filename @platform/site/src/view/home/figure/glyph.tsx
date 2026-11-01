@@ -52,7 +52,9 @@ export type GlyphName =
     | "remix"
     | "chip"
     | "bolt"
-    | "people";
+    | "people"
+    | "monitor"
+    | "sparkle";
 
 /** The strokes of each glyph, on a 24-unit grid. */
 const glyphs: Record<GlyphName, readonly string[]> = {
@@ -142,6 +144,8 @@ const glyphs: Record<GlyphName, readonly string[]> = {
         "M17 14h4",
     ],
     bolt: ["M13 3 5 14h6l-1 7 8-11h-6z"],
+    monitor: ["M3 4h18v12H3z", "M8 20h8", "M12 16v4"],
+    sparkle: ["M12 3 13.9 8.1 19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z", "M19 16v4", "M17 18h4"],
     people: [
         "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
         "M3 20a6 6 0 0 1 12 0",
