@@ -44,8 +44,8 @@ const handle = defineObject(
     },
     (method) => ({
         create: method.create("create"),
-        claim: method.create("create", { keep: "name" }),
-        adopt: method.create("create", { keep: "id" }),
+        claim: method.create("create", { onConflict: "name" }),
+        adopt: method.create("create", { onConflict: "id" }),
     }),
 );
 
@@ -166,7 +166,7 @@ const team = defineObject(
     }),
 );
 
-test("keep the object a creation's unique constraint matches, answering it to its creator and no one else", async () => {
+test("answer the object a creation's unique constraint matches on a conflict, to its creator and no one else", async () => {
     // serve the handles in a public space
     const world = testSimulation().environment("test");
     const storage = await TestDatabase.create(

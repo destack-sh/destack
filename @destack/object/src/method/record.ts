@@ -131,8 +131,8 @@ export interface CreateOptions<
     readonly isPredicted?: boolean;
     /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
-    /** The unique key, `id` or a unique constraint, whose match the creation answers. */
-    readonly keep?: string;
+    /** The unique key, `id` or a unique constraint, whose existing match the creation answers. */
+    readonly onConflict?: string;
 }
 
 /** How a bulk creation creates: its written fields and creator. */
@@ -1176,7 +1176,9 @@ export const RecordMethod = {
         );
         const values = context.id === undefined ? written : { ...written, id: context.id };
         if (columns.includes("id") && context.id === undefined) {
-            throw new TypeError(`keeping a ${context.object.name} by its id needs the caller's id`);
+            throw new TypeError(
+                `answering a ${context.object.name} on an id conflict needs the caller's id`,
+            );
         }
         const matched = Object.fromEntries(columns.map((column) => [column, values[column]]));
         const where = Condition.equal(MATCH.parse(matched));
@@ -1605,8 +1607,8 @@ export class MethodBuilder<
         permission: Permission,
         options: CreateOptions<Fields, Input, Prepared, Visibility, Sum, Filled> = {},
     ) {
-        // relate the creation's creator, and keep the object its unique constraint matches
-        const { creator, keep, ...declared } = options;
+        // relate the creation's creator, and answer the object its unique key matches on a conflict
+        const { creator, onConflict, ...declared } = options;
 
         return defineMethod<{
             kind: "create";
@@ -1662,7 +1664,7 @@ export class MethodBuilder<
                 }
 
                 // answer the object that already exists under the kept key
-                const existing = await RecordMethod.existing(context, execution, keep);
+                const existing = await RecordMethod.existing(context, execution, onConflict);
                 if (existing !== undefined) {
                     return existing;
                 }
