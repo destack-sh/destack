@@ -99,7 +99,7 @@ import {
     type StoreProvider,
     type SpaceProvider,
 } from "../server/index.ts";
-import { universeDatabase } from "@destack/universe";
+import { Universe } from "@destack/universe";
 import {
     MachineWorld,
     TestMachine,
@@ -121,7 +121,7 @@ import { insertBuildScope, insertRelease } from "./install.ts";
 import { BunGraphStorage } from "../bun/graph.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import type { StackSource } from "@destack/account/object";
+import type { StackRelease } from "@destack/account/object";
 import { PackageClient, BuildStore } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
 
@@ -142,7 +142,9 @@ export interface StackReleases {
     /** The stack package's release, declaring its settings. */
     readonly stack: BuildReader;
     /** The stack of the fixture's space: the empty stack's release. */
-    readonly source: StackSource;
+    readonly source: StackRelease;
+    /** The digest of the empty stack's release. */
+    readonly sourceManifest: Digest;
     /** The digest of the stack package's release. */
     readonly manifest: Digest;
 }
@@ -240,7 +242,7 @@ export type WorldSpace =
 
 /** The databases of a space world: the universe's, the machine's replica and each space's by id. */
 type SpaceDatabases = {
-    readonly universe: typeof universeDatabase;
+    readonly universe: typeof Universe.database;
     readonly machine: typeof TestMachine.database;
 } & Readonly<Record<string, ReturnType<typeof defineDatabase>>>;
 
@@ -258,6 +260,9 @@ const BEARER_PREFIX = "Bearer ";
 
 /** A JSON Web Token's compact form: three base64url segments (RFC 7519 3). */
 const JWT_FORM = /^[\w-]+\.[\w-]+\.[\w-]*$/u;
+
+/** The version of the account fixture's stand-in stacks, which the fixture's space builds again. */
+const STACK_VERSION = "2026.9.0";
 
 /** The seed of the simulated worlds templates write and restores run in. */
 const WORLD_SEED = 1;
@@ -514,7 +519,7 @@ export class TestSpace implements AsyncDisposable {
         return new TestTemplate({
             name: `stack.world ${new Date(start).toISOString()} ${world.name} ${names.join(" ")}`,
             databases: {
-                universe: universeDatabase,
+                universe: Universe.database,
                 machine: TestMachine.database,
                 ...Object.fromEntries(spaces.map((each) => [TestSpace.#key(each), database])),
             },
@@ -886,7 +891,11 @@ export class TestSpace implements AsyncDisposable {
     static async releases(crypto: Crypto): Promise<StackReleases> {
         // build the empty stack and the stack package, declaring its settings
         const empty = await MemoryBuild.of(
-            STACKS.space.package,
+            Package.parse({
+                id: STACKS.space.packageId,
+                name: "@example/space",
+                version: STACK_VERSION,
+            }),
             [
                 {
                     kind: "stack",
@@ -908,16 +917,22 @@ export class TestSpace implements AsyncDisposable {
             crypto,
         );
 
-        // identify both by their manifests' digests
+        // identify both by their manifests' digests, the space following the empty stack's release
+        const sourceManifest = await BuildStore.digest(empty.manifest, crypto);
         const source = {
             ...STACKS.space,
-            manifest: await BuildStore.digest(empty.manifest, crypto),
+            selection: {
+                kind: "release" as const,
+                version: STACK_VERSION,
+                manifest: sourceManifest,
+            },
         };
 
         return {
             space: empty,
             stack,
             source,
+            sourceManifest,
             manifest: await BuildStore.digest(stack.manifest, crypto),
         };
     }
@@ -942,7 +957,8 @@ export class TestSpace implements AsyncDisposable {
         defer(() => packages[Symbol.asyncDispose]());
         const registry = new TestRegistry(packages, ids.package);
         const universe = await TestUniverse.open({
-            stacks: { person: source, residency: source, account: source, space: source },
+            stacks: { person: source, account: source, space: source },
+            home: source,
             releases: registry,
             ...(storage === undefined ? {} : { storage }),
             ...(world === undefined ? {} : { world }),
@@ -2006,7 +2022,7 @@ export interface TestSpaceOptions {
     /** The space's name in its account, `space` by default. */
     readonly name?: string;
     /** The stack the space is born with, the universe's default stack by default. */
-    readonly stack?: StackSource;
+    readonly stack?: StackRelease;
     /** The builds the registry publishes before the space's birth, such as its stack's. */
     readonly releases?: readonly BuildReader[];
 }
@@ -2062,7 +2078,7 @@ export async function reconcileResources(
 ): Promise<void> {
     // reconcile each served kind's resources in the space
     const kinds = store.objects.filter((type) => Provisioned.is(type));
-    const consumers = new ConsumerController(store, kinds, spaceDatabase);
+    const consumers = new ConsumerController(store, kinds, spaceDatabase, new Map());
     for (const kind of kinds) {
         const rows = await store.database
             .select()

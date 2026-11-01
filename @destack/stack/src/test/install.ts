@@ -4,7 +4,7 @@ import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
 import { Digest, Identifier, present, schema } from "@destack/schema";
 import { ObjectReference, Scope, type Subject } from "@destack/sync";
-import { Package, type PackageId } from "@destack/package";
+import type { PackageId } from "@destack/package";
 import {
     build,
     deployment,
@@ -53,8 +53,12 @@ export async function openSpaceDatabase(): Promise<{
                 scope: ids.account,
                 name: "notes",
                 stack: {
-                    package: Package.of(stackPackage),
-                    manifest: await Digest.json({}, world.crypto),
+                    packageId: stackPackage.id,
+                    selection: {
+                        kind: "release",
+                        version: stackPackage.version,
+                        manifest: await Digest.json({}, world.crypto),
+                    },
                     export: "default",
                     settings: {},
                 },

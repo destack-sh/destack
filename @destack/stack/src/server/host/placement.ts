@@ -1,6 +1,6 @@
 import { AccessContext, Authorization, Caller } from "@destack/access";
-import { declaredStack, MAIN_DATABASE } from "../../declare/index.ts";
-import { space, type StackSource, placement } from "@destack/account/object";
+import { MAIN_DATABASE } from "../../declare/index.ts";
+import { space, type StackRelease, placement } from "@destack/account/object";
 import {
     and,
     Change,
@@ -14,21 +14,15 @@ import {
 } from "@destack/db";
 import { Installation, installation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { Digest, type Identifier, type JsonObject, present } from "@destack/schema";
+import { Digest, type Identifier, present } from "@destack/schema";
 import type { ReconcileController } from "@destack/db";
 import { Scope, RequestId } from "@destack/sync";
 import { database, rollout, SPACE_PROVIDER } from "../../object/index.ts";
-import { SpaceBuildStore, type Registry } from "../installation/build.ts";
-import type { PackageId } from "@destack/package";
 import { STACK_INSTALLATION } from "../../package.ts";
 import { SPACE_BASE_PACKAGES } from "../server.ts";
 
-/** The build store, the spaces' main database, and the registry the stacks' releases copy from. */
+/** The platform's declaration of every space's main database. */
 export interface PlacementOptions {
-    /** The space's builds, read through to the machine's cache. */
-    readonly builds: SpaceBuildStore;
-    /** The registry the stacks' releases copy from. */
-    readonly registry: Registry;
     /** The platform's declaration of every space's main database. */
     readonly main: Database;
 }
@@ -47,7 +41,7 @@ export class PlacementController implements ReconcileController {
     readonly #space: Identifier<"space">;
     /** This machine, which gives birth to the space once placed on it. */
     readonly #machine: Identifier<"machine">;
-    /** The build store, the spaces' main database and the release registry. */
+    /** The spaces' main database. */
     readonly #options: PlacementOptions;
 
     /** Give birth to a store's space once placed on a machine. */
@@ -75,7 +69,7 @@ export class PlacementController implements ReconcileController {
         else if (Change.of(change, space.table)) {
             return this.#touching(Change.image(change).id);
         }
-        // take the space's rollout
+        // take the space's rollouts, its stack's among them
         else if (Change.of(change, rollout.table)) {
             return this.#touching(Change.image(change).scope);
         }
@@ -96,14 +90,14 @@ export class PlacementController implements ReconcileController {
 
     /** List the space while placed here awaiting birth, a main database, or its changed stack. */
     async list(): Promise<readonly string[]> {
-        // read the space while placed here with its stack and the stack last submitted
+        // read the space while placed here with its stack and the stack its installation last followed
         const rows = await this.#database
             .select({
                 id: placement.table.id,
                 born: Scope.table.scope,
                 main: database.table.id,
                 stack: space.table.stack,
-                submitted: rollout.table.spaceStack,
+                followed: rollout.table.spaceStack,
             })
             .from(placement.table)
             .innerJoin(space.table, eq(space.table.id, placement.table.id))
@@ -131,13 +125,13 @@ export class PlacementController implements ReconcileController {
                 ),
             );
 
-        // select it unborn, without a main database, or with a stack changed since its last submission
+        // select it unborn, without a main database, or with a stack changed since its installation followed it
+        const { crypto } = this.#database.state.environment;
         const listed = await Promise.all(
             rows.map(async (row) =>
                 row.born === null ||
                 row.main === null ||
-                (await Digest.json(row.stack, this.#database.state.environment.crypto)) !==
-                    row.submitted
+                (await Digest.json(row.stack, crypto)) !== row.followed
                     ? [row.id]
                     : [],
             ),
@@ -187,12 +181,13 @@ export class PlacementController implements ReconcileController {
             await this.#createMain(spaceId);
         }
 
-        // submit the space's stack once it changed since its last submission
+        // follow the space's stack once it changed, leaving a stack its owner applied since
         const [received] = await this.#database
             .select({
                 stack: space.table.stack,
                 installed: installation.table.id,
-                submitted: rollout.table.spaceStack,
+                installedPackage: installation.table.packageId,
+                followed: rollout.table.spaceStack,
             })
             .from(space.table)
             .leftJoin(
@@ -204,10 +199,10 @@ export class PlacementController implements ReconcileController {
             )
             .leftJoin(rollout.table, eq(rollout.table.id, installation.table.id))
             .where(eq(space.table.id, spaceId));
-        const { stack, installed, submitted } = present(received, `the row of ${spaceId}`);
-        const digest = await Digest.json(stack, this.#database.state.environment.crypto);
-        if (digest !== submitted) {
-            await this.#install(spaceId, stack, digest, installed);
+        const row = present(received, `the row of ${spaceId}`);
+        const digest = await Digest.json(row.stack, this.#database.state.environment.crypto);
+        if (digest !== row.followed) {
+            await this.#follow(spaceId, row.stack, digest, row.installed, row.installedPackage);
         }
 
         return undefined;
@@ -261,60 +256,48 @@ export class PlacementController implements ReconcileController {
         });
     }
 
-    /** Copy a stack's pinned build into the build store and read the space its export declares. */
-    async #declared(stack: StackSource): Promise<JsonObject> {
-        // copy the stack's build, evaluate its export, and read its installations' builds without storing them
-        const { builds, registry } = this.#options;
-        const reader = await builds.pull(registry, stack.package.id, stack.manifest);
-        const read = (packageId: PackageId, manifest: Digest) =>
-            builds.read(registry, packageId, manifest);
-
-        return declaredStack(reader, stack.export, stack.settings, read);
-    }
-
-    /** Install a space's stack at its pinned build, and submit the space its export declares. */
-    async #install(
+    /** Create the space's stack installation following its stack, or point it at a changed one. */
+    async #follow(
         spaceId: Identifier<"space">,
-        stack: StackSource,
+        stack: StackRelease,
         digest: Digest,
         installed: Identifier<"installation"> | null,
+        installedPackage: string | null,
     ): Promise<void> {
-        // read the space the stack declares at its pinned build
-        const { package: stacked, manifest } = stack;
-        const build = { kind: "release" as const, version: stacked.version, manifest };
-        const definition = await this.#declared(stack);
+        // refuse moving a space to another stack package, which its installation cannot follow
+        if (installedPackage !== null && installedPackage !== stack.packageId) {
+            throw new TypeError(
+                `the stack of ${spaceId} moved from ${installedPackage} to ${stack.packageId}`,
+            );
+        }
 
-        // install the stack package as the space's stack once
-        const selection = { kind: "release" as const, version: stacked.version };
-        const [created] =
-            installed === null
-                ? await this.#store.mutate(this.#store.as(rollout), {
-                      id: RequestId.create(this.#store.environment),
-                      calls: [
-                          installation.call("create", {
-                              ...installation.in(spaceId),
-                              packageId: stacked.id,
-                              selection,
-                              export: stack.export,
-                              parameters: {},
-                              name: STACK_INSTALLATION,
-                          }),
-                      ],
-                  })
-                : [{ id: installed }];
+        // install the stack package once, else follow the changed release and export
+        const followed = { selection: stack.selection, export: stack.export };
+        const [created] = await this.#store.mutate(this.#store.as(rollout), {
+            id: RequestId.create(this.#store.environment),
+            calls: [
+                installed === null
+                    ? installation.call("create", {
+                          ...installation.in(spaceId),
+                          packageId: stack.packageId,
+                          ...followed,
+                          parameters: {},
+                          name: STACK_INSTALLATION,
+                      })
+                    : installation.call("update", {
+                          ...installation.target({ scope: spaceId, id: installed }),
+                          ...followed,
+                      }),
+            ],
+        });
 
-        // submit its pinned build in a mutation of its own, whose preparation reads the created stack
+        // record the stack followed and drop an owner's earlier apply, so one its owner applies later stays
+        const id = installed ?? present(created, `the stack of ${spaceId}`).id;
         await this.#store.mutate(this.#store.as(rollout), {
             id: RequestId.create(this.#store.environment),
             calls: [
-                rollout.call("submit", {
-                    ...rollout.target({
-                        scope: spaceId,
-                        id: present(created, `the stack of ${spaceId}`).id,
-                    }),
-                    selection,
-                    build,
-                    evaluation: { export: stack.export, parameters: {}, definition },
+                rollout.call("follow", {
+                    ...rollout.target({ scope: spaceId, id }),
                     spaceStack: digest,
                 }),
             ],

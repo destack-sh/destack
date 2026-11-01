@@ -115,6 +115,7 @@ test("relate a residency home's declared installation for its universe-scoped re
                     id: "lab",
                     scope: Scope.universe.id,
                     name: "Lab",
+                    relay: "https://relay-lab.machine.test",
                     space: ids.space,
                     createdAt: now,
                     updatedAt: now,

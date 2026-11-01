@@ -156,7 +156,10 @@ test("provision a resource as soon as its declaration changes", async () => {
     );
     await reconcileAfter(
         database,
-        [...store.controllers(), new ConsumerController(store, [object.database], spaceDatabase)],
+        [
+            ...store.controllers(),
+            new ConsumerController(store, [object.database], spaceDatabase, new Map()),
+        ],
         declared,
     );
     const [provisioned] = await database

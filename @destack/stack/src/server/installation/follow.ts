@@ -1,6 +1,5 @@
 import { Manager } from "@destack/access";
 import { type RepositorySelection } from "@destack/object";
-import { declaredStack } from "../../declare/index.ts";
 import {
     and,
     type DatabaseConnection,
@@ -49,7 +48,7 @@ export interface Forge {
     readonly tag: (row: RowImage<Table>) => { readonly package: string; readonly name: string };
     /** Read the version a tag points at in the space's replica, absent while none. */
     readonly version: (
-        database: DatabaseConnection,
+        reader: Pick<Snapshot, "read">,
         packageId: string,
         name: string,
     ) => Promise<string | undefined>;
@@ -130,7 +129,7 @@ export class CommitBuild {
                 selection,
                 build: { kind: "build", build: built.id },
                 ...(target.installation.export !== null
-                    ? { evaluation: await this.#evaluate(built) }
+                    ? { evaluation: await this.#evaluate(built, database) }
                     : {}),
             }),
         ]);
@@ -239,22 +238,16 @@ export class CommitBuild {
         return revision?.buildId === buildId;
     }
 
-    /** Evaluate the stack installation's export of a succeeded build with its arguments. */
-    async #evaluate(built: Build): Promise<StackEvaluation> {
-        // read the stack's export and arguments
-        const row = this.#target;
+    /** Evaluate the stack installation's export of a succeeded build, as its rollout does. */
+    async #evaluate(built: Build, database: DatabaseConnection): Promise<StackEvaluation> {
         const options = this.#options;
-        const { export: exported, parameters } = row.installation;
-        if (exported === null || parameters === null) {
-            throw new TypeError(`stack ${row.id} has no export`);
-        }
-
-        // read the stack the build declares at the export
         const reader = await options.builds.contents(Build.manifest(built));
-        const definition = await declaredStack(reader, exported, {}, (packageId, manifest) =>
-            options.builds.read(options.registry, packageId, manifest),
-        );
 
-        return { export: exported, parameters, definition };
+        return Rollout.evaluate(
+            Snapshot.live(database),
+            this.#target.installation,
+            reader,
+            options,
+        );
     }
 }

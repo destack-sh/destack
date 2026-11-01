@@ -25,7 +25,7 @@ export class TestGateway {
         { readonly space: TestSpace; readonly served: TestObjectStore }
     >();
     /** The listener of each machine answering, by machine. */
-    readonly #listening = new Map<string, Listener<unknown>>();
+    readonly #listening = new Map<string, Listener>();
 
     /** Answer for the machines of a world. */
     constructor(simulation: Simulation) {

@@ -1,7 +1,6 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import type { Environment } from "@destack/environment";
 import { testSimulation } from "@destack/object/test";
-import { accountDatabase } from "@destack/account/stack";
 import { testEvents, serversOf, TestObjectStore } from "@destack/object/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
@@ -18,7 +17,7 @@ import { TestAccess } from "@destack/access/test";
 import { IdentityKeystore } from "@destack/account/identity";
 import { LocalKeyring } from "@destack/identity";
 import { account, Placement } from "@destack/account/object";
-import { TestDirectory, TestIdentityRegistry } from "@destack/account/test";
+import { TestAccountStore, TestDirectory, TestIdentityRegistry } from "@destack/account/test";
 import { spaceDatabase } from "../../test/index.ts";
 import type { EventStore } from "@destack/event";
 import { journal, defineObject, field } from "@destack/object";
@@ -91,7 +90,7 @@ test("hand a space's database to another machine and send its clients there", as
     const [source, target, universe] = await Promise.all([
         TestDatabase.create(tables, { environment: world, isMigrated: true }),
         TestDatabase.create(tables, { environment: world, isMigrated: true }),
-        TestDatabase.create(accountDatabase, { environment: world, isMigrated: true }),
+        TestDatabase.create(TestAccountStore.database, { environment: world, isMigrated: true }),
     ]);
     onTestFinished(async () => {
         await Promise.all([source.close(), target.close(), universe.close()]);

@@ -1,5 +1,5 @@
 import { Setting } from "@destack/setting";
-import { SettingValue } from "@destack/setting/object";
+import { setting, SettingValue } from "@destack/setting/object";
 import { ObjectReference, Subject } from "@destack/sync";
 import { canonicalize, type Digest, type Identifier, present, schema } from "@destack/schema";
 import { InstallationId, principal } from "@destack/access";
@@ -129,11 +129,12 @@ function rolloutController(options: InstallationOptions) {
     return {
         pending: {},
         key: rolloutKey,
-        // reconcile a new rollout and a moved target or served revision, past its own applied and consumed records
+        // reconcile a new rollout, a moved target or served revision, and a followed space stack, past its own applied and consumed records
         wakes: (change: Change<typeof rollout.table>) =>
             change.operation !== "update" ||
             change.before.revisionId !== change.after.revisionId ||
-            change.before.servedRevisionId !== change.after.servedRevisionId,
+            change.before.servedRevisionId !== change.after.servedRevisionId ||
+            change.before.spaceStack !== change.after.spaceStack,
         watches: [
             ...rolloutWatches(options.resources),
             ...(options.forge === null ? [] : forgeWatches(options.forge)),
@@ -273,6 +274,13 @@ export function implementRollouts(options: InstallationOptions) {
                 handle: async (context) =>
                     submit(context, await Rollout.of(context), context.prepared, options),
             },
+            follow: {
+                handle: (context) =>
+                    context.update({
+                        spaceStack: context.input.spaceStack,
+                        ...ObjectReference.columns("submittedBy", undefined),
+                    }),
+            },
             deploy: async (call) => {
                 await new ApplicationInstallation(await Rollout.of(call), options).deploy(call);
 
@@ -297,7 +305,7 @@ async function submit(
     options: InstallationOptions,
 ): Promise<Rollout> {
     // require a stack's evaluation for a stack and none for an application
-    const { selection, evaluation, build: submitted, spaceStack } = context.input;
+    const { selection, evaluation, build: submitted } = context.input;
     const isStack = target.installation.export !== null;
     if (isStack !== (evaluation !== undefined)) {
         throw StackError.of(
@@ -321,10 +329,10 @@ async function submit(
 
     // refuse a build whose space settings without a default the space leaves unset, before any apply
     const placement = { scope: target.scope, installation: target.id };
-    for (const setting of await Setting.list(reader)) {
-        const { definition } = setting;
+    for (const declared of await Setting.list(reader)) {
+        const { definition } = declared;
         if (definition.scope === "space" && "required" in definition) {
-            await SettingValue.resolve(context, setting, placement);
+            await SettingValue.resolve(context, declared, placement);
         }
     }
 
@@ -363,20 +371,13 @@ async function submit(
         ]);
     }
 
-    // target the revision and the space's stack submitted, recording the submitter, who consents to what it requests
-    const isTargeted =
-        target.revisionId === revision.id &&
-        (spaceStack === undefined || target.spaceStack === spaceStack);
-    if (isTargeted) {
+    // target the revision, recording the submitter, who consents to what it requests
+    if (target.revisionId === revision.id) {
         return context.target;
     }
     const submittedBy = ObjectReference.columns("submittedBy", context.caller.subject);
 
-    return context.update({
-        revisionId: revision.id,
-        ...(spaceStack === undefined ? {} : { spaceStack }),
-        ...submittedBy,
-    });
+    return context.update({ revisionId: revision.id, ...submittedBy });
 }
 
 /** Pull the release a submission selects by tag or version, none for a space's build. */
@@ -646,6 +647,33 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                             each.conditions["Ready"]?.reason ?? "",
                         ) &&
                         each.dependencies.some((release) => release.package.id === row.packageId),
+                )
+                .map((each) => ({ id: each.id }));
+        }),
+        // wake the space's applications waiting for a setting of its package once a value is placed
+        ObjectWatch.of(setting.table, async (row, database) => {
+            // leave a value outside a space, which no application of a space waits for
+            const scope = schema.identifier("space").safeParse(row.scope);
+            if (!scope.success) {
+                return [];
+            }
+
+            // read the space's rollouts with their packages and conditions
+            const waiting = await database
+                .select({
+                    id: rollout.table.id,
+                    packageId: installation.table.packageId,
+                    conditions: installation.table.conditions,
+                })
+                .from(rollout.table)
+                .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
+                .where(eq(rollout.table.scope, scope.data));
+
+            return waiting
+                .filter(
+                    (each) =>
+                        each.packageId === row.packageId &&
+                        each.conditions["Ready"]?.reason === "WaitingForSettings",
                 )
                 .map((each) => ({ id: each.id }));
         }),

@@ -1,5 +1,10 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { installableReleases, MAIN_DATABASE, StackDefinition } from "../declare/index.ts";
+import {
+    declaredStack,
+    installableReleases,
+    MAIN_DATABASE,
+    StackDefinition,
+} from "../declare/index.ts";
 import { ViewPath } from "@destack/view/declare";
 import {
     AccessContext,
@@ -75,7 +80,7 @@ import type { SpaceBuildStore, Registry } from "../server/installation/build.ts"
 import type { Forge } from "../server/installation/follow.ts";
 import type { BuildStore } from "@destack/build/store";
 import { residency, space, Space } from "@destack/account/object";
-import { Submission } from "./stack.ts";
+import { type StackEvaluation, Submission } from "./stack.ts";
 import { StackError } from "../error/index.ts";
 
 /** The name under which an installation manages its permissions binding and space grant. */
@@ -138,7 +143,7 @@ export const rollout = defineObject(
             revision: field.reference(() => installationRevision).optional(),
             /** The principal submitting the targeted revision, absent before the first one. */
             submittedBy: field.subject().optional(),
-            /** The digest of the space's stack the installation last submitted, absent for none. */
+            /** The digest of the space's stack the installation last followed, absent for none. */
             spaceStack: field.string(Digest).optional(),
             /** The revision fully applied, absent before the first application. */
             appliedRevision: field.reference(() => installationRevision).optional(),
@@ -216,6 +221,16 @@ export const rollout = defineObject(
             permission: "apply",
             input: Submission,
             prepared: SubmissionPreparation,
+        }),
+
+        /** Follow the space's stack: record its digest, dropping an owner's earlier apply. */
+        follow: method.mutation({
+            permission: "target",
+            visibility: "package",
+            input: schema.object({
+                /** The digest of the space's stack. */
+                spaceStack: Digest,
+            }),
         }),
 
         /** Approve the plan waiting for approval by its digest. */
@@ -511,13 +526,15 @@ export const Rollout = {
         return rows.filter((each) => matches(each.selection));
     },
 
-    /** Read the build a space's installation of a package follows from a store of builds. */
+    /** Read the build a space's installation follows, else the release it selects at first. */
     async reader(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
         packageId: PackageId,
         installationId: Identifier<"installation"> | undefined,
-        packages: Pick<BuildStore, "contents">,
+        options: Pick<RevisionOptions, "forge" | "registry"> & {
+            readonly builds: Pick<SpaceBuildStore, "contents" | "pull">;
+        },
     ): Promise<BuildReader> {
         // read the installation's rollout, refusing several of the package unless one is named
         const installed = await snapshot.read(installation.table).findMany({
@@ -531,19 +548,37 @@ export const Rollout = {
             .read(rollout.table)
             .findMany({ where: { id: { in: installed.map((row) => row.id) } } });
         const [found] = rows;
+        const [only] = installed.length === 1 ? installed : [];
+        const selection =
+            installed.find((row) => row.id === found?.id)?.selection ?? only?.selection;
         if (rows.length > 1) {
             throw StackError.of(
                 "INSTALLATION_AMBIGUOUS",
                 `several installations in ${spaceId} follow builds of ${packageId}: pick one`,
             );
-        } else if (found?.revisionId === undefined || found.revisionId === null) {
-            throw StackError.of(
-                "INSTALLATION_NOT_FOUND",
-                `no installation in ${spaceId} follows a build of ${packageId}`,
+        }
+        // read the revision's build
+        else if (found?.revisionId !== undefined && found.revisionId !== null) {
+            return InstallationRevision.reader(snapshot, found.revisionId, options.builds);
+        }
+        // resolve the release a planned installation selects as its rollout will
+        else if (selection?.kind === "release" || selection?.kind === "tag") {
+            const resolved = await selectedRelease(
+                snapshot,
+                { selection, packageId },
+                undefined,
+                options,
             );
+            if (resolved !== undefined) {
+                return options.builds.pull(options.registry, packageId, resolved.manifest);
+            }
         }
 
-        return InstallationRevision.reader(snapshot, found.revisionId, packages);
+        // refuse an installation following nothing yet
+        throw StackError.of(
+            "INSTALLATION_NOT_FOUND",
+            `no installation in ${spaceId} follows a build of ${packageId}`,
+        );
     },
 
     /** Read the manifest of an installation's release selection, none for another selection. */
@@ -891,6 +926,36 @@ export const Rollout = {
         return Object.fromEntries(resolved);
     },
 
+    /** Evaluate a stack installation's export of a build with its space stack's setting values. */
+    async evaluate(
+        snapshot: Pick<Snapshot, "read">,
+        installed: Pick<Installation, "scope" | "packageId" | "export" | "parameters">,
+        reader: BuildReader,
+        options: {
+            readonly builds: Pick<SpaceBuildStore, "read">;
+            readonly registry: Pick<Registry, "locate">;
+        },
+    ): Promise<StackEvaluation> {
+        // read the export and its arguments, which every stack installation has
+        const exported = present(installed.export, `the export of ${installed.packageId}`);
+        const parameters = present(installed.parameters, `the arguments of ${exported}`);
+
+        // take the setting values of the space's stack while the installation follows its package
+        const [owner] = await snapshot.read(space.table).findMany({
+            where: { id: schema.identifier("space").parse(installed.scope) },
+            limit: 1,
+        });
+        const stack = present(owner, `the space ${installed.scope}`).stack;
+        const settings = stack.packageId === installed.packageId ? stack.settings : {};
+
+        // read the stack the build declares at the export
+        const definition = await declaredStack(reader, exported, settings, (packageId, manifest) =>
+            options.builds.read(options.registry, packageId, manifest),
+        );
+
+        return { export: exported, parameters, definition };
+    },
+
     /** Read the fields recording a revision applied, with the one applied before as previous. */
     applied(
         target: Pick<Rollout, "appliedRevisionId" | "previousRevisionId">,
@@ -1054,6 +1119,7 @@ export const Rollout = {
         const changed: {
             readonly row: InstallationRollout;
             readonly selected: SelectedBuild;
+            readonly evaluation: StackEvaluation | undefined;
             readonly digest: Digest;
             readonly described: Pick<InstallationRevision, "dependencies" | "states">;
         }[] = [];
@@ -1065,20 +1131,26 @@ export const Rollout = {
             if (selected === undefined) {
                 continue;
             }
-            const digest = await InstallationRevision.digest(selected.manifest, undefined, crypto);
+
+            // evaluate a stack's export of the build, and leave one whose target is it already
+            const reader = await options.builds.contents(selected.manifest);
+            const evaluation =
+                row.installation.export === null
+                    ? undefined
+                    : await Rollout.evaluate(snapshot, row.installation, reader, options);
+            const digest = await InstallationRevision.digest(selected.manifest, evaluation, crypto);
             if (revision?.digest === digest) {
                 continue;
             }
 
             // describe its revision from its build
-            const reader = await options.builds.contents(selected.manifest);
             const described = await InstallationRevision.describe(
                 row.installation,
                 reader,
                 store.objects,
                 options,
             );
-            changed.push({ row, selected, digest, described });
+            changed.push({ row, selected, evaluation, digest, described });
         }
         if (changed.length === 0) {
             return;
@@ -1086,7 +1158,7 @@ export const Rollout = {
 
         // record each missing revision and target each revision in one transaction
         const calls: Call[] = [];
-        for (const { row, selected, digest, described } of changed) {
+        for (const { row, selected, evaluation, digest, described } of changed) {
             // retain the revision of the build once, and target it
             const revisionId = await InstallationRevision.id(row.id, digest, crypto);
             calls.push(
@@ -1094,7 +1166,7 @@ export const Rollout = {
                     row.installation,
                     { id: selected.build, manifest: selected.manifest },
                     described,
-                    undefined,
+                    evaluation,
                     crypto,
                 ),
             );
@@ -1280,27 +1352,33 @@ async function selectBuild(
     current: Build | undefined,
     options: RevisionOptions,
 ): Promise<SelectedBuild | undefined> {
-    // resolve a release or tag to its version, keeping the targeted release build of that version
+    // resolve a release or tag to its release, keeping the targeted build of that manifest
     const { selection, packageId } = row.installation;
     const snapshot = Snapshot.live(reconciliation.database);
     if (selection.kind === "release" || selection.kind === "tag") {
-        const version = await selectedVersion(reconciliation, row, current, options);
-        if (version === undefined) {
+        const selected = await selectedRelease(snapshot, row.installation, current, options);
+        if (selected === undefined) {
             return undefined;
         }
         const source = current?.source;
-        if (source?.kind === "release" && source.version === version && current !== undefined) {
-            return { manifest: Build.manifest(current), source, build: current.id };
+        if (
+            source?.kind === "release" &&
+            current !== undefined &&
+            Build.manifest(current) === selected.manifest
+        ) {
+            return { manifest: selected.manifest, source, build: current.id };
         }
 
-        // pull the release and record it as the space's build once
+        // pull the release and record it as the space's build once, at the version its manifest has
         const { builds, registry } = options;
-        const manifest =
-            selection.kind === "release" && selection.manifest !== undefined
-                ? selection.manifest
-                : await registry.find(packageId, version);
-        await builds.pull(registry, packageId, manifest);
-        const released = { kind: "release" as const, package: packageId, version, manifest };
+        const { manifest } = selected;
+        const pulled = await builds.pull(registry, packageId, manifest);
+        const released = {
+            kind: "release" as const,
+            package: packageId,
+            version: pulled.manifest.package.version,
+            manifest,
+        };
         const recorded = await Build.release(
             snapshot,
             (calls) => reconciliation.mutate(calls),
@@ -1360,32 +1438,41 @@ async function selectBuild(
     }
 }
 
-/** Read the version a release or tag selects now, none before a followed tag replicates. */
-async function selectedVersion(
-    reconciliation: ObjectReconciliation,
-    row: InstallationRollout,
+/** Resolve a release or tag selection to its version and manifest, none while its tag is unset. */
+async function selectedRelease(
+    snapshot: Pick<Snapshot, "read">,
+    installed: Pick<Installation, "selection" | "packageId">,
     current: Build | undefined,
-    options: RevisionOptions,
-): Promise<string | undefined> {
-    // take a release's version
-    const { selection, packageId } = row.installation;
+    options: Pick<RevisionOptions, "forge" | "registry"> & {
+        readonly builds: Pick<SpaceBuildStore, "pull">;
+    },
+): Promise<{ readonly version: string; readonly manifest: Digest } | undefined> {
+    // take a release's version and its pinned manifest, else the registry's
+    const { selection, packageId } = installed;
     const { forge, builds, registry } = options;
     if (selection.kind === "release") {
-        return selection.version;
+        const manifest = selection.manifest ?? (await registry.find(packageId, selection.version));
+
+        return { version: selection.version, manifest };
     }
     // take the version a tag points at in the forge's replica
     else if (selection.kind === "tag" && forge !== null) {
-        return await forge.version(reconciliation.database, packageId, selection.tag);
+        const version = await forge.version(snapshot, packageId, selection.tag);
+
+        return version === undefined
+            ? undefined
+            : { version, manifest: await registry.find(packageId, version) };
     }
     // keep the targeted release of a tag on a machine following no forge
     else if (selection.kind === "tag" && current?.source.kind === "release") {
-        return current.source.version;
+        return { version: current.source.version, manifest: Build.manifest(current) };
     }
     // resolve a tag at the registry once, on a machine following no forge
     else if (selection.kind === "tag") {
         const manifest = await registry.find(packageId, selection.tag);
+        const version = (await builds.pull(registry, packageId, manifest)).manifest.package.version;
 
-        return (await builds.pull(registry, packageId, manifest)).manifest.package.version;
+        return { version, manifest };
     }
     // follow nothing else here
     else {

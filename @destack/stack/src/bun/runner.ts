@@ -30,7 +30,7 @@ export class BunWorkload {
         this.resources = resources;
     }
 
-    /** Build the workload's runner in an environment: SQLite files, its ephemeral objects in memory. */
+    /** Build the workload's runner in an environment: SQLite files, ephemeral objects in memory. */
     runner(environment: Environment): RunnerOptions {
         // store ephemeral objects in a memory database on the environment's clock
         const ephemeral: EphemeralHost = {

@@ -13,8 +13,7 @@ import {
     principal,
     Relationship,
 } from "@destack/access";
-import { accountDatabase } from "@destack/account/stack";
-import { STACKS, TestDirectory } from "@destack/account/test";
+import { STACKS, TestAccountStore, TestDirectory } from "@destack/account/test";
 import { CallEvent, call, journal, CallError, Installation, installation } from "@destack/object";
 import { Health, Journal, Server, type ClaimPrimary, ObjectStore } from "@destack/object/server";
 import type { BaseServerContext } from "@destack/object/workload";
@@ -406,7 +405,7 @@ export class TestBucket implements AsyncDisposable {
         // open the bucket's directory, and the universe's database with its name claims
         const directory = await environment.files.makeTemporaryDirectory("destack-bucket-files-");
         const files = await LocalBucket.open(directory, "space-test", environment);
-        const universe = await TestDatabase.create(accountDatabase, {
+        const universe = await TestDatabase.create(TestAccountStore.database, {
             environment,
             isMigrated: true,
         });

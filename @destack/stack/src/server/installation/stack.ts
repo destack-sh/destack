@@ -58,8 +58,17 @@ export class StackInstallation {
         this.#options = options;
     }
 
-    /** Apply the stack's targeted revision, then target the revisions of what it manages. */
+    /** Target the stack's selected release, apply its revision, then target what it manages. */
     async reconcile(reconciliation: ObjectReconciliation): Promise<undefined> {
+        // target the release or tag of a stack following its space's, evaluating its export on each new build, leaving an owner's apply
+        const spaceId = space.identifier(this.#target.scope);
+        const following = await readServedStack(spaceId, reconciliation.database);
+        const kind = following?.stack.installation.selection.kind;
+        const isFollowing = following?.stack.submittedById === null;
+        if (following !== undefined && isFollowing && (kind === "release" || kind === "tag")) {
+            await Rollout.target(reconciliation, [following.stack], this.#options);
+        }
+
         // apply the stack's document, then target the revisions of the installations it manages while it lives
         const stack = await this.#apply(reconciliation);
         if (stack !== undefined && stack.installation.deletedAt === null) {
@@ -84,20 +93,8 @@ export class StackInstallation {
             packageId,
             installationId,
         ) => {
-            // open the selected release of a planned installation before its first revision, else its revision's build
-            const rows =
-                installationId === undefined
-                    ? []
-                    : await snapshot
-                          .read(rollout.table)
-                          .findMany({ where: { id: installationId } });
-            const [planned] = await Rollout.read(snapshot, rows);
-            const pinned =
-                planned?.revisionId === null ? Rollout.pinned(planned.installation) : undefined;
-
-            return pinned === undefined
-                ? Rollout.reader(snapshot, spaceId, packageId, installationId, this.#options.builds)
-                : this.#options.builds.pull(this.#options.registry, packageId, pinned);
+            // open its revision's build, else the release it selects before its first revision
+            return Rollout.reader(snapshot, spaceId, packageId, installationId, this.#options);
         };
         const objects = declaredTypes(store.objects);
         const applied = await appliedDefinition(database, stack);

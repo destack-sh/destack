@@ -94,7 +94,7 @@ test("retain each source's latest builds and every build a revision applies", as
             Digest.parse("a".repeat(64)),
             Digest.parse("c".repeat(64)),
             Digest.parse("d".repeat(64)),
-            fixture.releases.source.manifest,
+            fixture.releases.sourceManifest,
             Digest.parse("e".repeat(64)),
         ].toSorted(),
         [{ id: dropped, scope: ids.space }],

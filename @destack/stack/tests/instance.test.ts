@@ -1,3 +1,6 @@
+import { defineSetting } from "@destack/setting/declare";
+import { describeSetting } from "@destack/setting/inspect";
+import settingPackage from "@destack/setting/package";
 import { testHost } from "@destack/test/host";
 import type { Crypto } from "@destack/environment";
 import objectHandle from "@destack/object/package";
@@ -94,7 +97,7 @@ const VAULT = Package.parse({
 /** A declaration of the notes build, with the package defining its kind. */
 interface Declared {
     /** The declaration kind, a resource when absent. */
-    readonly kind?: "resource" | "package" | "trigger" | "object";
+    readonly kind?: "resource" | "package" | "trigger" | "object" | "setting";
     /** The package defining the declaration's kind. */
     readonly definer: Package;
     /** The declaration's name. */
@@ -159,11 +162,12 @@ function requesting(permissions: PermissionRequest): Declared {
     };
 }
 
-/** Write the notes build: its main workload in bun and workerd outputs, and a home view. */
+/** Write the notes build: its workloads in bun and workerd outputs, and a home view. */
 async function notesBuild(
     declared: readonly Declared[],
     crypto: Crypto,
     sandbox: Sandbox = {},
+    workloads: readonly string[] = ["main"],
 ): Promise<BuildReader> {
     // make the workload use every declared resource in both server outputs
     const used = {
@@ -183,7 +187,7 @@ async function notesBuild(
     const output = (runtime: string) => ({
         runtime,
         emit: true,
-        workloads: { main: used },
+        workloads: Object.fromEntries(workloads.map((name) => [name, used])),
         views:
             browser.length === 0
                 ? {}
@@ -975,10 +979,108 @@ test("deploy nothing of a build routing hooks without serving them, and report w
         deployments: [],
         ready: {
             status: "false",
-            reason: "NoHooks",
+            reason: "UnservedHook",
             message: `${notesPackage.name} routes hooks, but nothing serves them: declare @destack/stack`,
             observedGeneration: installed.installation.generation,
             lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
+        },
+    });
+});
+
+test("deploy nothing of a build declaring adapters without a workload answering them, and report why", async () => {
+    // install notes declaring an adapter, built without any workload
+    const fixture = await TestSpace.open();
+    const { database } = fixture;
+    const adapted: Declared = {
+        ...requesting({}),
+        description: {
+            api: { name: "notes", procedures: [] },
+            objects: {},
+            adapters: { inbox: { path: "/inbox" } },
+            views: [],
+            permissions: {},
+            capabilities: {},
+            errors: [],
+        },
+    };
+    const notes = await installNotes(
+        fixture,
+        ids.notes,
+        await notesBuild([main, adapted], fixture.environment.crypto, {}, []),
+    );
+    const { deployments } = await serveControllers(fixture);
+
+    // deploy it
+    await deployments.reconcile(notes.id);
+    const installed = await readInstalled(database, notes.id);
+    expect({
+        deployments: await database.select().from(object.deployment.table),
+        ready: installed.installation.conditions["Ready"],
+    }).toEqual({
+        deployments: [],
+        ready: {
+            status: "false",
+            reason: "UnservedAdapter",
+            message: `${notesPackage.name} declares adapters, but no workload of its build answers them`,
+            observedGeneration: installed.installation.generation,
+            lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
+        },
+    });
+});
+
+/** The region notes reads at start, which has no default. */
+const region = defineSetting({
+    name: "region",
+    title: "Region",
+    description: "The region notes serves.",
+    schema: schema.string().min(1),
+    scope: "space",
+    overrides: ["installation"],
+    apply: "restart",
+    required: true,
+});
+
+test("deploy nothing of a build whose space settings without a default are unset, waiting for them", async () => {
+    // install notes declaring a region that no scope sets
+    const fixture = await TestSpace.open();
+    const { database } = fixture;
+    const regional: Declared = {
+        kind: "setting",
+        definer: settingPackage,
+        name: region.name,
+        description: { ...describeSetting(region), package: notesPackage },
+    };
+    const notes = await installNotes(
+        fixture,
+        ids.notes,
+        await notesBuild([main, regional], fixture.environment.crypto),
+    );
+    const { deployments } = await serveControllers(fixture);
+
+    // deploy it
+    await deployments.reconcile(notes.id);
+    const installed = await readInstalled(database, notes.id);
+    const message = `waiting for settings ${ids.package}/region`;
+    expect({
+        deployments: await database.select().from(object.deployment.table),
+        conditions: installed.installation.conditions,
+    }).toEqual({
+        deployments: [],
+        conditions: {
+            Bound: {
+                status: "false",
+                reason: "WaitingForSettings",
+                message,
+                observedGeneration: installed.installation.generation,
+                lastTransitionAt: installed.installation.conditions["Bound"]?.lastTransitionAt,
+            },
+            Ready: {
+                status: "false",
+                reason: "WaitingForSettings",
+                message,
+                observedGeneration: installed.installation.generation,
+                lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
+            },
         },
     });
 });

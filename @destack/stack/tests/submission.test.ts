@@ -566,7 +566,11 @@ test("open the build each package's installation in a space follows, refusing a 
     // open each package's build and refuse a package the space does not install
     const builds = await fixture.builds();
     const version = (packageId: PackageId) =>
-        Rollout.reader(Snapshot.live(database), ids.space, packageId, undefined, builds).then(
+        Rollout.reader(Snapshot.live(database), ids.space, packageId, undefined, {
+            builds,
+            registry: fixture.registry,
+            forge: null,
+        }).then(
             (reader) => reader.manifest.package.version,
             (error: unknown) => (error instanceof Error ? error.message : error),
         );

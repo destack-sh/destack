@@ -1,4 +1,7 @@
 import { account, Entitlement, Space, space } from "@destack/account/object";
+import { Setting } from "@destack/setting";
+import { SettingValue } from "@destack/setting/object";
+import { DeclarationReference } from "@destack/package/declare";
 import { MAIN_DATABASE } from "../../declare/index.ts";
 import { AccessContext, Caller, Manager, principal } from "@destack/access";
 import {
@@ -143,7 +146,8 @@ const PROCESS_WORKLOAD = "server";
 /** The ready reasons of an application refusing to deploy a build, apart from those it waits on. */
 export const REFUSAL_REASONS = [
     "NoRuntime",
-    "NoHooks",
+    "UnservedHook",
+    "UnservedAdapter",
     "UndeclaredCapability",
     "UnentitledCapability",
     "UninstalledDependency",
@@ -416,6 +420,27 @@ export class ApplicationInstallation {
             return;
         }
 
+        // wait for the space settings its servers read at start, which its stack may set after installing it
+        const placed = (await Setting.list(build)).filter(
+            (declared) => declared.definition.scope === "space",
+        );
+        const unset = await SettingValue.missing({ read: (table) => call.read(table) }, placed, {
+            scope: target.scope,
+            installation: target.id,
+        });
+        if (unset.length > 0) {
+            const keys = unset.map((declared) => DeclarationReference.key(declared.reference));
+            const message = `waiting for settings ${keys.join(", ")}`;
+            await call.observe(installation, target.installation, {
+                conditions: {
+                    Bound: { status: "false", reason: "WaitingForSettings", message },
+                    Ready: { status: "false", reason: "WaitingForSettings", message },
+                },
+            });
+
+            return;
+        }
+
         // wait for the space to serve the revision once its targets are bound, and the packages whose types its grants name
         const unserved = await this.#describeUnserved(call, revision, description);
         if (unserved !== undefined) {
@@ -496,7 +521,20 @@ export class ApplicationInstallation {
         if (isHooked && !isServed) {
             const message = `${build.manifest.package.name} routes hooks, but nothing serves them: declare @destack/stack`;
 
-            return { reason: "NoHooks", message };
+            return { reason: "UnservedHook", message };
+        }
+
+        // refuse a package declaring adapters that nothing answers: a workload of its build, or the machine in process
+        const isAdapted = Object.keys(description?.adapters ?? {}).length > 0;
+        const isAnswered =
+            isHosted ||
+            Object.values(build.manifest.outputs).some((output) =>
+                Object.keys(output.workloads).some((workload) => workload !== HOOK_WORKLOAD),
+            );
+        if (isAdapted && !isAnswered) {
+            const message = `${build.manifest.package.name} declares adapters, but no workload of its build answers them`;
+
+            return { reason: "UnservedAdapter", message };
         }
 
         // refuse allowing a capability or granting a directory the build does not declare

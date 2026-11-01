@@ -1,4 +1,4 @@
-import { Digest, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { InstallationSelection } from "@destack/object";
 import { BuildReference, StackDefinition } from "../declare/index.ts";
 
@@ -22,8 +22,6 @@ export const Submission = schema.object({
     build: BuildReference,
     /** The stack's evaluation, absent for an application. */
     evaluation: StackEvaluation.exactOptional(),
-    /** The digest of the space's stack the submission follows, absent for a person's own. */
-    spaceStack: Digest.exactOptional(),
 });
 /** A build submitted to the installation following it. */
 export type Submission = schema.Infer<typeof Submission>;

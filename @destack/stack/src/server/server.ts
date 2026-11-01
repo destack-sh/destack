@@ -235,7 +235,8 @@ function primaryControllers(
                 options.machine,
                 options,
             ),
-        (store) => new ConsumerController(store, providers.objects(), options.main),
+        (store) =>
+            new ConsumerController(store, providers.objects(), options.main, options.bundled),
         (store) => new RetentionController(store, options.builds),
         ...options.providers.flatMap((provider) =>
             (provider.controllers ?? []).map((controller) => () => controller),
@@ -444,8 +445,13 @@ function installedSettingsServer(options: SpaceOptions): PackageImplementation {
             where: { id: { in: installed.map((row) => row.id) }, revisionId: { isNotNull: true } },
         });
 
+        // answer none for a package the space does not install yet, whose stack waits for it
+        if (installed.length === 0 && shipped === undefined) {
+            return undefined;
+        }
+
         return following.length > 0 || shipped === undefined
-            ? Rollout.reader(view, spaceId, written.packageId, written.installation, options.builds)
+            ? Rollout.reader(view, spaceId, written.packageId, written.installation, options)
             : options.builds.pull(options.registry, written.packageId, shipped.manifest);
     });
 
