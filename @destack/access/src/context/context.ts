@@ -188,13 +188,38 @@ export interface Authentication {
     readonly credential: Credential;
 }
 
-/** The schema of a verified caller with the credential it presented. */
-export const Authentication = schema.object({
-    /** The verified caller. */
-    caller: callerSchema,
-    /** The credential it presented. */
-    credential: credentialSchema,
-});
+/** The credential kind of an anonymous visitor a front door tells apart by its address. */
+export const VISITOR_CREDENTIAL = "visitor";
+
+/** The schema of a verified caller with the credential it presented, and anonymous visitors'. */
+export const Authentication = Object.assign(
+    schema.object({
+        /** The verified caller. */
+        caller: callerSchema,
+        /** The credential it presented. */
+        credential: credentialSchema,
+    }),
+    {
+        /** Authenticate an anonymous visitor a front door keys, for an audience over a lifetime. */
+        visitor(
+            visitor: string,
+            audience: PackageId,
+            verifiedAt: number,
+            lifetime: number,
+        ): Authentication {
+            return {
+                caller: Caller.anonymous(visitor),
+                credential: {
+                    kind: VISITOR_CREDENTIAL,
+                    id: visitor,
+                    audience,
+                    verifiedAt,
+                    expiresAt: verifiedAt + lifetime,
+                },
+            };
+        },
+    },
+);
 
 /** A verified caller: its schema, and the principals and contacts it derives. */
 export const Caller = {
@@ -211,14 +236,23 @@ export const Caller = {
         return { ...Caller.of(subject), actors: [actor] };
     },
 
-    /** The caller who proves no identity. */
-    anonymous(): Caller {
-        return Caller.of(ANONYMOUS);
+    /** The caller who proves no identity, one visitor apart from the others when keyed. */
+    anonymous(visitor?: string): Caller {
+        return Caller.of(
+            visitor === undefined
+                ? ANONYMOUS
+                : principal.anonymous.reference(Scope.universe.id, visitor),
+        );
     },
 
     /** Report whether a caller proves no identity. */
     isAnonymous(caller: Pick<Caller, "subject">): boolean {
         return principal.anonymous.is(caller.subject);
+    },
+
+    /** Report whether a caller has an identity: a principal, or a visitor its address keys. */
+    isIdentified(caller: Pick<Caller, "subject">): boolean {
+        return !Subject.same(caller.subject, ANONYMOUS);
     },
 
     /** Key a caller by subject and sending principal, for retries and writers. */
