@@ -166,11 +166,10 @@ export class BuildStore<
     ): Promise<Digest> {
         // join the storing of the build in flight, or begin it, forgetting it once it settles
         signal?.throwIfAborted();
-        const bytes = PackageManifest.serialize(source.manifest);
-        const digest = await Digest.of(bytes, this.environment.crypto);
+        const digest = await source.digest();
         let storing = this.#putting.get(digest);
         if (storing === undefined) {
-            storing = this.#storeOnce(source, digest, bytes, write);
+            storing = this.#storeOnce(source, digest, write);
             this.#putting.set(digest, storing);
             const forget = () => this.#putting.delete(digest);
             void storing.then(forget, forget);
@@ -191,12 +190,16 @@ export class BuildStore<
     async #storeOnce(
         source: BuildReader,
         digest: Digest,
-        bytes: Uint8Array<ArrayBuffer>,
         write: (files: readonly PackageFile[]) => Promise<void>,
     ): Promise<Digest> {
         return (await this.contains(digest))
             ? digest
-            : await this.#storeFiles(source, digest, bytes, write);
+            : await this.#storeFiles(
+                  source,
+                  digest,
+                  PackageManifest.serialize(source.manifest),
+                  write,
+              );
     }
 
     /** Store a build's missing files, then its manifest and record. */
@@ -451,13 +454,9 @@ export class BuildStore<
         return found;
     }
 
-    /** Read and verify a build's manifest. */
+    /** Read a build's manifest, verified and parsed once with its reader. */
     async get(digest: Digest): Promise<PackageManifest> {
-        const bytes = await this.file(await this.head(digest));
-
-        return PackageManifest.parse(
-            JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
-        );
+        return (await this.contents(digest)).manifest;
     }
 
     /** Open a stored build for selective reads, one reader per build, as its files never change. */
@@ -485,8 +484,11 @@ export class BuildStore<
 
     /** Open a stored build's reader over its manifest's listed files. */
     async #open(digest: Digest): Promise<BuildReader> {
-        // index the files the manifest lists directly
-        const read = await this.get(digest);
+        // read and verify the manifest, then index the files it lists directly
+        const bytes = await this.file(await this.head(digest));
+        const read = PackageManifest.parse(
+            JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
+        );
         const reader = new BuildReader(
             read,
             async (path, signal) => {
@@ -1012,13 +1014,31 @@ export class BuildStore<
         const contents = await this.contents(digest);
         yield TarballEntry.of("manifest.json", await this.file(await this.head(digest)));
 
-        // stream each file as stored, its receiver verifying its digest
+        // read every stored file's placement at once, then stream each file to its verifying receiver
         const list =
             output === undefined
                 ? await contents.distributed()
                 : await contents.outputFiles(output);
+        const placed = new Map(
+            (await this.blobs.placements(list.map((file) => file.digest))).map((placement) => [
+                placement.digest,
+                placement,
+            ]),
+        );
         for (const file of list.toSorted(comparePath)) {
-            yield { path: file.path, size: file.size, body: this.#stream(file) };
+            // stream a stored file from where it lies, else through the layer
+            const placement = placed.get(file.digest);
+            const body =
+                placement === undefined
+                    ? this.#stream(file)
+                    : BuildStore.#readable(
+                          this.blobs.storage.slice(
+                              placement.pack,
+                              placement.offset,
+                              placement.size,
+                          ),
+                      );
+            yield { path: file.path, size: file.size, body };
         }
     }
 
@@ -1037,11 +1057,12 @@ export class BuildStore<
                     return;
                 }
 
-                // refuse a missing blob, then stream its bytes
-                if ((await blobs.missing([file.digest])).length > 0) {
+                // stream its bytes from where they lie, refusing a missing blob
+                const [placement] = await blobs.placements([file.digest]);
+                if (placement === undefined) {
                     throw BuildError.of("BLOB_UNKNOWN", `package file not found: ${file.path}`);
                 }
-                yield* blobs.read(file.digest);
+                yield* blobs.storage.slice(placement.pack, placement.offset, placement.size);
             })(),
         );
     }
