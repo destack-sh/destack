@@ -14,7 +14,6 @@ import {
     changeRequest,
     defineObject,
     field,
-    Follow,
     grantShape,
     PackageHandle,
     type ObjectType,
@@ -189,8 +188,8 @@ export async function openServed<Input, Output>(
             ),
         ),
     );
-    const grants = Follow.of(grantShape, {
-        keys: [scope, ...runners, agentOf(spaceId)].map((delegate) => ({
+    const grants = grantShape.at(
+        ...[scope, ...runners, agentOf(spaceId)].map((delegate) => ({
             key: {
                 scope: Scope.universe.id,
                 delegatePackageId: delegate.packageId,
@@ -199,7 +198,7 @@ export async function openServed<Input, Output>(
                 delegateId: delegate.id,
             },
         })),
-    });
+    );
     const publisher = Uplink.of(() => universal.as(scope).client(objectPackage).store);
 
     // serve the space's packages beside its access objects in the space alice owns, running their controllers
