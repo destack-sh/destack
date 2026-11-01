@@ -54,7 +54,7 @@ export function implementFinance(
 
         // follow each account's entitlements from the universe, which the derivations compare against
         follows: [
-            account.follow(entitlementShape, {
+            entitlementShape.per(account, {
                 key: async (row) => ({ key: { scope: Scope.universe.id, account: row.id } }),
             }),
         ],
