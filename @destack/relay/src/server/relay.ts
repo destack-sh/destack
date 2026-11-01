@@ -1,3 +1,4 @@
+import { TUNNEL_PATH } from "../tunnel/client.ts";
 import {
     Directory,
     type Domains,
@@ -16,16 +17,12 @@ import {
     space,
 } from "@destack/account/object";
 import type { Snapshot } from "@destack/db";
-import type { Clock, Environment } from "@destack/environment";
+import { type Clock, type Environment, Forwarded } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { type Identifier, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import { PackageMount, refusal, reportError } from "@destack/object";
-import {
-    FORWARDED_HEAD_HEADER,
-    ForwardedRequest,
-    PARTITION_HEADER,
-} from "@destack/object/workload";
+import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
 import { RelayError } from "../error/index.ts";
 import relayPackage from "../package.ts";
 import { TunnelProtocol } from "../session/index.ts";
@@ -36,19 +33,10 @@ import {
     Tunnel,
     type TunnelCloseReason,
     type TunnelStanding,
-    TUNNEL_PATH,
     TUNNELS_PATH,
     type TunnelCall,
 } from "./tunnel.ts";
 import { TunnelToken } from "./token.ts";
-
-/** The parameters a relay sets in the Forwarded header of a request it forwards (RFC 7239). */
-const FORWARDED = {
-    /** The host the client asked for. */
-    host: /host="?([^";,]+)"?/u,
-    /** The protocol the client asked with. */
-    proto: /proto=([a-z]+)/u,
-} as const;
 
 /** What a relay routes by, and where. */
 export interface RelayOptions {
@@ -318,14 +306,12 @@ export class Relay {
     #restore(request: Request): Request | undefined {
         // take a request at the relay's origin with a Forwarded header
         const url = new URL(request.url);
-        const forwarded = request.headers.get("forwarded");
-        if (url.host !== this.#origin.host || forwarded === null) {
+        if (url.host !== this.#origin.host || !request.headers.has("forwarded")) {
             return undefined;
         }
 
         // require the forwarded host and protocol
-        const host = FORWARDED.host.exec(forwarded)?.[1];
-        const proto = FORWARDED.proto.exec(forwarded)?.[1];
+        const { for: client, host, proto } = Forwarded.first(request);
         if (host === undefined || proto === undefined) {
             throw RelayError.of(
                 "FORWARDED_HOST_MISSING",
@@ -333,11 +319,11 @@ export class Relay {
             );
         }
 
-        // ask for the name as the client did
+        // ask for the name as the client did, keeping the client a front door wrote
         const restored = new Request(`${proto}://${host}${url.pathname}${url.search}`, request);
         restored.headers.delete("forwarded");
 
-        return restored;
+        return client === undefined ? restored : Forwarded.replace(restored, { for: client });
     }
 
     /** Forward a request for a name to the destination the directory's replica resolves. */
@@ -359,7 +345,7 @@ export class Relay {
         // call a machine through its tunnel, handing on the client's head alone
         if (destination.kind === "tunnel") {
             const headers = new Headers({
-                [FORWARDED_HEAD_HEADER]: ForwardedRequest.head(request),
+                [CLIENT_HEAD_HEADER]: ClientHead.write(request),
             });
 
             return this.call(destination.machineId, "forward", {
@@ -374,8 +360,11 @@ export class Relay {
         // send the path, query and streamed body to the endpoint's origin
         const url = new URL(request.url);
         const target = new URL(`${url.pathname}${url.search}`, destination.url);
-        const forwarded = new Request(target.href, request);
-        forwarded.headers.set("forwarded", `host="${url.host}";proto=${url.protocol.slice(0, -1)}`);
+        const forwarded = Forwarded.replace(new Request(target.href, request), {
+            ...Forwarded.first(request),
+            host: url.host,
+            proto: url.protocol.slice(0, -1),
+        });
 
         // refuse an endpoint the network cannot reach as a bad gateway
         try {

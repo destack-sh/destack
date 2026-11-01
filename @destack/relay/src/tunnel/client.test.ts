@@ -32,18 +32,17 @@ function silentRelay(simulation: Simulation) {
     const listener = simulation.network.server("relay").http<SilentConnection>({
         hostname: "relay.test",
         port: 80,
-        fetch: (request, listening) => {
+        fetch: (request) => {
             const connection: SilentConnection = {
                 protocols: request.headers.get("sec-websocket-protocol"),
                 messages: [],
             };
             connections.push(connection);
-            listening.upgrade(request, {
+
+            return {
                 attachment: connection,
                 headers: { "sec-websocket-protocol": TUNNEL_PROTOCOL },
-            });
-
-            return undefined;
+            };
         },
         websocket: {
             message: (socket, message) => socket.attachment.messages.push(message),

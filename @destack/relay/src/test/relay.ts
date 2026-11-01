@@ -9,8 +9,8 @@ import { Egress, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import {
     type EphemeralHost,
-    FORWARDED_HEAD_HEADER,
-    ForwardedRequest,
+    CLIENT_HEAD_HEADER,
+    ClientHead,
     HibernationHost,
     PARTITION_HEADER,
     ROUTE_PATH,
@@ -29,9 +29,6 @@ import type { TestMachine, TestUniverse } from "@destack/universe/test";
 import relayPackage from "../package.ts";
 import { issuer, origin, relayWorkload, TUNNELS_PATH } from "../server/index.ts";
 import { residency } from "../declare/setting.ts";
-
-/** The status of an upgrade the front door failed to complete (RFC 9110 15.5.22). */
-const UPGRADE_REQUIRED = 426;
 
 /** The port HTTPS names reach the relay at. */
 const HTTPS_PORT = 443;
@@ -81,7 +78,7 @@ export class TestRelay implements AsyncDisposable {
     /** Start the root's or a partition's instance once. */
     readonly #start: (partition: string | undefined) => Promise<Instance>;
     /** The front door's listeners: the relay's origin and the host's egress. */
-    readonly #listeners: readonly Pick<Listener<unknown>, "stop">[];
+    readonly #listeners: readonly Pick<Listener, "stop">[];
     /** Call the root or a partition as the installation itself, below its address at the egress. */
     readonly #call: (request: Request) => Promise<Response>;
     /** The URL of the installation's own address at the host's egress. */
@@ -101,7 +98,7 @@ export class TestRelay implements AsyncDisposable {
             readonly call: (request: Request) => Promise<Response>;
             readonly itself: string;
         },
-        listeners: readonly Pick<Listener<unknown>, "stop">[],
+        listeners: readonly Pick<Listener, "stop">[],
     ) {
         // keep the universe, the installation and its origin
         this.#universe = universe;
@@ -295,21 +292,18 @@ export class TestRelay implements AsyncDisposable {
         });
 
         // hand names and tunnel openings to the root's route, hibernating the sockets the partitions accept
-        const route = async (
-            request: Request,
-            listening: Parameters<typeof sockets.upgrade>[0],
-        ) => {
+        const route = async (request: Request) => {
             // hand the client's head to the root's route at the URL it asked for
             const root = await start(undefined);
             const url = new URL(request.url);
             const authority = request.headers.get("host") ?? url.host;
             const asked = `http://${authority}${url.pathname}${url.search}`;
             const headers = new Headers({
-                [FORWARDED_HEAD_HEADER]: ForwardedRequest.head(request, asked),
+                [CLIENT_HEAD_HEADER]: ClientHead.write(request, asked),
                 authorization: `Bearer ${root.secret}`,
             });
             const answer = await root.runner.fetch(
-                new Request(`http://runner${ROUTE_PATH}`, {
+                new Request(`http://runner${ROUTE_PATH}/names`, {
                     method: request.method,
                     headers,
                     body: request.body,
@@ -318,16 +312,10 @@ export class TestRelay implements AsyncDisposable {
             );
 
             // hibernate a socket a partition accepted for an upgrade
-            if (
-                request.headers.get("upgrade") !== "websocket" ||
-                !answer.headers.has(SOCKET_HEADER)
-            ) {
-                return answer;
-            }
+            const isAccepted =
+                request.headers.get("upgrade") === "websocket" && answer.headers.has(SOCKET_HEADER);
 
-            return sockets.upgrade(listening, request, answer)
-                ? undefined
-                : new Response(null, { status: UPGRADE_REQUIRED });
+            return isAccepted ? sockets.accept(answer) : answer;
         };
         const routeListener = server.http({
             hostname,

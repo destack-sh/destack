@@ -12,6 +12,9 @@ import type { ClientSocket, Environment } from "@destack/environment";
 import type { Identifier } from "@destack/schema";
 import { RelayError } from "../error/index.ts";
 
+/** The path below a relay's origin machines open and renew their tunnels at. */
+export const TUNNEL_PATH = "/tunnel";
+
 /** How often a machine probes its tunnel: 15 s, under Cloudflare's 100 s idle WebSocket timeout. */
 const HEARTBEAT_MILLISECONDS = 15_000;
 

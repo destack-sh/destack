@@ -4,7 +4,7 @@ import type {} from "@destack/package/import-meta";
 /** The relay package's failures, each reason with the call error code it answers. */
 export const RelayError = defineErrorFamily(import.meta.destack.package, {
     // bad request
-    FORWARDED_HEAD_MISSING: { code: "BAD_REQUEST" },
+    CLIENT_HEAD_MISSING: { code: "BAD_REQUEST" },
     FORWARDED_HOST_MISSING: { code: "BAD_REQUEST" },
     HANDSHAKE_MISSING: { code: "BAD_REQUEST" },
     PROTOCOL_VIOLATION: { code: "BAD_REQUEST" },

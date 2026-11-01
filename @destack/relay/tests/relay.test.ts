@@ -200,7 +200,7 @@ test("refuse the installation's own calls to a tunnel without a handshake or a c
         await refused(await relay.itself(`/${machine}/bogus`, post)),
     ]).toEqual([
         ["BAD_REQUEST", "HANDSHAKE_MISSING", "the tunnel's opening has no handshake"],
-        ["BAD_REQUEST", "FORWARDED_HEAD_MISSING", "the handed request has no client head"],
+        ["BAD_REQUEST", "CLIENT_HEAD_MISSING", "the handed request has no client head"],
         ["NOT_FOUND", "TUNNEL_CALL_UNKNOWN", "unknown tunnel call bogus"],
         ["NOT_FOUND", "TUNNEL_CALL_UNKNOWN", "the relay's root answers no call bogus"],
     ]);
@@ -402,7 +402,7 @@ test("forward a name a cloud machine serves to the machine's endpoint, preservin
     await computer.untilCaughtUp(relay);
 
     const name = "notes--site--acme.destack.space";
-    expect(await computer.request(relay, name, "/")).toBe(`cloud host="${name}";proto=http`);
+    expect(await computer.request(relay, name, "/")).toBe(`cloud host=${name};proto=http`);
 });
 
 test("route the name of a space whose account lives in another residency through the directory", async () => {
@@ -414,7 +414,7 @@ test("route the name of a space whose account lives in another residency through
     await computer.untilCaughtUp(relay);
 
     const name = "notes--site--acme.destack.space";
-    expect(await computer.request(relay, name, "/")).toBe(`us host="${name}";proto=http`);
+    expect(await computer.request(relay, name, "/")).toBe(`us host=${name};proto=http`);
 });
 
 test("route a request from an eu relay to a space on a personal machine tunnelled to a us relay", async () => {
@@ -710,7 +710,7 @@ test("follow a cloud machine's new endpoint", async () => {
     await computer.cloud("eu", "second", "https://second.machine.test/");
     await computer.untilCaughtUp(relay);
     expect([before, await computer.request(relay, name, "/")]).toEqual([
-        `first host="${name}";proto=http`,
-        `second host="${name}";proto=http`,
+        `first host=${name};proto=http`,
+        `second host=${name};proto=http`,
     ]);
 });

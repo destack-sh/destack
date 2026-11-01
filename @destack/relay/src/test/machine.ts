@@ -20,8 +20,8 @@ import { TestRelay } from "./relay.ts";
 
 /** The residencies of the universe, each with its cloud machine. */
 const RESIDENCIES = [
-    { code: "eu", name: "Europe" },
-    { code: "us", name: "United States" },
+    { code: "eu", name: "Europe", relay: "https://relay-eu.machine.test" },
+    { code: "us", name: "United States", relay: "https://relay-us.machine.test" },
 ] as const;
 
 /** The handle of the account the computer belongs to. */

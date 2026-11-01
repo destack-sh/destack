@@ -17,15 +17,13 @@ import {
     TUNNEL_PROTOCOL,
 } from "../session/index.ts";
 import type { TunnelToken } from "./token.ts";
+import { TUNNEL_PATH } from "../tunnel/client.ts";
 
 /** The path below the relay package's mount of the calls between the root and each tunnel. */
 export const TUNNELS_PATH = relayPackage.adapters.tunnels.path;
 
 /** The header with a machine's accepted opening handshake. */
 export const HANDSHAKE_HEADER = "Destack-Handshake";
-
-/** The path machines open and renew their tunnels at. */
-export const TUNNEL_PATH = "/tunnel";
 
 /** How long a machine may take to answer a request's head: 100 s, Cloudflare's read timeout. */
 export const ANSWER_TIMEOUT_MILLISECONDS = 100_000;

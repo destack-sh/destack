@@ -1,6 +1,7 @@
+import { TUNNEL_PATH } from "../tunnel/client.ts";
 import { principal } from "@destack/access";
 import { copyRequest } from "@destack/environment";
-import { defineDatabase, Snapshot } from "@destack/db";
+import { Snapshot } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { DOMAINS } from "@destack/account/address";
 import {
@@ -15,8 +16,7 @@ import objectPackage from "@destack/object/package";
 import { implementPackage, ObjectStore, type PackageHandler } from "@destack/object/server";
 import {
     defineWorkload,
-    ForwardedRequest,
-    ROUTE_PATH,
+    ClientHead,
     type InstalledServerContext,
     type WorkloadContext,
     type WorkloadImplementation,
@@ -37,7 +37,6 @@ import {
     Tunnel,
     TunnelCloseReason,
     TunnelStanding,
-    TUNNEL_PATH,
     TUNNELS_PATH,
 } from "./tunnel.ts";
 
@@ -56,15 +55,15 @@ function residentsFollow(code: ResidencyCode) {
     });
 }
 
-/** The replica of the universe's directory, identities and residents in a relay's memory. */
-export const relayDatabase = defineDatabase({
-    name: "relay",
-    ...tablesOf({
-        packages: [objectPackage],
-        follows: [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, Follow.of(residentsShape, { keys: [] })],
-        tables: [],
-    }),
+/** A relay's memory replica of the universe's directory, identities and residents. */
+const REPLICA = tablesOf({
+    packages: [objectPackage],
+    follows: [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, Follow.of(residentsShape, { keys: [] })],
+    tables: [],
 });
+
+/** The replica's own tables and the followed ones, as one table list. */
+const REPLICA_TABLES = [...REPLICA.tables, ...(REPLICA.replicated ?? [])];
 
 /** The relay's workload: the router of names at its root, a machine's tunnel in a partition. */
 export const relayWorkload = defineWorkload({
@@ -103,7 +102,9 @@ async function serveRoot(
     const residencyId = residency.read(server.settings);
     const residents = residentsFollow(residencyId);
     const follows = [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, residents];
-    const store = await openReplica(context, server, follows, answer);
+    const names = (request: Request) =>
+        relay.fetch(copyRequest(restore(request), { signal: request.signal }));
+    const store = await openReplica(context, server, follows, answer, names);
     const relay = new Relay({
         origin: origin.read(server.settings),
         issuer: issuer.read(server.settings),
@@ -130,15 +131,11 @@ async function serveRoot(
         },
     });
 
-    // reconcile the tunnels' names, and hand the route's requests to the router until they end
+    // reconcile the tunnels' names
     const handler = store.package(relayPackage);
     const served: PackageHandler = {
         ...handler,
         controllers: [...(handler.controllers ?? []), new NameController(relay)],
-        fetch: async (request, requestContext) =>
-            new URL(request.url).pathname === ROUTE_PATH
-                ? relay.fetch(copyRequest(restore(request), { signal: requestContext.closing }))
-                : handler.fetch?.(request, requestContext),
     };
 
     return { packages: [served] };
@@ -154,7 +151,7 @@ async function servePartition(
     const answer = (request: Request) => tunnelCall(request, running);
 
     // follow the identities into memory, verifying the renewals by their keys
-    const store = await openReplica(context, server, [IDENTITY_FOLLOW], answer);
+    const store = await openReplica(context, server, [IDENTITY_FOLLOW], answer, refuseNames);
     const root = server.at(Egress.address(server.name, server.scope));
     const running: Tunnel = new Tunnel(Tunnel.machine(partition), {
         hibernation: present(context.hibernation, "the hibernation of the tunnel's sockets"),
@@ -216,17 +213,20 @@ async function openReplica(
     server: InstalledServerContext,
     follows: readonly ReturnType<typeof Follow.of>[],
     tunnels: (request: Request) => Promise<Response>,
+    names: (request: Request) => Promise<Response>,
 ): Promise<ObjectStore> {
     // open the replica in a memory database, closed with the start
     const ephemeral = present(context.ephemeral, "the memory of the relay's instance");
-    const database = await ephemeral.open(relayDatabase.tables);
-    await database.migrate(relayDatabase.tables);
+    const database = await ephemeral.open(REPLICA_TABLES);
+    await database.migrate(REPLICA_TABLES);
     context.defer(() => database.close());
 
     // follow the rows through the home space's replicas, served at the relay installation
     return new ObjectStore({
         blobs: new MemoryBlobStorage(context.environment.crypto),
-        servers: [implementPackage(relayPackage, { follows, adapters: { tunnels } }).at(server)],
+        servers: [
+            implementPackage(relayPackage, { follows, adapters: { tunnels, names } }).at(server),
+        ],
         chain: async () => undefined,
         principal: principal.installation.reference(server.scope, server.installation),
         publisher: () => server.publisher,
@@ -234,6 +234,11 @@ async function openReplica(
         environment: context.environment,
         origin: { package: relayPackage },
     });
+}
+
+/** Refuse a routed name at a machine's tunnel, as the root alone routes names. */
+function refuseNames(): Promise<Response> {
+    throw RelayError.of("TUNNEL_CALL_UNKNOWN", "a machine's tunnel routes no names");
 }
 
 /** Answer one call of the root to a machine's tunnel. */
@@ -287,9 +292,9 @@ async function tunnelCall(request: Request, running: Tunnel): Promise<Response> 
 
 /** Restore the client's request a front door or the router handed on, with no header they added. */
 function restore(request: Request): Request {
-    const restored = ForwardedRequest.restore(request);
+    const restored = ClientHead.restore(request);
     if (restored === undefined) {
-        throw RelayError.of("FORWARDED_HEAD_MISSING", "the handed request has no client head");
+        throw RelayError.of("CLIENT_HEAD_MISSING", "the handed request has no client head");
     }
 
     return restored;
