@@ -66,9 +66,14 @@ export class SqliteWorkQueue {
         // run work at once on an idle queue, and wait a bounded time behind earlier work
         const turn = this.#tail;
         const start = () => this.#start(work, environment.scheduler);
-        const result =
+        const queued =
             this.#pending === 0 ? turn.then(start) : this.#waited(turn, start, environment);
         this.#pending += 1;
+
+        // count it done before its caller continues, so the caller's next work finds the queue idle
+        const result = queued.finally(() => {
+            this.#pending -= 1;
+        });
 
         // queue later work behind both the earlier work and this one
         const settled = result.then(
@@ -76,9 +81,6 @@ export class SqliteWorkQueue {
             () => undefined,
         );
         this.#tail = Promise.all([turn, settled]);
-        void settled.then(() => {
-            this.#pending -= 1;
-        });
 
         return result;
     }

@@ -23,6 +23,18 @@ test("run queued work in arrival order, one piece at a time", async () => {
     expect(order).toEqual(["first", "second"]);
 });
 
+test("run work awaited one piece after another at once, arming no wait for its turn", async () => {
+    // await one piece, then queue the next as a caller's following statement does
+    const environment = environmentOn(new SimulatedClock(TEST_START));
+    const queue = new SqliteWorkQueue();
+    await queue.run(async () => "first", environment);
+    const second = queue.run(async () => "second", environment);
+    const armed = environment.clock.next;
+
+    // find the queue idle, with no timer armed for the turn
+    expect([armed, await second]).toEqual([undefined, "second"]);
+});
+
 test("refuse work whose turn does not come within the wait", async () => {
     // occupy the connection, as a transaction does whose code queues a statement outside it
     const environment = environmentOn(new SimulatedClock(TEST_START));
