@@ -24,10 +24,9 @@ test("serve a moving space's target only the blobs the space's rows reference an
         targetId: target.id,
     });
 
-    // write a blob a snapshot of the space reads and one no row references
-    const store = fixture.blobs.storage;
+    // write a blob a snapshot of the space reads, and a stray no row references once its write's lease ends
     const write = (text: string) =>
-        store.write(
+        fixture.blobs.write(
             (async function* () {
                 yield new TextEncoder().encode(text);
             })(),
@@ -63,6 +62,9 @@ test("serve a moving space's target only the blobs the space's rows reference an
 
         return new TextDecoder().decode(Buffer.concat(chunks));
     };
+    await fixture.simulation.jump(
+        fixture.simulation.clock.now() + fixture.blobs.leaseMilliseconds + 1,
+    );
     const listed = await fixture.handoff(served, served.as(target.id)).blobs(ids.space);
     const [main] = await fixture.database
         .select({ states: object.database.table.states })

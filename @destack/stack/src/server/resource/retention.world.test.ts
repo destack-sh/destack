@@ -12,6 +12,9 @@ const RETAINED = 10;
 /** How long a build store leases what it stores for a root to retain: half an hour. */
 const LEASE_MILLISECONDS = 30 * 60_000;
 
+/** How long an unreferenced blob stays before deletion: a blob store's hour of grace. */
+const GRACE_MILLISECONDS = 60 * 60_000;
+
 /** A week, far past every lease, in milliseconds. */
 const WEEK_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
@@ -58,6 +61,7 @@ test("expire a dropped build as builds change, and collect it with its graph onc
     const isIndexedWithinLease = await (await fixture.builds()).space.has(attached.digest);
     await fixture.simulation.jump(start + LEASE_MILLISECONDS + RETAINED + 1);
     await fixture.simulation.jump(start + WEEK_MILLISECONDS);
+    await fixture.simulation.jump(fixture.simulation.clock.now() + GRACE_MILLISECONDS);
 
     // expire it at once, retain it with its graph through its lease, then collect both
     const { space } = await fixture.builds();

@@ -28,7 +28,10 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** The database with the builds. */
     readonly #database: DatabaseConnection;
     /** The builds and code indexes the space and its machine store. */
-    readonly #builds: Pick<SpaceBuildStore, "store" | "contains" | "contents" | "referrer" | "file">;
+    readonly #builds: Pick<
+        SpaceBuildStore,
+        "store" | "contains" | "contents" | "referrer" | "file"
+    >;
     /** The files the indexes are written in before they are stored. */
     readonly #files: FileSystem;
     /** The opened indexes, by build. */
@@ -117,7 +120,9 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
             // store the file and attach it to the build, which retains it
             const bytes = await this.#files.readFile(file);
             const digest = await Digest.of(bytes, environment.crypto);
-            await store.blobs.put(digest, async () => chunks(bytes));
+            await store.blobs.put([
+                { digest, size: bytes.byteLength, open: async () => chunks(bytes) },
+            ]);
             const attached = {
                 path: GRAPH_PATH,
                 digest,

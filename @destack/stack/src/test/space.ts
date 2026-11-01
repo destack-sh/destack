@@ -75,7 +75,6 @@ import {
     Identifier,
     type JsonObject,
     type JsonValue,
-    nth,
     present,
     schema,
 } from "@destack/schema";
@@ -989,7 +988,7 @@ export class TestSpace implements AsyncDisposable {
                 readonly directory: string;
                 readonly buckets: LocalBucketHost;
                 readonly builds: TestBuildStore;
-                readonly blobs: LocalBlobStorage;
+                readonly blobs: (space: Identifier<"space">) => Promise<LocalBlobStorage>;
                 readonly main: string;
             };
             /** Run a cleanup once the test or the template's write ends. */
@@ -1007,9 +1006,9 @@ export class TestSpace implements AsyncDisposable {
             new AbortController().signal,
         );
 
-        // store the space's builds in its blobs, read through to the machine's cache
+        // store each space's blobs in a separate directory, one storage per index, and its builds in them
         const blobs = new BlobStore({
-            storage: files.blobs,
+            storage: await files.blobs(hosted.id),
             database: test.database,
             environment: machine.environment,
         });
@@ -1099,7 +1098,7 @@ export class TestSpace implements AsyncDisposable {
         readonly directory: string;
         readonly buckets: LocalBucketHost;
         readonly builds: TestBuildStore;
-        readonly blobs: LocalBlobStorage;
+        readonly blobs: (space: Identifier<"space">) => Promise<LocalBlobStorage>;
         readonly main: string;
     }> {
         // store the files below the given directory, else in a temporary one removed with them
@@ -1115,7 +1114,8 @@ export class TestSpace implements AsyncDisposable {
             credentials: async () => BUCKET_CREDENTIALS,
         });
         const builds = await TestBuildStore.open(join(directory, "builds"), environment);
-        const blobs = await LocalBlobStorage.open(join(directory, "blobs"), environment);
+        const blobs = (spaceId: Identifier<"space">) =>
+            LocalBlobStorage.open(join(directory, "blobs", spaceId), environment);
         defer(async () => {
             await buckets[Symbol.asyncDispose]();
             await builds[Symbol.asyncDispose]();
@@ -1358,14 +1358,15 @@ export class TestSpace implements AsyncDisposable {
         const pushing = new PackageClient(
             `${SPACE_URL}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
             async (request) => {
-                const file = /\/files\/([0-9a-f]{64})$/u.exec(new URL(request.url).pathname);
-                if (request.method === "PUT" && file !== null) {
-                    uploaded.push(Digest.parse(nth(file, 1)));
+                // record the files the space reports missing, which the push uploads next
+                const answer = await fetch(request);
+                if (new URL(request.url).pathname.endsWith("/files/missing")) {
+                    uploaded.push(...schema.array(Digest).parse(await answer.clone().json()));
                 }
 
-                return await fetch(request);
+                return answer;
             },
-            this.machine.environment.crypto,
+            this.machine.environment,
         );
         await pushing.push(reader);
 
@@ -1375,7 +1376,7 @@ export class TestSpace implements AsyncDisposable {
             digest: await Digest.of(bytes, this.machine.environment.crypto),
             size: bytes.byteLength,
         };
-        await pushing.upload(code.digest, async () => bytes);
+        await pushing.upload([{ digest: code.digest, load: async () => bytes }]);
         await client.build.finish({
             ...target,
             requestId: RequestId.create(this.machine.environment),
@@ -1410,7 +1411,7 @@ export class TestSpace implements AsyncDisposable {
             digest: await Digest.of(bytes, this.machine.environment.crypto),
             size: bytes.byteLength,
         };
-        await packages.receive(indexed.digest, bytes);
+        await packages.receive([{ digest: indexed.digest, bytes }]);
         await packages.attach(manifest, object.CodeIndex.file(indexed));
 
         // record the build succeeded now

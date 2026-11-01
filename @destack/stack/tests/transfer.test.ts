@@ -54,6 +54,9 @@ import type { TestObjectStore } from "@destack/object/test";
 /** A day, in milliseconds. */
 const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
 
+/** How long an unreferenced blob stays before deletion: a blob store's hour of grace. */
+const GRACE_MILLISECONDS = 60 * 60_000;
+
 /** How long a test moving a space between two machines runs at most, beyond its longest wait. */
 const SCENARIO_MILLISECONDS = 30_000;
 
@@ -377,7 +380,7 @@ test(
             files: (await world.files.readDirectory(join(files, "source", ids.space)))
                 .map((entry) => entry.name)
                 .filter((name) => name.endsWith(".db")),
-            blobs: await Array.fromAsync(sourceMachine.blobs.storage.digests()),
+            blobs: await Array.fromAsync(sourceMachine.blobs.storage.packs()),
         };
 
         // read the space, its notes and its records on the target
@@ -901,7 +904,7 @@ test(
     SCENARIO_MILLISECONDS,
 );
 
-test("collect a stray blob once its lease ends, and a snapshot's blobs once the snapshot expires", async () => {
+test("collect a stray blob a grace after its lease ends, and a snapshot's blobs a grace after the snapshot expires", async () => {
     // serve the fixture's space on the machine that stores the snapshots of it
     const fixture = await TestSpace.open({});
     await fixture.serve();
@@ -912,11 +915,16 @@ test("collect a stray blob once its lease ends, and a snapshot's blobs once the 
     const put = async (content: string) => {
         const bytes = new TextEncoder().encode(content);
         const digest = await Digest.of(bytes, fixture.environment.crypto);
-        await blobs.put(digest, async () =>
-            (async function* () {
-                yield bytes;
-            })(),
-        );
+        await blobs.put([
+            {
+                digest,
+                size: bytes.byteLength,
+                open: async () =>
+                    (async function* () {
+                        yield bytes;
+                    })(),
+            },
+        ]);
 
         return digest;
     };
@@ -938,10 +946,12 @@ test("collect a stray blob once its lease ends, and a snapshot's blobs once the 
             }),
     );
 
-    // collect the stray blob past its lease, then the snapshot's blob once the snapshot expires, leaving the states main refers to
+    // collect the stray blob a grace past its lease, then the snapshot's blob a grace after the snapshot expires, leaving the states main refers to
     await fixture.simulation.jump(start + blobs.leaseMilliseconds + 1);
-    const leased = await Array.fromAsync(blobs.storage.digests());
+    await fixture.simulation.jump(fixture.simulation.clock.now() + GRACE_MILLISECONDS);
+    const leased = await Array.fromAsync(blobs.storage.packs());
     await fixture.simulation.jump(start + 2 * DAY_MILLISECONDS);
+    await fixture.simulation.jump(fixture.simulation.clock.now() + GRACE_MILLISECONDS);
     const [main] = await database
         .select({ states: object.database.table.states })
         .from(object.database.table)
@@ -949,7 +959,7 @@ test("collect a stray blob once its lease ends, and a snapshot's blobs once the 
     const states = present(main, "the main database").states;
     expect({
         leased: leased.toSorted(),
-        expired: (await Array.fromAsync(blobs.storage.digests())).toSorted(),
+        expired: (await Array.fromAsync(blobs.storage.packs())).toSorted(),
         snapshots: await database.select().from(object.snapshot.table),
     }).toEqual({
         leased: [taken, ...states].toSorted(),

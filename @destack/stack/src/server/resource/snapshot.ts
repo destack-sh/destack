@@ -4,7 +4,7 @@ import { AccessContext, Caller, principal } from "@destack/access";
 import { type ObjectReconciliation, type Resource, type ResourceType } from "@destack/object";
 import type { space } from "@destack/account/object";
 import type { ObjectStore } from "@destack/object/server";
-import { Plan, type BlobStorage } from "@destack/resource";
+import { Plan, type ContentStore } from "@destack/resource";
 import { Recipient } from "@destack/identity";
 import { Digest, type Identifier, present } from "@destack/schema";
 import { Scope, RequestId } from "@destack/sync";
@@ -130,7 +130,7 @@ interface Copy {
     /** The snapshot's digest. */
     readonly digest: Digest;
     /** The space's store, reading blobs through the source's handoff. */
-    readonly store: Pick<BlobStorage, "read" | "batch" | "write" | "fetch">;
+    readonly store: Pick<ContentStore, "read" | "batch" | "write" | "fetch">;
     /** The recipient the source encrypted the machine-bound values to. */
     readonly recipient: Recipient;
     /** The digests of the resource's applied states. */
@@ -319,7 +319,7 @@ export async function expireSnapshots(
 
 /** Write into a space's blobs, leasing each for a day, collecting what it writes or fetches. */
 function recording(space: BlobStore): {
-    readonly store: Pick<BlobStorage, "read" | "batch" | "write" | "fetch">;
+    readonly store: Pick<ContentStore, "read" | "batch" | "write" | "fetch">;
     readonly blobs: Set<Digest>;
 } {
     const blobs = new Set<Digest>();
@@ -328,29 +328,19 @@ function recording(space: BlobStore): {
     return {
         blobs,
         store: {
-            read: (digest) => space.storage.read(digest),
-            batch: (digests) => space.storage.batch(digests),
+            read: (digest) => space.read(digest),
+            batch: (digests) => space.batch(digests),
             write: async (body, expected) => {
-                // lease the bytes' digest before keeping them, so no collection takes them meanwhile
-                const chunked = await Array.fromAsync(body);
-                const bytes = new Uint8Array(
-                    await new Blob(chunked.map((chunk) => new Uint8Array(chunk))).arrayBuffer(),
-                );
-                const digest = expected ?? (await Digest.of(bytes, space.environment.crypto));
+                // store the bytes, leased for the retention past their write's lease
+                const digest = await space.write(body, expected);
                 await space.lease([digest], until());
-                await space.storage.write(
-                    (async function* () {
-                        yield bytes;
-                    })(),
-                    digest,
-                );
                 blobs.add(digest);
 
                 return digest;
             },
             fetch: async (digests, from) => {
+                await space.fetch(digests, from);
                 await space.lease(digests, until());
-                await space.storage.fetch(digests, from);
                 for (const digest of digests) {
                     blobs.add(digest);
                 }
@@ -364,7 +354,7 @@ function relayed(
     space: BlobStore,
     source: Handoff,
     spaceId: Identifier<"space">,
-): Pick<BlobStorage, "read" | "batch" | "write" | "fetch"> {
+): Pick<ContentStore, "read" | "batch" | "write" | "fetch"> {
     // read blobs from the source machine's store through its relay, in batches
     const remote = {
         batch: (digests: readonly Digest[]) => source.batch(spaceId, digests),
@@ -374,11 +364,11 @@ function relayed(
     return {
         read: async function* (digest) {
             await store.fetch([digest], remote);
-            yield* space.storage.read(digest);
+            yield* space.read(digest);
         },
         batch: async function* (digests) {
             await store.fetch(digests, remote);
-            yield* space.storage.batch(digests);
+            yield* space.batch(digests);
         },
         write: (body, expected) => store.write(body, expected),
         fetch: (digests, from) => store.fetch(digests, from),

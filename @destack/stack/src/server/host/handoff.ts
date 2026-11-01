@@ -13,6 +13,7 @@ import { RequestId, Page, Scope, type Uplink } from "@destack/sync";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { createClient } from "@destack/object/client";
+import type { SpaceBuildStore } from "../installation/build.ts";
 import { type IdentityKeystore } from "@destack/account/identity";
 import type { MethodContext } from "@destack/object";
 import type { AdapterFetch } from "@destack/object/server";
@@ -21,12 +22,9 @@ import { ResourceId, type Rewrapper, type BlobEntry } from "@destack/resource";
 import { Tarball } from "@destack/package/archive";
 import { Recipient } from "@destack/identity";
 import { type Fence, snapshot, type Transfer } from "../../object/index.ts";
-import type { SpaceBuildStore } from "../installation/build.ts";
 import { SpaceTransfer } from "./transfer.ts";
-import type { PackageLocation } from "@destack/package/manifest";
 import stackPackage, { HANDOFF_PATH } from "../../package.ts";
 import type { ProviderIndex } from "../resource/resource.ts";
-import type {} from "@destack/package/import-meta";
 import { StackError } from "../../error/index.ts";
 
 /** How a target calls a source's handoff. */
@@ -41,13 +39,10 @@ const TakenSnapshot = schema.object({
     digest: Digest,
 });
 
-/** The paths of a space's handoff below the adapter: rows, states, snapshots, blobs and builds. */
+/** The paths of a space's handoff below the adapter: rows, states, snapshots and blobs. */
 const HandoffPath = {
     /** Write the path of a space's handoff part. */
-    of(
-        spaceId: string,
-        part: "watch" | "capture" | "states" | "snapshots" | "blobs" | "builds",
-    ): string {
+    of(spaceId: string, part: "watch" | "capture" | "states" | "snapshots" | "blobs"): string {
         return `/${spaceId}/${part}`;
     },
 
@@ -99,14 +94,6 @@ export interface Handoff {
         digests: readonly Digest[],
         options?: HandoffCall,
     ) => AsyncIterable<BlobEntry>;
-    /** Locate a build the space runs in the source machine's build store. */
-    readonly locate: (
-        spaceId: Identifier<"space">,
-        manifest: Digest,
-    ) => {
-        readonly location: PackageLocation;
-        readonly fetch: (input: URL, init: RequestInit) => Promise<Response>;
-    };
 }
 
 /** How a target connects to a source's handoff. */
@@ -202,13 +189,6 @@ export const Handoff = {
                     yield { digest: Digest.parse(entry.path), size: entry.size, body: entry.body };
                 }
             },
-            locate: (spaceId, manifest) => ({
-                location: {
-                    manifest,
-                    url: `${adapter}${HandoffPath.of(spaceId, "builds")}/${manifest}/`,
-                },
-                fetch: (input, options) => fetch(new Request(input.href, options)),
-            }),
         };
     },
 };
@@ -283,13 +263,13 @@ export interface HandoffOptions {
     readonly runtimes: readonly Runtime[];
     /** The space's blobs, which a moving space's target reads its snapshots' blobs from. */
     readonly blobs: BlobStore;
-    /** The space's builds, read through to the machine's cache. */
+    /** The space's builds, which a target indexes from the blobs it brought. */
     readonly builds: SpaceBuildStore;
 }
 
-/** Serve a moving space's target its rows, the blobs its snapshots read and the builds it runs. */
+/** Serve a moving space's target its rows and the blobs its rows reference. */
 export function handoffAdapter(options: HandoffOptions): AdapterFetch {
-    const content = new HandoffContent(options.database, options.blobs);
+    const content = new HandoffContent(options.blobs);
 
     return async (request, admitted, context) => {
         // read the space and the part, refusing a caller acting for no machine the space moves to
@@ -332,17 +312,6 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
 
             return ndjson(space.feed().capture(space.replica.captured, request.signal, { seal }));
         }
-        // serve the builds the space's rows refer to
-        else if (part === "builds" && request.method === "GET") {
-            const mount = new URL(`${url.origin}${HandoffPath.of(spaceId, "builds")}/`);
-            const answer = await options.builds.space.fetch(request, mount, {
-                pull: async (_request, manifest) => {
-                    await content.requireBuild(record, manifest);
-                },
-            });
-
-            return answer ?? new Response(null, { status: 404 });
-        }
         // answer a requested snapshot's digest once the source took it
         else if (part === "snapshots" && request.method === "GET") {
             const resourceId = ResourceId.parse(decodeURIComponent(rest.slice(1)));
@@ -369,7 +338,7 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
                 await content.requireBlob(record, digest);
             }
             const entries = (async function* () {
-                for await (const blob of options.blobs.storage.batch(digests)) {
+                for await (const blob of options.blobs.batch(digests)) {
                     yield { path: blob.digest, size: blob.size, body: blob.body };
                 }
             })();
@@ -385,37 +354,24 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
     };
 }
 
-/** The builds and blobs each moving space's target reads, read once per transfer. */
+/** The blobs each moving space's target reads, read once per transfer. */
 class HandoffContent {
-    /** The space's database. */
-    readonly #database: DatabaseConnection;
     /** The space's blobs, which its rows reference. */
     readonly #blobs: BlobStore;
-    /** The builds and blobs read last, by kind and space. */
-    readonly #read = {
-        builds: new Map<Identifier<"space">, HandoffRead>(),
-        blobs: new Map<Identifier<"space">, HandoffRead>(),
-    };
+    /** The blobs read last, by space. */
+    readonly #read = new Map<Identifier<"space">, HandoffRead>();
 
-    /** Read a source's handoff content from the space's database and blobs. */
-    constructor(database: DatabaseConnection, blobs: BlobStore) {
-        this.#database = database;
+    /** Read a source's handoff content from the space's blobs. */
+    constructor(blobs: BlobStore) {
         this.#blobs = blobs;
-    }
-
-    /** Refuse a build none of the space's builds or revisions runs. */
-    async requireBuild(record: Transfer, manifest: Digest): Promise<void> {
-        if (!(await this.#includes(record, "builds", manifest))) {
-            throw StackError.of(
-                "BUILD_NOT_RUNNING",
-                `space ${record.scope} does not run build ${manifest}`,
-            );
-        }
     }
 
     /** Refuse a blob no row of the space references, or one this machine lacks. */
     async requireBlob(record: Transfer, digest: Digest): Promise<void> {
-        if (!(await this.#includes(record, "blobs", digest))) {
+        // take what the transfer read before, else read it again
+        const known = this.#read.get(record.scope);
+        const isKnown = known?.transfer === record.id && known.digests.has(digest);
+        if (!isKnown && !(await this.blobs(record)).has(digest)) {
             throw StackError.of(
                 "BLOB_NOT_FOUND",
                 `no row of ${record.scope} references a blob ${digest} stored here`,
@@ -423,50 +379,26 @@ class HandoffContent {
         }
     }
 
-    /** List the blobs the space's rows reference that this machine stores. */
-    blobs(record: Transfer): Promise<ReadonlySet<string>> {
-        return this.#reread(record, "blobs");
-    }
-
-    /** Report whether a transfer's builds or blobs include a value, read again on a miss. */
-    async #includes(record: Transfer, kind: "builds" | "blobs", value: string): Promise<boolean> {
-        // take what the transfer read before, else read it again
-        const known = this.#read[kind].get(record.scope);
-
-        return (
-            (known?.transfer === record.id && known.values.has(value)) ||
-            (await this.#reread(record, kind)).has(value)
-        );
-    }
-
-    /** Read a transfer's builds or blobs again, which the space may have added since. */
-    async #reread(record: Transfer, kind: "builds" | "blobs"): Promise<ReadonlySet<string>> {
-        // read the builds the space runs or the blobs its rows reference, and remember them
-        const live = Snapshot.live(this.#database);
-        const values: ReadonlySet<string> =
-            kind === "builds"
-                ? await SpaceTransfer.manifests(live, record.scope)
-                : await this.#stored();
-        this.#read[kind].set(record.scope, { transfer: record.id, values });
-
-        return values;
-    }
-
-    /** Read the blobs the space's rows reference that this machine stores. */
-    async #stored(): Promise<ReadonlySet<string>> {
+    /** List the blobs the space's rows reference that this machine stores, and remember them. */
+    async blobs(record: Transfer): Promise<ReadonlySet<string>> {
+        // read the referenced blobs this machine stores
         const referenced = await this.#blobs.list();
-        const missing = new Set<string>(await this.#blobs.storage.missing(referenced));
+        const missing = new Set<string>(await this.#blobs.missing(referenced));
+        const digests = new Set<string>(referenced.filter((digest) => !missing.has(digest)));
 
-        return new Set<string>(referenced.filter((digest) => !missing.has(digest)));
+        // remember them for the transfer
+        this.#read.set(record.scope, { transfer: record.id, digests });
+
+        return digests;
     }
 }
 
-/** The builds or blobs a transfer's target reads, as read for the transfer. */
+/** The blobs a transfer's target reads, as read for the transfer. */
 interface HandoffRead {
     /** The transfer read for. */
     readonly transfer: Identifier<"transfer">;
-    /** The manifests of the builds the space runs, or the blobs its rows reference. */
-    readonly values: ReadonlySet<string>;
+    /** The blobs the space's rows reference. */
+    readonly digests: ReadonlySet<string>;
 }
 
 /** The source machine's side of a space's handoff. */

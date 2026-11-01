@@ -549,10 +549,10 @@ export class SpaceTransfer {
         // follow the source's rows up to its fence, restoring resources and builds meanwhile
         const fenced = await this.#followToFence(source, signal, options, store);
 
-        // capture the space's rows and copy the builds and blobs they added
+        // capture the space's rows, copy the blobs they reference and index the builds among them
         await this.#captureRows(source, fenced, options);
-        await this.#copyBuilds(source, options.builds, signal);
         await this.#copyBlobs(source, options.blobs, signal);
+        await this.#indexBuilds(options.builds);
 
         // catch each resource up on what changed since its snapshot
         await this.#catchUp(signal, options, store, store.clock.now());
@@ -588,13 +588,12 @@ export class SpaceTransfer {
             )
             .catch((error: unknown) => halted.abort(error));
         try {
-            // copy the rows' blobs once the replica took its first complete run, then restore each resource and copy each build
+            // copy the rows' blobs once the replica took its first complete run, index the builds among them, then restore each resource
             await Promise.race([isSynced.promise, until(following)]);
             following.throwIfAborted();
             await this.#copyBlobs(source, options.blobs, signal);
+            await this.#indexBuilds(options.builds);
             await this.#prepare(signal, options, store);
-
-            await this.#copyBuilds(source, options.builds, signal);
 
             // fence the source and follow up to its fence
             const record = await SpaceTransfer.readActive(database, spaceId);
@@ -621,22 +620,20 @@ export class SpaceTransfer {
         return new Set(own.flatMap((row) => (row.manifest === null ? [] : [row.manifest])));
     }
 
-    /** Copy each of the space's own builds from the source, leaving releases to their registry. */
-    async #copyBuilds(source: Handoff, builds: SpaceBuildStore, signal: AbortSignal): Promise<void> {
+    /** Index the space's builds from the blobs it brought, leaving releases to the registry. */
+    async #indexBuilds(builds: SpaceBuildStore): Promise<void> {
         const manifests = await SpaceTransfer.manifests(
             Snapshot.live(this.space.database),
             this.spaceId,
         );
         for (const manifest of manifests) {
-            const { location, fetch } = source.locate(this.spaceId, manifest);
-            await builds.space.copy(location, fetch, signal);
+            await builds.space.index(manifest);
         }
     }
 
     /** Copy the blobs the space's rows reference that the source stores and this machine lacks. */
     async #copyBlobs(source: Handoff, blobs: BlobStore, signal: AbortSignal): Promise<void> {
-        const missing = await blobs.storage.missing(await source.blobs(this.spaceId, { signal }));
-        await blobs.storage.fetch(missing, {
+        await blobs.fetch(await source.blobs(this.spaceId, { signal }), {
             batch: (digests) => source.batch(this.spaceId, digests, { signal }),
         });
     }
