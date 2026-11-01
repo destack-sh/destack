@@ -136,7 +136,7 @@ const styles = style.create({
     // the entry, the label, the plan rows and the stack, one screen tall or more when the cards need it
     plans: {
         gridTemplateRows: {
-            default: "auto auto repeat(7, auto) minmax(auto, 1fr) auto",
+            default: "auto auto repeat(8, auto) minmax(auto, 1fr) auto",
             [screen.belowDesktop]: "auto",
         },
         height: "auto",

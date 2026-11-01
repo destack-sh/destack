@@ -61,7 +61,7 @@ type Plan = (typeof plans)[number];
 export type Audience = "personal" | "organisation";
 
 /** The specs every card lists on the same rows, under its usage. */
-const SPECS = ["hosting", "ai", "retention", "support"] as const;
+const SPECS = ["apps", "hosting", "ai", "retention", "support"] as const;
 
 /** What a plan unlocks, listed where it first appears and stacking from there. */
 const EXTRAS = ["early", "domains", "machines"] as const;
@@ -77,9 +77,9 @@ type Benefit = { icon: GlyphName; text: string; detail: string };
 
 /** Each plan's tagline, the same for people and organisations. */
 const taglines: Readonly<Record<Plan["key"], string>> = {
-    free: "For the basics",
-    go: "For your everyday software",
-    plus: "For all your software",
+    free: "For your first apps",
+    go: "For your personal stack",
+    plus: "For your daily work",
     pro: "For your critical software",
 };
 
@@ -189,10 +189,9 @@ export function Plans(properties: { audience: Audience; currency: Currency }) {
     return (
         <>
             <For each={shown()}>
-                {(plan, index) => (
+                {(plan) => (
                     <PlanCard
                         plan={plan}
-                        previous={shown()[index() - 1]}
                         tagline={taglines[plan.key]}
                         count={shown().length}
                         currency={properties.currency}
@@ -222,28 +221,19 @@ export function Plans(properties: { audience: Audience; currency: Currency }) {
 }
 
 /** Draw one plan's card: its name, tagline, fee, action and, on its topic's row, what it adds. */
-function PlanCard(properties: {
-    plan: Plan;
-    previous: Plan | undefined;
-    tagline: string;
-    count: number;
-    currency: Currency;
-}) {
+function PlanCard(properties: { plan: Plan; tagline: string; count: number; currency: Currency }) {
     // read the plan's fee, and whether it is the free plan or the one most people pick
     const plan = properties.plan;
     const fee = () => plan.fees[properties.currency];
     const isFree = plan.fees.USD === 0;
     const isPicked = plan.key === "plus";
 
-    // list every extra the plan unlocks, marking those the plan shown before has too
+    // list every extra the plan unlocks
     const extras = () =>
         EXTRAS.flatMap((topic) => {
             const benefit = benefitOf(plan, topic);
-            const isInherited =
-                properties.previous !== undefined &&
-                benefitOf(properties.previous, topic) !== undefined;
 
-            return benefit === undefined ? [] : [{ benefit, isInherited }];
+            return benefit === undefined ? [] : [benefit];
         });
 
     return (
@@ -281,23 +271,18 @@ function PlanCard(properties: {
                 {isFree ? "Start for free" : `Get ${plan.name}`}
             </a>
 
-            {/* hosting, AI, retention and support, on the same rows on every card */}
+            {/* apps, hosting, AI, retention and support, on the same rows on every card */}
             {SPECS.map((topic, index) => (
                 <BenefitRow
                     benefit={present(benefitOf(plan, topic), "spec")}
                     isFirst={index === 0}
-                    isInherited={false}
                 />
             ))}
 
-            {/* what the plan unlocks, the plan before's muted and its own in full */}
+            {/* what the plan unlocks */}
             <div {...style.attrs(styles.extras)}>
-                {extras().map((extra) => (
-                    <BenefitRow
-                        benefit={extra.benefit}
-                        isFirst={false}
-                        isInherited={extra.isInherited}
-                    />
+                {extras().map((benefit) => (
+                    <BenefitRow benefit={benefit} isFirst={false} />
                 ))}
             </div>
         </article>
@@ -328,15 +313,9 @@ function Usage(properties: { plan: Plan; fee: number; currency: Currency }) {
 }
 
 /** Draw one benefit: its icon and its words, the first spec set apart from the action above. */
-function BenefitRow(properties: { benefit: Benefit; isFirst: boolean; isInherited: boolean }) {
+function BenefitRow(properties: { benefit: Benefit; isFirst: boolean }) {
     return (
-        <p
-            {...style.attrs(
-                styles.benefit,
-                properties.isFirst && styles.first,
-                properties.isInherited && styles.inherited,
-            )}
-        >
+        <p {...style.attrs(styles.benefit, properties.isFirst && styles.first)}>
             <span aria-hidden="true" {...style.attrs(styles.icon)}>
                 <Glyph name={properties.benefit.icon} size={16} weight={1.75} />
             </span>
@@ -347,8 +326,14 @@ function BenefitRow(properties: { benefit: Benefit; isFirst: boolean; isInherite
 
 /** Return what a plan gives on a topic, or nothing where it gives nothing there. */
 function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
-    // read where the plan runs and which AI it uses, the same on every plan
-    if (topic === "hosting") {
+    // read which apps, where the plan runs and which AI it uses, the same on every plan
+    if (topic === "apps") {
+        return {
+            icon: "grid",
+            text: "Software included",
+            detail: "Every Destack app and package, with no seats or licences to pay.",
+        };
+    } else if (topic === "hosting") {
         return {
             icon: "monitor",
             text: "Self-hosting",
@@ -545,9 +530,6 @@ const styles = style.create({
         gap: "0.75rem",
         margin: 0,
         whiteSpace: "nowrap",
-    },
-    inherited: {
-        color: color.mutedForeground,
     },
     icon: {
         color: color.mutedForeground,
