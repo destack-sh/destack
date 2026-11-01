@@ -141,7 +141,7 @@ export class Registry {
         const packageId = PackageManifest.package(build.manifest).id;
         const forge = await this.#find({ package: packageId });
         const uploads = `${forge.url}${forgePackage.adapters.builds.path}/${packageId}/`;
-        const client = new PackageClient(uploads, forge.fetch, this.#environment.crypto);
+        const client = new PackageClient(uploads, forge.fetch, this.#environment);
 
         // push each npm unit, then the build
         const units = await store.units(manifest, packageId);

@@ -12,7 +12,6 @@
         "./server": "./src/server.ts",
         "./test": "./src/test/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./pack": "./src/pack/index.ts",
         "./storage": "./src/storage/index.ts",
         "./local": "./src/local/index.ts",
         "./cloudflare": "./src/cloudflare/index.ts",

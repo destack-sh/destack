@@ -2,7 +2,7 @@ import { Caller, principal } from "@destack/access";
 import { connectionShape, Runner } from "@destack/connection/server";
 import { BuildStore } from "@destack/build/store";
 import type { Environment } from "@destack/environment";
-import { BlobStore, eq, Snapshot, Transaction } from "@destack/db";
+import { type BlobStore, eq, Snapshot, Transaction } from "@destack/db";
 import { Directory } from "@destack/account/address";
 import { account, claimShape, spaceRecordShape } from "@destack/account/object";
 import {
@@ -33,7 +33,6 @@ import {
 } from "../stack/index.ts";
 import type { GitStorage } from "../storage/index.ts";
 import { ForgeError, type ForgeReason } from "../error/index.ts";
-import { NpmServer } from "./npm-server.ts";
 import { implementPackageObject } from "./package.ts";
 import { implementRelease } from "./release.ts";
 import { implementRepository } from "./repository.ts";
@@ -54,7 +53,7 @@ export interface ForgeOptions {
     readonly blobs: BlobStore;
     /** The environment the store of builds runs in. */
     readonly environment: Environment;
-    /** The URL clients call the forge at, below which npm reads its endpoints and builds. */
+    /** The URL clients call the forge at, below which they push and pull builds. */
     readonly endpoint: URL;
     /** The storage of platform repositories. */
     readonly storage: GitStorage;
@@ -180,10 +179,8 @@ export class Forge {
             objects: this.handled,
             follows: [this.#connectionFollow(), claimFollow],
             standing: [standingFollow],
-            // answer npm reads, builds and the GitHub App's deliveries
+            // answer builds and the GitHub App's deliveries
             adapters: {
-                npm: (request, _caller, context, store) =>
-                    new NpmServer(this.#options.endpoint, this, store).answer(request, context),
                 builds: (request, _caller, context, store) => this.#builds(request, context, store),
                 github: (request, _caller, _context, store) => this.#delivered(request, store),
             },
@@ -203,17 +200,13 @@ export class Forge {
         });
     }
 
-    /** Open the store of builds and npm archives in the home's blobs. */
+    /** Open the store of pushed builds in the home's blobs, leasing unreleased ones two weeks. */
     static openStore(options: Pick<ForgeOptions, "blobs" | "environment">): BuildStore {
-        const { storage, database } = options.blobs;
-        const blobs = new BlobStore({
-            storage,
-            database,
+        return new BuildStore({
+            blobs: options.blobs,
             environment: options.environment,
             leaseMilliseconds: UNRELEASED_MILLISECONDS,
         });
-
-        return new BuildStore({ blobs, environment: options.environment });
     }
 
     /** Find the package claiming a global name in a forge's home, following the claims it needs. */

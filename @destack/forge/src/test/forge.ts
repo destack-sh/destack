@@ -14,12 +14,10 @@ import type { Simulation } from "@destack/environment/simulation";
 import {
     ClaimLookup,
     claimTable,
-    InstallationMount,
     OBJECT_DECLARATION,
     ObjectDescription,
     PACKAGE_DECLARATION,
     PACKAGE_EXPORT,
-    PackageMount,
 } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import { describePackage } from "@destack/object/inspect";
@@ -58,9 +56,6 @@ const GITHUB_NODE = "github";
 
 /** The port GitHub's hosts answer HTTPS at. */
 const HTTPS_PORT = 443;
-
-/** The host name the fixture's forge listens at for package managers on the host. */
-const LOOPBACK = "127.0.0.1";
 
 /** The origin the fixture's requests name, which the served home answers at any host. */
 const ORIGIN = "http://forge.test";
@@ -321,28 +316,6 @@ export class TestForge {
         return this.home.id;
     }
 
-    /** The npm registry's URL the forge names in its documents, below its installation's mount. */
-    get npm(): string {
-        const mounted = InstallationMount.url(
-            this.home.host.machine.origin,
-            this.space,
-            this.installation,
-        );
-
-        return `${mounted}${PackageMount.path(forgePackage.id)}${forgePackage.adapters.npm.path}`;
-    }
-
-    /** Write the npm configuration selecting the forge's registry for a scope as the owner. */
-    async npmrc(scope: string): Promise<string> {
-        // select the registry for the scope, authenticated as the owner calling the forge in its home
-        const url = new URL(`${this.npm}/`);
-        const { accessToken } = await this.owner.exchange(forgePackage.id, {
-            partition: this.space,
-        });
-
-        return `${scope}:registry=${url.href}\n//${url.host}${url.pathname}:_authToken=${accessToken}\n`;
-    }
-
     /** The origin the fixture's requests name. */
     get origin(): string {
         return ORIGIN;
@@ -423,40 +396,6 @@ export class TestForge {
             },
         });
         await configuring[Symbol.asyncDispose]();
-    }
-
-    /** Serve a copy of the forge on a loopback port of the host, for package managers. */
-    static async listen(): Promise<TestForge> {
-        // listen first, for the machine to publish the port as where it answers
-        const opened = Promise.withResolvers<TestForge>();
-        const listener = testHost().server.http({
-            hostname: LOOPBACK,
-            port: 0,
-            fetch: async (request) => (await opened.promise).home.gateway.answer(request),
-        });
-        onTestFinished(() => listener.stop(true));
-
-        // copy the home answering there, and serve it with the forge
-        const origin = listener.url.origin;
-        const { space: home, world } = await TestSpace.copy(FORGE_TEMPLATE, {
-            ...HOME_OPTIONS,
-            origin,
-        });
-        const standIn = TestForge.#github(home);
-        const served = await home.serve();
-        const owner = home.universe.person(OWNER_EMAIL);
-        const { installation, tenants } = world;
-        const forge = new TestForge({
-            home,
-            served,
-            installation,
-            github: standIn,
-            owner,
-            tenants,
-        });
-        opened.resolve(forge);
-
-        return forge;
     }
 
     /** Write the world: the forge, its GitHub App, the publishing account and the tenants. */
@@ -591,7 +530,7 @@ export class TestForge {
         return new PackageClient(
             `${url}${forgePackage.adapters.builds.path}/${packageId}/`,
             fetch,
-            this.environment.crypto,
+            this.environment,
         );
     }
 

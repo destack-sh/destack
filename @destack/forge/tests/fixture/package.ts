@@ -6,11 +6,7 @@ import { readPackageJson } from "@destack/build/local";
 import type { DependencyResolution } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { Commit, Digest, schema, Version } from "@destack/schema";
-import { PackageArchive } from "../../src/pack/index.ts";
 import { testHost } from "@destack/test/host";
-
-/** How long one fixture command may run, in milliseconds: an install or a pack. */
-const RUN_MILLISECONDS = 60_000;
 
 /** The version the fixture sources declare. */
 export const FIXTURE_VERSION = "2026.9.0";
@@ -63,19 +59,16 @@ export class FixtureSource {
         return new FixtureSource(name, directory, compilers);
     }
 
-    /** Install the releases it depends on from their archives, and build each version on them. */
+    /** Build each version on the releases it depends on, which the store has. */
     async build(
         releases: readonly BuildReader[],
         versions: readonly string[],
     ): Promise<BuildReader[]> {
-        // install each release from its npm archive, as an install from the registry unpacks it
-        for (const release of releases) {
-            await install(release, join(this.directory, "node_modules"));
-        }
+        // resolve each release it declares by its manifest, as a build outside the workspace does
         const declaration = schema
             .jsonObject()
             .parse(await readJson(join(this.directory, "package.json")));
-        const dependencies = await readReleases(this.directory, declaration);
+        const dependencies = await resolveReleases(releases, declaration);
 
         // build one unbundled module per runtime the package ships, as a build worker does
         const outputs = Object.fromEntries(
@@ -132,67 +125,33 @@ export class FixtureSource {
     }
 }
 
-/** Unpack a release's npm archive into a node_modules directory, as npm installs a tarball. */
-async function install(release: BuildReader, modules: string): Promise<void> {
-    // pack the release as the registry serves it, and write the tarball beside the tree
-    const host = testHost();
-    const archive = await PackageArchive.pack(release, COMMIT, host);
-    const destination = join(modules, archive.metadata.name);
-    await host.files.mkdir(destination, { recursive: true });
-    const tarball = join(modules, `${archive.metadata.name.replace("/", "-")}.tgz`);
-    await host.files.writeFile(tarball, await new Response(archive.open()).bytes());
-
-    // extract its package directory, as every npm tarball roots its files in it
-    await run(["tar", "-xzf", tarball, "-C", destination, "--strip-components=1"], modules);
-    await host.files.remove(tarball);
-}
-
-/** Run a command in a directory, failing with its error output unless it succeeds. */
-export async function run(command: readonly string[], directory: string): Promise<string> {
-    // run the command, collecting both outputs
-    const child = testHost().process.spawn(command, {
-        workingDirectory: directory,
-        stdout: "pipe",
-        stderr: "pipe",
-        signal: AbortSignal.timeout(RUN_MILLISECONDS),
-    });
-    const [code, stdout, stderr] = await Promise.all([
-        child.exited,
-        new Response(child.stdout).text(),
-        new Response(child.stderr).text(),
-    ]);
-    if (code !== 0) {
-        throw new Error(`${command.join(" ")} failed with ${code}: ${stderr}`);
-    }
-
-    return stdout;
-}
-
 /** Read a JSON file. */
 export async function readJson(path: string): Promise<unknown> {
     return JSON.parse(await testHost().files.readTextFile(path));
 }
 
-/** Resolve the Destack releases a source installed from the forge by their build manifests. */
-async function readReleases(
-    directory: string,
+/** Resolve each Destack dependency a declaration lists to the release built of it. */
+async function resolveReleases(
+    releases: readonly BuildReader[],
     declaration: Readonly<Record<string, unknown>>,
 ): Promise<Record<string, DependencyResolution>> {
-    // read each installed dependency's build manifest, which the forge's archive carries
+    // find each declared dependency's release, and resolve it by its manifest's digest
     const declared = schema
         .record(schema.string(), schema.string())
         .parse(declaration["dependencies"] ?? {});
-    const releases: Record<string, DependencyResolution> = {};
+    const resolved: Record<string, DependencyResolution> = {};
     for (const name of Object.keys(declared)) {
-        const path = join(directory, "node_modules", name, "build", "manifest.json");
-        const bytes = await testHost().files.readFile(path);
-        const manifest = PackageManifest.parse(JSON.parse(new TextDecoder().decode(bytes)));
-        releases[name] = {
+        const release = releases.find((each) => each.manifest.package.name === name);
+        if (release === undefined) {
+            throw new TypeError(`fixture has no release of ${name}`);
+        }
+        const bytes = PackageManifest.serialize(release.manifest);
+        resolved[name] = {
             kind: "destack",
-            package: PackageManifest.package(manifest),
+            package: PackageManifest.package(release.manifest),
             manifest: await Digest.of(bytes, testHost().crypto),
         };
     }
 
-    return releases;
+    return resolved;
 }

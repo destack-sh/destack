@@ -32,5 +32,5 @@
         "types": ["bun", "@destack/build/browser"]
     },
     "include": ["src", "tests", "*.config.ts"],
-    "exclude": ["tests/fixture/answer", "tests/fixture/consumer", "tests/fixture/greeting"]
+    "exclude": ["tests/fixture/answer", "tests/fixture/greeting"]
 }

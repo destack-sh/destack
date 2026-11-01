@@ -41,7 +41,7 @@ export async function publishBuild(
                 .onConflictDoNothing(),
     );
 
-    // store the release with an empty archive
+    // store the release
     await database.transaction(
         async (transaction) =>
             await transaction.insert(release.table).values({
@@ -51,22 +51,6 @@ export async function publishBuild(
                 version: owner.version,
                 manifest,
                 commit: TEST_COMMIT,
-                distribution: {
-                    digest: manifest,
-                    shasum: TEST_COMMIT,
-                    integrity: "",
-                    size: 0,
-                    unpackedSize: 0,
-                    fileCount: 0,
-                },
-                metadata: {
-                    name: owner.name,
-                    version: owner.version,
-                    type: "module",
-                    exports: {},
-                    dependencies: {},
-                    optionalDependencies: {},
-                },
                 createdAt: now,
                 updatedAt: now,
             }),

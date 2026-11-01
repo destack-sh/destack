@@ -33,10 +33,9 @@ export default definePackage({
         issuer,
         appInstallation,
     },
-    // the store of pushed builds and npm archives, indexed beside the forge's objects
+    // the store of pushed builds, indexed beside the forge's objects
     tables: BUILD_STORE_TABLES,
     adapters: {
-        npm: defineAdapter("npm", { path: "/npm" }),
         builds: defineAdapter("builds", { path: "/builds" }),
         github: defineAdapter("github", { path: "/github" }),
     },

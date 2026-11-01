@@ -3,15 +3,31 @@ import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
+import { graph } from "@destack/package";
 import { Digest, schema } from "@destack/schema";
-import { Distribution, Pack, PackageMetadata } from "../pack/index.ts";
 import { packageObject, TagName } from "./package.ts";
 
-/** The longest deprecation message: 1 KiB, a paragraph, repeated per version in packuments. */
+/** The longest deprecation message: 1 KiB, a paragraph. */
 const DEPRECATION_LENGTH = 1024;
 
 /** The warning installers show for a deprecated release. */
 const DeprecationMessage = schema.string().min(1).max(DEPRECATION_LENGTH);
+
+/** A pushed build checked for its release, before the release's transaction. */
+export const Candidate = schema.object({
+    /** The digest of the build's manifest. */
+    manifest: Digest,
+    /** The commit the build compiled, absent for a prerelease of uncommitted changes. */
+    commit: schema.string().exactOptional(),
+    /** The version the build declares. */
+    version: schema.string(),
+    /** The manifests of the npm units the build depends on, directly or through other units. */
+    units: schema.array(Digest).readonly(),
+    /** The build's declarations, with their terms. */
+    declarations: schema.array(graph.Declaration).readonly(),
+});
+/** A pushed build checked for its release, before the release's transaction. */
+export type Candidate = schema.Infer<typeof Candidate>;
 
 /** An immutable release of a package at one calendar version. */
 export const release = defineObject(
@@ -27,10 +43,6 @@ export const release = defineObject(
             manifest: field.blob(),
             /** The full Git SHA-1 or SHA-256 commit identifier, absent for some prereleases. */
             commit: field.string().optional(),
-            /** The npm archive installers download. */
-            distribution: field.json(Distribution),
-            /** The npm declaration installers read. */
-            metadata: field.json(PackageMetadata),
             /** The warning installers show for the release, absent while it is not deprecated. */
             deprecation: field.string(DeprecationMessage).optional(),
             /** When the release was yanked: new installs skip it, exact pins still resolve it. */
@@ -38,7 +50,7 @@ export const release = defineObject(
         },
         permissions: { read: through("parent", "read"), publish: through("parent", "publish") },
         constraints: {
-            // record the commit of every stable release, as npm's gitHead
+            // record the commit of every stable release
             commit: {
                 kind: "check",
                 condition: {
@@ -60,7 +72,7 @@ export const release = defineObject(
         create: method.create("publish", {
             isPredicted: false,
             fields: [],
-            prepared: Pack,
+            prepared: Candidate,
             input: schema.object({
                 /** The digest of the pushed build's manifest. */
                 manifest: Digest,

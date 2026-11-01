@@ -5,31 +5,15 @@ import type {} from "@destack/package/import-meta";
 export const ForgeError = defineErrorFamily(import.meta.destack.package, {
     // bad request
     ANONYMOUS_PUSH: { code: "BAD_REQUEST" },
-    BUILD_ONLY_OUTPUT: { code: "BAD_REQUEST" },
-    DEPENDENCY_CONFLICTING: { code: "BAD_REQUEST" },
     CREDENTIAL_MISMATCH: { code: "BAD_REQUEST" },
-    PATH_DUPLICATE: { code: "BAD_REQUEST" },
     FOREIGN_MANIFEST: { code: "BAD_REQUEST" },
     IMMOVABLE_REPOSITORY: { code: "BAD_REQUEST" },
-    DEPENDENCY_INVALID: { code: "BAD_REQUEST" },
-    ENCODING_INVALID: { code: "BAD_REQUEST" },
-    EXPORT_INVALID: { code: "BAD_REQUEST" },
     MANIFEST_INVALID: { code: "BAD_REQUEST" },
-    NPM_NAME_INVALID: { code: "BAD_REQUEST" },
     ORIGIN_INVALID: { code: "BAD_REQUEST" },
     TAG_INVALID: { code: "BAD_REQUEST" },
     MACHINE_REPOSITORY: { code: "BAD_REQUEST" },
-    MANIFEST_MISMATCH: { code: "BAD_REQUEST" },
-    BIN_MISSING: { code: "BAD_REQUEST" },
-    DECLARATION_MISSING: { code: "BAD_REQUEST" },
     EVENT_TYPE_MISSING: { code: "BAD_REQUEST" },
-    EXPORT_SOURCE_MISSING: { code: "BAD_REQUEST" },
-    PACKAGE_JSON_MISSING: { code: "BAD_REQUEST" },
     GITHUB_REPOSITORY_REQUIRED: { code: "BAD_REQUEST" },
-    RUNTIME_OUTPUT_MISSING: { code: "BAD_REQUEST" },
-    PACKAGE_ID_MISMATCH: { code: "BAD_REQUEST" },
-    RESERVED_MANIFEST: { code: "BAD_REQUEST" },
-    OUTPUT_UNKNOWN: { code: "BAD_REQUEST" },
     UNSUBSCRIBED_EVENT: { code: "BAD_REQUEST" },
 
     // unauthorized
@@ -39,17 +23,14 @@ export const ForgeError = defineErrorFamily(import.meta.destack.package, {
     INSTALLATION_NOT_CLAIMED: { code: "FORBIDDEN" },
 
     // not found
-    ARCHIVE_NOT_FOUND: { code: "NOT_FOUND" },
     BUILD_NOT_FOUND: { code: "NOT_FOUND" },
     BUILD_NOT_PUSHED: { code: "NOT_FOUND" },
     GITHUB_WEBHOOK_MISSING: { code: "NOT_FOUND" },
     PUBLISHER_MISSING: { code: "NOT_FOUND" },
-    RELEASES_MISSING: { code: "NOT_FOUND" },
     PACKAGE_NOT_FOUND: { code: "NOT_FOUND" },
     RELEASE_NOT_FOUND: { code: "NOT_FOUND" },
     UNPUBLISHED_TARGET: { code: "NOT_FOUND" },
     UPLOAD_OUTSIDE_PACKAGE: { code: "NOT_FOUND" },
-    VERSION_NOT_FOUND: { code: "NOT_FOUND" },
 
     // conflict
     INSTALLATION_CLAIMED: { code: "CONFLICT" },

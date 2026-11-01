@@ -1,6 +1,6 @@
 # @destack/forge
 
-`@destack/forge` hosts an account's Git repositories and publishes its packages as npm releases.
+`@destack/forge` hosts an account's Git repositories and publishes its packages as releases.
 
 ```ts
 // a platform repository, stored in the residency's home and owned by the account
@@ -13,7 +13,7 @@ await client.repository.create({
 });
 // { url, headers, expiresAt } for git push
 await client.repository.open({ spaceId: home, id, mode: "write" });
-// npm publish --tag next
+// publish a pushed build, tagged next
 await client.release.create({
     spaceId: home,
     requestId,
@@ -21,20 +21,18 @@ await client.release.create({
     manifest,
     tag: "next",
 });
-// npm dist-tag add
+// point a tag at a version
 await client.tag.update({ spaceId: home, requestId, id: tagId, version: "2026.11.1" });
-// npm deprecate
+// deprecate a release
 await client.release.deprecate({
     spaceId: home,
     requestId,
     id: releaseId,
     message: "use 2026.11.0",
 });
-// npm view @acme/tools@latest: the package of a global name, then its release of a version or tag
+// the package of a global name, then its release of a version or tag
 const found = await client.package.resolve({ spaceId: home, name: "@acme/tools" });
 await client.release.resolve({ spaceId: home, parentId: found.id, release: "latest" });
-// the npm registry's packument
-await fetch(`${forge}/npm/@acme/tools`);
 ```
 
 ## Repositories

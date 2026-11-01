@@ -2,23 +2,14 @@ import { auditedCalls } from "./fixture/audit.ts";
 import type { TestPerson } from "@destack/account/test";
 import { ACCOUNT_ID, TestForge } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
-import { Digest, found, Identifier, schema } from "@destack/schema";
+import { Digest, found, Identifier } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { Registry } from "../src/client/index.ts";
 import { LATEST_TAG, packageObject } from "../src/object/index.ts";
-import { PackageArchive } from "../src/pack/index.ts";
 import { fixtureBuild, prereleaseBuild, uncommittedBuild } from "./fixture/build.ts";
 import { COMMIT } from "./fixture/package.ts";
 import { Claim } from "@destack/object";
-
-/** The fields of an npm version document the reads check. */
-const DOCUMENT = schema
-    .object({ version: schema.string(), deprecated: schema.string().exactOptional() })
-    .strip();
-
-/** The code of an npm failure body. */
-const FAILURE = schema.object({ error: schema.string(), code: schema.string() });
 
 /** Read the code a refused call fails with, or accepted. */
 async function code(attempt: Promise<unknown>): Promise<string> {
@@ -27,28 +18,11 @@ async function code(attempt: Promise<unknown>): Promise<string> {
     return refused === "done" ? "accepted" : refused[0];
 }
 
-/** Read a response's status, releasing its body. */
-async function status(answering: Promise<Response>): Promise<number> {
-    const response = await answering;
-    await response.body?.cancel();
-
-    return response.status;
-}
-
-/** Read an npm document as a person, or anonymously: its body, or its status and failure. */
-async function npm(forge: TestForge, path: string, person?: TestPerson): Promise<unknown> {
-    const response = await forge.fetch(`/npm${path}`, {}, person);
-    const body: unknown = await response.json();
-
-    return response.ok ? body : [response.status, body];
-}
-
 test("publish pushed builds as releases, replaying retried requests, refusing versions taken before and stable builds of uncommitted changes, and publishing prereleases of them", async () => {
-    // publish a package, tagging it latest, and pack its build as the release stores it
+    // publish a package, tagging it latest
     const forge = await TestForge.open();
     const answer = await forge.publish((await fixtureBuild("answer")).reader);
     const owner = forge.client(forge.owner);
-    const archive = await PackageArchive.pack(answer.reader, COMMIT, forge.environment);
 
     // retry the publication, publish the version again, and publish the next one under a tag
     const created = {
@@ -60,13 +34,7 @@ test("publish pushed builds as releases, replaying retried requests, refusing ve
     };
     const next = await owner.release.create(created);
     expect([
-        [
-            answer.release.version,
-            answer.release.commit,
-            answer.release.manifest,
-            answer.release.distribution,
-            answer.release.metadata,
-        ],
+        [answer.release.version, answer.release.commit, answer.release.manifest],
         (await owner.release.create(created)).id,
         await refusal(
             owner.release.create({
@@ -79,7 +47,7 @@ test("publish pushed builds as releases, replaying retried requests, refusing ve
             entry.version,
         ]),
     ]).toEqual([
-        ["2026.9.0", COMMIT, answer.manifest, archive.distribution, archive.metadata],
+        ["2026.9.0", COMMIT, answer.manifest],
         next.id,
         ["CONFLICT", "VERSION_PUBLISHED", "package version was already published"],
         [
@@ -125,11 +93,7 @@ test("publish pushed builds as releases, replaying retried requests, refusing ve
         manifest: await forge.push((await prereleaseBuild()).reader),
         tag: "dev",
     });
-    expect([prerelease.version, prerelease.commit, prerelease.metadata.gitHead]).toEqual([
-        "2026.9.2-dev.1",
-        null,
-        undefined,
-    ]);
+    expect([prerelease.version, prerelease.commit]).toEqual(["2026.9.2-dev.1", null]);
 });
 
 test("resolve a published release by version and by the tag pointing at it, and open its build through the releases", async () => {
@@ -296,7 +260,7 @@ test("administer releases and distribution tags of a published package as its ac
     ]);
 });
 
-test("enforce unique package names within an account and resolve global names to tagged and exact releases", async () => {
+test("refuse a package name its account took before", async () => {
     // publish a package and claim its name again under another identity
     const forge = await TestForge.open();
     await forge.publish((await fixtureBuild("answer")).reader);
@@ -310,26 +274,7 @@ test("enforce unique package names within an account and resolve global names to
             visibility: "public",
         }),
     );
-
-    // resolve the latest tag, an exact version, a missing tag and a missing package
-    const version = async (path: string) => {
-        const read = await npm(forge, path, forge.owner);
-
-        return Array.isArray(read) ? read : DOCUMENT.parse(read).version;
-    };
-    expect([
-        taken,
-        await version("/@example/answer/latest"),
-        await version("/@example/answer/2026.9.0"),
-        await version("/@example/answer/next"),
-        await version("/@other/answer"),
-    ]).toEqual([
-        ["CONFLICT", "NAME_TAKEN", "name is taken"],
-        "2026.9.0",
-        "2026.9.0",
-        [404, { error: "package version or tag not found", code: "NOT_FOUND" }],
-        [404, { error: "package not found", code: "NOT_FOUND" }],
-    ]);
+    expect(taken).toEqual(["CONFLICT", "NAME_TAKEN", "name is taken"]);
 });
 
 test("resolve a package by its global name and its release by version or tag, hiding private packages from strangers", async () => {
@@ -405,39 +350,41 @@ test("deprecate releases, and yank them from new installs while exact pins still
             })
         ).yankedAt !== null;
 
-    // deprecate the first version for npm to report and withdraw the deprecation of the second
-    const read = async (path: string) =>
-        DOCUMENT.parse(await npm(forge, `/@example/answer${path}`, forge.owner));
+    // deprecate the first version and withdraw the deprecation of the second
+    const resolve = (selected: string) =>
+        owner.release.resolve({
+            spaceId: forge.space,
+            parentId: answer.packageId,
+            release: selected,
+        });
     const deprecated = await deprecate("answer@2026.9.0", "use 2026.9.1");
     await deprecate("answer@2026.9.1", "broken");
     await deprecate("answer@2026.9.1", null);
     expect([
         deprecated.deprecation,
-        (await read("/2026.9.0")).deprecated,
-        (await read("/latest")).deprecated,
-    ]).toEqual(["use 2026.9.1", "use 2026.9.1", undefined]);
+        (await resolve("2026.9.0")).deprecation,
+        (await resolve(LATEST_TAG)).deprecation,
+    ]).toEqual(["use 2026.9.1", "use 2026.9.1", null]);
 
-    // yank the dependency and the newest version, moving latest back and leaving the archives for exact pins
+    // yank the dependency and the newest version, which takes latest off both
     expect([
         await yank("answer@2026.9.0", true),
         await yank("answer@2026.9.1", true),
         await yank("answer@2026.9.1", true),
         await tags(),
-        await npm(forge, "/@example/answer/latest", forge.owner),
-        await status(forge.fetch("/npm/@example/answer/-/answer-2026.9.0.tgz", {}, forge.owner)),
+        await refusal(resolve(LATEST_TAG)),
     ]).toEqual([
         true,
         true,
         true,
         ["greeting latest 2026.9.0"],
-        [404, { error: "package has no releases to install", code: "NOT_FOUND" }],
-        200,
+        ["NOT_FOUND", "RELEASE_NOT_FOUND", `${answer.packageId} has no release latest`],
     ]);
 
     // restore the first version, its tags left where they moved, and refuse taking a yanked version again
     expect([
         await yank("answer@2026.9.0", false),
-        (await read("/2026.9.0")).version,
+        (await resolve("2026.9.0")).version,
         await tags(),
         await refusal(
             owner.release.create({
@@ -463,7 +410,6 @@ test("let anyone read public and unlisted packages, list only public ones, and s
     const owner = forge.client(forge.owner);
     const reads = async (user?: TestPerson) => {
         const client = forge.client(user);
-        const document = await npm(forge, "/@example/greeting", user);
 
         return [
             (
@@ -475,16 +421,15 @@ test("let anyone read public and unlisted packages, list only public ones, and s
                 .map((entry) => entry.name)
                 .toSorted(),
             await code(client.package.get({ spaceId: forge.space, id: greeting.packageId })),
-            Array.isArray(document) ? FAILURE.parse(document[1]).code : "accepted",
             (await client.release.list({ spaceId: forge.space })).items.length,
         ];
     };
 
     // let strangers and anonymous callers read both, listing only the public one
     expect([await reads(forge.owner), await reads(forge.stranger()), await reads()]).toEqual([
-        [["answer", "greeting"], "accepted", "accepted", 2],
-        [["answer"], "accepted", "accepted", 2],
-        [["answer"], "accepted", "accepted", 2],
+        [["answer", "greeting"], "accepted", 2],
+        [["answer"], "accepted", 2],
+        [["answer"], "accepted", 2],
     ]);
 
     // forbid readers outside the account changing the package, and limit it to the account once private
@@ -518,8 +463,8 @@ test("let anyone read public and unlisted packages, list only public ones, and s
     ]).toEqual([
         "FORBIDDEN",
         "private",
-        [["answer", "greeting"], "accepted", "accepted", 2],
-        [["answer"], "NOT_FOUND", "NOT_FOUND", 1],
+        [["answer", "greeting"], "accepted", 2],
+        [["answer"], "NOT_FOUND", 1],
     ]);
 });
 

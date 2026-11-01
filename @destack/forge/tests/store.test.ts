@@ -19,6 +19,9 @@ import { testHost } from "@destack/test/host";
 /** The email a person without access to the account signs in with. */
 const STRANGER_EMAIL = "stranger@example.test";
 
+/** How long an unreferenced blob stays before deletion: a blob store's hour of grace. */
+const GRACE_MILLISECONDS = 60 * 60_000;
+
 /** The npm release whose unit the closure package depends on. */
 const TINY = { name: "tiny", version: "1.0.0", integrity: "sha512-dGlueQ==" };
 
@@ -152,15 +155,12 @@ test("authorize a manifest push from the forge's replica of the account, followi
     });
     await forge.simulation.idle();
 
-    // refuse the stranger's first file upload, whichever file the concurrent uploads send first
+    // refuse the stranger's push at its first request, asking for the missing files
     const uploads = `${forgePackage.adapters.builds.path}/${PackageManifest.package(build.manifest).id}/files`;
-    const digests = (await build.reader.distributed()).map((file) => file.digest);
-    const failed = digests.find(
-        (each) => refused[2] === `cannot upload ${uploads}/${each}: HTTP 404`,
-    );
-    expect([refused, failed === undefined]).toEqual([
-        ["BAD_GATEWAY", "UPLOAD_FAILED", `cannot upload ${uploads}/${failed}: HTTP 404`],
-        false,
+    expect(refused).toEqual([
+        "BAD_GATEWAY",
+        "PROBE_FAILED",
+        `cannot probe ${uploads}/missing: HTTP 404`,
     ]);
     expect({
         accepted: await push(),
@@ -171,7 +171,7 @@ test("authorize a manifest push from the forge's replica of the account, followi
     });
 });
 
-test("collect a pushed but unreleased build once its lease ends, leaving released builds and archives", async () => {
+test("collect a pushed but unreleased build a grace after its lease ends, leaving released builds", async () => {
     // publish one build and push the next without releasing it
     const forge = await TestForge.open();
     const published = await forge.publish((await fixtureBuild("answer")).reader, "public");
@@ -179,24 +179,25 @@ test("collect a pushed but unreleased build once its lease ends, leaving release
     const store = await forge.store();
     const stored = async () => ({
         released: await store.contains(published.manifest),
-        archive: await store.has(published.release.distribution.digest),
         unreleased: await store.contains(unreleased),
     });
 
-    // retain the unreleased build within its lease, and collect it once the lease ends
+    // retain the unreleased build within its lease, and free it once the lease ends
     const { clock } = forge.environment;
     await forge.simulation.jump(clock.now());
     const within = await stored();
     await forge.simulation.jump(clock.now() + UNRELEASED_MILLISECONDS + 1000);
+
+    // delete the manifest a grace after the collection found it free, then its files a grace later
+    await forge.simulation.jump(clock.now() + GRACE_MILLISECONDS);
+    await forge.simulation.jump(clock.now() + GRACE_MILLISECONDS);
     expect({ within, after: await stored() }).toEqual({
         within: {
             released: true,
-            archive: true,
             unreleased: true,
         },
         after: {
             released: true,
-            archive: true,
             unreleased: false,
         },
     });

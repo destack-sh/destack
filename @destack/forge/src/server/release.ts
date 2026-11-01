@@ -1,30 +1,34 @@
 import { type BuildStore } from "@destack/build/store";
+import { PackageManifest } from "@destack/package/manifest";
 import { type MethodContextOf, type NextOf, type ResultOf } from "@destack/object";
 import { Vocabulary } from "@destack/resource";
 import { present, Version, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { Forge } from "./forge.ts";
 import { ForgeError } from "../error/index.ts";
-import { LATEST_TAG, packageObject, release, tag, TagName, unit } from "../object/index.ts";
-import type { Pack } from "../pack/index.ts";
-import { PackageArchive } from "../pack/index.ts";
+import {
+    LATEST_TAG,
+    type Candidate,
+    packageObject,
+    release,
+    tag,
+    TagName,
+    unit,
+} from "../object/index.ts";
 
-/** The path a release's npm archive is attached to its build at. */
-const ARCHIVE_REFERRER = "npm";
-
-/** What releases pack with: the store of pushed builds and the forge's space. */
+/** What releases check builds against: the store of pushed builds. */
 export interface ReleaseOptions {
-    /** The store of pushed builds and npm archives. */
+    /** The store of pushed builds. */
     readonly store: BuildStore;
 }
 
-/** The release methods' handlers: packing, publishing, resolving, deprecating and yanking. */
+/** The release methods' handlers: checking, publishing, resolving, deprecating and yanking. */
 export const ReleaseMethod = {
-    /** Pack a pushed build under the package's global name, before the transaction. */
-    async pack(
-        context: MethodContextOf<typeof release, "create", Pack | undefined>,
+    /** Check a pushed build of the package under its global name, before the transaction. */
+    async check(
+        context: MethodContextOf<typeof release, "create", Candidate | undefined>,
         options: ReleaseOptions,
-    ): Promise<Pack> {
+    ): Promise<Candidate> {
         // refuse a tag a range reads, and lease the build while its request may still retry
         const store = options.store;
         TagName.require(context.input.tag ?? LATEST_TAG);
@@ -49,29 +53,19 @@ export const ReleaseMethod = {
             );
         }
 
-        // pack the build, refusing an archive of another manifest
-        const archive = await PackageArchive.pack(contents, commit, context.environment);
-        if (archive.manifest !== manifest) {
-            throw ForgeError.of("MANIFEST_MISMATCH", "archived manifest differs from the build");
-        }
-
         // require the build to be the package's, under the package's global name
-        if (archive.packageId !== parentId) {
+        const { id, name, version } = PackageManifest.package(contents.manifest);
+        if (id !== parentId) {
             throw ForgeError.of("FOREIGN_BUILD", "the build belongs to another package");
         }
         const named = await Forge.package(
-            archive.metadata.name,
+            name,
             context,
             schema.identifier("space").parse(context.scope),
         );
         if (named.id !== parentId) {
             throw ForgeError.of("NPM_NAME_TAKEN", "the npm name belongs to another package");
         }
-
-        // store the archive and attach it to the build, retained while a release refers to the build
-        await store.lease(archive.file.digest, until);
-        await store.blobs.put(archive.file.digest, async () => archive.open());
-        await store.attach(manifest, { ...archive.file, path: ARCHIVE_REFERRER });
 
         // lease the npm units it depends on, which its readers read with it
         const units = await store.units(manifest, parentId);
@@ -83,10 +77,7 @@ export const ReleaseMethod = {
         return {
             manifest,
             ...(commit === undefined ? {} : { commit }),
-            version: archive.metadata.version,
-            distribution: archive.distribution,
-            metadata: archive.metadata,
-            dependencies: archive.dependencies,
+            version,
             units,
             declarations: await contents.declarations(),
         };
@@ -103,7 +94,7 @@ export const ReleaseMethod = {
         await ReleaseMethod.advance(context, packed);
 
         // insert the release
-        const { manifest, commit, version, distribution, metadata } = packed;
+        const { manifest, commit, version } = packed;
         const created = await next(
             context.with({
                 input: {
@@ -111,8 +102,6 @@ export const ReleaseMethod = {
                     manifest,
                     ...(commit === undefined ? {} : { commit }),
                     version,
-                    distribution,
-                    metadata,
                 },
             }),
         );
@@ -207,7 +196,7 @@ export const ReleaseMethod = {
     /** Refuse a version the package took before, and an older one. */
     async requireNextVersion(
         context: MethodContextOf<typeof release, "create">,
-        packed: Pack,
+        packed: Candidate,
     ): Promise<void> {
         // refuse a version the package took before, yanked or not
         const [taken] = await context.read(release).findMany({
@@ -234,7 +223,10 @@ export const ReleaseMethod = {
     },
 
     /** Plan the package's vocabulary through a release's declarations and advance it. */
-    async advance(context: MethodContextOf<typeof release, "create">, packed: Pack): Promise<void> {
+    async advance(
+        context: MethodContextOf<typeof release, "create">,
+        packed: Candidate,
+    ): Promise<void> {
         // read the package's vocabulary
         const parentId = context.input.parentId;
         const owner = await context.read(packageObject).findFirst({ where: { id: parentId } });
@@ -264,7 +256,7 @@ export function implementRelease(options: ReleaseOptions): typeof release {
     return release.implement({
         methods: {
             create: {
-                prepare: (context) => ReleaseMethod.pack(context, options),
+                prepare: (context) => ReleaseMethod.check(context, options),
                 handle: (context, next) => ReleaseMethod.publish(context, next),
             },
             resolve: (call) => ReleaseMethod.resolve(call),
