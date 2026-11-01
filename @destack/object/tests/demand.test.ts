@@ -7,7 +7,7 @@ import { testCallKey } from "@destack/object/test";
 import { Identifier, schema } from "@destack/schema";
 import { Scope, type Subscription } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineObject, defineShape, field, Follow, followKey } from "../src/index.ts";
+import { defineObject, defineShape, field, followKey } from "../src/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { serversOf, subjectContext, testEvents } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -46,7 +46,7 @@ const titleShape = defineShape({
 });
 
 /** The follow of cards by title, each title followed ten minutes after its last acquisition. */
-const byTitle = Follow.of(titleShape, { onDemand: { ttl: { minutes: TTL_MINUTES } } });
+const byTitle = titleShape.onDemand({ minutes: TTL_MINUTES });
 
 /** A machine of a space, whose row stands for it as a caller. */
 const machine = defineObject({
@@ -67,7 +67,7 @@ const machineShape = defineShape({
 });
 
 /** The follow of a calling machine's row, acquired as it enters. */
-const byMachine = Follow.of(machineShape, { onDemand: { ttl: { minutes: TTL_MINUTES } } });
+const byMachine = machineShape.onDemand({ minutes: TTL_MINUTES });
 
 /** The follower's database: its tables, the replicated cards and the callers' rows. */
 const followerDatabase = defineDatabase({

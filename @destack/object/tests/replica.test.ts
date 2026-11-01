@@ -34,7 +34,6 @@ import {
     defineObject,
     defineShape,
     field,
-    Follow,
     grant,
     QUERIES_PUBLICATION,
     Shape,
@@ -608,7 +607,15 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
             name: "main",
             ...tablesOf({
                 packages: [objectPackage, { objects: { note }, tables: [] }],
-                follows: [Follow.chain([realm])],
+                // replicate the realms, which their home serves
+                follows: [
+                    defineShape({
+                        name: "realms",
+                        parameters: schema.object({}),
+                        objects: [realm],
+                        queries: () => [realm.query({})],
+                    }).at(),
+                ],
                 tables: [],
             }),
         }),

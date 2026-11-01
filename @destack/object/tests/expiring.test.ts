@@ -10,7 +10,7 @@ import { eq, defineDatabase } from "@destack/db";
 import { schema, Uuid } from "@destack/schema";
 import { Replica, Scope, RequestId } from "@destack/sync";
 
-import { defineObject, definePackage, defineShape, field, Follow } from "../src/index.ts";
+import { defineObject, definePackage, defineShape, field } from "../src/index.ts";
 import { ExpiringController } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
@@ -141,15 +141,12 @@ test("leave the expired rows a database replicates to the deletes their home sen
     const world = testSimulation().environment("test");
 
     // follow the alerts, replicating their table
-    const follow = Follow.of(
-        defineShape({
-            name: "alerts",
-            parameters: schema.object({}),
-            objects: [alert],
-            queries: () => [alert.query()],
-        }),
-        { onDemand: { ttl: { minutes: 10 } } },
-    );
+    const follow = defineShape({
+        name: "alerts",
+        parameters: schema.object({}),
+        objects: [alert],
+        queries: () => [alert.query()],
+    }).onDemand({ minutes: 10 });
     const replicated = defineDatabase({
         name: "main",
         ...tablesOf({ packages: [objectPackage], follows: [follow], tables: [] }),

@@ -7,7 +7,7 @@ import { RequestId, Scope, type Publisher } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { present, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineShape, Follow } from "../src/index.ts";
+import { defineShape } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
@@ -35,10 +35,10 @@ const iconed = defineShape({
 });
 
 /** Follow the universe's pages titled Plan. */
-const plans = Follow.of(titled, { keys: [{ key: { scope: Scope.universe.id, title: "Plan" } }] });
+const plans = titled.at({ key: { scope: Scope.universe.id, title: "Plan" } });
 
 /** Follow the pages of each icon the space's pages show. */
-const icons = page.follow(iconed, {
+const icons = iconed.per(page, {
     key: async (row) =>
         row.icon === null ? undefined : { key: { scope: row.scope, icon: row.icon } },
 });

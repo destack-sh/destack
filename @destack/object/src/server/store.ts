@@ -91,7 +91,7 @@ import { PACKAGE_DECLARATION, PackageDescription } from "../declare/description.
 import { PackageHandle } from "../declare/package.ts";
 import { type ProcedureRouter } from "../procedure/index.ts";
 import * as sync from "@destack/sync";
-import { Follow, type FollowKey, type RowFollow, Shape } from "../replica/shape.ts";
+import { type Follow, type FollowKey, type RowFollow, Shape } from "../replica/shape.ts";
 import { followKey } from "../replica/key.ts";
 import {
     WriterId,
@@ -580,7 +580,7 @@ export class ObjectStore {
 
         // add the referenced and followed types and the follows
         const options = this.#following(ObjectStore.#referencing(composed));
-        const shapes = [...new Set((composed.follows ?? []).flatMap((each) => Follow.types(each)))];
+        const shapes = [...new Set((composed.follows ?? []).flatMap((each) => each.shape.objects))];
 
         // require each object type once apart from the shared procedures, and the stores its storage needs
         this.#declared = options.objects;
@@ -733,7 +733,7 @@ export class ObjectStore {
             ...given,
             policies: ObjectStore.#policies(
                 given,
-                follows.flatMap((each) => Follow.types(each)),
+                follows.flatMap((each) => each.shape.objects),
             ),
             subscriber: {
                 ...(subscriber?.uplink === undefined ? {} : { uplink: subscriber.uplink }),
@@ -741,7 +741,7 @@ export class ObjectStore {
                     ...(subscriber?.watches ?? []),
                     ...ObjectStore.#chainedTables(given, types),
                     // relist when followed rows change, which the host's chain reads
-                    ...follows.flatMap((each) => Follow.types(each).map((type) => type.table)),
+                    ...follows.flatMap((each) => each.shape.objects.map((type) => type.table)),
                     ...follows.flatMap((each) => ("from" in each ? [each.from.table] : [])),
                     // relist when the store acquires or evicts an on-demand key
                     ...(follows.some((each) => "onDemand" in each) ? [followKey] : []),
@@ -3591,7 +3591,7 @@ export class ObjectStore {
         const objects = implementations.flatMap((each) => each.objects);
         const followed = implementations
             .flatMap((each) => ObjectStore.#follows(each.definition))
-            .flatMap((each) => Follow.types(each));
+            .flatMap((each) => each.shape.objects);
         const known = ObjectType.known(objects, [
             ...policies,
             ...ObjectType.referenced(objects),

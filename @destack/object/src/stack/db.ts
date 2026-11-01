@@ -17,7 +17,7 @@ import type { DatabaseDefinition, Table } from "@destack/db";
 import { accessTables } from "@destack/access";
 import { settlement } from "../method/settlement.ts";
 import { followKey } from "../replica/key.ts";
-import { Follow } from "../replica/shape.ts";
+import type { Follow } from "../replica/shape.ts";
 import type { PackageHandle } from "../declare/package.ts";
 import { ObjectType } from "../object/object.ts";
 
@@ -80,7 +80,7 @@ export function tablesOf(store: {
 }): Pick<DatabaseDefinition, "tables" | "replicated"> {
     // replicate the followed shapes' types, whose rows live at their home even where served here
     const replicated = new Set(
-        store.follows.flatMap((follow) => Follow.types(follow)).map((type) => type.table),
+        store.follows.flatMap((follow) => follow.shape.objects).map((type) => type.table),
     );
 
     // take the rest: the served packages' durable and event types, their tables and the host's

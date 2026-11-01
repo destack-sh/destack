@@ -332,9 +332,9 @@ const usable = defineShape({
     objects: [connection],
     queries: () => [connection.query({ permission: "use" })], // only the connections the follower may use
 });
-const directory = Follow.of(directoryShape, { keys: [{ key: { scope: Scope.universe.id } }] });
-const activities = relationship.follow(activityShape, { key: keyOf });
-const byTitle = Follow.of(cards, { onDemand: { ttl: { minutes: 10 } } });
+const directory = directoryShape.at({ key: { scope: Scope.universe.id } });
+const activities = activityShape.per(relationship, { key: keyOf });
+const byTitle = cards.onDemand({ minutes: 10 });
 
 await store.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal); // replicated once this returns
 ```

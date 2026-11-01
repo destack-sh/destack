@@ -4,7 +4,7 @@ import { testCallKey } from "../test/context.ts";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessRelationship, none, principal, relation, through } from "@destack/access";
-import { call, defineObject, defineShape, field, Follow, relationship } from "../index.ts";
+import { call, defineObject, defineShape, field, relationship } from "../index.ts";
 import { testEvents, serversOf } from "../test/index.ts";
 import { TestAccess } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
@@ -69,37 +69,28 @@ const badge = defineObject({
 });
 
 /** The people and their profiles a space reads. */
-const PEOPLE = Follow.of(
-    defineShape({
-        name: "people",
-        parameters: schema.object({}),
-        objects: [person, profile],
-        queries: () => [person.query({}), profile.query({ scopes: "every" })],
-    }),
-    { keys: [{ key: { scope: Scope.universe.id } }] },
-);
+const PEOPLE = defineShape({
+    name: "people",
+    parameters: schema.object({}),
+    objects: [person, profile],
+    queries: () => [person.query({}), profile.query({ scopes: "every" })],
+}).at({ key: { scope: Scope.universe.id } });
 
 /** The people and the badges a space is shown. */
-const SHOWN = Follow.of(
-    defineShape({
-        name: "shown",
-        parameters: schema.object({}),
-        objects: [person, badge],
-        queries: () => [person.query({}), badge.query({ scopes: "every" })],
-    }),
-    { keys: [{ key: { scope: Scope.universe.id } }] },
-);
+const SHOWN = defineShape({
+    name: "shown",
+    parameters: schema.object({}),
+    objects: [person, badge],
+    queries: () => [person.query({}), badge.query({ scopes: "every" })],
+}).at({ key: { scope: Scope.universe.id } });
 
 /** The people a space reads. */
-const MEMBERS = Follow.of(
-    defineShape({
-        name: "members",
-        parameters: schema.object({}),
-        objects: [person],
-        queries: () => [person.query({})],
-    }),
-    { keys: [{ key: { scope: Scope.universe.id } }] },
-);
+const MEMBERS = defineShape({
+    name: "members",
+    parameters: schema.object({}),
+    objects: [person],
+    queries: () => [person.query({})],
+}).at({ key: { scope: Scope.universe.id } });
 
 /** Serve people and profiles over a database, following them at the universe with an uplink. */
 async function serve(world: Environment, database: DatabaseConnection, uplink?: Uplink) {

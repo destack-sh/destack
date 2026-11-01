@@ -42,7 +42,7 @@ import { CallError } from "@destack/object";
 import { RequestId, Scope, Feed, Replica, type Page, type Subscription } from "@destack/sync";
 import { until, yieldToEventLoop } from "@destack/environment";
 import * as sync from "@destack/sync";
-import { defineObject, defineShape, field, Follow, Shape } from "../src/index.ts";
+import { defineObject, defineShape, field, Shape } from "../src/index.ts";
 import { ObjectSink, ObjectStore } from "../src/server/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { spacePrincipal } from "./fixture/space.ts";
@@ -176,7 +176,7 @@ const SPACES = defineShape({
 });
 
 /** The follow of the accounts at the universe. */
-const ACCOUNTS_FOLLOW = Follow.of(ACCOUNTS, { keys: [{ key: { scope: Scope.universe.id } }] });
+const ACCOUNTS_FOLLOW = ACCOUNTS.at({ key: { scope: Scope.universe.id } });
 
 /** The spaces and their documents in every account. */
 const DOCUMENTS = defineShape({
@@ -195,10 +195,10 @@ const ACTIVITY = defineShape({
 });
 
 /** The follow of the spaces at the universe. */
-const SPACES_FOLLOW = Follow.of(SPACES, { keys: [{ key: { scope: Scope.universe.id } }] });
+const SPACES_FOLLOW = SPACES.at({ key: { scope: Scope.universe.id } });
 
 /** The follow of the spaces and their documents at the universe. */
-const DOCUMENTS_FOLLOW = Follow.of(DOCUMENTS, { keys: [{ key: { scope: Scope.universe.id } }] });
+const DOCUMENTS_FOLLOW = DOCUMENTS.at({ key: { scope: Scope.universe.id } });
 
 test("decide calls over a relayed replica of access as the holder does, through the account's members and restricted credentials", async () => {
     // run in a world of its own
@@ -382,7 +382,7 @@ test("record the reads of a replica listing, so only a change of a followed sour
         principal: spacePrincipal(spaceId),
         servers: serversOf([document], {
             follows: [
-                document.follow(annotations, {
+                annotations.per(document, {
                     where: { title: "Follow" },
                     key: async () => ({ key: { scope: otherSpaceId } }),
                 }),
@@ -468,7 +468,7 @@ test("read a row follow's keys again only for the source rows a change touched, 
         principal: spacePrincipal(spaceId),
         servers: serversOf([document], {
             follows: [
-                document.follow(annotations, {
+                annotations.per(document, {
                     key: async (row, view) => {
                         // read the row's peers too, so a peer's change touches the row's key
                         keyReads += 1;
@@ -593,7 +593,7 @@ test("serve a store whose follows ask for nothing before its replica controller 
         environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([document], {
-            follows: [document.follow(annotations, { key: async () => undefined })],
+            follows: [annotations.per(document, { key: async () => undefined })],
         }),
         database: machine.database,
         uplink: {
@@ -671,7 +671,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
         principal: spacePrincipal(spaceId),
         servers: serversOf([document], {
             follows: [
-                document.follow(documentShape, {
+                documentShape.per(document, {
                     key: async (row) =>
                         row.title === "Notes" ? { key: { scope: otherSpaceId } } : undefined,
                 }),
@@ -745,7 +745,7 @@ test("finish a wait through a store's replica of a scope once it stops following
     const world = testSimulation().environment("test");
 
     // follow the other space's activity at a fixed key
-    const activity = Follow.of(ACTIVITY, { keys: [{ key: { scope: otherSpaceId } }] });
+    const activity = ACTIVITY.at({ key: { scope: otherSpaceId } });
 
     // store an account and its two spaces at home, and a document of the first space on a machine
     const home = await TestDatabase.create(
@@ -807,7 +807,7 @@ test("finish a wait through a store's replica of a scope once it stops following
         servers: serversOf([document], {
             follows: [
                 activity,
-                document.follow(documentShape, {
+                documentShape.per(document, {
                     key: async (row) =>
                         row.title === "Notes" ? { key: { scope: otherSpaceId } } : undefined,
                 }),
@@ -1204,10 +1204,12 @@ test("replicate the chains of an installation's two served spaces in one replica
         space.reference(Scope.universe.id, spaceId),
         {
             chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
+            // serve the documents in both spaces, the installation's partitions
+            partitions: [spaceId, otherSpaceId],
             environment: world,
             principal: spacePrincipal(spaceId),
             servers: serversOf([document], {
-                follows: [Follow.of(SPACES, { keys: [{ key: { scope: Scope.universe.id } }] })],
+                follows: [SPACES.at({ key: { scope: Scope.universe.id } })],
             }),
             policies: [space],
             database: installed.database,
@@ -1522,7 +1524,7 @@ test("request no via chain for the rows a subject's follow brought, which their 
     const world = testSimulation().environment("test");
 
     // store a space replicated into an installation's database by a follow on alice's behalf
-    const follow = Follow.of(ACTIVITY, { onDemand: { ttl: { minutes: 10 } } });
+    const follow = ACTIVITY.onDemand({ minutes: 10 });
     const declared = defineDatabase({
         name: "installed",
         ...tablesOf({
@@ -1619,12 +1621,10 @@ test("wait before serving for the store's chain replicas, never for its followed
 
     // follow the documents at the universe for the store, the spaces there and a space's activity for alice, and accounts on demand
     const alice = principal.user.reference(Scope.universe.id, Identifier.create("user", world));
-    const declaredFollow = Follow.of(DOCUMENTS, { keys: [{ key: { scope: Scope.universe.id } }] });
-    const behalf = Follow.of(SPACES, {
-        keys: [{ key: { scope: Scope.universe.id }, subject: alice }],
-    });
-    const elsewhere = Follow.of(ACTIVITY, { keys: [{ key: { scope: spaceId }, subject: alice }] });
-    const acquired = Follow.of(ACCOUNTS, { onDemand: { ttl: { minutes: 10 } } });
+    const declaredFollow = DOCUMENTS.at({ key: { scope: Scope.universe.id } });
+    const behalf = SPACES.at({ key: { scope: Scope.universe.id }, subject: alice });
+    const elsewhere = ACTIVITY.at({ key: { scope: spaceId }, subject: alice });
+    const acquired = ACCOUNTS.onDemand({ minutes: 10 });
     const follows = [declaredFollow, behalf, elsewhere, acquired];
     const installed = await TestDatabase.create(
         defineDatabase({
@@ -1830,6 +1830,8 @@ test("replicate a scoped table an installation's database declares beside its fo
     const following = await testServerContext(comment.package, followingSpaceId, world);
     const replicating: ObjectStore = new ObjectStore({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
+        // serve the comments in both spaces, the installation's partitions
+        partitions: [followingSpaceId, spaceId, otherSpaceId],
         environment: world,
         blobs: new MemoryBlobStorage(world.crypto),
         server: {
@@ -1839,7 +1841,7 @@ test("replicate a scoped table an installation's database declares beside its fo
             publisherAt: () => uplink,
         },
         servers: serversOf([comment], {
-            follows: [Follow.of(DOCUMENTS, { keys: [{ key: { scope: Scope.universe.id } }] })],
+            follows: [DOCUMENTS.at({ key: { scope: Scope.universe.id } })],
         }),
         policies: [space, document],
         database: installed.database,
@@ -1969,7 +1971,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
             environment: world,
             principal: spacePrincipal(followingSpaceId),
             servers: serversOf([annotation], {
-                follows: [Follow.of(ACCOUNTS, { keys: [{ key: { scope: Scope.universe.id } }] })],
+                follows: [ACCOUNTS.at({ key: { scope: Scope.universe.id } })],
             }),
             policies: [account],
             database: installed.database,

@@ -18,7 +18,6 @@ import {
     changeRequest,
     defineObject,
     field,
-    Follow,
     grantShape,
     PackageHandle,
 } from "../../src/index.ts";
@@ -139,8 +138,8 @@ export async function openApprovals(): Promise<TestApproval> {
     // follow the grants people give the space and its agent from the universe, as the space
     const spaceId = Identifier.create("space", universal.environment);
     const scope = principal.space.reference(Scope.universe.id, spaceId);
-    const grants = Follow.of(grantShape, {
-        keys: [scope, agentOf(spaceId)].map((delegate) => ({
+    const grants = grantShape.at(
+        ...[scope, agentOf(spaceId)].map((delegate) => ({
             key: {
                 scope: Scope.universe.id,
                 delegatePackageId: delegate.packageId,
@@ -149,7 +148,7 @@ export async function openApprovals(): Promise<TestApproval> {
                 delegateId: delegate.id,
             },
         })),
-    });
+    );
     const publisher = Uplink.of(() => universal.as(scope).client(objectPackage).store);
 
     // serve the space's notes beside its access and change requests in the space alice owns

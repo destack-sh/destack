@@ -8,7 +8,7 @@ import { TestAccess } from "@destack/access/test";
 import { type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
 import { RequestId, Replica, Scope } from "@destack/sync";
 import { present, schema } from "@destack/schema";
-import { defineObject, defineShape, field, Follow, Shape } from "../index.ts";
+import { defineObject, defineShape, field, Shape } from "../index.ts";
 import { serversOf, testEvents } from "../test/index.ts";
 import { ObjectStore } from "./index.ts";
 import { tablesOf } from "../stack/db.ts";
@@ -86,15 +86,12 @@ async function delegated(
 }
 
 /** The people the space reads, followed at the universe. */
-const PEOPLE = Follow.of(
-    defineShape({
-        name: "people",
-        parameters: schema.object({}),
-        objects: [person],
-        queries: () => [person.query({})],
-    }),
-    { keys: [{ key: { scope: Scope.universe.id } }] },
-);
+const PEOPLE = defineShape({
+    name: "people",
+    parameters: schema.object({}),
+    objects: [person],
+    queries: () => [person.query({})],
+}).at({ key: { scope: Scope.universe.id } });
 
 /** Serve ada at the universe, and a space store replicating her without serving people. */
 async function serveHome(world: Environment) {

@@ -45,6 +45,26 @@ export class Shape<Parameters extends object = object> {
         return this.#definition.queries(parameters);
     }
 
+    /** Follow the shape at fixed keys. */
+    at(
+        ...keys: readonly FollowKey<Parameters>[]
+    ): Extract<Follow<Parameters>, { readonly keys: unknown }> {
+        return { shape: this, keys };
+    }
+
+    /** Follow the shape at one key per row of a follower's object type. */
+    per<From extends ObjectType>(
+        from: From,
+        options: Omit<RowFollow<Parameters, From>, "shape" | "from">,
+    ): RowFollow<Parameters, From> {
+        return { ...options, shape: this, from };
+    }
+
+    /** Follow the shape at the keys a store acquires, each for a time after its last use. */
+    onDemand(ttl: Duration): Extract<Follow<Parameters>, { readonly onDemand: unknown }> {
+        return { shape: this, onDemand: { ttl } };
+    }
+
     /** Build the name of the replica following the shapes' keys at a scope for a principal. */
     static replicaName(scope: string, subject?: Subject): string {
         return [
@@ -166,7 +186,7 @@ export interface FollowKey<Parameters extends object = object> {
     readonly subject?: Subject;
 }
 
-/** A shape a store reads replicated: at fixed keys, per local row, on demand, or down its chain. */
+/** A shape a store reads replicated: at fixed keys, per local row, or on demand. */
 export type Follow<Parameters extends object = object, From extends ObjectType = ObjectType> =
     | {
           /** The followed shape. */
@@ -193,10 +213,6 @@ export type Follow<Parameters extends object = object, From extends ObjectType =
           readonly shape: Shape<Parameters>;
           /** How long a key the store acquires stays followed after its last acquisition. */
           readonly onDemand: { readonly ttl: Duration };
-      }
-    | {
-          /** The types the scopes above the store hand down to it, down its chain. */
-          readonly chain: readonly ObjectType[];
       };
 
 /** A follow of a shape at one key per row of the follower, of one object type. */
@@ -204,35 +220,6 @@ export type RowFollow<Parameters extends object, From extends ObjectType> = Extr
     Follow<Parameters, From>,
     { readonly from: unknown }
 >;
-
-/** Follows of shapes. */
-export const Follow = {
-    /** Follow the handed-down rows of some inherited types down the store's chain. */
-    chain(types: readonly ObjectType[]): Follow {
-        return { chain: types };
-    },
-
-    /** List the object types a follow replicates: its shape's, or its chain's. */
-    types(follow: Follow): readonly ObjectType[] {
-        return "chain" in follow ? follow.chain : follow.shape.objects;
-    },
-
-    /** Follow a shape at fixed keys or on demand. */
-    of<
-        Parameters extends object,
-        const At extends DistributiveOmit<
-            Exclude<Follow<Parameters>, { readonly from: unknown } | { readonly chain: unknown }>,
-            "shape"
-        >,
-    >(shape: Shape<Parameters>, at: At): NoInfer<At & { readonly shape: Shape<Parameters> }> {
-        return { ...at, shape };
-    },
-};
-
-/** Omit keys from each member of a union. */
-type DistributiveOmit<Union, Key extends PropertyKey> = Union extends unknown
-    ? Omit<Union, Key>
-    : never;
 
 /** Declare a shape: its name, the parameters of its key, and the object queries they write. */
 export function defineShape<Parameters extends object>(

@@ -10,7 +10,7 @@ import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { type ClientOptions, createClient } from "@destack/object/client";
 import { RequestId, Feed, Replica, Scope } from "@destack/sync";
-import { defineObject, defineShape, field, Follow } from "../src/index.ts";
+import { defineObject, defineShape, field } from "../src/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { Bookmark } from "../src/procedure/bookmark.ts";
@@ -350,7 +350,7 @@ const HOME = defineShape({
 });
 
 /** The follow of the people, their rooms and their preferences at the universe. */
-const HOME_FOLLOW = Follow.of(HOME, { keys: [{ key: { scope: Scope.universe.id } }] });
+const HOME_FOLLOW = HOME.at({ key: { scope: Scope.universe.id } });
 
 test("send a write of an enclosing scope's row to its home, predicted on the room's replica and rebased once the home's commit streams back through it", async () => {
     // run in a world of its own

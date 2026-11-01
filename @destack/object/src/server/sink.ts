@@ -292,13 +292,20 @@ export class ObjectSink {
                 // read the scope rows the database has
                 const rows = await view.read(scope.table).findMany();
 
-                // leave the rows a subject's follow brought, which their source decided for that subject
+                // leave the chain's scopes, and the partitions other stores home with every object inside them
+                const { partitions } = this.store;
                 const stored = rows
                     .map((row) => ({
                         id: schema.string().parse(row["id"]),
                         scope: schema.string().parse(row["scope"]),
                     }))
-                    .filter((row) => !chained.has(row.id));
+                    .filter(
+                        (row) =>
+                            !chained.has(row.id) &&
+                            (!scope.isPartition || partitions.includes(row.id)),
+                    );
+
+                // leave the rows a subject's follow brought, which their source decided for that subject
                 const brought = await this.#brought(scope.table, stored, view);
 
                 return stored.filter((row) => !brought.has(Key.name(scope.table, row)));
