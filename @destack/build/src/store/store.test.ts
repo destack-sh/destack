@@ -1,3 +1,4 @@
+import { Tarball, TarballEntry } from "@destack/package/archive";
 import { testSimulation } from "../test/world.ts";
 import type { Crypto } from "@destack/environment";
 import { expect, refusal, test } from "@destack/test";
@@ -29,6 +30,9 @@ const SOURCES = {
 
 /** How long a store leases what it stores for a root to retain: half an hour. */
 const LEASE_MILLISECONDS = 30 * 60_000;
+
+/** A week, as long as a use leases a build. */
+const WEEK_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
 /** How long a cache entry retains what it references past its last use: a week. */
 const CACHE_MILLISECONDS = 7 * 24 * 60 * 60_000;
@@ -238,7 +242,23 @@ async function openStore(
 
 /** List the digests of a store's blobs in order. */
 async function listing(store: BuildStore): Promise<string[]> {
-    return (await Array.fromAsync(store.blobs.storage.digests())).toSorted();
+    return (await Array.fromAsync(store.blobs.storage.packs())).toSorted();
+}
+
+/** Count the bytes of some stored builds' blobs, each blob once. */
+async function blobsSize(
+    store: BuildStore,
+    manifests: readonly (Digest | undefined)[],
+): Promise<number> {
+    const digests = await blobsOf(
+        store,
+        manifests.map((digest) => present(digest, "a build")),
+    );
+    const sizes = await Promise.all(
+        digests.map(async (digest) => (await store.blobs.bytes(Digest.parse(digest))).byteLength),
+    );
+
+    return sizes.reduce((total, size) => total + size, 0);
 }
 
 /** List the blobs of some stored builds: their manifests and every file they list. */
@@ -379,7 +399,7 @@ test("attach a code index to a build, retain it with the build, and collect it w
             bytes,
             environment.crypto,
         );
-        await store.receive(file.digest, bytes);
+        await store.receive([{ digest: file.digest, bytes }]);
         await store.attach(manifest, file);
 
         return { manifest, file };
@@ -711,34 +731,31 @@ test("push a stored build to a package target by its digest, uploading only the 
     const digest = await source.put(build);
     const uploads: string[] = [];
     const accepting = async (request: Request) => {
-        if (request.method === "PUT") {
-            uploads.push(new URL(request.url).pathname);
-        }
+        uploads.push(`${request.method} ${new URL(request.url).pathname}`);
 
         return target.fetch(request, MOUNT, PUSHING);
     };
 
-    // push the build, then push it again, which uploads its manifest alone
-    const client = new PackageClient(
-        "https://packages.test/packages/",
-        accepting,
-        environment.crypto,
-    );
+    // push the build, then push it again, which asks for missing files and uploads its manifest alone
+    const client = new PackageClient("https://packages.test/packages/", accepting, environment);
     await client.push(await source.contents(digest));
     const first = uploads.splice(0);
     await client.push(await source.contents(digest));
     const list = await build.distributed();
     expect({
         manifest: (await target.contents(digest)).manifest,
-        first: first.toSorted(),
+        stored: await target.missing(list.map((file) => file.digest)),
+        first,
         second: uploads,
     }).toEqual({
         manifest: build.manifest,
+        stored: [],
         first: [
-            ...new Set(list.map((file) => `/packages/files/${file.digest}`)),
-            `/packages/${digest}/manifest.json`,
-        ].toSorted(),
-        second: [`/packages/${digest}/manifest.json`],
+            "POST /packages/files/missing",
+            "POST /packages/files",
+            `PUT /packages/${digest}/manifest.json`,
+        ],
+        second: ["POST /packages/files/missing", `PUT /packages/${digest}/manifest.json`],
     });
 });
 
@@ -755,25 +772,39 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
     const receiving = empty.store;
     const manifest = await source.file(await source.head(digest));
 
-    // stream one byte past the limit in chunks of one MiB without declaring a length
+    // send a file of other bytes, and one a byte past the limit, each in a tarball
+    const tarball = (entry: TarballEntry) =>
+        Tarball.stream(
+            (async function* () {
+                yield entry;
+            })(),
+            environment.compression,
+        );
     const chunk = new Uint8Array(1024 * 1024);
-    const oversized = new ReadableStream<Uint8Array>({
-        start(controller) {
+    const oversized: TarballEntry = {
+        path: digest,
+        size: 64 * chunk.byteLength + 1,
+        body: (async function* () {
             for (let index = 0; index < 64; index++) {
-                controller.enqueue(chunk);
+                yield chunk;
             }
-            controller.enqueue(new Uint8Array(1));
-            controller.close();
-        },
-    });
+            yield new Uint8Array(1);
+        })(),
+    };
 
     // refuse each upload with its status and error
     expect([
-        await upload(receiving, `${digest}/manifest.json`, manifest, PUSHING),
-        await upload(receiving, `files/${digest}`, new Uint8Array([1]), PUSHING),
-        await upload(receiving, `files/${digest}`, oversized, PUSHING),
-        await upload(receiving, `files/${digest}/extra`, new Uint8Array([1]), PUSHING),
-        await upload(receiving, `${digest}/manifest.json`, manifest, PULLING),
+        await upload(receiving, "PUT", `${digest}/manifest.json`, manifest, PUSHING),
+        await upload(
+            receiving,
+            "POST",
+            "files",
+            tarball(TarballEntry.of(digest, new Uint8Array([1]))),
+            PUSHING,
+        ),
+        await upload(receiving, "POST", "files", tarball(oversized), PUSHING),
+        await upload(receiving, "PUT", `files/${digest}/extra`, new Uint8Array([1]), PUSHING),
+        await upload(receiving, "PUT", `${digest}/manifest.json`, manifest, PULLING),
     ]).toEqual([
         [
             400,
@@ -806,13 +837,14 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
 /** Upload a body to a store path as a host decides, returning the status and error. */
 async function upload(
     store: BuildStore,
+    method: "POST" | "PUT",
     path: string,
     body: BodyInit,
     access: PackageAccess,
 ): Promise<[number, unknown]> {
     const response = await store.fetch(
         new Request(`https://packages.test/packages/${path}`, {
-            method: "PUT",
+            method,
             body,
             headers: { "content-type": "application/octet-stream" },
         }),
@@ -854,6 +886,35 @@ test("retain the union of every root's builds, and collect a forgotten root's bu
         isFirstStored: false,
         blobs: await blobsOf(store, [second]),
     });
+});
+
+test("evict the least recently used builds until the store fits its size, keeping a rooted and a recently used one", async () => {
+    // store three builds a minute apart, rooting the oldest and using the newest
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using opened = await openStore(await temporary(environment.files), environment);
+    const { store } = opened;
+    const builds: Digest[] = [];
+    for (const extra of ["first", "second", "third"]) {
+        const sources = { ...SOURCES, "src/extra.ts": `export const name = "${extra}";\n` };
+        builds.push(await store.put(await written(sources, environment.crypto)));
+        await simulation.jump(simulation.clock.now() + 60_000);
+    }
+    const [rooted, older, newer] = builds.map((digest) => present(digest, "a build"));
+    await store.root("space", new Set([present(rooted, "the rooted build")]));
+    await store.lease(
+        present(newer, "the newest build"),
+        new Date(simulation.clock.now() + WEEK_MILLISECONDS),
+    );
+
+    // evict down to the size of the rooted and the newest build's blobs
+    const fitting = (await blobsSize(store, [rooted, newer])) + 1;
+    await store.evict(fitting);
+    expect({
+        stored: await Promise.all(builds.map((digest) => store.contains(digest))),
+        isFitting: (await store.blobs.size()) <= fitting,
+        isOlderStored: await store.contains(present(older, "the older build")),
+    }).toEqual({ stored: [true, false, true], isFitting: true, isOlderStored: false });
 });
 
 test("retain a rooted build with every build it depends on, as its outputs record them", async () => {
@@ -1009,7 +1070,7 @@ async function collect(
     // expire and collect, looking again at the earlier deadline
     const before = await recorded(store);
     const expiring = await store.expire();
-    const leased = await store.blobs.collect();
+    const leased = await store.blobs.collect(0);
     const after = new Set(await recorded(store));
     const ends = [expiring, leased].filter((end) => end !== undefined);
 

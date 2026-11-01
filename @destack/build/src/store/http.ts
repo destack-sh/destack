@@ -1,4 +1,5 @@
-import { Digest } from "@destack/schema";
+import { Tarball, TarballEntry } from "@destack/package/archive";
+import { Digest, schema } from "@destack/schema";
 import { type PackageFile, PackagePath } from "@destack/package/file";
 import { CallError } from "@destack/object";
 import { BuildStore } from "./store.ts";
@@ -51,48 +52,61 @@ export async function serveStore(
     }
 }
 
-/** Receive an upload: check a file, store a file by digest, or store a complete manifest. */
+/** Receive an upload: list missing files, store a tarball of files, or store a manifest. */
 async function write(
     store: BuildStore,
     request: Request,
     access: PackageAccess,
     path: string,
 ): Promise<Response> {
-    // refuse pushes and find no pushed file at a read-only endpoint, as a read-only OCI registry
+    // refuse pushes at a read-only endpoint, as a read-only OCI registry
     if (access.push === undefined) {
-        return request.method === "PUT"
-            ? new Response(null, { status: 405, headers: { allow: "GET, HEAD" } })
-            : new Response(null, { status: 404 });
+        return new Response(null, { status: 405, headers: { allow: "GET, HEAD" } });
     }
     const target = UploadTarget.parse(path);
     await access.push(request, target?.scope);
 
-    // tell whether the store has a file
-    if (request.method === "HEAD") {
-        const isStored = target?.kind === "file" && (await store.has(target.digest));
+    // list the files among the asked digests the store lacks
+    if (target?.kind === "missing" && request.method === "POST") {
+        const asked = schema.array(Digest).parse(await request.json());
 
-        return new Response(null, { status: isStored ? 200 : 404 });
+        return Response.json(await store.missing(asked));
     }
-    if (target === undefined) {
-        return new Response(null, { status: 404 });
-    }
+    // store a tarball's files under the digests they are named by, a pack per upload's bytes
+    else if (target?.kind === "files" && request.method === "POST" && request.body !== null) {
+        let gathering: { readonly digest: string; readonly bytes: Uint8Array<ArrayBuffer> }[] = [];
+        let gathered = 0;
+        for await (const entry of Tarball.read(request.body, store.environment.compression)) {
+            // refuse a file above the limit
+            if (entry.size > MAX_UPLOAD_BYTES) {
+                return new Response(null, { status: 413 });
+            }
 
-    // read the upload's bytes within the limit
-    const bytes = await readUpload(request);
-    if (bytes === undefined) {
-        return new Response(null, { status: 413 });
-    }
+            // store the gathered files once they reach the limit
+            gathering.push({ digest: entry.path, bytes: await TarballEntry.bytes(entry) });
+            gathered += entry.size;
+            if (gathered >= MAX_UPLOAD_BYTES) {
+                await store.receive(gathering);
+                gathering = [];
+                gathered = 0;
+            }
+        }
+        await store.receive(gathering);
 
-    // store a file under its digest
-    if (target.kind === "file") {
-        await store.receive(target.digest, bytes);
+        return new Response(null, { status: 201 });
     }
-    // store a manifest
-    else {
+    // store a manifest within the limit
+    else if (target?.kind === "manifest" && request.method === "PUT") {
+        const bytes = await readUpload(request);
+        if (bytes === undefined) {
+            return new Response(null, { status: 413 });
+        }
         await store.adopt(target.digest, bytes);
+
+        return new Response(null, { status: 201 });
     }
 
-    return new Response(null, { status: 201 });
+    return new Response(null, { status: 404 });
 }
 
 /** Authorize the containing build before resolving paths or cache conditions. */
@@ -110,14 +124,11 @@ async function read(
     }
     const path = pathname.slice(prefix.length);
 
-    // receive uploads and probes of uploaded files, and accept reads only otherwise
-    if (
-        request.method === "PUT" ||
-        (request.method === "HEAD" && UploadTarget.parse(path)?.kind === "file")
-    ) {
+    // receive uploads, and accept reads only otherwise
+    if (request.method === "PUT" || request.method === "POST") {
         return write(store, request, access, path);
     } else if (request.method !== "GET" && request.method !== "HEAD") {
-        return new Response(null, { status: 405, headers: { allow: "GET, HEAD, PUT" } });
+        return new Response(null, { status: 405, headers: { allow: "GET, HEAD, POST, PUT" } });
     }
     const separator = path.indexOf("/");
     const parsed = Digest.safeParse(path.slice(0, separator));
@@ -267,33 +278,44 @@ async function archive(store: BuildStore, request: Request, digest: Digest): Pro
     return new Response(store.export(digest, output), { headers });
 }
 
-/** An upload's target: a file by its digest, or a manifest by the digest of its build. */
-interface UploadTarget {
-    /** What the upload stores. */
-    readonly kind: "file" | "manifest";
-    /** The digest keying it. */
-    readonly digest: Digest;
-    /** The scope the upload is sent below, such as its package, absent for none. */
-    readonly scope: string | undefined;
-}
+/** An upload's target: the files a push asks about or sends, or a build's manifest. */
+type UploadTarget =
+    | {
+          /** The digests a push asks the store's missing files among. */
+          readonly kind: "missing";
+          /** The scope the upload is sent below, such as its package, absent for none. */
+          readonly scope: string | undefined;
+      }
+    | {
+          /** A tarball of files, each named by its digest. */
+          readonly kind: "files";
+          /** The scope the upload is sent below, such as its package, absent for none. */
+          readonly scope: string | undefined;
+      }
+    | {
+          /** A build's manifest. */
+          readonly kind: "manifest";
+          /** The digest of the build. */
+          readonly digest: Digest;
+          /** The scope the upload is sent below, such as its package, absent for none. */
+          readonly scope: string | undefined;
+      };
 
 /** The targets of uploads. */
 const UploadTarget = {
     /** Read an upload's target, optionally below a scope as an OCI blob is below its repository. */
     parse(path: string): UploadTarget | undefined {
-        // read the scope before a file or manifest path of two segments
+        // read the files' paths, then a manifest's, each optionally below one scope segment
         const segments = path.split("/");
-        const scope = segments.length === 3 ? segments[0] : undefined;
-        const [first = "", second = "", third] = scope === undefined ? segments : segments.slice(1);
+        const [last = "", previous = ""] = segments.toReversed();
+        const manifest = Digest.safeParse(previous);
+        if (segments.length <= 3 && previous === "files" && last === "missing") {
+            return { kind: "missing", scope: segments.length === 3 ? segments[0] : undefined };
+        } else if (segments.length <= 2 && last === "files") {
+            return { kind: "files", scope: segments.length === 2 ? segments[0] : undefined };
+        } else if (segments.length <= 3 && last === "manifest.json" && manifest.success) {
+            const scope = segments.length === 3 ? segments[0] : undefined;
 
-        // key a file by its digest
-        const file = Digest.safeParse(second);
-        const manifest = Digest.safeParse(first);
-        if (third === undefined && first === "files" && file.success) {
-            return { kind: "file", digest: file.data, scope };
-        }
-        // key a manifest by the digest of its build
-        else if (third === undefined && second === "manifest.json" && manifest.success) {
             return { kind: "manifest", digest: manifest.data, scope };
         }
         // name nothing else

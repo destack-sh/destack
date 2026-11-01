@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { LocalBlobStorage } from "@destack/bucket/bun";
-import { BlobStore, blobLease, eq } from "@destack/db";
+import { BlobStore, eq } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { locateWorkspace } from "@destack/check/workspace";
 import type { Environment } from "@destack/environment";
@@ -43,6 +43,9 @@ const COLLECTED_FILE = "collected";
 
 /** How often an idle open collects the store: daily, as Cargo's gc.auto.frequency defaults to. */
 const COLLECT_MILLISECONDS = 24 * 60 * 60_000;
+
+/** The most bytes a local store's blobs take: 10 GiB, three times a platform's 3 GB of builds. */
+const MAX_BYTES = 10 * 1024 ** 3;
 
 /** How long a store retains an unrooted build past its last use: a week, as Nx keeps its cache. */
 const CACHE_MILLISECONDS = 7 * 24 * 60 * 60_000;
@@ -210,9 +213,9 @@ export class LocalBuildStore
         // read the build's lease, renewing one a day or more old
         const now = this.environment.clock.now();
         const [leased] = await this.database
-            .select({ until: blobLease.until })
-            .from(blobLease)
-            .where(eq(blobLease.digest, digest));
+            .select({ until: BlobStore.table.leasedUntil })
+            .from(BlobStore.table)
+            .where(eq(BlobStore.table.digest, digest));
         if (leased === undefined || leased.until - CACHE_MILLISECONDS <= now - USE_MILLISECONDS) {
             await this.lease(digest, new Date(now + CACHE_MILLISECONDS));
         }
@@ -235,13 +238,19 @@ export class LocalBuildStore
 
     /** Store a build written in a directory the store consumes, moving its files into the blobs. */
     async move(directory: string, signal?: AbortSignal): Promise<Digest> {
-        // keep each missing file by moving it, then remove what the directory has left
-        const { files, crypto } = this.environment;
+        // store each missing file by moving it in, recorded under a lease, then remove what the directory has left
+        const { files, crypto, clock } = this.environment;
         const source = await BuildReader.openDirectory(directory, files, crypto);
-        const digest = await this.keep(
+        const digest = await this.store(
             source,
-            async (file) => {
-                await this.blobs.storage.move(join(directory, file.path), file.digest);
+            async (moved) => {
+                const placements = [];
+                for (const file of moved) {
+                    placements.push(
+                        await this.blobs.storage.move(join(directory, file.path), file.digest),
+                    );
+                }
+                await this.blobs.record(placements, clock.now() + this.leaseMilliseconds);
             },
             signal,
         );
@@ -322,7 +331,7 @@ export class LocalBuildStore
         await BuildLayer.writeIndex(directory, roots, readers, files);
     }
 
-    /** Write files to paths, cloning stored blobs and layered files where the layer keeps them. */
+    /** Write files to paths, cloning stored blobs and the layer's files. */
     async place(placements: readonly FilePlacement[]): Promise<void> {
         // create each directory once, and find the files the store's own blobs lack
         const { files } = this.environment;
@@ -331,7 +340,7 @@ export class LocalBuildStore
             await files.mkdir(directory, { recursive: true });
         }
         const lacking = new Set(
-            await this.blobs.storage.missing(placements.map(({ file }) => file.digest)),
+            await this.blobs.missing(placements.map(({ file }) => file.digest)),
         );
 
         // clone a stored file's blocks, and place any other through the layered build holding it, a batch at a time
@@ -366,9 +375,10 @@ export class LocalBuildStore
         await files.remove(join(this.directory, STAGE_DIRECTORY), { recursive: true, force: true });
         await this.blobs.storage.clean();
 
-        // drop the unused cache entries, then delete the builds and blobs nothing retains
+        // drop the unused cache entries, fit the size, then delete what nothing retains at once, as no process reads
         await this.expire();
-        await this.blobs.collect();
+        await this.evict(MAX_BYTES);
+        await this.blobs.collect(0);
 
         // delete the trees of the builds whose manifests the store no longer has, whole or in part
         const entries = await files.readDirectory(this.trees);

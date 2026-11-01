@@ -354,7 +354,7 @@ export class Compiler implements AsyncDisposable {
                 request.bytes,
                 store.environment.crypto,
             );
-            await store.receive(file.digest, request.bytes);
+            await store.receive([{ digest: file.digest, bytes: request.bytes }]);
             await store.cache(request.key, { kind: "file", file });
         }
 

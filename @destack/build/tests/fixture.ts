@@ -323,5 +323,5 @@ export function isNoteModule(module: object): module is NoteModule {
 
 /** Count the blobs a store has. */
 export async function countObjects(store: LocalBuildStore): Promise<number> {
-    return (await Array.fromAsync(store.blobs.storage.digests())).length;
+    return (await Array.fromAsync(store.blobs.storage.packs())).length;
 }

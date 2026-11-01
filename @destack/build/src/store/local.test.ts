@@ -80,7 +80,7 @@ test("keep one store in a directory, which a later open of any toolchain reads",
     const marker = await Digest.of(MARKER, environment.crypto);
     {
         await using store = await LocalBuildStore.open(directory, environment);
-        await store.receive(marker, MARKER);
+        await store.receive([{ digest: marker, bytes: MARKER }]);
     }
     await using reopened = await LocalBuildStore.open(directory, environment);
 
@@ -106,7 +106,7 @@ test("place a stored file by its blob and a layered one from where its layer kee
     const directory = await files.makeTemporaryDirectory("test-stores-");
     await using store = await LocalBuildStore.open(join(directory, "store"), environment);
     const marker = await Digest.of(MARKER, crypto);
-    await store.receive(marker, MARKER);
+    await store.receive([{ digest: marker, bytes: MARKER }]);
     const build = await written("export const answer = 42;", crypto);
     {
         await using distributor = await LocalBuildStore.temporary(environment);
@@ -252,8 +252,8 @@ test("share the store between opens, each reading what the other writes", async 
         first: await Digest.of(bytes.first, environment.crypto),
         second: await Digest.of(bytes.second, environment.crypto),
     };
-    await first.receive(digests.first, bytes.first);
-    await second.receive(digests.second, bytes.second);
+    await first.receive([{ digest: digests.first, bytes: bytes.first }]);
+    await second.receive([{ digest: digests.second, bytes: bytes.second }]);
     expect([await second.has(digests.first), await first.has(digests.second)]).toEqual([
         true,
         true,
@@ -270,7 +270,7 @@ test("retain a build's files while another process opens the store twice before 
     const build = await written("export const answer = 42;\n", environment.crypto);
     const distributed = await build.distributed();
     for (const file of distributed) {
-        await building.receive(file.digest, await build.load(file.path));
+        await building.receive([{ digest: file.digest, bytes: await build.load(file.path) }]);
     }
 
     // open the store twice elsewhere, which would collect unleased files of an idle store

@@ -68,7 +68,7 @@ export type ManifestRead = (
     packageId: PackageId,
 ) => Promise<PackageManifest | undefined>;
 
-/** The blobs a store keeps builds in, and the environment it runs in. */
+/** The blobs a store stores builds in, and the environment it runs in. */
 export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage> {
     /** The partition's blobs, whose database declares the store's tables beside its own. */
     readonly blobs: BlobStore<Storage>;
@@ -76,6 +76,8 @@ export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage
     readonly environment: StoreEnvironment;
     /** The read-only builds the store reads in place, such as a machine's shipped builds. */
     readonly layer?: BuildLayer;
+    /** How long a stored build lasts unless a root or a use retains it, by default the blobs'. */
+    readonly leaseMilliseconds?: number;
 }
 
 /** Immutable package builds in a partition's blobs, kept while any of its rows references them. */
@@ -92,7 +94,7 @@ export class BuildStore<
         tables: [...BUILD_STORE_TABLES, ...BLOB_TABLES],
     });
 
-    /** The partition's blobs, keeping the builds' files and manifests. */
+    /** The partition's blobs: the builds' files and manifests. */
     readonly blobs: BlobStore<Storage>;
     /** The compression, crypto and clock the store archives, digests and expires with. */
     readonly environment: StoreEnvironment;
@@ -104,13 +106,21 @@ export class BuildStore<
     readonly #putting = new Map<Digest, Promise<Digest>>();
     /** The read-only builds the store reads in place. */
     readonly #layer: BuildLayer;
+    /** How long a stored build lasts before a root or a use retains it, in milliseconds. */
+    readonly leaseMilliseconds: number;
 
     /** Store builds in a partition's blobs, reading some read-only builds in place. */
     constructor(options: BuildStoreOptions<StoreEnvironment, Storage>) {
-        // keep the blobs, the environment and the layer
+        // take the blobs, the environment, the layer and the lease
         this.blobs = options.blobs;
         this.environment = options.environment;
         this.#layer = options.layer ?? BuildLayer.empty();
+        this.leaseMilliseconds = options.leaseMilliseconds ?? options.blobs.leaseMilliseconds;
+    }
+
+    /** Read when a lease taken now ends. */
+    get #leasedUntil(): number {
+        return this.environment.clock.now() + this.leaseMilliseconds;
     }
 
     /** The partition's database with the store's index. */
@@ -132,19 +142,26 @@ export class BuildStore<
 
     /** Store each missing file of a build, then its manifest, returning the manifest's digest. */
     put(source: BuildReader, signal?: AbortSignal): Promise<Digest> {
-        return this.keep(
+        return this.store(
             source,
-            async (file) => {
-                await this.blobs.storage.write(await source.stream(file.path), file.digest);
+            async (files) => {
+                await this.blobs.put(
+                    files.map((file) => ({
+                        digest: file.digest,
+                        size: file.size,
+                        open: () => source.stream(file.path),
+                    })),
+                    this.#leasedUntil,
+                );
             },
             signal,
         );
     }
 
-    /** Store a build, writing each file the store lacks with a write, joining one in flight. */
-    protected async keep(
+    /** Store a build, writing the files the store lacks with a write, joining one in flight. */
+    protected async store(
         source: BuildReader,
-        write: (file: PackageFile) => Promise<void>,
+        write: (files: readonly PackageFile[]) => Promise<void>,
         signal?: AbortSignal,
     ): Promise<Digest> {
         // join the storing of the build in flight, or begin it, forgetting it once it settles
@@ -175,33 +192,29 @@ export class BuildStore<
         source: BuildReader,
         digest: Digest,
         bytes: Uint8Array<ArrayBuffer>,
-        write: (file: PackageFile) => Promise<void>,
+        write: (files: readonly PackageFile[]) => Promise<void>,
     ): Promise<Digest> {
         return (await this.contains(digest))
             ? digest
-            : await this.#store(source, digest, bytes, write);
+            : await this.#storeFiles(source, digest, bytes, write);
     }
 
     /** Store a build's missing files, then its manifest and record. */
-    async #store(
+    async #storeFiles(
         source: BuildReader,
         digest: Digest,
         bytes: Uint8Array<ArrayBuffer>,
-        write: (file: PackageFile) => Promise<void>,
+        write: (files: readonly PackageFile[]) => Promise<void>,
     ): Promise<Digest> {
         // lease the build's blobs, refusing reserved and duplicate file paths
         const list = await source.distributed();
         requireDistinctPaths(list);
         const files = distinctFiles(list);
-        await this.blobs.lease([digest, ...files.map((file) => file.digest)]);
+        await this.blobs.lease([digest, ...files.map((file) => file.digest)], this.#leasedUntil);
 
-        // store each missing file, a bounded number of streams at a time, then the manifest
-        const missing = new Set(await this.blobs.storage.missing(files.map((file) => file.digest)));
-        await inBatches(
-            files.filter((file) => missing.has(file.digest)),
-            undefined,
-            write,
-        );
+        // store the missing files at once, then the manifest
+        const missing = new Set(await this.blobs.missing(files.map((file) => file.digest)));
+        await write(files.filter((file) => missing.has(file.digest)));
         await this.#write(digest, bytes);
 
         // record the build
@@ -246,7 +259,15 @@ export class BuildStore<
 
     /** Report whether the store has a blob. */
     async has(digest: Digest): Promise<boolean> {
-        return this.#layer.has(digest) || (await this.blobs.storage.missing([digest])).length === 0;
+        return (await this.missing([digest])).length === 0;
+    }
+
+    /** List the blobs among some digests the store lacks, its layer's counted as stored. */
+    async missing(digests: readonly Digest[]): Promise<Digest[]> {
+        const unlayered = digests.filter((digest) => !this.#layer.has(digest));
+        const missing = new Set(await this.blobs.missing(unlayered));
+
+        return unlayered.filter((digest) => missing.has(digest));
     }
 
     /** Copy a served build by manifest digest unless stored, in one request for its archive. */
@@ -291,22 +312,21 @@ export class BuildStore<
             output,
         });
         const files = await reader.outputFiles(output);
-        await this.blobs.lease([location.manifest, ...files.map((file) => file.digest)]);
 
-        // store each missing file as served, then the manifest
-        const { storage } = this.blobs;
-        const missing = new Set(await storage.missing(files.map((file) => file.digest)));
-        await inBatches(
-            files.filter((file) => missing.has(file.digest)),
-            signal,
-            async (file) => {
-                await storage.write(await reader.stream(file.path), file.digest);
-            },
+        // store the files as served in one pack, then the manifest
+        signal?.throwIfAborted();
+        await this.blobs.put(
+            files.map((file) => ({
+                digest: file.digest,
+                size: file.size,
+                open: () => reader.stream(file.path),
+            })),
+            this.#leasedUntil,
         );
         const bytes = PackageManifest.serialize(reader.manifest);
         await this.#write(location.manifest, bytes);
 
-        // record the output beside the references it keeps
+        // record the output beside the references it adds
         await this.#recordOutput(
             location.manifest,
             bytes.byteLength,
@@ -316,19 +336,29 @@ export class BuildStore<
         );
     }
 
-    /** Lease and store an uploaded file under its digest, refusing bytes of another digest. */
-    async receive(digest: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    /** Lease and store uploaded files in one pack, refusing bytes of another digest. */
+    async receive(
+        uploads: readonly { readonly digest: string; readonly bytes: Uint8Array<ArrayBuffer> }[],
+    ): Promise<void> {
         // refuse bytes of another digest
-        const expected = Digest.parse(digest);
-        if ((await Digest.of(bytes, this.environment.crypto)) !== expected) {
-            throw BuildError.of(
-                "DIGEST_INVALID",
-                `the uploaded file does not match its digest ${digest}`,
-            );
+        const files = [];
+        for (const { digest, bytes } of uploads) {
+            const expected = Digest.parse(digest);
+            if ((await Digest.of(bytes, this.environment.crypto)) !== expected) {
+                throw BuildError.of(
+                    "DIGEST_INVALID",
+                    `the uploaded file does not match its digest ${digest}`,
+                );
+            }
+            files.push({
+                digest: expected,
+                size: bytes.byteLength,
+                open: async () => BuildStore.#chunks(bytes),
+            });
         }
 
-        // lease the file for its manifest, then store it
-        await this.blobs.put(expected, async () => BuildStore.#chunks(bytes));
+        // lease the files for their manifest, then store them
+        await this.blobs.put(files, this.#leasedUntil);
     }
 
     /** Store an uploaded manifest with all its files, refusing other digests and missing files. */
@@ -357,8 +387,19 @@ export class BuildStore<
         requireDistinctPaths(list);
 
         // lease and store the manifest, then record the build
-        await this.blobs.put(digest, async () => BuildStore.#chunks(bytes));
+        await this.blobs.put(
+            [{ digest, size: bytes.byteLength, open: async () => BuildStore.#chunks(bytes) }],
+            this.#leasedUntil,
+        );
         await this.#record(digest, bytes.byteLength, parsed, distinctFiles(list));
+    }
+
+    /** Record a build whose manifest and files the blobs already have, as a moved space's. */
+    async index(digest: Digest): Promise<void> {
+        // read the manifest's bytes from the blobs, then record the build as an uploaded one
+        const stream = BuildStore.#readable(this.blobs.read(digest));
+        const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+        await this.adopt(digest, bytes);
     }
 
     /** Attach a stored blob to a stored build as its referrer at a path, unless one exists. */
@@ -602,6 +643,37 @@ export class BuildStore<
             .limit(1);
 
         return oldest === undefined ? undefined : oldest.usedAt + CACHE_MILLISECONDS;
+    }
+
+    /** Evict the least recently used entries and leases until the blobs fit a size, while alone. */
+    async evict(maxBytes: number): Promise<void> {
+        while ((await this.blobs.size()) > maxBytes) {
+            // take the least recently used: the oldest cache entry, else the blobs a use leased longest ago
+            const [entry] = await this.database
+                .select({ key: buildCache.key })
+                .from(buildCache)
+                .orderBy(asc(buildCache.usedAt))
+                .limit(1);
+            const leased = entry === undefined ? await this.blobs.oldestLeased() : [];
+            if (entry === undefined && leased.length === 0) {
+                return;
+            }
+
+            // drop the entry and its root, or end the leases
+            if (entry !== undefined) {
+                await this.database.transaction(async (transaction) => {
+                    await transaction.delete(buildCache).where(eq(buildCache.key, entry.key));
+                    await transaction
+                        .delete(buildRoot)
+                        .where(eq(buildRoot.name, `${CACHE_ROOT_PREFIX}${entry.key}`));
+                });
+            } else {
+                await this.blobs.release(leased);
+            }
+
+            // delete what nothing retains at once, as no other process reads the store
+            await this.blobs.collect(0);
+        }
     }
 
     /** Delete every build's index, as the partition leaves its host. */
@@ -880,7 +952,7 @@ export class BuildStore<
         return this.#layer.tree(name);
     }
 
-    /** Clone a layered file to a path from where its layer keeps it, refusing one it lacks. */
+    /** Clone a layered file to a path from its layer, refusing one it lacks. */
     protected async placeLayered(
         file: PackageFile,
         destination: string,
@@ -952,7 +1024,7 @@ export class BuildStore<
 
     /** Stream a layered or stored blob, refusing a missing one by its file's path. */
     #stream(file: PackageFile): ReadableStream<Uint8Array> {
-        const { storage } = this.blobs;
+        const { blobs } = this;
         const layer = this.#layer;
 
         return BuildStore.#readable(
@@ -966,10 +1038,10 @@ export class BuildStore<
                 }
 
                 // refuse a missing blob, then stream its bytes
-                if ((await storage.missing([file.digest])).length > 0) {
+                if ((await blobs.missing([file.digest])).length > 0) {
                     throw BuildError.of("BLOB_UNKNOWN", `package file not found: ${file.path}`);
                 }
-                yield* storage.read(file.digest);
+                yield* blobs.read(file.digest);
             })(),
         );
     }
@@ -986,14 +1058,15 @@ export class BuildStore<
         }
 
         // read a stored blob's range
-        yield* this.blobs.storage.slice(file.digest, offset, length);
+        yield* this.blobs.slice(file.digest, offset, length);
     }
 
-    /** Store bytes under their digest unless stored. */
+    /** Store bytes under their digest unless stored, leased for the row recording them. */
     async #write(digest: Digest, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
-        if (!(await this.has(digest))) {
-            await this.blobs.storage.write(BuildStore.#chunks(bytes), digest);
-        }
+        await this.blobs.put(
+            [{ digest, size: bytes.byteLength, open: async () => BuildStore.#chunks(bytes) }],
+            this.#leasedUntil,
+        );
     }
 
     /** Require the store to have each file a build's manifest lists. */
@@ -1001,9 +1074,7 @@ export class BuildStore<
         // find the files neither layered nor stored, refusing the first
         const layer = this.#layer;
         const unlayered = files.filter((file) => !layer.has(file.digest));
-        const missing = new Set(
-            await this.blobs.storage.missing(unlayered.map((file) => file.digest)),
-        );
+        const missing = new Set(await this.blobs.missing(unlayered.map((file) => file.digest)));
         const absent = files.find((file) => missing.has(file.digest));
         if (absent !== undefined) {
             throw BuildError.of(
@@ -1036,7 +1107,7 @@ export class BuildStore<
         });
     }
 
-    /** Record a pulled output with the references keeping its files and dependency builds. */
+    /** Record a pulled output with the references to its files and dependency builds. */
     async #recordOutput(
         digest: Digest,
         size: number,
