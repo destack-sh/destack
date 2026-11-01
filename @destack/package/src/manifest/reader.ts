@@ -1,6 +1,6 @@
 import type { Compression, Crypto, FileHandle, FileSystem } from "@destack/environment";
 import { Tarball, TarballEntry } from "../archive/tarball.ts";
-import { present, schema } from "@destack/schema";
+import { Digest, present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
 import { DependencyResolution } from "../definition/dependency.ts";
 import type { PackageRelease } from "../definition/package.ts";
@@ -31,6 +31,8 @@ export class BuildReader {
     readonly #declared = new WeakMap<schema.Schema, Map<string, Promise<readonly unknown[]>>>();
     /** The listed files by path, read once. */
     readonly #listed = new Once<ReadonlyMap<string, PackageFile>>();
+    /** The manifest's digest, the build's address, taken once. */
+    readonly #digest = new Once<Digest>();
     /** The crypto verifying the files' digests. */
     readonly #crypto: Crypto;
 
@@ -39,6 +41,13 @@ export class BuildReader {
         this.manifest = manifest;
         this.stream = stream;
         this.#crypto = crypto;
+    }
+
+    /** Take the digest of the build's manifest, its address in every store, once. */
+    digest(): Promise<Digest> {
+        return this.#digest.get(() =>
+            Digest.of(PackageManifest.serialize(this.manifest), this.#crypto),
+        );
     }
 
     /** Read one distributed file whole by its relative path and verify its exact bytes. */
