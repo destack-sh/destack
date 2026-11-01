@@ -29,7 +29,9 @@ import { placement } from "../object/placement.ts";
 import { RESIDENCY_RELAY, Residency, residency, ResidencyCode } from "../object/residency.ts";
 import { space } from "../object/space.ts";
 import { user } from "../object/user.ts";
-import { StackSource } from "../object/stack-source.ts";
+import { StackRelease } from "../object/stack-release.ts";
+import { domain, Hostname, HostnamePattern } from "../object/domain.ts";
+import { hostname } from "../object/hostname.ts";
 import { Claim, type ResultsOf } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
@@ -101,6 +103,21 @@ export const PlatformDefinition = schema.object({
     publishers: schema.array(AccountHandle),
     /** The handle of the organization's account in the platform's residency. */
     handle: AccountHandle,
+    /** The domains the platform's organization holds, which the universe declares verified. */
+    domains: schema.array(Hostname),
+    /** The stack each residency's home runs, by residency. */
+    homes: schema.record(ResidencyCode, StackRelease),
+    /** The stack each kind of space people create is born with. */
+    stacks: schema.object({
+        /** A person's home. */
+        person: StackRelease,
+        /** An organization account's home. */
+        account: StackRelease,
+        /** Any other space. */
+        space: StackRelease,
+    }),
+    /** The hostnames the platform's account in each residency serves its home's routes on. */
+    hostnames: schema.record(ResidencyCode, schema.array(HostnamePattern)),
     /** The cloud machines serving the residencies. */
     machines: schema.array(
         schema.object({
@@ -163,20 +180,17 @@ export const UniverseRole = {
     },
 };
 
-/** The organization operating the universe, applied with the stack of its homes. */
+/** The organization operating the universe, applied with the stacks of its homes. */
 export class Platform {
     /** The universe's store the platform is applied through, as account's base installation. */
     readonly store: PlatformStore;
-    /** The operating organization and its machines as declared. */
+    /** The operating organization, its homes and its machines as declared. */
     readonly definition: PlatformDefinition;
-    /** The stack each residency's home runs. */
-    readonly stack: StackSource;
 
-    /** Create the platform from its definition and its homes' stack, applied through a store. */
-    constructor(store: PlatformStore, definition: PlatformDefinition, stack: StackSource) {
+    /** Create the platform from its definition, applied through a store. */
+    constructor(store: PlatformStore, definition: PlatformDefinition) {
         this.store = store;
         this.definition = definition;
-        this.stack = stack;
     }
 
     /** Read the handle of the platform's account in a residency. */
@@ -196,6 +210,7 @@ export class Platform {
             { name: "organization", apply: (now) => this.upsertOrganization(now) },
             { name: "roles", apply: (now) => this.bindRoles(now) },
             { name: "names", apply: () => this.reserveNames() },
+            { name: "domains", apply: () => this.declareDomains() },
             { name: "homes", apply: (now) => this.serveResidencies(now) },
             { name: "invitation", apply: (now) => this.inviteOperator(now) },
         ];
@@ -326,7 +341,7 @@ export class Platform {
                 name: this.definition.name,
                 handle: this.definition.handle,
                 residencyId: this.definition.residencyId,
-                stack: this.stack,
+                stack: this.#home(this.definition.residencyId),
             }),
         ]);
 
@@ -435,6 +450,19 @@ export class Platform {
         }
     }
 
+    /** Declare the organization's domains verified, keeping the ones it holds already. */
+    async declareDomains(): Promise<void> {
+        const organizationId = await this.#organization();
+        const { domains } = this.definition;
+        if (domains.length > 0) {
+            await this.#mutate(
+                domains.map((name) =>
+                    domain.call("declare", { ...domain.in(organizationId), name }),
+                ),
+            );
+        }
+    }
+
     /** Serve each residency from the platform's account's home there, with its declared stack. */
     async serveResidencies(now: number): Promise<void> {
         const organizationId = await this.#organization();
@@ -456,14 +484,15 @@ export class Platform {
                               name: handle,
                               kind: "shared",
                               residencyId: entry.id,
-                              stack: this.stack,
+                              stack: this.#home(entry.id),
                           }),
                       ])
                     : [existing];
             const accountId = present(created, `the platform's account in ${entry.id}`).id;
 
-            // move its home to the declared stack
-            await this.#upgradeHome(Account.home(accountId));
+            // give the account the hostnames its home's routes serve on, and move its home to its stack
+            await this.#addHostnames(accountId, this.definition.hostnames[entry.id] ?? []);
+            await this.#upgradeHome(Account.home(accountId), this.#home(entry.id));
 
             // make its home the residency's space once
             const stored = await Residency.require(Snapshot.live(this.store.database), entry.id);
@@ -591,7 +620,7 @@ export class Platform {
     }
 
     /** Move a home to the declared stack once it has another. */
-    async #upgradeHome(spaceId: Identifier<"space">): Promise<void> {
+    async #upgradeHome(spaceId: Identifier<"space">, stack: StackRelease): Promise<void> {
         // read the home's stack
         const [home] = await this.store.database
             .select({ scope: space.table.scope, stack: space.table.stack })
@@ -600,13 +629,36 @@ export class Platform {
         const existing = present(home, `the home ${spaceId}`);
 
         // move it to the declared one
-        if (canonicalize(existing.stack) !== canonicalize(this.stack)) {
+        if (canonicalize(existing.stack) !== canonicalize(stack)) {
             await this.#mutate([
                 space.call("upgrade", {
                     ...space.target({ scope: existing.scope, id: spaceId }),
-                    stack: this.stack,
+                    stack,
                 }),
             ]);
+        }
+    }
+
+    /** Read the stack a residency's home runs, refusing a residency the definition leaves out. */
+    #home(code: ResidencyCode): StackRelease {
+        return present(this.definition.homes[code], `the stack of the home of ${code}`);
+    }
+
+    /** Give an account the declared hostnames it lacks. */
+    async #addHostnames(accountId: Identifier<"account">, names: readonly string[]): Promise<void> {
+        // read the hostnames the account has
+        const owned = await this.store.database
+            .select({ name: hostname.table.name })
+            .from(hostname.table)
+            .where(eq(hostname.table.scope, accountId));
+        const has = new Set(owned.map((row) => row.name));
+
+        // create the missing ones in one mutation
+        const missing = names.filter((name) => !has.has(name));
+        if (missing.length > 0) {
+            await this.#mutate(
+                missing.map((name) => hostname.call("create", { ...hostname.in(accountId), name })),
+            );
         }
     }
 

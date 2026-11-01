@@ -26,7 +26,7 @@ export * from "./placement.ts";
 export * from "./platform.ts";
 export * from "./entitlement.ts";
 export * from "./space.ts";
-export * from "./stack-source.ts";
+export * from "./stack-release.ts";
 export * from "./identity.ts";
 export * from "./endpoint.ts";
 export * from "./shape.ts";

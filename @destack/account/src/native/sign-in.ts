@@ -357,7 +357,7 @@ class LoopbackRedirect implements AsyncDisposable {
     /** The redirect URL the issuer returns the browser to. */
     readonly url: string;
     /** The listener the server opened. */
-    readonly #listener: Listener<never>;
+    readonly #listener: Listener;
     /** The returned browsers that wait to be taken. */
     readonly #callbacks: Callback[] = [];
     /** Wake a waiting receive once a browser returns. */

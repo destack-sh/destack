@@ -16,7 +16,6 @@
         "./credential": "./src/credential/index.ts",
         "./better-auth": "./src/better-auth/index.ts",
         "./oauth": "./src/oauth/index.ts",
-        "./stack": "./src/stack/index.ts",
         "./declare": "./src/declare/index.ts",
         "./object": "./src/object/index.ts",
         "./error": "./src/error/index.ts",

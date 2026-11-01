@@ -70,12 +70,12 @@ import {
     residency,
     type ResidencyCode,
     type ResidencyDefinition,
-    SpaceKind,
-    StackSource,
+    StackRelease,
 } from "../object/index.ts";
 import accountPackage, { OAUTH_PATH } from "../package.ts";
 import { accountServer, Platform, PlatformDefinition, UniverseRole } from "../server/index.ts";
-import { accountDatabase } from "../stack/index.ts";
+import { defineDatabase } from "@destack/db";
+import { tablesOf } from "@destack/object";
 import { TokenLifetime } from "../oauth/index.ts";
 import { TestBrowser } from "./browser.ts";
 import { TestDns } from "./dns.ts";
@@ -161,45 +161,31 @@ export const ids = {
 /** Who serves the residencies' homes: the fixture as their cloud machines, or a real machine. */
 export type HomeServer = "fixture" | "machine";
 
-/** The stand-in stacks spaces are born with. */
-export const STACKS: Readonly<Record<SpaceKind, StackSource>> = {
-    residency: {
-        package: Package.parse({
-            id: "package-01996ab0-0000-7000-8000-0000000000b1",
-            name: "@example/residency",
-            version: "2026.9.0",
-        }),
-        manifest: Digest.parse("a".repeat(64)),
-        export: "RESIDENCY",
-        settings: {},
-    },
+/** The stand-in stack each residency's home runs. */
+export const HOME_STACK: StackRelease = {
+    packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b1"),
+    selection: { kind: "release", version: "2026.9.0", manifest: Digest.parse("a".repeat(64)) },
+    export: "RESIDENCY",
+    settings: {},
+};
+
+/** The stand-in stacks spaces are born with by kind. */
+export const STACKS: PlatformDefinition["stacks"] = {
     person: {
-        package: Package.parse({
-            id: "package-01996ab0-0000-7000-8000-0000000000b2",
-            name: "@example/home",
-            version: "2026.9.0",
-        }),
-        manifest: Digest.parse("b".repeat(64)),
+        packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b2"),
+        selection: { kind: "release", version: "2026.9.0", manifest: Digest.parse("b".repeat(64)) },
         export: "HOME",
         settings: {},
     },
     account: {
-        package: Package.parse({
-            id: "package-01996ab0-0000-7000-8000-0000000000b4",
-            name: "@example/account",
-            version: "2026.9.0",
-        }),
-        manifest: Digest.parse("e".repeat(64)),
+        packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b4"),
+        selection: { kind: "release", version: "2026.9.0", manifest: Digest.parse("e".repeat(64)) },
         export: "ACCOUNT",
         settings: {},
     },
     space: {
-        package: Package.parse({
-            id: "package-01996ab0-0000-7000-8000-0000000000b3",
-            name: "@example/space",
-            version: "2026.9.0",
-        }),
-        manifest: Digest.parse("d".repeat(64)),
+        packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b3"),
+        selection: { kind: "release", version: "2026.9.0", manifest: Digest.parse("d".repeat(64)) },
         export: "SPACE",
         settings: {},
     },
@@ -221,8 +207,8 @@ const PERSONAL_MACHINE = {
 
 /** The residencies of the universe, as the platform's bootstrap declares them. */
 const RESIDENCIES: readonly ResidencyDefinition[] = [
-    { code: "eu", name: "European Union" },
-    { code: "us", name: "United States" },
+    { code: "eu", name: "European Union", relay: "https://relay-eu.machine.test" },
+    { code: "us", name: "United States", relay: "https://relay-us.machine.test" },
 ];
 
 /** The people who sign up at the account package's start, and whether they step up. */
@@ -326,7 +312,7 @@ type ServeOptions = TestAccountStoreOptions & {
     /** The world the store runs in. */
     readonly simulation: Simulation;
     /** The stacks spaces are born with. */
-    readonly stacks: Readonly<Record<SpaceKind, StackSource>>;
+    readonly stacks: PlatformDefinition["stacks"];
     /** Who serves the residencies' homes. */
     readonly homes: HomeServer;
 };
@@ -336,7 +322,7 @@ export interface AccountTemplateOptions<World extends JsonValue> {
     /** The template's name in its run. */
     readonly name: string;
     /** The stacks spaces are born with, STACKS by default. */
-    readonly stacks?: Readonly<Record<SpaceKind, StackSource>>;
+    readonly stacks?: PlatformDefinition["stacks"];
     /** Who serves the residencies' homes, the fixture by default. */
     readonly homes?: HomeServer;
     /** The dialects tests copy it in, every test dialect by default. */
@@ -359,7 +345,7 @@ export type AccountTemplateValue<World extends JsonValue> = {
     /** The sessions of the people with an authenticator, by email. */
     readonly sessions: Readonly<Record<string, TestSession>>;
     /** The stacks spaces are born with. */
-    readonly stacks: Readonly<Record<SpaceKind, StackSource>>;
+    readonly stacks: PlatformDefinition["stacks"];
     /** Who serves the residencies' homes. */
     readonly homes: HomeServer;
     /** What the world's write returned. */
@@ -390,6 +376,16 @@ interface Served {
 
 /** The account package in one database, served as the universe serves it, with its people. */
 export class TestAccountStore implements AsyncDisposable {
+    /** The universe's database: the account package and the core packages it serves beside. */
+    static readonly database = defineDatabase({
+        name: "account",
+        ...tablesOf({
+            packages: [accountPackage, objectPackage, settingPackage],
+            follows: [],
+            tables: [],
+        }),
+    });
+
     /** The account package's test database. */
     readonly storage: TestDatabase;
     /** The account database. */
@@ -497,12 +493,12 @@ export class TestAccountStore implements AsyncDisposable {
 
         return new TestTemplate({
             name: options.name,
-            databases: { universe: accountDatabase },
+            databases: { universe: TestAccountStore.database },
             ...(options.dialects === undefined ? {} : { dialects: options.dialects }),
             value: schema.object({
                 keys: AccountKeys.schema,
                 sessions: schema.record(schema.string(), TestSession),
-                stacks: schema.record(SpaceKind, StackSource),
+                stacks: PlatformDefinition.shape.stacks,
                 homes: schema.enum(["fixture", "machine"]),
                 world: world.value,
             }),
@@ -537,7 +533,7 @@ export class TestAccountStore implements AsyncDisposable {
     ): Promise<TestAccountStore> {
         // write the fixture's rows with the given stacks and homes, the defaults when absent
         const simulation = TestAccountStore.#world();
-        const storage = await TestDatabase.create(accountDatabase, {
+        const storage = await TestDatabase.create(TestAccountStore.database, {
             environment: simulation.environment(WORLD_NODE),
             isMigrated: true,
         });
@@ -1101,6 +1097,7 @@ export class TestAccountStore implements AsyncDisposable {
         // serve the account package with new keys, storing the platform before the universe's identity
         const keys = AccountKeys.create();
         const definition = await TestAccountStore.#platformDefinition(
+            options.stacks,
             keys.cloud,
             options.simulation.environment(WORLD_NODE),
         );
@@ -1156,8 +1153,9 @@ export class TestAccountStore implements AsyncDisposable {
         return sessions;
     }
 
-    /** Declare the platform with a cloud machine per residency. */
+    /** Declare the platform with its spaces' stacks and a cloud machine per residency. */
     static async #platformDefinition(
+        stacks: PlatformDefinition["stacks"],
         cloudKeychains: Map<Identifier<"machine">, MemoryKeychain>,
         environment: Environment,
     ): Promise<PlatformDefinition> {
@@ -1168,6 +1166,10 @@ export class TestAccountStore implements AsyncDisposable {
             reserved: [],
             publishers: [],
             handle: PLATFORM_HANDLE,
+            domains: [],
+            homes: { eu: HOME_STACK, us: HOME_STACK },
+            hostnames: { eu: [], us: [] },
+            stacks,
             machines: [
                 await cloudMachine(cloudKeychains, environment, ids.machine, "eu-central", "eu"),
                 await cloudMachine(cloudKeychains, environment, ids.usMachine, "us-east", "us"),
@@ -1235,7 +1237,7 @@ export class TestAccountStore implements AsyncDisposable {
                     Installation.receive(authorization, Scope.universe, [], UNIVERSE_PACKAGES),
             );
             await Residency.apply(store, RESIDENCIES);
-            await new Platform(store, platform, options.stacks.residency).apply(clock.now());
+            await new Platform(store, platform).apply(clock.now());
         }
 
         // sign in with the universe's identity, mailing links and codes to the test mail
@@ -1643,7 +1645,7 @@ class AccountKeys {
 }
 
 /** The one database an account template writes: the universe's. */
-type AccountTemplateDatabases = { readonly universe: typeof accountDatabase };
+type AccountTemplateDatabases = { readonly universe: typeof TestAccountStore.database };
 
 /** The keychains' secrets, as an account template's value stores them. */
 type AccountKeysValue = schema.Infer<typeof AccountKeys.schema>;

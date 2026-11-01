@@ -18,7 +18,7 @@ import { Label } from "../address/label.ts";
 import { AccountHandle, HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { organization } from "./organization.ts";
 import { Residency, residency, ResidencyCode } from "./residency.ts";
-import { StackSource } from "./stack-source.ts";
+import { StackRelease } from "./stack-release.ts";
 import { user } from "./user.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
@@ -117,7 +117,7 @@ export const account = defineObject(
             fields: ["handle", "name", "kind", "residencyId"],
             input: schema.object({
                 /** The stack of the account's home. */
-                stack: StackSource.exactOptional(),
+                stack: StackRelease.exactOptional(),
             }),
             isPredicted: false,
         }),

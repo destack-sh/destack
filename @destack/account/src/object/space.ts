@@ -14,7 +14,7 @@ import { type Identifier, present, schema } from "@destack/schema";
 import { replica, Scope } from "@destack/sync";
 import { account } from "./account.ts";
 import { organization } from "./organization.ts";
-import { StackSource } from "./stack-source.ts";
+import { StackRelease } from "./stack-release.ts";
 import { sudo } from "../authentication/sudo.ts";
 import {
     anyone,
@@ -51,7 +51,7 @@ export const space = defineObject(
             /** The least risk a resource plan waits for approval at. */
             approval: field.enum(RISKS).default("backward-incompatible"),
             /** The stack applied to the space. */
-            stack: field.json(StackSource),
+            stack: field.json(StackRelease),
             /** Where a person chose the space's work runs, absent to keep it on its machine. */
             tenancy: field.enum(TENANCIES).optional(),
         },

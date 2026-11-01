@@ -29,6 +29,8 @@ export function implementDomain(options: DomainOptions): typeof domain {
                 handle: (context) => context.update({ verifiedAt: context.now }),
             },
             delete: remove,
+            declare: (context, next) =>
+                next(context.with({ input: { ...context.input, verifiedAt: context.now } })),
         },
     });
 }

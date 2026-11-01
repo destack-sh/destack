@@ -32,6 +32,7 @@ export function implementResidency(releases: ReleaseRegistry): typeof residency 
             touch: (context) => touch(context, releases),
             revoke,
             locate,
+            relay,
             machines,
             publisher,
         },
@@ -135,6 +136,15 @@ async function locate(
     context: MethodContextOf<typeof residency, "locate">,
 ): Promise<ResultOf<typeof residency, "locate">> {
     return Account.locate(context, context.input.account);
+}
+
+/** Read the relay origin of the residency an account stores its data in. */
+async function relay(
+    context: MethodContextOf<typeof residency, "relay">,
+): Promise<ResultOf<typeof residency, "relay">> {
+    const { residencyId } = await Account.of(context, context.input.account);
+
+    return (await Residency.require(context, residencyId)).relay;
 }
 
 /** List a residency's enabled shared cloud machines with their URLs, in identity order. */

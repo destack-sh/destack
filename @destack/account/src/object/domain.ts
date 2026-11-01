@@ -1,4 +1,4 @@
-import { through, union } from "@destack/access";
+import { none, through, union } from "@destack/access";
 import { type Select } from "@destack/db";
 import { account } from "./account.ts";
 import { organization } from "./organization.ts";
@@ -78,6 +78,7 @@ export const domain = defineObject(
             create: MANAGERS,
             verify: MANAGERS,
             delete: MANAGERS,
+            declare: none(),
         },
         constraints: {
             scopeName: { kind: "unique", on: ["scope", "name"] },
@@ -94,6 +95,11 @@ export const domain = defineObject(
         create: method.create("create", { fields: ["name"] }),
         verify: method.mutation({ permission: "verify", prepared: DomainChallenge }),
         delete: method.delete("delete"),
+        declare: method.create("declare", {
+            visibility: "package",
+            fields: ["name"],
+            keep: "scopeName",
+        }),
     }),
 );
 /** A persisted domain record. */

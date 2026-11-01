@@ -13,7 +13,15 @@ import { eq, inArray, Snapshot } from "@destack/db";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test, refusal, type Refusal } from "@destack/test";
 import { MachineIdentity } from "../src/client/machine-identity.ts";
-import { account, endpoint, key, machine, organization, space } from "../src/object/index.ts";
+import {
+    account,
+    endpoint,
+    hostname,
+    key,
+    machine,
+    organization,
+    space,
+} from "../src/object/index.ts";
 import { Platform, PlatformDefinition, UniverseRole } from "../src/server/index.ts";
 import { LocalKeyring } from "@destack/identity";
 import { Digest, Identifier, nth, present } from "@destack/schema";
@@ -22,6 +30,7 @@ import {
     ids,
     OPERATOR_EMAIL,
     type TestPerson,
+    HOME_STACK,
     STACKS,
     STRANGER_EMAIL,
 } from "../src/test/index.ts";
@@ -36,6 +45,10 @@ const PLATFORM: PlatformDefinition = {
     reserved: ["admin", "security"],
     publishers: ["app"],
     handle: "destack",
+    domains: [],
+    homes: { eu: HOME_STACK, us: HOME_STACK },
+    hostnames: { eu: [], us: [] },
+    stacks: STACKS,
     machines: [],
 };
 
@@ -77,12 +90,8 @@ async function declare(environment: Environment): Promise<MachineIdentity> {
 test("apply the platform organization once, with its publishers as accounts and its reserved handles as names without accounts", async () => {
     // apply the platform twice
     await using fixture = await TestAccountStore.open();
-    const first = await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(
-        fixture.clock.now(),
-    );
-    const second = await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(
-        fixture.clock.now(),
-    );
+    const first = await new Platform(fixture.store, PLATFORM).apply(fixture.clock.now());
+    const second = await new Platform(fixture.store, PLATFORM).apply(fixture.clock.now());
 
     // store the organization's accounts once, and the publisher's account alone in the directory
     const accounts = await fixture.database
@@ -106,7 +115,7 @@ test("apply the platform organization once, with its publishers as accounts and 
 test("answer a person the platform's reserved and taken handles as taken", async () => {
     // apply the platform, and give a person an account of their own
     await using fixture = await TestAccountStore.open();
-    await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(fixture.clock.now());
+    await new Platform(fixture.store, PLATFORM).apply(fixture.clock.now());
     const person = await fixture.signIn("admin@example.com");
     const owned = await fixture.createAccount(person);
 
@@ -133,7 +142,7 @@ test("revoke the bindings of a universe role its definition no longer declares",
     // apply the platform, then leave a binding of the servers' role an older definition declared
     await using fixture = await TestAccountStore.open();
     const { database } = fixture.storage;
-    await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(fixture.store.clock.now());
+    await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     const [server] = await database
         .select({ id: accessRole.id })
         .from(accessRole)
@@ -166,16 +175,14 @@ test("revoke the bindings of a universe role its definition no longer declares",
     });
 
     // apply it again, keeping exactly the declared bindings
-    await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(fixture.store.clock.now());
+    await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     expect(await bindings()).toEqual(declared);
 });
 
 test("make the platform organization's owners operators when an apply created it without the operator role", async () => {
     // apply the platform, then drop the operator role with its bindings, as an apply failing after the creation leaves it
     await using fixture = await TestAccountStore.open();
-    const first = await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(
-        fixture.store.clock.now(),
-    );
+    const first = await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     const { database } = fixture.storage;
     const [operator] = await database
         .select({ id: accessRole.id })
@@ -194,24 +201,38 @@ test("make the platform organization's owners operators when an apply created it
     );
 
     // apply it again, binding the organization with its handle
-    const second = await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(
-        fixture.store.clock.now(),
-    );
+    const second = await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     expect({
         second,
         operating: await UniverseRole.operating(Snapshot.live(fixture.database)),
     }).toEqual({ second: first, operating: first });
 });
 
-test("move the residency homes to a newly declared stack once", async () => {
-    // apply the platform, then declare the residency stack at a new release and apply it twice
+test("move each residency home to its own newly declared stack once, giving each residency's platform account its hostnames below the organization's declared domains once", async () => {
+    // apply the platform, then declare each home's stack at a new release with hostnames, and apply it twice
     await using fixture = await TestAccountStore.open();
-    await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(fixture.store.clock.now());
-    const released = { ...STACKS.residency, manifest: Digest.parse("c".repeat(64)) };
-    await new Platform(fixture.store, PLATFORM, released).apply(fixture.store.clock.now());
-    await new Platform(fixture.store, PLATFORM, released).apply(fixture.store.clock.now());
+    await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
+    const europe = {
+        ...HOME_STACK,
+        selection: { ...HOME_STACK.selection, manifest: Digest.parse("c".repeat(64)) },
+    };
+    const america = {
+        ...HOME_STACK,
+        selection: { ...HOME_STACK.selection, manifest: Digest.parse("d".repeat(64)) },
+    };
+    const declared: PlatformDefinition = {
+        ...PLATFORM,
+        domains: ["destack.space", "destack.computer"],
+        homes: { eu: europe, us: america },
+        hostnames: {
+            eu: ["*.destack.space", "relay-eu.destack.computer"],
+            us: ["relay-us.destack.computer"],
+        },
+    };
+    await new Platform(fixture.store, declared).apply(fixture.store.clock.now());
+    await new Platform(fixture.store, declared).apply(fixture.store.clock.now());
 
-    // read the homes' stacks and revisions
+    // read the homes' stacks and revisions, and the accounts' hostnames
     const homes = await fixture.storage.database
         .select({
             handle: account.table.handle,
@@ -221,12 +242,27 @@ test("move the residency homes to a newly declared stack once", async () => {
         .from(space.table)
         .innerJoin(account.table, eq(account.table.id, space.table.scope))
         .where(inArray(account.table.handle, ["destack", "destack-us"]));
+    const hostnames = await fixture.storage.database
+        .select({ handle: account.table.handle, name: hostname.table.name })
+        .from(hostname.table)
+        .innerJoin(account.table, eq(account.table.id, hostname.table.scope))
+        .orderBy(account.table.handle, hostname.table.name);
 
-    // move both residency homes to the declared release in one update each
-    expect(homes.toSorted((left, right) => left.handle.localeCompare(right.handle))).toEqual([
-        { handle: "destack", stack: released, revision: 2 },
-        { handle: "destack-us", stack: released, revision: 2 },
-    ]);
+    // move each home to its own release in one update, and store each hostname once
+    expect({
+        homes: homes.toSorted((left, right) => left.handle.localeCompare(right.handle)),
+        hostnames,
+    }).toEqual({
+        homes: [
+            { handle: "destack", stack: europe, revision: 2 },
+            { handle: "destack-us", stack: america, revision: 2 },
+        ],
+        hostnames: [
+            { handle: "destack", name: "*.destack.space" },
+            { handle: "destack", name: "relay-eu.destack.computer" },
+            { handle: "destack-us", name: "relay-us.destack.computer" },
+        ],
+    });
 });
 
 test("apply the declared cloud machines with their keys in the universe once, and the platform residency's machines as administrators", async () => {
@@ -261,12 +297,10 @@ test("apply the declared cloud machines with their keys in the universe once, an
     };
 
     // apply the platform twice
-    const organizationId = await new Platform(fixture.store, definition, STACKS.residency).apply(
+    const organizationId = await new Platform(fixture.store, definition).apply(
         fixture.store.clock.now(),
     );
-    await new Platform(fixture.store, definition, STACKS.residency).apply(
-        fixture.store.clock.now(),
-    );
+    await new Platform(fixture.store, definition).apply(fixture.store.clock.now());
 
     // create each machine once with one key in the universe, its origin published as its endpoint, and relate the platform residency's machines as administrators once
     const { database } = fixture.storage;
@@ -337,9 +371,7 @@ test("invite a new operator as the platform's owner beside the first", async () 
     // apply the platform for a new operator at a clock standing still, and sign in a stranger and the new operator
     await using fixture = await TestAccountStore.open();
     const successor = { ...PLATFORM, operator: SUCCESSOR_EMAIL };
-    const platformId = await new Platform(fixture.store, successor, STACKS.residency).apply(
-        fixture.clock.now(),
-    );
+    const platformId = await new Platform(fixture.store, successor).apply(fixture.clock.now());
     const stranger = await fixture.signIn(STRANGER_EMAIL);
     const operator = await fixture.signIn(SUCCESSOR_EMAIL);
     const inviter = principal.installation.reference(
@@ -358,7 +390,7 @@ test("invite a new operator as the platform's owner beside the first", async () 
     });
 
     // add the new operator as an owner once, beside the first
-    await new Platform(fixture.store, successor, STACKS.residency).apply(fixture.store.clock.now());
+    await new Platform(fixture.store, successor).apply(fixture.store.clock.now());
     const { items } = await operator.client(objectPackage).relationship.list({
         scope: Scope.universe.id,
         where: { objectId: platformId, relation: "owner" },

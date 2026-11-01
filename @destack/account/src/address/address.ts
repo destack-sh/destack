@@ -1,3 +1,4 @@
+import { Forwarded } from "@destack/environment";
 import { present, schema } from "@destack/schema";
 import { AccountHandle, HANDLE_LENGTH } from "./handle.ts";
 import { MachineName } from "../object/machine.ts";
@@ -36,9 +37,6 @@ const BRANCH_SEPARATOR = "---";
 
 /** The pattern of a name separator: a hyphen pair with no third hyphen beside it. */
 const NAME_SEPARATOR_PATTERN = /(?<!-)--(?!-)/u;
-
-/** The quoted or bare `host` parameter of a Forwarded header (RFC 7239). */
-const FORWARDED_HOST = /(?:^|[;,\s])host="?([^";,\s]+)"?/iu;
 
 /** The parent domains of view origins and machine addresses. */
 export interface Domains {
@@ -207,7 +205,7 @@ export const InstallationOrigin = {
     /** Read the installation origin of a request under a domain. */
     of(request: Request, domain: string): InstallationOrigin | undefined {
         // read the forwarded host, else the request's host
-        const forwarded = FORWARDED_HOST.exec(request.headers.get("forwarded") ?? "")?.[1];
+        const forwarded = Forwarded.first(request).host;
         const host = new URL(`http://${forwarded ?? new URL(request.url).host}`).hostname;
 
         return InstallationOrigin.parse(host, domain);

@@ -286,7 +286,7 @@ test("read an account's residency home, the residencies' homes and the enabled s
     ]);
 });
 
-test("read the residency home and the owners of names for another account's objects as a machine", async () => {
+test("read the residency home, its relay and the owners of names for another account's objects as a machine", async () => {
     // store two accounts and a name the residency's home claims in the first
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
@@ -304,12 +304,17 @@ test("read the residency home and the owners of names for another account's obje
     await claimNames(await homeOf(fixture, "eu"), fixture.database, claimant, fixture.environment);
     const { index, key } = nth(await Claim.list(place, row, snapshot), 0);
 
-    // read both as a machine of the other account
+    // read both and the account residency's relay as a machine of the other account
     const strangers = fixture.as(elsewhere).client(accountPackage);
     expect([
         await strangers.residency.locate({ account: namedId }),
         await strangers.claim.owner({ index, key }),
-    ]).toEqual([await fixture.residencySpace("eu"), { objectId: row.id, owner: namedId }]);
+        await strangers.residency.relay({ account: namedId }),
+    ]).toEqual([
+        await fixture.residencySpace("eu"),
+        { objectId: row.id, owner: namedId },
+        "https://relay-eu.machine.test",
+    ]);
 });
 
 test("relate a cloud machine as a server of its residency when declared or enrolled, as a resident of the residency's accounts, and release it when revoked", async () => {

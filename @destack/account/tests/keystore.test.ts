@@ -17,7 +17,6 @@ import {
 } from "../src/identity/index.ts";
 import { Identity } from "../src/object/index.ts";
 import { TestAccountStore, OWNER_EMAIL } from "../src/test/index.ts";
-import { accountDatabase } from "../src/stack/index.ts";
 import { TestDatabase } from "@destack/db/test";
 import { RequestId } from "@destack/sync";
 
@@ -68,7 +67,10 @@ async function openKeystore() {
 
 /** Open an account database holding a copy of a space's keys, as a move's other machine does. */
 async function openKeys(environment: Environment): Promise<TestDatabase> {
-    const storage = await TestDatabase.create(accountDatabase, { environment, isMigrated: true });
+    const storage = await TestDatabase.create(TestAccountStore.database, {
+        environment,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     return storage;

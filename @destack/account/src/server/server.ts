@@ -1,7 +1,7 @@
 import { implementPackage, type PackageImplementation } from "@destack/object/server";
 import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
-import type { SpaceKind, StackSource } from "../object/stack-source.ts";
+import type { PlatformDefinition } from "./universe.ts";
 import { claim } from "../object/claim.ts";
 import { stage } from "../object/stage.ts";
 import accountPackage from "../package.ts";
@@ -28,7 +28,7 @@ export interface AccountOptions {
     /** The resolver reading domains' challenge records. */
     readonly resolver: DnsResolver;
     /** The stacks spaces are born with. */
-    readonly stacks: Readonly<Record<SpaceKind, StackSource>>;
+    readonly stacks: PlatformDefinition["stacks"];
     /** The universe's sign-in, which answers the oauth adapter once the store exists. */
     readonly signIn: Promise<BetterAuthAuthenticator>;
     /** The registry of the releases the residencies' homes install. */

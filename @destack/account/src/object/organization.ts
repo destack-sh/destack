@@ -2,7 +2,7 @@ import type { Select } from "@destack/db";
 import { none, permission, principal, relation, union } from "@destack/access";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { StackSource } from "./stack-source.ts";
+import { StackRelease } from "./stack-release.ts";
 import { AccountHandle } from "../address/handle.ts";
 import { residency, ResidencyCode } from "./residency.ts";
 import { sudo } from "../authentication/sudo.ts";
@@ -80,7 +80,7 @@ export const organization = defineObject(
                 /** The jurisdiction the organization's account stores data in. */
                 residencyId: ResidencyCode,
                 /** The stack the home of the organization's account runs, none when absent. */
-                stack: StackSource.exactOptional(),
+                stack: StackRelease.exactOptional(),
             }),
             isPredicted: false,
         }),

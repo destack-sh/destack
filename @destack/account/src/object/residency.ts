@@ -63,6 +63,8 @@ export const residency = defineObject(
         fields: {
             /** The name people read, such as European Union. */
             name: field.string(DisplayName),
+            /** The origin its accounts' machines open their tunnels at, its relay's. */
+            relay: field.string(schema.url()),
             /** The space hosting the residency's platform installations. */
             space: field.string(schema.identifier("space")).optional().guard({ read: "locate" }),
         },
@@ -101,13 +103,16 @@ export const residency = defineObject(
     (method) => ({
         /** Store a residency the universe declares, shown to everyone. */
         create: method.create("operate", {
-            fields: ["name"],
+            fields: ["name", "relay"],
             visibility: "package",
             isPredicted: false,
         }),
 
         /** Rename a residency, or give it its space. */
-        update: method.update("operate", { fields: ["name", "space"], visibility: "package" }),
+        update: method.update("operate", {
+            fields: ["name", "relay", "space"],
+            visibility: "package",
+        }),
 
         /** Relate an installation its space declares, its release asking for what that gives. */
         touch: method.mutation({ permission: "install", input: ResidencyInstallation }),
@@ -127,6 +132,17 @@ export const residency = defineObject(
                 account: schema.identifier("account"),
             }),
             output: schema.identifier("space"),
+        }),
+
+        /** Read the relay origin of the residency an account stores its data in. */
+        relay: method.query({
+            permission: "locate",
+            target: "scope",
+            input: schema.object({
+                /** The account. */
+                account: schema.identifier("account"),
+            }),
+            output: schema.url(),
         }),
 
         /** List the residency's enabled shared cloud machines and URLs, in identity order. */
@@ -150,12 +166,14 @@ export const residency = defineObject(
 /** A jurisdiction Destack stores data in. */
 export type Residency = Select<typeof residency.table>;
 
-/** A residency as the universe declares it: its code and the name people read. */
+/** A residency as the universe declares it: its code, the name people read and its relay. */
 export interface ResidencyDefinition {
     /** The code, the row's key. */
     readonly code: ResidencyCode;
     /** The name people read. */
     readonly name: string;
+    /** The origin its accounts' machines open their tunnels at. */
+    readonly relay: string;
 }
 
 /** The rows of residencies. */
@@ -247,19 +265,20 @@ export const Residency = {
         // read the stored residencies
         const rows = await Snapshot.live(objects.database).read(residency.table).findMany();
 
-        // create the missing ones and rename the renamed ones
+        // create the missing ones and update the changed ones
         const calls = definitions.flatMap((definition) => {
             // find its row
             const row = rows.find((entry) => entry.id === definition.code);
             const target = residency.target({ scope: Scope.universe.id, id: definition.code });
 
             // create a missing residency
+            const { name, relay } = definition;
             if (row === undefined) {
-                return [residency.call("create", { ...target, name: definition.name })];
+                return [residency.call("create", { ...target, name, relay })];
             }
-            // rename a renamed one
-            else if (row.name !== definition.name) {
-                return [residency.call("update", { ...target, name: definition.name })];
+            // update a renamed or relayed one
+            else if (row.name !== name || row.relay !== relay) {
+                return [residency.call("update", { ...target, name, relay })];
             }
 
             return [];
