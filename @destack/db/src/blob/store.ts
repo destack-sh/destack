@@ -67,7 +67,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             leasedUntil: integer("leased_until").notNull(),
             /** Whether its last reference may have gone, which a collection checks. */
             isRetired: boolean("is_retired").notNull(),
-            /** When a collection found it free of references, absent while referenced or unchecked. */
+            /** When a collection found it unreferenced, absent while referenced or unchecked. */
             freedAt: integer("freed_at"),
         },
         {
@@ -144,7 +144,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Read a range of a blob's bytes from its pack. */
     async *slice(digest: Digest, offset: number, length: number): AsyncIterable<Uint8Array> {
-        const placement = present((await this.#placements([digest]))[0], `blob ${digest}`);
+        const placement = present((await this.placements([digest]))[0], `blob ${digest}`);
         const end = Math.min(placement.size, offset + length);
         yield* this.storage.slice(
             placement.pack,
@@ -161,7 +161,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
     /** Read many blobs in order, each body read before the next blob's. */
     async *batch(digests: readonly Digest[]): AsyncIterable<BlobEntry> {
         const placements = new Map(
-            (await this.#placements(digests)).map((placement) => [placement.digest, placement]),
+            (await this.placements(digests)).map((placement) => [placement.digest, placement]),
         );
         for (const digest of digests) {
             const { pack, offset, size } = present(placements.get(digest), `blob ${digest}`);
@@ -203,8 +203,8 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         const batches =
             digests === undefined
                 ? [undefined]
-                : Array.from({ length: Math.ceil(digests.length / BATCH_DIGESTS) }, (_, index) =>
-                      digests.slice(index * BATCH_DIGESTS, (index + 1) * BATCH_DIGESTS),
+                : Array.from({ length: Math.ceil(digests.length / BATCH_DIGESTS) }, (_, batch) =>
+                      digests.slice(batch * BATCH_DIGESTS, (batch + 1) * BATCH_DIGESTS),
                   );
         let bytes = 0;
         for (const batch of batches) {
@@ -222,7 +222,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** List the digests the store lacks, in the given order. */
     async missing(digests: readonly Digest[]): Promise<Digest[]> {
-        const stored = new Set((await this.#placements(digests)).map(({ digest }) => digest));
+        const stored = new Set((await this.placements(digests)).map(({ digest }) => digest));
 
         return digests.filter((digest) => !stored.has(digest));
     }
@@ -234,9 +234,9 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Read a JSON blob's value, parsed once by the schema its writer wrote it with. */
     async readJson<Value>(digest: Digest, written: schema.Schema<Value>): Promise<Value> {
-        const text = new TextDecoder().decode(await this.bytes(digest));
+        const decoded = new TextDecoder().decode(await this.bytes(digest));
 
-        return written.parse(JSON.parse(text));
+        return written.parse(JSON.parse(decoded));
     }
 
     /** Lease stored blobs until a moment, rescuing any retired one. */
@@ -385,10 +385,11 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
     /** Record where blobs a storage stored lie, leased, deleting a pack no row points into. */
     async record(placements: readonly BlobPlacement[], until: number): Promise<void> {
         // record each blob unless another writer recorded it first, then lease them all
+        const inserted = new Set<Digest>();
         await this.database.transaction(async (transaction) => {
             for (let start = 0; start < placements.length; start += BATCH_DIGESTS) {
                 const batch = placements.slice(start, start + BATCH_DIGESTS);
-                await transaction
+                const rows = await transaction
                     .insert(BlobStore.table)
                     .values(
                         batch.map((placement) => ({
@@ -397,7 +398,11 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                             isRetired: false,
                         })),
                     )
-                    .onConflictDoNothing();
+                    .onConflictDoNothing()
+                    .returning({ digest: BlobStore.table.digest });
+                for (const { digest } of rows) {
+                    inserted.add(digest);
+                }
             }
         });
         await this.lease(
@@ -405,14 +410,18 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             until,
         );
 
-        // delete each pack no row points into
-        for (const pack of new Set(placements.map((placement) => placement.pack))) {
+        // delete each pack of a blob another writer recorded first, unless a row points into it
+        const used = new Set(
+            placements.filter(({ digest }) => inserted.has(digest)).map(({ pack }) => pack),
+        );
+        const unused = placements.filter(({ pack }) => !used.has(pack)).map(({ pack }) => pack);
+        for (const pack of new Set(unused)) {
             await this.#deletePackUnlessUsed(this.database, pack);
         }
     }
 
-    /** Read the rows of some blobs. */
-    async #placements(digests: readonly Digest[]): Promise<BlobPlacement[]> {
+    /** Read where the stored blobs among some digests lie, leaving out the ones the store lacks. */
+    async placements(digests: readonly Digest[]): Promise<BlobPlacement[]> {
         const found: BlobPlacement[] = [];
         for (let start = 0; start < digests.length; start += BATCH_DIGESTS) {
             const batch = [...new Set(digests.slice(start, start + BATCH_DIGESTS))];
