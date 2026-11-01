@@ -1,6 +1,6 @@
 # @platform/brand
 
-`@platform/brand` holds Destack's mark, app icons per channel, favicons and social banners, and `generate` renders their rasters from the SVG masters.
+`@platform/brand` holds Destack's mark, wordmarks, app icons per channel, favicons and social banners, and `generate` renders their rasters from the SVG masters.
 
 ```ts
 const mark = import.meta.resolve("@platform/brand/mark.svg");
