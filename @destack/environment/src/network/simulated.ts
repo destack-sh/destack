@@ -7,6 +7,7 @@ import type {
     ServeOptions,
     ServerSocket,
     ServerSocketHandler,
+    ServerUpgrade,
 } from "../server/server.ts";
 import { NetworkError } from "./error.ts";
 import {
@@ -54,6 +55,9 @@ const MISDIRECTED = 421;
 /** The status of a WebSocket the world refused, as a gateway answers it (RFC 9110). */
 const BAD_GATEWAY = 502;
 
+/** The status of a refused WebSocket upgrade, Upgrade Required (RFC 9110 15.5.22). */
+const UPGRADE_REQUIRED = 426;
+
 /** The faults a simulated network applies to every delivery beside its partitions. */
 export interface NetworkFaults {
     /** The share of deliveries lost, from 0 to 1; a lost message breaks its connection. */
@@ -87,8 +91,8 @@ interface SocketEnd {
 interface Endpoint {
     /** The node serving it. */
     readonly node: string;
-    /** Answer a request. */
-    readonly answer: (request: Request) => Promise<Answer>;
+    /** Answer a request from a node. */
+    readonly answer: (request: Request, from: string) => Promise<Answer>;
 }
 
 /** An open connection between a client's socket and a listener's handler. */
@@ -146,16 +150,11 @@ interface SocketConnection {
 }
 
 /** A listener of a simulated node, answering through its handlers. */
-class SimulatedListener<Attachment> implements Listener<Attachment> {
+class SimulatedListener<Attachment> implements Listener {
     /** The URL it listens at. */
     readonly url: URL;
     /** The handlers. */
     readonly #options: ServeOptions<Attachment>;
-    /** The upgrades accepted while their request is answered. */
-    readonly #upgrades = new WeakMap<
-        Request,
-        { readonly attachment: Attachment; readonly protocol: string }
-    >();
     /** Stop listening. */
     readonly #stop: (isClosingActive: boolean) => void;
 
@@ -170,23 +169,6 @@ class SimulatedListener<Attachment> implements Listener<Attachment> {
         this.#stop = stop;
     }
 
-    /** Accept a request's upgrade with an attachment. */
-    upgrade(
-        request: Request,
-        options: { readonly attachment: Attachment; readonly headers?: Record<string, string> },
-    ): boolean {
-        // refuse a request that asks for no WebSocket
-        if (request.headers.get("upgrade") !== "websocket") {
-            return false;
-        }
-
-        // store the attachment and the chosen subprotocol until the answer
-        const protocol = options.headers?.["sec-websocket-protocol"] ?? "";
-        this.#upgrades.set(request, { attachment: options.attachment, protocol });
-
-        return true;
-    }
-
     /** Stop listening. */
     stop(isClosingActive = false): Promise<void> {
         this.#stop(isClosingActive);
@@ -194,22 +176,23 @@ class SimulatedListener<Attachment> implements Listener<Attachment> {
         return Promise.resolve();
     }
 
-    /** Answer a request through the handler, as a response or an accepted socket. */
-    async answer(request: Request): Promise<Answer> {
-        // answer with a response
-        const response = await this.#options.fetch(request, this);
-        const upgrade = this.#upgrades.get(request);
-        if (response !== undefined) {
-            return { kind: "response", response };
-        } else if (upgrade === undefined) {
-            throw new TypeError(`${this.url.origin} sent no response and no upgrade`);
+    /** Answer a request from a node through the handler, as a response or an accepted socket. */
+    async answer(request: Request, from: string): Promise<Answer> {
+        // answer with a response from the node the request came from
+        const answer = await this.#options.fetch(request, from);
+        if (answer instanceof Response) {
+            return { kind: "response", response: answer };
+        }
+        // refuse an upgrade of a request asking for no WebSocket, as Bun does
+        else if (request.headers.get("upgrade") !== "websocket") {
+            return { kind: "response", response: new Response(null, { status: UPGRADE_REQUIRED }) };
         }
 
-        // accept the socket with its attachment
+        // accept the socket with its attachment and subprotocol
         return {
             kind: "socket",
-            end: this.#end(upgrade.attachment, this.#options.websocket),
-            protocol: upgrade.protocol,
+            end: this.#end(answer.attachment, this.#options.websocket),
+            protocol: answer.headers?.["sec-websocket-protocol"] ?? "",
         };
     }
 
@@ -352,7 +335,7 @@ export class SimulatedNetwork {
     publish<Attachment>(
         node: string,
         options: ServeOptions<Attachment>,
-    ): Listener<Attachment> & { readonly hostUrl: URL } {
+    ): Listener & { readonly hostUrl: URL } {
         // serve the node at its world address, a port the world draws unless given
         const simulated = this.#serve(node, options);
 
@@ -360,17 +343,13 @@ export class SimulatedNetwork {
         const host = BunServer.http({
             ...options,
             port: 0,
-            fetch: (request, listener) =>
-                this.#scheduler.track(
-                    () => Promise.resolve(options.fetch(request, listener)),
-                    "world",
-                ),
+            fetch: (request, peer) =>
+                this.#scheduler.track(() => Promise.resolve(options.fetch(request, peer)), "world"),
         });
 
         return {
             url: simulated.url,
             hostUrl: host.url,
-            upgrade: simulated.upgrade,
             stop: async (isClosingActive) => {
                 await Promise.all([host.stop(isClosingActive), simulated.stop(isClosingActive)]);
             },
@@ -378,13 +357,12 @@ export class SimulatedNetwork {
     }
 
     /** Bridge the host into the world as a node, `<host>.localhost` reaching `https://<host>`. */
-    bridge(node: string, options: { readonly port?: number } = {}): Listener<SimulatedWebSocket> {
+    bridge(node: string, options: { readonly port?: number } = {}): Listener {
         // listen on the loopback address, counting each answer as the world's work
         return BunServer.http<SimulatedWebSocket>({
             hostname: "127.0.0.1",
             port: options.port ?? 0,
-            fetch: (request, listener) =>
-                this.#scheduler.track(() => this.#bridged(node, request, listener), "world"),
+            fetch: (request) => this.#scheduler.track(() => this.#bridged(node, request), "world"),
             websocket: {
                 // pass the world's messages and close to the host's socket
                 open: (socket) => {
@@ -412,8 +390,7 @@ export class SimulatedNetwork {
     async #bridged(
         node: string,
         request: Request,
-        listener: Listener<SimulatedWebSocket>,
-    ): Promise<Response | undefined> {
+    ): Promise<Response | ServerUpgrade<SimulatedWebSocket>> {
         // refuse a host that names no world origin
         const url = new URL(request.url);
         if (!url.hostname.endsWith(LOOPBACK_SUFFIX)) {
@@ -452,9 +429,8 @@ export class SimulatedNetwork {
             return new Response("the world refused the WebSocket", { status: BAD_GATEWAY });
         }
         const headers = world.protocol === "" ? {} : { "sec-websocket-protocol": world.protocol };
-        listener.upgrade(request, { attachment: world, headers });
 
-        return undefined;
+        return { attachment: world, headers };
     }
 
     /** Cut the network between two nodes, both ways, breaking their connections. */
@@ -595,7 +571,7 @@ export class SimulatedNetwork {
     }
 
     /** Listen as a node at a host name and port. */
-    #serve<Attachment>(node: string, options: ServeOptions<Attachment>): Listener<Attachment> {
+    #serve<Attachment>(node: string, options: ServeOptions<Attachment>): Listener {
         // refuse Unix sockets, and an origin another listener serves
         if (options.unix !== undefined) {
             throw new TypeError("a simulated listener needs a host name and port");
@@ -625,7 +601,10 @@ export class SimulatedNetwork {
                 }
             },
         );
-        const endpoint = { node, answer: (request: Request) => listener.answer(request) };
+        const endpoint = {
+            node,
+            answer: (request: Request, from: string) => listener.answer(request, from),
+        };
         this.#endpoints.set(address, endpoint);
 
         return listener;
@@ -925,6 +904,7 @@ export class SimulatedNetwork {
         // hand the listener a copy of the request, refusing an upgrade answered to a plain request
         const answer = await endpoint.answer(
             sent === null ? new Request(request) : copyRequest(request, { body: sent }),
+            from,
         );
         if (answer.kind === "socket") {
             throw new TypeError(`${new URL(request.url).origin} upgraded a plain request`);
@@ -1037,7 +1017,7 @@ export class SimulatedNetwork {
         const opening = async () => {
             // ask the endpoint, discarding a plain answer's body as a refused client does
             const endpoint = await this.#reach(from, request);
-            const answer = await endpoint.answer(request);
+            const answer = await endpoint.answer(request, from);
             if (answer.kind === "response") {
                 await answer.response.body?.cancel();
             }

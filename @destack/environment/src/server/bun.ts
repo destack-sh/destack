@@ -2,90 +2,73 @@ import type { ServerWebSocket } from "bun";
 import type { Listener, ServeOptions, Server, ServerSocket } from "./server.ts";
 import { listenSocket } from "../network/socket/bun.ts";
 
-/** What Bun stores beside a socket: the key of its attachment in the listener. */
-interface BunSocketKey {
-    /** The socket's key. */
-    readonly key: number;
+/** The status of a refused WebSocket upgrade, Upgrade Required (RFC 9110 15.5.22). */
+const UPGRADE_REQUIRED = 426;
+
+/** What Bun stores beside a socket: its attachment, and its wrapper once made. */
+interface BunSocketData<Attachment> {
+    /** The value the handler accepted the upgrade with. */
+    readonly attachment: Attachment;
+    /** The socket as its handler sees it, made at its first event. */
+    wrapped: ServerSocket<Attachment> | undefined;
 }
 
+/** A Bun WebSocket with its data. */
+type BunSocket<Attachment> = ServerWebSocket<BunSocketData<Attachment>>;
+
 /** Listen through Bun's server, refusing a runtime without one. */
-function serveHttp<Attachment>(options: ServeOptions<Attachment>): Listener<Attachment> {
-    // keep each accepted socket's attachment, and wrap each Bun socket once
-    const attachments = new Map<number, { readonly attachment: Attachment }>();
-    const sockets = new WeakMap<ServerWebSocket<BunSocketKey>, ServerSocket<Attachment>>();
-    let next = 0;
-    const wrap = (socket: ServerWebSocket<BunSocketKey>): ServerSocket<Attachment> => {
-        // reuse the socket's wrapper
-        const known = sockets.get(socket);
-        if (known !== undefined) {
-            return known;
-        }
-
-        // wrap the socket with its attachment
-        const kept = attachments.get(socket.data.key);
-        if (kept === undefined) {
-            throw new TypeError(`no attachment for socket ${socket.data.key}`);
-        }
-        const wrapped: ServerSocket<Attachment> = {
-            attachment: kept.attachment,
-            send: (message) => void socket.send(message),
-            close: (code, reason) => socket.close(code, reason),
-        };
-        sockets.set(socket, wrapped);
-
-        return wrapped;
-    };
-
-    // answer requests and sockets through Bun, handing each handler the listener
+function serveHttp<Attachment>(options: ServeOptions<Attachment>): Listener {
+    // answer each request, or upgrade it to the WebSocket its handler accepts
     const { fetch, websocket } = options;
     const handler = {
-        fetch: (request: Request) => fetch(request, listener),
+        fetch: async (request: Request, served: Bun.Server<BunSocketData<Attachment>>) => {
+            // answer a response
+            const answer = await fetch(request, served.requestIP(request)?.address);
+            if (answer instanceof Response) {
+                return answer;
+            }
+
+            // upgrade with the attachment, refusing a request Bun cannot upgrade
+            const data = { attachment: answer.attachment, wrapped: undefined };
+            const headers = answer.headers === undefined ? {} : { headers: answer.headers };
+            const isUpgraded = served.upgrade(request, { data, ...headers });
+
+            return isUpgraded ? undefined : new Response(null, { status: UPGRADE_REQUIRED });
+        },
         websocket: {
             ...(websocket?.maxPayloadLength === undefined
                 ? {}
                 : { maxPayloadLength: websocket.maxPayloadLength }),
-            open: (socket: ServerWebSocket<BunSocketKey>) => websocket?.open?.(wrap(socket)),
-            message: (socket: ServerWebSocket<BunSocketKey>, message: string | Uint8Array) =>
-                websocket?.message(wrap(socket), message),
-            close: (socket: ServerWebSocket<BunSocketKey>, code: number, reason: string) => {
-                websocket?.close?.(wrap(socket), code, reason);
-                attachments.delete(socket.data.key);
-            },
+            open: (socket: BunSocket<Attachment>) => websocket?.open?.(wrapSocket(socket)),
+            message: (socket: BunSocket<Attachment>, message: string | Uint8Array) =>
+                websocket?.message(wrapSocket(socket), message),
+            close: (socket: BunSocket<Attachment>, code: number, reason: string) =>
+                websocket?.close?.(wrapSocket(socket), code, reason),
         },
     };
 
     // listen on the Unix socket or the host name and port
     const server =
         options.unix === undefined
-            ? Bun.serve<BunSocketKey>({
+            ? Bun.serve<BunSocketData<Attachment>>({
                   ...(options.hostname === undefined ? {} : { hostname: options.hostname }),
                   ...(options.port === undefined ? {} : { port: options.port }),
                   ...handler,
               })
-            : Bun.serve<BunSocketKey>({ unix: options.unix, ...handler });
+            : Bun.serve<BunSocketData<Attachment>>({ unix: options.unix, ...handler });
 
-    // accept an upgrade under a new key for its attachment
-    const listener: Listener<Attachment> = {
-        url: server.url,
-        upgrade: (request, upgrade) => {
-            // keep the attachment under the socket's key, dropping it on a refused upgrade
-            const key = next;
-            next += 1;
-            attachments.set(key, { attachment: upgrade.attachment });
-            const isUpgraded = server.upgrade(request, {
-                data: { key },
-                ...(upgrade.headers === undefined ? {} : { headers: upgrade.headers }),
-            });
-            if (!isUpgraded) {
-                attachments.delete(key);
-            }
+    return { url: server.url, stop: (isClosingActive) => server.stop(isClosingActive) };
+}
 
-            return isUpgraded;
-        },
-        stop: (isClosingActive) => server.stop(isClosingActive),
+/** Wrap a Bun socket once, as its handler sees it, beside its attachment. */
+function wrapSocket<Attachment>(socket: BunSocket<Attachment>): ServerSocket<Attachment> {
+    socket.data.wrapped ??= {
+        attachment: socket.data.attachment,
+        send: (message) => void socket.send(message),
+        close: (code, reason) => socket.close(code, reason),
     };
 
-    return listener;
+    return socket.data.wrapped;
 }
 
 /** Accept requests, WebSockets and stream sockets through Bun's servers. */

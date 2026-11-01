@@ -36,6 +36,18 @@ const IPV4_MAPPED = 0xff_ff;
 /** The first group of the NAT64 prefix embedding IPv4 addresses (RFC 6052). */
 const NAT64 = 0x00_64;
 
+/** The prefix Bun writes an IPv4 peer mapped into IPv6 with (RFC 4291 2.5.5.2). */
+const MAPPED_PREFIX = "::ffff:";
+
+/** The IPv4 loopback network 127.0.0.0, as a number (RFC 1122 3.2.1.3). */
+const LOOPBACK_IPV4 = 0x7f_00_00_00;
+
+/** The 16-bit groups of an IPv6 network, the /64 a subscriber is assigned (RFC 6177). */
+const IPV6_NETWORK_GROUPS = 4;
+
+/** The prefix length of the IPv4 loopback network, 127.0.0.0/8. */
+const LOOPBACK_PREFIX_LENGTH = 8;
+
 /** A TCP endpoint: a host name or IP address and a port. */
 export interface HostAddress {
     /** The host name or IP address. */
@@ -78,6 +90,43 @@ export const HostAddress = {
 
         // take a name outside localhost as public until resolved
         return name !== "localhost" && !name.endsWith(".localhost");
+    },
+
+    /** Read the network a client address counts in for limits: an IPv4 address, else its /64. */
+    network(address: string): string {
+        // drop the brackets and the port of an IPv6 node, and the port of an IPv4 one
+        const bracketed = /^\[([^\]]+)\](?::\d+)?$/u.exec(address)?.[1];
+        const name = bracketed ?? address.replace(/^(\d+\.\d+\.\d+\.\d+):\d+$/u, "$1");
+
+        // keep an IPv4 address, an IPv6 one mapped from IPv4 as that address, else the IPv6 /64
+        const groups = name.includes(":") ? ipv6Groups(name.toLowerCase()) : undefined;
+        if (groups === undefined) {
+            return name;
+        }
+        const mapped = name.toLowerCase().startsWith(MAPPED_PREFIX)
+            ? name.slice(MAPPED_PREFIX.length)
+            : undefined;
+        if (mapped !== undefined && ipv4Number(mapped) !== undefined) {
+            return mapped;
+        }
+
+        return `${groups
+            .slice(0, IPV6_NETWORK_GROUPS)
+            .map((group) => group.toString(16))
+            .join(":")}::/64`;
+    },
+
+    /** Report whether an IP address is this computer's own: 127.0.0.0/8 or ::1, even mapped. */
+    isLoopback(address: string): boolean {
+        // read the address without brackets, an IPv4 address mapped into IPv6 as itself
+        const name = address.toLowerCase().replace(/^\[|\]$/gu, "");
+        const mapped = name.startsWith(MAPPED_PREFIX) ? name.slice(MAPPED_PREFIX.length) : name;
+        const ipv4 = ipv4Number(mapped);
+
+        return (
+            name === "::1" ||
+            (ipv4 !== undefined && sameNetwork(ipv4, LOOPBACK_IPV4, LOOPBACK_PREFIX_LENGTH))
+        );
     },
 };
 

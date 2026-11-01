@@ -31,6 +31,10 @@ export interface ProcessOptions {
     readonly runtime: Runtime;
     /** The channel to the parent process, absent when no parent connected it. */
     readonly parent?: ProcessChannel;
+    /** The bytes the standard input reads, none by default. */
+    readonly stdin?: Uint8Array<ArrayBuffer>;
+    /** Whether the standard streams are a terminal, false by default. */
+    readonly isTerminal?: boolean;
 }
 
 /** A node's process: given values, written output, raised signals and real children. */
@@ -51,15 +55,12 @@ export class SimulatedProcess implements Process {
     readonly runtime: Runtime;
     /** The channel to the parent process, absent when no parent connected it. */
     readonly parent: ProcessChannel | undefined;
-    /** The standard input, empty. */
-    readonly stdin: Input = {
-        readable: new ReadableStream<Uint8Array>({ start: (controller) => controller.close() }),
-        isTerminal: false,
-    };
+    /** The standard input, reading the given bytes once. */
+    readonly stdin: Input;
     /** The standard output, written into its chunks. */
-    readonly stdout: Output & { readonly chunks: Uint8Array[] } = SimulatedProcess.#output();
+    readonly stdout: Output & { readonly chunks: Uint8Array[] };
     /** The standard error, written into its chunks. */
-    readonly stderr: Output & { readonly chunks: Uint8Array[] } = SimulatedProcess.#output();
+    readonly stderr: Output & { readonly chunks: Uint8Array[] };
     /** The exit code the process ended with, absent while it runs. */
     exitCode: number | undefined;
     /** The listeners of each signal. */
@@ -85,6 +86,20 @@ export class SimulatedProcess implements Process {
         this.runtime = options.runtime;
         this.parent = options.parent;
         this.#scheduler = scheduler;
+
+        // read the given bytes on standard input, then its end, and write output into chunks
+        const { stdin, isTerminal = false } = options;
+        const readable = new ReadableStream<Uint8Array>({
+            start(controller) {
+                if (stdin !== undefined) {
+                    controller.enqueue(stdin);
+                }
+                controller.close();
+            },
+        });
+        this.stdin = { readable, isTerminal };
+        this.stdout = SimulatedProcess.#output(isTerminal);
+        this.stderr = SimulatedProcess.#output(isTerminal);
     }
 
     /** Find a command on the process's search path, on the host's files. */
@@ -261,7 +276,7 @@ export class SimulatedProcess implements Process {
     }
 
     /** Make an output that stores what is written to it. */
-    static #output(): Output & { readonly chunks: Uint8Array[] } {
+    static #output(isTerminal: boolean): Output & { readonly chunks: Uint8Array[] } {
         // store a copy of each chunk written, at once
         const chunks: Uint8Array[] = [];
         const encoder = new TextEncoder();
@@ -272,7 +287,7 @@ export class SimulatedProcess implements Process {
         return {
             write: async (chunk) => writeSync(chunk),
             writeSync,
-            isTerminal: false,
+            isTerminal,
             chunks,
         };
     }

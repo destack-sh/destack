@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { SpanStatusCode } from "@opentelemetry/api";
 import { yieldToEventLoop } from "../clock/wait.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
-import type { Finisher, Scheduler } from "./scheduler.ts";
+import type { Party, Scheduler } from "./scheduler.ts";
 import type { Simulation } from "../simulation/simulation.ts";
 
 /** The instrumentation scope of a world's spans and log records. */
@@ -11,7 +11,7 @@ export const SIMULATION_SCOPE = "destack.simulation";
 /** Work in flight: who finishes it, where it began, and whether its answer waits for the loop. */
 interface Flight {
     /** Who finishes it. */
-    readonly by: Finisher;
+    readonly by: Party;
     /** Where it began, as an error whose stack is read only when listed. */
     readonly began: Error;
     /** Whether it settled, its answer waiting for the loop to release it in order. */
@@ -23,7 +23,7 @@ interface Answer {
     /** The order the work began in. */
     readonly order: number;
     /** Who finished it. */
-    readonly by: Finisher;
+    readonly by: Party;
     /** Answer the work with what it settled with. */
     readonly answer: () => void;
     /** Fail the work with the loop's failure. */
@@ -90,7 +90,7 @@ export class SimulatedScheduler implements Scheduler {
     }
 
     /** Start work and count it until it settles, answering host work in the order it began. */
-    track<Value>(start: () => Promise<Value>, by: Finisher): Promise<Value> {
+    track<Value>(start: () => Promise<Value>, by: Party): Promise<Value> {
         // refuse world work begun by host work, as the world stops its time until host work settles
         const flight: Flight = { by, began: new Error(by), isSettled: false };
         const host = this.#host.getStore();
@@ -131,7 +131,7 @@ export class SimulatedScheduler implements Scheduler {
     }
 
     /** Answer the settled host work in the order it began, returning each one's order and kind. */
-    answer(): { readonly order: number; readonly by: Finisher }[] {
+    answer(): { readonly order: number; readonly by: Party }[] {
         const answers = this.#answers.splice(0).toSorted((left, right) => left.order - right.order);
         for (const each of answers) {
             each.answer();
@@ -283,10 +283,7 @@ export class SimulatedScheduler implements Scheduler {
     }
 
     /** Open a span for work while tracing, under the active span, returning its end. */
-    #span(
-        by: Finisher,
-        began: Error,
-    ): ((failure?: { readonly error: unknown }) => void) | undefined {
+    #span(by: Party, began: Error): ((failure?: { readonly error: unknown }) => void) | undefined {
         // trace nothing without telemetry
         const telemetry = this.#telemetry;
         if (telemetry === undefined) {

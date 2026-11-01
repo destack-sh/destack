@@ -537,12 +537,12 @@ function serveEcho(simulation: Simulation, node: string) {
     const listener = simulation.network.server(node).http<{ readonly name: string }>({
         hostname: "echo.test",
         port: 443,
-        fetch: (request, served) =>
-            served.upgrade(request, {
-                attachment: { name: new URL(request.url).searchParams.get("name") ?? "" },
-                headers: { "sec-websocket-protocol": "echo" },
-            })
-                ? undefined
+        fetch: (request) =>
+            request.headers.get("upgrade") === "websocket"
+                ? {
+                      attachment: { name: new URL(request.url).searchParams.get("name") ?? "" },
+                      headers: { "sec-websocket-protocol": "echo" },
+                  }
                 : new Response("no socket", { status: 426 }),
         websocket: {
             open: (socket: ServerSocket<{ readonly name: string }>) =>

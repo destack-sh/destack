@@ -1,14 +1,14 @@
 import { yieldToEventLoop } from "../clock/wait.ts";
 
-/** Who finishes tracked work: the world, the host, or another party. */
-export type Finisher = "world" | "host" | "peer";
+/** The party finishing tracked work: the world, the host, or a peer process the world waits on. */
+export type Party = "world" | "host" | "peer";
 
 /** The scheduler work runs under, which a world's loop reads to know when it is idle. */
 export interface Scheduler {
     /** Let the host's event loop run its waiting tasks once, as the web's `scheduler.yield()`. */
     readonly yield: () => Promise<void>;
     /** Start work and count it in flight until it settles, by who finishes it. */
-    readonly track: <Value>(start: () => Promise<Value>, by: Finisher) => Promise<Value>;
+    readonly track: <Value>(start: () => Promise<Value>, by: Party) => Promise<Value>;
 }
 
 /** Schedulers. */

@@ -15,7 +15,7 @@ import { type ProcessOptions, SimulatedProcess } from "../process/simulated.ts";
 import { SimulatedClock } from "../clock/simulated.ts";
 import { SeverityNumber } from "@opentelemetry/api";
 import { SIMULATION_SCOPE, SimulatedScheduler } from "../scheduler/simulated.ts";
-import type { Finisher } from "../scheduler/scheduler.ts";
+import type { Party } from "../scheduler/scheduler.ts";
 import { SimulatedNetwork } from "../network/simulated.ts";
 import { SimulatedRandom } from "../random/simulated.ts";
 import { Random } from "../random/random.ts";
@@ -156,7 +156,7 @@ export type SimulationEvent =
           /** The order the host work began in. */
           readonly order: number;
           /** Who finished it: the host, or a peer. */
-          readonly by: Finisher;
+          readonly by: Party;
       };
 
 /** Start a node's work in its environment, stopping it once the signal aborts. */
