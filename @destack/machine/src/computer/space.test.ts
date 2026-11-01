@@ -1,0 +1,918 @@
+import { log, LogData } from "@destack/observability";
+import { BunWorkload } from "@destack/stack/bun";
+import { MemoryBuild } from "@destack/package/test";
+import { eq, Snapshot } from "@destack/db";
+import * as accountObject from "@destack/account/object";
+import type { Login } from "@destack/account/native";
+import { BuildStore } from "@destack/build/store";
+import { placement } from "@destack/account/object";
+import type { Crypto, Environment } from "@destack/environment";
+import { type DependencyResolution, Package } from "@destack/package";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
+import { fixtureOutputs, LocalRuntime } from "@destack/stack/test";
+import { found, Identifier, present } from "@destack/schema";
+import {
+    definePackage,
+    Egress,
+    PackageMount,
+    SpaceMount,
+    CallError,
+    defineInstallationBinding,
+    installation,
+} from "@destack/object";
+import { DOMAINS } from "@destack/account/address";
+import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import { createClient } from "@destack/object/client";
+import { RequestId, Scope } from "@destack/sync";
+import { defineWorkload, type RunnerOptions } from "@destack/object/workload";
+import { BucketError } from "@destack/bucket";
+import { bucket } from "@destack/stack/object";
+import * as stackObject from "@destack/stack/object";
+import stackPackage from "@destack/stack/package";
+import objectPackage from "@destack/object/package";
+import { StepUp } from "@destack/access";
+import { expect, refusal, test } from "@destack/test";
+import boardPackage from "../../tests/fixture/board/src/package.ts";
+import machinePackage from "../package.ts";
+import type { TestRelay } from "@destack/relay/test";
+import {
+    OWNER_EMAIL,
+    RELAY_NODE,
+    TestComputer,
+    type TestComputerOptions,
+    type TestWorld,
+    SCENARIO_MILLISECONDS,
+    WorldDriver,
+} from "./test/index.ts";
+
+/** The step-up a move of a space asks for: a second factor within the last 15 minutes. */
+const MOVE_STEP_UP = StepUp.schema.parse({ assurance: 2, maxAge: 900_000 });
+
+/** The handle of the shared account the board's space lives in. */
+const BOARD_HANDLE = "acme";
+
+/** The package both spaces install: one workload answering each call with its caller. */
+const echo = Package.parse({
+    id: "package-01996ab0-0000-7000-8000-0000000000a4",
+    name: "@acme/echo",
+    version: "2026.10.0",
+});
+
+/** The echo package's handle. */
+const echoPackage = definePackage({}, { package: echo });
+
+/** The echo package's workload, which answers each call with its path and caller. */
+const echoWorkload = defineWorkload(
+    {
+        name: "main",
+        start: (context) => ({
+            packages: [
+                {
+                    package: echoPackage,
+                    router: {},
+                    environment: context.environment,
+                    fetch: async (request, called) =>
+                        Response.json({
+                            path: new URL(request.url).pathname,
+                            caller: called.caller().subject.id,
+                            scope: called.authentication?.credential.scope ?? null,
+                        }),
+                },
+            ],
+        }),
+    },
+    { package: echo },
+);
+
+/** The package that calls an echo installation of another space. */
+const visitor = Package.parse({
+    id: "package-01996ab0-0000-7000-8000-0000000000a5",
+    name: "@acme/visitor",
+    version: "2026.10.0",
+});
+
+/** The visitor's binding of an echo installation, which a space binds across spaces. */
+const peerBinding = defineInstallationBinding("peer", echoPackage, {}, { package: visitor });
+
+/** The visitor's workload, which serves nothing and calls its peer through its machine's egress. */
+const visitorWorkload = defineWorkload(
+    { name: "main", start: () => ({ packages: [] }) },
+    { package: visitor },
+);
+
+/** Write a package's build in memory. */
+async function workloadBuild(
+    built: Package,
+    declarations: readonly MemoryDeclaration[],
+    dependencies: readonly BuildReader[],
+    crypto: Crypto,
+): Promise<BuildReader> {
+    return MemoryBuild.of(
+        built,
+        declarations.map((declaration) => ({
+            kind: "resource" as const,
+            kindPackageId: built.id,
+            name: declaration.name,
+            description: declaration.description,
+        })),
+        crypto,
+        {
+            dependencies: await releases(dependencies, crypto),
+            outputs: fixtureOutputs({
+                server: {
+                    runtime: "bun",
+                    emit: true,
+                    workloads: {
+                        main: {
+                            entrypoint: ".",
+                            packages: [],
+                            triggers: [],
+                            resources: declarations.map((declaration) => ({
+                                packageId: built.id,
+                                name: declaration.name,
+                            })),
+                            secrets: [],
+                            compute: {},
+                            sandbox: {},
+                        },
+                    },
+                    views: {},
+                },
+            }),
+        },
+    );
+}
+
+/** Resolve builds as the Destack releases a build depends on, by package name. */
+async function releases(
+    dependencies: readonly BuildReader[],
+    crypto: Crypto,
+): Promise<Record<string, DependencyResolution>> {
+    const resolved: Record<string, DependencyResolution> = {};
+    for (const dependency of dependencies) {
+        resolved[PackageManifest.package(dependency.manifest).name] = {
+            kind: "destack",
+            package: PackageManifest.package(dependency.manifest),
+            manifest: await BuildStore.digest(dependency.manifest, crypto),
+        };
+    }
+
+    return resolved;
+}
+
+/** A resource a build in memory declares: its name and description. */
+interface MemoryDeclaration {
+    /** The declaration's name. */
+    readonly name: string;
+    /** The declaration's description. */
+    readonly description: Readonly<Record<string, unknown>>;
+}
+
+/** The echo build, declaring nothing beside its workload. */
+function echoBuild(crypto: Crypto): Promise<BuildReader> {
+    return workloadBuild(echo, [], [], crypto);
+}
+
+/** The visitor build, declaring its peer binding of the echo package at an echo release. */
+function visitorBuild(echoRelease: BuildReader, crypto: Crypto): Promise<BuildReader> {
+    const { name, kind, spec } = peerBinding;
+    const declared = [{ name, description: { name, kind, spec } }];
+
+    return workloadBuild(visitor, declared, [echoRelease], crypto);
+}
+
+/** Run the echo scenarios' workloads in the test's own process, on a node's clock and network. */
+function workloads(environment: Environment): ReadonlyMap<string, RunnerOptions> {
+    return new Map([
+        [echo.id, new BunWorkload(echoWorkload, {}).runner(environment)],
+        [visitor.id, new BunWorkload(visitorWorkload, { peer: peerBinding }).runner(environment)],
+    ]);
+}
+
+/** A computer of the owner's serving a space, with the owner signed in on its device. */
+interface Served {
+    /** The computer. */
+    readonly computer: TestComputer;
+    /** The owner's login on the computer's device. */
+    readonly login: Login["row"];
+    /** The space the computer serves. */
+    readonly space: Identifier<"space">;
+}
+
+/** A served computer running its instances in the test's process. */
+interface Echoing extends Served {
+    /** The runtime running the computer's instances. */
+    readonly runtime: LocalRuntime;
+    /** The failures the runtime reported. */
+    readonly failures: unknown[];
+    /** The node the computer runs as on the simulated network. */
+    readonly node: string;
+}
+
+/** Start a computer, enroll it in an account as the owner and serve a new space on it. */
+async function openComputer(
+    world: TestWorld,
+    accountId: Identifier<"account">,
+    name: string,
+    options: TestComputerOptions = {},
+): Promise<Served> {
+    // start the computer and sign the owner in on its device
+    const computer = await TestComputer.open({ ...options, world });
+    const login = await computer.signIn(OWNER_EMAIL);
+
+    // enroll it in the account and create the space on it
+    await computer.enroll(login, accountId);
+    const space = await computer.space(login, accountId, name);
+
+    return { computer, login, space };
+}
+
+/** Serve a space on a computer of the owner's account through a relay, running echo in process. */
+async function openEcho(world: TestWorld, name: string, relay: TestRelay): Promise<Echoing> {
+    // run instances in the test's process with their packages' workloads, on the computer's node
+    const node = `computer-${name}`;
+    const runners = workloads(world.simulation.environment(node));
+    const runtimes: LocalRuntime[] = [];
+    const failures: unknown[] = [];
+    const served = await openComputer(world, world.owner.account, name, {
+        node,
+        relay: relay.url,
+        runtime: (egress, identity) => {
+            const runtime = new LocalRuntime({
+                egress,
+                identity,
+                runner: (spec) => found(runners, PackageManifest.package(spec.build.manifest).id),
+                report: (error) => failures.push(error),
+            });
+            runtimes.push(runtime);
+
+            return runtime;
+        },
+    });
+
+    return { ...served, runtime: present(runtimes[0], "the computer's runtime"), failures, node };
+}
+
+/** Connect to the object package of a computer's space as the owner signed in on its device. */
+async function objectsOf(served: Served) {
+    const { device } = served.computer;
+
+    return createClient(
+        objectPackage,
+        (await device.session(served.login.id)).endpoint(
+            objectPackage.id,
+            await device.locate(served.space),
+        ),
+        device.environment,
+    );
+}
+
+/** Provision a bucket of a definition in a computer's space. */
+async function keepBucket(
+    served: Served,
+    definition: {
+        readonly name: string;
+        readonly spec: Record<string, never>;
+        readonly package: Pick<Package, "id" | "version">;
+    },
+): Promise<Identifier<"bucket">> {
+    // request the bucket in the space, as the space's stack declares it
+    const { computer, space } = served;
+    const database = (await computer.machine.space(space)).database;
+    const id = Identifier.create("bucket", computer.environment);
+    const now = computer.clock.now();
+    await database.transaction(async (transaction) => {
+        await transaction.insert(bucket.table).values({
+            id,
+            scope: space,
+            name: definition.name,
+            definitionPackageId: definition.package.id,
+            definitionVersion: definition.package.version,
+            definitionName: definition.name,
+            spec: definition.spec,
+            createdAt: now,
+            updatedAt: now,
+        });
+    });
+
+    // wait for the machine to provision it
+    await computer.until(database, async () => {
+        const [row] = await database
+            .select({ reference: bucket.table.reference })
+            .from(bucket.table)
+            .where(eq(bucket.table.id, id));
+
+        return row !== undefined && row.reference !== null;
+    });
+
+    return id;
+}
+
+/** Install an echo release in a computer's space, bound to a peer, waiting for its instances. */
+async function install(served: Echoing, release: BuildReader, name: string, peer?: Peer) {
+    // publish the release and install it as the owner
+    const { computer, space } = served;
+    await computer.registry.release(release);
+    const released = PackageManifest.package(release.manifest);
+    const service = await objectsOf(served);
+    const created = await service.installation.create({
+        scope: space,
+        requestId: RequestId.create(computer.environment),
+        packageId: released.id,
+        selection: { kind: "release", version: released.version },
+        name,
+    });
+
+    // bind its peer declaration and wait for the instances of its workloads
+    if (peer !== undefined) {
+        await bind(served, created.id, peer);
+    }
+    const workloadNames = Object.keys(release.manifest.outputs["server"]?.workloads ?? {});
+    await serving(served, created.id, workloadNames.length);
+
+    return { id: created.id, name };
+}
+
+/** Wait until a computer's space store serves an installed package's objects. */
+async function storing(served: Served, packageId: string): Promise<void> {
+    const database = (await served.computer.machine.space(served.space)).database;
+    await served.computer.until(
+        database,
+        async () => (await storePackage(served, packageId)) !== undefined,
+    );
+}
+
+/** Find the package a computer's space store serves for an installed package. */
+async function storePackage(served: Served, packageId: string) {
+    const { instance } = await served.computer.machine.space(served.space);
+
+    return instance.packages.find((handle) => handle.id === packageId);
+}
+
+/** Wait until a computer runs the instances of an installation's workloads, one by default. */
+async function serving(
+    served: Echoing,
+    installationId: Identifier<"installation">,
+    workloadCount = 1,
+    spaceId: Identifier<"space"> = served.space,
+): Promise<void> {
+    const database = (await served.computer.machine.space(spaceId)).database;
+    await served.computer
+        .until(
+            database,
+            async () =>
+                (await stackObject.Instance.endpoints(database, installationId)).filter(
+                    (endpoint) => served.runtime.isRunning(endpoint.instanceId),
+                ).length === workloadCount,
+        )
+        .catch(async (error: unknown) => {
+            // name the installation's ready condition beside the wait's failure
+            const [row] = await database
+                .select({ conditions: installation.table.conditions })
+                .from(installation.table)
+                .where(eq(installation.table.id, installationId));
+            const ready = row?.conditions["Ready"];
+            throw new Error(
+                `${installationId} runs no instance: ${ready?.reason} ${ready?.message}`,
+                {
+                    cause: error,
+                },
+            );
+        });
+}
+
+/** Serve a board's space of a shared account on a computer. */
+async function openBoard(world: TestWorld, options: TestComputerOptions = {}): Promise<Served> {
+    // create the shared account as the owner, and serve the board's space on a computer enrolled in it
+    const accounts = world.owner.client(accountPackage);
+    const account = await accounts.account.create({
+        scope: world.owner.id,
+        requestId: RequestId.create(world.universe.environment),
+        handle: BOARD_HANDLE,
+        name: "Acme",
+        kind: "shared",
+        residencyId: "eu",
+    });
+    const served = await openComputer(world, account.id, "board", options);
+
+    // install the board from the run's fixtures
+    const { computer, login, space } = served;
+    const database = (await computer.machine.space(space)).database;
+    await computer.install(login.id, space, await WorldDriver.fixture("board"), "board");
+    await storing(served, boardPackage.id);
+
+    // wait until the board's sandboxed instance serves
+    const board = await Snapshot.live(database)
+        .read(installation.table)
+        .findFirst({ where: { scope: space, packageId: boardPackage.id } });
+    const boardId = present(board, "the board's installation").id;
+    await computer.until(
+        database,
+        async () => (await stackObject.Instance.endpoints(database, boardId)).length > 0,
+    );
+
+    return served;
+}
+
+/** Read the buckets a computer stores for a space, its own space's by default. */
+async function buckets(served: Served, space: Identifier<"space"> = served.space) {
+    return (await served.computer.machine.space(space)).buckets;
+}
+
+/** The installation of another space an echo installation calls as its peer. */
+interface Peer {
+    /** The called installation's name in its space. */
+    readonly target: string;
+    /** The space of the called installation. */
+    readonly targetSpaceId: Identifier<"space">;
+}
+
+/** Bind an installation's peer declaration to an installation of another space, as a stack does. */
+async function bind(
+    served: Served,
+    installationId: Identifier<"installation">,
+    peer: Peer,
+): Promise<void> {
+    const { computer, space } = served;
+    const now = computer.clock.now();
+    const database = (await computer.machine.space(space)).database;
+    await database.transaction(async (transaction) => {
+        await transaction.insert(stackObject.binding.table).values({
+            id: Identifier.create("binding", computer.environment),
+            scope: space,
+            installationId,
+            packageId: visitor.id,
+            name: peerBinding.name,
+            ...peer,
+            createdAt: now,
+            updatedAt: now,
+        });
+    });
+}
+
+/** Connect to the stack package of a space at a computer's endpoint with an access token. */
+function stackAt(served: Served, spaceId: Identifier<"space">, token: string) {
+    const { computer } = served;
+
+    return createClient(
+        stackPackage,
+        {
+            url: `${SpaceMount.url(computer.endpoint, spaceId)}${PackageMount.path(stackPackage.id)}`,
+            headers: { authorization: `Bearer ${token}` },
+        },
+        computer.device.environment,
+    );
+}
+
+/** Connect to the stack package of a computer's space as the owner after a second factor. */
+async function steppedUp(served: Served) {
+    const { computer, space } = served;
+    const elevated = await computer.elevate(MOVE_STEP_UP);
+    const person = await computer.device.session(elevated.id);
+
+    return stackAt(
+        served,
+        space,
+        await person.login.token(stackPackage.id, { partition: space }, MOVE_STEP_UP),
+    );
+}
+
+/** Serve a source space and a caller space on two of the owner's computers through a relay. */
+async function openComputers() {
+    // serve both spaces
+    const world = await TestComputer.world();
+    const relay = await TestComputer.relay(world);
+    const source = await openEcho(world, "source", relay);
+    const caller = await openEcho(world, "caller", relay);
+
+    // run the echo package in the source and the visitor in the caller
+    const { crypto } = world.simulation.environment("builds");
+    const echoRelease = await echoBuild(crypto);
+    const called = await install(source, echoRelease, "echo");
+    await caller.computer.registry.release(echoRelease);
+    const calling = await install(caller, await visitorBuild(echoRelease, crypto), "visitor", {
+        target: called.name,
+        targetSpaceId: source.space,
+    });
+
+    // call the source's echo service from the caller's installation
+    const call = async (path: string) => {
+        const response = await caller.runtime.request(
+            calling.id,
+            Egress.address(called.name, source.space),
+            `${PackageMount.path(echo.id)}${path}`,
+            { method: "POST" },
+        );
+
+        return [response.status, await response.json()];
+    };
+
+    return { world, source, caller, called, calling, call };
+}
+
+test(
+    "call an installation of a space on another computer through the relay as an installation of a space here, verified by the calling space's token",
+    { timeout: SCENARIO_MILLISECONDS },
+    async () => {
+        // call the source's echo installation from the caller's installation
+        const { source, calling, call } = await openComputers();
+        const answered = await call("/greeting");
+
+        // answer as the source space, seeing the calling installation
+        expect(answered).toEqual([
+            200,
+            { path: "/greeting", caller: calling.id, scope: source.space },
+        ]);
+    },
+);
+
+test(
+    "move a space with its app, database, builds and files to its caller's computer, answering its calls throughout, after cancelling a stuck move that leaves it serving where it was",
+    { timeout: SCENARIO_MILLISECONDS },
+    async () => {
+        // store a file in another bucket of the source space and answer a first call
+        const { world, source, caller, called, calling, call } = await openComputers();
+        const files = await keepBucket(source, { name: "files", spec: {}, package: echo });
+        await (await (await buckets(source)).open({ bucketId: files })).put("notes/a.txt", "first");
+        const first = await call("/first");
+
+        // cut the source computer off the relay, so its peers neither call nor capture it
+        const { network } = world.simulation;
+        network.partition(source.node, RELAY_NODE);
+
+        // move the space as its owner, stepped up to a second factor, which the caller cannot capture
+        const owner = await steppedUp(source);
+        const target = caller.computer.machine.id;
+        const stuck = await owner.transfer.create({
+            spaceId: source.space,
+            requestId: RequestId.create(world.universe.environment),
+            targetId: target,
+        });
+        const moving = (await source.computer.machine.space(source.space)).database;
+        const whileCut = await call("/cut");
+
+        // cancel the stuck move as the owner
+        await owner.transfer.cancel({
+            spaceId: source.space,
+            id: stuck.id,
+            requestId: RequestId.create(world.universe.environment),
+        });
+        await serving(source, called.id);
+        const [ended] = await moving
+            .select({ outcome: stackObject.transfer.table.outcome })
+            .from(stackObject.transfer.table)
+            .where(eq(stackObject.transfer.table.id, stuck.id));
+
+        // drop the caller's computer's replica of the cancelled move with the buckets it provisioned
+        const replica = (await caller.computer.machine.space(source.space)).database;
+        await caller.computer.until(
+            replica,
+            async () =>
+                (
+                    await replica
+                        .select({ scope: Scope.table.scope })
+                        .from(Scope.table)
+                        .where(eq(Scope.table.scope, source.space))
+                ).length === 0,
+        );
+
+        // drop the bucket once the cancelled move's restore in flight fails
+        const abandoned = async () =>
+            (await buckets(caller, source.space))
+                .open({ bucketId: files })
+                .then(() => "open")
+                .catch((error: unknown) => (BucketError.is(error) ? error.reason : error));
+        await caller.computer.until(replica, async () => (await abandoned()) === "NO_SUCH_BUCKET");
+
+        // rejoin the source computer to the relay, waiting for its tunnel
+        const universe = world.universe.storage.database;
+        const published = async () => {
+            const [row] = await universe
+                .select({ updatedAt: accountObject.endpoint.table.updatedAt })
+                .from(accountObject.endpoint.table)
+                .where(eq(accountObject.endpoint.table.id, source.computer.machine.id));
+
+            return row?.updatedAt;
+        };
+        const before = await published();
+        network.heal(source.node, RELAY_NODE);
+        await source.computer.until(universe, async () => (await published()) !== before);
+        const cancelled = await call("/cancelled");
+
+        // move it again once the caller can capture it
+        await owner.transfer.create({
+            spaceId: source.space,
+            requestId: RequestId.create(world.universe.environment),
+            targetId: target,
+        });
+        await source.computer.until(
+            universe,
+            async () =>
+                (
+                    await universe
+                        .select({ machine: placement.table.machineId })
+                        .from(placement.table)
+                        .where(eq(placement.table.id, source.space))
+                )[0]?.machine === target,
+        );
+        await serving(caller, called.id, 1, source.space);
+        const moved = await call("/moved");
+
+        // read the moved file on the caller's computer
+        const stored = await (
+            await (await buckets(caller, source.space)).open({ bucketId: files })
+        ).get("notes/a.txt");
+        expect({
+            first,
+            whileCut,
+            ended,
+            cancelled,
+            moved,
+            file: await stored?.text(),
+            reports: [
+                ...source.computer.reports,
+                ...source.failures,
+                ...caller.computer.reports,
+                ...caller.failures,
+            ],
+        }).toEqual({
+            first: [200, { path: "/first", caller: calling.id, scope: source.space }],
+            whileCut: [
+                503,
+                {
+                    defined: true,
+                    code: "SERVICE_UNAVAILABLE",
+                    status: 503,
+                    message: `machine ${source.computer.machine.id} is disconnected`,
+                    reason: "MACHINE_DISCONNECTED",
+                    domain: "@destack/relay",
+                },
+            ],
+            ended: { outcome: "cancelled" },
+            cancelled: [200, { path: "/cancelled", caller: calling.id, scope: source.space }],
+            moved: [200, { path: "/moved", caller: calling.id, scope: source.space }],
+            file: "first",
+            reports: [],
+        });
+    },
+);
+
+test(
+    "relay a sandboxed instance's telemetry through its machine into its space's observability, stamped with the installation, instance and build its secret proves",
+    { timeout: SCENARIO_MILLISECONDS },
+    async () => {
+        // run the board sandboxed
+        const world = await TestComputer.world();
+        const source = await openBoard(world);
+        const { computer, space } = source;
+        const sourced = (await computer.machine.space(space)).database;
+        const [boards] = await Snapshot.live(sourced)
+            .read(installation.table)
+            .findMany({ where: { scope: space, packageId: boardPackage.id } });
+        const boardId = present(boards, "the board's installation").id;
+        const [running] = await stackObject.Instance.endpoints(sourced, boardId);
+        const [built] = await sourced
+            .select({ manifest: stackObject.build.table.manifest })
+            .from(stackObject.rollout.table)
+            .innerJoin(
+                stackObject.installationRevision.table,
+                eq(stackObject.installationRevision.table.id, stackObject.rollout.table.revisionId),
+            )
+            .innerJoin(
+                stackObject.build.table,
+                eq(stackObject.build.table.id, stackObject.installationRevision.table.buildId),
+            )
+            .where(eq(stackObject.rollout.table.id, boardId));
+        const instance = present(running, "the board's instance").instanceId;
+        const manifest = present(built?.manifest, "the board's build manifest");
+
+        // read the started records the board's runner exported to its machine
+        const { events } = (await computer.machine.space(space)).volume;
+        const started = async () =>
+            (
+                await events.query(
+                    log.eventKind(),
+                    { scopes: [space], where: { installationId: boardId } },
+                    { limit: 10 },
+                )
+            ).events
+                .filter((entry) => entry.keys.name === "workload.started")
+                .map((entry) => [
+                    entry.keys.installationId,
+                    LogData.parse(entry.data).instance,
+                    entry.keys.build,
+                ]);
+
+        // record it under the board's installation, its running instance and its build
+        await computer.until(sourced, async () => (await started()).length > 0);
+        expect([await started(), computer.reports]).toEqual([[[boardId, instance, manifest]], []]);
+    },
+);
+
+test(
+    "accept a peer machine's universe token only for the space it is bound to, and refuse it at once after its key is revoked",
+    { timeout: SCENARIO_MILLISECONDS },
+    async () => {
+        // serve two spaces and enroll a peer computer through the relay
+        const world = await TestComputer.world();
+        const relay = await TestComputer.relay(world);
+        const served = await openComputer(world, world.owner.account, "work", { relay: relay.url });
+        const { computer, space } = served;
+        const other = await computer.space(served.login, world.owner.account, "other");
+        const peer = await TestComputer.open({ world, relay: relay.url });
+        await peer.enroll(await peer.signIn(OWNER_EMAIL), world.owner.account);
+
+        // move the moving space to the peer as the owner, stepped up to a second factor
+        const moving = await (
+            await steppedUp(served)
+        ).transfer.create({
+            spaceId: space,
+            requestId: RequestId.create(computer.environment),
+            targetId: peer.machine.id,
+        });
+        expect([
+            (await computer.device.locate(space)).placement.machine,
+            await world.universe.storage.database
+                .select({ target: placement.table.targetId })
+                .from(placement.table)
+                .where(eq(placement.table.id, space)),
+        ]).toEqual([computer.machine.id, [{ target: peer.machine.id }]]);
+
+        // grant the peer tokens in the universe and the moving space and refuse one in the other space
+        const issuer = {
+            url: `${PackageMount.url(world.universe.origin, accountPackage.id)}${OAUTH_PATH}`,
+        };
+        const grant = (binding: { readonly partition?: Identifier<"space"> }) =>
+            peer.machine.identity.token(
+                stackPackage.id,
+                issuer,
+                (request) => peer.device.environment.network.fetch(request),
+                binding,
+            );
+        const unbound = await grant({});
+        const bound = await grant({ partition: space });
+        const elsewhere = await refusal(grant({ partition: other }));
+
+        // fence the moving space with the bound token alone and refuse it once the peer's key is revoked
+        const peerKeys = async () =>
+            await computer.machine.database
+                .select({ revokedAt: accountObject.key.table.revokedAt })
+                .from(accountObject.key.table)
+                .where(eq(accountObject.key.table.parentId, peer.machine.id));
+        await computer.until(computer.machine.database, async () => {
+            const keys = await peerKeys();
+
+            return keys.length === 1 && keys.every((each) => each.revokedAt === null);
+        });
+        const fence = (spaceId: Identifier<"space">, token: string) =>
+            stackAt(served, spaceId, token).transfer.fence({
+                spaceId,
+                id: moving.id,
+                requestId: RequestId.create(computer.environment),
+            });
+        const outcomes = [
+            await refusal(fence(space, unbound)),
+            await refusal(fence(other, bound)),
+            await refusal(fence(space, bound)),
+        ];
+        await peer.connect(machinePackage).computer.revoke({
+            deviceId: peer.device.id,
+            id: peer.machine.id,
+            requestId: RequestId.create(computer.environment),
+        });
+        await computer.until(computer.machine.database, async () =>
+            (await peerKeys()).every((each) => each.revokedAt !== null),
+        );
+        expect({
+            elsewhere,
+            outcomes,
+            revoked: await refusal(fence(space, bound)),
+        }).toEqual({
+            elsewhere: [
+                "BAD_REQUEST",
+                "INVALID_GRANT",
+                `the token endpoint refused the request: invalid_grant: ${other} is placed on other machines`,
+            ],
+            outcomes: [
+                [
+                    "UNAUTHORIZED",
+                    "TOKEN_UNBOUND",
+                    "universe tokens reach this machine bound to a partition",
+                ],
+                [
+                    "FORBIDDEN",
+                    "FOREIGN_PARTITION_TOKEN",
+                    "the universe token is bound to another partition",
+                ],
+                "done",
+            ],
+            revoked: ["UNAUTHORIZED", "KEY_REVOKED", "the machine token's key is no longer valid"],
+        });
+    },
+);
+
+test(
+    "move a space through its machine as its owner once a stepped-up session exchanges for the universe's token of the space",
+    { timeout: SCENARIO_MILLISECONDS },
+    async () => {
+        // serve a space and enroll another computer of the account to move it to
+        const world = await TestComputer.world();
+        const served = await openComputer(world, world.owner.account, "work");
+        const { computer, space, login } = served;
+        const peer = await TestComputer.open({ world });
+        await peer.enroll(await peer.signIn(OWNER_EMAIL), world.owner.account);
+        const move = (token: string) =>
+            stackAt(served, space, token).transfer.create({
+                spaceId: space,
+                requestId: RequestId.create(computer.environment),
+                targetId: peer.machine.id,
+            });
+
+        // challenge the person's token for a second factor
+        const person = await computer.device.session(login.id);
+        const challenge = await move(
+            await person.login.token(stackPackage.id, { partition: space }),
+        ).then(
+            () => undefined,
+            (error: unknown) => {
+                const known = CallError.of(error);
+
+                return known === undefined ? error : [known.code, known.data];
+            },
+        );
+
+        // exchange the token again after a second factor, then move the space
+        const stepUp = StepUp.schema.parse(Array.isArray(challenge) ? challenge[1] : undefined);
+        const elevated = await computer.device.session((await computer.elevate(stepUp)).id);
+        const moved = await move(
+            await elevated.login.token(stackPackage.id, { partition: space }, stepUp),
+        );
+        expect({ challenge, moved: [moved.sourceId, moved.targetId] }).toEqual({
+            challenge: ["UNAUTHORIZED", { assurance: 2, maxAge: 900_000 }],
+            moved: [computer.machine.id, peer.machine.id],
+        });
+    },
+);
+
+test(
+    "publish a renamed machine's new relay name while it serves, without a restart",
+    { timeout: SCENARIO_MILLISECONDS },
+    async () => {
+        // serve a computer routing its names through the residency's relay
+        const world = await TestComputer.world();
+        const relay = await TestComputer.relay(world);
+        const { computer } = await openComputer(world, world.owner.account, "work", {
+            relay: relay.url,
+        });
+
+        // rename the machine as itself and find it published under the new name
+        const { machine, device } = computer;
+        const accounts = createClient(
+            accountPackage,
+            {
+                url: PackageMount.url(world.universe.origin, accountPackage.id),
+                fetch: machine.identity.fetch(
+                    (request) => device.environment.network.fetch(request),
+                    accountPackage.id,
+                    {
+                        url: `${PackageMount.url(world.universe.origin, accountPackage.id)}${OAUTH_PATH}`,
+                    },
+                ),
+            },
+            device.environment,
+        );
+        await accounts.machine.rename({
+            scope: world.owner.account,
+            id: machine.id,
+            requestId: RequestId.create(computer.environment),
+            name: "renamed",
+        });
+        const universe = world.universe.storage.database;
+        await computer.until(universe, async () => {
+            const [published] = await universe
+                .select({ url: accountObject.endpoint.table.url })
+                .from(accountObject.endpoint.table)
+                .where(eq(accountObject.endpoint.table.id, machine.id));
+
+            return published?.url === `https://renamed--${world.owner.handle}.${DOMAINS.machine}`;
+        });
+        expect(computer.reports).toEqual([]);
+    },
+);
+
+test(
+    "close a space before its buckets while one of them is open, failing nothing busy",
+    { timeout: SCENARIO_MILLISECONDS },
+    async () => {
+        // store a file in a bucket of a space
+        const world = await TestComputer.world();
+        const served = await openComputer(world, world.owner.account, "work");
+        const files = await keepBucket(served, { name: "files", spec: {}, package: echo });
+        const host = await buckets(served);
+        await (await host.open({ bucketId: files })).put("notes/a.txt", "first");
+
+        // close the computer with the buckets
+        await served.computer.close();
+        expect(served.computer.reports).toEqual([]);
+    },
+);

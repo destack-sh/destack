@@ -1,0 +1,47 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a116b8-8e99-75cd-af21-8d13095952ef",
+    "language": "typescript",
+    "runtimes": ["bun", "workerd"],
+    "entrypoints": [
+        "src/cloudflare/worker.ts",
+        "src/cloudflare/tail.ts",
+        "src/cloudflare/test/scenario.ts",
+        "src/cloudflare/runtime/test/partition.ts"
+    ],
+    "exports": {
+        "./bun": {
+            "runtimes": ["bun"]
+        },
+        "./checkout": {
+            "runtimes": ["bun"]
+        },
+        "./cloudflare": {
+            "runtimes": ["workerd"]
+        },
+        "./cloudflare/tail": {
+            "runtimes": ["workerd"]
+        },
+        "./cloudflare/worker": {
+            "runtimes": ["workerd"]
+        },
+        "./computer": {
+            "runtimes": ["bun"]
+        },
+        "./device": {
+            "runtimes": ["bun"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
+        }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/cloudflare/runtime/instance.ts"],
+                "rules": ["destack/prevent-abbreviations"],
+                "reason": "env is the Worker Loader's name for a loaded worker's bindings, which its code object keeps"
+            }
+        ]
+    }
+}

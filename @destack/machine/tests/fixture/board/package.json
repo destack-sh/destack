@@ -1,0 +1,17 @@
+{
+    "name": "@destack/machine-board-fixture",
+    "version": "2026.10.0",
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts",
+        "./package": "./src/package.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/stack": "workspace:*"
+    }
+}

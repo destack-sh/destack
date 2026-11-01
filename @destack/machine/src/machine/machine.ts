@@ -1,0 +1,1028 @@
+import { Authentication, Caller, type ChainOptions, principal } from "@destack/access";
+import { Directory, DOMAINS } from "@destack/account/address";
+import type {
+    Enrollment,
+    MachineIdentity,
+    MachineIssuer,
+    TokenScope,
+} from "@destack/account/client";
+import { IdentityRegistry } from "@destack/account/identity";
+import * as accountObject from "@destack/account/object";
+import { Identity, Key, placement } from "@destack/account/object";
+import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import {
+    eq,
+    or,
+    type DatabaseConnection,
+    type Select,
+    Snapshot,
+    type Table,
+    type FollowController,
+    type Following,
+} from "@destack/db";
+import type { Environment, FetchOptions } from "@destack/environment";
+import { Registry } from "@destack/forge/client";
+import type { SpaceOptions } from "@destack/stack/server";
+import type { Keyring } from "@destack/identity";
+import {
+    CallError,
+    ClaimLookup,
+    claimTable,
+    type Fetch,
+    type Follow,
+    type MethodInput,
+    type PackageHandle,
+    PackageMount,
+    refusal,
+    SpaceMount,
+} from "@destack/object";
+import type {
+    PackageImplementation,
+    ProcedureContext,
+    RequestContext,
+    Server,
+} from "@destack/object/server";
+import type { PackageId, PackageRelease } from "@destack/package";
+import relayPackage from "@destack/relay/package";
+import { TUNNEL_PATH, TunnelClient } from "@destack/relay/tunnel";
+import { Bearer, type PartitionId, SPACE_KEY } from "@destack/access/token";
+import { createClient, type ClientOf } from "@destack/object/client";
+import type { Alarm } from "@destack/db";
+import { copyRequest, until } from "@destack/environment";
+import { RequestId, type Publisher, Scope } from "@destack/sync";
+import type { HibernationHost } from "@destack/object/workload";
+import { canonicalize, type Identifier, present, schema } from "@destack/schema";
+import * as stackObject from "@destack/stack/object";
+import stackPackage from "@destack/stack/package";
+import { PROCESS_RUNTIME } from "@destack/stack/object";
+import type { Runtime } from "@destack/stack/runtime";
+import { type BuildCache, Handoff } from "@destack/stack/server";
+import { computer, MachineEnrollment } from "../computer/device/object/index.ts";
+import type { Sku } from "@destack/finance";
+import { Space, type SpaceStorage, SpaceRequest } from "../space/index.ts";
+import type {} from "@destack/package/import-meta";
+import { MachineError } from "../error/index.ts";
+
+/** How long the machine's and its spaces' services drain accepted requests at a stop. */
+export const DRAIN_TIMEOUT_MILLISECONDS = 10000;
+
+/** The origin this machine calls its own spaces at, through itself, not the network. */
+const OWN_MACHINE = "http://machine.invalid";
+
+/** How long this machine's own calls as itself to its spaces last: a minute, one call's latency. */
+const MACHINE_CALL_MILLISECONDS = 60_000;
+
+/** What a machine serves its spaces with: its public and its private fields. */
+export type MachineOptions = Pick<
+    Machine,
+    | "id"
+    | "environment"
+    | "identity"
+    | "keyring"
+    | "database"
+    | "spaces"
+    | "cache"
+    | "isBuilding"
+    | "isEnforcingEntitlements"
+    | "isServingHostnames"
+    | "domain"
+    | "runtimes"
+    | "hibernation"
+    | "alarm"
+    | "servers"
+    | "bundled"
+    | "rates"
+    | "endpoint"
+    | "authenticate"
+    | "authorizeSpace"
+    | "report"
+> & {
+    /** Read the machine's enrollment, through a controller's view when given. */
+    readonly enrollment: (view?: Pick<Snapshot, "read">) => Promise<MachineEnrollment | undefined>;
+    /** Serve the machine's own partition while it serves, absent for a machine without one. */
+    readonly partition?: () => Promise<AsyncDisposable>;
+    /** Read what the machine reports beside its version and runtimes, at each report. */
+    readonly describe: () => Promise<
+        Omit<MethodInput<typeof accountObject.machine, "report">, "id" | "version" | "runtimes">
+    >;
+    /** The forges' registry, by default the directory's forges called as the machine. */
+    readonly releases?: SpaceOptions["registry"];
+    /** Every release the machine ships, whose manifests its registry answers before any forge's. */
+    readonly shipped: readonly PackageRelease[];
+    /** The Destack version the machine runs. */
+    readonly version: string;
+    /** The relay the machine tunnels through while enrolled, absent to publish its endpoint. */
+    readonly tunnel?: {
+        /** The relay's tunnel URL, its account residency's relay's when absent. */
+        readonly url?: string;
+        /** Answer a request for one of the machine's names. */
+        readonly fetch: (request: Request) => Promise<Response>;
+        /** Report a failed publication of the tunnel's name. */
+        readonly report: (error: unknown) => void;
+    };
+};
+
+/** The enrollment of a person's machine, as the approving person submits it. */
+type PersonalEnrollment = Extract<Enrollment, { readonly kind: "personal" }>;
+
+/** Whether a machine is idle, serves, pauses while its account drains or disables it, or stops. */
+type ServingState = "idle" | "serving" | "paused" | "stopping";
+
+/** A machine: its standing at the universe, the storage of its spaces, and the spaces it serves. */
+export class Machine implements FollowController {
+    /** The universe's tables a machine replicates: machines, keys, names and placements. */
+    static readonly replicated: readonly Table[] = [
+        ...[
+            accountObject.machine,
+            accountObject.key,
+            accountObject.endpoint,
+            accountObject.claim,
+            accountObject.identity,
+            accountObject.operation,
+        ].map((type) => type.table),
+        accountObject.placement.table,
+        accountObject.assignment.table,
+    ];
+
+    /** The controller's name in reports. */
+    readonly name = "machine";
+    /** Serve until the machine leaves its enrollment. */
+    readonly mode = "follow";
+    /** This machine's record, whose enrollment starts and stops the spaces. */
+    readonly watches: readonly Table[] = [computer.table];
+    /** The machine. */
+    readonly id: Identifier<"machine">;
+    /** The clock the machine runs at, and the network it sends through. */
+    readonly environment: Environment;
+    /** The identity the machine proves with the key the universe enrolled. */
+    readonly identity: MachineIdentity;
+    /** The machine's root keys, wrapping vault and space keys. */
+    readonly keyring: Keyring;
+    /** The machine's own database, with its replicas. */
+    readonly database: DatabaseConnection;
+    /** The machine's replica of the universe's directory. */
+    readonly directory: Directory;
+    /** The storage of the machine's spaces. */
+    readonly spaces: SpaceStorage;
+    /** The machine's cache of the builds it runs. */
+    readonly cache: BuildCache;
+    /** The forges' registry of published releases, called as the machine. */
+    readonly releases: SpaceOptions["registry"];
+    /** Whether the machine builds the commits its spaces' installations select. */
+    readonly isBuilding: boolean;
+    /** Whether the machine checks its spaces' use against their accounts' entitlements. */
+    readonly isEnforcingEntitlements: boolean;
+    /** Whether the machine serves requests for its spaces' accounts' own hostnames. */
+    readonly isServingHostnames: boolean;
+    /** The runtimes running the spaces' instances, in preference order. */
+    readonly runtimes: readonly Runtime[];
+    /** The open WebSockets of the machine's instances, absent where the runtime serves them. */
+    readonly hibernation: Pick<HibernationHost, "answer"> | undefined;
+    /** Set a wake-up for a space's earliest due controller key, absent where timers wake them. */
+    readonly alarm: Alarm | undefined;
+    /** The servers the machine bundles and runs in process for installations of their packages. */
+    readonly servers: readonly PackageImplementation[];
+    /** The release the machine ships of each server's package, by package. */
+    readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
+    /** The SKUs rating the spaces' meters, absent unbilled. */
+    readonly rates: { readonly skus: readonly Sku[] } | undefined;
+    /** The URL a cloud machine publishes, and a personal machine answers at locally. */
+    readonly endpoint: string;
+    /** The origin the machine answers at: its endpoint, else its relayed name once renewed. */
+    #origin: string;
+    /** The domain of the installation origins the machine's own host names answer. */
+    readonly domain: string;
+    /** Verify a caller of a package the machine serves, none for a call without a credential. */
+    readonly authenticate: (
+        request: Request,
+        audience: PackageId,
+        partition?: PartitionId,
+    ) => Promise<Authentication | undefined>;
+    /** Enforce the host's requirements on a call to a space's packages. */
+    readonly authorizeSpace: (call: ProcedureContext<RequestContext>) => Promise<void>;
+    /** Report a failure no request answers. */
+    readonly report: (error: unknown) => void;
+    /** The version of the software the machine runs. */
+    readonly #version: string;
+    /** The relay tunnel the machine publishes through, absent when peers call its endpoint. */
+    readonly #tunnel: MachineOptions["tunnel"];
+    /** Read this machine's enrollment as its record states it, valid or not. */
+    readonly #readEnrollment: MachineOptions["enrollment"];
+    /** Serve the machine's own partition while it serves. */
+    readonly #partition: MachineOptions["partition"];
+    /** Read what the machine reports beside its version and runtimes. */
+    readonly #describe: MachineOptions["describe"];
+    /** The spaces started while serving, by space. */
+    readonly #started = new Map<Identifier<"space">, Promise<Space>>();
+    /** Whether the machine is idle, serves, pauses or stops serving. */
+    #state: ServingState = "idle";
+    /** Settled once the machine serves, anew each time it pauses or stops. */
+    #serving = Promise.withResolvers<void>();
+
+    /** Serve spaces with a machine's identity, its storage and its runtimes. */
+    constructor(options: MachineOptions) {
+        // set the machine's identity and its storage
+        this.id = options.id;
+        this.environment = options.environment;
+        this.identity = options.identity;
+        this.keyring = options.keyring;
+        this.database = options.database;
+        this.directory = new Directory(Snapshot.live(options.database));
+
+        // set the spaces' hosts, the build cache and what the machine builds and enforces
+        this.spaces = options.spaces;
+        this.cache = options.cache;
+        this.isBuilding = options.isBuilding;
+        this.isEnforcingEntitlements = options.isEnforcingEntitlements;
+        this.isServingHostnames = options.isServingHostnames;
+
+        // set the runtimes and what the machine serves with them
+        this.runtimes = options.runtimes;
+        this.hibernation = options.hibernation;
+        this.alarm = options.alarm;
+        this.servers = options.servers;
+        this.bundled = options.bundled;
+        this.rates = options.rates;
+
+        // set where peers call the machine and how it verifies and reports
+        this.endpoint = options.endpoint;
+        this.#origin = options.endpoint;
+        this.domain = options.domain;
+        this.authenticate = options.authenticate;
+        this.authorizeSpace = options.authorizeSpace;
+        this.report = options.report;
+        this.#version = options.version;
+        this.#tunnel = options.tunnel;
+        this.#readEnrollment = options.enrollment;
+        this.#partition = options.partition;
+        this.#describe = options.describe;
+
+        // read releases the machine ships first, else at the forges in their accounts' residency homes
+        const home = async (account: Identifier<"account">) =>
+            (await this.accounts()).residency.locate({ account });
+        this.releases =
+            options.releases ??
+            Registry.of(
+                this.directory,
+                home,
+                (audience) => this.fetch(audience),
+                this.environment,
+                options.shipped,
+            );
+    }
+
+    /** Follow the directory, the identities and a machine's own placements from the universe. */
+    static follows(machineId: Identifier<"machine">): readonly Follow[] {
+        return [
+            accountObject.directoryShape.at({ key: { scope: Scope.universe.id } }),
+            accountObject.identityShape.at({ key: { scope: Scope.universe.id } }),
+            accountObject.machineShape.at({
+                key: { scope: Scope.universe.id, machine: machineId },
+            }),
+        ];
+    }
+
+    /** The clock the machine runs at. */
+    get clock(): Environment["clock"] {
+        return this.environment.clock;
+    }
+
+    // standing at the universe
+
+    /** Read this machine's enrollment for an action, refusing it unenrolled or revoked. */
+    async enrolled(action: string): Promise<MachineEnrollment> {
+        const enrollment = await this.#enrollment();
+        if (enrollment === undefined) {
+            throw MachineError.unenrolled(action);
+        }
+
+        return enrollment;
+    }
+
+    /** Report whether this machine is enrolled. */
+    async isEnrolled(): Promise<boolean> {
+        return (await this.#enrollment()) !== undefined;
+    }
+
+    /** Read the account package's URL and the issuer of the universe this machine enrolled at. */
+    async universe(): Promise<{ readonly accounts: string; readonly issuer: string }> {
+        const enrollment = await this.enrolled("serving spaces");
+        const accounts = PackageMount.url(enrollment.issuer, accountPackage.id);
+
+        return { accounts, issuer: `${accounts}${OAUTH_PATH}` };
+    }
+
+    /** Wait until the directory replica is a complete snapshot, as informers sync caches. */
+    async synced(signal: AbortSignal): Promise<boolean> {
+        const key = { scope: Scope.universe.id };
+
+        return this.database.log.until(
+            () => accountObject.directoryShape.isSynced(this.database, key),
+            signal,
+        );
+    }
+
+    /** Connect to the account package of this machine's enrollment as this machine. */
+    async accounts(): Promise<ClientOf<typeof accountPackage>> {
+        const enrollment = await this.enrolled("serving spaces");
+
+        return createClient(
+            accountPackage,
+            {
+                url: PackageMount.url(enrollment.issuer, accountPackage.id),
+                fetch: this.#fetchAs(enrollment, accountPackage.id),
+            },
+            this.environment,
+        );
+    }
+
+    /** Open the registry of this machine's spaces' identities at the universe. */
+    async identities(): Promise<IdentityRegistry> {
+        return IdentityRegistry.client(await this.accounts(), this.environment);
+    }
+
+    /** Create a fetch calling a package as this machine, in a space when given. */
+    fetch(audience: PackageId, binding: TokenScope = {}): Fetch {
+        return async (request) => {
+            const enrollment = await this.enrolled("calling packages");
+
+            return this.#fetchAs(enrollment, audience, binding)(request);
+        };
+    }
+
+    /** Send a request to another origin as it is, with a lent call's client certificate. */
+    send(request: Request, options?: FetchOptions): Promise<Response> {
+        return this.environment.network.fetch(request, options);
+    }
+
+    /** Read the home of this machine's owner: its account's, or a cloud machine's residency's. */
+    async home(): Promise<Identifier<"space">> {
+        // take a personal machine's account home, else the residency's home
+        const enrollment = await this.enrolled("reading its owner");
+        if (enrollment.kind === "personal") {
+            return accountObject.Account.home(enrollment.accountId);
+        }
+        const accounts = await this.accounts();
+        const { space: home } = await accounts.residency.get({ id: enrollment.residencyId });
+
+        return schema
+            .identifier("space")
+            .parse(present(home, `the home of ${enrollment.residencyId}`));
+    }
+
+    /** Announce what this machine runs to its account: its version, runtimes and host. */
+    async announce(): Promise<void> {
+        const enrollment = await this.enrolled("reporting telemetry");
+        await (
+            await this.accounts()
+        ).machine.report({
+            scope: MachineEnrollment.scope(enrollment),
+            id: this.id,
+            requestId: RequestId.create(this.environment),
+            version: this.#version,
+            runtimes: this.runtimes.flatMap((runtime) =>
+                runtime.name === PROCESS_RUNTIME ? [] : [runtime.name],
+            ),
+            ...(await this.#describe()),
+        });
+    }
+
+    /** Enroll this machine under an account as a personal machine with a new key. */
+    async enroll(
+        accounts: ClientOf<typeof accountPackage>,
+        issuer: string,
+        input: Omit<PersonalEnrollment, "scope" | "requestId" | "kind"> & {
+            readonly accountId: Identifier<"account">;
+        },
+    ): Promise<MachineEnrollment> {
+        // enroll through the approving person's client with a new key
+        const { accountId, ...enrollment } = input;
+        await this.identity.enroll(accounts, {
+            ...enrollment,
+            scope: accountId,
+            requestId: RequestId.create(this.environment),
+            kind: "personal",
+        });
+
+        return { kind: "personal", issuer, accountId, status: "enrolled" };
+    }
+
+    /** Revoke an enrollment of this machine at its issuer as itself and forget its key. */
+    async revoke(enrollment: MachineEnrollment): Promise<void> {
+        const accounts = createClient(
+            accountPackage,
+            {
+                url: PackageMount.url(enrollment.issuer, accountPackage.id),
+                fetch: this.#fetchAs(enrollment, accountPackage.id),
+            },
+            this.environment,
+        );
+        await accounts.machine.revoke({
+            scope: MachineEnrollment.scope(enrollment),
+            id: this.id,
+            requestId: RequestId.create(this.environment),
+        });
+        await this.identity.forget();
+    }
+
+    /** Connect to the handoff of a machine that moves a space here, at its stack package. */
+    async handoff(machine: Identifier<"machine">, spaceId: Identifier<"space">) {
+        // call the source machine's stack package in the space, as this machine
+        const fetch = this.fetch(stackPackage.id, { partition: spaceId });
+        const answering = await this.directory.answering(machine, this.clock.now());
+        const url = `${SpaceMount.url(answering, spaceId)}${PackageMount.path(stackPackage.id)}`;
+
+        return Handoff.connect(url, fetch, this.environment);
+    }
+
+    /** Read how this machine's store replicates its chain, absent before it enrolls. */
+    async chain(): Promise<ChainOptions | undefined> {
+        // read the enrollment, absent before the machine enrolls
+        const enrollment = await this.#enrollment();
+        if (enrollment === undefined) {
+            return undefined;
+        }
+
+        // require the key the chain's follow proves the machine with
+        await this.identity.key();
+
+        return { kind: "home", parent: MachineEnrollment.scope(enrollment) };
+    }
+
+    /** Stream a followed scope's replicas: the universe's, this machine's own, or a space's. */
+    publisher(scope: string): Publisher {
+        // follow the universe and this machine's own chain at the account package, once enrolled
+        if (scope === Scope.universe.id || scope === this.id) {
+            const accounts = () => this.accounts();
+            const isEnrolled = () => this.isEnrolled();
+
+            return {
+                stream: async function* (subscription, signal) {
+                    // follow nothing while unenrolled, as a revoked machine's store drops the follow
+                    if (!(await isEnrolled())) {
+                        await until(signal);
+
+                        return;
+                    }
+                    yield* await (await accounts()).store.stream(subscription, { signal });
+                },
+                request: async (subscription) => {
+                    await (await accounts()).store.request({ subscription });
+                },
+            };
+        }
+
+        // follow a space at the stack package of the machine serving it, once this machine serves
+        const spaceId = schema.identifier("space").parse(scope);
+        const stackOf = async (signal: AbortSignal) => {
+            // wait until this machine serves, then call the space as itself
+            await Promise.race([this.serving(), until(signal)]);
+            signal.throwIfAborted();
+
+            return this.connect(stackPackage, spaceId);
+        };
+        const placed = () => this.#placed(spaceId);
+        const moved = (from: string | undefined, signal: AbortSignal) =>
+            this.database.log.until(async () => (await placed()) !== from, signal);
+        const isServing = () => this.#state === "serving";
+
+        return {
+            stream: async function* (subscription, signal) {
+                // follow the space where the directory places it
+                let isStreamed = false;
+                while (!signal.aborted) {
+                    // wait until this machine serves, then read where the directory places the space
+                    const stack = await stackOf(signal);
+                    const from = await placed();
+
+                    // stream its rows, waiting out a move or a stop of this machine's serving
+                    try {
+                        for await (const page of await stack.store.stream(subscription, {
+                            signal,
+                        })) {
+                            isStreamed = true;
+                            yield page;
+                        }
+                    } catch (error) {
+                        // fail on anything but a move or a stop of this machine's serving
+                        const isMoved = CallError.data(error, "MISDIRECTED_REQUEST") !== undefined;
+                        if (!isMoved && isServing()) {
+                            throw error;
+                        }
+
+                        // wait for the next placement after a move with no pages
+                        if (isMoved && !isStreamed) {
+                            await moved(from, signal);
+                            continue;
+                        }
+                    }
+
+                    // end once pages arrived or this machine still serves
+                    if (isStreamed || isServing()) {
+                        return;
+                    }
+                }
+            },
+            request: async (subscription) => {
+                await (await this.connect(stackPackage, spaceId)).store.request({ subscription });
+            },
+        };
+    }
+
+    /** Read a space's placement in the directory as JSON, to see it change. */
+    async #placed(spaceId: Identifier<"space">): Promise<string | undefined> {
+        const row = await this.directory.snapshot
+            .read(accountObject.placement.table)
+            .findFirst({ where: { id: spaceId } });
+
+        return row === undefined ? undefined : JSON.stringify(row);
+    }
+
+    /** Verify the universe's or a space's token for a package, its binding left to the caller. */
+    async verify(
+        request: Request,
+        audience: PackageId,
+        partition?: PartitionId,
+    ): Promise<Authentication> {
+        // verify the token toward the package
+        const { issuer } = await this.universe();
+        const verified = await Identity.verify(
+            this.directory.snapshot,
+            Bearer.require(request.headers),
+            {
+                audience,
+                universe: issuer,
+                now: this.clock.now(),
+                environment: this.environment,
+            },
+        );
+
+        // place another space's caller inside its account's chain, as the space records it
+        const isSpaceSigned = verified.credential.kind === SPACE_KEY;
+        const space = schema.identifier("space").safeParse(partition);
+
+        return isSpaceSigned && space.success
+            ? (await this.space(space.data)).host.contain(verified)
+            : verified;
+    }
+
+    /** Refuse a peer machine's caller whose key the directory replica no longer accepts. */
+    async requireStanding(authentication: Authentication): Promise<void> {
+        // require a peer machine as the subject
+        const { subject } = authentication.caller;
+        if (!principal.machine.is(subject)) {
+            throw MachineError.of("TOKEN_WITHOUT_MACHINE", "a machine key's token has no machine");
+        }
+
+        // refuse a key the directory replica no longer lets authenticate: revoked, suspended or expired
+        if ((await this.#enrollment()) === undefined) {
+            throw MachineError.unenrolled("verifying peers");
+        }
+        await Key.requireStanding(
+            this.directory.snapshot,
+            authentication.credential,
+            this.clock.now(),
+        );
+    }
+
+    // spaces
+
+    /** Wait until the machine serves its spaces. */
+    serving(): Promise<void> {
+        return this.#serving.promise;
+    }
+
+    /** Start a space once while serving, trying again after a failed start. */
+    space(space: Identifier<"space">): Promise<Space> {
+        // refuse while paused
+        if (this.#state === "paused") {
+            return Promise.reject(this.#paused());
+        }
+        // refuse while idle or stopping, as no stop would close the space
+        else if (this.#state !== "serving") {
+            return Promise.reject(
+                MachineError.of(
+                    "MACHINE_NOT_SERVING",
+                    `machine ${this.id} cannot serve spaces while ${this.#state}`,
+                ),
+            );
+        }
+
+        // start it once
+        let started = this.#started.get(space);
+        if (started === undefined) {
+            started = Space.start(this, space);
+            started.catch(() => this.#started.delete(space));
+            this.#started.set(space, started);
+        }
+
+        return started;
+    }
+
+    /** Locate a space where its machine answers: this machine's origin for its own spaces. */
+    async locate(spaceId: Identifier<"space">): Promise<accountObject.PlacementEndpoint> {
+        // answer this machine's own space at its origin, published or not, another where it answers
+        const [placed] = await accountObject.Placement.find(this.directory.snapshot, [spaceId]);
+
+        return placed?.machine === this.id
+            ? { placement: placed, url: this.origin }
+            : this.directory.locate(spaceId, this.clock.now());
+    }
+
+    /** Connect to a package of the machine serving a space, calling it as this machine. */
+    async connect<Handle extends PackageHandle>(
+        handle: Handle,
+        spaceId: Identifier<"space">,
+    ): Promise<ClientOf<Handle>> {
+        return createClient<Handle["router"]>(
+            handle,
+            await this.options(handle, spaceId),
+            this.environment,
+        );
+    }
+
+    /** Read the client options of a package of the machine serving a space, as this machine. */
+    async options(
+        handle: Pick<PackageHandle, "id">,
+        spaceId: Identifier<"space">,
+    ): Promise<{ readonly url: string; readonly fetch: (request: Request) => Promise<Response> }> {
+        // call the space at another machine's endpoint with this machine's token bound to the space
+        const located = await this.locate(spaceId);
+        if (located.placement.machine !== this.id) {
+            return {
+                url: `${SpaceMount.url(located.url, spaceId)}${PackageMount.path(handle.id)}`,
+                fetch: this.fetch(handle.id, { partition: spaceId }),
+            };
+        }
+
+        // call this machine's own space as itself, through itself
+        const authentication = this.#self();
+
+        return {
+            url: `${SpaceMount.url(OWN_MACHINE, spaceId)}${PackageMount.path(handle.id)}`,
+            fetch: (request) => this.serve(request, authentication),
+        };
+    }
+
+    /** Serve one of the spaces' packages below its mount, in the space each request names. */
+    package(handle: PackageHandle): Pick<Server, "fetch"> | undefined {
+        return this.#state === "idle" || this.#state === "stopping"
+            ? undefined
+            : { fetch: (request) => this.serve(Machine.#mounted(handle, request)) };
+    }
+
+    /** Serve a request at the machine's own hosts, in the space it names. */
+    async serve(request: Request, authentication?: Authentication): Promise<Response> {
+        return this.#refusal() ?? this.#serve(await this.#route(request), authentication);
+    }
+
+    /** Serve a request to a name the machine takes: an installation origin's or a route's. */
+    async serveName(request: Request): Promise<Response> {
+        // refuse before the machine enrolls and while it is paused
+        const refused = this.#refusal();
+        if (refused !== undefined) {
+            return refused;
+        }
+
+        // find the space of the name's installation origin or route
+        const claims = ClaimLookup.of(this.directory.snapshot.read(claimTable));
+        const routed = await SpaceRequest.named(request, {
+            domain: DOMAINS.space,
+            find: SpaceRequest.served(this.directory, this.id),
+            route: (host, path) => stackObject.Route.locate(claims, host, path),
+        });
+
+        return this.#serve(routed);
+    }
+
+    /** Report whether a request is for a space started here with the package below its mount. */
+    async isSpaceRequest(request: Request): Promise<boolean> {
+        // find a started space the request names, none before the machine serves
+        const routed = this.#state === "serving" ? await this.#route(request) : undefined;
+        const started = routed === undefined ? undefined : this.#started.get(routed.space);
+        const mounted =
+            routed === undefined
+                ? undefined
+                : PackageMount.parse(new URL(routed.request.url).pathname);
+        if (started === undefined || mounted === undefined) {
+            return false;
+        }
+
+        // require the space to serve the mounted package
+        const { instance } = await started;
+
+        return instance.packages.some((handle) => handle.id === mounted.packageId);
+    }
+
+    /** Serve the spaces while the account enables the machine, until it is revoked or stops. */
+    async reconcile(_key: string, { signal, synced }: Following): Promise<undefined> {
+        // wait for the loop to stop a machine before it enrolls
+        if ((await this.#enrollment()) === undefined) {
+            synced();
+            await until(signal);
+
+            return undefined;
+        }
+
+        // serve the machine's own partition, which follows its replicas, while enrolled
+        const partition = await this.#partition?.();
+
+        // announce what this machine runs whether it serves or pauses
+        let publication: AsyncDisposable | undefined;
+        const announced = this.#announceServing();
+        try {
+            // follow the replicas of this machine's status and the placements here until stopped
+            let replicated = "";
+            const isChanged = async () => canonicalize(await this.#replicated()) !== replicated;
+            while (await this.database.log.until(isChanged, signal)) {
+                // read the replicas
+                const current = await this.#replicated();
+                replicated = canonicalize(current);
+
+                // publish where peers call this machine before its spaces start
+                if (current.status !== undefined) {
+                    publication ??= await this.#publish();
+                }
+
+                // serve while the account enables the machine
+                if (current.status === "enabled") {
+                    await this.#serveSpaces(current.placements);
+                }
+                // pause while it drains or disables the machine
+                else if (current.status !== undefined) {
+                    await this.#pause();
+                }
+
+                // report caught up once this machine acted on its first replicas
+                synced();
+            }
+        }
+        // stop the spaces however serving ended, then the machine's partition
+        finally {
+            try {
+                await this.#stopServing(publication, announced);
+            } finally {
+                await partition?.[Symbol.asyncDispose]();
+            }
+        }
+
+        return undefined;
+    }
+
+    /** List this machine while it is enrolled. */
+    async list(view: Snapshot): Promise<readonly string[]> {
+        return (await this.#enrollment(view)) === undefined ? [] : [this.id];
+    }
+
+    /** Find the space a request names at the machine's own hosts. */
+    async #route(request: Request): Promise<SpaceRequest | undefined> {
+        return SpaceRequest.of(request, {
+            domain: this.domain,
+            find: async (address) => (await this.directory.find(accountObject.space, address))?.id,
+        });
+    }
+
+    /** Refuse a request before the machine serves, and with the pause while paused. */
+    #refusal(): Response | undefined {
+        // refuse while the machine is idle or stops
+        if (this.#state === "idle" || this.#state === "stopping") {
+            const error = MachineError.of(
+                "MACHINE_NOT_SERVING",
+                `machine ${this.id} answers no requests while ${this.#state}`,
+            );
+
+            return refusal(error, this.environment.telemetry);
+        }
+        // refuse with the pause while paused
+        else if (this.#state === "paused") {
+            return refusal(this.#paused(), this.environment.telemetry);
+        }
+        // let through while serving
+        else {
+            return undefined;
+        }
+    }
+
+    /** Describe the refusal of a paused machine. */
+    #paused(): Error {
+        return MachineError.of("MACHINE_PAUSED", `machine ${this.id} is paused`);
+    }
+
+    /** Serve a request in the space the machine found for it. */
+    async #serve(
+        routed: SpaceRequest | undefined,
+        authentication?: Authentication,
+    ): Promise<Response> {
+        // answer 404 to a request naming no space
+        if (routed === undefined) {
+            return new Response(null, { status: 404 });
+        }
+
+        // start the space and hand it the request, refusing a space that fails to start
+        try {
+            const space = await this.space(routed.space);
+
+            return await space.fetch(routed.request, authentication);
+        } catch (error) {
+            return refusal(error, this.environment.telemetry);
+        }
+    }
+
+    /** Address a call below a package's mount, as it arrives. */
+    static #mounted(handle: PackageHandle, request: Request): Request {
+        const url = new URL(request.url);
+        url.pathname = `${PackageMount.path(handle.id)}${url.pathname}`;
+
+        return copyRequest(request, {}, url.href);
+    }
+
+    /** Authenticate this machine calling its own spaces, for one call's latency. */
+    #self(): Authentication {
+        const now = this.clock.now();
+
+        return {
+            caller: Caller.of(principal.machine.reference(Scope.universe.id, this.id)),
+            credential: {
+                kind: "machine",
+                id: this.id,
+                audience: stackPackage.id,
+                verifiedAt: now,
+                expiresAt: now + MACHINE_CALL_MILLISECONDS,
+            },
+        };
+    }
+
+    /** Serve the spaces stored and placed here. */
+    async #serveSpaces(rows: readonly Select<typeof placement.table>[]): Promise<void> {
+        // start serving the spaces this machine stores
+        const stored: Identifier<"space">[] = [];
+        if (this.#state !== "serving") {
+            this.#state = "serving";
+            this.#serving.resolve();
+            stored.push(...(await this.spaces.list()));
+        }
+
+        // start each stored space and each space placed or moving here, reporting a failed start apart from the others
+        for (const space of new Set([...stored, ...rows.map((row) => row.id)])) {
+            await this.space(space).catch((error: unknown) => this.report(error));
+        }
+
+        // restart a started space whose role here changed
+        for (const started of this.#started.values()) {
+            await (await started).restartIfRoleChanged();
+        }
+    }
+
+    /** Pause serving: refuse requests and close every space. */
+    async #pause(): Promise<void> {
+        // refuse requests until the next serve
+        if (this.#state === "serving") {
+            this.#serving = Promise.withResolvers();
+        }
+        this.#state = "paused";
+
+        // close every space
+        await this.#closeSpaces();
+    }
+
+    /** Stop serving: close every space, even when one fails, and end the publication. */
+    async #stopServing(
+        publication: AsyncDisposable | undefined,
+        announced: Promise<void>,
+    ): Promise<void> {
+        // refuse requests until the next serve
+        if (this.#state === "serving") {
+            this.#serving = Promise.withResolvers();
+        }
+        this.#state = "stopping";
+
+        // close every space, then end the publication and settle the announcement, idle again
+        try {
+            await this.#closeSpaces();
+        } finally {
+            await publication?.[Symbol.asyncDispose]();
+            await announced;
+            this.#state = "idle";
+        }
+    }
+
+    /** Close every space at once, refusing with each that failed to close. */
+    async #closeSpaces(): Promise<void> {
+        // close every space, even when one fails
+        const spaces = [...this.#started.values()];
+        this.#started.clear();
+        const started = await Promise.allSettled(spaces);
+
+        // close each started space, a failed start having answered its caller and opened nothing
+        const closed = await Promise.allSettled(
+            started.flatMap((result) =>
+                result.status === "fulfilled" ? [result.value.close()] : [],
+            ),
+        );
+
+        // refuse with every space that failed to close
+        const failures = closed.flatMap((result): unknown[] =>
+            result.status === "rejected" ? [result.reason] : [],
+        );
+        if (failures.length > 0) {
+            throw new AggregateError(failures, "some spaces failed to close");
+        }
+    }
+
+    /** Announce what this machine runs once it serves, reporting a failed announcement. */
+    async #announceServing(): Promise<void> {
+        await this.announce().catch((error: unknown) => this.report(error));
+    }
+
+    /** Read the replicas of this machine's status, absent before it arrives, and its placements. */
+    async #replicated() {
+        // read the status
+        const [row] = await this.database
+            .select({ status: accountObject.machine.table.status })
+            .from(accountObject.machine.table)
+            .where(eq(accountObject.machine.table.id, this.id));
+
+        // read the placements of the spaces the machine serves or receives
+        const placements = await this.database
+            .select()
+            .from(placement.table)
+            .where(
+                or(eq(placement.table.machineId, this.id), eq(placement.table.targetId, this.id)),
+            )
+            .orderBy(placement.table.id);
+
+        return { status: row?.status, placements };
+    }
+
+    /** The origin the machine answers at: its endpoint, else its name at the relay once renewed. */
+    get origin(): string {
+        return this.#origin;
+    }
+
+    /** Publish where peers call a cloud machine, or tunnel a personal machine through its relay. */
+    async #publish(): Promise<AsyncDisposable> {
+        // publish a cloud machine's endpoint, as its relay publishes a personal machine's tunnel
+        const enrollment = await this.enrolled("publishing its names");
+        const relayed = this.#tunnel;
+        if (enrollment.kind === "cloud") {
+            const accounts = await this.accounts();
+            await accounts.machine.publish({
+                scope: MachineEnrollment.scope(enrollment),
+                id: this.id,
+                url: this.endpoint,
+                requestId: RequestId.create(this.environment),
+            });
+
+            return { [Symbol.asyncDispose]: async () => {} };
+        }
+        // leave a personal machine without a relay unreachable
+        else if (relayed === undefined) {
+            return { [Symbol.asyncDispose]: async () => {} };
+        }
+
+        // renew the tunnel at the configured relay, else the account residency's, at each renewal's name
+        const issuer = Machine.#issuer(enrollment);
+        const url =
+            relayed.url ?? `${await this.#residencyRelay(enrollment.accountId)}${TUNNEL_PATH}`;
+        const tunnel = TunnelClient.open({
+            url,
+            machineId: this.id,
+            fetch: relayed.fetch,
+            environment: this.environment,
+            token: () =>
+                this.identity.token(relayPackage.id, issuer, (request) => this.send(request)),
+            renewed: ({ name }) => {
+                this.#origin = `https://${name}`;
+            },
+        });
+
+        return { [Symbol.asyncDispose]: () => tunnel.close() };
+    }
+
+    /** Read the relay origin of the residency an account stores its data in. */
+    async #residencyRelay(account: Identifier<"account">): Promise<string> {
+        return (await this.accounts()).residency.relay({ account });
+    }
+
+    /** Wrap the machine's network to call a package as the machine. */
+    #fetchAs(enrollment: MachineEnrollment, audience: PackageId, binding: TokenScope = {}): Fetch {
+        return this.identity.fetch(
+            (request) => this.send(request),
+            audience,
+            Machine.#issuer(enrollment),
+            binding,
+        );
+    }
+
+    /** Read the issuer of this machine's tokens: its universe's account package oauth adapter. */
+    static #issuer(enrollment: MachineEnrollment): MachineIssuer {
+        return { url: `${PackageMount.url(enrollment.issuer, accountPackage.id)}${OAUTH_PATH}` };
+    }
+
+    /** Read this machine's valid enrollment, absent before it enrolls and after a revoke. */
+    async #enrollment(view?: Pick<Snapshot, "read">): Promise<MachineEnrollment | undefined> {
+        const enrollment = await this.#readEnrollment(view);
+
+        return enrollment?.status === "enrolled" ? enrollment : undefined;
+    }
+}
