@@ -11,7 +11,6 @@ import {
     type MethodContext,
     type ObjectType,
     type Fetch,
-    Follow,
     PackageMount,
     CallError,
     RequestBody,
@@ -73,10 +72,10 @@ export interface ForgeOptions {
 const STANDING_TTL = { hours: 1 } as const;
 
 /** Follow the row of each space calling the forge, which places it inside its account. */
-export const standingFollow = Follow.of(spaceRecordShape, { onDemand: { ttl: STANDING_TTL } });
+export const standingFollow = spaceRecordShape.onDemand(STANDING_TTL);
 
 /** Follow the universe's claims of account handles and package names as the forge reads them. */
-export const claimFollow = Follow.of(claimShape, { onDemand: { ttl: CLAIM_TTL } });
+export const claimFollow = claimShape.onDemand(CLAIM_TTL);
 
 /** The reads a name lookup takes: claims it follows on demand, and the replicated rows. */
 export interface ClaimReader {
@@ -195,7 +194,7 @@ export class Forge {
     #connectionFollow() {
         const { installation } = this.#options;
 
-        return repository.follow(connectionShape, {
+        return connectionShape.per(repository, {
             where: { connectionId: { isNotNull: true }, deletedAt: { isNull: true } },
             key: async (row) => ({
                 key: { scope: row.accountId, id: present(row.connectionId, "a connection") },

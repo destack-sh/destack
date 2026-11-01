@@ -84,7 +84,7 @@ export class Forge {
     /** Follow each served installation's selected reference and tag from its forge home. */
     follows(): Follow[] {
         return [
-            installation.follow(referenceShape, {
+            referenceShape.per(installation, {
                 where: { deletedAt: { isNull: true } },
                 key: async (row, view) => {
                     // follow nothing for an installation selecting no repository, or outside a space served here
@@ -106,7 +106,7 @@ export class Forge {
                     };
                 },
             }),
-            installation.follow(tagShape, {
+            tagShape.per(installation, {
                 where: { deletedAt: { isNull: true } },
                 key: async (row, view) => {
                     // follow nothing for an installation selecting no tag, or outside a space served here
