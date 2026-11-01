@@ -24,7 +24,9 @@ export const IdentityError = defineErrorFamily(import.meta.destack.package, {
     DECRYPTION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     ROOT_KEY_INVALID: { code: "INTERNAL_SERVER_ERROR" },
     KEY_UNAVAILABLE: { code: "INTERNAL_SERVER_ERROR" },
+    KMS_REFUSED: { code: "INTERNAL_SERVER_ERROR" },
     KEY_SET_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
+    KMS_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
 });
 
 /** A stable cause of identity failures. */
