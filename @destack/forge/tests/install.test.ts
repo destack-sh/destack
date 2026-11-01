@@ -40,17 +40,19 @@ test(
             await run(bunInstall(join(directory, "cache")), consumer);
         }, "peer");
 
-        // run it, and restore both original builds from what was installed, finding each package as Node resolves it
+        // run it and its command, and restore both original builds from what was installed, finding each package as Node resolves it
         const greetingPath = await installed(consumer, "@example/greeting");
         const answerPath = await installed(greetingPath, "@example/answer");
         expect({
             output: await run([testHost().process.executable, "run.js"], consumer),
+            command: await run([testHost().process.executable, "run", "greet"], consumer),
             answer: (await PackageBuild.read(join(answerPath, "build"), testHost())).manifest,
             greeting: (await PackageBuild.read(join(greetingPath, "build"), testHost())).manifest,
             dependencies: DECLARATION.parse(await readJson(join(greetingPath, "package.json")))
                 .dependencies,
         }).toEqual({
             output: "hello world, the answer is 42\n",
+            command: "hello world, the answer is 42\n",
             answer: answer.reader.manifest,
             greeting: greeting.reader.manifest,
             dependencies: { "@example/answer": "2026.9.0" },

@@ -70,8 +70,8 @@ export const RESIDENCY = "eu";
 
 /** The residencies of the fixture's universe: the forge's, and another the forge serves none of. */
 const RESIDENCIES = [
-    { code: RESIDENCY, name: "Europe" },
-    { code: "us", name: "United States" },
+    { code: RESIDENCY, name: "Europe", relay: `https://relay-${RESIDENCY}.machine.test` },
+    { code: "us", name: "United States", relay: "https://relay-us.machine.test" },
 ];
 
 /** The account the fixture's owner publishes packages under, which scopes their npm names. */

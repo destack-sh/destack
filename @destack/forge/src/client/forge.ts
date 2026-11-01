@@ -73,13 +73,10 @@ export class Forge {
     }
 
     /** Read the version a tag points at in a space's replica, absent while none. */
-    async version(database: DatabaseConnection, packageId: string, name: string) {
-        const [followed] = await database
-            .select({ version: tag.table.version })
-            .from(tag.table)
-            .where(
-                and(eq(tag.table.parentId, PackageId.parse(packageId)), eq(tag.table.name, name)),
-            );
+    async version(reader: Pick<Snapshot, "read">, packageId: string, name: string) {
+        const [followed] = await reader
+            .read(tag.table)
+            .findMany({ where: { parentId: PackageId.parse(packageId), name }, limit: 1 });
 
         return followed?.version;
     }

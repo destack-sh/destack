@@ -16,7 +16,7 @@ test("pack a build into identical archives declaring its compiled exports and ex
         throw new TypeError("greeting builds no bun or workerd output");
     }
 
-    // declare the source types and the compiled bun and workerd outputs, and archive the declarations beside every build file
+    // declare the source types, the compiled bun and workerd outputs, a pattern export and the command, and archive the declarations beside every build file
     expect([first.metadata, first.distribution.fileCount]).toEqual([
         {
             name: "@example/greeting",
@@ -28,7 +28,13 @@ test("pack a build into identical archives declaring its compiled exports and ex
                     workerd: `./build/${workerd.exports["."]?.path}`,
                     default: `./build/${bun.exports["."]?.path}`,
                 },
+                "./word/*": {
+                    types: "./build/src/word/*.ts",
+                    workerd: `./build/${workerd.directory}/src/word/*.js`,
+                    default: `./build/${bun.directory}/src/word/*.js`,
+                },
             },
+            bin: { greet: `./build/${bun.bins?.["greet"]?.path}` },
             dependencies: { "@example/answer": "2026.9.0" },
             optionalDependencies: {},
             gitHead: COMMIT,

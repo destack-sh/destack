@@ -1,7 +1,7 @@
 import { Directory } from "@destack/account/address";
 import { PackageClient, type BuildStore } from "@destack/build/store";
 import { Claim, ClaimLookup, claimTable } from "@destack/object";
-import type { PackageId } from "@destack/package";
+import { type PackageId, PackageRelease } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
 import { type Digest, type Identifier, schema } from "@destack/schema";
@@ -32,13 +32,20 @@ export class Registry {
     readonly #find: (owner: ForgeOwner) => Promise<ForgeEndpoint>;
     /** The environment the forge's clients run in. */
     readonly #environment: Environment;
+    /** The releases this caller ships, whose manifests it finds before any forge's. */
+    readonly #releases: readonly PackageRelease[];
     /** The reader of each build opened so far, by package and manifest, as builds never change. */
     readonly #readers = new Map<string, Promise<BuildReader>>();
 
-    /** Call the forge of each package's publisher and each account, in an environment. */
-    constructor(find: (owner: ForgeOwner) => Promise<ForgeEndpoint>, environment: Environment) {
+    /** Call the forge of each package's publisher and each account, after the shipped releases. */
+    constructor(
+        find: (owner: ForgeOwner) => Promise<ForgeEndpoint>,
+        environment: Environment,
+        releases: readonly PackageRelease[] = [],
+    ) {
         this.#find = find;
         this.#environment = environment;
+        this.#releases = releases;
     }
 
     /** Call forges through the universe directory's replica, signing for the forge package. */
@@ -47,18 +54,28 @@ export class Registry {
         home: (account: Identifier<"account">) => Promise<Identifier<"space">>,
         sign: (audience: PackageId) => Fetch,
         environment: Environment,
+        releases: readonly PackageRelease[] = [],
     ): Registry {
         const claims = ClaimLookup.of(directory.snapshot.read(claimTable));
 
-        return new Registry(async (owner) => {
-            // call the forge below its installation in the home of the owning account's residency
-            const accountId = await Registry.#account(claims, owner);
-            const spaceId = await home(accountId);
-            const now = environment.clock.now();
-            const url = await directory.mount(spaceId, FORGE_INSTALLATION, forgePackage.id, now);
+        return new Registry(
+            async (owner) => {
+                // call the forge below its installation in the home of the owning account's residency
+                const accountId = await Registry.#account(claims, owner);
+                const spaceId = await home(accountId);
+                const now = environment.clock.now();
+                const url = await directory.mount(
+                    spaceId,
+                    FORGE_INSTALLATION,
+                    forgePackage.id,
+                    now,
+                );
 
-            return { url, space: spaceId, fetch: sign(forgePackage.id) };
-        }, environment);
+                return { url, space: spaceId, fetch: sign(forgePackage.id) };
+            },
+            environment,
+            releases,
+        );
     }
 
     /** Read the account owning a forge: an account itself, or the one publishing a package. */
@@ -99,8 +116,15 @@ export class Registry {
         return client.repository.open({ spaceId: forge.space, id: repositoryId, mode: "read" });
     }
 
-    /** Find the digest of the manifest of a package's published release. */
+    /** Find the digest of the manifest of a shipped release, or of a package's published one. */
     async find(packageId: PackageId, release: string): Promise<Digest> {
+        // take a shipped release first, a dev build of it among them
+        const shipped = PackageRelease.select(this.#releases, packageId, release);
+        if (shipped !== undefined) {
+            return shipped.manifest;
+        }
+
+        // resolve the release at its forge
         const { manifest } = await this.resolve(packageId, release);
 
         return manifest;

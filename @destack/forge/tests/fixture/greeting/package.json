@@ -2,8 +2,12 @@
     "name": "@example/greeting",
     "version": "2026.9.0",
     "type": "module",
+    "bin": {
+        "greet": "./src/main.js"
+    },
     "exports": {
-        ".": "./src/index.ts"
+        ".": "./src/index.ts",
+        "./word/*": "./src/word/*.ts"
     },
     "dependencies": {
         "@example/answer": "2026.9.0"

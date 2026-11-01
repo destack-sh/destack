@@ -1,6 +1,12 @@
 import type { Environment } from "@destack/environment";
 import { Tarball, TarballEntry } from "@destack/package/archive";
-import { type DependencyRelease, graph, PackageDefinition, type PackageId } from "@destack/package";
+import {
+    type DependencyRelease,
+    graph,
+    PackageDefinition,
+    type PackageId,
+    TEST_EXPORT,
+} from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import type { Runtime } from "@destack/package/runtime";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
@@ -24,8 +30,10 @@ const Source = schema
         version: schema.string(),
         description: schema.string().exactOptional(),
         license: schema.string().exactOptional(),
-        sideEffects: schema.boolean().exactOptional(),
-        bin: schema.json().exactOptional(),
+        sideEffects: schema
+            .union([schema.boolean(), schema.array(schema.string())])
+            .exactOptional(),
+        bin: schema.record(schema.string().min(1), schema.string()).exactOptional(),
         peerDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
         peerDependenciesMeta: schema
             .record(schema.string(), schema.object({ optional: schema.boolean().exactOptional() }))
@@ -77,6 +85,8 @@ export const PackageMetadata = schema.object({
     type: schema.literal("module"),
     /** The conditional compiled entrypoints, in priority order. */
     exports: schema.record(schema.string(), schema.record(schema.string(), schema.string())),
+    /** The compiled module of each command the package installs, by command name. */
+    bin: schema.record(schema.string(), schema.string()).exactOptional(),
     /** The exact required dependency versions and npm aliases. */
     dependencies: schema.record(schema.string(), schema.string()),
     /** The exact optional dependency versions and npm aliases. */
@@ -98,8 +108,8 @@ export const PackageMetadata = schema.object({
     gitHead: schema.string().exactOptional(),
     /** The authored SPDX license expression. */
     license: schema.string().exactOptional(),
-    /** Whether importing a module can have side effects. */
-    sideEffects: schema.boolean().exactOptional(),
+    /** Whether importing a module can have side effects, or the files whose import can. */
+    sideEffects: schema.union([schema.boolean(), schema.array(schema.string())]).exactOptional(),
 });
 /** The npm declaration of a release, generated from its build. */
 export type PackageMetadata = schema.Infer<typeof PackageMetadata>;
@@ -315,6 +325,7 @@ export class PackageArchive {
         // declare the source exports' TypeScript and each loaded output's exports and dependencies
         const metadata = PackageArchive.#metadata(source, commit);
         PackageArchive.#declareTypes(metadata, source, paths);
+        PackageArchive.#declareBins(metadata, source, manifest, paths);
         const dependencies = PackageArchive.#declareOutputs(
             metadata,
             source,
@@ -355,10 +366,6 @@ export class PackageArchive {
         // require the declared npm name and the manifest's release version
         if (source.name !== manifest.package.name || source.version !== manifest.package.version) {
             throw ForgeError.of("NPM_NAME_INVALID", "invalid npm package name or release version");
-        }
-        // refuse executables
-        else if (source.bin !== undefined) {
-            throw ForgeError.of("BIN_MISSING", "executable exports require a compiled bin mapping");
         }
 
         return source;
@@ -415,19 +422,42 @@ export class PackageArchive {
         paths: ReadonlySet<string>,
     ): void {
         for (const [entry, target] of Object.entries(PackageArchive.#exports(source))) {
-            // pass over an export without a TypeScript file
+            // pass over the test layer, which builds leave out, and an export without a TypeScript file
             const declared =
                 typeof target === "string" ? target : (target["types"] ?? target["default"]);
-            if (declared === undefined || !TYPESCRIPT.test(declared)) {
+            if (entry === TEST_EXPORT || declared === undefined || !TYPESCRIPT.test(declared)) {
                 continue;
             }
 
-            // require the file in the build
+            // require the file in the build, or a file a pattern's target matches
             const path = declared.replace(/^\.\//u, "");
-            if (!paths.has(path)) {
+            const pattern = SubpathPattern.parse(path);
+            const isBuilt =
+                pattern === undefined
+                    ? paths.has(path)
+                    : [...paths].some((built) => pattern.stem(built) !== undefined);
+            if (!isBuilt) {
                 throw ForgeError.of("EXPORT_SOURCE_MISSING", `missing export source: ${entry}`);
             }
             metadata.exports[entry] = { types: `./build/${path}` };
+        }
+    }
+
+    /** Point each command the source declares at its module compiled into the Bun output. */
+    static #declareBins(
+        metadata: PackageMetadata,
+        source: Source,
+        manifest: PackageManifest,
+        paths: ReadonlySet<string>,
+    ): void {
+        for (const command of Object.keys(source.bin ?? {})) {
+            // require the command compiled into the emitted Bun output
+            const output = manifest.outputs["bun"];
+            const compiled = output?.emit === true ? output.bins?.[command] : undefined;
+            if (compiled === undefined || !paths.has(compiled.path)) {
+                throw ForgeError.of("BIN_MISSING", `command has no compiled module: ${command}`);
+            }
+            metadata.bin = { ...metadata.bin, [command]: `./build/${compiled.path}` };
         }
     }
 
@@ -458,6 +488,11 @@ export class PackageArchive {
         // collect the required releases and each dependency's resolution across outputs
         const required: Pack["dependencies"][number][] = [];
         const resolutions = new Map<string, string>();
+        const patterns = Object.keys(PackageArchive.#exports(source)).flatMap((name) => {
+            const pattern = SubpathPattern.parse(name);
+
+            return pattern === undefined ? [] : [pattern];
+        });
         for (const [condition, outputName] of conditions) {
             // require the condition's output to be built and emitted
             const output = manifest.outputs[outputName];
@@ -469,13 +504,21 @@ export class PackageArchive {
                 throw ForgeError.of("BUILD_ONLY_OUTPUT", `output is build-only: ${outputName}`);
             }
 
-            // load each compiled export under the condition
+            // load each compiled export under the condition, a pattern's entries under the pattern
             for (const [entry, { path }] of Object.entries(output.exports)) {
                 if (!paths.has(path) || (entry !== "." && !entry.startsWith("./"))) {
                     throw ForgeError.of("EXPORT_INVALID", `invalid compiled export: ${entry}`);
                 }
-                metadata.exports[entry] ??= {};
-                metadata.exports[entry][condition] = `./build/${path}`;
+                const [name, target] = PackageArchive.#subpath(entry, path, patterns);
+                const declared = metadata.exports[name]?.[condition];
+                if (declared !== undefined && declared !== `./build/${target}`) {
+                    throw ForgeError.of(
+                        "EXPORT_INVALID",
+                        `pattern export compiles to more than one path: ${name}`,
+                    );
+                }
+                metadata.exports[name] ??= {};
+                metadata.exports[name][condition] = `./build/${target}`;
             }
 
             // fix each dependency at its exact release, the same across outputs
@@ -521,6 +564,24 @@ export class PackageArchive {
         resolutions.set(dependency, resolution);
     }
 
+    /** Read the export a compiled entry falls under: its pattern's, else its own, with its path. */
+    static #subpath(
+        entry: string,
+        path: string,
+        patterns: readonly SubpathPattern[],
+    ): readonly [string, string] {
+        // place an entry a pattern expanded to under the pattern, its path's stem as the wildcard
+        for (const pattern of patterns) {
+            const stem = pattern.stem(entry);
+            const at = stem === undefined ? -1 : path.lastIndexOf(stem);
+            if (stem !== undefined && at >= 0) {
+                return [pattern.text, `${path.slice(0, at)}*${path.slice(at + stem.length)}`];
+            }
+        }
+
+        return [entry, path];
+    }
+
     /** Declare a dependency at its exact version, and return whether it is new. */
     static #declareDependency(
         metadata: PackageMetadata,
@@ -545,5 +606,46 @@ export class PackageArchive {
                 : `npm:${resolved.name}@${resolved.version}`;
 
         return isFirst;
+    }
+}
+
+/** An npm subpath pattern, such as `./phosphor/*`, split at its one wildcard. */
+class SubpathPattern {
+    /** The pattern as written. */
+    readonly text: string;
+    /** The text before the wildcard. */
+    readonly prefix: string;
+    /** The text after the wildcard. */
+    readonly suffix: string;
+
+    /** Split a pattern at its wildcard. */
+    private constructor(text: string, prefix: string, suffix: string) {
+        this.text = text;
+        this.prefix = prefix;
+        this.suffix = suffix;
+    }
+
+    /** Read a pattern with one wildcard, absent for a plain subpath. */
+    static parse(text: string): SubpathPattern | undefined {
+        const [prefix, suffix, ...rest] = text.split("*");
+        if (prefix === undefined || suffix === undefined) {
+            return undefined;
+        } else if (rest.length > 0) {
+            throw ForgeError.of("EXPORT_INVALID", `a pattern export takes one wildcard: ${text}`);
+        }
+
+        return new SubpathPattern(text, prefix, suffix);
+    }
+
+    /** Read the text the wildcard stands for in a name, absent for a name the pattern misses. */
+    stem(name: string): string | undefined {
+        const isMatch =
+            name.length > this.prefix.length + this.suffix.length &&
+            name.startsWith(this.prefix) &&
+            name.endsWith(this.suffix);
+
+        return isMatch
+            ? name.slice(this.prefix.length, name.length - this.suffix.length)
+            : undefined;
     }
 }

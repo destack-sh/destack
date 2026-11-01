@@ -89,7 +89,10 @@ export const packageObject = defineObject(
         },
     },
     (method) => ({
-        create: method.create("publish", { fields: ["accountId", "name", "visibility"] }),
+        create: method.create("publish", {
+            fields: ["accountId", "name", "visibility"],
+            keep: "id",
+        }),
         list: method.list("discover"),
         /** Find the package of a global name, `@<account handle>/<name>`. */
         resolve: method.query({

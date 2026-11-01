@@ -53,9 +53,9 @@
     "check": {
         "expect": [
             {
-                "files": ["tests/fixture/consumer/run.js"],
+                "files": ["tests/fixture/consumer/run.js", "tests/fixture/greeting/src/main.js"],
                 "rules": ["eslint/no-console", "typescript/no-unsafe-call"],
-                "reason": "the consumer fixture is a plain JavaScript program that prints what the installed package returns, as a downstream user's script would"
+                "reason": "the consumer and command fixtures are plain JavaScript programs that print what the packages return, as a downstream user's script would"
             }
         ]
     }
