@@ -3,17 +3,22 @@ import { blob, blobMap, blobs, text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { eq } from "../sql/operator.ts";
 import { TestDatabase } from "../test/index.ts";
-import { BLOB_TABLES } from "./table.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import { Digest } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { BlobStore } from "./store.ts";
+import { BLOB_TABLES, BlobStore } from "./store.ts";
 
 /** When every blob store test starts: 1 October 2026, UTC. */
 const START = Date.UTC(2026, 9, 1);
 
 /** How long the store leases a write: half an hour. */
 const LEASE_MILLISECONDS = 30 * 60_000;
+
+/** How long an unreferenced blob stays before deletion: BlobStore's hour of grace. */
+const GRACE_MILLISECONDS = 60 * 60_000;
+
+/** The cascade levels a test collects through, each waiting a grace. */
+const CASCADE_LEVELS = 4;
 
 /** Attachments whose file and renditions are blobs of the partition. */
 const attachment = defineTable("attachment", {
@@ -56,46 +61,65 @@ async function openBlobs() {
     return { simulation, environment, store, storage, database: opened.database };
 }
 
+/** Collect until settled, each pass a grace after the last, as each cascade level waits one. */
+async function settle(simulation: Simulation, store: BlobStore): Promise<void> {
+    for (let level = 0; level < CASCADE_LEVELS; level++) {
+        await store.collect();
+        await simulation.jump(simulation.clock.now() + GRACE_MILLISECONDS);
+    }
+    await store.collect();
+}
+
 /** Put some text as a blob of a store, answering its digest. */
 async function put(store: BlobStore, content: string, crypto: Parameters<typeof Digest.of>[1]) {
     const bytes = new TextEncoder().encode(content);
     const digest = await Digest.of(bytes, crypto);
-    await store.put(digest, async () =>
-        (async function* () {
-            yield bytes;
-        })(),
-    );
+    await store.put([
+        {
+            digest,
+            size: bytes.byteLength,
+            open: async () =>
+                (async function* () {
+                    yield bytes;
+                })(),
+        },
+    ]);
 
     return digest;
 }
 
-test("keep a blob while a row references it or its write's lease lasts, and delete it once neither does", async () => {
+test("retain a blob while a row references it or its write's lease lasts, and delete it a grace after neither does", async () => {
     // put a referenced blob and an unreferenced one
-    const { simulation, environment, store, storage, database } = await openBlobs();
+    const { simulation, environment, store, database } = await openBlobs();
     const kept = await put(store, "kept", environment.crypto);
     const dropped = await put(store, "dropped", environment.crypto);
     await database.transaction(async (transaction) => {
         await transaction.insert(attachment).values({ id: "a", file: kept });
     });
 
-    // collect within the leases, after them, and after the row's deletion retires its blob
+    // collect within the leases, after them, past the unreferenced blob's grace, and after the row's deletion retires its blob
     const within = await store.collect();
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     const after = await store.collect();
-    const remaining = [...(await storage.missing([kept, dropped]))];
+    const graced = await store.missing([kept, dropped]);
+    await settle(simulation, store);
+    const remaining = [...(await store.missing([kept, dropped]))];
     await database.transaction(async (transaction) => {
         await transaction.delete(attachment).where(eq(attachment.id, "a"));
     });
+    await settle(simulation, store);
     const retired = await store.collect();
     expect({
         within: within === undefined ? undefined : within - START,
-        after,
+        after: after === undefined ? undefined : after - START,
+        graced,
         missing: remaining,
         retired,
-        left: [...(await storage.missing([kept, dropped]))],
+        left: [...(await store.missing([kept, dropped]))],
     }).toEqual({
         within: LEASE_MILLISECONDS,
-        after: undefined,
+        after: LEASE_MILLISECONDS + GRACE_MILLISECONDS,
+        graced: [],
         missing: [dropped],
         retired: undefined,
         left: [kept, dropped],
@@ -104,7 +128,7 @@ test("keep a blob while a row references it or its write's lease lasts, and dele
 
 test("rescue a blob a deleted row let go when a writer leases it again before the collection", async () => {
     // let a blob go with its row, then lease it again for a new row before collecting
-    const { simulation, environment, store, storage, database } = await openBlobs();
+    const { simulation, environment, store, database } = await openBlobs();
     const digest = await put(store, "shared", environment.crypto);
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await database.transaction(async (transaction) => {
@@ -113,21 +137,23 @@ test("rescue a blob a deleted row let go when a writer leases it again before th
     await database.transaction(async (transaction) => {
         await transaction.delete(attachment).where(eq(attachment.id, "a"));
     });
-    await store.put(digest, () => Promise.reject(new TypeError("the blob is stored")));
+    await store.put([
+        { digest, size: 6, open: () => Promise.reject(new TypeError("the blob is stored")) },
+    ]);
     await database.transaction(async (transaction) => {
         await transaction.insert(attachment).values({ id: "b", file: digest });
     });
 
     // keep it through a collection and past the new lease
-    await store.collect();
+    await settle(simulation, store);
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
-    await store.collect();
-    expect(await storage.missing([digest])).toEqual([]);
+    await settle(simulation, store);
+    expect(await store.missing([digest])).toEqual([]);
 });
 
 test("keep the blobs a JSON array column lists, and delete one once no row lists it", async () => {
     // list two renditions on a row, past their writes' leases
-    const { simulation, environment, store, storage, database } = await openBlobs();
+    const { simulation, environment, store, database } = await openBlobs();
     const file = await put(store, "file", environment.crypto);
     const small = await put(store, "small", environment.crypto);
     const large = await put(store, "large", environment.crypto);
@@ -135,8 +161,8 @@ test("keep the blobs a JSON array column lists, and delete one once no row lists
         await transaction.insert(attachment).values({ id: "c", file, renditions: [small, large] });
     });
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
-    await store.collect();
-    const kept = [...(await storage.missing([file, small, large]))];
+    await settle(simulation, store);
+    const kept = [...(await store.missing([file, small, large]))];
 
     // drop the large rendition from the row, and collect
     await database.transaction(async (transaction) => {
@@ -145,8 +171,8 @@ test("keep the blobs a JSON array column lists, and delete one once no row lists
             .set({ renditions: [small] })
             .where(eq(attachment.id, "c"));
     });
-    await store.collect();
-    expect({ kept, missing: [...(await storage.missing([file, small, large]))] }).toEqual({
+    await settle(simulation, store);
+    expect({ kept, missing: [...(await store.missing([file, small, large]))] }).toEqual({
         kept: [],
         missing: [large],
     });
@@ -154,7 +180,7 @@ test("keep the blobs a JSON array column lists, and delete one once no row lists
 
 test("keep the blobs a map column lists by key, and delete one once no row lists it", async () => {
     // list two captions on a row, past their writes' leases
-    const { simulation, environment, store, storage, database } = await openBlobs();
+    const { simulation, environment, store, database } = await openBlobs();
     const file = await put(store, "file", environment.crypto);
     const english = await put(store, "english", environment.crypto);
     const german = await put(store, "german", environment.crypto);
@@ -164,8 +190,8 @@ test("keep the blobs a map column lists by key, and delete one once no row lists
             .values({ id: "c", file, captions: { en: english, de: german } });
     });
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
-    await store.collect();
-    const kept = [...(await storage.missing([file, english, german]))];
+    await settle(simulation, store);
+    const kept = [...(await store.missing([file, english, german]))];
 
     // drop the German caption from the row, and collect
     await database.transaction(async (transaction) => {
@@ -174,16 +200,16 @@ test("keep the blobs a map column lists by key, and delete one once no row lists
             .set({ captions: { en: english } })
             .where(eq(attachment.id, "c"));
     });
-    await store.collect();
-    expect({ kept, missing: [...(await storage.missing([file, english, german]))] }).toEqual({
+    await settle(simulation, store);
+    expect({ kept, missing: [...(await store.missing([file, english, german]))] }).toEqual({
         kept: [],
         missing: [german],
     });
 });
 
-test("delete a bundle no row keeps with its records, then the bundles and files only it listed, in one collection", async () => {
+test("delete a bundle no row references with its records, then the bundles and files only it listed, once each cascade level's grace passes", async () => {
     // record an outer bundle listing a file and an inner bundle, which lists itself and a file an attachment shares
-    const { simulation, environment, store, storage, database } = await openBlobs();
+    const { simulation, environment, store, database } = await openBlobs();
     const [outer, inner, own, shared] = [
         await put(store, "outer", environment.crypto),
         await put(store, "inner", environment.crypto),
@@ -203,10 +229,10 @@ test("delete a bundle no row keeps with its records, then the bundles and files 
 
     // collect past the leases, where only the attachment and the bundles' own leases kept anything
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
-    await store.collect();
+    await settle(simulation, store);
     const digests = [outer, inner, own, shared];
     expect({
-        missing: await storage.missing(digests),
+        missing: await store.missing(digests),
         bundles: await database.select().from(bundle),
         members: await database.select().from(member),
     }).toEqual({ missing: [outer, inner, own], bundles: [], members: [] });

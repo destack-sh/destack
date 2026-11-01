@@ -1,6 +1,5 @@
 import type { ReconcileController } from "../control/control.ts";
-import { blobGarbage, blobLease } from "./table.ts";
-import type { BlobStore } from "./store.ts";
+import { BlobStore } from "./store.ts";
 
 /** The key of the one collection the controller reconciles: the partition's blobs. */
 const BLOBS = "blobs";
@@ -10,7 +9,7 @@ export class BlobController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "blobs";
     /** The tables whose writes retire blobs or lease them. */
-    readonly watches = [blobGarbage, blobLease];
+    readonly watches = [BlobStore.table];
     /** The partition's blob store. */
     readonly #blobs: BlobStore;
 

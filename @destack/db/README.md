@@ -50,6 +50,21 @@ export const note = defineTable(
 );
 ```
 
+## Blobs
+
+`blob()` columns reference content-addressed blobs, which `BlobStore` stores in packs and deletes an hour after no row or lease references them.
+
+```ts
+export const attachment = defineTable("attachment", { id: text("id").primaryKey(), file: blob("file") });
+
+const blobs = new BlobStore({ storage: new MemoryBlobStorage(crypto), database, environment });
+await blobs.put([{ digest, size, open: async () => body }]); // leased half an hour, one pack
+await database.insert(attachment).values({ id: "a", file: digest });
+for await (const chunk of blobs.read(digest)) send(chunk);
+await database.delete(attachment).where(eq(attachment.id, "a")); // retires the blob
+await blobs.collect(); // frees it, then deletes it once the grace passed
+```
+
 ## Predefined rows
 
 A table's `predefined` rows are the same in every database, and writes to them fail.

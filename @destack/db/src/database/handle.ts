@@ -5,7 +5,7 @@ import type {
     ResourceKind,
     ResourceRecord,
     Snapshotter,
-    BlobStorage,
+    ContentStore,
 } from "@destack/resource";
 import type { DatabaseConnection } from "./connection.ts";
 import { Plan } from "@destack/resource";
@@ -15,6 +15,7 @@ import type { TableState } from "../migration/state.ts";
 import { Order } from "../query/order.ts";
 import type { Row } from "../table/row.ts";
 import { TABLE, Table } from "../table/table.ts";
+import { BLOB_TABLES } from "../blob/store.ts";
 
 /** The rows one read of a snapshot takes: 1000 rows of about 500 B make a read near 500 kB. */
 const SNAPSHOT_READ_ROWS = 1000;
@@ -113,17 +114,22 @@ export const DatabaseHandle = {
         return handle;
     },
 
+    /** List the tables a snapshot copies: all but the blob rows, which place this host's bytes. */
+    copied(tables: readonly Table[]): Table[] {
+        return tables.filter((table) => !BLOB_TABLES.some((blobs) => blobs === table));
+    },
+
     /** Copy every row of the database into a store as content-addressed pages. */
     async snapshot(
         handle: Pick<DatabaseHandle, "database">,
-        store: Pick<BlobStorage, "write">,
+        store: Pick<ContentStore, "write">,
         rewrite?: RowRewrite,
     ): Promise<Digest> {
         // read each table's rows in content-defined pages, in one read transaction
         const tables: Record<string, Digest[]> = {};
         await handle.database.transaction(
             async (transaction) => {
-                for (const table of handle.database.tables) {
+                for (const table of DatabaseHandle.copied(handle.database.tables)) {
                     const pages: Digest[] = [];
                     for await (const rows of pagesOf(transaction, table)) {
                         // rewrite the page's rows and store the page under its digest
@@ -147,7 +153,7 @@ export const DatabaseHandle = {
     async restore(
         handle: Pick<DatabaseHandle, "database">,
         digest: Digest,
-        store: Pick<BlobStorage, "read">,
+        store: Pick<ContentStore, "read">,
         rewrite?: RowRewrite,
         base?: Digest,
     ): Promise<void> {
@@ -158,7 +164,7 @@ export const DatabaseHandle = {
         // replace the rows of pages the snapshot lacks, checking references at commit
         await handle.database.transaction(
             async (transaction) => {
-                for (const table of handle.database.tables) {
+                for (const table of DatabaseHandle.copied(handle.database.tables)) {
                     // take out the rows of the pages that left
                     const pages = manifest.tables[table[TABLE].sqlName] ?? [];
                     const previous = held.tables[table[TABLE].sqlName] ?? [];
@@ -260,7 +266,7 @@ function fnv(text: string): number {
 
 /** Read a snapshot's manifest from a store. */
 async function readManifest(
-    store: Pick<BlobStorage, "read">,
+    store: Pick<ContentStore, "read">,
     digest: Digest,
 ): Promise<{ readonly tables: Record<string, Digest[]> }> {
     return SnapshotManifest.parse(JSON.parse(await read(store, digest)));
@@ -268,7 +274,7 @@ async function readManifest(
 
 /** Read a page of a table's rows from a store. */
 async function readPage(
-    store: Pick<BlobStorage, "read">,
+    store: Pick<ContentStore, "read">,
     table: Table,
     digest: Digest,
 ): Promise<Row[]> {
@@ -278,12 +284,12 @@ async function readPage(
 }
 
 /** Store text under its digest. */
-function write(store: Pick<BlobStorage, "write">, text: string): Promise<Digest> {
+function write(store: Pick<ContentStore, "write">, text: string): Promise<Digest> {
     return store.write(chunked(new TextEncoder().encode(text)));
 }
 
 /** Read the text stored under a digest. */
-async function read(store: Pick<BlobStorage, "read">, digest: Digest): Promise<string> {
+async function read(store: Pick<ContentStore, "read">, digest: Digest): Promise<string> {
     // decode the chunks as one text
     const decoder = new TextDecoder();
     let text = "";

@@ -16,7 +16,7 @@ import { type Insert, TABLE, type Table } from "../table/table.ts";
 import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
 import { mapValues } from "@destack/schema";
-import { blobGarbage } from "../blob/table.ts";
+import { BlobStore } from "../blob/store.ts";
 import { textValues } from "./statement.ts";
 
 /** The values of an insert or update: values, fragments or placeholders, undefined as default. */
@@ -286,9 +286,9 @@ export class MutationQuery<
                 WHERE ${column} IS NOT NULL ${filter}`;
         });
 
-        // retire them, with `WHERE true` so SQLite parses the upsert
-        return sql`INSERT INTO ${blobGarbage} (digest) SELECT digest FROM (${sql.join(selects, sql` UNION `)}) AS retired WHERE true
-            ON CONFLICT DO NOTHING`;
+        // retire them
+        return sql`UPDATE ${BlobStore.table} SET ${sql.identifier("is_retired")} = ${true}
+            WHERE ${sql.identifier("digest")} IN (SELECT digest FROM (${sql.join(selects, sql` UNION `)}) AS retired)`;
     }
 
     /** Write the mutation as SQL. */

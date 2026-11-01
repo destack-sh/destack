@@ -1,12 +1,12 @@
 import { Digest } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
-import { asc } from "../sql/index.ts";
+import { asc, eq } from "../sql/index.ts";
 import { TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
 import { blob, blobs, integer, text } from "../table/column.ts";
 import { Transaction } from "../log/commit.ts";
-import { BLOB_TABLES, blobGarbage } from "./table.ts";
+import { BLOB_TABLES, BlobStore } from "./store.ts";
 
 /** Documents whose body, renditions and expiring archive are blobs of the partition. */
 const document = defineTable(
@@ -49,28 +49,46 @@ test("retire the blobs a write may let go: written blob columns' old values, con
         archive: digestOf("4"),
         expiredAt: null,
     };
+    await database.insert(BlobStore.table).values(
+        ["1", "2", "3", "4", "5"].map((each) => ({
+            digest: digestOf(each),
+            pack: digestOf(each),
+            offset: 0,
+            size: 1,
+            leasedUntil: 0,
+            isRetired: false,
+        })),
+    );
+    const retired = async () => {
+        const rows = await database
+            .select({ digest: BlobStore.table.digest })
+            .from(BlobStore.table)
+            .where(eq(BlobStore.table.isRetired, true))
+            .orderBy(asc(BlobStore.table.digest));
+        await database.update(BlobStore.table).set({ isRetired: false });
+
+        return rows;
+    };
     await Transaction.run(database, (transaction) =>
         transaction.write({ table: document, before: null, after: live }),
     );
-    const created = await database.select().from(blobGarbage);
+    const created = await retired();
 
     // replace the body and drop a rendition, then expire it, then delete it
     const edited = { ...live, body: digestOf("5"), renditions: [digestOf("2")] };
     await Transaction.run(database, (transaction) =>
         transaction.write({ table: document, before: live, after: edited }),
     );
-    const replaced = await database.select().from(blobGarbage).orderBy(asc(blobGarbage.digest));
-    await database.delete(blobGarbage);
+    const replaced = await retired();
     const expired = { ...edited, expiredAt: 1 };
     await Transaction.run(database, (transaction) =>
         transaction.write({ table: document, before: edited, after: expired }),
     );
-    const flipped = await database.select().from(blobGarbage).orderBy(asc(blobGarbage.digest));
-    await database.delete(blobGarbage);
+    const flipped = await retired();
     await Transaction.run(database, (transaction) =>
         transaction.write({ table: document, before: expired, after: null }),
     );
-    const deleted = await database.select().from(blobGarbage).orderBy(asc(blobGarbage.digest));
+    const deleted = await retired();
     // refuse a raw deletion outside a transaction, which could lose its retirements
     const refused = await refusal(() => database.delete(document).execute());
 

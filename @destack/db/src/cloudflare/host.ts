@@ -19,7 +19,7 @@ import {
     DurableObjectQuery,
     type DurableObjectStorage,
 } from "./client.ts";
-import { DurableObjectBlobStorage } from "./content.ts";
+import { DurableObjectContentStore } from "./content.ts";
 
 /** The provider code of databases in Durable Objects' SQLite storage. */
 export const DURABLE_OBJECT_PROVIDER = "durable-object";
@@ -331,7 +331,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
                 );
             }
 
-            return new DurableObjectBlobStorage(
+            return new DurableObjectContentStore(
                 keeper(scope),
                 authorization,
                 this.environment.crypto,
