@@ -41,10 +41,10 @@ const PackageManifest = schema.looseObject({
 
 /** The templates a test run copies, reused by every run while their inputs stay the same. */
 export const TestRun = {
-    /** Provide a module's templates to a project's tests, released at the run's end. */
-    setup(module: URL) {
+    /** Provide a module's templates, written with some variables, to a project's tests. */
+    setup(module: URL, variables: Readonly<Record<string, string>> = {}) {
         return async (project: TestProject): Promise<() => Promise<void>> => {
-            const run = await TestRun.write(module, TestDatabase.target(project));
+            const run = await TestRun.write(module, TestDatabase.target(project), variables);
             project.provide("templates", run.images);
 
             return run.release;
@@ -55,11 +55,12 @@ export const TestRun = {
     async write(
         module: URL,
         dialect: Dialect,
+        variables: Readonly<Record<string, string>> = {},
     ): Promise<{
         readonly images: ImageIndex;
         readonly release: () => Promise<void>;
     }> {
-        const cache = await TemplateCache.open(fileURLToPath(module), dialect);
+        const cache = await TemplateCache.open(fileURLToPath(module), dialect, variables);
 
         return await cache.use();
     },
@@ -99,18 +100,31 @@ class TemplateCache {
     readonly entries: string;
     /** The digest of every input of the images. */
     readonly key: Digest;
+    /** The variables the images are written with, beside the process's own. */
+    readonly variables: Readonly<Record<string, string>>;
 
     /** Describe a module's cache below its checkout's root, keyed by its inputs. */
-    private constructor(module: string, dialect: Dialect, root: string, key: Digest) {
+    private constructor(
+        module: string,
+        dialect: Dialect,
+        root: string,
+        key: Digest,
+        variables: Readonly<Record<string, string>>,
+    ) {
         // place the module's entries below the root, one directory per database
         this.module = module;
         this.dialect = dialect;
         this.key = key;
+        this.variables = variables;
         this.entries = join(root, CACHE, relative(root, module).replaceAll("/", "_"), dialect);
     }
 
     /** Open a module's cache, reading its checkout's root and the key of its inputs. */
-    static async open(module: string, dialect: Dialect): Promise<TemplateCache> {
+    static async open(
+        module: string,
+        dialect: Dialect,
+        variables: Readonly<Record<string, string>>,
+    ): Promise<TemplateCache> {
         // find the checkout's root, the module's package and the packages it depends on
         const root = await TemplateCache.#root(module);
         const packages = await TemplateCache.#closure(module, root);
@@ -125,11 +139,12 @@ class TemplateCache {
                 root,
                 module: relative(root, module),
                 digests,
+                variables,
             },
             HOST.crypto,
         );
 
-        return new TemplateCache(module, dialect, root, key);
+        return new TemplateCache(module, dialect, root, key, variables);
     }
 
     /** The directory of the images for the current key. */
@@ -196,6 +211,7 @@ class TemplateCache {
         const module = pathToFileURL(this.module).href;
         const arguments_ = [writer, module, this.directory, this.id, this.dialect];
         const child = HOST.process.spawn([HOST.process.executable, ...arguments_], {
+            variables: { ...HOST.process.variables, ...this.variables },
             stdin: "pipe",
             stdout: "inherit",
             stderr: "pipe",
