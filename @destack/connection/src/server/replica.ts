@@ -30,7 +30,7 @@ export const integrationShape = defineShape({
 });
 
 /** Follow each integration of another scope a live connection refers to, from its primary. */
-export const integrationFollow = connection.follow(integrationShape, {
+export const integrationFollow = integrationShape.per(connection, {
     where: { deletedAt: { isNull: true } },
     key: async (row) => {
         // follow nothing for a connection without an integration, or with its own scope's
