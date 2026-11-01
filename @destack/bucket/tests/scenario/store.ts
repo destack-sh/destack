@@ -37,60 +37,60 @@ async function joined(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
     return bytes;
 }
 
-/** Keep blobs by digest below a prefix, and read, list, copy and delete them. */
+/** Store blobs in packs below a prefix, and read, list and delete them. */
 export async function exerciseBlobStorage(bucket: Bucket, random: Random): Promise<void> {
-    // keep a short body under its digest, and a long one staged in two parts
+    // store a short body alone under its digest, and a long one in two parts
     const store = new R2BlobStorage(bucket, "bucket-source/", random);
     const short = new TextEncoder().encode("short body");
     const long = new Uint8Array(PART_BYTES + 1024).map((_, index) => index % 251);
-    assert.deepStrictEqual(
-        [await store.write(chunked(short)), await store.write(chunked(long))],
-        [SHORT_DIGEST, LONG_DIGEST],
-    );
+    const [alone] = await store.write([
+        { body: chunked(short), digest: SHORT_DIGEST, size: short.byteLength },
+    ]);
+    const [longAlone] = await store.write([{ body: chunked(long) }]);
 
-    // refuse a body read under another digest, keeping nothing of it
-    await assert.rejects(store.write(chunked(long), SHORT_DIGEST), {
+    // store both in one pack of fresh name, the short body first
+    const packed = await store.write([{ body: chunked(short) }, { body: chunked(long) }]);
+    const pack = packed[0]?.pack ?? "";
+
+    // refuse a body read under another digest, leaving the packs as they were
+    const before = (await Array.fromAsync(store.packs())).toSorted();
+    await assert.rejects(store.write([{ body: chunked(long), digest: SHORT_DIGEST }]), {
         message: `expected blob ${SHORT_DIGEST}, got ${LONG_DIGEST}`,
     });
-    assert.deepStrictEqual(
-        (await bucket.list({ prefix: "bucket-source/staging/" })).files.map((file) => file.key),
-        [],
-    );
+    assert.deepStrictEqual((await Array.fromAsync(store.packs())).toSorted(), before);
 
-    // read a blob whole, and a range across the long blob's parts
+    // read a lone blob whole, and a range across the packed long blob's parts
     assert.deepStrictEqual(
         [
-            await joined(store.read(SHORT_DIGEST)),
-            await joined(store.slice(LONG_DIGEST, PART_BYTES - 2, 4)),
+            alone,
+            longAlone?.digest,
+            packed.map(({ digest, offset }) => [digest, offset]),
+            pack.startsWith("pack-"),
+            await joined(store.slice(SHORT_DIGEST, 0, short.byteLength)),
+            await joined(store.slice(pack, short.byteLength + PART_BYTES - 2, 4)),
         ],
-        [short, long.subarray(PART_BYTES - 2, PART_BYTES + 2)],
+        [
+            { digest: SHORT_DIGEST, pack: SHORT_DIGEST, offset: 0, size: short.byteLength },
+            LONG_DIGEST,
+            [
+                [SHORT_DIGEST, 0],
+                [LONG_DIGEST, short.byteLength],
+            ],
+            true,
+            short,
+            long.subarray(PART_BYTES - 2, PART_BYTES + 2),
+        ],
     );
 
-    // list the blobs, then delete the staged body an interrupted write left
-    await bucket.put("bucket-source/staging/interrupted", "partial");
-    const listed = (await Array.fromAsync(store.digests())).toSorted();
-    await store.clean();
-    assert.deepStrictEqual(
-        [listed, await bucket.head("bucket-source/staging/interrupted")],
-        [[SHORT_DIGEST, LONG_DIGEST].toSorted(), null],
-    );
-
-    // write a kept body again, keeping its one copy
-    assert.deepStrictEqual(
-        [await store.write(chunked(short)), (await Array.fromAsync(store.digests())).toSorted()],
-        [SHORT_DIGEST, [SHORT_DIGEST, LONG_DIGEST].toSorted()],
-    );
-
-    // copy the blobs another prefix lacks, then delete one blob and clear both prefixes
-    const target = new R2BlobStorage(bucket, "bucket-target/", random);
-    await target.fetch([SHORT_DIGEST, LONG_DIGEST, SHORT_DIGEST], store);
-    const copied = await target.missing([SHORT_DIGEST, LONG_DIGEST]);
-    await store.delete(SHORT_DIGEST);
-    const deleted = await store.missing([SHORT_DIGEST, LONG_DIGEST]);
+    // write a stored lone blob again, storing it once, then delete a pack and clear the prefix
+    await store.write([{ body: chunked(short), digest: SHORT_DIGEST, size: short.byteLength }]);
+    const listed = (await Array.fromAsync(store.packs())).toSorted();
+    await store.delete(pack);
+    const left = (await Array.fromAsync(store.packs())).toSorted();
     await store.clear();
-    await target.clear();
+    const longPack = longAlone?.pack ?? "";
     assert.deepStrictEqual(
-        [copied, deleted, (await bucket.list()).files.map((file) => file.key)],
-        [[], [SHORT_DIGEST], []],
+        [listed, left, (await bucket.list()).files.map((file) => file.key)],
+        [[pack, SHORT_DIGEST, longPack].toSorted(), [SHORT_DIGEST, longPack].toSorted(), []],
     );
 }

@@ -8,6 +8,7 @@ import { connectBunSqlite } from "@destack/db/bun";
 import { part, upload } from "../catalogue/stack/db.ts";
 import { CatalogueStorage } from "../catalogue/storage.ts";
 import type { UploadedPart } from "../bucket/index.ts";
+import { collectLater } from "./test/collect.ts";
 import { LocalBucket } from "./index.ts";
 import { Simulation } from "@destack/environment/simulation";
 import { UPLOAD_RETENTION } from "../catalogue/multipart.ts";
@@ -56,6 +57,7 @@ test("resume multipart uploads after restart and retain files when completion fa
     {
         await using bucket = await LocalBucket.open(directory, "space-test", world);
         const file = await bucket.head("document");
+        await collectLater(simulation, bucket);
         expect(
             (await world.files.readDirectory(join(directory, "files"))).map((entry) => entry.name),
         ).toEqual([digestOf("replacement")]);
@@ -63,7 +65,7 @@ test("resume multipart uploads after restart and retain files when completion fa
         await aborted.uploadPart(1, "discard");
         await aborted.abort();
         expect(await bucket.head("document")).toEqual(file);
-        await bucket.collect();
+        await collectLater(simulation, bucket);
         expect(
             (await world.files.readDirectory(join(directory, "files"))).map((entry) => entry.name),
         ).toEqual([digestOf("replacement")]);
@@ -114,8 +116,9 @@ test("reject undersized completion and an upload part that finishes after abort"
         expect(await bucket.head("document")).toEqual(original);
     }
 
-    // reopen the bucket to sweep the aborted upload's blobs
+    // reopen the bucket, and collect the aborted upload's blobs once their leases end
     await using bucket = await LocalBucket.open(directory, "space-test", world);
+    await collectLater(simulation, bucket);
     expect(
         (await world.files.readDirectory(join(directory, "files"))).map((entry) => entry.name),
     ).toEqual([digestOf("original")]);
@@ -151,6 +154,7 @@ test("reclaim expired multipart contents once a reopened bucket sweeps", async (
     await using bucket = await LocalBucket.open(directory, "space-test", world);
     const file = present(await bucket.get("document"), "document");
     expect([await file.text(), await bucket.sweep()]).toEqual(["retained", true]);
+    await collectLater(simulation, bucket);
     expect(
         (await world.files.readDirectory(join(directory, "files"))).map((entry) => entry.name),
     ).toEqual([digestOf("retained")]);
@@ -193,7 +197,7 @@ test("read a completed multipart file across part boundaries and collect its par
     ).toBe(3);
     expect(file.size).toBe(contents.length);
     await bucket.delete("document");
-    await bucket.collect();
+    await collectLater(simulation, bucket);
     expect(
         (await world.files.readDirectory(join(directory, "files"))).map((entry) => entry.name),
     ).toEqual([digestOf("kept")]);

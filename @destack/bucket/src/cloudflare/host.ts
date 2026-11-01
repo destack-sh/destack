@@ -1,4 +1,4 @@
-import type { Table } from "@destack/db";
+import { BlobStore, type Table } from "@destack/db";
 import type { DurableObjectDatabaseHost } from "@destack/db/cloudflare";
 import { schema, type Identifier } from "@destack/schema";
 import type { Bucket } from "../bucket/index.ts";
@@ -128,19 +128,25 @@ export class R2BucketHost extends CatalogueBucketHost {
             throw error;
         }
 
-        // keep the bucket, reconnecting its catalogue over the tables beside its own
+        // open the bucket, its blobs indexed in the catalogue, reconnecting both over the tables beside its own
+        const storage = new R2BlobStorage(this.#files, `${bucketId}/`, this.#environment.random);
+        const environment = this.#environment;
+        let blobs = new BlobStore({ storage, database, environment });
         const opened = CatalogueBucket.create({
             get database() {
                 return database;
             },
-            blobs: new R2BlobStorage(this.#files, `${bucketId}/`, this.#environment.random),
-            environment: this.#environment,
+            get blobs() {
+                return blobs;
+            },
+            environment,
             migrate: async (beside) => {
                 // migrate, then reconnect declaring every table
                 const migrated = [...tables, ...beside];
                 await database.migrate(migrated);
                 await database.close();
                 database = await this.#catalogues.connect(bucketId, migrated);
+                blobs = new BlobStore({ storage, database, environment });
             },
             close: () => database.close(),
             // delete blobs at once, as the Durable Object is the catalogue's only instance

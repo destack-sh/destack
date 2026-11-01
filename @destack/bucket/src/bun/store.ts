@@ -8,7 +8,7 @@ import {
     FileSystemError,
     type Random,
 } from "@destack/environment";
-import type { BlobEntry, BlobStorage } from "@destack/resource";
+import { BlobPack, type BlobBody, type BlobPlacement, type BlobStorage } from "@destack/resource";
 import { Digest, Uuid } from "@destack/schema";
 import { BucketError } from "../error/index.ts";
 import { createDurably, syncDirectory } from "./directory.ts";
@@ -22,7 +22,7 @@ export type BlobEnvironment = Pick<Environment<"files">, "files" | "random">;
 /** How a blob store syncs its writes, as SQLite's `synchronous`: fully, or off for a cache. */
 export type BlobSynchronous = "full" | "off";
 
-/** A bucket's blobs as files in a directory, each keyed by its digest. */
+/** A bucket's blobs as files in a directory, each its own pack keyed by its digest. */
 export class LocalBlobStorage implements BlobStorage {
     /** The directory of blob files. */
     readonly directory: string;
@@ -66,32 +66,10 @@ export class LocalBlobStorage implements BlobStorage {
         return join(this.directory, digest);
     }
 
-    /** List the digests the directory lacks, in the given order. */
-    async missing(digests: readonly Digest[]): Promise<readonly Digest[]> {
-        const found = await Promise.all(
-            digests.map((digest) => this.#files.exists(this.path(digest))),
-        );
-
-        return digests.filter((_, index) => found[index] !== true);
-    }
-
-    /** Read a blob's bytes. */
-    read(digest: Digest): AsyncIterable<Uint8Array> {
-        return this.slice(digest, 0, Number.POSITIVE_INFINITY);
-    }
-
-    /** Read many blobs in order. */
-    async *batch(digests: readonly Digest[]): AsyncIterable<BlobEntry> {
-        for (const digest of digests) {
-            const { size } = await this.#files.stat(this.path(digest));
-            yield { digest, size, body: this.read(digest) };
-        }
-    }
-
-    /** Read a range of a blob's bytes from its file, each chunk read at its exact size. */
-    async *slice(digest: Digest, offset: number, length: number): AsyncIterable<Uint8Array> {
+    /** Read a range of a pack's bytes from its file, each chunk read at its exact size. */
+    async *slice(pack: string, offset: number, length: number): AsyncIterable<Uint8Array> {
         // read from the offset in chunks of the range's remaining size, up to one read's bytes
-        await using file = await this.#files.open(this.path(digest), { read: true });
+        await using file = await this.#files.open(this.path(Digest.parse(pack)), { read: true });
         await file.seek(offset);
         for (let remaining = length; remaining > 0;) {
             const buffer = new Uint8Array(Math.min(READ_BYTES, remaining));
@@ -109,46 +87,53 @@ export class LocalBlobStorage implements BlobStorage {
         return this.#files.copyFile(this.path(digest), destination);
     }
 
-    /** Write bytes to a fresh temporary file, then keep it under its digest. */
-    async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
+    /** Store each body as its own file under its digest, syncing the directory once. */
+    async write(bodies: readonly BlobBody[]): Promise<readonly BlobPlacement[]> {
+        // write each body to its file, refusing bytes unlike its expected digest or size
+        const placements: BlobPlacement[] = [];
+        for (const body of bodies) {
+            placements.push(await this.#writeFile(body));
+        }
+
+        // sync the directory once for the files renamed into it
+        if (placements.length > 0 && this.#synchronous === "full") {
+            await syncDirectory(this.directory, this.#files);
+        }
+
+        return placements;
+    }
+
+    /** Write a body to a fresh temporary file, then rename it to its digest unless stored. */
+    async #writeFile(body: BlobBody): Promise<BlobPlacement> {
         const { path: temporary, file } = await this.#temporary();
         try {
             // write and hash the bytes into a temporary file this write created
-            const digest = await this.#written(file, body);
-            if (expected !== undefined && digest !== expected) {
-                throw BucketError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
-            }
+            const { digest, size } = await this.#written(file, body.body);
+            BlobPack.verify(body, digest, size);
 
-            // keep the file under its digest once
+            // store the file under its digest once
             if (await this.#files.exists(this.path(digest))) {
                 await this.#files.remove(temporary);
             } else {
                 await this.#files.rename(temporary, this.path(digest));
-                if (this.#synchronous === "full") {
-                    await syncDirectory(this.directory, this.#files);
-                }
             }
 
-            return digest;
+            return { digest, pack: digest, offset: 0, size };
         } catch (error) {
             await this.#removed(temporary, error);
             throw error;
         }
     }
 
-    /** Keep a file this store may consume under its digest, moving it into the directory. */
-    async move(path: string, expected: Digest): Promise<Digest> {
-        // hash the file where it is
-        const digest = Digest.parse(
-            createHash("sha256")
-                .update(await this.#files.readFile(path))
-                .digest("hex"),
-        );
-        if (digest !== expected) {
-            throw BucketError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
-        }
+    /** Store a file this store may consume under its digest, moving it in, and place it. */
+    async move(path: string, expected: Digest): Promise<BlobPlacement> {
+        // hash and count the file where it is, refusing another digest
+        const bytes = await this.#files.readFile(path);
+        const digest = Digest.parse(createHash("sha256").update(bytes).digest("hex"));
+        const size = bytes.byteLength;
+        BlobPack.verify({ digest: expected }, digest, size);
 
-        // keep the file under its digest once
+        // store the file under its digest once
         if (await this.#files.exists(this.path(digest))) {
             await this.#files.remove(path);
         } else {
@@ -158,25 +143,16 @@ export class LocalBlobStorage implements BlobStorage {
             }
         }
 
-        return digest;
+        return { digest, pack: digest, offset: 0, size };
     }
 
-    /** Keep the blobs the directory lacks among some digests, read from another store. */
-    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "batch">): Promise<void> {
-        for await (const { digest, body } of source.batch(
-            await this.missing([...new Set(digests)]),
-        )) {
-            await this.write(body, digest);
-        }
+    /** Delete a pack's file, if stored. */
+    async delete(pack: string): Promise<void> {
+        await this.#files.remove(this.path(Digest.parse(pack)), { force: true });
     }
 
-    /** Delete a blob's file, if stored. */
-    async delete(digest: Digest): Promise<void> {
-        await this.#files.remove(this.path(digest), { force: true });
-    }
-
-    /** List the blob files. */
-    async *digests(): AsyncIterable<Digest> {
+    /** List the packs, each a blob's file. */
+    async *packs(): AsyncIterable<string> {
         for (const entry of await this.#entries()) {
             const parsed = Digest.safeParse(entry.name);
             if (entry.kind === "file" && parsed.success) {
@@ -218,22 +194,27 @@ export class LocalBlobStorage implements BlobStorage {
         }
     }
 
-    /** Write and hash a body into a created file, synced to disk unless a cache, then close it. */
-    async #written(file: FileHandle, body: AsyncIterable<Uint8Array>): Promise<Digest> {
-        // write each chunk and hash it on the way
+    /** Write, hash and count a body into a created file, synced unless a cache, then close it. */
+    async #written(
+        file: FileHandle,
+        body: AsyncIterable<Uint8Array>,
+    ): Promise<{ readonly digest: Digest; readonly size: number }> {
+        // write each chunk and hash and count it on the way
         await using opened = file;
         const hash = createHash("sha256");
         const writer = opened.writable().getWriter();
+        let size = 0;
         for await (const chunk of body) {
             await writer.write(chunk);
             hash.update(chunk);
+            size += chunk.byteLength;
         }
         await writer.close();
         if (this.#synchronous === "full") {
             await opened.sync();
         }
 
-        return Digest.parse(hash.digest("hex"));
+        return { digest: Digest.parse(hash.digest("hex")), size };
     }
 
     /** Remove an unfinished write's temporary file after a failure. */

@@ -1,4 +1,4 @@
-import { type Digest, nth, Uuid } from "@destack/schema";
+import { nth, Uuid } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { and, asc, eq, gt, gte, lt, or } from "@destack/db";
 import type {
@@ -71,10 +71,9 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         const storageClass = StorageClass.read(options.storageClass ?? "Standard");
         const uploadId = Uuid.v7(storage.environment);
 
-        // register the upload in an unfenced bucket after deleting retired blobs
+        // register the upload in an unfenced bucket
         await storage.exclusive(async () => {
             storage.checkWritable();
-            await storage.collect();
             await storage.database.transaction(
                 async (transaction) =>
                     await transaction.insert(upload).values({
@@ -169,11 +168,9 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
 
         // retain storage throughout the streamed upload
         await this.#storage.beginWrite();
-        let content: Content | undefined;
-        let isPublished = false;
         try {
             // write immutable contents before publishing the part
-            content = await Content.write(this.#storage, body, {}, customerKey);
+            const content = await Content.write(this.#storage, body, {}, customerKey);
             const entry = {
                 uploadId: this.uploadId,
                 partNumber,
@@ -188,7 +185,6 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
             // publish only if the upload remains active
             await this.#storage.exclusive(async () => {
                 await this.#replacePart(entry);
-                isPublished = true;
             });
 
             return {
@@ -198,25 +194,15 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                 uploaded: new Date(entry.uploaded),
             };
         } finally {
-            // release the active writer and retain abandoned files for collection
-            if (content && !isPublished) {
-                this.#storage.retired.add(content.blob);
-            }
+            // release the active writer, an abandoned file collected once its write's lease ends
             this.#storage.endWrite();
         }
     }
 
     /** Replace one part of the active upload under the catalogue lock. */
     async #replacePart(entry: typeof part.$inferSelect): Promise<void> {
-        // read the part being replaced
+        // replace one part, which retires the contents it replaces
         await this.#upload();
-        const previous = await this.#storage.database
-            .select()
-            .from(part)
-            .where(and(eq(part.uploadId, this.uploadId), eq(part.partNumber, entry.partNumber)))
-            .get();
-
-        // replace one part without invalidating existing readers
         await this.#storage.database.transaction(
             async (transaction) =>
                 await transaction
@@ -227,11 +213,6 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                         set: entry,
                     }),
         );
-
-        // retire replaced contents after committing their replacement
-        if (previous) {
-            this.#storage.retired.add(previous.blob);
-        }
     }
 
     /** Stream a file or a range of it into one upload part. */
@@ -301,15 +282,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
 
             // publish the file its parts' blobs become
             const published = this.#describe(metadata, ordered);
-            const detached = await this.#publish(published, ordered);
-
-            // retire the replaced blobs and every part's, which collection keeps while a segment references them
-            for (const digest of detached) {
-                this.#storage.retired.add(digest);
-            }
-            for (const { blob } of entries) {
-                this.#storage.retired.add(blob);
-            }
+            await this.#publish(published, ordered);
 
             return CatalogueFile.describe(published);
         });
@@ -341,26 +314,23 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
     async #publish(
         published: CatalogueFile,
         ordered: readonly (typeof part.$inferSelect)[],
-    ): Promise<Digest[]> {
-        return await this.#storage.database.transaction(async (transaction) => {
-            // publish the segments, then drop the parts and close the upload
-            const released = await this.#storage.publish(published, [...ordered], transaction);
+    ): Promise<void> {
+        await this.#storage.database.transaction(async (transaction) => {
+            // publish the segments, then drop the parts and close the upload, which retires what they replace
+            await this.#storage.publish(published, [...ordered], transaction);
             await transaction.delete(part).where(eq(part.uploadId, this.uploadId));
             await transaction
                 .update(upload)
                 .set({ state: "completed" })
                 .where(eq(upload.id, this.uploadId));
-
-            return released;
         });
     }
 
     /** Discard an incomplete upload and retire each uploaded part. */
     async abort(): Promise<void> {
         await this.#storage.exclusive(async () => {
-            // read the upload of an unfenced bucket after reclaiming earlier writes
+            // read the upload of an unfenced bucket
             this.#storage.checkWritable();
-            await this.#storage.collect();
             const entry = await this.#storage.database
                 .select()
                 .from(upload)
@@ -379,22 +349,14 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                 return;
             }
 
-            // delete the parts and mark the upload aborted in one transaction
-            const removed = await this.#storage.database.transaction(async (transaction) => {
-                const deleted = await transaction
-                    .delete(part)
-                    .where(eq(part.uploadId, this.uploadId))
-                    .returning({ blob: part.blob });
+            // delete the parts and mark the upload aborted in one transaction, which retires their blobs
+            await this.#storage.database.transaction(async (transaction) => {
+                await transaction.delete(part).where(eq(part.uploadId, this.uploadId));
                 await transaction
                     .update(upload)
                     .set({ state: "aborted" })
                     .where(eq(upload.id, this.uploadId));
-
-                return deleted;
             });
-            for (const { blob } of removed) {
-                this.#storage.retired.add(blob);
-            }
         });
     }
 

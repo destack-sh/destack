@@ -1,6 +1,6 @@
-import { createHash, type Hash } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { Random } from "@destack/environment";
-import type { BlobEntry, BlobStorage } from "@destack/resource";
+import { BlobPack, type BlobBody, type BlobPlacement, type BlobStorage } from "@destack/resource";
 import { Digest, present, Uuid } from "@destack/schema";
 import { type Bucket, type UploadedPart, MAX_BATCH_FILES } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
@@ -8,123 +8,82 @@ import { BucketError } from "../error/index.ts";
 /** The bytes of each part of a blob written in parts: 8 MiB. */
 const PART_BYTES = 8 * 1024 * 1024;
 
-/** The directory below a bucket's prefix for staged bodies. */
-const STAGING = "staging/";
-
-/** A bucket's blobs as files of a residency's R2 bucket below the bucket's prefix. */
+/** A bucket's blobs in packs, files of a residency's R2 bucket below the bucket's prefix. */
 export class R2BlobStorage implements BlobStorage {
     /** The residency's bucket. */
     readonly #files: Bucket;
-    /** The prefix of the bucket's blobs, such as `bucket-…/`. */
+    /** The prefix of the bucket's packs, such as `bucket-…/`. */
     readonly #prefix: string;
-    /** The randomness naming each staged write. */
+    /** The randomness naming each pack of several blobs. */
     readonly #random: Random;
 
-    /** Keep a bucket's blobs below a prefix of the residency's bucket. */
+    /** Store a bucket's blobs below a prefix of the residency's bucket. */
     constructor(files: Bucket, prefix: string, random: Random) {
         this.#files = files;
         this.#prefix = prefix;
         this.#random = random;
     }
 
-    /** List the digests the store lacks, in the given order. */
-    async missing(digests: readonly Digest[]): Promise<readonly Digest[]> {
-        const kept = await Promise.all(
-            digests.map((digest) => this.#files.head(this.#key(digest))),
-        );
-
-        return digests.filter((_, index) => kept[index] === null);
-    }
-
-    /** Read a blob's bytes. */
-    async *read(digest: Digest): AsyncIterable<Uint8Array> {
-        const file = await this.#files.get(this.#key(digest));
-        yield* present(file, digest).body;
-    }
-
-    /** Read many blobs in order. */
-    async *batch(digests: readonly Digest[]): AsyncIterable<BlobEntry> {
-        for (const digest of digests) {
-            const file = present(await this.#files.get(this.#key(digest)), digest);
-            yield { digest, size: file.size, body: file.body };
+    /** Store the bodies in one pack, uploaded in parts straight to its key, each body verified. */
+    async write(bodies: readonly BlobBody[]): Promise<readonly BlobPlacement[]> {
+        // leave a lone blob of known digest stored before
+        const pack = BlobPack.key(bodies, () => Uuid.v4(this.#random));
+        const key = this.#key(pack);
+        const [only] = bodies;
+        const known =
+            bodies.length === 1 && only?.digest !== undefined && only.size !== undefined
+                ? { digest: only.digest, size: only.size }
+                : undefined;
+        if (bodies.length === 0) {
+            return [];
+        } else if (known !== undefined && (await this.#files.head(key)) !== null) {
+            return BlobPack.place(pack, [known]);
         }
-    }
 
-    /** Read a range of a blob's bytes. */
-    async *slice(digest: Digest, offset: number, length: number): AsyncIterable<Uint8Array> {
-        const file = await this.#files.get(this.#key(digest), { range: { offset, length } });
-        yield* present(file, digest).body;
-    }
-
-    /** Keep bytes under their digest and return it. */
-    async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
-        // read up to two parts to tell a body of one part from a longer one
-        const hash = createHash("sha256");
-        const parts = partsOf(body, hash);
+        // read up to two parts to tell a pack of one part from a longer one, placing each blob read
+        const blobs: { readonly digest: Digest; readonly size: number }[] = [];
+        const parts = partsOf(verifiedBodies(bodies, (blob) => blobs.push(blob)));
         const first = await parts.next();
         const second = await parts.next();
 
-        // keep a body of one part under its digest at once
+        // store a pack of one part at once, a lone blob of known digest under its checksum
         if (first.done === true || second.done === true) {
             const bytes = first.done === true ? new Uint8Array() : first.value;
-            const digest = verified(hash, expected);
-            if ((await this.missing([digest])).length > 0) {
-                await this.#files.put(this.#key(digest), bytes, { sha256: digest });
-            }
-
-            return digest;
+            await this.#files.put(key, bytes, known === undefined ? {} : { sha256: known.digest });
+        }
+        // upload a longer pack in parts
+        else {
+            await this.#upload(key, resumed([first.value, second.value], parts));
         }
 
-        // stage a longer body in parts, then keep it under its digest once
-        const staged = `${this.#prefix}${STAGING}${Uuid.v4(this.#random)}`;
-        try {
-            await this.#stage(staged, resumed([first.value, second.value], parts));
-            const digest = verified(hash, expected);
-            if ((await this.missing([digest])).length > 0) {
-                const file = present(await this.#files.get(staged), staged);
-                await this.#files.put(this.#key(digest), file.body, { sha256: digest });
-            }
-
-            return digest;
-        } finally {
-            await this.#files.delete(staged);
-        }
+        return BlobPack.place(pack, blobs);
     }
 
-    /** Keep the blobs the store lacks among some digests, read from another store. */
-    async fetch(digests: readonly Digest[], source: Pick<BlobStorage, "batch">): Promise<void> {
-        // copy the missing blobs in batches
-        for await (const { digest, body } of source.batch(
-            await this.missing([...new Set(digests)]),
-        )) {
-            await this.write(body, digest);
-        }
+    /** Read a range of a pack's bytes. */
+    async *slice(pack: string, offset: number, length: number): AsyncIterable<Uint8Array> {
+        const file = await this.#files.get(this.#key(pack), { range: { offset, length } });
+        yield* present(file, pack).body;
     }
 
-    /** Delete a blob. */
-    async delete(digest: Digest): Promise<void> {
-        await this.#files.delete(this.#key(digest));
+    /** Delete a pack. */
+    async delete(pack: string): Promise<void> {
+        await this.#files.delete(this.#key(pack));
     }
 
-    /** List the kept blobs' digests, directly below the prefix. */
-    async *digests(): AsyncIterable<Digest> {
+    /** List the packs directly below the prefix. */
+    async *packs(): AsyncIterable<string> {
         for await (const keys of this.#pages(this.#prefix, "/")) {
             for (const key of keys) {
                 const name = key.slice(this.#prefix.length);
-                const parsed = Digest.safeParse(name);
-                if (parsed.success) {
-                    yield parsed.data;
+                if (BlobPack.isKey(name)) {
+                    yield name;
                 }
             }
         }
     }
 
-    /** Delete the staged bodies a stopped host left behind, a page at a time. */
-    async clean(): Promise<void> {
-        for await (const keys of this.#pages(`${this.#prefix}${STAGING}`)) {
-            await this.#files.delete(keys);
-        }
-    }
+    /** Clean up after interrupted writes, whose multipart uploads the bucket's lifecycle aborts. */
+    async clean(): Promise<void> {}
 
     /** Delete every file below the prefix, such as when the bucket is destroyed. */
     async clear(): Promise<void> {
@@ -133,9 +92,9 @@ export class R2BlobStorage implements BlobStorage {
         }
     }
 
-    /** Upload a body in parts of one size under a staging name, skipping an empty last part. */
-    async #stage(staged: string, parts: AsyncIterable<Uint8Array<ArrayBuffer>>): Promise<void> {
-        const upload = await this.#files.createMultipartUpload(staged);
+    /** Upload a body in parts of one size under a key, skipping an empty last part. */
+    async #upload(key: string, parts: AsyncIterable<Uint8Array<ArrayBuffer>>): Promise<void> {
+        const upload = await this.#files.createMultipartUpload(key);
         try {
             const uploaded: UploadedPart[] = [];
             for await (const part of parts) {
@@ -149,7 +108,7 @@ export class R2BlobStorage implements BlobStorage {
             try {
                 await upload.abort();
             } catch (cleanup) {
-                throw new AggregateError([error, cleanup], "blob upload and abort failed", {
+                throw new AggregateError([error, cleanup], "pack upload and abort failed", {
                     cause: cleanup,
                 });
             }
@@ -174,27 +133,47 @@ export class R2BlobStorage implements BlobStorage {
         } while (cursor !== undefined);
     }
 
-    /** Name a blob's file. */
-    #key(digest: Digest): string {
-        if (!Digest.safeParse(digest).success) {
-            throw BucketError.of("INVALID_ARGUMENT", `not a blob digest: ${digest}`);
+    /** Name a pack's file. */
+    #key(pack: string): string {
+        if (!BlobPack.isKey(pack)) {
+            throw BucketError.of("INVALID_ARGUMENT", `not a pack key: ${pack}`);
         }
 
-        return `${this.#prefix}${digest}`;
+        return `${this.#prefix}${pack}`;
     }
 }
 
-/** Split a body into parts of one size and a last shorter or empty one, hashing it on the way. */
+/** Pass on bodies' bytes in order, digesting and counting each, refusing an unexpected one. */
+async function* verifiedBodies(
+    bodies: readonly BlobBody[],
+    placed: (blob: { readonly digest: Digest; readonly size: number }) => void,
+): AsyncIterable<Uint8Array> {
+    for (const body of bodies) {
+        // hash and count the body's chunks on the way
+        const hash = createHash("sha256");
+        let size = 0;
+        for await (const chunk of body.body) {
+            hash.update(chunk);
+            size += chunk.byteLength;
+            yield chunk;
+        }
+
+        // refuse bytes unlike the expected digest or size, and report the placed blob
+        const digest = Digest.parse(hash.digest("hex"));
+        BlobPack.verify(body, digest, size);
+        placed({ digest, size });
+    }
+}
+
+/** Split a body into parts of one size and a last shorter or empty one. */
 async function* partsOf(
     body: AsyncIterable<Uint8Array>,
-    hash: Hash,
 ): AsyncGenerator<Uint8Array<ArrayBuffer>, void> {
     // buffer chunks until they fill a part
     let buffered: Uint8Array[] = [];
     let size = 0;
     for await (const chunk of body) {
-        // hash the chunk, and pass on each full part
-        hash.update(chunk);
+        // pass on each full part
         let rest = chunk;
         while (size + rest.byteLength >= PART_BYTES) {
             const taken = PART_BYTES - size;
@@ -205,7 +184,7 @@ async function* partsOf(
             rest = rest.subarray(taken);
         }
 
-        // keep the rest for the next part
+        // buffer the rest for the next part
         if (rest.byteLength > 0) {
             buffered.push(rest);
             size += rest.byteLength;
@@ -234,14 +213,4 @@ function joined(chunks: readonly Uint8Array[], size: number): Uint8Array<ArrayBu
     }
 
     return bytes;
-}
-
-/** Finish a body's digest, refusing one that differs from the expected digest. */
-function verified(hash: Hash, expected: Digest | undefined): Digest {
-    const digest = Digest.parse(hash.digest("hex"));
-    if (expected !== undefined && digest !== expected) {
-        throw BucketError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
-    }
-
-    return digest;
 }

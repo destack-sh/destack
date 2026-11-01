@@ -1,3 +1,4 @@
+import { MemoryContentStore } from "@destack/resource";
 import { testSimulation } from "@destack/test/world";
 import { createHash } from "node:crypto";
 import { Environment } from "@destack/environment";
@@ -8,7 +9,8 @@ import { ResourceId } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { BucketError } from "../error/index.ts";
-import { LocalBucket, LocalBucketHost, LocalBlobStorage } from "../bun/index.ts";
+import { collectLater } from "../bun/test/collect.ts";
+import { LocalBucket, LocalBucketHost } from "../bun/index.ts";
 import { bucketProvider } from "../provider/index.ts";
 import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
 import type { CatalogueStore } from "../catalogue/index.ts";
@@ -133,12 +135,12 @@ test("provision a bucket as a prefix of the residency's bucket beside its catalo
         await signer.presign(new Request(url), CREDENTIALS, 60, world.clock.now()),
     );
 
-    // keep the blob below the bucket's prefix, then replace the file and collect the old blob
+    // store the blob in a pack below the bucket's prefix, then replace the file and collect the old pack once its leases end
     const listed = async () => (await files.list()).files.map((file) => file.key);
     const before = await listed();
     const bucket = await buckets.open({ bucketId });
     await bucket.put("notes/a.txt", "second");
-    await bucket.collect();
+    await collectLater(simulation, bucket);
     const after = await listed();
 
     // destroy the bucket's blobs and catalogue
@@ -147,15 +149,17 @@ test("provision a bucket as a prefix of the residency's bucket beside its catalo
         provision,
         written: written.status,
         read: [read.status, await read.text()],
-        before,
-        after,
+        packs: [before, after].map((keys) =>
+            keys.map((key) => key.startsWith(`${bucketId}/pack-`)),
+        ),
+        isReplaced: before[0] !== after[0],
         destroyed: [await listed(), await catalogues.has(bucketId), await buckets.named(bucketId)],
     }).toEqual({
         provision: { reference: `r2://destack-test-files-eu/${bucketId}/` },
         written: 200,
         read: [200, "first"],
-        before: [`${bucketId}/${digest("first")}`],
-        after: [`${bucketId}/${digest("second")}`],
+        packs: [[true], [true]],
+        isReplaced: true,
         destroyed: [[], false, undefined],
     });
 });
@@ -195,10 +199,7 @@ test("move a bucket from a device host to a cell: snapshot its catalogue and fil
     const to = { ...record, ...(await target.provision.provision(record)) };
 
     // fence the device's bucket, snapshot it into a content store, and restore it on the cell
-    const store = await LocalBlobStorage.open(
-        await world.files.makeTemporaryDirectory("r2-host-"),
-        world,
-    );
+    const store = new MemoryContentStore(world.crypto);
     await source.fence.fence(from);
     const snapshot = await source.snapshot.snapshot(from, [], store);
     await target.snapshot.restore(to, [], snapshot, store);

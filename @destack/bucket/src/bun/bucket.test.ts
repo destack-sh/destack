@@ -1,3 +1,4 @@
+import { BlobStore } from "@destack/db";
 import { testSimulation } from "@destack/test/world";
 import { present, Uuid } from "@destack/schema";
 import { createHash } from "node:crypto";
@@ -5,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { type UploadedPart, StorageClass } from "../bucket/index.ts";
+import { collectLater } from "./test/collect.ts";
 import { LocalBucket } from "./index.ts";
 
 /** The files the stress test puts, 1.6 ms each on macOS for the fsync of blob and directory. */
@@ -29,7 +31,7 @@ test("put, read and delete many files, keeping the blobs of the files left alone
     );
     const kept = keys.filter((_, index) => index % 2 === 0);
     await bucket.delete(keys.filter((_, index) => index % 2 === 1));
-    await bucket.sweep();
+    await collectLater(simulation, bucket);
 
     // read every file as written, and leave the kept files' blobs
     expect({
@@ -216,12 +218,10 @@ test("report reclamation failures separately from committed file replacements", 
     try {
         const replacement = await bucket.put("document", "replacement");
         expect(await bucket.head("document")).toEqual(replacement);
-        expect([
-            await refusal(bucket.collect()),
-            await refusal(bucket.put("document", "uncommitted")),
-        ]).toEqual([
-            ["CONFLICT", "ALREADY_EXISTS", `cannot remove ${path}: ENOTEMPTY`],
-            ["CONFLICT", "ALREADY_EXISTS", `cannot remove ${path}: ENOTEMPTY`],
+        expect(await refusal(collectLater(simulation, bucket))).toEqual([
+            "CONFLICT",
+            "ALREADY_EXISTS",
+            `cannot remove ${path}: ENOTEMPTY`,
         ]);
         expect(await present(await bucket.get("document"), "document").text()).toBe("replacement");
     } finally {
@@ -284,13 +284,13 @@ test("copy files by sharing their contents until the last reference goes", async
 
     // keep the one blob, named by its digest, while any copy references it
     await bucket.delete(["source", "copy"]);
-    await bucket.collect();
+    await collectLater(simulation, bucket);
     expect(
         (await world.files.readDirectory(join(directory, "files"))).map((entry) => entry.name),
     ).toEqual([digestOf("shared")]);
     expect(await present(await bucket.get("replaced"), "replaced").text()).toBe("shared");
     await bucket.delete("replaced");
-    await bucket.collect();
+    await collectLater(simulation, bucket);
     expect(
         (await world.files.readDirectory(join(directory, "files"))).map((entry) => entry.name),
     ).toEqual([]);
@@ -441,7 +441,7 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
     ]);
 });
 
-test("share a bucket between two processes, deleting blobs only once the other closes", async () => {
+test("share a bucket between two processes, sweeping only once the other closes and collecting a deleted file's blob a grace after its lease ends", async () => {
     await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-shared-");
@@ -474,10 +474,15 @@ test("share a bucket between two processes, deleting blobs only once the other c
             .toSorted(),
     };
 
-    // delete it once the child closes the bucket
+    // sweep once the child closes the bucket, and collect the deleted blob once the latest lease ends, the child's on its own clock
     await child.stdin.close();
     const code = await child.exited;
     const isSwept = await bucket.sweep();
+    const leases = await bucket
+        .database()
+        .database.select({ until: BlobStore.table.leasedUntil })
+        .from(BlobStore.table);
+    await collectLater(simulation, bucket, Math.max(...leases.map(({ until }) => until)));
     const blobs = (await world.files.readDirectory(join(directory, "files")))
         .map((entry) => entry.name)
         .toSorted();

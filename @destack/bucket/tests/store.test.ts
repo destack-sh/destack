@@ -5,7 +5,7 @@ import { test } from "@destack/test";
 import { join } from "node:path";
 import { LocalBucket } from "../src/bun/index.ts";
 
-test("keep, read, copy and delete blobs below a prefix of a local and an R2 bucket", async () => {
+test("store, read, copy and delete blobs below a prefix of a local and an R2 bucket", async () => {
     await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("store-");

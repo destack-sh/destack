@@ -2,7 +2,7 @@ import { nth } from "@destack/schema";
 import { BucketError } from "../error/index.ts";
 import type { segment } from "./stack/index.ts";
 import type { CustomerKey } from "./encryption.ts";
-import type { BlobStorage } from "@destack/resource";
+import type { BlobStore } from "@destack/db";
 
 /** One blob of a stored file, its nonce and its length. */
 export type Segment = Pick<typeof segment.$inferSelect, "blob" | "nonce" | "size">;
@@ -12,11 +12,9 @@ export class ContentReader {
     /** The selected content stream. */
     readonly stream: ReadableStream<Uint8Array>;
     /** The blobs of the segments. */
-    readonly #blobs: BlobStorage;
+    readonly #blobs: Pick<BlobStore, "slice">;
     /** The file's content segments in order. */
     readonly #segments: Segment[];
-    /** Release the bucket's references to the segments. */
-    readonly #release: () => void;
     /** The customer key decrypting the segments, absent for plain content. */
     readonly #key: CustomerKey | undefined;
     /** The segment with the next byte. */
@@ -36,17 +34,15 @@ export class ContentReader {
 
     /** Read one range of retained segments, releasing them once. */
     constructor(
-        blobs: BlobStorage,
+        blobs: Pick<BlobStore, "slice">,
         segments: Segment[],
         offset: number,
         length: number,
-        release: () => void,
         key?: CustomerKey,
     ) {
         // retain the segments and skip to the one with the first selected byte
         this.#blobs = blobs;
         this.#segments = segments;
-        this.#release = release;
         this.#key = key;
         this.#offset = offset;
         this.#remaining = length;
@@ -160,14 +156,12 @@ export class ContentReader {
         await this.#close();
     }
 
-    /** Close the open segment once and release the retained segments. */
+    /** Close the open segment once. */
     #close(): Promise<void> {
         // detach the open segment so a pending advance does not close it twice
         const chunks = this.#chunks;
         this.#chunks = undefined;
-        this.#closing ??= Promise.resolve(chunks?.return?.())
-            .then(() => {})
-            .finally(this.#release);
+        this.#closing ??= Promise.resolve(chunks?.return?.()).then(() => {});
 
         return this.#closing;
     }

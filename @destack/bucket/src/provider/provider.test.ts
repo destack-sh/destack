@@ -1,9 +1,10 @@
+import { MemoryContentStore } from "@destack/resource";
 import { testSimulation } from "@destack/test/world";
 import { createHash } from "node:crypto";
 import { ResourceId } from "@destack/resource";
 import { nth, schema, present } from "@destack/schema";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
-import { LocalBucketHost, LocalBlobStorage } from "../bun/index.ts";
+import { LocalBucketHost } from "../bun/index.ts";
 import { segment } from "../catalogue/stack/index.ts";
 import { bucketProvider } from "./provider.ts";
 import { SweepController } from "./sweep.ts";
@@ -167,10 +168,7 @@ test("snapshot a bucket's catalogue and files into a content-addressed store and
         directory: await world.files.makeTemporaryDirectory("bucket-provider-"),
         ...options,
     });
-    const store = await LocalBlobStorage.open(
-        await world.files.makeTemporaryDirectory("bucket-provider-"),
-        world,
-    );
+    const store = new MemoryContentStore(world.crypto);
     const sending = bucketProvider(source, null);
     const receiving = bucketProvider(target, null);
     const bucketId = schema.identifier("bucket").parse(record.id);

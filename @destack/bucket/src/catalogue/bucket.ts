@@ -57,15 +57,15 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             get database() {
                 return storage.database;
             },
-            blobs: storage.blobs,
-            hold: () => storage.hold(),
-            retire: (digests) => storage.retire(digests),
+            get blobs() {
+                return storage.blobs;
+            },
             migrate: (beside) => storage.migrate(beside),
             close: async () => {},
         };
     }
 
-    /** Count the bytes the published files keep. */
+    /** Count the bytes of the published files. */
     async bytes(): Promise<number> {
         const [row] = await this.#storage.database.select({ bytes: sum(file.size) }).from(file);
 
@@ -131,21 +131,14 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         range: { readonly offset: number; readonly length: number } | undefined,
         customerKey: CustomerKey | undefined,
     ): Promise<ContentReader> {
+        // read the segments, whose blobs a collection deletes only a grace after their last reference
         const segments = await this.#storage.segments(entry.version);
-        for (const selected of segments) {
-            this.#storage.retain(selected.blob);
-        }
 
         return new ContentReader(
             this.#storage.blobs,
             segments,
             range?.offset ?? 0,
             range?.length ?? entry.size,
-            () => {
-                for (const selected of segments) {
-                    this.#storage.release(selected.blob);
-                }
-            },
             customerKey,
         );
     }
@@ -225,10 +218,8 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         const customerKey = await CustomerKey.read(options.ssecKey);
         const storageClass = StorageClass.read(options.storageClass ?? "Standard");
         await this.#storage.beginWrite();
-        let isPublished = false;
-        let content: Content | undefined;
         try {
-            content = await Content.write(this.#storage, body, options, customerKey);
+            const content = await Content.write(this.#storage, body, options, customerKey);
 
             // describe the file its blob becomes
             const segments = [{ blob: content.blob, nonce: content.nonce, size: content.size }];
@@ -246,33 +237,23 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
 
             // replace the catalogue entry only when its precondition still matches
             return await this.#storage.exclusive(async () => {
-                // reclaim earlier writes, then check the precondition against the current entry
-                await this.#storage.collect();
+                // check the precondition against the current entry
                 const previous = await this.#storage.entry(key);
                 const current = previous ? CatalogueFile.describe(previous) : null;
                 if (!BucketCondition.matches(current, options.onlyIf)) {
                     throw preconditionFailed(current);
                 }
 
-                // atomically publish the new immutable file
-                const detached = await this.#storage.database.transaction((transaction) =>
+                // atomically publish the new immutable file, which retires the previous blobs
+                await this.#storage.database.transaction((transaction) =>
                     this.#storage.publish(entry, segments, transaction),
                 );
-
-                // retire the previous blobs after the database commit
-                isPublished = true;
-                for (const digest of detached) {
-                    this.#storage.retired.add(digest);
-                }
 
                 return CatalogueFile.describe(entry);
             });
         } finally {
-            // retire the blob of a failed upload for collection
+            // release the writer, a failed upload's blob collected once its write's lease ends
             this.#storage.endWrite();
-            if (content && !isPublished) {
-                this.#storage.retired.add(content.blob);
-            }
         }
     }
 
@@ -334,14 +315,11 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                 storageClass,
             };
 
-            // publish the copy sharing the source's segments, and retire the contents it replaces
+            // publish the copy sharing the source's segments, which retires the contents it replaces
             const segments = await this.#storage.segments(entry.version);
-            const detached = await this.#storage.database.transaction((transaction) =>
+            await this.#storage.database.transaction((transaction) =>
                 this.#storage.publish(copied, segments, transaction),
             );
-            for (const name of detached) {
-                this.#storage.retired.add(name);
-            }
 
             return CatalogueFile.describe(copied);
         });
@@ -360,9 +338,8 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
 
         // delete the keys under the catalogue lock
         await this.#storage.exclusive(async () => {
-            // refuse a fenced bucket, and reclaim earlier writes before changing any requested keys
+            // refuse a fenced bucket
             this.#storage.checkWritable();
-            await this.#storage.collect();
 
             // refuse the whole batch while one of its files is locked
             const locked = await this.#storage.database
@@ -381,34 +358,25 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                 );
             }
 
-            // delete the files and detach their segments in one transaction
-            const detached = await this.#storage.database.transaction(async (transaction) => {
+            // delete the files and their segments in one transaction, which retires their blobs
+            await this.#storage.database.transaction(async (transaction) => {
                 const deleted = await transaction
                     .delete(file)
                     .where(inArray(file.key, keys))
                     .returning({ version: file.version });
-
-                return await transaction
-                    .delete(segment)
-                    .where(
-                        inArray(
-                            segment.version,
-                            deleted.map((entry) => entry.version),
-                        ),
-                    )
-                    .returning({ blob: segment.blob });
+                await transaction.delete(segment).where(
+                    inArray(
+                        segment.version,
+                        deleted.map((entry) => entry.version),
+                    ),
+                );
             });
-
-            // preserve detached blobs until their open readers finish
-            for (const entry of detached) {
-                this.#storage.retired.add(entry.blob);
-            }
         });
     }
 
-    /** Delete the retired blobs once no reader, segment or part keeps them. */
+    /** Delete the retired blobs no row references and no lease covers. */
     async collect(): Promise<void> {
-        await this.#storage.exclusive(() => this.#storage.collect());
+        await this.#storage.blobs.collect();
     }
 
     /** Delete what interrupted writes left, answering false when writers kept it from finishing. */

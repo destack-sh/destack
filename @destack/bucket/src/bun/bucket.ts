@@ -1,4 +1,5 @@
 import { dirname, isAbsolute, join } from "node:path";
+import { BlobStore } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import type { Environment, FileLock, FileSystem } from "@destack/environment";
@@ -83,18 +84,11 @@ export class LocalBucket extends CatalogueBucket {
                 );
             }
 
-            // retain the blob against collection while cloning
-            this.#storage.retain(segment.blob);
-
             return segment.blob;
         });
 
-        // clone the blob file, then release it
-        try {
-            await this.#blobs.copy(blob, destination);
-        } finally {
-            this.#storage.release(blob);
-        }
+        // clone the blob file
+        await this.#blobs.copy(blob, destination);
     }
 }
 
@@ -140,14 +134,18 @@ function openedStorage(
     lock: FileLock,
     environment: LocalBucketEnvironment,
 ): CatalogueStorage {
+    // index the blobs in the catalogue's connection, both reopened once a migration adds tables
     const { files } = environment;
     let opened = database;
+    let indexed = new BlobStore({ storage: blobs, database: opened, environment });
 
     return new CatalogueStorage({
         get database() {
             return opened;
         },
-        blobs,
+        get blobs() {
+            return indexed;
+        },
         environment,
         migrate: async (beside) => {
             // migrate while no other opener migrates, then reopen the connection declaring every table
@@ -155,6 +153,7 @@ function openedStorage(
             await migrating(dirname(catalogue), files, () => opened.migrate(tables));
             await opened.close();
             opened = await connectBunSqlite(catalogue, tables, { environment });
+            indexed = new BlobStore({ storage: blobs, database: opened, environment });
         },
         reclaim: async (deletion) => {
             // delete blobs only while this process alone holds the bucket, sharing it again after

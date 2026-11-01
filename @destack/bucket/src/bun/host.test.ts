@@ -77,7 +77,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
     ]);
 });
 
-test("sweep a host's open buckets daily, again a minute later while a copy holds the blobs it fetched", async () => {
+test("sweep a host's open buckets daily, deleting the packs no row points into", async () => {
     await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("buckets-");
@@ -99,21 +99,12 @@ test("sweep a host's open buckets daily, again a minute later while a copy holds
     await world.files.writeTextFile(join(files, digestOf("abandoned")), "abandoned");
     const sweep = new SweepController(buckets);
 
-    // keep every blob while a copy keeps the blobs it fetched, and sweep the abandoned one once released
-    const held = await bucket.database().hold();
-    const busy = [
-        await sweep.reconcile(),
-        (await world.files.readDirectory(files)).map((entry) => entry.name).toSorted(),
-    ];
-    await held[Symbol.asyncDispose]();
+    // sweep the abandoned pack no row points into, leaving the written one
     const swept = [
         await sweep.reconcile(),
         (await world.files.readDirectory(files)).map((entry) => entry.name),
     ];
-    expect({ busy, swept }).toEqual({
-        busy: [60_000, [digestOf("abandoned"), digestOf("kept")].toSorted()],
-        swept: [24 * 60 * 60_000, [digestOf("kept")]],
-    });
+    expect(swept).toEqual([24 * 60 * 60_000, [digestOf("kept")]]);
 });
 
 test("open a bucket again after a failed open", async () => {
