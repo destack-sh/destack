@@ -153,29 +153,57 @@ export interface Opener<Kind extends ResourceKind = ResourceKind, Handle = unkno
     open(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Handle>;
 }
 
-/** Content-addressed storage of blobs, such as snapshots' pages and files' segments. */
+/** Content-addressed storage of blobs in packs, laid out as the storage decides. */
 export interface BlobStorage {
+    /** Store bodies read in order in one pack, refusing unexpected bytes, and place them. */
+    readonly write: (bodies: readonly BlobBody[]) => Promise<readonly BlobPlacement[]>;
+    /** Read a range of a pack's bytes. */
+    readonly slice: (pack: string, offset: number, length: number) => AsyncIterable<Uint8Array>;
+    /** Delete a pack, if stored. */
+    readonly delete: (pack: string) => Promise<void>;
+    /** List the stored packs. */
+    readonly packs: () => AsyncIterable<string>;
+    /** Delete the unfinished writes interrupted writers left behind, while no writer runs. */
+    readonly clean: () => Promise<void>;
+}
+
+/** Blobs by digest over a pack storage and its index, as Bazel's content-addressable storage. */
+export interface ContentStore {
     /** Read a blob's bytes. */
     readonly read: (digest: Digest) => AsyncIterable<Uint8Array>;
     /** Read many blobs in order, each body read before the next blob's. */
     readonly batch: (digests: readonly Digest[]) => AsyncIterable<BlobEntry>;
-    /** Read a range of a blob's bytes. */
-    readonly slice: (digest: Digest, offset: number, length: number) => AsyncIterable<Uint8Array>;
-    /** List the digests the store lacks, in the given order. */
-    readonly missing: (digests: readonly Digest[]) => Promise<readonly Digest[]>;
-    /** Keep bytes under their digest and return it. */
+    /** Store bytes under their digest, refusing another than an expected one, and answer it. */
     readonly write: (body: AsyncIterable<Uint8Array>, expected?: Digest) => Promise<Digest>;
-    /** Keep the blobs the store lacks among some digests, read from another store in batches. */
+    /** Store the blobs the store lacks among some digests, read from another store in one pack. */
     readonly fetch: (
         digests: readonly Digest[],
-        source: Pick<BlobStorage, "batch">,
+        source: Pick<ContentStore, "batch">,
     ) => Promise<void>;
-    /** List the kept blobs' digests. */
-    readonly digests: () => AsyncIterable<Digest>;
-    /** Delete a blob, if stored. */
-    readonly delete: (digest: Digest) => Promise<void>;
-    /** Delete the unfinished writes interrupted writers left behind, while no writer runs. */
-    readonly clean: () => Promise<void>;
+    /** List the digests the store lacks, in the given order. */
+    readonly missing: (digests: readonly Digest[]) => Promise<readonly Digest[]>;
+}
+
+/** Where a stored blob's bytes lie: their pack, their offset and their size. */
+export interface BlobPlacement {
+    /** The blob's digest. */
+    readonly digest: Digest;
+    /** The key of its bytes' pack: its own digest for a blob stored alone. */
+    readonly pack: string;
+    /** Where its bytes start in the pack. */
+    readonly offset: number;
+    /** Its size in bytes. */
+    readonly size: number;
+}
+
+/** A body to store: its bytes, with the digest and size they must have where known. */
+export interface BlobBody {
+    /** The bytes, read before the next body's. */
+    readonly body: AsyncIterable<Uint8Array>;
+    /** The digest the bytes must have, absent when the storage digests them. */
+    readonly digest?: Digest;
+    /** The size the bytes must have, absent when the storage counts them. */
+    readonly size?: number;
 }
 
 /** A blob of a batch: its digest, its size and its body, read before the next blob's. */
@@ -194,7 +222,7 @@ export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
     snapshot(
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
-        store: Pick<BlobStorage, "read" | "batch" | "write" | "fetch">,
+        store: Pick<ContentStore, "read" | "batch" | "write" | "fetch">,
         recipient?: Recipient,
     ): Promise<Digest>;
     /** Restore the copy a digest identifies into a provisioned resource. */
@@ -202,7 +230,7 @@ export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
         digest: Digest,
-        store: Pick<BlobStorage, "read" | "batch" | "write" | "fetch">,
+        store: Pick<ContentStore, "read" | "batch" | "write" | "fetch">,
         recipient?: Recipient,
         base?: Digest,
     ): Promise<void>;
