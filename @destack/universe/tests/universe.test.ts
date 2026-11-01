@@ -7,7 +7,7 @@ import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestUniverse, type TestUniverseOptions, UNIVERSE_NODE } from "../src/test/index.ts";
-import { apply, universeDatabase } from "../src/universe/index.ts";
+import { apply, Universe } from "../src/universe/index.ts";
 
 test("start a universe over its definition, answering the account package below its mount and nothing elsewhere", async () => {
     // start the universe with a cloud machine serving its residency
@@ -32,7 +32,7 @@ test("apply a definition once across starts, again once the operator's invitatio
     const simulation = testSimulation();
     onTestFinished(() => simulation[Symbol.asyncDispose]());
     const environment = simulation.environment(UNIVERSE_NODE);
-    const storage = await TestDatabase.create(universeDatabase, { environment, isMigrated: true });
+    const storage = await TestDatabase.create(Universe.database, { environment, isMigrated: true });
     onTestFinished(() => storage.close());
     const counts = async () => ({
         runs: (await Snapshot.live(storage.database).read(apply.run.table).findMany()).length,
@@ -55,8 +55,8 @@ test("apply a definition once across starts, again once the operator's invitatio
     const later = await counts();
     await start({
         residencies: [
-            { code: "eu", name: "Europe" },
-            { code: "us", name: "United States" },
+            { code: "eu", name: "Europe", relay: "https://relay-eu.machine.test" },
+            { code: "us", name: "United States", relay: "https://relay-us.machine.test" },
         ],
     });
     expect({ again, later, changed: await counts() }).toEqual({

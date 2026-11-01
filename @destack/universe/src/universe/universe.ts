@@ -52,16 +52,6 @@ export const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage,
 /** The schema the universe's tables live in, PostgreSQL's default. */
 export const UNIVERSE_SCHEMA = "public";
 
-/** The universe's database: the packages its store serves. */
-export const universeDatabase = defineDatabase({
-    name: "account",
-    ...tablesOf({
-        packages: UNIVERSE_PACKAGES,
-        follows: [],
-        tables: [],
-    }),
-});
-
 /** The longest drain on shutdown, in milliseconds. */
 const DRAIN_MILLISECONDS = 5000;
 
@@ -109,6 +99,16 @@ export interface UniverseLink {
 
 /** A running universe: the object, account, setting and universe packages, each below its mount. */
 export class Universe implements AsyncDisposable {
+    /** The universe's database: the packages its store serves. */
+    static readonly database = defineDatabase({
+        name: "account",
+        ...tablesOf({
+            packages: UNIVERSE_PACKAGES,
+            follows: [],
+            tables: [],
+        }),
+    });
+
     /** What the universe declares. */
     readonly definition: UniverseDefinition;
     /** The server of each package, by its identifier. */
@@ -180,7 +180,7 @@ export class Universe implements AsyncDisposable {
             objectServer,
             accountServer({
                 resolver: new DnsOverHttps((request) => network.fetch(request)),
-                stacks: definition.stacks,
+                stacks: definition.platform.stacks,
                 signIn: signIn.promise,
                 releases,
             }),
@@ -221,7 +221,7 @@ export class Universe implements AsyncDisposable {
         });
 
         // apply the platform through the universe's store
-        const platform = new Platform(store, definition.platform, definition.stacks.residency);
+        const platform = new Platform(store, definition.platform);
 
         // receive the universe at its first start
         await Authorization.run(

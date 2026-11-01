@@ -1,15 +1,15 @@
-import { ResidencyCode, SpaceKind, StackSource } from "@destack/account/object";
+import { ResidencyCode } from "@destack/account/object";
 import { PlatformDefinition } from "@destack/account/server";
 import { schema } from "@destack/schema";
 
-/** What a universe declares: its residencies, platform and the stacks its spaces are born with. */
+/** What a universe declares: its residencies and its platform. */
 export const UniverseDefinition = schema.object({
     /** The residencies people choose from. */
-    residencies: schema.array(schema.object({ code: ResidencyCode, name: schema.string().min(1) })),
-    /** The platform's organization, its accounts and the cloud machines serving residencies. */
+    residencies: schema.array(
+        schema.object({ code: ResidencyCode, name: schema.string().min(1), relay: schema.url() }),
+    ),
+    /** The platform's organization, its homes, its spaces' stacks and its cloud machines. */
     platform: PlatformDefinition,
-    /** The stack each kind of space is born with. */
-    stacks: schema.record(SpaceKind, StackSource),
 });
 /** What a universe declares. */
 export type UniverseDefinition = schema.Infer<typeof UniverseDefinition>;

@@ -10,6 +10,7 @@ import {
     TestMail,
     OPERATOR_EMAIL,
     PersonSignIn,
+    HOME_STACK,
     STACKS,
     TestPerson,
 } from "@destack/account/test";
@@ -33,7 +34,7 @@ import {
     Residency,
     residency,
     space,
-    type StackSource,
+    type StackRelease,
 } from "@destack/account/object";
 import { AccessContext, Caller, InstallationId, principal } from "@destack/access";
 import { Snapshot } from "@destack/db";
@@ -50,12 +51,7 @@ import { Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import type { UniverseDefinition } from "../universe/definition.ts";
 import { type ReleaseRegistry, UniverseRole } from "@destack/account/server";
-import {
-    Universe,
-    UNIVERSE_PACKAGES,
-    universeDatabase,
-    type UniverseOptions,
-} from "../universe/universe.ts";
+import { Universe, UNIVERSE_PACKAGES, type UniverseOptions } from "../universe/universe.ts";
 import { TestMachine } from "./machine.ts";
 
 /** The installation a residency's space provides entitlements as in tests, as finance does. */
@@ -121,7 +117,7 @@ const TEST_LOCATION = { providerCode: "test", location: "test-1" } as const;
 /** What a test universe declares and runs at. */
 export interface TestUniverseOptions {
     /** The universe's residencies, Europe alone by default, each served by one cloud machine. */
-    readonly residencies?: readonly { readonly code: ResidencyCode; readonly name: string }[];
+    readonly residencies?: Readonly<UniverseDefinition["residencies"]>;
     /** The handles the platform publishes first-party packages under, none by default. */
     readonly publishers?: UniverseDefinition["platform"]["publishers"];
     /** The simulation it answers on at its origin, a world of its own by default. */
@@ -129,7 +125,9 @@ export interface TestUniverseOptions {
     /** The registry it opens packages' releases from, refusing every release by default. */
     readonly releases?: ReleaseRegistry;
     /** The stacks its spaces are born with, the account test fixture's by default. */
-    readonly stacks?: UniverseDefinition["stacks"];
+    readonly stacks?: UniverseDefinition["platform"]["stacks"];
+    /** The stack every residency's home runs, the account test fixture's stand-in by default. */
+    readonly home?: StackRelease;
     /** The policies of other packages it decides access for, none by default. */
     readonly policies?: UniverseOptions["policies"];
     /** The access token lifetimes longer than a minute, by audience, none by default. */
@@ -266,7 +264,7 @@ export class TestUniverse implements AsyncDisposable {
         const { clock } = environment;
         const storage =
             options.storage ??
-            (await TestDatabase.create(universeDatabase, { environment, isMigrated: true }));
+            (await TestDatabase.create(Universe.database, { environment, isMigrated: true }));
         if (options.storage === undefined) {
             opening.defer(() => storage.close());
         }
@@ -276,7 +274,13 @@ export class TestUniverse implements AsyncDisposable {
         const mail = new TestMail();
 
         // declare one cloud machine per residency, keeping its keychain to serve as it, the world's keys when restored
-        const residencies = options.residencies ?? [{ code: TEST_RESIDENCY, name: "Europe" }];
+        const residencies = options.residencies ?? [
+            {
+                code: TEST_RESIDENCY,
+                name: "Europe",
+                relay: `https://relay-${TEST_RESIDENCY}.machine.test`,
+            },
+        ];
         const machines = new Map<ResidencyCode, DeclaredMachine>();
         const declared = await Promise.all(
             residencies.map(async (declaredResidency) => {
@@ -308,9 +312,14 @@ export class TestUniverse implements AsyncDisposable {
                 reserved: [],
                 publishers: options.publishers ?? [],
                 handle: "destack",
+                domains: [],
+                homes: Object.fromEntries(
+                    residencies.map(({ code }) => [code, options.home ?? HOME_STACK]),
+                ),
+                hostnames: Object.fromEntries(residencies.map(({ code }) => [code, []])),
+                stacks: options.stacks ?? STACKS,
                 machines: declared,
             },
-            stacks: options.stacks ?? STACKS,
         };
 
         // start the universe, refusing requests to other origins
@@ -581,7 +590,7 @@ export class TestUniverse implements AsyncDisposable {
     /** Move a space to another stack as the platform does, which its machine then applies. */
     async upgrade(
         target: { readonly accountId: Identifier<"account">; readonly id: Identifier<"space"> },
-        stack: StackSource,
+        stack: StackRelease,
     ): Promise<void> {
         const { store } = this.universe;
         const now = this.clock.now();
