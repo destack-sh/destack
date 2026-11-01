@@ -1,6 +1,6 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { Package } from "@destack/package";
-import { schema, canonicalize } from "@destack/schema";
+import { DeclarationName, Package, PackageId } from "@destack/package";
+import { schema, canonicalize, Version } from "@destack/schema";
 import type { SettingValue } from "../object/setting.ts";
 import type { DeviceSettingValue } from "../object/device-setting.ts";
 import { SettingPlacement, SettingSelection } from "./placement.ts";
@@ -28,6 +28,24 @@ const DeviceSource = schema.object({
     /** The value's revision. */
     revision: schema.number().int().min(1),
 });
+
+/** A device's value as a resolution reads it, which the device sends as only it keeps it. */
+export const DeviceValue = schema.object({
+    /** The value's identifier in the device's database. */
+    id: schema.identifier("device-setting"),
+    /** The value's revision. */
+    revision: schema.number().int().min(1),
+    /** The package declaring the setting. */
+    packageId: PackageId,
+    /** The setting's name in its declaring package. */
+    name: DeclarationName,
+    /** The value. */
+    value: schema.json(),
+    /** The release of the setting's package the value was written against. */
+    release: Version,
+});
+/** A device's value as a resolution reads it, which the device sends as only it keeps it. */
+export type DeviceValue = schema.Infer<typeof DeviceValue>;
 
 /** The declaration default, a placed or device value, or a value the declaration now rejects. */
 export const SettingSource = schema.discriminatedUnion("kind", [

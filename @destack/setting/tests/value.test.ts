@@ -142,6 +142,36 @@ test("resolve a setting from the values placed along a scope's chain, and its de
     ]).toEqual(["vim", true]);
 });
 
+test("resolve a setting for a client with the value deciding it and the default it overrides", async () => {
+    // set a personal editor mode as Alice
+    await using served = await openSettings({ scope: aliceUser });
+    const values = served.as(alice).client(settingPackage).setting;
+    const created = await values.create({
+        scope: alice,
+        ...named(editor),
+        mode: "set",
+        value: "vim",
+        release: editor.package.version,
+        requestId: RequestId.create(served.environment),
+    });
+
+    // resolve it in her scope, as a terminal shows where a value comes from
+    const resolved = await values.resolve({
+        scope: alice,
+        ...named(editor),
+        selection: { scope: alice },
+        device: [],
+    });
+    expect(resolved).toEqual({
+        setting: named(editor),
+        selection: { scope: alice },
+        value: "vim",
+        sources: [{ kind: "value", scope: alice, id: created.id, revision: 1 }],
+        overridden: [{ kind: "default", package: editor.package }],
+        enforcement: "ordinary",
+    });
+});
+
 test("read the retention a package's setting of days gives a space that sets it, and its default in a space that does not and in another scope type", async () => {
     // set one space's history to a week as its owner, beside a space and Alice's scope setting nothing
     await using kept = await openSettings();

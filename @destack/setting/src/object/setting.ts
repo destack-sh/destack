@@ -4,66 +4,87 @@ import { type DatabaseConnection, Log, Snapshot, type Select } from "@destack/db
 import { deviceSetting, type DeviceSettingValue } from "./device-setting.ts";
 import { Scope } from "@destack/sync";
 import { Setting, SettingMetadata, SettingScope } from "../setting/setting.ts";
-import type { SettingSelection } from "../setting/placement.ts";
+import { SettingSelection } from "../setting/placement.ts";
+import { DeviceValue, SettingResolution } from "../setting/resolution.ts";
 import { defineObject, field } from "@destack/object";
 import { Duration, type Identifier, schema, Version } from "@destack/schema";
 import { DeclarationName, type Package, PackageId } from "@destack/package";
 import { SETTING_MODES } from "../setting/mode.ts";
 
 /** A setting value placed in a scope. */
-export const setting = defineObject({
-    name: "setting",
-    plural: "settings",
-    // hand every value down to the scopes inside its scope
-    inherited: {},
-    // let a stack write a declared value against the release of the build declaring its setting
-    supplied: ["release"],
-    fields: {
-        /** The package declaring the setting. */
-        packageId: field.string(PackageId).immutable(),
-        /** The setting's name in its declaring package. */
-        name: field.string(DeclarationName).immutable(),
+export const setting = defineObject(
+    {
+        name: "setting",
+        plural: "settings",
+        // hand every value down to the scopes inside its scope
+        inherited: {},
+        // let a stack write a declared value against the release of the build declaring its setting
+        supplied: ["release"],
+        fields: {
+            /** The package declaring the setting. */
+            packageId: field.string(PackageId).immutable(),
+            /** The setting's name in its declaring package. */
+            name: field.string(DeclarationName).immutable(),
 
-        // read the overrides from other databases as identifiers
-        /** The consuming package the value applies to. */
-        package: field.string(PackageId).optional().immutable(),
-        /** The space the value applies in. */
-        space: field.string(schema.identifier("space")).optional().immutable(),
-        /** The installation the value applies to. */
-        installation: field.string(schema.identifier("installation")).optional().immutable(),
+            // read the overrides from other databases as identifiers
+            /** The consuming package the value applies to. */
+            package: field.string(PackageId).optional().immutable(),
+            /** The space the value applies in. */
+            space: field.string(schema.identifier("space")).optional().immutable(),
+            /** The installation the value applies to. */
+            installation: field.string(schema.identifier("installation")).optional().immutable(),
 
-        /** How the value applies. */
-        mode: field.enum(SETTING_MODES),
-        /** The value. */
-        value: field.json(schema.json()),
-        /** The release of the setting's package the value was written against. */
-        release: field.string(Version),
-    },
-    permissions: ["read", "write"],
-    constraints: {
-        placement: {
-            kind: "index",
-            on: ["packageId", "name", "scope", "package", "space", "installation"],
-            unique: true,
-            nullsNotDistinct: true,
+            /** How the value applies. */
+            mode: field.enum(SETTING_MODES),
+            /** The value. */
+            value: field.json(schema.json()),
+            /** The release of the setting's package the value was written against. */
+            release: field.string(Version),
         },
-        scope: { kind: "index", on: ["scope", "id"] },
-        override: {
-            kind: "check",
-            condition: {
-                AND: [
-                    { OR: [{ installation: { isNull: true } }, { space: { isNull: true } }] },
-                    {
-                        OR: [
-                            { mode: "set" },
-                            { package: { isNull: true }, space: { isNull: true } },
-                        ],
-                    },
-                ],
+        permissions: ["read", "write"],
+        constraints: {
+            placement: {
+                kind: "index",
+                on: ["packageId", "name", "scope", "package", "space", "installation"],
+                unique: true,
+                nullsNotDistinct: true,
+            },
+            scope: { kind: "index", on: ["scope", "id"] },
+            override: {
+                kind: "check",
+                condition: {
+                    AND: [
+                        { OR: [{ installation: { isNull: true } }, { space: { isNull: true } }] },
+                        {
+                            OR: [
+                                { mode: "set" },
+                                { package: { isNull: true }, space: { isNull: true } },
+                            ],
+                        },
+                    ],
+                },
             },
         },
     },
-});
+    (method) => ({
+        /** Resolve a setting's value for a selection with its sources, as git config shows them. */
+        resolve: method.query({
+            permission: "read",
+            target: "scope",
+            input: schema.object({
+                /** The package declaring the setting. */
+                packageId: PackageId,
+                /** The setting's name in its declaring package. */
+                name: DeclarationName,
+                /** The scope and overrides to resolve the value for. */
+                selection: SettingSelection,
+                /** The calling device's values of the setting, which only the device keeps. */
+                device: schema.array(DeviceValue),
+            }),
+            output: SettingResolution,
+        }),
+    }),
+);
 
 /** A setting value as its row stores it. */
 export type SettingValue = Select<typeof setting.table>;
@@ -140,6 +161,21 @@ export const SettingValue = {
         });
 
         return declared.resolve(selection, values, chain).value;
+    },
+
+    /** List the settings without a default that no value along a selection's chain sets. */
+    async missing(
+        reader: Pick<Snapshot, "read">,
+        settings: readonly Setting[],
+        selection: SettingSelection & { readonly scope: string },
+    ): Promise<Setting[]> {
+        const { chain, values } = await SettingValue.list(
+            reader,
+            settings.map((declared) => declared.reference),
+            selection.scope,
+        );
+
+        return settings.filter((declared) => declared.isUnset(selection, values, chain));
     },
 
     /** Read a scope and the scopes above it, nearest first, refusing a scope this store lacks. */

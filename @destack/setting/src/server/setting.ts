@@ -1,5 +1,7 @@
 import type { ObjectType } from "@destack/object";
-import { setting, type SettingValue } from "../object/index.ts";
+import { schema } from "@destack/schema";
+import { SettingError } from "../error/index.ts";
+import { setting, SettingValue } from "../object/index.ts";
 import {
     type Setting,
     type SettingDeclared,
@@ -9,8 +11,11 @@ import {
 
 /** What a store serves its setting values with. */
 export interface SettingOptions {
-    /** Read the setting a value at a placement is a value of, in a view. */
-    readonly declared: (written: SettingDeclared, view: SettingView) => Promise<Setting>;
+    /** Read the setting of a value at a placement, none while its package is uninstalled. */
+    readonly declared: (
+        written: SettingDeclared,
+        view: SettingView,
+    ) => Promise<Setting | undefined>;
     /** The types whose declarations a stack applies before its settings. */
     readonly after: readonly ObjectType[];
 }
@@ -42,6 +47,36 @@ export function implementSetting(options: SettingOptions) {
                     return next();
                 },
             },
+            resolve: async (call) => {
+                // read the setting the call's scope installs, refusing one of an uninstalled package
+                const { packageId, name, selection, device } = call.input;
+                const found = await declared(
+                    {
+                        ...SettingPlacement.of({ ...selection, scope: call.scope }),
+                        packageId,
+                        name,
+                    },
+                    call,
+                );
+                if (found === undefined) {
+                    throw SettingError.of(
+                        "SETTING_UNDECLARED",
+                        `${packageId} declares no setting ${name} here: it is not installed`,
+                    );
+                }
+
+                // resolve it from the values the selected scope's chain places and the device's
+                const chain =
+                    selection.scope === null ? [] : await SettingValue.chain(call, selection.scope);
+                const values = await call.read(setting.table).findMany({
+                    where: { AND: [found.condition(selection), { scope: { in: chain } }] },
+                });
+
+                // read the resolved value as the JSON it stores
+                const resolution = found.resolve(selection, values, chain, device);
+
+                return { ...resolution, value: schema.json().parse(resolution.value) };
+            },
         },
         declaration: {
             after,
@@ -52,6 +87,11 @@ export function implementSetting(options: SettingOptions) {
                     { ...placement, packageId: desired.packageId, name: desired.name },
                     plan.transaction.view(),
                 );
+                if (found === undefined) {
+                    return plan.wait(
+                        `setting ${desired.name} waits for ${desired.packageId} to install`,
+                    );
+                }
 
                 return { ...desired, release: found.package.version };
             },
@@ -66,11 +106,18 @@ async function requireDeclared(
     declared: SettingOptions["declared"],
     view: SettingView,
 ): Promise<void> {
+    // read the value's setting at its placement, refusing one of an uninstalled package
     const placement = SettingPlacement.of(value);
     const found = await declared(
         { ...placement, packageId: value.packageId, name: value.name, release: value.release },
         view,
     );
+    if (found === undefined) {
+        throw SettingError.of(
+            "SETTING_UNDECLARED",
+            `${value.packageId} declares no setting ${value.name} here: it is not installed`,
+        );
+    }
     found.requireWrite(
         { ...placement, mode: value.mode, value: value.value, release: value.release },
         value.scope,

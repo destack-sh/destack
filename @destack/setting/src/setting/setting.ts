@@ -8,8 +8,7 @@ import { Expression, Condition, type Table } from "@destack/db";
 import type { RelationalQueryBuilder } from "@destack/db";
 import type { SettingDefault, SettingDefinition } from "../declare/setting.ts";
 import type { SettingValue } from "../object/setting.ts";
-import type { DeviceSettingValue } from "../object/device-setting.ts";
-import type { SettingResolution, SettingSource } from "./resolution.ts";
+import type { DeviceValue, SettingResolution, SettingSource } from "./resolution.ts";
 import { SettingPlacement, type SettingSelection } from "./placement.ts";
 import type { SettingMode } from "./mode.ts";
 import { SettingError } from "../error/error.ts";
@@ -171,12 +170,17 @@ export class Setting<
         return setting;
     }
 
-    /** Find a value's setting in the build `open` opens for it in a view, each build read once. */
+    /** Find a value's setting in the build `open` opens for it, none while its package has none. */
     static declared(
-        open: (written: SettingDeclared, view: SettingView) => Promise<BuildReader>,
-    ): (written: SettingDeclared, view: SettingView) => Promise<Setting> {
-        return async (written, view) =>
-            Setting.find(await Setting.list(await open(written, view)), written);
+        open: (written: SettingDeclared, view: SettingView) => Promise<BuildReader | undefined>,
+    ): (written: SettingDeclared, view: SettingView) => Promise<Setting | undefined> {
+        return async (written, view) => {
+            const reader = await open(written, view);
+
+            return reader === undefined
+                ? undefined
+                : Setting.find(await Setting.list(reader), written);
+        };
     }
 
     /** The identity its values refer to. */
@@ -226,7 +230,7 @@ export class Setting<
         selection: SettingSelection,
         values: readonly SettingValue[],
         chain: readonly string[],
-        device: readonly DeviceSettingValue[] = [],
+        device: readonly DeviceValue[] = [],
     ): SettingResolution<schema.Infer<Value>> {
         // rank the default and each applicable placed and device value of a selection of the setting's scope
         this.#requireSelectable(selection);
@@ -247,6 +251,21 @@ export class Setting<
         return this.definition.merge === "key"
             ? this.#mergeKeys(selection, ordinary, enforced, invalid)
             : this.#decide(selection, ordinary, enforced, invalid);
+    }
+
+    /** Report whether a setting without a default has no value placed for a selection. */
+    isUnset(
+        selection: SettingSelection,
+        values: readonly SettingValue[],
+        chain: readonly string[],
+    ): boolean {
+        // count every placed value as set, an invalid one too, which resolving refuses loudly
+        if ("default" in this.definition) {
+            return false;
+        }
+        const { ordinary, enforced, invalid } = this.#candidates(values, selection, chain, []);
+
+        return ordinary.length === 0 && enforced.length === 0 && invalid.length === 0;
     }
 
     /** Report whether devices store values of this setting. */
@@ -275,7 +294,7 @@ export class Setting<
         values: readonly SettingValue[],
         selection: SettingSelection,
         chain: readonly string[],
-        device: readonly DeviceSettingValue[],
+        device: readonly DeviceValue[],
     ): {
         readonly ordinary: Candidate[];
         readonly enforced: Candidate[];
@@ -517,7 +536,7 @@ export class Setting<
     }
 
     /** Rank a device's value of this setting above every placed one. */
-    #deviceCandidate(value: DeviceSettingValue): Candidate | undefined {
+    #deviceCandidate(value: DeviceValue): Candidate | undefined {
         // skip the values of other settings, and refuse one the setting bars from devices
         if (value.packageId !== this.reference.packageId || value.name !== this.reference.name) {
             return undefined;
