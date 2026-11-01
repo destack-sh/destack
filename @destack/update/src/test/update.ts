@@ -62,7 +62,7 @@ export class TestUpdate implements AsyncDisposable {
     /** Public updater inputs, retaining the initial root through rotation. */
     readonly options: UpdaterOptions;
     /** The repository's listener on the world's network. */
-    readonly listener: Listener<undefined>;
+    readonly listener: Listener;
     /** Root signers shared as immutable key material between scenarios. */
     readonly rootKeys: SigningKey[];
 
