@@ -44,7 +44,7 @@ export const specify = Execution.handle(
         // refuse a state without a blob, then write the digests
         const { states, drainingStates } = call.input;
         const { blobs } = Execution.store(execution, call).store;
-        const missing = await blobs.storage.missing([...new Set([...states, ...drainingStates])]);
+        const missing = await blobs.missing([...new Set([...states, ...drainingStates])]);
         if (missing.length > 0) {
             throw ObjectError.of(
                 "DESIRED_STATE_MISSING",
