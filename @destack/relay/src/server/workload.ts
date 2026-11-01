@@ -11,7 +11,7 @@ import {
     type ResidencyCode,
     residentsShape,
 } from "@destack/account/object";
-import { Egress, Follow, PackageMount, tablesOf } from "@destack/object";
+import { Egress, type Follow, PackageMount, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { implementPackage, ObjectStore, type PackageHandler } from "@destack/object/server";
 import {
@@ -41,24 +41,20 @@ import {
 } from "./tunnel.ts";
 
 /** The universe's identities, whose keys verify the machines' tunnel tokens. */
-const IDENTITY_FOLLOW = Follow.of(identityShape, { keys: [{ key: { scope: Scope.universe.id } }] });
+const IDENTITY_FOLLOW = identityShape.at({ key: { scope: Scope.universe.id } });
 
 /** The universe's directory, which names resolve through. */
-const DIRECTORY_FOLLOW = Follow.of(directoryShape, {
-    keys: [{ key: { scope: Scope.universe.id } }],
-});
+const DIRECTORY_FOLLOW = directoryShape.at({ key: { scope: Scope.universe.id } });
 
 /** Follow the accounts of the residency a relay serves, whose machines alone tunnel to it. */
 function residentsFollow(code: ResidencyCode) {
-    return Follow.of(residentsShape, {
-        keys: [{ key: { scope: Scope.universe.id, residency: code } }],
-    });
+    return residentsShape.at({ key: { scope: Scope.universe.id, residency: code } });
 }
 
 /** A relay's memory replica of the universe's directory, identities and residents. */
 const REPLICA = tablesOf({
     packages: [objectPackage],
-    follows: [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, Follow.of(residentsShape, { keys: [] })],
+    follows: [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, residentsShape.at()],
     tables: [],
 });
 
@@ -211,7 +207,7 @@ async function servePartition(
 async function openReplica(
     context: WorkloadContext,
     server: InstalledServerContext,
-    follows: readonly ReturnType<typeof Follow.of>[],
+    follows: readonly Follow[],
     tunnels: (request: Request) => Promise<Response>,
     names: (request: Request) => Promise<Response>,
 ): Promise<ObjectStore> {
