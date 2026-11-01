@@ -2509,12 +2509,13 @@ export class ObjectStore {
             );
         }
 
-        // wait for the caller's watermarks along the scope's chain
-        const chain = new Set([scope, ...(row?.ancestors ?? [])]);
-        await this.#waitForAll(
-            context,
-            watermarks.filter((entry) => chain.has(entry.scope)),
+        // wait for each of the caller's watermarks this store has a history of, read your writes
+        const known = await Promise.all(
+            watermarks.map(async (entry) =>
+                (await this.history(entry)).kind === "unknown" ? [] : [entry],
+            ),
         );
+        await this.#waitForAll(context, known.flat());
     }
 
     /** Wait until a scope's chain replicas have their homes' commits, refusing other homes. */
