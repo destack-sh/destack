@@ -98,7 +98,7 @@ export const domain = defineObject(
         declare: method.create("declare", {
             visibility: "package",
             fields: ["name"],
-            keep: "scopeName",
+            onConflict: "scopeName",
         }),
     }),
 );
