@@ -69,13 +69,16 @@
         "destack/error-message-style": "error",
         "destack/exact-optional": "error",
         "destack/jsdoc-sentence": "error",
+        "destack/method-signature-style": "error",
         "destack/no-class-name": "error",
         "destack/no-import-alias": "error",
         "destack/no-index-logic": "error",
         "destack/no-inline-config": "error",
+        "destack/no-ambient-effect": "error",
         "destack/no-manifest-import": "error",
         "destack/no-overload-cast": "error",
         "destack/no-partial-assertions": "error",
+        "destack/no-system-environment": "error",
         "destack/padding-before-return": "error",
         "destack/prevent-abbreviations": "error",
         "destack/require-block-comment": "error",
@@ -104,5 +107,6 @@
             }
         }
     ],
+    "settings": { "destack": { "packages": ["."], "entrypoints": [] } },
     "options": { "denyWarnings": true, "typeAware": true, "respectEslintDisableDirectives": false }
 }
