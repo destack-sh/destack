@@ -1,8 +1,25 @@
-# Destack
+<p align="center">
+  <a href="https://destack.sh">
+    <picture>
+      <source srcset="@platform/brand/wordmark/wordmark-dark.svg" media="(prefers-color-scheme: dark)">
+      <img src="@platform/brand/wordmark/wordmark-light.svg" alt="Destack" width="320">
+    </picture>
+  </a>
+</p>
+<p align="center">Own your whole stack, build great custom software, and bring all your agents.</p>
+<p align="center">
+  <a href="https://discord.gg/xUFQ45TWYd"><img alt="Discord" src="https://img.shields.io/badge/discord-join-5865f2?style=flat-square&logo=discord&logoColor=white" /></a>
+  <a href="https://github.com/destack-sh/destack/actions/workflows/check.yml"><img alt="Check" src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/check.yml?style=flat-square&branch=main&label=check" /></a>
+  <a href="LICENSE.txt"><img alt="License" src="https://img.shields.io/github/license/destack-sh/destack?style=flat-square" /></a>
+</p>
+<p align="center">
+  <a href="https://destack.sh">Website</a> ·
+  <a href="https://destack.sh/docs/">Docs</a> ·
+  <a href="https://destack.sh/pricing/">Pricing</a> ·
+  <a href="https://destack.sh/blog/">Blog</a>
+</p>
 
-Own your whole stack, build great custom software, and bring all your agents.
-
-[Website](https://destack.sh) · [Docs](https://destack.sh/docs/) · [Pricing](https://destack.sh/pricing/) · [Blog](https://destack.sh/blog/) · [Discord](https://discord.gg/xUFQ45TWYd)
+---
 
 Destack is an open-source software engine for general purpose application software, just like Unity and Unreal are engines for games.
 Think GitHub + NPM + Convex + Vercel + Sentry in one, with all the boring decisions already made: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry and hosting.
