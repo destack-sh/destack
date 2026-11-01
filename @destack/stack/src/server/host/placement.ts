@@ -217,17 +217,16 @@ export class PlacementController implements ReconcileController {
             .where(eq(space.table.id, spaceId));
         const replicated = present(row, `the row of ${spaceId}`);
         const now = this.#store.clock.now();
-        await Transaction.run(this.#database, async (transaction) => {
-            // record its scope here, its primary, born with its base installations
-            const authorization = new Authorization(
-                this.#store.authorizer,
-                transaction,
-                () => AccessContext.of(Caller.of(this.#store.principal), now),
-                this.#store.environment,
-            );
-            const scope = space.reference(replicated.scope, spaceId);
-            await Installation.receive(authorization, scope, ancestors, SPACE_BASE_PACKAGES);
-        });
+        // record its scope here, its primary, born with its base installations
+        const scope = space.reference(replicated.scope, spaceId);
+        await Authorization.run(
+            this.#store.authorizer,
+            this.#database,
+            () => AccessContext.of(Caller.of(this.#store.principal), now),
+            this.#store.environment,
+            (authorization) =>
+                Installation.receive(authorization, scope, ancestors, SPACE_BASE_PACKAGES),
+        );
     }
 
     /** Create a space's main database where its stack places it. */
