@@ -168,3 +168,46 @@ function output(runtime: "bun" | "browser") {
 function pathsOf(files: readonly PackageFile[]): string[] {
     return files.map((file) => file.path);
 }
+
+test("record each file's media type by its extension, as browsers require for module scripts, styles, images, fonts and media", async () => {
+    // write one file of each served kind and one of an unknown extension
+    await using simulation = testSimulation();
+    const { crypto } = simulation.environment("test");
+    const writer = new BuildWriter({ write: async () => undefined }, crypto);
+    const paths = [
+        "dist/index.mjs",
+        "dist/index.cjs",
+        "dist/view.js",
+        "dist/view.css",
+        "public/logo.svg",
+        "public/icon.png",
+        "public/font.woff2",
+        "public/site.webmanifest",
+        "public/intro.mp4",
+        "public/chime.mp3",
+        "public/captions.vtt",
+        "public/model.glb",
+        "public/report.pdf",
+        "public/data.bin",
+    ];
+    const bytes = new TextEncoder().encode("x");
+    const written = await Promise.all(paths.map((path) => writer.write(path, bytes)));
+
+    // expect JavaScript for every module kind, each asset's IANA type, and an octet stream otherwise
+    expect(written.map((file) => [file.path, file.mediaType])).toEqual([
+        ["dist/index.mjs", "text/javascript"],
+        ["dist/index.cjs", "text/javascript"],
+        ["dist/view.js", "text/javascript"],
+        ["dist/view.css", "text/css"],
+        ["public/logo.svg", "image/svg+xml"],
+        ["public/icon.png", "image/png"],
+        ["public/font.woff2", "font/woff2"],
+        ["public/site.webmanifest", "application/manifest+json"],
+        ["public/intro.mp4", "video/mp4"],
+        ["public/chime.mp3", "audio/mpeg"],
+        ["public/captions.vtt", "text/vtt"],
+        ["public/model.glb", "model/gltf-binary"],
+        ["public/report.pdf", "application/pdf"],
+        ["public/data.bin", "application/octet-stream"],
+    ]);
+});
