@@ -67,7 +67,7 @@ test("bundle a host module the runtime keeps as an import, and one its package r
     };
 
     expect([await bundle("bun"), await bundle("browser")]).toEqual([
-        'import fs from "node:fs";\n//#region index.js\nconst read = fs;\n//#endregion\nexport { read };\n',
-        "//#endregion\n//#region index.js\nconst read = {};\n//#endregion\nexport { read };\n",
+        'import fs from "node:fs";\n// index.js\nconst read = fs;\nexport { read };\n',
+        "// index.js\nconst read = {};\nexport { read };\n",
     ]);
 });
