@@ -61,9 +61,13 @@ void new Response(BunEnvironment.system.process.stdin.readable).arrayBuffer().fi
     BunEnvironment.system.process.exit(1);
 });
 
-// write the templates of the module the run's setup names, then close the database servers
+// write the templates of the module the run's setup names, reporting a suppressed failure with both errors, then close the database servers
 try {
     await write(module, directory, id, target);
+} catch (error) {
+    throw error instanceof SuppressedError
+        ? new AggregateError([error.error, error.suppressed], "writing a template failed while disposing")
+        : error;
 } finally {
     await TestDatabase.close();
 }
