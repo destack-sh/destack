@@ -15,10 +15,20 @@ export const platform = defineStack({
 });
 
 // free: every account's default, capped usage, community support
-// go:   8 USD, EUR, CHF or GBP, 11 CAD, 13 AUD a month: no caps, early access
+// go:   8 USD, EUR, CHF or GBP, 11 CAD, 13 AUD a month: no caps, custom retention, early access
 // plus: 20, 28 or 32 a month: custom domains, email support
 // pro:  100, 140 or 160 a month: dedicated machines, priority support
-// each plan keeps events longer than the plan before it
+```
+
+## Enterprise
+
+`ENTERPRISE` declares the contract organisations sign past Pro: all of Pro, uptime and support SLAs, and a monthly commitment spent on usage.
+
+```ts
+import { ENTERPRISE } from "@platform/pricing";
+
+ENTERPRISE.commitment.USD; // 100_000, 1000 USD a month
+ENTERPRISE.support; // "sla"
 ```
 
 ## Price book
@@ -103,13 +113,13 @@ hetzner.quote({ vcpus: 16, memory: 32, disk: 640 }); // { name: "AX102-1", month
 
 ## Features
 
-Each feature is an entitlement a plan grants: usage amounts per period, event retention in days, and what a plan unlocks.
+Each feature is an entitlement a plan grants: usage amounts per period, where spaces may run, and what a plan unlocks, such as custom retention past each setting's default.
 
 ```ts
-import { compute, database, network, retention, tenancy } from "@platform/pricing";
+import { compute, customDomains, database, network, tenancy } from "@platform/pricing";
 
 database.grant(1_000_000_000);
 network.grant(100_000_000_000);
 tenancy.grant(["shared", "dedicated", "local"]);
-retention.grant(90);
+customDomains.grant(null);
 ```

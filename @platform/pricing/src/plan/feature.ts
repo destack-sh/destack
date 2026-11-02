@@ -68,13 +68,12 @@ export const customDomains = defineFeature({
     resource: "domain",
 });
 
-/** The days an account's events stay, such as activity, history and logs, before they expire. */
-export const retention = defineFeature({
-    name: "retention",
-    description: "Days events stay before they expire.",
-    kind: "static",
+/** Choosing how long an account's spaces keep events, past each setting's default. */
+export const customRetention = defineFeature({
+    name: "customRetention",
+    description: "Choosing how long spaces keep events, past each setting's default.",
+    kind: "boolean",
     resource: "retention",
-    value: schema.number().int().positive(),
 });
 
 /** New apps and features before everyone else. */

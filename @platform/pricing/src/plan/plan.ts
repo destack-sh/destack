@@ -4,10 +4,10 @@ import { Fee } from "../price/book.ts";
 import {
     compute,
     customDomains,
+    customRetention,
     database,
     earlyAccess,
     network,
-    retention,
     storage,
     support,
     tenancy,
@@ -25,9 +25,6 @@ const FREE_COMPUTE = 45_000;
 /** The bytes the free plan sends out each month: 100 GB, its 10 GB of storage served ten times. */
 const FREE_NETWORK = 100_000_000_000;
 
-/** The days each plan keeps events, after Railway's 7, 30 and 90 day log history, then a year. */
-const RETENTION_DAYS = { free: 7, go: 30, plus: 90, pro: 365 } as const;
-
 /** Destack's plans by key, cheapest first, each fee a round figure set in each currency. */
 export const PLANS = {
     // free: every account's default, a small allowance on shared machines, capped
@@ -42,10 +39,9 @@ export const PLANS = {
             network: network.grant(FREE_NETWORK),
             tenancy: tenancy.grant(["shared", "local"]),
             support: support.grant("community"),
-            retention: retention.grant(RETENTION_DAYS.free),
         },
     },
-    // go: its fee in usage, then pay as you go, with early access
+    // go: its fee in usage, then pay as you go, with custom retention and early access
     go: {
         name: t`Go`,
         description: t`For your personal stack, with all of Destack, no caps and early access.`,
@@ -57,7 +53,7 @@ export const PLANS = {
             network: network.grant(null),
             tenancy: tenancy.grant(["shared", "local"]),
             support: support.grant("community"),
-            retention: retention.grant(RETENTION_DAYS.go),
+            "custom-retention": customRetention.grant(null),
             "early-access": earlyAccess.grant(null),
         },
     },
@@ -74,7 +70,7 @@ export const PLANS = {
             tenancy: tenancy.grant(["shared", "local"]),
             support: support.grant("email"),
             "custom-domains": customDomains.grant(null),
-            retention: retention.grant(RETENTION_DAYS.plus),
+            "custom-retention": customRetention.grant(null),
             "early-access": earlyAccess.grant(null),
         },
     },
@@ -98,8 +94,23 @@ export const PLANS = {
             tenancy: tenancy.grant(["shared", "dedicated", "local"]),
             support: support.grant("priority"),
             "custom-domains": customDomains.grant(null),
-            retention: retention.grant(RETENTION_DAYS.pro),
+            "custom-retention": customRetention.grant(null),
             "early-access": earlyAccess.grant(null),
         },
     },
 } satisfies Readonly<Record<string, CatalogProduct>>;
+
+/** The contract organisations sign past Pro, its fee a monthly commitment spent on usage. */
+export const ENTERPRISE = {
+    name: t`Enterprise`,
+    description: t`For your organisation, with SLAs, onboarding, invoice billing and a data processing agreement.`,
+    support: "sla",
+    commitment: {
+        USD: 100_000,
+        CAD: 140_000,
+        EUR: 100_000,
+        CHF: 100_000,
+        GBP: 100_000,
+        AUD: 160_000,
+    } satisfies Fee,
+} as const;
