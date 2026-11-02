@@ -41,8 +41,8 @@ export const USAGE_STATES = ["within", "near", "over", "blocked"] as const;
 /** Where a metered usage stands. */
 export type UsageState = (typeof USAGE_STATES)[number];
 
-/** The days a plan's retention entitlement keeps events, a positive whole number. */
-const RETENTION_DAYS = schema.number().int().positive();
+/** The days a retention setting keeps events by default, a positive whole number. */
+const RETENTION_DEFAULT = schema.object({ default: schema.number().int().positive() });
 
 /** Read the days a scope retains a kind's events by its setting, as event stores read them. */
 export type RetentionReader = (setting: object, owner: Package, scope: string) => Promise<number>;
@@ -207,7 +207,7 @@ export const Entitlement = {
             .findMany({ where: { scope: accountId } });
     },
 
-    /** Cap a space's event retention reader at the days its payer's plan retains events. */
+    /** Cap a space's event retention at each setting's default, unless its payer may keep more. */
     capRetention(database: DatabaseConnection, retention: RetentionReader): RetentionReader {
         return async (setting, owner, scope) => {
             // read the days the space chose and the entitlements of the account paying for it
@@ -221,15 +221,15 @@ export const Entitlement = {
                 );
             }
 
-            return Entitlement.retention(rows, days);
+            return Entitlement.retention(rows, days, RETENTION_DEFAULT.parse(setting).default);
         };
     },
 
-    /** Keep a space's chosen days within its plan's retention, where a plan sets one. */
-    retention(rows: readonly EntitlementTerms[], days: number): number {
-        const entitled = rows.find((row) => Entitlement.matches(row, "retention"));
+    /** Keep a space's chosen days, capped at the default without custom retention. */
+    retention(rows: readonly EntitlementTerms[], days: number, defaultDays: number): number {
+        const isCustom = rows.some((row) => Entitlement.matches(row, "retention"));
 
-        return entitled === undefined ? days : Math.min(days, RETENTION_DAYS.parse(entitled.value));
+        return isCustom ? days : Math.min(days, defaultDays);
     },
 
     /** Decide the condition of a use from an account's replicated entitlements. */

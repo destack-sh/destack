@@ -64,18 +64,19 @@ test("decide a use from an account's entitlements: unknown until replicated, blo
     });
 });
 
-test("keep a space's chosen retention within its plan's days, and as chosen where no plan sets them", () => {
-    const plan = (days: number): EntitlementTerms => ({
+test("keep a space's chosen retention where a plan grants custom retention, and cap it at the setting's default otherwise", () => {
+    const custom: EntitlementTerms = {
         packageId: PRICING,
-        feature: "retention",
+        feature: "customRetention",
         resource: "retention",
-        value: days,
+        value: null,
         limit: null,
         state: null,
-    });
+    };
     expect([
-        Entitlement.retention([plan(7)], 30),
-        Entitlement.retention([plan(365)], 30),
-        Entitlement.retention([metered("database", "within")], 30),
-    ]).toEqual([7, 30, 30]);
+        Entitlement.retention([custom], 400, 30),
+        Entitlement.retention([custom], 7, 30),
+        Entitlement.retention([metered("database", "within")], 400, 30),
+        Entitlement.retention([metered("database", "within")], 7, 30),
+    ]).toEqual([400, 7, 30, 7]);
 });
