@@ -459,7 +459,7 @@ export class SpaceHost {
             delegator: principal.space.reference(Scope.universe.id, target.scope),
             delegate: principal.installation.reference(target.scope, target.id),
         };
-        await this.database.log.until(async () => {
+        await this.database.log.waitUntil(async () => {
             // read the rollout's applied revision and the grant it borrows by
             const snapshot = Snapshot.live(this.database);
             const [row] = await snapshot.read(rollout.table).findMany({ where: { id: target.id } });

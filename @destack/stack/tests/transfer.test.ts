@@ -804,7 +804,7 @@ test(
                     id: created.id,
                     requestId: RequestId.create(source.machine.environment),
                 });
-                await target.database.log.until(
+                await target.database.log.waitUntil(
                     async () => (await placementRow(target.database))?.targetId === null,
                     FOREVER,
                 );
@@ -1018,7 +1018,7 @@ async function moveSpace(
     const isFollowed = async () =>
         (await Scope.read(Snapshot.live(source.database), [ids.account])).length > 0;
     await source.simulation.idle();
-    await source.database.log.until(isFollowed, FOREVER);
+    await source.database.log.waitUntil(isFollowed, FOREVER);
     await serving
         .as(source.owner.subject)
         .stepUp()
@@ -1064,7 +1064,7 @@ async function runMove(
     }
 
     // run until the placement settles, then take the target's refusals
-    await simulation.until(
+    await simulation.waitUntil(
         async () => isSettled(await placementOf(universe)),
         simulation.clock.now() + budget,
     );
@@ -1076,7 +1076,7 @@ async function runMove(
         const { snapshot } = space.machine.directory;
         const isShown = async () =>
             JSON.stringify((await Placement.find(snapshot, [ids.space]))[0]) === settled;
-        await snapshot.database.log.until(isShown, FOREVER);
+        await snapshot.database.log.waitUntil(isShown, FOREVER);
     }
 
     return refused;

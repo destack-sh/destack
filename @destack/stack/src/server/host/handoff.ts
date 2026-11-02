@@ -491,7 +491,7 @@ export const SourceHandoff = {
 
             return row.digest;
         };
-        await database.log.until(async () => (await read()) !== null, signal);
+        await database.log.waitUntil(async () => (await read()) !== null, signal);
         signal.throwIfAborted();
 
         return present(await read(), `the snapshot of ${input.resourceId}`);

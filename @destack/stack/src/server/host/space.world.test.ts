@@ -88,7 +88,7 @@ test("finish removing a deleted space whose row an earlier look already finalize
 
         return row;
     };
-    await fixture.database.log.until(
+    await fixture.database.log.waitUntil(
         async () => (await replicated())?.deletedAt !== null,
         new AbortController().signal,
     );

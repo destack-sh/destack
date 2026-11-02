@@ -1000,11 +1000,7 @@ export class TestSpace implements AsyncDisposable {
         const { simulation, universe, registry, gateway } = world;
         const { buckets, main } = files;
         await simulation.idle();
-        await machine.directory.waitForPlacement(
-            hosted.id,
-            machine.clock,
-            new AbortController().signal,
-        );
+        await machine.directory.waitPlaced(hosted.id, machine.clock, new AbortController().signal);
 
         // store each space's blobs in a separate directory, one storage per index, and its builds in them
         const blobs = new BlobStore({
@@ -1304,7 +1300,7 @@ export class TestSpace implements AsyncDisposable {
 
         // wait until the space's row arrives at the machine, then run the world idle mirroring it
         await this.simulation.idle();
-        await this.database.log.until(async () => {
+        await this.database.log.waitUntil(async () => {
             const [row] = await Snapshot.live(this.database)
                 .read(space.table)
                 .findMany({ where: { id: this.id } });
@@ -1664,7 +1660,7 @@ export class TestSpace implements AsyncDisposable {
         if (reported.length > 0) {
             throw new AggregateError(reported, "the space's servers reported failures");
         }
-        await served.store.untilLive(new AbortController().signal);
+        await served.store.waitLive(new AbortController().signal);
         await this.simulation.idle();
 
         return served;
@@ -1701,7 +1697,7 @@ export class TestSpace implements AsyncDisposable {
         };
         this.#following = stop;
         this.#defer(stop);
-        await store.untilLive(stopping.signal);
+        await store.waitLive(stopping.signal);
     }
 
     /** Call a served space as a person, carrying the token their client exchanges for it. */
@@ -2059,7 +2055,7 @@ export async function reconcile(
     const settled = new AbortController();
     const changed = async () => {
         const { sequence } = await log.position();
-        await log.until(async () => (await log.position()).sequence > sequence, settled.signal);
+        await log.waitUntil(async () => (await log.position()).sequence > sequence, settled.signal);
     };
     const signal = new AbortController().signal;
     try {

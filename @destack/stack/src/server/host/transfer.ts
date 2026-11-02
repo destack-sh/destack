@@ -1,4 +1,4 @@
-import { until } from "@destack/environment";
+import { waitAborted } from "@destack/environment";
 import {
     and,
     type BlobStore,
@@ -589,7 +589,7 @@ export class SpaceTransfer {
             .catch((error: unknown) => halted.abort(error));
         try {
             // copy the rows' blobs once the replica took its first complete run, index the builds among them, then restore each resource
-            await Promise.race([isSynced.promise, until(following)]);
+            await Promise.race([isSynced.promise, waitAborted(following)]);
             following.throwIfAborted();
             await this.#copyBlobs(source, options.blobs, signal);
             await this.#indexBuilds(options.builds);
@@ -725,7 +725,7 @@ export class SpaceTransfer {
 
     /** Wait until each restore of the move restored its content, and caught up once fenced. */
     async #settle(database: DatabaseConnection, signal: AbortSignal): Promise<void> {
-        const isSettled = await database.log.until(
+        const isSettled = await database.log.waitUntil(
             async () =>
                 (await this.#restores(database)).every(
                     (row) =>
@@ -1273,7 +1273,7 @@ export class TransferController implements ReconcileController {
             return row?.target !== machine;
         };
         const watching = database.log
-            .until(isLeft, AbortSignal.any([signal, watched.signal]))
+            .waitUntil(isLeft, AbortSignal.any([signal, watched.signal]))
             .then((isMoved) => {
                 if (isMoved) {
                     left.abort();

@@ -62,7 +62,7 @@ test("assign the machine of an unfinished checkout build in the space, and withd
 
             return JSON.stringify(replicated.map((row) => row.id).toSorted()) === wanted;
         };
-        await database.log.until(isReplicated, new AbortController().signal);
+        await database.log.waitUntil(isReplicated, new AbortController().signal);
 
         return rows.map((row) => [row.placementId, row.machineId]);
     };
