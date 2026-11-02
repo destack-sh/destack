@@ -319,9 +319,9 @@ test("skip simulated time to each next timer until a condition holds, and refuse
     await using simulation = new Simulation({ seed: 1, start: START });
     let isAwake = false;
     void simulation.clock.sleep(24 * 60 * 60_000).then(() => (isAwake = true));
-    await simulation.until(() => isAwake);
+    await simulation.waitUntil(() => isAwake);
     const woke = simulation.clock.now();
-    const refused = await simulation.until(() => false).catch((error: Error) => error.message);
+    const refused = await simulation.waitUntil(() => false).catch((error: Error) => error.message);
 
     // skip the day and refuse the idle run
     expect([woke - START, refused]).toEqual([
@@ -344,7 +344,7 @@ test("hold time back while tracked work is in flight, move to the next timer onc
     }, 20);
 
     // run until the timer fires
-    await simulation.until(() => isFired);
+    await simulation.waitUntil(() => isFired);
     const fired = simulation.clock.now() - START;
 
     // run to a time past one more timer
@@ -394,7 +394,7 @@ test("hold the clock for an in-process call until its response head, and not for
 
             return response;
         });
-    await simulation.until(() => isAnswered);
+    await simulation.waitUntil(() => isAnswered);
     const answeredAt = simulation.clock.now() - START;
     const ended = polled.text().then(() => simulation.clock.now() - START);
     await simulation.clock.sleep(START + 60_000 - simulation.clock.now());
@@ -573,13 +573,13 @@ test("carry a socket's messages in order through latency, and close it from eith
     simulation.network.degrade({ delay: { least: 5, most: 50 } });
     const server = serveEcho(simulation, "server");
     const client = open(simulation, "browser", "ada");
-    await simulation.until(() => client.socket.readyState === WebSocket.OPEN);
+    await simulation.waitUntil(() => client.socket.readyState === WebSocket.OPEN);
     for (const message of ["one", "two", "three"]) {
         client.socket.send(message);
     }
-    await simulation.until(() => client.events.length === 4);
+    await simulation.waitUntil(() => client.events.length === 4);
     client.socket.close();
-    await simulation.until(() => client.events.length === 5);
+    await simulation.waitUntil(() => client.events.length === 5);
 
     // the answers arrived in order, and the close reached both ends
     expect([client.events, server.events]).toEqual([
@@ -601,7 +601,7 @@ test("fail a socket its listener refuses with a plain answer, and discard the an
             }),
     });
     const refused = open(simulation, "laptop", "ada");
-    await simulation.until(() => refused.events.length === 1);
+    await simulation.waitUntil(() => refused.events.length === 1);
     expect([refused.events, cancelled]).toEqual([["close 1006"], ["cancelled"]]);
 });
 
@@ -613,20 +613,20 @@ test("break sockets across a partition and from a crashed node, and close them o
     await server.start(serve);
     const cut = open(simulation, "browser", "ada");
     const crashed = open(simulation, "laptop", "grace");
-    await simulation.until(() => cut.events.length === 1 && crashed.events.length === 1);
+    await simulation.waitUntil(() => cut.events.length === 1 && crashed.events.length === 1);
 
     // cut the browser off, then crash the server and connect it while it is down
     simulation.network.partition("browser", "server");
     server.crash();
     const down = open(simulation, "laptop", "lin");
-    await simulation.until(() => down.events.length === 1);
+    await simulation.waitUntil(() => down.events.length === 1);
 
     // restart it, and close an open socket by stopping its listener
     const listener = await server.start(serve);
     const stopped = open(simulation, "laptop", "ming");
-    await simulation.until(() => stopped.events.length === 1);
+    await simulation.waitUntil(() => stopped.events.length === 1);
     await listener.stop(true);
-    await simulation.until(() => stopped.events.length === 2);
+    await simulation.waitUntil(() => stopped.events.length === 2);
 
     // each socket ended the way its fault ends a connection
     expect([cut.events, crashed.events, down.events, stopped.events]).toEqual([
@@ -731,11 +731,11 @@ test("carry TCP bytes in order through latency, start TLS on a new socket, and e
     const client = connectUpper(simulation, "app");
     let isOpen = false;
     void client.socket.opened.then(() => (isOpen = true));
-    await simulation.until(() => isOpen);
+    await simulation.waitUntil(() => isOpen);
     const writer = client.socket.writable.getWriter();
     await writer.write(ENCODER.encode("ehlo\r\n"));
     await writer.write(ENCODER.encode("starttls\r\n"));
-    await simulation.until(() => client.received.length === 2);
+    await simulation.waitUntil(() => client.received.length === 2);
 
     // start TLS, refuse the old socket's writes, and talk over the new one
     const secure = client.socket.startTls();
@@ -747,12 +747,12 @@ test("carry TCP bytes in order through latency, start TLS on a new socket, and e
         new WritableStream({ write: (chunk) => void answered.push(DECODER.decode(chunk)) }),
     );
     await secure.writable.getWriter().write(ENCODER.encode("quit\r\n"));
-    await simulation.until(() => answered.length === 1);
+    await simulation.waitUntil(() => answered.length === 1);
 
     // close the new socket, which ends the server's end too
     let isClosed = false;
     void secure.close().then(() => (isClosed = true));
-    await simulation.until(() => isClosed);
+    await simulation.waitUntil(() => isClosed);
 
     // refuse TLS on a plain connect
     const plain = simulation.network.of("app").connect({ hostname: "smtp.test", port: 25 });
@@ -840,7 +840,7 @@ test("refuse a TCP connect nothing listens at, and break connections across a pa
         connectUpper(simulation, "worker"),
         connectUpper(simulation, "cron"),
     ];
-    await simulation.until(() => server.accepted.length === 3);
+    await simulation.waitUntil(() => server.accepted.length === 3);
 
     // cut the app off, release the worker, and stop the listener
     simulation.network.partition("app", "mail");
@@ -1530,7 +1530,7 @@ test("answer idle once the work due now settled, and wait for a condition throug
     // answer at the start once the chain settled, then at the timer
     await simulation.idle();
     const first = { done, now: clock.now() - START };
-    await simulation.until(() => isFired);
+    await simulation.waitUntil(() => isFired);
 
     expect([first, clock.now() - START]).toEqual([{ done: 0, now: 0 }, 1000]);
 });

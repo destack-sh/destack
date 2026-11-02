@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "@destack/test";
-import { until, yieldToEventLoop } from "./wait.ts";
+import { waitAborted, yieldToEventLoop } from "./wait.ts";
 
 beforeEach(() => {
     vi.useFakeTimers();
@@ -13,14 +13,14 @@ test("wait until a signal aborts, and at once for an aborted signal", async () =
     // resolve once the signal aborts
     const controller = new AbortController();
     let isDone = false;
-    const waiting = until(controller.signal).then(() => (isDone = true));
+    const waiting = waitAborted(controller.signal).then(() => (isDone = true));
     await Promise.resolve();
     expect(isDone).toBe(false);
     controller.abort();
     await waiting;
 
     // resolve at once for an aborted signal
-    await until(AbortSignal.abort());
+    await waitAborted(AbortSignal.abort());
     expect(isDone).toBe(true);
 });
 

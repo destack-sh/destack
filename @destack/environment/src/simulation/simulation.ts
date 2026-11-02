@@ -606,7 +606,7 @@ export class Simulation {
     }
 
     /** Wait for the world's idle points until a condition is met, refusing it past a deadline. */
-    async until(condition: () => boolean | Promise<boolean>, deadline?: number): Promise<void> {
+    async waitUntil(condition: () => boolean | Promise<boolean>, deadline?: number): Promise<void> {
         // stop the world's time at the deadline, withdrawing the deadline once the wait ends
         const withdrawn = new AbortController();
         let isLate = false;

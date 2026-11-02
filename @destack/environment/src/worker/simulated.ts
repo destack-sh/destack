@@ -1,6 +1,6 @@
 import type { Environment, HostCapability } from "../environment/environment.ts";
 import type { Scheduler } from "../scheduler/scheduler.ts";
-import type { WorkerConstructor, WorkerHost, WorkerThread } from "./worker.ts";
+import type { WorkerConstructor, WorkerEvents, WorkerHost, WorkerThread } from "./worker.ts";
 
 /** The scope a worker's body runs in: its messages to and from the node that started it. */
 export interface WorkerScope {
@@ -84,22 +84,39 @@ export class SimulatedWorkerHost {
         this.#started += 1;
         const node = `${parent}/worker-${this.#started}`;
         const toWorker = new Set<(event: MessageEvent) => void>();
-        const toParent = new Set<(event: MessageEvent) => void>();
+        const toParent: { [Type in keyof WorkerEvents]: Set<(event: WorkerEvents[Type]) => void> } =
+            {
+                message: new Set(),
+                error: new Set(),
+            };
         let isTerminated = false;
 
         // run the body on its node with a scope sending to the parent
         const scope: WorkerScope = {
             name: name ?? url.href,
-            postMessage: (message) => this.#deliver(toParent, message, () => isTerminated),
+            postMessage: (message) => this.#deliver(toParent.message, message, () => isTerminated),
             addEventListener: (_type, listener) => toWorker.add(listener),
         };
         this.#start(node, async (environment, signal) => {
-            // let a failure surface, but not the abort its termination brings
+            // tell the parent of a failure as later work, surfacing one no parent listens for
             try {
                 await body(scope, environment, signal);
             } catch (error) {
                 if (!signal.aborted) {
-                    throw error;
+                    await this.#scheduler.track(
+                        () =>
+                            Promise.resolve().then(() => {
+                                const message =
+                                    error instanceof Error ? error.message : String(error);
+                                if (toParent.error.size === 0) {
+                                    throw error;
+                                }
+                                for (const listener of toParent.error) {
+                                    listener({ message });
+                                }
+                            }),
+                        "world",
+                    );
                 }
             }
         });
@@ -116,7 +133,7 @@ export class SimulatedWorkerHost {
 
         return {
             postMessage: (message) => this.#deliver(toWorker, message, () => isTerminated),
-            addEventListener: (_type, listener) => toParent.add(listener),
+            addEventListener: (type, listener) => toParent[type].add(listener),
             terminate,
         };
     }
@@ -165,8 +182,11 @@ function workerConstructor(
             this.#thread.postMessage(message);
         }
 
-        /** Take each message the worker sends. */
-        addEventListener(type: "message", listener: (event: MessageEvent) => void): void {
+        /** Take each event of a type the worker sends. */
+        addEventListener<Type extends keyof WorkerEvents>(
+            type: Type,
+            listener: (event: WorkerEvents[Type]) => void,
+        ): void {
             this.#thread.addEventListener(type, listener);
         }
 

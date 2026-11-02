@@ -2,7 +2,7 @@
 const SET_IMMEDIATE = loadSetImmediate();
 
 /** Wait until the signal aborts, resolving at once for an aborted signal. */
-export function until(signal: AbortSignal): Promise<void> {
+export function waitAborted(signal: AbortSignal): Promise<void> {
     return new Promise((resolve) => {
         // resolve at once for an aborted signal
         if (signal.aborted) {

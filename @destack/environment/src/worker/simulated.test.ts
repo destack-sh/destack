@@ -38,3 +38,21 @@ test("run a worker's body on a node of its own, answering messages as the world'
         new TypeError("this world defines no worker body for https://app.test/missing.js"),
     );
 });
+
+test("tell the parent of a worker whose body fails to run", async () => {
+    // define a body failing as it starts, as a worker failing to load does
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const failing = new URL("https://app.test/failing.worker.js");
+    simulation.workers.define(failing, () => {
+        throw new Error("the database cannot open");
+    });
+
+    // start it and take its failure
+    const { workers } = simulation.environment("tab");
+    const worker = workers.start((Worker) => new Worker(failing, { type: "module" }));
+    const failures: string[] = [];
+    worker.addEventListener("error", (event) => failures.push(event.message));
+    await simulation.idle();
+
+    expect(failures).toEqual(["the database cannot open"]);
+});
