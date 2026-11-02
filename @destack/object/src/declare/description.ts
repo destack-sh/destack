@@ -1,6 +1,6 @@
 import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
-import { PermissionRequest } from "@destack/access";
+import { GrantRequest } from "@destack/access";
 import { DeclarationName, type graph, PackageId, Sandbox } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { ObjectTypeReference } from "@destack/sync";
@@ -99,7 +99,7 @@ export const Capability = schema
         /** Whether an installation may go without it, asking for it once its code needs it. */
         optional: schema.boolean().exactOptional(),
         /** The permissions it needs of the installation's space and of each user. */
-        permissions: PermissionRequest.exactOptional(),
+        permissions: GrantRequest.exactOptional(),
         /** The sandbox abilities it unlocks for the package's workloads and views. */
         sandbox: Sandbox.exactOptional(),
         /** The features the account's plan must include for it, as finance sells them. */
@@ -139,7 +139,7 @@ const packageDescription = schema.object({
     /** The names of the views it offers. */
     views: schema.array(DeclarationName),
     /** The permissions its installations always request, by delegator. */
-    permissions: PermissionRequest,
+    permissions: GrantRequest,
     /** What its installations can do beyond its request, by name. */
     capabilities: schema.record(DeclarationName, Capability),
     /** The reasons it fails with, by domain, reason and call error code. */

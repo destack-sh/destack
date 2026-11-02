@@ -7,7 +7,7 @@ import { mapValues, Version } from "@destack/schema";
 import { AdapterPath, Capability } from "./description.ts";
 import type { Command } from "./command.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
-import { PermissionRequest, type Policy } from "@destack/access";
+import { GrantRequest, type Policy } from "@destack/access";
 import type { ObjectTypeReference } from "@destack/sync";
 
 /** A package's handler of a protocol others define, at a path below the package's mount. */
@@ -51,7 +51,7 @@ export interface PackageInput {
     /** The secrets the package reads, by name. */
     readonly secrets?: Readonly<Record<string, Declaration>>;
     /** The permissions the package's installations always request, by delegator. */
-    readonly permissions?: PermissionRequest;
+    readonly permissions?: GrantRequest;
     /** What its installations can do beyond that, each with what it needs, by name. */
     readonly capabilities?: Readonly<Record<string, Capability>>;
     /** The reasons the package fails with, which its manifest lists. */
@@ -81,7 +81,7 @@ export interface PackageHandle<Input extends PackageInput = PackageInput> extend
     /** The secrets the package reads, by name. */
     readonly secrets: Declared<Input["secrets"]>;
     /** The permissions the package's installations always request, by delegator. */
-    readonly permissions: PermissionRequest;
+    readonly permissions: GrantRequest;
     /** What its installations can do beyond that, by name. */
     readonly capabilities: Readonly<Record<string, Capability>>;
     /** The reasons the package fails with, as its manifest lists them. */
@@ -236,7 +236,7 @@ export const PackageHandle = {
                 (each) => each,
             ),
             secrets: mapValues<typeof secrets, Declared<Input["secrets"]>>(secrets, (each) => each),
-            permissions: PermissionRequest.parse(input.permissions ?? {}),
+            permissions: GrantRequest.parse(input.permissions ?? {}),
             capabilities: Object.fromEntries(
                 Object.entries(input.capabilities ?? {}).map(([name, each]) => [
                     name,

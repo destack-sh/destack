@@ -1,5 +1,5 @@
 import * as access from "@destack/access";
-import { accessGrant, Grant, GrantRequest } from "@destack/access";
+import { accessGrant, Grant } from "@destack/access";
 import { type MethodBuilder } from "../method/record.ts";
 import { defineObject } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
@@ -18,7 +18,7 @@ export const grant = defineObject(
     },
     (method: MethodBuilder<typeof accessGrant>) => ({
         create: Execution.handle(
-            method.create("create", { fields: [], input: GrantRequest, isPredicted: false }),
+            method.create("create", { fields: [], input: Grant.input, isPredicted: false }),
             async (call, execution) =>
                 Grant.create(
                     await ObjectPolicy.scopeObject(call, execution),

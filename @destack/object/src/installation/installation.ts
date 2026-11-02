@@ -239,7 +239,7 @@ export const Installation = {
     /** Describe a base installation's role: what its package requests in its scope. */
     role(scope: ObjectReference, handle: ObjectPackage) {
         // take what the package's installations request in their scope, its own types going by its policies
-        const requested = handle.permissions.installation ?? {};
+        const requested = handle.permissions.space ?? {};
         const permissions =
             scope.id === Scope.universe.id ? (requested.universe ?? []) : (requested.space ?? []);
 

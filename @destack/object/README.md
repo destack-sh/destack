@@ -524,7 +524,7 @@ export default definePackage({
     objects: { repository, release },
     adapters: { npm, hooks },
     permissions: {
-        installation: {
+        space: {
             space: [message.permission("send")],
             universe: [user.permission("recipient")],
         },
@@ -534,7 +534,7 @@ export default definePackage({
         push: {
             reason: "Push notifications",
             optional: true, // asked for once its code needs it
-            permissions: { installation: { universe: [client.permission("unsubscribe")] } },
+            permissions: { space: { universe: [client.permission("unsubscribe")] } },
             features: [{ packageId: pricing, name: "push" }], // the account's plan must include it
         },
     },

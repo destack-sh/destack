@@ -250,7 +250,7 @@ test("describe a package's routes, adapters, views, requested permissions, capab
         {
             objects: { query: custom },
             adapters: { npm: defineAdapter("npm", { path: "/npm" }, MODULE) },
-            permissions: { installation: { universe: [user.permission("recipient")] } },
+            permissions: { space: { universe: [user.permission("recipient")] } },
             capabilities: {
                 push: {
                     reason: "Drop the browsers push services forgot",
@@ -274,7 +274,7 @@ test("describe a package's routes, adapters, views, requested permissions, capab
         adapters: { npm: { path: "/npm" } },
         views: [],
         permissions: {
-            installation: {
+            space: {
                 universe: [{ packageId: MODULE.package.id, type: "user", name: "recipient" }],
             },
         },
