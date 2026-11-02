@@ -8,6 +8,7 @@ import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
 import { typeScale, tracking } from "../layout/type.stylex";
 import { plans } from "../content/generated/pricing";
+import { type Feature, features } from "./feature";
 import { Hint } from "./hint";
 import { type Currency, money } from "./money";
 import { type Audience, type Plan, audiencePlans } from "./plan";
@@ -15,8 +16,8 @@ import { type Audience, type Plan, audiencePlans } from "./plan";
 /** What a plan gives on a row: included or not, or a short value. */
 type Cell = boolean | string;
 
-/** One row of the comparison: what it lists, what that means, and each plan's cell. */
-type Row = { name: string; detail: string; cell: (plan: Plan, currency: Currency) => Cell };
+/** One row of the comparison: the feature it lists, and each plan's cell. */
+type Row = { feature: Feature; cell: (plan: Plan, currency: Currency) => Cell };
 
 /** The support each level gives, as the comparison lists it. */
 const supportNames: Readonly<Record<Plan["support"], string>> = {
@@ -31,42 +32,24 @@ const groups: readonly { name: string; rows: readonly Row[] }[] = [
     {
         name: "Software",
         rows: [
-            {
-                name: "Standard apps and packages",
-                detail: "The apps and packages Destack makes, with no seats or licences to pay.",
-                cell: () => true,
-            },
-            {
-                name: "Branching with previews",
-                detail: "Every app branches, with a preview for each branch.",
-                cell: () => true,
-            },
-            {
-                name: "Roles for people, guests and agents",
-                detail: "One set of roles for everyone who uses your apps.",
-                cell: () => true,
-            },
-            { name: "Vault", detail: "Secrets, encrypted and shared.", cell: () => true },
-            { name: "Audit log", detail: "Every change, by whom and when.", cell: () => true },
-            { name: "Telemetry", detail: "Traces, logs and alerts.", cell: () => true },
-            {
-                name: "Bring your own AI",
-                detail: "Use your subscriptions, your API keys or local models.",
-                cell: () => true,
-            },
-            {
-                name: "Managed AI",
-                detail: "Use models through us, with no keys or accounts to manage, billed as usage.",
-                cell: () => true,
-            },
+            { feature: features.members, cell: () => true },
+            { feature: features.agents, cell: () => true },
+            { feature: features.apps, cell: () => true },
+            { feature: features.integrations, cell: () => true },
+            { feature: features.branches, cell: () => true },
+            { feature: features.access, cell: () => true },
+            { feature: features.secrets, cell: () => true },
+            { feature: features.audit, cell: () => true },
+            { feature: features.observability, cell: () => true },
+            { feature: features.ownAi, cell: () => true },
+            { feature: features.managedAi, cell: () => true },
         ],
     },
     {
         name: "Usage",
         rows: [
             {
-                name: "Usage included each month",
-                detail: "Usage is billed at the unit prices below.",
+                feature: features.included,
                 cell: (plan, currency) =>
                     !plan.isUncapped
                         ? "Free allowance"
@@ -74,14 +57,9 @@ const groups: readonly { name: string; rows: readonly Row[] }[] = [
                           ? `${money(plan.fees[currency], currency)}+`
                           : money(plan.fees[currency], currency),
             },
+            { feature: features.uncapped, cell: (plan) => plan.isUncapped },
             {
-                name: "Past the included usage",
-                detail: "On Free your spaces slow down; on paid plans you pay as you go.",
-                cell: (plan) => (plan.isUncapped ? "Pay as you go" : "Slows down"),
-            },
-            {
-                name: "Retention",
-                detail: "How long logs, traces and activity stay: their default spans, or as long as you like, counted as storage.",
+                feature: features.retention,
                 cell: (plan) => (plan.isCustomRetention ? "Custom" : "Default"),
             },
         ],
@@ -89,71 +67,27 @@ const groups: readonly { name: string; rows: readonly Row[] }[] = [
     {
         name: "Hosting",
         rows: [
-            {
-                name: "Shared machines",
-                detail: "Your spaces run on machines shared with other accounts.",
-                cell: () => true,
-            },
-            {
-                name: "Self-hosting",
-                detail: "Run Destack on your own machines.",
-                cell: () => true,
-            },
-            {
-                name: "Tunneling",
-                detail: "Reach your machines from anywhere.",
-                cell: () => true,
-            },
-            {
-                name: "Dedicated machines",
-                detail: "A machine of your own, billed by the hour up to a monthly cap.",
-                cell: (plan) => plan.isDedicated,
-            },
-            {
-                name: "Custom domains",
-                detail: "Serve your spaces and your profile under your own domain names.",
-                cell: (plan) => plan.isCustomDomains,
-            },
+            { feature: features.shared, cell: () => true },
+            { feature: features.selfHosting, cell: () => true },
+            { feature: features.tunnels, cell: () => true },
+            { feature: features.dedicated, cell: (plan) => plan.isDedicated },
+            { feature: features.domains, cell: (plan) => plan.isCustomDomains },
         ],
     },
     {
         name: "Support",
         rows: [
-            {
-                name: "Support",
-                detail: "Community on Discord and GitHub, email, priority, or guaranteed response times.",
-                cell: (plan) => supportNames[plan.support],
-            },
-            {
-                name: "Early access",
-                detail: "Try new apps and features before everyone else.",
-                cell: (plan) => plan.isEarlyAccess,
-            },
-            {
-                name: "Onboarding and migration",
-                detail: "We move your data and tools over, and help build your first apps.",
-                cell: (plan) => plan.isContract,
-            },
+            { feature: features.support, cell: (plan) => supportNames[plan.support] },
+            { feature: features.early, cell: (plan) => plan.isEarlyAccess },
+            { feature: features.engineer, cell: (plan) => plan.isContract },
         ],
     },
     {
         name: "Contract",
         rows: [
-            {
-                name: "Uptime SLA",
-                detail: "An uptime we promise in your contract, with credits when we miss it.",
-                cell: (plan) => plan.isContract,
-            },
-            {
-                name: "Invoice billing",
-                detail: "Pay by invoice and bank transfer, with purchase orders.",
-                cell: (plan) => plan.isContract,
-            },
-            {
-                name: "Data processing agreement",
-                detail: "A signed agreement on how we process your data, for your privacy reviews.",
-                cell: (plan) => plan.isContract,
-            },
+            { feature: features.uptime, cell: (plan) => plan.isContract },
+            { feature: features.invoice, cell: (plan) => plan.isContract },
+            { feature: features.agreement, cell: (plan) => plan.isContract },
         ],
     },
 ];
@@ -211,7 +145,7 @@ export function Comparison(properties: { audience: Audience; currency: Currency 
                         {group.rows.map((row) => (
                             <tr {...style.attrs(styles.row)}>
                                 <th scope="row" {...style.attrs(styles.name)}>
-                                    <Hint text={row.name} detail={row.detail} />
+                                    <Hint text={row.feature.name} detail={row.feature.detail} />
                                 </th>
                                 {shown().map((plan) => (
                                     <td {...style.attrs(styles.plan)}>
@@ -230,21 +164,21 @@ export function Comparison(properties: { audience: Audience; currency: Currency 
 /** Draw a cell: a check where included, a dash where not, or its value. */
 function CellValue(properties: { cell: Cell }) {
     // draw a check, a dash, or the value
-    if (properties.cell === true) {
-        return (
-            <span role="img" aria-label="Included" {...style.attrs(styles.check)}>
-                <Glyph name="check" size={16} weight={2} />
-            </span>
-        );
-    } else if (properties.cell === false) {
-        return (
-            <span role="img" aria-label="Not included" {...style.attrs(styles.dash)}>
-                –
-            </span>
-        );
-    } else {
-        return <span {...style.attrs(styles.value)}>{properties.cell}</span>;
-    }
+    return (
+        <>
+            {properties.cell === true ? (
+                <span role="img" aria-label="Included" {...style.attrs(styles.check)}>
+                    <Glyph name="check" size={16} weight={2} />
+                </span>
+            ) : properties.cell === false ? (
+                <span role="img" aria-label="Not included" {...style.attrs(styles.dash)}>
+                    –
+                </span>
+            ) : (
+                <span {...style.attrs(styles.value)}>{properties.cell}</span>
+            )}
+        </>
+    );
 }
 
 /** The comparison styles. */

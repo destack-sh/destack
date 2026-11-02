@@ -11,6 +11,7 @@ import { Toggle } from "../home/entry/switch";
 import { Glyph, type GlyphName } from "../home/figure/glyph";
 import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
+import { type Feature, features } from "./feature";
 import { Hint } from "./hint";
 import { type Currency, money } from "./money";
 import { typeScale, tracking } from "../layout/type.stylex";
@@ -19,7 +20,7 @@ import { typeScale, tracking } from "../layout/type.stylex";
 const PRODUCT = "https://destack.app/";
 
 /** Where organisations write to ask for the enterprise contract. */
-const CONTACT = "mailto:hello@destack.sh?subject=Destack%20Enterprise";
+const CONTACT = "mailto:florian@symbol.industries?subject=Destack%20Enterprise";
 
 /** The names of the currencies, as the currency picker lists them. */
 const currencyNames: Readonly<Record<Currency, string>> = {
@@ -67,7 +68,7 @@ const EXTRAS = [
     "domains",
     "machines",
     "uptime",
-    "moving",
+    "engineer",
     "invoice",
     "agreement",
 ] as const;
@@ -78,8 +79,8 @@ const CARD_ROWS = 3 + SPECS.length + 1;
 /** What a benefit is about. */
 type Topic = (typeof SPECS)[number] | (typeof EXTRAS)[number];
 
-/** One benefit a card lists: its icon, its words, and what they mean. */
-type Benefit = { icon: GlyphName; text: string; detail: string };
+/** One benefit a card lists: its icon and its feature. */
+type Benefit = { icon: GlyphName; feature: Feature };
 
 /** Each plan's tagline, the same for people and organisations. */
 const taglines: Readonly<Record<Plan["key"], string>> = {
@@ -98,26 +99,10 @@ export const audiencePlans: Readonly<Record<Audience, readonly Plan["key"][]>> =
 
 /** The support each level gives, as a benefit. */
 const supportBenefits: Readonly<Record<Plan["support"], Benefit>> = {
-    community: {
-        icon: "people",
-        text: "Community support",
-        detail: "Ask on Discord and GitHub.",
-    },
-    email: {
-        icon: "mail",
-        text: "Email support",
-        detail: "Write to the people who build Destack.",
-    },
-    priority: {
-        icon: "bolt",
-        text: "Priority support",
-        detail: "Your questions go to the front of the queue.",
-    },
-    sla: {
-        icon: "person",
-        text: "SLA support",
-        detail: "Guaranteed response times from engineers who know your stack.",
-    },
+    community: { icon: "people", feature: features.communitySupport },
+    email: { icon: "mail", feature: features.emailSupport },
+    priority: { icon: "bolt", feature: features.prioritySupport },
+    sla: { icon: "help", feature: features.slaSupport },
 };
 
 /** Label the plans as the first figure, with the currency and audience the reader switches. */
@@ -314,7 +299,10 @@ function BenefitRow(properties: { benefit: Benefit; isFirst: boolean }) {
             <span aria-hidden="true" {...style.attrs(styles.icon)}>
                 <Glyph name={properties.benefit.icon} size={16} weight={1.75} />
             </span>
-            <Hint text={properties.benefit.text} detail={properties.benefit.detail} />
+            <Hint
+                text={properties.benefit.feature.name}
+                detail={properties.benefit.feature.detail}
+            />
         </p>
     );
 }
@@ -323,109 +311,38 @@ function BenefitRow(properties: { benefit: Benefit; isFirst: boolean }) {
 function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
     // read which apps, where the plan runs and which AI it uses, the same on every plan
     if (topic === "apps") {
-        return {
-            icon: "grid",
-            text: "Software included",
-            detail: "Destack's standard apps and packages, with no seats or licences to pay.",
-        };
+        return { icon: "grid", feature: features.apps };
     } else if (topic === "hosting") {
-        return {
-            icon: "monitor",
-            text: "Self-hosting",
-            detail: "Run Destack on your own machines, or on ours.",
-        };
+        return { icon: "monitor", feature: features.selfHosting };
     } else if (topic === "ai") {
-        return {
-            icon: "plug",
-            text: "Bring your own AI",
-            detail: "Use your subscriptions, your API keys or local models.",
-        };
+        return { icon: "plug", feature: features.ownAi };
     } else if (topic === "managed") {
-        return {
-            icon: "cloud",
-            text: "Managed AI",
-            detail: "Use models through us, with no keys or accounts to manage, billed as usage.",
-        };
+        return { icon: "cloud", feature: features.managedAi };
     }
-    // keep events for their default spans, or as long as each space chooses, billed as storage
+    // keep events for their default spans, or as long as each space chooses
     else if (topic === "history") {
-        return plan.isCustomRetention
-            ? {
-                  icon: "clock",
-                  text: "Custom retention",
-                  detail: "Keep logs, traces and activity as long as you like. They count as storage.",
-              }
-            : {
-                  icon: "clock",
-                  text: "Default retention",
-                  detail: "Logs, traces and activity stay for their default spans, or shorter if you like.",
-              };
+        return {
+            icon: "clock",
+            feature: plan.isCustomRetention ? features.customRetention : features.defaultRetention,
+        };
     }
     // read what the plan unlocks
     else if (topic === "domains") {
-        return plan.isCustomDomains
-            ? {
-                  icon: "globe",
-                  text: "Custom domains",
-                  detail: "Serve your spaces and your profile under your own domain names.",
-              }
-            : undefined;
+        return plan.isCustomDomains ? { icon: "globe", feature: features.domains } : undefined;
     } else if (topic === "caps") {
-        return plan.isUncapped
-            ? {
-                  icon: "up",
-                  text: "No caps",
-                  detail: "Your apps never slow down: past the included usage, you pay as you go.",
-              }
-            : undefined;
+        return plan.isUncapped ? { icon: "up", feature: features.uncapped } : undefined;
     } else if (topic === "early") {
-        return plan.isEarlyAccess
-            ? {
-                  icon: "star",
-                  text: "Early access",
-                  detail: "Try new apps and features before everyone else.",
-              }
-            : undefined;
+        return plan.isEarlyAccess ? { icon: "star", feature: features.early } : undefined;
     } else if (topic === "machines") {
-        return plan.isDedicated
-            ? {
-                  icon: "chip",
-                  text: "Dedicated machines",
-                  detail: "A machine of your own, billed by the hour up to a monthly cap.",
-              }
-            : undefined;
+        return plan.isDedicated ? { icon: "chip", feature: features.dedicated } : undefined;
     } else if (topic === "uptime") {
-        return plan.isContract
-            ? {
-                  icon: "check",
-                  text: "Uptime SLA",
-                  detail: "An uptime we promise in your contract, with credits when we miss it.",
-              }
-            : undefined;
-    } else if (topic === "moving") {
-        return plan.isContract
-            ? {
-                  icon: "download",
-                  text: "Onboarding and migration",
-                  detail: "We move your data and tools over, and help build your first apps.",
-              }
-            : undefined;
+        return plan.isContract ? { icon: "check", feature: features.uptime } : undefined;
+    } else if (topic === "engineer") {
+        return plan.isContract ? { icon: "person", feature: features.engineer } : undefined;
     } else if (topic === "invoice") {
-        return plan.isContract
-            ? {
-                  icon: "file",
-                  text: "Invoice billing",
-                  detail: "Pay by invoice and bank transfer, with purchase orders.",
-              }
-            : undefined;
+        return plan.isContract ? { icon: "file", feature: features.invoice } : undefined;
     } else if (topic === "agreement") {
-        return plan.isContract
-            ? {
-                  icon: "lock",
-                  text: "Data processing agreement",
-                  detail: "A signed agreement on how we process your data, for your privacy reviews.",
-              }
-            : undefined;
+        return plan.isContract ? { icon: "lock", feature: features.agreement } : undefined;
     }
     // read who helps
     else {
