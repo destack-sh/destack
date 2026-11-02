@@ -37,22 +37,10 @@
                     "symbols": "./inspect#viewSymbols"
                 }
             ]
-        },
-        "defineCommand": {
-            "describes": [
-                {
-                    "kind": "command",
-                    "function": "./inspect#describeCommand",
-                    "symbols": "./inspect#commandSymbols"
-                }
-            ]
         }
     },
     "stamps": {
         "defineView": {
-            "module": 1
-        },
-        "defineCommand": {
             "module": 1
         }
     },

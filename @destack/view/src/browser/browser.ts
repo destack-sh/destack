@@ -15,7 +15,7 @@ import type { ClientOptions } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import { CLIENT_PATH, CONTEXT_ELEMENT, HOME_PATH, ViewContext } from "../declare/context.ts";
-import type { CommandDeclaration } from "../declare/command.ts";
+import type { CommandDeclaration } from "../palette/keybinding.ts";
 import { account, space, user } from "@destack/account/object";
 import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
 import { Theme, type ThemeDescription } from "@destack/theme";
@@ -27,7 +27,8 @@ import { CONTEXT_SCOPES } from "../declare/context.ts";
 import { renderView } from "../page/mount.ts";
 import { recordVisits } from "./visit.ts";
 import { mountPackages } from "../page/view.ts";
-import { listenForCommands } from "../palette/overlay.ts";
+import { PaletteOverlay } from "../palette/overlay.ts";
+import { CommandRegistry } from "../palette/registry.ts";
 import { ViewError } from "../error/error.ts";
 
 /** Mount a view with its package's theme and commands once its scopes' objects are open. */
@@ -102,15 +103,16 @@ export async function mount(
     const first = opened.value;
     restyle(first);
 
-    // render the root component under the view and its clients, once its package's catalogs arrive
+    // render the root component under the view, its clients and its commands, once its package's catalogs arrive
     const { default: Component } = await view.component();
+    const commands = new CommandRegistry();
     const rendering = await LocalizedRendering.open(
         (locale, localization) =>
             renderView(Component, document.body, {
                 package: { ...view.package, version: release },
                 environment: { ...environment, telemetry },
                 localization,
-                mount: { context, clients, packages, origin: call },
+                mount: { context, clients, packages, origin: call, commands },
             }),
         {
             owner: view.package.id,
@@ -122,20 +124,21 @@ export async function mount(
     );
 
     // open the command palette over the view by the person's keybindings
-    let bound = first.keybindings;
-    listenForCommands(
-        stopping.signal,
-        () => rendering.localization,
-        () => bound,
+    let bound = first;
+    new PaletteOverlay({
+        commands,
+        packageId: view.package.id,
         navigation,
-    );
+        localization: () => rendering.localization,
+        bindings: () => bound,
+    }).listen(stopping.signal);
 
     // restyle on each change, render again in a new language and follow the keybindings
     void (async () => {
         for await (const next of shown) {
             restyle(next);
             rendering.switch(next.locale);
-            bound = next.keybindings;
+            bound = next;
         }
     })().catch((error: unknown) => {
         if (!stopping.signal.aborted) {

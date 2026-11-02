@@ -8,7 +8,7 @@ import { DEFAULT_DISPLAY } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
 import { accessRelationship, ANONYMOUS, principal } from "@destack/access";
 import { expect, onTestFinished, test } from "@destack/test";
-import { CommandReference } from "../declare/command.ts";
+import { CommandReference } from "@destack/object";
 import { keybindings, sources } from "../palette/index.ts";
 import { appearance } from "../setting/index.ts";
 import { Presentation, type Page } from "./presentation.ts";
@@ -107,6 +107,7 @@ test("present a page in its person's language, their display settings' style and
     const kept = await storage.database.select().from(deviceSetting.table);
     const onDevice = Presentation.resolve(page, person, await values(), kept);
 
+    // expect the person's presentation with their overrides, none once turned off, and the device's style
     expect({
         presented,
         turnedOff: turnedOff.keybindings,
@@ -119,6 +120,7 @@ test("present a page in its person's language, their display settings' style and
                 { command: `${notes.id}/complete`, keybinding: "mod+enter" },
                 { command: archive, keybinding: "mod+a" },
             ],
+            overrides: { [archive]: "mod+a" },
         },
         turnedOff: [],
         onDevice: destackTheme.variables({ ...DEFAULT_DISPLAY, appearance: "light" }),
@@ -134,5 +136,6 @@ test("present a page to an anonymous visitor in the browser's language, the them
         locale: "fr-FR",
         style: destackTheme.variables(DEFAULT_DISPLAY),
         keybindings: [{ command: `${notes.id}/complete`, keybinding: "mod+enter" }],
+        overrides: {},
     });
 });

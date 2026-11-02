@@ -1,15 +1,14 @@
 import { schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
-import { CommandReference } from "../declare/command.ts";
+import { Shortcut, CommandReference } from "@destack/object";
 import { PaletteSource } from "./entry.ts";
-import { Accelerator } from "./accelerator.ts";
 
 /** The key combination that opens the command palette from anywhere. */
 export const shortcut = defineSetting({
     name: "palette.shortcut",
     title: "Command palette shortcut",
     description: "The key combination opening the command palette from anywhere.",
-    schema: Accelerator,
+    schema: Shortcut,
     default: "alt+space",
     scope: "user",
     overrides: ["device"],
@@ -21,7 +20,7 @@ export const keybindings = defineSetting({
     name: "keybindings",
     title: "Keybindings",
     description: "The key combinations running commands, by command; null unbinds a command.",
-    schema: schema.record(CommandReference.key, Accelerator.nullable()),
+    schema: schema.record(CommandReference.key, Shortcut.nullable()),
     default: {},
     scope: "user",
     overrides: ["device"],

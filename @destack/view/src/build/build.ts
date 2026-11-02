@@ -9,12 +9,8 @@ import type {
     PrerenderContext,
 } from "@destack/package/build";
 import { BROWSER_SANDBOX, type DeclarationDescription, Sandbox } from "@destack/package";
-import {
-    CommandDescription,
-    type OutputContent,
-    ViewDescription,
-    ViewRender,
-} from "@destack/package/manifest";
+import { type OutputContent, ViewDescription, ViewRender } from "@destack/package/manifest";
+import { Command, CommandDescription } from "@destack/object";
 import { present } from "@destack/schema";
 import { destackTheme } from "@destack/theme/declare";
 import { fontPlugin } from "./font.ts";
@@ -350,7 +346,8 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
     const commands = own
         .filter(
             (declaration) =>
-                declaration.kind === "command" && declaration.package.name === VIEW_PACKAGE,
+                declaration.kind === Command.kind.kind &&
+                declaration.package.id === Command.kind.kindPackageId,
         )
         .map((declaration) => {
             const { keybinding } = CommandDescription.parse(declaration.description);

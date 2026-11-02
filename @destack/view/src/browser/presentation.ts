@@ -4,10 +4,9 @@ import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import type { DeviceSettingValue, SettingValue } from "@destack/setting/object";
 import { type Theme } from "@destack/theme";
-import { CommandReference } from "../declare/command.ts";
+import { type Shortcut, CommandReference } from "@destack/object";
 import type { ViewContext } from "../declare/context.ts";
-import type { CommandDeclaration } from "../declare/command.ts";
-import type { Keybinding } from "../palette/accelerator.ts";
+import type { CommandDeclaration, Keybinding } from "../palette/keybinding.ts";
 import { keybindings, Palette, sources } from "../palette/index.ts";
 import { DISPLAY_SETTINGS, resolveDisplay } from "../setting/display.ts";
 
@@ -19,6 +18,8 @@ export interface Presentation {
     readonly style: Readonly<Record<string, string>>;
     /** The key combinations running the installation's commands, for the person. */
     readonly keybindings: readonly Keybinding[];
+    /** The person's key combinations by command key, null for one turned off. */
+    readonly overrides: Readonly<Record<string, Shortcut | null>>;
 }
 
 /** The settings a presentation reads in the person's own scope. */
@@ -72,6 +73,7 @@ export const Presentation = {
             locale: person.locale,
             style: theme.variables(display),
             keybindings: isOffered ? bound : [],
+            overrides: isOffered ? overrides : {},
         };
     },
 };

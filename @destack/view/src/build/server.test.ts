@@ -40,18 +40,20 @@ test(
     async () => {
         // serve the site from its workspace on a free port
         const workspace = await Workspace.open(source.source, compilers);
+        const environment = testHost();
         await using development = await DevelopmentServer.start({
             workspace,
             view: "site",
-            environment: testHost(),
+            environment,
             server: { port: 0 },
         });
         const address = development.vite.httpServer?.address();
         const port = typeof address === "object" && address !== null ? address.port : 0;
         const visit = async (path: string) => {
-            const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+            const request = new Request(`http://127.0.0.1:${port}${path}`, {
                 headers: { accept: "text/html" },
             });
+            const response = await environment.network.fetch(request);
 
             return { status: response.status, text: await response.text() };
         };

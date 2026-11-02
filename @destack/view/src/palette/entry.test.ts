@@ -1,8 +1,7 @@
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { Accelerator, type KeyPress } from "./accelerator.ts";
-import { CommandReference } from "../declare/command.ts";
+import { CommandReference } from "@destack/object";
 import { Palette, type PaletteEntry, PaletteFocus } from "./entry.ts";
 
 /** The package declaring the tasks and their commands. */
@@ -36,27 +35,11 @@ function command(
         packageId,
         name,
         title,
+        category: null,
         typePackageId: packageId,
         type,
         method: name,
         keybinding: null,
-    };
-}
-
-/** Press a key with some modifiers held. */
-function press(
-    key: string,
-    modifiers: Partial<Record<"altKey" | "ctrlKey" | "metaKey" | "shiftKey", boolean>>,
-    code = `Key${key.toUpperCase()}`,
-): KeyPress {
-    return {
-        key,
-        code,
-        altKey: false,
-        ctrlKey: false,
-        metaKey: false,
-        shiftKey: false,
-        ...modifiers,
     };
 }
 
@@ -76,19 +59,19 @@ const ENTRIES: readonly PaletteEntry[] = [
     },
 ];
 
-test("rank entries by how their title matches, the focused window's space, installation and object first", () => {
+test("rank entries by how their title matches, the focused window's space, installation and objects first", () => {
     const titles = (query: string, focus: Parameters<typeof Palette.rank>[2]) =>
         Palette.rank(ENTRIES, query, focus).map((entry) => entry.title);
     const note = { packageId: NOTES, type: "note", scope: HOME, id: "note-1" };
 
     expect([
-        titles("", {}),
-        titles("arch", {}),
-        titles("arch", { space: WORK, installation: "notes" }),
-        titles("arch", { space: HOME, installation: "notes" }),
-        titles("", { object: note }),
-        titles("note", {}),
-        titles("zzz", {}),
+        titles("", { objects: [] }),
+        titles("arch", { objects: [] }),
+        titles("arch", { space: WORK, installation: "notes", objects: [] }),
+        titles("arch", { space: HOME, installation: "notes", objects: [] }),
+        titles("", { objects: [note] }),
+        titles("note", { objects: [] }),
+        titles("zzz", { objects: [] }),
     ]).toEqual([
         ["Archive journal note", "Archive note", "Archive project", "Complete task", "Notes"],
         ["Archive journal note", "Archive note", "Archive project"],
@@ -160,10 +143,10 @@ test("read what a window shows from its location: the installation its origin na
             DOMAIN,
         ),
     ]).toEqual([
-        {},
-        { space: HOME, installation: "notes" },
-        { space: HOME, installation: "notes", object: note },
-        { space: HOME, object: note },
+        { objects: [] },
+        { space: HOME, installation: "notes", objects: [] },
+        { space: HOME, installation: "notes", objects: [note] },
+        { space: HOME, objects: [note] },
     ]);
 
     // refuse a location the machine never writes
@@ -201,30 +184,4 @@ test("read a command's keybinding: the person's own, none once unbound, else the
         Palette.keybinding({ packageId: NOTES, name: "archive" }, "mod+e", overrides),
         Palette.keybinding({ packageId: NOTES, name: "pin" }, undefined, overrides),
     ]).toEqual(["mod+shift+c", null, "mod+e", null]);
-});
-
-test("match key presses against accelerators, mod being Command on Command platforms and Control elsewhere, and Option letters by their key", () => {
-    expect([
-        Accelerator.matches("mod+k", press("k", { metaKey: true }), true),
-        Accelerator.matches("mod+k", press("k", { ctrlKey: true }), true),
-        Accelerator.matches("mod+k", press("k", { ctrlKey: true }), false),
-        Accelerator.matches("alt+space", press(" ", { altKey: true }), true),
-        Accelerator.matches("mod+shift+k", press("K", { metaKey: true, shiftKey: true }), true),
-        Accelerator.matches("mod+k", press("k", { metaKey: true, shiftKey: true }), true),
-        Accelerator.matches("alt+d", press("∂", { altKey: true }, "KeyD"), true),
-        Accelerator.matches("alt+q", press("a", { altKey: true }, "KeyQ"), false),
-        Accelerator.safeParse("mod+shift+k").success,
-        Accelerator.safeParse("hyper+k").success,
-    ]).toEqual([true, false, true, true, true, false, true, false, true, false]);
-});
-
-test("write accelerators with Command platform symbols, and with words joined by plus signs elsewhere", () => {
-    expect([
-        Accelerator.format("mod+k", true),
-        Accelerator.format("mod+k", false),
-        Accelerator.format("alt+shift+d", true),
-        Accelerator.format("alt+shift+d", false),
-        Accelerator.format("mod+enter", true),
-        Accelerator.format("up", false),
-    ]).toEqual(["⌘K", "Ctrl+K", "⌥⇧D", "Alt+Shift+D", "⌘Enter", "↑"]);
 });

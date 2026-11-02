@@ -15,6 +15,7 @@ import { deviceSetting, setting } from "@destack/setting/object";
 import { changed } from "../test/dom.ts";
 import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
+import { CommandRegistry } from "../palette/registry.ts";
 
 /** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
@@ -139,6 +140,7 @@ test("show a query's rows after loading, and re-render only the row a predicted 
             {
                 package: import.meta.destack.package,
                 mount: {
+                    commands: new CommandRegistry(),
                     context: CONTEXT,
                     clients: new Map([[BOARD_ID, client]]),
                     packages: new Map(),
@@ -181,6 +183,7 @@ test("fail access to an object type the view's space does not hold into the erro
             {
                 package: import.meta.destack.package,
                 mount: {
+                    commands: new CommandRegistry(),
                     context: CONTEXT,
                     clients: new Map([[BOARD_ID, client]]),
                     packages: new Map(),
@@ -244,6 +247,7 @@ test("show a setting's value for the page's person, and the device's value once 
         renderView(() => <EditorMode />, element, {
             package: import.meta.destack.package,
             mount: {
+                commands: new CommandRegistry(),
                 context: {
                     ...CONTEXT,
                     space: "space-01996ab0-0000-7000-8000-000000000005",
@@ -300,6 +304,7 @@ test("refuse following a space's setting as the page's person into the error bou
             {
                 package: import.meta.destack.package,
                 mount: {
+                    commands: new CommandRegistry(),
                     context: CONTEXT,
                     clients: new Map([[BOARD_ID, client]]),
                     packages: new Map(),

@@ -1,2 +1,1 @@
 export * from "./view.ts";
-export * from "./command.ts";

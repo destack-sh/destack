@@ -2,9 +2,8 @@ import { InstallationOrigin } from "@destack/account/address";
 import { DeclarationName, PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { CommandReference } from "../declare/command.ts";
+import { Shortcut, CommandReference } from "@destack/object";
 import { OBJECT_PARAMETER, OPEN_PATH, TARGET_PARAMETER } from "../declare/context.ts";
-import { Accelerator } from "./accelerator.ts";
 
 /** How strongly a title matching the query from its start ranks. */
 const MATCHES = { start: 3, word: 2, inside: 1 } as const;
@@ -36,8 +35,10 @@ export const PaletteEntry = schema.discriminatedUnion("kind", [
         packageId: PackageId,
         /** The command's name in its package. */
         name: DeclarationName,
-        /** The title the palette shows. */
+        /** The title the palette shows, in the person's language. */
         title: schema.string().min(1),
+        /** The group the palette shows the title under, in the person's language. */
+        category: schema.string().min(1).nullable(),
         /** The package declaring the object type it calls. */
         typePackageId: PackageId,
         /** The object type it calls. */
@@ -45,7 +46,21 @@ export const PaletteEntry = schema.discriminatedUnion("kind", [
         /** The method it calls. */
         method: schema.string().min(1),
         /** The key combination that runs it. */
-        keybinding: Accelerator.nullable(),
+        keybinding: Shortcut.nullable(),
+    }),
+    schema.object({
+        /** A command the view under the palette registers, running in its page. */
+        kind: schema.literal("registered"),
+        /** The package serving the view. */
+        packageId: PackageId,
+        /** The command's name in the view. */
+        name: DeclarationName,
+        /** The title the palette shows, in the person's language. */
+        title: schema.string().min(1),
+        /** The group the palette shows the title under, in the person's language. */
+        category: schema.string().min(1).nullable(),
+        /** The key combination that runs it. */
+        keybinding: Shortcut.nullable(),
     }),
     schema.object({
         /** A view opening in a window. */
@@ -94,43 +109,55 @@ export const PaletteEntry = schema.discriminatedUnion("kind", [
 export type PaletteEntry = schema.Infer<typeof PaletteEntry>;
 
 /** What the window the palette opens over shows. */
-export const PaletteFocus = Object.assign(
-    schema.object({
-        /** The space of the window's view or object. */
-        space: SpaceId.exactOptional(),
-        /** The installation of the window's view, by name. */
-        installation: DeclarationName.exactOptional(),
-        /** The object the window presents. */
-        object: ObjectReference.exactOptional(),
-    }),
-    {
-        /** Read what a window shows in a space from its location under a domain. */
-        of(location: string | null, space: Identifier<"space">, domain: string): PaletteFocus {
-            // read nothing from a window showing no location yet
-            if (location === null) {
-                return {};
-            }
-            const url = new URL(location);
+const paletteFocus = schema.object({
+    /** The space of the window's view or object. */
+    space: SpaceId.exactOptional(),
+    /** The installation of the window's view, by name. */
+    installation: DeclarationName.exactOptional(),
+    /** The objects the window acts on: its page's selection, else the object it presents. */
+    objects: schema.array(ObjectReference),
+});
 
-            // read the installation of its origin
-            const origin = InstallationOrigin.parse(url.hostname, domain);
-
-            // read the object of an opening or the one a view opens for
-            const parameter = url.pathname === OPEN_PATH ? OBJECT_PARAMETER : TARGET_PARAMETER;
-            const object = readReference(url.searchParams.get(parameter));
-
-            return {
-                space,
-                ...(origin === undefined
-                    ? {}
-                    : { installation: DeclarationName.parse(origin.name) }),
-                ...(object === undefined ? {} : { object }),
-            };
-        },
-    },
-);
 /** What the window the palette opens over shows. */
-export type PaletteFocus = schema.Infer<typeof PaletteFocus>;
+export const PaletteFocus = Object.assign(paletteFocus, {
+    /** Read what a window shows in a space from its location under a domain. */
+    of(
+        location: string | null,
+        space: Identifier<"space">,
+        domain: string,
+    ): schema.Infer<typeof paletteFocus> {
+        // read nothing from a window showing no location yet
+        if (location === null) {
+            return { objects: [] };
+        }
+        const url = new URL(location);
+
+        // read the installation of its origin
+        const origin = InstallationOrigin.parse(url.hostname, domain);
+
+        // read the object of an opening or the one a view opens for
+        const parameter = url.pathname === OPEN_PATH ? OBJECT_PARAMETER : TARGET_PARAMETER;
+        const object = readReference(url.searchParams.get(parameter));
+
+        return {
+            space,
+            ...(origin === undefined ? {} : { installation: DeclarationName.parse(origin.name) }),
+            objects: object === undefined ? [] : [object],
+        };
+    },
+
+    /** List the identifiers of the focused objects a command acts on, those of its type. */
+    ids(focus: schema.Infer<typeof paletteFocus>, command: CommandEntry): string[] {
+        return focus.objects
+            .filter(
+                (object) =>
+                    object.packageId === command.typePackageId && object.type === command.type,
+            )
+            .map((object) => object.id);
+    },
+});
+/** What the window the palette opens over shows. */
+export type PaletteFocus = schema.Infer<typeof paletteFocus>;
 
 /** The palette's ranking of entries, their sources and their keybindings. */
 export const Palette = {
@@ -150,12 +177,13 @@ export const Palette = {
             .map(({ entry }) => entry);
     },
 
-    /** Score how an entry's title or installation matches a query. */
+    /** Score how an entry's title, installation or category matches a query. */
     match(entry: PaletteEntry, query: string): number {
         // match every entry for an empty query
         const wanted = query.trim().toLowerCase();
         const installation = "installation" in entry ? entry.installation : "";
-        const text = `${entry.title} ${installation}`.toLowerCase();
+        const category = "category" in entry ? (entry.category ?? "") : "";
+        const text = `${entry.title} ${installation} ${category}`.toLowerCase();
         if (wanted === "") {
             return MATCHES.inside;
         }
@@ -178,13 +206,8 @@ export const Palette = {
         const isInstallation =
             isSpace && "installation" in entry && entry.installation === focus.installation;
 
-        // read the object a command acts on
-        const { object } = focus;
-        const isObject =
-            object !== undefined &&
-            entry.kind === "command" &&
-            object.packageId === entry.typePackageId &&
-            object.type === entry.type;
+        // read whether a command acts on the focused objects' type
+        const isObject = entry.kind === "command" && PaletteFocus.ids(focus, entry).length > 0;
 
         return (
             (isSpace ? BOOSTS.space : 0) +
@@ -193,9 +216,9 @@ export const Palette = {
         );
     },
 
-    /** Read the space an entry belongs to, absent for a window of this computer. */
+    /** Read the space an entry belongs to, absent for a window or the page's own commands. */
     space(entry: PaletteEntry): Identifier<"space"> | undefined {
-        if (entry.kind === "window") {
+        if (entry.kind === "window" || entry.kind === "registered") {
             return undefined;
         } else if (entry.kind === "space") {
             return entry.id;
@@ -208,7 +231,7 @@ export const Palette = {
     source(entry: PaletteEntry): PaletteSource {
         const sources = { window: "windows", space: "spaces", object: "recent" } as const;
 
-        return entry.kind === "command" || entry.kind === "view"
+        return entry.kind === "command" || entry.kind === "view" || entry.kind === "registered"
             ? entry.packageId
             : sources[entry.kind];
     },
@@ -224,9 +247,9 @@ export const Palette = {
     /** Read the key combination that runs a command. */
     keybinding(
         reference: CommandReference,
-        declared: Accelerator | undefined,
-        overrides: Readonly<Record<string, Accelerator | null>>,
-    ): Accelerator | null {
+        declared: Shortcut | undefined,
+        overrides: Readonly<Record<string, Shortcut | null>>,
+    ): Shortcut | null {
         const key = CommandReference.format(reference);
 
         return key in overrides ? (overrides[key] ?? null) : (declared ?? null);
@@ -235,6 +258,9 @@ export const Palette = {
 
 /** A command the palette offers. */
 export type CommandEntry = Extract<PaletteEntry, { readonly kind: "command" }>;
+
+/** A command of the view under the palette, which the palette offers. */
+export type RegisteredEntry = Extract<PaletteEntry, { readonly kind: "registered" }>;
 
 /** A view the palette offers. */
 export type ViewEntry = Extract<PaletteEntry, { readonly kind: "view" }>;

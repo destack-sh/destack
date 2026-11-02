@@ -20,6 +20,7 @@ import { useLocale } from "./locale.ts";
 import type { Catalog } from "@destack/locale";
 import { changed } from "../test/dom.ts";
 import type {} from "@destack/package/import-meta";
+import { CommandRegistry } from "../palette/registry.ts";
 
 /** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
@@ -66,6 +67,7 @@ function readText(locale: LocaleTag, environment: BrowserEnvironment): string {
     const dispose = renderView(Status, element, {
         package: import.meta.destack.package,
         mount: {
+            commands: new CommandRegistry(),
             context: CONTEXT,
             clients: new Map(),
             packages: new Map(),
@@ -153,6 +155,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
     const dispose = renderView(Count, element, {
         package: import.meta.destack.package,
         mount: {
+            commands: new CommandRegistry(),
             context: CONTEXT,
             clients: new Map(),
             packages,
@@ -183,6 +186,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
         {
             package: import.meta.destack.package,
             mount: {
+                commands: new CommandRegistry(),
                 context: CONTEXT,
                 clients: new Map(),
                 packages: new Map(),
@@ -214,6 +218,7 @@ test("show the time on the view's clock, moving on each second until the view go
     const dispose = renderView(Now, element, {
         package: import.meta.destack.package,
         mount: {
+            commands: new CommandRegistry(),
             context: CONTEXT,
             clients: new Map(),
             packages: new Map(),

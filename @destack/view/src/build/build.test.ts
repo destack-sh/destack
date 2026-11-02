@@ -3,6 +3,7 @@ import { expect, refusal, test } from "@destack/test";
 import { fileURLToPath } from "node:url";
 import { Workspace, CompilerPool } from "@destack/build";
 import { testStore, testSimulation } from "@destack/build/test";
+import { Command } from "@destack/object";
 import { Package, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
 import { destackTheme } from "@destack/theme/declare";
@@ -93,6 +94,11 @@ test("generate the module mounting a view with its package's theme and commands,
         name: "@destack/view",
         version: "2026.9.0",
     });
+    const objects = Package.parse({
+        id: Command.kind.kindPackageId,
+        name: "@destack/object",
+        version: "2026.9.0",
+    });
     const view: DeclarationDescription = {
         name: "main",
         kind: "view",
@@ -115,15 +121,17 @@ test("generate the module mounting a view with its package's theme and commands,
         ...view,
         name,
         kind: declaration,
-        package: declaration === "theme" ? destackTheme.package : view.package,
+        package: declaration === "theme" ? destackTheme.package : objects,
         symbol: { package: declaring, symbol: { module: "src/view.ts", name } },
         description,
     });
-    const command = (name: string, keybinding?: string) => ({
-        title: name,
+    const command = (name: string, declaring: Package, keybinding?: string) => ({
+        package: declaring,
+        title: { package: declaring.id, id: name, source: name, values: {} },
         packageId: owner.id,
         type: "note",
         method: name,
+        input: {},
         ...(keybinding === undefined ? {} : { keybinding }),
     });
     const ocean = { name: "ocean", package: owner };
@@ -137,9 +145,9 @@ test("generate the module mounting a view with its package's theme and commands,
         declarations: [
             view,
             declared("theme", owner, "ocean", ocean),
-            declared("command", owner, "complete", command("complete", "mod+enter")),
-            declared("command", owner, "archive", command("archive")),
-            declared("command", kind, "pin", command("pin")),
+            declared("command", owner, "complete", command("complete", owner, "mod+enter")),
+            declared("command", owner, "archive", command("archive", owner)),
+            declared("command", kind, "pin", command("pin", kind)),
         ],
         locate: () => ({ file: "/package/src/view.ts", export: "main" }),
         entry: (entrypoint, module) => entries.set(entrypoint, module),

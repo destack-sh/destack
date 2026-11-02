@@ -63,6 +63,8 @@ export const endpoints = {
 };
 ```
 
+## Islands
+
 An island takes JSON properties and children, which keep their server HTML.
 
 ```tsx
@@ -72,6 +74,8 @@ export default function Disclosure(properties: { label: string; children?: JSX.E
     return <section><button onClick={() => setIsOpen(!isOpen())}>{properties.label}</button>{properties.children}</section>;
 }
 ```
+
+## Development server
 
 `DevelopmentServer` serves a workspace's static view on Vite, rendering each page and endpoint on request.
 
@@ -137,20 +141,21 @@ await mount(
 // catalogs load by package from the build: /locale/de.json, /locale/<package>/de.json
 ```
 
-## Commands
+## Registered commands
 
-`defineCommand` declares a method call that the shell offers in menus, shortcuts and the terminal.
+`registerCommand` registers a command of the running view while its component is mounted, which runs in its page on its keys and from the palette framed over it.
 
 ```ts
-import { defineCommand } from "@destack/view/declare";
+import { registerCommand } from "@destack/view";
 
-export const archive = defineCommand({
-    name: "archive-note",
-    title: "Archive note",
-    object: note,
-    method: "archive",
-    keybinding: "mod+shift+a",
+registerCommand({ name: "copy-link", title: t`Copy Link`, keybinding: "mod+shift+c", run: () => copy(link) });
+registerCommand({
+    name: "go-to-line",
+    title: t`Go to Line…`,
+    input: schema.object({ line: schema.number().int().min(1) }), // the palette asks for it
+    run: ({ line }) => editor.reveal(line),
 });
+// the palette asks the page over postMessage: commands.list → commands.listed, command.run { name, input } → runs here
 ```
 
 ## Palette ranking
@@ -167,14 +172,15 @@ const isOffered = Palette.isOffered(entry, { spaces: false }); // false for a sp
 
 ## Shortcuts
 
-`Accelerator` reads keybindings such as `mod+k`, `mod` being Command on Apple platforms and Control elsewhere.
+`Shortcut` reads keybindings such as `mod+k`, `mod` being Command on Apple platforms and Control elsewhere.
 
 ```ts
-import { Accelerator, isCommandPlatform } from "@destack/view/palette";
+import { Shortcut } from "@destack/object";
+import { isCommandPlatform } from "@destack/view/palette";
 import { createShortcut } from "@destack/view/primitives/keyboard";
 
-Accelerator.format("mod+shift+k", isCommandPlatform()); // "⌘⇧K" or "Ctrl+Shift+K"
-createShortcut(Accelerator.keys("mod+k", isCommandPlatform()), openPalette);
+Shortcut.format("mod+shift+k", isCommandPlatform()); // "⌘⇧K" or "Ctrl+Shift+K"
+createShortcut(Shortcut.keys("mod+k", isCommandPlatform()), openPalette);
 ```
 
 ## Context
