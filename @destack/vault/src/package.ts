@@ -7,7 +7,7 @@ export default definePackage({
     objects: { vault, secret, version: secretVersion },
     errors: VaultError,
     permissions: {
-        installation: {
+        space: {
             // provision the space's vaults as their provider, observing each one ready
             space: [vault.permission("control")],
         },
