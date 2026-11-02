@@ -384,7 +384,7 @@ export class TestRelay implements AsyncDisposable {
     }
 
     /** Wait until the root's replicas reach the universe's log as of now. */
-    async untilCaughtUp(signal: AbortSignal): Promise<boolean> {
+    async waitCaughtUp(signal: AbortSignal): Promise<boolean> {
         // wait until the root's replicas of the universe reach its head
         const position = await this.#universe.storage.database.log.position();
         const root = await present(this.#memories.get(undefined), "the root's memory");

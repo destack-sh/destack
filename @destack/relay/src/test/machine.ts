@@ -173,9 +173,9 @@ export class TestTunnelMachine implements AsyncDisposable {
     }
 
     /** Run the simulation until a condition holds, within a relay token's lifetime of its time. */
-    async until(condition: () => Promise<boolean> | boolean): Promise<void> {
+    async waitUntil(condition: () => Promise<boolean> | boolean): Promise<void> {
         const deadline = this.simulation.clock.now() + TUNNEL_TOKEN_LIFETIME_MILLISECONDS;
-        await this.simulation.until(condition, deadline);
+        await this.simulation.waitUntil(condition, deadline);
     }
 
     /** Open a residency's cloud machine once, which hosts its relays and serves its spaces. */
@@ -207,7 +207,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         this.#started.use(relay);
 
         // wait until its replicas reached the universe
-        await this.until(() => relay.isCaughtUp());
+        await this.waitUntil(() => relay.isCaughtUp());
 
         return relay;
     }
@@ -218,8 +218,8 @@ export class TestTunnelMachine implements AsyncDisposable {
     }
 
     /** Wait until the relays' replicas reached the universe as of now. */
-    async untilCaughtUp(...relays: readonly TestRelay[]): Promise<void> {
-        await this.until(async () => {
+    async waitCaughtUp(...relays: readonly TestRelay[]): Promise<void> {
+        await this.waitUntil(async () => {
             const caughtUp = await Promise.all(relays.map((relay) => relay.isCaughtUp()));
 
             return caughtUp.every(Boolean);
@@ -277,7 +277,7 @@ export class TestTunnelMachine implements AsyncDisposable {
 
         // return once the tunnel opened, the computer handled its first renewal, the relay follows it and published the tunnel
         await Promise.all([client.opened(), first.promise]);
-        await this.until(async () => {
+        await this.waitUntil(async () => {
             const published = await this.endpoint();
 
             return (

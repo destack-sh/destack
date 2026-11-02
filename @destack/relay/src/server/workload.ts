@@ -123,7 +123,7 @@ async function serveRoot(
 
                 return synced.every(Boolean);
             };
-            await store.database.log.until(isSynced, context.signal);
+            await store.database.log.waitUntil(isSynced, context.signal);
         },
     });
 
@@ -161,7 +161,7 @@ async function servePartition(
             // wait until the replica of the universe's identities synced
             const isSynced = () =>
                 IDENTITY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id });
-            await store.database.log.until(isSynced, context.signal);
+            await store.database.log.waitUntil(isSynced, context.signal);
         },
         standing: async () => {
             // read whether the machine stands at the root

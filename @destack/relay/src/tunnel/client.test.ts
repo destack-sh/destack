@@ -104,7 +104,7 @@ test("dial again after the issuer grants no token, warning of each failed dial",
     });
 
     // warn of two failed dials and stop cleanly
-    await simulation.until(() => telemetry.records().length === 4);
+    await simulation.waitUntil(() => telemetry.records().length === 4);
     await client.close();
     const failed = [
         warning(`dialing ${NOWHERE} failed: TypeError: the issuer is unreachable`),
@@ -130,9 +130,9 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
     });
 
     // dial again after the unanswered liveness probe drops the socket, and close while connected to a peer that never answers the close
-    await simulation.until(() => relay.connections.length >= 2);
+    await simulation.waitUntil(() => relay.connections.length >= 2);
     await client.close();
-    await simulation.until(() => relay.connections[1]?.closed !== undefined);
+    await simulation.waitUntil(() => relay.connections[1]?.closed !== undefined);
 
     // offer the token, ping and probe before dropping the first connection, and ping on the second before the close
     const ping = new Frame(FrameType.ping, FrameFlag.syn, 0).encode();

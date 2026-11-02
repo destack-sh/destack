@@ -137,8 +137,8 @@ test("tell a machine its name as its tunnel opens, and again at once after its r
 
     // call the machine by its new name once the relay tells it
     const renamed = "renamed--acme.destack.computer";
-    await computer.until(() => computer.names.at(-1) === renamed);
-    await computer.untilCaughtUp(relay);
+    await computer.waitUntil(() => computer.names.at(-1) === renamed);
+    await computer.waitCaughtUp(relay);
     expect([
         computer.names,
         await computer.request(relay, renamed, "/status"),
@@ -169,7 +169,7 @@ test("refuse a forwarded request without its host, and one for a name another re
     const relay = await computer.relay();
     await computer.cloud("eu", "cloud", EU_CLOUD);
     await computer.place("site");
-    await computer.untilCaughtUp(relay);
+    await computer.waitCaughtUp(relay);
 
     // forward to the relay's own host with a Forwarded header lacking the host, then naming a cloud space
     const host = new URL(relay.origin).host;
@@ -317,7 +317,7 @@ test("leave a machine revoked elsewhere alone, starting no tunnel partition for 
         id: other.id,
         requestId: RequestId.create(computer.environment),
     });
-    await computer.untilCaughtUp(relay);
+    await computer.waitCaughtUp(relay);
 
     // run the root and the computer's partition alone
     expect(relay.partitions).toEqual([undefined, Tunnel.partition(computer.machine.id)]);
@@ -371,7 +371,7 @@ test("restore the route when the machine reconnects after its relay restarts", a
     // restart the relay at the same origin, and wait for the machine to dial it again
     await computer.stop(first);
     const second = await computer.relay({ installation: first.installation });
-    await computer.until(
+    await computer.waitUntil(
         async () =>
             (await computer.request(second, computer.notes, "/again")) === "hello GET /again",
     );
@@ -399,7 +399,7 @@ test("forward a name a cloud machine serves to the machine's endpoint, preservin
     const relay = await computer.relay();
     await computer.cloud("eu", "cloud", EU_CLOUD);
     await computer.place("site");
-    await computer.untilCaughtUp(relay);
+    await computer.waitCaughtUp(relay);
 
     const name = "notes--site--acme.destack.space";
     expect(await computer.request(relay, name, "/")).toBe(`cloud host=${name};proto=http`);
@@ -411,7 +411,7 @@ test("route the name of a space whose account lives in another residency through
     const relay = await computer.relay();
     await computer.cloud("us", "us", US_CLOUD);
     await computer.place("site");
-    await computer.untilCaughtUp(relay);
+    await computer.waitCaughtUp(relay);
 
     const name = "notes--site--acme.destack.space";
     expect(await computer.request(relay, name, "/")).toBe(`us host=${name};proto=http`);
@@ -447,7 +447,7 @@ test("route a request from an eu relay to a machine's name in the us residency t
     );
     await computer.simulation.idle();
     const lapsed = await computer.request(eu, name, "/status");
-    await computer.until(() => computer.tunnels().length === 2);
+    await computer.waitUntil(() => computer.tunnels().length === 2);
     expect([forwarded, lapsed, computer.received, computer.tunnels()]).toEqual([
         "hello GET /status",
         disconnected(computer),
@@ -469,7 +469,7 @@ test("follow a space's rename", async () => {
         requestId: RequestId.create(computer.environment),
         name: "renamed",
     });
-    await computer.untilCaughtUp(relay);
+    await computer.waitCaughtUp(relay);
 
     // refuse the old name and call the space by the new one
     const renamed = "notes--renamed--acme.destack.space";
@@ -496,7 +496,7 @@ test("resolve a handle from the relay's replica after the account renames it", a
         revision: current.revision,
         handle: "acme-renamed",
     });
-    await computer.untilCaughtUp(relay);
+    await computer.waitCaughtUp(relay);
 
     // refuse the old handle and call the space by the new one
     const renamed = "notes--work--acme-renamed.destack.space";
@@ -520,8 +520,8 @@ test("end a revoked machine's tunnel at once, refuse its names, and emit the ope
         id: computer.machine.id,
         requestId: RequestId.create(computer.environment),
     });
-    await computer.until(() => computer.tunnels().length === 2);
-    await computer.untilCaughtUp(relay);
+    await computer.waitUntil(() => computer.tunnels().length === 2);
+    await computer.waitCaughtUp(relay);
 
     // refuse its name and its space's name, recording why its tunnel ended
     expect([
@@ -555,10 +555,10 @@ test("end a tunnel at once as its relay restarts, when its machine was revoked m
     void restarting.then(() => {
         isRestarted = true;
     });
-    await computer.until(() => isRestarted);
+    await computer.waitUntil(() => isRestarted);
 
     // end the tunnel as its partition starts again
-    await computer.until(() => computer.tunnels().length === 2);
+    await computer.waitUntil(() => computer.tunnels().length === 2);
     expect([before, computer.tunnels()]).toEqual([
         "hello GET /",
         [event(computer, "tunnel.open"), event(computer, "tunnel.close", "machine-revoked")],
@@ -586,7 +586,7 @@ test("end a machine's tunnel once its last key is revoked, emitting why", async 
     }
 
     // end the tunnel at once, emitting the revoked key as the reason
-    await computer.until(() => computer.tunnels().length === 2);
+    await computer.waitUntil(() => computer.tunnels().length === 2);
     expect([
         before,
         await computer.request(relay, computer.notes, "/"),
@@ -611,11 +611,11 @@ test("end a disabled machine's tunnel, and route to it again once it is enabled 
         ...target,
         requestId: RequestId.create(computer.environment),
     });
-    await computer.until(() => computer.tunnels().length === 2);
+    await computer.waitUntil(() => computer.tunnels().length === 2);
 
     // enable it again, and route to it once it reconnects through its tunnel
     await accounts.machine.enable({ ...target, requestId: RequestId.create(computer.environment) });
-    await computer.until(
+    await computer.waitUntil(
         async () => (await computer.request(relay, computer.notes, "/")) === "hello GET /",
     );
     expect([before, computer.tunnels()]).toEqual([
@@ -647,11 +647,11 @@ test("end a machine's socket once its token lapses, and route to the machine aga
         computer.clock.now() + TUNNEL_TOKEN_LIFETIME_MILLISECONDS - computer.simulation.clock.now(),
     );
     await computer.simulation.idle();
-    await computer.until(() => computer.tunnels().length === 2);
+    await computer.waitUntil(() => computer.tunnels().length === 2);
 
     // route again once the machine reconnects with a new token
     isRenewable = true;
-    await computer.until(
+    await computer.waitUntil(
         async () => (await computer.request(relay, computer.notes, "/")) === "hello GET /",
     );
     expect([before, computer.tunnels()]).toEqual([
@@ -702,13 +702,13 @@ test("follow a cloud machine's new endpoint", async () => {
     const relay = await computer.relay();
     await computer.cloud("eu", "first", EU_CLOUD);
     await computer.place("site");
-    await computer.untilCaughtUp(relay);
+    await computer.waitCaughtUp(relay);
     const name = "notes--site--acme.destack.space";
     const before = await computer.request(relay, name, "/");
 
     // publish the cloud machine's new endpoint
     await computer.cloud("eu", "second", "https://second.machine.test/");
-    await computer.untilCaughtUp(relay);
+    await computer.waitCaughtUp(relay);
     expect([before, await computer.request(relay, name, "/")]).toEqual([
         `first host=${name};proto=http`,
         `second host=${name};proto=http`,
