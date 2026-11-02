@@ -38,7 +38,7 @@
         "@destack/test": "workspace:*",
         "cjs-module-lexer": "2.3.0",
         "magic-string": "1.4.1",
-        "rolldown": "1.2.9",
+        "rolldown": "1.2.16",
         "typescript": "7.0.2",
         "vite": "8.3.0"
     },
