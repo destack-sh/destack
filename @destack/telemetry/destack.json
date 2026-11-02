@@ -12,6 +12,35 @@
         },
         "./bun": {
             "runtimes": ["bun"]
+        },
+        "./meter": {
+            "runtimes": ["browser", "bun", "workerd"]
+        },
+        "./declare": {
+            "runtimes": ["browser", "bun", "workerd"]
+        },
+        "./inspect": {
+            "runtimes": ["bun"]
+        },
+        "./error": {
+            "runtimes": ["browser", "bun", "workerd"]
+        }
+    },
+    "declarations": {
+        "defineMeter": {
+            "describes": [
+                {
+                    "kind": "meter",
+                    "function": "./inspect#describeMeter",
+                    "compare": "./inspect#compareMeter",
+                    "vocabulary": "./inspect#meterVocabulary"
+                }
+            ]
+        }
+    },
+    "stamps": {
+        "defineMeter": {
+            "module": 1
         }
     },
     "check": {

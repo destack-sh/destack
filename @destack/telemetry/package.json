@@ -14,6 +14,10 @@
         "./browser": "./src/browser/index.ts",
         "./worker": "./src/worker/index.ts",
         "./otlp": "./src/otlp/index.ts",
+        "./meter": "./src/meter/index.ts",
+        "./declare": "./src/declare/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./error": "./src/error/index.ts",
         "./test": "./src/test/index.ts"
     },
     "scripts": {
@@ -24,6 +28,7 @@
         "@destack/environment": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@opentelemetry/api": "1.10.0",
         "@opentelemetry/sdk-trace": "3.0.0",
         "@opentelemetry/sdk-metrics": "3.0.0",
