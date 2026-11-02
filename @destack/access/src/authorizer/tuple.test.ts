@@ -287,25 +287,33 @@ test("decide in memory exactly as the permission queries do, for objects and the
         );
 
         // allow through grants what the queries allow, for each caller at once, permission and authorizer
+        const rows = await database
+            .select()
+            .from(item)
+            .where(eq(item.scope, "personal"))
+            .orderBy(asc(item.id));
         for (const authorizer of authorizers) {
             const counts = await Promise.all(
                 contexts.map(async (context) => {
                     let count = 0;
                     const access = await authorizer.resolve(snapshot, "personal", context);
-                    const rows = await database
-                        .select()
-                        .from(item)
-                        .where(eq(item.scope, "personal"))
-                        .orderBy(asc(item.id));
                     const reader = authorizer.reader(snapshot, access.scopes);
-                    for (const permission of permissions) {
-                        const queried = (
-                            await database
-                                .select({ id: item.id })
-                                .from(item)
-                                .where(authorizer.where(permission, access))
-                                .orderBy(asc(item.id))
-                        ).map((row) => row.id);
+
+                    // query the rows every permission allows in one statement, a flag column per permission
+                    const flags = await database.execute(
+                        sql`SELECT ${item.id} AS id, ${sql.join(
+                            permissions.map(
+                                (permission, index) =>
+                                    sql`CASE WHEN ${authorizer.where(permission, access)} THEN 1 ELSE 0 END AS ${sql.identifier(`p${index}`)}`,
+                            ),
+                            sql.raw(", "),
+                        )} FROM ${item} WHERE ${eq(item.scope, "personal")} ORDER BY ${item.id}`,
+                        schema.looseObject({ id: schema.string() }),
+                    );
+                    for (const [index, permission] of permissions.entries()) {
+                        const queried = flags
+                            .filter((flagged) => Number(flagged[`p${index}`]) === 1)
+                            .map((flagged) => flagged.id);
                         const { permitted } = await authorizer.checkRows(
                             snapshot,
                             permission,

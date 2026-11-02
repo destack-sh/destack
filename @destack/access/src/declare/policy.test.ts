@@ -44,6 +44,31 @@ test("prefer a policy representing a principal and refuse two policies for one t
     );
 });
 
+/** Declare a document its viewers read, as each build loading it does. */
+function viewedDocument(): Policy {
+    return new Policy(module1.package, {
+        name: "document",
+        relations: { viewer: { subjects: [principal.user] } },
+        permissions: { read: relation("viewer") },
+    });
+}
+
+test("take equal copies of a policy as one type, as each build loads its own, and refuse a differing one", () => {
+    // declare one document type twice, as two builds load it, and once with other rules
+    const [document, copy] = [viewedDocument(), viewedDocument()];
+    const differing = new Policy(module1.package, { name: "document", permissions: {} });
+
+    // compare by content, and keep one policy for both copies
+    const authorizer = new Authorizer([document, copy]);
+    expect({
+        isSame: [document.same(copy), document.same(differing)],
+        policy: authorizer.policy({ packageId: module1.package.id, type: "document" }) === document,
+    }).toEqual({ isSame: [true, false], policy: true });
+    expect(() => new Authorizer([document, differing])).toThrow(
+        `duplicate object type: ${JSON.stringify([module1.package.id, "document"])}`,
+    );
+});
+
 test("grant relations through the policy's grant permission unless they declare another or none", () => {
     // declare a shared folder with system-related owners and root ownership
     const folder = new Policy(module1.package, {

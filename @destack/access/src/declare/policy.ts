@@ -1,4 +1,4 @@
-import { JsonValue, schema } from "@destack/schema";
+import { canonicalize, JsonValue, schema } from "@destack/schema";
 import { PackageId, type Package } from "@destack/package";
 import { ObjectReference, AccessName, type ObjectTypeReference, type Subject } from "@destack/sync";
 import { Condition, type Predicate } from "@destack/db";
@@ -73,6 +73,15 @@ export class Policy<
         // collect the names of the attributes conditions read
         this.#attributes = new Set(Object.keys(this.definition.attributes));
         this.#context = new Set(Object.keys(this.definition.context));
+    }
+
+    /** Decide whether another policy declares the same type, such as one copy each build loads. */
+    same(other: Policy): boolean {
+        return (
+            other === this ||
+            (other.package.version === this.package.version &&
+                canonicalize(other.definition) === canonicalize(this.definition))
+        );
     }
 
     /** Resolve a condition expression over its read attributes: the object's or the request's. */

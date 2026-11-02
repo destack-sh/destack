@@ -45,11 +45,33 @@ import { TestAccess } from "../test/access.ts";
 import { homePositions, openDatabase, openFixture, userSubject } from "../test/database.ts";
 import { Identifier, type JsonObject, nth } from "@destack/schema";
 
-/** The seeds of the generated worlds the replica decides like their home. */
-const SEEDS = Array.from({ length: 12 }, (_, index) => index + 1);
-
-/** The people of a generated world. */
+/** The people of the fixed world, each a machine of both regions and a member. */
 const PEOPLE = ["ada", "bea", "cyd", "dov"].map((id) => userSubject(id));
+
+/** Each role a person may have in a region: none, its machine or its home. */
+const ROLES = [undefined, "machine", "home"] as const;
+
+/** Each set of regions the accounts may reside in: none, either or both. */
+const RESIDENCES: readonly (readonly number[])[] = [[], [0], [1], [0, 1]];
+
+/** One person for each role in each region and each membership. */
+const MATRIX: readonly WorldPerson[] = ROLES.flatMap((first) =>
+    ROLES.flatMap((second) =>
+        [false, true].map((isMember) => ({
+            subject: userSubject(
+                `${first ?? "none"}-${second ?? "none"}-${isMember ? "member" : "guest"}`,
+            ),
+            roles: [first, second],
+            isMember,
+        })),
+    ),
+);
+
+/** The fixed world: the accounts reside in both regions, as its people serve. */
+const FIXED: WorldSpec = {
+    residence: [0, 1],
+    people: PEOPLE.map((subject) => ({ subject, roles: ["machine", "machine"], isMember: true })),
+};
 
 /** The space a generated world's replica is the home of, in the first account. */
 const SPACE = "personal";
@@ -448,27 +470,32 @@ async function replicated(database: DatabaseConnection) {
     };
 }
 
-test("decide who serves the account above a space in its replica exactly as at the home, across generated regions, residents and members", async () => {
-    // decide every person in each generated world at the home and in the space's replica
-    const decisions: [boolean, boolean][] = [];
-    for (const seed of SEEDS) {
-        const world = await openWorld(generator(seed));
-        for (const person of PEOPLE) {
-            decisions.push([await serves(world.home, person), await serves(world.app, person)]);
+test("decide who serves the account above a space at the home and in its replica as a region's machine or home it resides in, for every role, residence and membership", async () => {
+    // decide every person of the matrix in each residence at the home and in the space's replica
+    const refuted: unknown[] = [];
+    for (const residence of RESIDENCES) {
+        const world = await openWorld({ residence, people: MATRIX });
+        for (const person of MATRIX) {
+            const expected = person.roles.some(
+                (role, index) => role !== undefined && residence.includes(index),
+            );
+            const decided = [
+                await serves(world.home, person.subject),
+                await serves(world.app, person.subject),
+            ];
+            if (decided.some((each) => each !== expected)) {
+                refuted.push({ residence, person: person.subject.id, expected, decided });
+            }
         }
     }
 
-    // decide alike in every world, allowing some people and refusing others
-    expect([
-        decisions.filter(([home, replica]) => home !== replica),
-        decisions.some(([home]) => home),
-        decisions.some(([home]) => !home),
-    ]).toEqual([[], true, true]);
+    // decide by the rule everywhere, at the home and in the replica alike
+    expect(refuted).toEqual([]);
 });
 
 test("revoke a region's server from the account it resides in at once in the space's replica, through the included relationship", async () => {
     // let ada serve the first account as the server of the region it resides in
-    const world = await openWorld(() => 0);
+    const world = await openWorld(FIXED);
     const ada = nth(PEOPLE, 0);
     const before = await serves(world.app, ada);
 
@@ -491,68 +518,65 @@ test("revoke a region's server from the account it resides in at once in the spa
 
 test("replicate the universe's relationships of a space's chain alone, beside thousands of other regions and accounts", async () => {
     // store 2,000 other regions with a server and 2,000 other accounts with a member at the home
-    const world = await openWorld(
-        () => 0,
-        async (fixture) => {
-            const now = TEST_START;
-            const others = Array.from({ length: 2000 }, (_, index) => index);
-            await fixture.database
-                .insert(regionTable)
-                .values(others.map((index) => ({ id: `other-${index}` })));
-            const rows = others.flatMap((index) => [
-                Relationship.encode({
-                    id: Identifier.create("relationship", fixture.environment),
-                    object: region.reference(Scope.universe.id, `other-${index}`),
-                    relation: "machine",
-                    subject: userSubject(`server-${index}`),
-                    createdAt: now,
-                    expiresAt: null,
-                }),
-                Relationship.encode({
-                    id: Identifier.create("relationship", fixture.environment),
-                    object: account.reference(Scope.universe.id, `account-other-${index}`),
-                    relation: "member",
-                    subject: userSubject(`member-${index}`),
-                    createdAt: now,
-                    expiresAt: null,
-                }),
-            ]);
+    const world = await openWorld(FIXED, async (fixture) => {
+        const now = TEST_START;
+        const others = Array.from({ length: 2000 }, (_, index) => index);
+        await fixture.database
+            .insert(regionTable)
+            .values(others.map((index) => ({ id: `other-${index}` })));
+        const rows = others.flatMap((index) => [
+            Relationship.encode({
+                id: Identifier.create("relationship", fixture.environment),
+                object: region.reference(Scope.universe.id, `other-${index}`),
+                relation: "machine",
+                subject: userSubject(`server-${index}`),
+                createdAt: now,
+                expiresAt: null,
+            }),
+            Relationship.encode({
+                id: Identifier.create("relationship", fixture.environment),
+                object: account.reference(Scope.universe.id, `account-other-${index}`),
+                relation: "member",
+                subject: userSubject(`member-${index}`),
+                createdAt: now,
+                expiresAt: null,
+            }),
+        ]);
 
-            // relate the people otherwise, whom the chain lists directly, and its regions otherwise
-            const unnamed = [
-                ...PEOPLE.map((person) => ({
-                    object: person,
-                    relation: "friend",
-                    subject: userSubject("zed"),
-                })),
-                ...[0, 1].map((index) => ({
-                    object: region.reference(Scope.universe.id, `region-${index}`),
-                    relation: "home",
-                    subject: userSubject("zed"),
-                })),
-            ];
-            rows.push(
-                ...unnamed.map((related) =>
-                    Relationship.encode({
-                        id: Identifier.create("relationship", fixture.environment),
-                        ...related,
-                        createdAt: now,
-                        expiresAt: null,
-                    }),
-                ),
+        // relate the people otherwise, whom the chain lists directly, and its regions otherwise
+        const unnamed = [
+            ...PEOPLE.map((person) => ({
+                object: person,
+                relation: "friend",
+                subject: userSubject("zed"),
+            })),
+            ...[0, 1].map((index) => ({
+                object: region.reference(Scope.universe.id, `region-${index}`),
+                relation: "home",
+                subject: userSubject("zed"),
+            })),
+        ];
+        rows.push(
+            ...unnamed.map((related) =>
+                Relationship.encode({
+                    id: Identifier.create("relationship", fixture.environment),
+                    ...related,
+                    createdAt: now,
+                    expiresAt: null,
+                }),
+            ),
+        );
+
+        // insert them in batches below PostgreSQL's 65,535 bound parameters, 21 per row
+        for (let start = 0; start < rows.length; start += 1000) {
+            await fixture.database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .insert(accessRelationship)
+                        .values(rows.slice(start, start + 1000)),
             );
-
-            // insert them in batches below PostgreSQL's 65,535 bound parameters, 21 per row
-            for (let start = 0; start < rows.length; start += 1000) {
-                await fixture.database.transaction(
-                    async (transaction) =>
-                        await transaction
-                            .insert(accessRelationship)
-                            .values(rows.slice(start, start + 1000)),
-                );
-            }
-        },
-    );
+        }
+    });
 
     // replicate the relationships of the chain and of the objects whose sets it lists, over 4,000
     const stored = await relationshipsOf(world.home.database);
@@ -586,6 +610,24 @@ interface World {
     readonly follow: (scope: string) => Promise<void>;
 }
 
+/** How a world relates its people: the regions its accounts reside in and each person's roles. */
+interface WorldSpec {
+    /** The regions the accounts reside in, by index. */
+    readonly residence: readonly number[];
+    /** The people, each with a role in each region and a membership of the accounts. */
+    readonly people: readonly WorldPerson[];
+}
+
+/** A person of a world: a role in each region and a membership of the accounts. */
+interface WorldPerson {
+    /** The person. */
+    readonly subject: Subject;
+    /** The role in each region by index, absent for none. */
+    readonly roles: readonly ("machine" | "home" | undefined)[];
+    /** Whether the person is a member of the accounts. */
+    readonly isMember: boolean;
+}
+
 /** A database and the authorizer deciding over it. */
 interface Side {
     /** The database. */
@@ -594,9 +636,9 @@ interface Side {
     readonly authorizer: Authorizer;
 }
 
-/** Open a world of two regions and two accounts drawn from a generator. */
+/** Open a world of two regions and two accounts as a spec relates its people. */
 async function openWorld(
-    random: () => number,
+    spec: WorldSpec,
     populate: (home: TestAccess) => Promise<void> = async () => {},
 ): Promise<World> {
     // open the home and the space's database
@@ -608,40 +650,37 @@ async function openWorld(
     const access = new TestAccess(home.database, app.environment);
     await populate(access);
 
-    // store two regions, each person serving one as its machine or home with a generated chance
+    // store two regions, each person serving one as the role the spec gives it there
     for (const index of [0, 1]) {
         const id = `region-${index}`;
         await home.database.insert(regionTable).values({ id });
-        for (const person of PEOPLE) {
-            if (random() < 0.4) {
+        for (const person of spec.people) {
+            const role = person.roles[index];
+            if (role !== undefined) {
                 await access.replicateRelationship(
                     region.reference(Scope.universe.id, id),
-                    random() < 0.5 ? "machine" : "home",
-                    person,
+                    role,
+                    person.subject,
                 );
             }
         }
     }
 
-    // store two accounts in generated regions with generated members, the space in the first
+    // store two accounts residing in the spec's regions with its members, the space in the first
     for (const index of [0, 1]) {
         const id = `account-${index}`;
         const object = account.reference(Scope.universe.id, id);
         await home.database.insert(accountTable).values({ id, scope: Scope.universe.id });
         await access.replicateScope(object, account);
-        for (const resided of [0, 1]) {
-            if (random() < 0.5) {
-                const servers = {
-                    ...region.reference(Scope.universe.id, `region-${resided}`),
-                    relation: "server",
-                };
-                await access.replicateRelationship(object, "resident", servers);
-            }
+        for (const resided of spec.residence) {
+            const servers = {
+                ...region.reference(Scope.universe.id, `region-${resided}`),
+                relation: "server",
+            };
+            await access.replicateRelationship(object, "resident", servers);
         }
-        for (const person of PEOPLE) {
-            if (random() < 0.3) {
-                await access.replicateRelationship(object, "member", person);
-            }
+        for (const person of spec.people.filter((each) => each.isMember)) {
+            await access.replicateRelationship(object, "member", person.subject);
         }
     }
     await home.database.insert(spaceTable).values({ id: SPACE, account: "account-0" });
@@ -690,18 +729,4 @@ async function relationships(database: DatabaseConnection, subject: Subject): Pr
         .select()
         .from(accessRelationship)
         .where(eq(accessRelationship.subjectId, subject.id));
-}
-
-/** Generate numbers between 0 and 1 from a seed, the same for the same seed (mulberry32). */
-function generator(seed: number): () => number {
-    let state = seed;
-
-    return () => {
-        // mix the advanced state into 32 bits
-        state = (state + 0x6d2b79f5) | 0;
-        let mixed = Math.imul(state ^ (state >>> 15), 1 | state);
-        mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed);
-
-        return ((mixed ^ (mixed >>> 14)) >>> 0) / 4_294_967_296;
-    };
 }

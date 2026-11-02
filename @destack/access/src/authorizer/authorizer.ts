@@ -343,7 +343,7 @@ export class Authorizer {
             .filter(
                 (policy) =>
                     policy.definition.scope === true &&
-                    !mappings.some((mapping) => mapping.policy === policy),
+                    !mappings.some((mapping) => mapping.policy.same(policy)),
             )
             .map((policy) => TableMapping.ancestry(policy));
 
@@ -353,7 +353,7 @@ export class Authorizer {
                 this.policy({
                     packageId: mapping.policy.definition.packageId,
                     type: mapping.policy.definition.name,
-                }) === mapping.policy &&
+                }).same(mapping.policy) &&
                 !mappings.some((declared) => declared.table === mapping.table),
         );
 
@@ -365,12 +365,8 @@ export class Authorizer {
         // require the mapping to reference the registered policy
         const mapping = TableMapping.freeze(source);
         const definition = mapping.policy.definition;
-        if (
-            this.policy({
-                packageId: definition.packageId,
-                type: definition.name,
-            }) !== mapping.policy
-        ) {
+        const registered = this.policy({ packageId: definition.packageId, type: definition.name });
+        if (!registered.same(mapping.policy)) {
             throw AccessError.of(
                 "DECLARATION_INVALID",
                 "mapping must reference the registered object declaration",
@@ -2513,13 +2509,14 @@ export class Authorizer {
             visited.add(type);
             pending.push(...type.references);
 
-            // take one policy per type, preferring a representing policy over the intrinsic one
+            // take one policy per type: a representing one over the intrinsic one, and one of equal copies
             const existing = byType.get(Authorizer.#policyKey(type));
+            const isEqual = existing !== undefined && existing.same(type);
             if (existing === undefined || INTRINSIC_POLICIES.includes(existing)) {
                 byType.set(Authorizer.#policyKey(type), type);
             }
             // refuse two distinct policies for one type
-            else if (!INTRINSIC_POLICIES.includes(type)) {
+            else if (!INTRINSIC_POLICIES.includes(type) && !isEqual) {
                 throw AccessError.of(
                     "DECLARATION_INVALID",
                     `duplicate object type: ${Authorizer.#policyKey(type)}`,
