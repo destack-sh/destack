@@ -41,7 +41,7 @@ export default definePackage({
     },
     adapters: { otlp: defineAdapter("otlp", { path: "/v1" }) },
     permissions: {
-        installation: {
+        space: {
             // group issues, evaluate alert rules, raise and fire alerts, and announce both
             space: [
                 issue.permission("read"),
@@ -58,7 +58,7 @@ export default definePackage({
             reason: "Roll back installations when an alert rule you write fires",
             optional: true,
             permissions: {
-                installation: { space: [rollout.permission("apply")] },
+                space: { space: [rollout.permission("apply")] },
                 user: { space: [rollout.permission("apply")] },
             },
         },
