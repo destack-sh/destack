@@ -17,7 +17,7 @@ const DESCRIPTION: PackageDescription = {
     adapters: {},
     views: [],
     permissions: {
-        installation: {
+        space: {
             space: [
                 space.permission("read"),
                 Permission.parse({ packageId: ids.package, type: "note", name: "read" }),

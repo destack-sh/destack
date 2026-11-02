@@ -205,11 +205,7 @@ export class ApplicationInstallation {
                 ? undefined
                 : await InstallationRevision.reader(snapshot, deployed.revisionId, builds);
         const description = build === undefined ? undefined : await PackageDescription.of(build);
-        const set = Rollout.permissions(
-            (deployed ?? target).installation,
-            description,
-            "installation",
-        );
+        const set = Rollout.permissions((deployed ?? target).installation, description, "space");
 
         // relate it at the universe as its space, through the uplink, converging on each pass
         const calls = await Rollout.relate(snapshot, deployed ?? target, set);
@@ -1112,8 +1108,7 @@ export async function describeUngranted(
         .map((entry) => entry.package.name);
 
     // and for each type of another package in its space grant that the space does not serve yet
-    const granted =
-        Rollout.permissions(target.installation, description, "installation").space ?? [];
+    const granted = Rollout.permissions(target.installation, description, "space").space ?? [];
     const unknown = granted
         .filter((permission) => permission.packageId !== target.installation.packageId)
         .filter((permission) => call.authorizer.find(permission) === undefined)

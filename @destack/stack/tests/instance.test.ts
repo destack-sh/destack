@@ -44,7 +44,7 @@ import {
     accessGrant,
     accessRole,
     accessRolePermission,
-    type PermissionRequest,
+    type GrantRequest,
     principal,
 } from "@destack/access";
 import accountPackage from "@destack/account/package";
@@ -145,7 +145,7 @@ const tasks: Declared = {
 };
 
 /** The notes package's declaration, requesting permissions by scope. */
-function requesting(permissions: PermissionRequest): Declared {
+function requesting(permissions: GrantRequest): Declared {
     return {
         kind: "package",
         definer: objectPackage,
@@ -1706,7 +1706,7 @@ test("grant an applied application exactly the space permissions its package req
     const { database } = fixture;
     const recipient = accountObject.user.permission("recipient");
     const request = requesting({
-        installation: { space: [space.permission("read")], universe: [recipient] },
+        space: { space: [space.permission("read")], universe: [recipient] },
     });
     const notes = await installNotes(
         fixture,
@@ -1786,7 +1786,7 @@ test("let an application ask for its optional capability in approval mode, and r
                 push: {
                     reason: "Push notifications",
                     optional: true,
-                    permissions: { installation: { universe: [unsubscribe] } },
+                    permissions: { space: { universe: [unsubscribe] } },
                 },
             },
         },

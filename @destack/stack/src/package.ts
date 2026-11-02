@@ -61,7 +61,7 @@ export default definePackage({
     },
     permissions: {
         // install, change and uninstall the space's declared and installed packages, as their rollouts do
-        installation: {
+        space: {
             space: [
                 installation.permission("install"),
                 installation.permission("update"),

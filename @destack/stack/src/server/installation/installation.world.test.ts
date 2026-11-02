@@ -293,7 +293,7 @@ test("relate a residency home's declared installation at the universe once a pas
     const registry = PackageHandle.of(released, {
         objects: {},
         permissions: {
-            installation: {
+            space: {
                 universe: [
                     account.permission("serve"),
                     entitlement.permission("provide"),

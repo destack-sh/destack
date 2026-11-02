@@ -14,7 +14,7 @@ import {
     Manager,
     none,
     PermissionReference,
-    type PermissionRequest,
+    type GrantRequest,
     PermissionScope,
     PermissionSet,
     principal,
@@ -677,7 +677,7 @@ export const Rollout = {
     permissions(
         row: Pick<Installation, "capabilities" | "allowed">,
         description: Pick<PackageDescription, "permissions" | "capabilities"> | undefined,
-        delegator: keyof PermissionRequest,
+        delegator: keyof GrantRequest,
     ): PermissionSet {
         // gather the package's set and each enabled capability's
         const enabled = Rollout.enabled(row, description);
@@ -768,7 +768,7 @@ export const Rollout = {
         const consenter = Caller.acting(Rollout.consenter(target), subject);
 
         // ask consent for its requests on other packages' types, its own types going by their policies
-        const set = Rollout.permissions(target.installation, description, "installation");
+        const set = Rollout.permissions(target.installation, description, "space");
         const installed = principal.installation.reference(target.scope, target.id);
         const requested = set.space ?? [];
         const consented = requested.filter(

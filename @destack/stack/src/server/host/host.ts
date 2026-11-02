@@ -407,11 +407,7 @@ export class SpaceHost {
                 const caller = this.#callerOnce(row, shipped.package, start);
                 const resources = await this.#resources(row, shipped.package, start, caller);
                 const context = await this.#context(row, revisionId, resources, start, caller);
-                const requested = Rollout.permissions(
-                    row.installation,
-                    shipped.package,
-                    "installation",
-                );
+                const requested = Rollout.permissions(row.installation, shipped.package, "space");
                 const isLent = Object.entries(requested).some(
                     ([scope, each]) => scope !== "space" && each.length > 0,
                 );
