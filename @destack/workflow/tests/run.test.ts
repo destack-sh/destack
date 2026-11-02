@@ -38,7 +38,7 @@ test("retry a failing advance after its backoff until it succeeds, keeping the l
 
     // start a run that succeeds on its third attempt, a second, then a third after a second's backoff
     await fixture.start(() => flaky.start({ succeedAt: 3 }, actor()));
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     expect([run?.["attempts"], run?.["output"], run?.["failure"]]).toEqual([
         2,
         3,
@@ -62,7 +62,7 @@ test("fail a run once its attempts run out, keeping the last failure", async () 
 
     // start a run that fails both attempts
     await fixture.start(() => brittle.start({}, actor()));
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "failed");
     expect([run?.["attempts"], run?.["failure"]]).toEqual([
         1,
         Failure.http("INTERNAL_SERVER_ERROR", "always"),
@@ -81,7 +81,7 @@ test("time a run out at its deadline while it sleeps past it", async () => {
     // start a run sleeping two hours under an hour's timeout, and move to its deadline
     await fixture.start(() => slow.start({}, actor()));
     await fixture.simulation.jump(TEST_START + 60 * MINUTE);
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "failed");
     expect([run?.["deadline"], run?.["failure"]]).toEqual([
         TEST_START + 60 * MINUTE,
         {
@@ -113,12 +113,12 @@ test("start a run at its time, answer the live run of a key, and replace one tha
         digest.start({ topic: "b" }, { key: "daily", at, mode: "replace", ...actor() }),
     );
     await fixture.start(() => digest.start({ topic: "c" }, { key: "daily", ...actor() }));
-    const waiting = await fixture.until(() => true);
+    const waiting = await fixture.waitUntil(() => true);
 
     // run it at its time, then start the key anew once it ended
-    const [ran] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [ran] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     await fixture.start(() => digest.start({ topic: "d" }, { key: "daily", ...actor() }));
-    const rows = await fixture.until(
+    const rows = await fixture.waitUntil(
         (all) => all.length === 2 && all[1]?.["state"] === "completed",
     );
     expect({
@@ -143,15 +143,15 @@ test("pause, resume and cancel a run as its actor, a resumed run due at its slee
 
     // start a sleeping run as alice, pause and resume it, then cancel it
     await fixture.start(() => wait.start({}, actor()));
-    const [started] = await fixture.until((rows) => rows[0]?.["state"] === "waiting");
+    const [started] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "waiting");
     const runs = fixture.objects(alice);
     const target = { id: String(started?.["id"]) };
     await runs.call(wait.run.name, "pause", target);
-    const paused = await fixture.until(() => true);
+    const paused = await fixture.waitUntil(() => true);
     await runs.call(wait.run.name, "resume", target);
-    const resumed = await fixture.until((rows) => rows[0]?.["state"] === "pending");
+    const resumed = await fixture.waitUntil((rows) => rows[0]?.["state"] === "pending");
     await runs.call(wait.run.name, "cancel", target);
-    const cancelled = await fixture.until(() => true);
+    const cancelled = await fixture.waitUntil(() => true);
     // resume it due at its sleep's end
     expect([
         paused[0]?.["state"],
@@ -187,12 +187,12 @@ test("reset a completed run to a step, running that step and the later ones agai
 
     // complete a run, reset it to its second step as alice, and complete it again
     await fixture.start(() => tally.start({}, actor()));
-    const [done] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [done] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     const runs = fixture.objects(alice);
     const id = String(done?.["id"]);
     const reset = await runs.call(tally.run.name, "reset", { id, step: "second" });
     const missing = await refusal(runs.call(tally.run.name, "reset", { id, step: "third" }));
-    const [again] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [again] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     expect({ reset, missing, counted, output: again?.["output"] }).toEqual({
         reset: { forgotten: 1 },
         missing: ["NOT_FOUND", "STEP_NOT_FOUND", `run ${String(done?.["id"])} has no step third`],
@@ -225,7 +225,7 @@ test("start runs at the workflow's rate, and advance one singleton run of a key 
     for (const title of ["a", "b", "c"]) {
         await fixture.start(() => report.start({ title }, actor(alice)));
     }
-    const rows = await fixture.until(
+    const rows = await fixture.waitUntil(
         (all) => all.length === 3 && all.every((row) => row["state"] === "completed"),
     );
 
@@ -252,7 +252,7 @@ test("take a call step hours after the run started, past a request's retry perio
     // start a run that writes a note three hours in, and move to its wake
     await fixture.start(() => late.start({}, actor()));
     await fixture.simulation.jump(TEST_START + 180 * MINUTE);
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     const titles = await fixture.served.database
         .select({ title: note.table.title })
         .from(note.table);
@@ -277,7 +277,7 @@ test("fail a run acting for a user who granted its installation nothing, as no c
         "user-01996ab0-0000-7000-8000-000000000102",
     );
     await fixture.start(() => write.start({}, actor(carol)));
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "failed");
     const { failure } = schema.looseObject({ failure: Failure }).parse(run);
     expect([failure.code, failure.message]).toEqual([
         "FORBIDDEN",
@@ -296,7 +296,7 @@ test("refuse a stranger controlling another's run", async () => {
 
     // start alice's run, and pause it as bob
     await fixture.start(() => idle.start({}, actor()));
-    const [started] = await fixture.until((rows) => rows[0]?.["state"] === "waiting");
+    const [started] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "waiting");
     const target = { id: String(started?.["id"]) };
     expect(await refusal(fixture.objects(bob).call(idle.run.name, "pause", target))).toEqual([
         "NOT_FOUND",
@@ -321,7 +321,7 @@ test("fail a run whose function takes other steps on a later advance than it rec
 
     // expect the run failed for good at its second advance with the divergence, as the first step changed
     await fixture.start(() => fickle.start({}, actor()));
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "failed");
     expect([advances, run?.["failure"]]).toEqual([
         2,
         {
@@ -391,7 +391,7 @@ test("make a preparing call once across a crash between its commit and its step'
         [issuing],
     );
     await fixture.start(() => press.start({}, actor()));
-    const [first] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [first] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
 
     // rewrite rows, as no verb reaches the moment between a call's commit and its step's record
     //  leave the state a crash after the issue committed and before its step completed leaves: the step started, the run due
@@ -407,7 +407,7 @@ test("make a preparing call once across a crash between its commit and its step'
             .set({ state: "pending", output: null, wakeAt: null })
             .where(eq(runs[TABLE].column("id"), String(first?.["id"])));
     });
-    const [again] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [again] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
 
     // expect one issue, answered again by the journal under the request its started step derives
     expect([issued, first?.["output"], again?.["output"]]).toEqual([1, 1, 1]);

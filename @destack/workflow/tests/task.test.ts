@@ -20,10 +20,10 @@ test("make a task's call once at its time as its actor, answering the call's res
             { at: TEST_START + 60_000, actor: alice },
         ),
     );
-    const waiting = await fixture.until(() => true);
+    const waiting = await fixture.waitUntil(() => true);
 
     // run it once its time comes, answering the created note
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     const notes = await fixture.served.database
         .select({ title: note.table.title, ownerId: note.table.ownerId })
         .from(note.table);

@@ -54,7 +54,7 @@ test("add the outputs of two child runs, each started once under a key its step 
     const fixture = await openSum();
     const started = await fixture.start(() => sum.start({ left: 2, right: 3 }, actor()));
     const { id } = schema.looseObject({ id: schema.string() }).parse(started);
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
 
     // expect the sum, and the two child runs completed under the parent's keys
     const children = (await fixture.served.database.select().from(double.run.table))
@@ -77,9 +77,9 @@ test("invoke a child run again once its parent is reset to the child's step, rea
     const fixture = await openSum((value) => 2 * value + 100 * invoked++);
     const started = await fixture.start(() => sum.start({ left: 2, right: 3 }, actor()));
     const { id } = schema.looseObject({ id: schema.string() }).parse(started);
-    await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     const reset = await fixture.objects(alice).call(sum.run.name, "reset", { id, step: "right" });
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
 
     // expect the right child run started again under its key, and the sum read from the new run
     const children = (await fixture.served.database.select().from(double.run.table))
@@ -102,7 +102,7 @@ test("invoke a child run again once its parent is reset to the child's step, rea
 test("fail a run with the refusal its child run failed with", async () => {
     const fixture = await openSum();
     await fixture.start(() => sum.start({ left: 2, right: -1 }, actor()));
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "failed");
     expect(run?.["failure"]).toEqual(Failure.http("BAD_REQUEST", "a negative number"));
 });
 
@@ -142,7 +142,7 @@ test("cancel a child run once its parent is cancelled, and leave an abandoned on
         const started = await fixture.start(() => watch.start({ isAbandoned }, actor()));
         ids.push(schema.looseObject({ id: schema.string() }).parse(started).id);
     }
-    await fixture.until(() => true);
+    await fixture.waitUntil(() => true);
 
     // cancel both watches as their actor
     for (const id of ids) {

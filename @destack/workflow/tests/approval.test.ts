@@ -75,11 +75,11 @@ test("approve a note once both approvers approve, waiting while one has", async 
     // start a review, and let bob then alice approve
     const { fixture, id, decide } = await openReview();
     await fixture.start(() => review.start({ id }, actor()));
-    await fixture.until((rows) => rows[0]?.["state"] === "waiting");
+    await fixture.waitUntil((rows) => rows[0]?.["state"] === "waiting");
     await decide("bob", "approve");
-    const waiting = await fixture.until((rows) => rows[0]?.["state"] === "waiting");
+    const waiting = await fixture.waitUntil((rows) => rows[0]?.["state"] === "waiting");
     await decide("alice", "approve");
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     expect([waiting[0]?.["state"], run?.["output"]]).toEqual(["waiting", "approved"]);
 });
 
@@ -87,14 +87,14 @@ test("reject a note once one approver rejects, and ask both again in a later rev
     // reject the first review as bob
     const { fixture, id, decide } = await openReview();
     await fixture.start(() => review.start({ id }, actor()));
-    await fixture.until((rows) => rows[0]?.["state"] === "waiting");
+    await fixture.waitUntil((rows) => rows[0]?.["state"] === "waiting");
     await decide("alice", "approve");
     await decide("bob", "reject");
-    const [first] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [first] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
 
     // start a second review, which asks both approvers again
     await fixture.start(() => review.start({ id }, actor()));
-    await fixture.until(
+    await fixture.waitUntil(
         (rows) => rows.length === 2 && rows.some((row) => row["state"] === "waiting"),
     );
     const states = (await fixture.served.database.select().from(approval.table)).map(
@@ -108,7 +108,7 @@ test("answer a review nobody decides as requested once its hour passed", async (
     const { fixture, id } = await openReview();
     await fixture.start(() => review.start({ id }, actor()));
     await fixture.simulation.jump(TEST_START + 60 * MINUTE);
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     expect(run?.["output"]).toBe("requested");
 });
 
@@ -165,7 +165,7 @@ test("wait at a call alice's grant gives once approved, ask her in a change requ
     await fixture.when(async () => (await approvals()).length > 0);
     const asked = single(await approvals());
     await decideApproval(fixture, alice, asked, "approve");
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
 
     // expect alice asked, the change applied, and the run answering the published title
     const [request] = await fixture.served.database.select().from(changeRequest.table);
@@ -220,7 +220,7 @@ test("fail a run whose call a role gives on two approvals, which a change asking
 
     // start the run as bob, and expect it to fail once asking for the approvals is refused
     await fixture.start(() => release.start({ id }, actor(bob)));
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "failed");
     expect([
         schema.looseObject({ reason: schema.string() }).parse(run?.["failure"]).reason,
     ]).toEqual(["APPROVERS_MISSING"]);

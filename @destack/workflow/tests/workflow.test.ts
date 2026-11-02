@@ -38,9 +38,11 @@ test("advance a run step by step as its actor: call and read once, sleep, wait f
 
     // start a run as alice, wake it after the sleep, and write the approval note, which wakes it at once
     await fixture.start(() => draft.start({ title: "Plan" }, actor()));
-    await fixture.until((rows) => rows[0]?.["state"] === "waiting" && rows[0]["waitType"] === null);
+    await fixture.waitUntil(
+        (rows) => rows[0]?.["state"] === "waiting" && rows[0]["waitType"] === null,
+    );
     await fixture.simulation.jump(fixture.simulation.clock.now() + 5 * 60_000);
-    await fixture.until(
+    await fixture.waitUntil(
         (rows) => rows[0]?.["waitType"] !== null && rows[0]?.["waitType"] !== undefined,
     );
     await fixture.served
@@ -51,7 +53,7 @@ test("advance a run step by step as its actor: call and read once, sleep, wait f
             requestId: RequestId.create(fixture.environment),
             title: "Approved: Plan",
         });
-    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
 
     // expect one draft note, and the run completed with both notes' titles
     const titles = (

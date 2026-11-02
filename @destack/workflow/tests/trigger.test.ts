@@ -117,7 +117,7 @@ test("fire a declared schedule's occurrences once each, skipping one that overla
     // run four minutes
     await fixture.simulation.clock.sleep(TEST_START + 4 * MINUTE - fixture.simulation.clock.now());
     await fixture.simulation.idle();
-    const runs = await fixture.until(() => true);
+    const runs = await fixture.waitUntil(() => true);
     const [declared] = await fixture.served.database.select().from(minutely.trigger.table);
 
     // refuse alice changing the declared trigger, which its package's installation manages
@@ -157,11 +157,11 @@ test("fire a schedule a space's manager creates with its stored input, and none 
         input: { at: 0 },
     });
     await fixture.simulation.jump(TEST_START + MINUTE);
-    const first = await fixture.until((rows) => rows.length === 1);
+    const first = await fixture.waitUntil((rows) => rows.length === 1);
     const { id } = schema.looseObject({ id: schema.string() }).parse(created);
     await triggers.call(scheduled.trigger.name, "pause", { id });
     await fixture.simulation.jump(TEST_START + 3 * MINUTE);
-    const paused = await fixture.until(() => true);
+    const paused = await fixture.waitUntil(() => true);
     expect([first.map((row) => row["input"]), paused.length]).toEqual([[{ at: 0 }], 1]);
 });
 
@@ -186,7 +186,7 @@ test("refuse a created schedule whose input the workflow refuses", async () => {
 test("start one run per note a change trigger admits, from now on", async () => {
     // start a tick for each note titled urgent created after the trigger begins
     const fixture = await openWorkflow(urgent, async () => {});
-    await fixture.until(() => true);
+    await fixture.waitUntil(() => true);
 
     // write an urgent note, a quiet one, and another urgent one
     const notes = fixture.served.as(alice).client(notesPackage).note;
@@ -197,7 +197,7 @@ test("start one run per note a change trigger admits, from now on", async () => 
             title,
         });
     }
-    const runs = await fixture.until(
+    const runs = await fixture.waitUntil(
         (rows) => rows.length >= 2 && rows.every((row) => row["state"] === "completed"),
     );
 
@@ -217,7 +217,7 @@ test("start a run in each workflow whose trigger of one name admits a change", a
         urgent.implement(async () => {}),
         [{ workflow: alarm, served: alarm.implement(async () => {}) }],
     );
-    await fixture.until(() => true);
+    await fixture.waitUntil(() => true);
 
     // write an urgent note, which both triggers admit
     await fixture.served
@@ -228,7 +228,7 @@ test("start a run in each workflow whose trigger of one name admits a change", a
             requestId: RequestId.create(fixture.environment),
             title: "urgent",
         });
-    const runs = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const runs = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     const alarms = await fixture.served.database.select().from(alarm.run.table);
     expect([runs.length, alarms.map((row) => row["state"])]).toEqual([1, ["completed"]]);
 });
@@ -236,7 +236,7 @@ test("start a run in each workflow whose trigger of one name admits a change", a
 test("start no run while a change trigger is paused, and catch up on its changes once resumed", async () => {
     // pause the urgent trigger once it began
     const fixture = await openWorkflow(urgent, async () => {});
-    await fixture.until(() => true);
+    await fixture.waitUntil(() => true);
     const [row] = await fixture.served.database.select().from(urgent.trigger.table);
     const { id } = schema.looseObject({ id: schema.string() }).parse(row);
     const triggers = fixture.objects(alice);
@@ -251,9 +251,9 @@ test("start no run while a change trigger is paused, and catch up on its changes
             title,
         });
     }
-    const paused = await fixture.until(() => true);
+    const paused = await fixture.waitUntil(() => true);
     await triggers.call(urgent.trigger.name, "resume", { id });
-    const resumed = await fixture.until(
+    const resumed = await fixture.waitUntil(
         (rows) => rows.length >= 2 && rows.every((each) => each["state"] === "completed"),
     );
 
@@ -264,7 +264,7 @@ test("start no run while a change trigger is paused, and catch up on its changes
 test("renew an idle change trigger's slot past a week, starting a run for a later note", async () => {
     // let an active trigger idle past a week a day at a time, and compact the log
     const fixture = await openWorkflow(urgent, async () => {});
-    await fixture.until(() => true);
+    await fixture.waitUntil(() => true);
     for (let day = 1; day <= 8; day++) {
         await fixture.simulation.jump(TEST_START + day * DAY);
     }
@@ -280,7 +280,7 @@ test("renew an idle change trigger's slot past a week, starting a run for a late
             requestId: RequestId.create(fixture.environment),
             title: "urgent",
         });
-    const runs = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const runs = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     const [row] = await fixture.served.database.select().from(urgent.trigger.table);
     expect([row?.["state"], runs.length]).toEqual(["active", 1]);
 });
@@ -288,7 +288,7 @@ test("renew an idle change trigger's slot past a week, starting a run for a late
 test("stop a change trigger paused past its slot's retention, and start over from now once reset", async () => {
     // pause the urgent trigger once it began, and write an urgent note while it is paused
     const fixture = await openWorkflow(urgent, async () => {});
-    await fixture.until(() => true);
+    await fixture.waitUntil(() => true);
     const { database } = fixture.served;
     const [row] = await database.select().from(urgent.trigger.table);
     const { id } = schema.looseObject({ id: schema.string() }).parse(row);
@@ -313,9 +313,9 @@ test("stop a change trigger paused past its slot's retention, and start over fro
 
     // reset the stopped trigger, and write another urgent note
     await triggers.call(urgent.trigger.name, "reset", { id });
-    await fixture.until(() => true);
+    await fixture.waitUntil(() => true);
     await write();
-    const runs = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+    const runs = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
 
     // stop on the compacted note, then start a run for the note after the reset alone
     expect([stopped?.["state"], stopped?.["failure"], runs.length]).toEqual([
@@ -343,7 +343,7 @@ test("start one run per verified webhook delivery, refusing a forged one", async
             },
         }),
     );
-    await fixture.until(() => true);
+    await fixture.waitUntil(() => true);
 
     // deliver a signed message twice and a forged one
     const body = '{"type":"ping"}';
@@ -364,7 +364,7 @@ test("start one run per verified webhook delivery, refusing a forged one", async
             )
         ).status;
     const statuses = [await deliver(headers), await deliver(headers), await deliver(new Headers())];
-    const runs = await fixture.until(
+    const runs = await fixture.waitUntil(
         (rows) => rows.length === 1 && rows[0]?.["state"] === "completed",
     );
     expect([statuses, runs.length]).toEqual([[202, 202, 401], 1]);

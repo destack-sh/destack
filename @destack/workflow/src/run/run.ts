@@ -84,7 +84,7 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
     ): Promise<Run<Input, Output, Waits>> {
         // read the run again on each commit until it is in an ended state
         let ended: Run<Input, Output, Waits> | undefined;
-        await database.log.until(async () => {
+        await database.log.waitUntil(async () => {
             // read the run, answering it once ended
             const row = await Snapshot.live(database)
                 .read(this.workflow.run.table)

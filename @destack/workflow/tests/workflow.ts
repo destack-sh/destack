@@ -120,7 +120,7 @@ export interface TestWorkflow {
     /** Run the world until a condition holds, failing on the controllers' errors. */
     readonly when: (isMet: () => Promise<boolean>) => Promise<void>;
     /** Run the world until the runs meet a condition, answering them. */
-    readonly until: (
+    readonly waitUntil: (
         condition: (runs: readonly Record<string, unknown>[]) => boolean,
     ) => Promise<readonly Record<string, unknown>[]>;
 }
@@ -264,7 +264,7 @@ export async function openServed<Input, Output>(
         const signal = clock.timeout(REPLICA_MILLISECONDS);
         const isFollowed = async () =>
             (await Grant.read(Snapshot.live(served.database), created.id)) !== undefined;
-        if (!(await served.database.log.until(isFollowed, signal))) {
+        if (!(await served.database.log.waitUntil(isFollowed, signal))) {
             throw new Error(`the space did not follow grant ${created.id}`);
         }
 
@@ -293,11 +293,11 @@ export async function openServed<Input, Output>(
     // run the world idle, then until the condition holds, the controllers' reports failing it
     const when = async (isMet: () => Promise<boolean>) => {
         await simulation.idle();
-        await simulation.until(isMet, clock.now() + UNTIL_MILLISECONDS);
+        await simulation.waitUntil(isMet, clock.now() + UNTIL_MILLISECONDS);
     };
 
     // run the world until the runs meet the condition, failing with their states
-    const until = async (condition: (rows: readonly Record<string, unknown>[]) => boolean) => {
+    const waitUntil = async (condition: (rows: readonly Record<string, unknown>[]) => boolean) => {
         let rows: readonly Record<string, unknown>[] = [];
         try {
             await when(async () => condition((rows = await runs())));
@@ -344,7 +344,7 @@ export async function openServed<Input, Output>(
         start,
         runs,
         when,
-        until,
+        waitUntil,
     };
 }
 
