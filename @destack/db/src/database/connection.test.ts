@@ -28,6 +28,11 @@ const counter = defineTable(
     },
 );
 
+/** List tables by their SQL names. */
+function sqlNames(tables: readonly Table[]): string[] {
+    return tables.map((table) => table[TABLE].sqlName);
+}
+
 /** Build a count of Ada's counters at one value. */
 function counters(count: number, value: number) {
     return Array.from({ length: count }, (_, index) => ({
@@ -130,6 +135,29 @@ test("list the tables each write operation changes, with tables declared after o
             delete: ["dependent_post", "dependent_remark", "dependent_section"],
             section: ["dependent_remark", "dependent_section"],
         },
+    });
+});
+
+test("declare a table migrated after opening on the connection and every connection sharing its state", async () => {
+    // open posts and their remarks, then migrate counters
+    const storage = await TestDatabase.create([remark, post], {
+        environment: testSimulation().environment("test"),
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const before = sqlNames(database.tables);
+    await database.migrate([counter], { others: "retain" });
+
+    // list the counters after the opened tables, on a metered connection over the same state too
+    const opened = sqlNames([remark, post]);
+    expect({
+        before,
+        after: sqlNames(database.tables),
+        metered: sqlNames(database.metered().tables),
+    }).toEqual({
+        before: opened,
+        after: [...opened, ...sqlNames([counter])],
+        metered: [...opened, ...sqlNames([counter])],
     });
 });
 

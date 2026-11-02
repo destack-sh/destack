@@ -100,8 +100,6 @@ export class DatabaseConnection<
 > {
     /** The session driver. */
     readonly driver: DatabaseDriver;
-    /** The tables the database declares, in declaration order. */
-    readonly tables: readonly Table[];
     /** The relations the database declares, which relational reads follow. */
     readonly relations: Relations<Models>;
     /** The physical connection state. */
@@ -111,11 +109,16 @@ export class DatabaseConnection<
 
     /** Bind a driver to the declared tables and relations. */
     constructor(driver: DatabaseDriver, tables: readonly Table[], relations: Relations<Models>) {
-        // store the driver's state beside the declaration
+        // declare the tables on the driver's state, which later migrations add to
         this.state = driver.state;
         this.driver = driver;
-        this.tables = tables;
+        this.state.declare(tables);
         this.relations = relations;
+    }
+
+    /** The tables the database declares, in declaration order. */
+    get tables(): readonly Table[] {
+        return this.state.tables;
     }
 
     /** Open a connection on the same session that counts its own operations. */
