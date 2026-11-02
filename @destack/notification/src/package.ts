@@ -20,7 +20,7 @@ export default definePackage({
         summary,
     },
     permissions: {
-        installation: {
+        space: {
             // plan notifications and summaries, expand announcements and send their messages in the space
             space: [
                 notification.permission("plan"),
@@ -42,7 +42,7 @@ export default definePackage({
         [DELIVER_CAPABILITY]: {
             reason: "Deliver your notifications by email, push and on your desktops",
             optional: true,
-            permissions: { installation: { universe: [user.permission("recipient")] } },
+            permissions: { space: { universe: [user.permission("recipient")] } },
         },
         // push to people's browsers
         [PUSH_CAPABILITY]: {
