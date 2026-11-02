@@ -41,8 +41,8 @@ export const USAGE_STATES = ["within", "near", "over", "blocked"] as const;
 /** Where a metered usage stands. */
 export type UsageState = (typeof USAGE_STATES)[number];
 
-/** The days a retention setting keeps events by default, a positive whole number. */
-const RETENTION_DEFAULT = schema.object({ default: schema.number().int().positive() });
+/** A retention setting's definition, read for the days it keeps events by default. */
+const RetentionSetting = schema.looseObject({ default: schema.number().int().positive() });
 
 /** Read the days a scope retains a kind's events by its setting, as event stores read them. */
 export type RetentionReader = (setting: object, owner: Package, scope: string) => Promise<number>;
@@ -221,15 +221,15 @@ export const Entitlement = {
                 );
             }
 
-            return Entitlement.retention(rows, days, RETENTION_DEFAULT.parse(setting).default);
+            return Entitlement.retention(rows, days, setting);
         };
     },
 
-    /** Keep a space's chosen days, capped at the default without custom retention. */
-    retention(rows: readonly EntitlementTerms[], days: number, defaultDays: number): number {
+    /** Keep a space's chosen days, capped at its setting's default without custom retention. */
+    retention(rows: readonly EntitlementTerms[], days: number, setting: object): number {
         const isCustom = rows.some((row) => Entitlement.matches(row, "retention"));
 
-        return isCustom ? days : Math.min(days, defaultDays);
+        return isCustom ? days : Math.min(days, RetentionSetting.parse(setting).default);
     },
 
     /** Decide the condition of a use from an account's replicated entitlements. */
