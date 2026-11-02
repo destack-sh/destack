@@ -201,7 +201,7 @@ export class LocalBuildStore
         return super.contents(digest);
     }
 
-    /** Lease a build a week on once a day it is used, retaining it and its files. */
+    /** Lease a stored build a week on once a day it is used, retaining it and its files. */
     async #use(digest: Digest): Promise<void> {
         // record the use for the maintaining store to renew once this view closes
         if (this.#maintainer !== undefined) {
@@ -210,13 +210,13 @@ export class LocalBuildStore
             return;
         }
 
-        // read the build's lease, renewing one a day or more old
+        // read the stored build's lease, renewing one a day or more old, and none for a layered build read in place
         const now = this.environment.clock.now();
         const [leased] = await this.database
             .select({ until: BlobStore.table.leasedUntil })
             .from(BlobStore.table)
             .where(eq(BlobStore.table.digest, digest));
-        if (leased === undefined || leased.until - CACHE_MILLISECONDS <= now - USE_MILLISECONDS) {
+        if (leased !== undefined && leased.until - CACHE_MILLISECONDS <= now - USE_MILLISECONDS) {
             await this.lease(digest, new Date(now + CACHE_MILLISECONDS));
         }
     }
