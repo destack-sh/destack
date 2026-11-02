@@ -179,7 +179,7 @@ export class CommitWatch {
     }
 
     /** Wait until a check of the tables committed since the last check passes after a commit. */
-    async until(
+    async waitUntil(
         check: (tables: ReadonlySet<string>) => Promise<boolean>,
         signal: AbortSignal,
         generation?: number,

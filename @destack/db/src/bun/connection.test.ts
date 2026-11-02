@@ -30,7 +30,7 @@ test("wake a file's readers on a commit another process announces on the file's 
     await reader.migrate([setting]);
 
     // wait here while another process writes the file and announces its commit
-    const waiting = reader.log.until(
+    const waiting = reader.log.waitUntil(
         async () => (await reader.log.position()).sequence > 0,
         AbortSignal.timeout(5000),
     );

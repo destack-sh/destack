@@ -58,7 +58,7 @@ test("run a party's statements and transactions on the owner's connection, notif
     ]);
 
     // wake the party on the owner's commit
-    const waiting = party.log.until(
+    const waiting = party.log.waitUntil(
         async () => (await party.select().from(note)).length === 4,
         AbortSignal.timeout(2000),
     );

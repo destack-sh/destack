@@ -8,7 +8,7 @@ import { found, nth, Uuid } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { Failure } from "@destack/error";
-import { RetryPolicy, until, Clock } from "@destack/environment";
+import { RetryPolicy, waitAborted, Clock } from "@destack/environment";
 import type { Alarm } from "./alarm.ts";
 
 /** The tracker topic a loop announces releasing its locks on. */
@@ -277,12 +277,17 @@ export class ControlLoop {
                 this.#failing.abort(error);
             });
 
-        // run the waiting keys again once another holder releases its locks or stops
+        // run the waiting keys again once another holder releases its locks or stops, or the tracker syncs
         const tracker = this.#tracker;
         const unwatch = [
             tracker?.watchStopped(() => this.#requeueWaiting()),
             tracker?.listen(RELEASED_TOPIC, () => this.#requeueWaiting()),
         ];
+        void tracker?.waitSynced().then(() => {
+            if (!this.#isStopped) {
+                this.#requeueWaiting();
+            }
+        });
         try {
             // wait for every loop to end, its running reconciliations included
             await Promise.all(
@@ -308,7 +313,7 @@ export class ControlLoop {
             for (const waiter of this.#idle.splice(0)) {
                 this.#settleIdle(waiter);
             }
-            // leave a closing database's locks to its stopping instance, which frees them
+            // leave a closing database's locks for the next instance to take over
             if (tracker !== undefined && !this.database.state.isClosing) {
                 for (const [controller, leading] of this.#leading) {
                     if (await leading) {
@@ -384,7 +389,7 @@ export class ControlLoop {
 
     /** Wait until the log listens to other writers' commits, failing as listening fails. */
     async #listen(signal: AbortSignal): Promise<void> {
-        await Promise.race([this.database.log.listening(), until(signal)]);
+        await Promise.race([this.database.log.listening(), waitAborted(signal)]);
         this.#isListening = !signal.aborted;
         this.#wake();
     }
@@ -534,7 +539,7 @@ export class ControlLoop {
         if (![...unlogged.values()].some((tables) => tables.length > 0)) {
             return;
         }
-        await this.database.log.until(async (committed) => {
+        await this.database.log.waitUntil(async (committed) => {
             // pick the controllers whose unlogged tables the commits wrote
             const listed = this.controllers.filter((controller) =>
                 found(unlogged, controller).some((table) => committed.has(table)),
@@ -944,7 +949,7 @@ export class ControlLoop {
         // wake at the clock's due time, or on work or stop
         const waking = AbortSignal.any([signal, this.#woken.signal]);
         try {
-            await (delay === undefined ? until(waking) : this.#clock.sleep(delay, waking));
+            await (delay === undefined ? waitAborted(waking) : this.#clock.sleep(delay, waking));
         } catch (error) {
             // end the sleep on a wake or a stop
             if (!waking.aborted) {

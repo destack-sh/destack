@@ -4,7 +4,7 @@ import { reconciliation, TestDatabase } from "../test/index.ts";
 import { testSimulation } from "@destack/test/world";
 import { canonicalize, nth, found } from "@destack/schema";
 import { ControlLoop, type Controller, type FollowController, Reconciliation } from "./control.ts";
-import { until, yieldToEventLoop } from "@destack/environment";
+import { waitAborted, yieldToEventLoop } from "@destack/environment";
 import { SimulatedTelemetry, Simulation } from "@destack/environment/simulation";
 import { Failure } from "@destack/error";
 import { TestTelemetry } from "@destack/telemetry/test";
@@ -63,8 +63,8 @@ function message(error: unknown): string {
 }
 
 /** Run a world until a read equals the expected value, then assert it whole. */
-async function untilEqual<Value>(simulation: Simulation, read: () => Value, expected: Value) {
-    await simulation.until(() => canonicalize(read()) === canonicalize(expected));
+async function waitEqual<Value>(simulation: Simulation, read: () => Value, expected: Value) {
+    await simulation.waitUntil(() => canonicalize(read()) === canonicalize(expected));
     expect(read()).toEqual(expected);
 }
 
@@ -121,7 +121,7 @@ test("reconcile listed keys, the keys of changes, keys due again, and refused ke
     });
 
     // reconcile listed and written keys
-    await untilEqual(simulation, () => reconciled.includes("listed"), true);
+    await waitEqual(simulation, () => reconciled.includes("listed"), true);
     await database.transaction((transaction) =>
         transaction
             .insert(job)
@@ -131,18 +131,13 @@ test("reconcile listed keys, the keys of changes, keys due again, and refused ke
             ])
             .execute(),
     );
-    await untilEqual(simulation, () => reconciled.toSorted(), [
-        "flaky",
-        "listed",
-        "timed",
-        "timed",
-    ]);
+    await waitEqual(simulation, () => reconciled.toSorted(), ["flaky", "listed", "timed", "timed"]);
 
     // reconcile the refused key again on its next change
     await database.transaction((transaction) =>
         transaction.update(job).set({ runs: 2 }).where(eq(job.id, "flaky")).execute(),
     );
-    await untilEqual(simulation, () => reconciled.toSorted(), [
+    await waitEqual(simulation, () => reconciled.toSorted(), [
         "flaky",
         "flaky",
         "listed",
@@ -438,7 +433,7 @@ test("retry a stale or moving key until it succeeds, reporting nothing", async (
     });
 
     // succeed on the third attempt without a report
-    await untilEqual(simulation, () => attempts.length, 3);
+    await waitEqual(simulation, () => attempts.length, 3);
     expect({ attempts, reported }).toEqual({ attempts: ["stale", "stale", "stale"], reported: [] });
 });
 
@@ -490,11 +485,11 @@ test("report a key function that fails on a change and reconcile every listed ke
     await database.transaction((transaction) =>
         transaction.insert(job).values({ id: "broken", scope: "space", runs: 1 }).execute(),
     );
-    await untilEqual(simulation, () => reconciled, ["broken"]);
+    await waitEqual(simulation, () => reconciled, ["broken"]);
     await database.transaction((transaction) =>
         transaction.insert(job).values({ id: "later", scope: "space", runs: 1 }).execute(),
     );
-    await untilEqual(simulation, () => reconciled.toSorted(), ["broken", "later"]);
+    await waitEqual(simulation, () => reconciled.toSorted(), ["broken", "later"]);
     expect(reported).toEqual(["controller_job: unreadable change"]);
 });
 
@@ -543,15 +538,15 @@ test("list a controller of an unlogged table again after a commit to its table a
     });
 
     // list each controller at the start and once more before any commit
-    await untilEqual(simulation, () => ({ ...listings }), { claims: 2, tickets: 2 });
+    await waitEqual(simulation, () => ({ ...listings }), { claims: 2, tickets: 2 });
 
     // list the tickets again after a ticket commit, in the same pass leaving the claims alone
     await database.insert(ticket).values({ id: "first" });
-    await untilEqual(simulation, () => ({ ...listings }), { claims: 2, tickets: 3 });
+    await waitEqual(simulation, () => ({ ...listings }), { claims: 2, tickets: 3 });
 
     // list the claims again after a claim commit, leaving the tickets alone
     await database.insert(claim).values({ id: "first" });
-    await untilEqual(simulation, () => ({ ...listings }), { claims: 3, tickets: 3 });
+    await waitEqual(simulation, () => ({ ...listings }), { claims: 3, tickets: 3 });
 });
 
 test("list again after compaction only the controllers following the compacted tables, leaving a periodic one to its delay, and settle idle once relisted", async () => {
@@ -607,7 +602,7 @@ test("list again after compaction only the controllers following the compacted t
         stopping.abort();
         await running;
     });
-    await untilEqual(simulation, () => swept, ["stores"]);
+    await waitEqual(simulation, () => swept, ["stores"]);
 
     // commit a change the follower stops at, then another, and compact both
     await database.transaction((transaction) =>
@@ -676,7 +671,7 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
     });
 
     // enqueue the first key again while it runs and finish the second
-    await untilEqual(simulation, () => started.length, 2);
+    await waitEqual(simulation, () => started.length, 2);
     const first = nth(started, 0);
     const second = nth(started, 1);
     const third = nth(
@@ -685,11 +680,11 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
     );
     loop.enqueue(controller, first);
     found(releases, second)();
-    await untilEqual(simulation, () => started, [first, second, third]);
+    await waitEqual(simulation, () => started, [first, second, third]);
 
     // reconcile the first again after it finishes
     found(releases, first)();
-    await untilEqual(simulation, () => started, [first, second, third, first]);
+    await waitEqual(simulation, () => started, [first, second, third, first]);
     expect(most).toBe(2);
 });
 
@@ -716,7 +711,7 @@ test("lock each key to one instance of several sharing a database, handing it ov
         list: async () => ["shared"],
         reconcile: async (_key, { signal }) => {
             reconciled.push(instance);
-            await until(signal);
+            await waitAborted(signal);
 
             return undefined;
         },
@@ -743,6 +738,50 @@ test("lock each key to one instance of several sharing a database, handing it ov
     await expect
         .poll(() => reconciled, { timeout: 2000 })
         .toEqual([holder, holder === "first" ? "second" : "first"]);
+});
+
+test("take over a key whose lock a crashed instance left once this instance's join timeout passes", async () => {
+    // keep the lock of an instance that crashed without a word, over a database two connections share
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create([job, lock], {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const other = await storage.connect([job, lock]);
+    onTestFinished(() => other.close());
+    await storage.database.transaction((transaction) =>
+        transaction
+            .insert(lock)
+            .values({ name: "controller:job", instance: "crashed", holder: "gone" })
+            .execute(),
+    );
+
+    // run a loop whose controller lists one key
+    const reconciled: string[] = [];
+    const controller: Controller = {
+        name: "job",
+        watches: [job],
+        keys: () => [],
+        list: async () => ["shared"],
+        reconcile: async (key) => {
+            reconciled.push(key);
+
+            return undefined;
+        },
+    };
+    const stopping = new AbortController();
+    const running = new ControlLoop(storage.database, [controller], { report: ignore }).run(
+        stopping.signal,
+    );
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // reconcile the key once no live instance replied for the crashed holder
+    await storage.database.tracker.waitSynced();
+    await expect.poll(() => reconciled, { timeout: 2000 }).toEqual(["shared"]);
 });
 
 test("follow each listed key until its list drops it or the loop stops", async () => {
@@ -793,15 +832,15 @@ test("follow each listed key until its list drops it or the loop stops", async (
     const running = loop.run(stopping.signal);
 
     // stop the key the list drops and start the one it adds
-    await untilEqual(simulation, () => started.toSorted(), ["dropped", "stayed"]);
+    await waitEqual(simulation, () => started.toSorted(), ["dropped", "stayed"]);
     await database.transaction((transaction) =>
         transaction.delete(job).where(eq(job.id, "dropped")).execute(),
     );
     await database.transaction((transaction) =>
         transaction.insert(job).values({ id: "added", scope: "space", runs: 1 }).execute(),
     );
-    await untilEqual(simulation, () => stopped, ["dropped"]);
-    await untilEqual(simulation, () => started.toSorted(), ["added", "dropped", "stayed"]);
+    await waitEqual(simulation, () => stopped, ["dropped"]);
+    await waitEqual(simulation, () => started.toSorted(), ["added", "dropped", "stayed"]);
 
     // settle idle while the follows run
     await loop.idle();
@@ -899,7 +938,7 @@ test("list a following controller again only for a commit of a row its list read
             );
         },
         reconcile: async (_key, { signal }) => {
-            await until(signal);
+            await waitAborted(signal);
             throw signal.reason;
         },
     };
@@ -922,7 +961,7 @@ test("list a following controller again only for a commit of a row its list read
         report: (_controller, _key, error) => reported.push(error),
     });
     const running = loop.run(stopping.signal);
-    await untilEqual(simulation, () => listings, 1);
+    await waitEqual(simulation, () => listings, 1);
 
     // commit jobs of another scope one at a time, listing nothing again once the loop read them all
     for (let index = 0; index < STRESS_COMMITS; index++) {
@@ -933,14 +972,14 @@ test("list a following controller again only for a commit of a row its list read
                     .values({ id: `other-${index}`, scope: "other", runs: 1 }),
         );
     }
-    await untilEqual(simulation, () => seen.includes(`other-${STRESS_COMMITS - 1}`), true);
+    await waitEqual(simulation, () => seen.includes(`other-${STRESS_COMMITS - 1}`), true);
     const unrelated = listings;
 
     // add a job of the space
     await database.transaction((transaction) =>
         transaction.insert(job).values({ id: "space-job", scope: "space", runs: 1 }).execute(),
     );
-    await untilEqual(simulation, () => listings, 2);
+    await waitEqual(simulation, () => listings, 2);
     stopping.abort();
     await running;
 
@@ -1180,16 +1219,16 @@ test("follow a key again once its list names it after it failed and was dropped"
     });
 
     // leave the refused follow failed, and follow the key again once listed
-    await untilEqual(simulation, () => started, ["flaky"]);
+    await waitEqual(simulation, () => started, ["flaky"]);
     await database.transaction((transaction) => transaction.delete(job).execute());
     await database.transaction((transaction) =>
         transaction.insert(job).values({ id: "other", scope: "space", runs: 1 }).execute(),
     );
-    await untilEqual(simulation, () => started, ["flaky", "other"]);
+    await waitEqual(simulation, () => started, ["flaky", "other"]);
     await database.transaction((transaction) =>
         transaction.insert(job).values({ id: "flaky", scope: "space", runs: 1 }).execute(),
     );
-    await untilEqual(simulation, () => started, ["flaky", "other", "flaky"]);
+    await waitEqual(simulation, () => started, ["flaky", "other", "flaky"]);
 });
 
 test("set the host's alarm at the earliest due or skipped key, clear it once nothing is due, and settle idle waiters, also after the loop stopped", async () => {
@@ -1557,7 +1596,7 @@ test("reconcile a key named due while the worker's alarm is set, before it sleep
     });
 
     // reconcile "late" without another change waking the worker
-    await untilEqual(simulation, () => reconciled, ["first", "late"]);
+    await waitEqual(simulation, () => reconciled, ["first", "late"]);
 });
 
 test("settle an alarm at its deadline while a follow runs, leave the alarm due, and resume the follow from its recorded position after eviction", async () => {
@@ -1624,7 +1663,7 @@ test("settle an alarm at its deadline while a follow runs, leave the alarm due, 
     const evicted = start();
 
     // settle the alarm at its deadline once the follow runs
-    await untilEqual(simulation, () => follows, 1);
+    await waitEqual(simulation, () => follows, 1);
     await evicted.loop.idle(world.clock.now() + 20);
     const settled = world.clock.now();
     const isDue = alarms.length === 1 && nth(alarms, 0) <= settled;
@@ -1636,7 +1675,7 @@ test("settle an alarm at its deadline while a follow runs, leave the alarm due, 
     // receive another event and resume in a new loop from the recorded position
     source.push("third");
     const resumed = start();
-    await untilEqual(simulation, () => applied.length, 3);
+    await waitEqual(simulation, () => applied.length, 3);
     resumed.stopping.abort();
     await resumed.running;
     expect({ isDue, applied, follows }).toEqual({

@@ -888,7 +888,7 @@ test("answer a read anew once another connection deletes an append-only row, whi
     await other.transaction((transaction) =>
         transaction.delete(reading).where(eq(reading.id, "r")).execute(),
     );
-    await database.log.until(
+    await database.log.waitUntil(
         async (tables) => tables.has(name),
         AbortSignal.timeout(5000),
         generation,

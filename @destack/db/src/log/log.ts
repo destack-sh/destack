@@ -611,7 +611,7 @@ export class Log {
             throw new TypeError("cannot wait for changes inside a transaction");
         }
 
-        return this.until(async () => await this.#includes(sequence), signal);
+        return this.waitUntil(async () => await this.#includes(sequence), signal);
     }
 
     /** Settle once the log receives other writers' commits as they end. */
@@ -620,12 +620,12 @@ export class Log {
     }
 
     /** Wait until a check of the tables committed since the last check passes after a commit. */
-    until(
+    waitUntil(
         check: (tables: ReadonlySet<string>) => Promise<boolean>,
         signal: AbortSignal,
         generation?: number,
     ): Promise<boolean> {
-        return this.database.state.commits.until(check, signal, generation);
+        return this.database.state.commits.waitUntil(check, signal, generation);
     }
 
     /** Yield each page of selected changes past a sequence, or every advance, until aborted. */
@@ -657,7 +657,7 @@ export class Log {
             // read on after a full page, else wait for a commit past it
             if (!isFull) {
                 const next = after + 1;
-                await this.until(
+                await this.waitUntil(
                     async (committed) =>
                         (options.isAdvancing === true ||
                             [...committed].some((table) => tables.has(table))) &&

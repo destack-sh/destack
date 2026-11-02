@@ -155,14 +155,14 @@ export class PostgresPool {
     async #take(
         environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
     ): Promise<postgres.Sql> {
-        const sql = this.#idle.pop() ?? (await this.#waitForRelease(environment));
+        const sql = this.#idle.pop() ?? (await this.#waitReleased(environment));
         this.#holders.set(sql, environment.scheduler);
 
         return sql;
     }
 
     /** Wait for a released connection, failing once none comes within the wait. */
-    async #waitForRelease(
+    async #waitReleased(
         environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
     ): Promise<postgres.Sql> {
         // queue the wait, counting it as peer work while other worlds' work has connections

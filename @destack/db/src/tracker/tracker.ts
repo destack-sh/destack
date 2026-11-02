@@ -8,6 +8,9 @@ const HEARTBEAT_MILLISECONDS = 15_000;
 /** The missed heartbeats before the others count an instance stopped. */
 const MISSED_HEARTBEATS = 3;
 
+/** How long a joining instance waits for replies to its hello, which a channel pushes at once. */
+const JOIN_TIMEOUT_MILLISECONDS = 1_000;
+
 /** A message between the instances sharing a database. */
 export const TrackerMessage = schema.discriminatedUnion("kind", [
     schema.object({
@@ -67,12 +70,16 @@ export interface TrackerOptions {
     readonly instance?: string;
     /** The heartbeat interval, in milliseconds. */
     readonly heartbeat?: number;
+    /** How long a joining instance waits for replies to its hello, in milliseconds. */
+    readonly joinTimeout?: number;
 }
 
 /** The live instances sharing a database, the owners and marks of each, after Phoenix.Tracker. */
 export class Tracker {
     /** This instance's identifier. */
     readonly instance: string;
+    /** Settles once this instance's view of the live instances is complete. */
+    readonly #synced: Promise<void>;
     /** The environment whose clock times the heartbeats. */
     readonly #environment: Pick<Environment, "clock" | "random">;
     /** The channel to the other instances, absent for a sole writer. */
@@ -97,8 +104,10 @@ export class Tracker {
     readonly #listeners = new Map<string, Set<(event: TrackerEvent) => void>>();
     /** The heartbeat interval, in milliseconds. */
     readonly #heartbeat: number;
-    /** When this instance started listening, in UTC epoch milliseconds. */
-    readonly #startedAt: number;
+    /** How long this instance waits for replies to its hello, in milliseconds. */
+    readonly #joinTimeout: number;
+    /** Whether this instance's view of the live instances is complete. */
+    #isSynced = false;
     /** Stops the heartbeat loop. */
     readonly #closing = new AbortController();
     /** Stop listening to the channel. */
@@ -114,7 +123,7 @@ export class Tracker {
         this.instance = options.instance ?? Uuid.v4(environment.random);
         this.#environment = environment;
         this.#heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
-        this.#startedAt = environment.clock.now();
+        this.#joinTimeout = options.joinTimeout ?? JOIN_TIMEOUT_MILLISECONDS;
         this.#channel = channel === undefined ? undefined : typedChannel(channel, TrackerMessage);
 
         // receive messages, asking for the tracked owners on each start or resume
@@ -123,6 +132,17 @@ export class Tracker {
                 receive: (message) => this.#receive(message),
                 resume: () => this.#notify({ kind: "hello", instance: this.instance }),
             }) ?? (() => {});
+
+        // sync once the live instances could reply to the hello, at once without a channel
+        const replied =
+            this.#channel === undefined
+                ? Promise.resolve()
+                : environment.clock
+                      .sleep(this.#joinTimeout, this.#closing.signal)
+                      .catch(() => undefined);
+        this.#synced = replied.then(() => {
+            this.#isSynced = true;
+        });
 
         // announce this instance and count silent ones stopped each heartbeat
         if (this.#channel !== undefined) {
@@ -188,12 +208,19 @@ export class Tracker {
         return () => this.#marked.delete(listener);
     }
 
-    /** Decide whether an instance is live: this one, a recent sender, or any while starting. */
+    /** Decide whether an instance is live: this one, a recent sender, or any before syncing. */
     isLive(instance: string): boolean {
-        const isListening =
-            this.#environment.clock.now() - this.#startedAt < this.#heartbeat * MISSED_HEARTBEATS;
+        return instance === this.instance || this.#instances.has(instance) || !this.#isSynced;
+    }
 
-        return instance === this.instance || this.#instances.has(instance) || isListening;
+    /** Report whether this instance's view of the live instances is complete. */
+    get isSynced(): boolean {
+        return this.#isSynced;
+    }
+
+    /** Wait until this instance's view of the live instances is complete. */
+    waitSynced(): Promise<void> {
+        return this.#synced;
     }
 
     /** Decide whether any instance tracks an owner. */

@@ -252,7 +252,7 @@ test("count a commit in flight until a watching connection receives it, though i
     onTestFinished(() => stopping.abort());
     let isSeen = false;
     void watching.log
-        .until(async () => (await watching.select().from(note)).length > 0, stopping.signal)
+        .waitUntil(async () => (await watching.select().from(note)).length > 0, stopping.signal)
         .then(() => {
             isSeen = true;
         });
@@ -273,7 +273,7 @@ test("count a commit in flight until a watching connection receives it, though i
             })
             .execute(),
     );
-    await simulation.until(() => isSeen);
+    await simulation.waitUntil(() => isSeen);
 
     // leave the clock where it started, as the commit stays in flight until delivered
     expect(simulation.clock.now()).toBe(Date.UTC(2026, 9, 1));

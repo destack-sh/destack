@@ -10,9 +10,9 @@ export async function serveBrowserDatabase(
     channel: Channel<unknown>,
     environment: DatabaseEnvironment,
 ): Promise<() => Promise<void>> {
-    // open the file through synchronous access handles
+    // open the file through the database's own pool of synchronous access handles, which one worker holds
     const sqlite = await init();
-    const pool = await sqlite.installOpfsSAHPoolVfs({ name: "destack" });
+    const pool = await sqlite.installOpfsSAHPoolVfs({ name: `destack-${name}` });
     const database = new pool.OpfsSAHPoolDb(`/${name}`);
     database.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
 

@@ -187,6 +187,7 @@ test("announce a mark at once and a refresh with the next heartbeat, hand a late
 function open(channel: Channel<unknown> | undefined, simulation: Simulation): Tracker {
     const tracker = new Tracker(simulation.environment("database"), channel, {
         heartbeat: HEARTBEAT,
+        joinTimeout: HEARTBEAT,
     });
     onTestFinished(() => tracker.close());
 
