@@ -6,9 +6,11 @@ import { AccessContext, Caller, none, principal, relation } from "@destack/acces
 
 import { defineDatabase, eq, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { present, schema } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 
-import { defineObject, field } from "../src/index.ts";
+import { defineObject, device, field } from "../src/index.ts";
+import { ObjectClient } from "../src/client/index.ts";
+import { connectBunSqlite } from "@destack/db/bun";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
@@ -335,5 +337,79 @@ test("let an object representing a principal control its row, and refuse it anot
     expect({ observed: observed?.conditions["Ready"]?.observedGeneration, refused }).toEqual({
         observed: 1,
         refused: ["NOT_FOUND", "NOT_FOUND", `contact ${first} not found`],
+    });
+});
+
+test("control a device's local object as a durable one: observe it at its generation, then finalize its deletion", async () => {
+    // store a device's lamps locally, controlled like durable objects
+    const lamp = defineObject(
+        {
+            name: "lamp",
+            plural: "lamps",
+            scope: device,
+            storage: "local",
+            controlled: true,
+            fields: { color: field.string(schema.string().min(1)) },
+            permissions: { write: none() },
+        },
+        (method) => ({
+            create: method.create("write", { fields: ["color"] }),
+            update: method.update("write", { fields: ["color"] }),
+            delete: method.delete("write"),
+        }),
+    );
+    const environment = testSimulation().environment("device");
+    const database = await connectBunSqlite(":memory:", [], { environment });
+    onTestFinished(() => database.close());
+    const owner = principal.device.reference(
+        Scope.universe.id,
+        Identifier.create("device", environment),
+    );
+    const client = await ObjectClient.open({
+        environment,
+        database,
+        objects: { lamp },
+        scope: owner.id,
+        caller: owner,
+        device: owner,
+        endpoint: {
+            url: "http://local.invalid/",
+            fetch: async () => {
+                throw new TypeError("local lamps call no server");
+            },
+        },
+        reconnect: () => {
+            throw new TypeError("local lamps move to no machine");
+        },
+    });
+    onTestFinished(() => client.close());
+    const read = async (id: Identifier<"lamp">) => {
+        const row = await client.queryType(lamp).findFirst({ where: { id } });
+
+        return row === undefined
+            ? undefined
+            : { generation: row.generation, ready: row.conditions["Ready"]?.status };
+    };
+
+    // create a lamp, observe it ready, change it, then delete and finalize it
+    const created = await client.mutate(lamp).create({ color: "red" }).predicted;
+    await client.mutate(lamp).observe({
+        id: created.id,
+        observedGeneration: 1,
+        conditions: { Ready: { status: "true", reason: "Shown", message: "" } },
+    }).confirmed;
+    const observed = await read(created.id);
+    await client.mutate(lamp).update({ id: created.id, color: "blue" }).confirmed;
+    const changed = await read(created.id);
+    await client.mutate(lamp).delete({ id: created.id }).confirmed;
+    const deleting = await read(created.id);
+    await client.mutate(lamp).finalize({ id: created.id }).confirmed;
+
+    // expect the observation at generation 1, the change and the deletion each advancing it, and no row once finalized
+    expect({ observed, changed, deleting, finalized: await read(created.id) }).toEqual({
+        observed: { generation: 1, ready: "true" },
+        changed: { generation: 2, ready: "true" },
+        deleting: { generation: 3, ready: "true" },
+        finalized: undefined,
     });
 });

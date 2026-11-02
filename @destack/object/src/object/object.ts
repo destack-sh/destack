@@ -1094,6 +1094,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.policy.permission(name);
     }
 
+    /** Report whether a name is one of the object's declared permissions. */
+    isPermission<Self extends ObjectType>(this: Self, name: string): name is PermissionOf<Self> {
+        return this.permissions.includes(name);
+    }
+
     /** Where the objects' routes place their scope. */
     get route(): ScopeRoute {
         return scopeRoute(this);

@@ -5,6 +5,7 @@ import { DeclarationName, ModuleMetadata, PACKAGE, Package, PackageError } from 
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
 import { mapValues, Version } from "@destack/schema";
 import { AdapterPath, Capability } from "./description.ts";
+import type { Command } from "./command.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
 import { PermissionRequest, type Policy } from "@destack/access";
 import type { ObjectTypeReference } from "@destack/sync";
@@ -41,6 +42,8 @@ export interface PackageInput {
     readonly tables?: readonly Table[];
     /** The views the package offers, by name. */
     readonly views?: Readonly<Record<string, Declaration>>;
+    /** The commands the package declares on its objects, by name. */
+    readonly commands?: Readonly<Record<string, Command>>;
     /** The adapters of protocols others define, by name. */
     readonly adapters?: Readonly<Record<string, AdapterDeclaration>>;
     /** The resources the package uses, by name. */
@@ -69,6 +72,8 @@ export interface PackageHandle<Input extends PackageInput = PackageInput> extend
     readonly tables: readonly Table[];
     /** The views the package offers, by name. */
     readonly views: Declared<Input["views"]>;
+    /** The commands the package declares on its objects, by name. */
+    readonly commands: Declared<Input["commands"]>;
     /** The adapters of protocols others define, by name. */
     readonly adapters: Declared<Input["adapters"]>;
     /** The resources the package uses, by name. */
@@ -115,11 +120,20 @@ export const PackageHandle = {
     /** Build a package's handle from its identity and what it declares. */
     of<const Input extends PackageInput>(owner: Package, input: Input): PackageHandle<Input> {
         // read what the package declares, each kind it leaves out empty
-        const { objects = {}, views = {}, adapters = {}, resources = {}, secrets = {} } = input;
+        const {
+            objects = {},
+            views = {},
+            commands = {},
+            adapters = {},
+            resources = {},
+            secrets = {},
+        } = input;
 
         // key each named declaration by its name, once across the handle
         const names = new Set<string>();
-        const named = [views, adapters, resources, secrets].flatMap((map) => Object.entries(map));
+        const named = [views, commands, adapters, resources, secrets].flatMap((map) =>
+            Object.entries(map),
+        );
         for (const [key, declaration] of named) {
             if (key !== declaration.name) {
                 throw PackageError.of(
@@ -138,6 +152,24 @@ export const PackageHandle = {
             throw PackageError.of(
                 "DEFINITION_INVALID",
                 `${owner.name} lists object ${foreign.name}, but only ${foreign.package.name} can serve it`,
+            );
+        }
+
+        // refuse a command on an object type the package does not serve, or named as one of its methods
+        const served = new Set<unknown>(Object.values(objects));
+        const stray = Object.values(commands).find((command) => !served.has(command.object));
+        const renaming = Object.values(commands).find(
+            (command) => command.name in command.object.methods,
+        );
+        if (stray !== undefined) {
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `${owner.name} lists command ${stray.name} on ${stray.object.name}, which it does not serve`,
+            );
+        } else if (renaming !== undefined) {
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `command ${renaming.name} takes the name of a method of ${renaming.object.name}`,
             );
         }
 
@@ -191,6 +223,10 @@ export const PackageHandle = {
             objects: mapValues<typeof objects, Declared<Input["objects"]>>(objects, (each) => each),
             tables: [...(input.tables ?? [])],
             views: mapValues<typeof views, Declared<Input["views"]>>(views, (each) => each),
+            commands: mapValues<typeof commands, Declared<Input["commands"]>>(
+                commands,
+                (each) => each,
+            ),
             adapters: mapValues<typeof adapters, Declared<Input["adapters"]>>(
                 adapters,
                 (each) => each,

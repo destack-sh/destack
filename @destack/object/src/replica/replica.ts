@@ -54,6 +54,8 @@ export const QueryFields = {
     deleted: schema.enum(["exclude", "include", "only"]).exactOptional(),
     /** Aggregates of the rows, replicated instead of the rows. */
     aggregate: Aggregate.exactOptional(),
+    /** The permission the caller also has on each row, by its name on the type. */
+    permission: schema.string().min(1).exactOptional(),
 };
 
 /** One aggregate group a list measures. */
@@ -105,7 +107,6 @@ export const ObjectQuery: schema.Schema<ObjectQuery> = schema.object({
     package: PackageId,
     scopes: schema.literal("every").exactOptional(),
     ...QueryFields,
-    permission: schema.string().min(1).exactOptional(),
 });
 
 /** The publication of a scope's durable objects a caller follows. */

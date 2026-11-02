@@ -671,7 +671,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     });
 });
 
-test("replicate only the rows a query's permission allows, drop a row once the follower loses it, and refuse an undeclared permission", async () => {
+test("list and replicate only the rows a query's permission allows, drop a row once the follower loses it, and refuse an undeclared permission", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -753,7 +753,18 @@ test("replicate only the rows a query's permission allows, drop a row once the f
             .parse(created);
     };
     const lent = await create("Lent", alice);
-    await create("Read", bob);
+    const read = await create("Read", bob);
+
+    // list the loans alice reads, and those she may also use
+    const list = async (permission?: "use") => {
+        const listed = await store.query(
+            subjectContext(alice, spaceId, { environment: world }).access(),
+            loan.call("list", { spaceId, ...(permission === undefined ? {} : { permission }) }),
+        );
+
+        return listed.items.map((item) => item.id).toSorted();
+    };
+    const listed = { read: await list(), used: await list("use") };
 
     // follow the loans alice may use, as alice
     const following = new AbortController();
@@ -798,7 +809,7 @@ test("replicate only the rows a query's permission allows, drop a row once the f
     });
     const second = await titles();
 
-    // replicate the loan alice may use alone, drop it once she may no longer use it, and refuse an undeclared permission
+    // list and replicate the loan alice may use alone, drop it once she may no longer use it, and refuse an undeclared permission
     const undeclared = await refusal(
         store.source
             .relayed(
@@ -823,7 +834,8 @@ test("replicate only the rows a query's permission allows, drop a row once the f
             )
             .next(),
     );
-    expect([first, second, undeclared]).toEqual([
+    expect([listed, first, second, undeclared]).toEqual([
+        { read: [lent.id, read.id].toSorted(), used: [lent.id] },
         [["insert", lent.id]],
         [["delete", lent.id]],
         ["BAD_REQUEST", "PERMISSION_UNKNOWN", "object loan has no permission lend"],

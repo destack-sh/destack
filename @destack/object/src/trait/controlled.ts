@@ -52,7 +52,7 @@ export const controlled: Trait<ControlledDefinition> & {
     readonly checks: (name: string) => Check[];
 } = {
     key: "controlled",
-    storages: ["durable"],
+    storages: ["durable", "local"],
     options: (definition) => definition.controlled,
     columns: (options) => ({
         ...controlledColumns(),

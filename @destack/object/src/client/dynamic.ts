@@ -37,8 +37,8 @@ const Listed = schema.looseObject({
     cursor: schema.string().nullable(),
 });
 
-/** A list method's further inputs beside its query, such as the build a declaration list reads. */
-type ListInput = Readonly<Record<string, JsonValue>>;
+/** A list method's further inputs beside its query, such as a declaration list's build. */
+type ListInput = Readonly<Record<string, unknown>>;
 
 /** The results of a pushed mutation's calls, in call order. */
 const CALL_RESULTS = schema.array(schema.json());
@@ -176,7 +176,7 @@ export class DynamicObjectClient {
     /** List a type's rows through its list method as JSON, page by page up to the query's limit. */
     async list(
         type: string,
-        query: Pick<ObjectQuery, "where" | "orderBy" | "limit"> & ListInput = {},
+        query: Pick<ObjectQuery, "where" | "orderBy" | "limit" | "permission"> & ListInput = {},
     ): Promise<readonly JsonObject[]> {
         // find the type's list method
         const method = Object.entries(this.object(type).methods).find(

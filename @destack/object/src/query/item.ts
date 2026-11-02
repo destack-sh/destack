@@ -2,7 +2,7 @@ import type * as db from "@destack/db";
 import type { ColumnValue, Extras, Relation } from "@destack/db";
 import { included, type Item, type Query } from "@destack/sync";
 import type * as sync from "@destack/sync";
-import type { ObjectType } from "../object/object.ts";
+import type { ObjectType, PermissionOf } from "../object/object.ts";
 import type { ModelOf } from "./relation.ts";
 
 /** A relational read of an object type's rows, with the trash a root selects. */
@@ -14,6 +14,8 @@ export type FindOptions<
 > = db.FindOptions<ModelOf<Object, Objects>, Cardinality, Computed> & {
     /** Which trashed rows of a recoverable type to select, none by default. */
     readonly deleted?: "exclude" | "include" | "only";
+    /** The permission the caller also has on each row, beside reading it. */
+    readonly permission?: PermissionOf<Object>;
 };
 
 /** Measures of an object type's rows per group, live like any read. */

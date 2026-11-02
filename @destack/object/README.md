@@ -120,6 +120,28 @@ notify: method.mutation({ permission: "post", visibility: "installation" }), // 
 post: method.create("post", { visibility: "package" }), // only this package's code
 ```
 
+## Commands
+
+`defineCommand` declares a titled call of a method, with some input preset and a condition its target meets, which menus, the command palette and the command line offer.
+
+```ts
+export const markDone = defineCommand({
+    name: "mark-done",
+    title: t`Mark Done`,
+    category: t`Task`, // the palette shows "Task: Mark Done"
+    object: task,
+    method: "update",
+    input: { status: "done" }, // the caller gives the target and the rest
+    when: { status: { ne: "done" } }, // a condition over the target's fields
+    keybinding: "mod+enter",
+});
+
+markDone.target; // "object", or "scope" for a method such as create
+markDone.parameters; // the JSON Schema of the input the caller still gives
+await client.queryType(task).findFirst(markDone.query([id])); // the target, if it applies and the person may update it
+client.call(task, markDone.method, markDone.input({ id })); // { status: "done", id }
+```
+
 ## References
 
 `field.reference` stores one type's identifier as `<name>Id`, and `field.object` or `field.subject` store a reference to any object or principal as `<name>PackageId`, `<name>Type`, `<name>Scope` and `<name>Id`.

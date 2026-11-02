@@ -81,6 +81,15 @@
                     "function": "./inspect#describeWorkload"
                 }
             ]
+        },
+        "defineCommand": {
+            "describes": [
+                {
+                    "kind": "command",
+                    "function": "./inspect#describeCommand",
+                    "symbols": "./inspect#commandSymbols"
+                }
+            ]
         }
     },
     "stamps": {
@@ -103,6 +112,9 @@
             "module": 3
         },
         "defineWorkload": {
+            "module": 1
+        },
+        "defineCommand": {
             "module": 1
         }
     },
