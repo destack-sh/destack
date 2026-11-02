@@ -1,0 +1,32 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a19df5-747a-7eaa-80d3-71b1cb19f1cd",
+    "language": "typescript",
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./inspect": {
+            "runtimes": ["bun"]
+        },
+        "./smtp": {
+            "runtimes": ["bun"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
+        }
+    },
+    "declarations": {
+        "defineMail": {
+            "describes": [
+                {
+                    "kind": "resource",
+                    "function": "./inspect#describeMail"
+                }
+            ]
+        }
+    },
+    "stamps": {
+        "defineMail": {
+            "module": 1
+        }
+    }
+}

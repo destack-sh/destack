@@ -1,0 +1,36 @@
+{
+    "name": "@destack/mail",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Declare mail in Destack and send it through SMTP, Amazon SES or a printer.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./declare": "./src/declare/index.ts",
+        "./error": "./src/error/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./transport": "./src/transport/index.ts",
+        "./mime": "./src/mime/index.ts",
+        "./smtp": "./src/smtp/index.ts",
+        "./ses": "./src/ses/index.ts",
+        "./print": "./src/print/index.ts",
+        "./test": "./src/test/index.ts"
+    },
+    "dependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
+    }
+}
