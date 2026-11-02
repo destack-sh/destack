@@ -151,22 +151,6 @@ export const ViewDescription = Object.assign(viewDescription, {
 /** A view a browser output compiles, as manifests describe it. */
 export type ViewDescription = schema.Infer<typeof viewDescription>;
 
-/** A call of an object type's method as a command the shell offers. */
-export const CommandDescription = schema.object({
-    /** The command's title, shown in the command menu. */
-    title: schema.string().min(1),
-    /** The package declaring the object type. */
-    packageId: PackageId,
-    /** The object type the command calls. */
-    type: schema.string().min(1),
-    /** The method the command calls. */
-    method: schema.string().min(1),
-    /** The key combination running it, in VS Code's keybinding syntax. */
-    keybinding: schema.string().min(1).exactOptional(),
-});
-/** A named call of an object type's method the shell offers, as its declaration describes it. */
-export type CommandDescription = schema.Infer<typeof CommandDescription>;
-
 /** Rank a view by its strongest presentation, first when it presents no type. */
 function strength(view: Pick<ViewDescription, "presents">): number {
     return view.presents.length === 0
