@@ -27,7 +27,7 @@ mergeProperties(part, caller); // Base UI's mergeProps
 Every part renders its native element with a `data-slot` and its state as `data-*` and applies `xstyle` after its own styles; element parts take `render`, and parts built on a native behaviour, such as `DialogContent` on `dialog`, keep their element.
 
 ```tsx
-<Card render={(part) => <section {...part} />} />;
+<Card render={(part) => <section {...part} />} />
 // <section data-slot="card">…</section>
 ```
 
@@ -46,7 +46,16 @@ export function CardFooter(properties: CardProperties): JSX.Element {
 Text the components write themselves renders in the reader's locale through `useLocale`, which also sets the arrow keys' direction.
 
 ```tsx
-<Pagination />; // "Pagination", "Previous", "Next" in German under de-AT
+<Pagination /> // "Pagination", "Previous", "Next" in German under de-AT
+```
+
+## Stylesheets
+
+`Prose`, `CodeBlock`, `Stack` and `Switcher` style their descendants through a stylesheet each, which the page imports once, as with Mantine's `@mantine/core/styles.css`.
+
+```css
+@import "@destack/ui/prose.css";
+@import "@destack/ui/code-block.css";
 ```
 
 ## Content
@@ -102,7 +111,7 @@ Text the components write themselves renders in the reader's locale through `use
         field.name === "ownerId" ? <OwnerPicker {...held} /> : undefined
     }
     onSubmit={file}
-/>;
+/>
 ```
 
 ## Color swatch picker

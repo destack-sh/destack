@@ -2,7 +2,6 @@ import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
 import { color } from "@destack/theme/tokens.stylex";
 import { type JSX } from "@destack/view";
-import "./prose.css";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The longest line of running text, in characters, the measure long-form text reads best at. */

@@ -2,7 +2,6 @@ import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
-import "./switcher.css";
 
 /** The default width below which a switcher stacks, the space between, and its row limit. */
 const DEFAULTS = { threshold: "30rem", space: "4", limit: 4 } as const;

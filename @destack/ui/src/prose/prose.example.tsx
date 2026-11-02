@@ -1,5 +1,6 @@
 import { defineExample } from "@destack/package/declare";
 import { Prose } from "./prose.tsx";
+import "./prose.css";
 
 /** An article as Markdown renders it: headings, a list, a quotation, code and a table. */
 const ARTICLE = `<h1>Release notes</h1>

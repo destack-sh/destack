@@ -2,7 +2,6 @@ import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
-import "./stack.css";
 
 /** The space between stacked elements unless set. */
 const DEFAULTS = { space: "4", recursive: false } as const;

@@ -1,6 +1,7 @@
 import { defineExample } from "@destack/package/declare";
 import { Card, CardDescription, CardHeader, CardTitle } from "../card/index.ts";
 import { Switcher } from "./switcher.tsx";
+import "./switcher.css";
 
 /** Three plans side by side, stacked once the container is narrower than 40rem. */
 export const switcherPlans = defineExample({

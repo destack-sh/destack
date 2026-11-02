@@ -2,7 +2,6 @@ import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
 import { color, font, radius, space, stroke } from "@destack/theme/tokens.stylex";
 import { createContext, type JSX, omit, useContext } from "@destack/view";
-import "./code-block.css";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The styles of a code block and its elements. */

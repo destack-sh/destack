@@ -6,6 +6,7 @@ import {
     CodeBlockLine,
     CodeBlockTitle,
 } from "./code-block.tsx";
+import "./code-block.css";
 
 /** The lines of a note's export script, numbered under its file name. */
 export const codeBlockExportScript = defineExample({
