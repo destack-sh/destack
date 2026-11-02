@@ -145,7 +145,7 @@ test("fire an events condition per crossing group, as a count, a ratio and a per
             .map(({ title, value, labels, status }) => ({ title, value, labels, status }))
             .toSorted((left, right) => left.title.localeCompare(right.title));
     const statuses = async () => (await alerts()).map((each) => each.status);
-    await fixture.simulation.until(
+    await fixture.simulation.waitUntil(
         async () => (await statuses()).join() === "firing,firing,firing",
     );
     const fired = await alerts();
@@ -154,7 +154,7 @@ test("fire an events condition per crossing group, as a count, a ratio and a per
         condition: { ...ERROR_COUNT, threshold: 10 },
         requestId: RequestId.create(fixture.environment),
     });
-    await fixture.simulation.until(async () => (await statuses()).includes("resolved"));
+    await fixture.simulation.waitUntil(async () => (await statuses()).includes("resolved"));
 
     // fire once per rule for the notes installation's group, or the space's, and settle the errors' alert
     const labels = { installationId: fixture.notes };
@@ -280,7 +280,7 @@ test("make the manager who last sets a rule's condition or actions its author, w
     await owner.alertRule.update(update({ actions: [{ kind: "call", method: "rollBack" }] }));
     const acted = await author();
     await fixture.post("logs", fixture.emitter.logs(errors(now)));
-    await fixture.simulation.until(async () => (await outcome(fixture)).responses.length === 1);
+    await fixture.simulation.waitUntil(async () => (await outcome(fixture)).responses.length === 1);
     const { responses } = await outcome(fixture);
 
     // let the owner change only its title, then the member only its condition
@@ -289,7 +289,7 @@ test("make the manager who last sets a rule's condition or actions its author, w
     const member = fixture.member.client(observabilityPackage);
     await member.alertRule.update(update({ condition: { ...ERROR_COUNT, threshold: 10 } }));
     const conditioned = await author();
-    await fixture.simulation.until(
+    await fixture.simulation.waitUntil(
         async () => (await outcome(fixture)).statuses.join() === "resolved",
     );
 
@@ -297,7 +297,7 @@ test("make the manager who last sets a rule's condition or actions its author, w
     await fixture.space.simulation.jump(now + REPEAT_MILLISECONDS);
     await member.alertRule.update(update({ condition: ERROR_COUNT }));
     await fixture.post("logs", fixture.emitter.logs(errors(fixture.clock.now())));
-    await fixture.simulation.until(async () => (await outcome(fixture)).responses.length === 2);
+    await fixture.simulation.waitUntil(async () => (await outcome(fixture)).responses.length === 2);
     const responders = (await outcome(fixture)).responses.map((response) => response.actor);
 
     // move the author with the actions and the condition, keep it for the title, and respond as it
@@ -411,7 +411,7 @@ test("keep an alert pending for its rule's pending period, then fire, announce a
 
     // evaluate now, each minute until the pending period ends, and once the threshold rises above the count
     const statuses = async () => (await outcome(fixture)).statuses.join();
-    await fixture.simulation.until(async () => (await statuses()) === "pending");
+    await fixture.simulation.waitUntil(async () => (await statuses()) === "pending");
     const pending = (await outcome(fixture)).statuses;
     await fixture.simulation.clock.sleep(now + 2 * 60_000 - fixture.simulation.clock.now());
     await fixture.simulation.idle();
@@ -421,7 +421,7 @@ test("keep an alert pending for its rule's pending period, then fire, announce a
         condition: { ...ERROR_COUNT, threshold: 10 },
         requestId: RequestId.create(fixture.environment),
     });
-    await fixture.simulation.until(async () => (await statuses()) === "resolved");
+    await fixture.simulation.waitUntil(async () => (await statuses()) === "resolved");
     const resolved = await outcome(fixture);
 
     // expect pending, then firing with one response as the member, then resolved with both announcements
@@ -455,7 +455,7 @@ test("fire an issue rule once per opened issue and once per regression, and not 
     await rule(fixture, "Opened", { kind: "issue", on: "open" });
     await rule(fixture, "Regressed", { kind: "issue", on: "regress" });
     await fixture.post("logs", fixture.emitter.exceptions([fixture.renameFailure(now, "dana")]));
-    await fixture.simulation.until(async () => (await fired("Opened")).length === 1);
+    await fixture.simulation.waitUntil(async () => (await fired("Opened")).length === 1);
     const opened = [await fired("Opened"), await fired("Regressed")];
 
     // resolve the issue, then fail again, regressing it
@@ -469,7 +469,7 @@ test("fire an issue rule once per opened issue and once per regression, and not 
         "logs",
         fixture.emitter.exceptions([fixture.renameFailure(now + 10, "dana")]),
     );
-    await fixture.simulation.until(async () => (await fired("Regressed")).length === 1);
+    await fixture.simulation.waitUntil(async () => (await fired("Regressed")).length === 1);
     const regressed = [await fired("Opened"), await fired("Regressed")];
 
     // let the resolved alerts expire, evaluating the rules again after
@@ -504,13 +504,13 @@ test("fire a silenced subject's alert without announcing it or responding, and a
         { kind: "notify" },
         { kind: "call", method: "rollBack" },
     ]);
-    await fixture.simulation.until(
+    await fixture.simulation.waitUntil(
         async () => (await outcome(fixture)).statuses.join() === "firing",
     );
     const silenced = await outcome(fixture);
 
     // announce it and start its response at the first evaluation after the silence ends
-    await fixture.simulation.until(async () => (await outcome(fixture)).announced.length > 0);
+    await fixture.simulation.waitUntil(async () => (await outcome(fixture)).announced.length > 0);
     const lapsed = await outcome(fixture);
 
     expect({
@@ -546,7 +546,7 @@ test("fire an events condition with an empty window when its rule says no data a
         requestId: RequestId.create(fixture.environment),
     });
     await rule(fixture, "Quiet", missing);
-    await fixture.simulation.until(async () =>
+    await fixture.simulation.waitUntil(async () =>
         (await outcome(fixture)).alerts.some((each) => each.status === "firing"),
     );
 

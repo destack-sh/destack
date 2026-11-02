@@ -392,7 +392,7 @@ test("keep a page's visits and actions apart from its logs, its visitor a hash o
     const { events } = fixture.served.store;
     const scopes: EventFilter = { scopes: [ids.space] };
     const read = async () => (await events.query(visit.eventKind(), scopes)).events;
-    await fixture.simulation.until(async () => (await read()).length === 2);
+    await fixture.simulation.waitUntil(async () => (await read()).length === 2);
     const visits = await read();
     const actions = (await events.query(action.eventKind(), scopes)).events;
     const logs = (await events.query(log.eventKind(), scopes)).events;
