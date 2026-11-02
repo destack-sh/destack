@@ -8,7 +8,7 @@ import { TestDns } from "@destack/account/test";
 import { Plan } from "@destack/resource";
 import * as accountObject from "@destack/account/object";
 import { space, user } from "@destack/account/object";
-import { ANONYMOUS, anyone, LinkSecret, principal, relation } from "@destack/access";
+import { ANONYMOUS, anyone, LinkSecret, principal, relation, Role } from "@destack/access";
 import {
     defineObject,
     field,
@@ -37,6 +37,9 @@ import viewPackage from "@destack/view/destack.json" with { type: "json" };
 import { LINK_COOKIE, SESSION_COOKIE } from "./origin.ts";
 import { OWNER_EMAIL, TestComputer, SCENARIO_MILLISECONDS } from "../computer/test/index.ts";
 import { TestViewBuild } from "./test/view.ts";
+
+/** The address of a second person signing in on the owner's computer. */
+const MEMBER_EMAIL = "member@example.test";
 
 /** The greeting package, whose view reads its own catalogs and its widget library's. */
 const GREETING = Package.parse({
@@ -341,6 +344,38 @@ async function openWork(home: Served): Promise<Served> {
     return { computer, login: signedIn.id, spaceId, address: `work--${owner.handle}` };
 }
 
+/** Serve the owner's work space shared with a second person by invitation. */
+async function openShared(
+    home: Served,
+): Promise<Served & { readonly member: Identifier<"login"> }> {
+    // serve the work space, and sign the second person in on its computer
+    const opened = await openWork(home);
+    const { computer, spaceId } = opened;
+    const member = await computer.signIn(MEMBER_EMAIL);
+
+    // invite them to own the space with the owner, and accept as them
+    const object = space.reference(computer.world.owner.account, spaceId);
+    const inviting = (await computer.device.session(opened.login)).login;
+    const invitation = await inviting.objects().invitation.create({
+        scope: computer.world.owner.account,
+        requestId: RequestId.create(computer.environment),
+        object,
+        relationship: {
+            role: Role.OWNER,
+            subject: principal.user.reference(Scope.universe.id, member.subjectId),
+        },
+    });
+    const accepting = (await computer.device.session(member.id)).login;
+    await accepting.objects().invitation.accept({
+        scope: computer.world.owner.account,
+        requestId: RequestId.create(computer.environment),
+        object,
+        invitationId: invitation.id,
+    });
+
+    return { ...opened, member: member.id };
+}
+
 /** Install a build in a served space from the computer's registry, waiting until applied. */
 function install(served: Served, build: BuildReader, name: string) {
     return served.computer.install(served.login, served.spaceId, build, name);
@@ -351,14 +386,14 @@ async function installTasks(served: Served) {
     return install(served, await tasksBuild(served.computer.environment.crypto), "tasks");
 }
 
-/** Open a view as the signed-in owner after their consent, as a browser opens its launch. */
+/** Open a view as the signed-in owner, as a browser opens its launch. */
 async function openPage(served: Served, address: Address) {
-    // consent to what the view asks, then launch it and trade its token for the session cookie
+    // launch it under the owner's grant, and trade its token for the session cookie
     const { device: native, computer } = served.computer;
     const listener = computer;
     const login = await native.session(served.login);
-    const grant = await login.grant(address);
     const launched = await login.launch(address);
+    const grant = await login.grant(address);
     const traded = await listener.fetch(new Request(launched.url));
     const cookie = nth(header(traded, "set-cookie").split(";"), 0);
     const origin = new URL(launched.url).origin;
@@ -427,7 +462,7 @@ async function contextOf(document: Response): Promise<unknown> {
 }
 
 test(
-    "launch a view only once the person consented to exactly its permissions, onto a session cookie serving its document with its installation's browser features, and serve it to an anonymous visitor without one",
+    "launch a view of the person's own home under a grant created at once, onto a session cookie serving its document with its installation's browser features, and serve it to an anonymous visitor without one",
     async () => {
         // install notes in the owner's home
         const opened = await openHome();
@@ -443,14 +478,11 @@ test(
         const login = await native.session(opened.login);
         const address = { space: opened.address, installation: "notes", view: "home", path: "/" };
 
-        // refuse the launch before the person consents, then grant what the view asks
-        const refused = await refusal(login.launch(address));
-        const asked = await login.consent(address);
-        const grant = await login.grant(address);
-        const consented = await login.consent(address);
-
-        // launch it, trading the launch's token for the session cookie
+        // launch it, granting what the view asks at once, and trade the launch's token for the session cookie
         const launched = await login.launch(address);
+        const granted = await login.login.granted(
+            principal.installation.reference(spaceId, installation.id),
+        );
         const traded = await listener.fetch(new Request(launched.url));
         const cookie = nth(header(traded, "set-cookie").split(";"), 0);
         const page = new URL(header(traded, "location"), launched.url).href;
@@ -484,9 +516,7 @@ test(
             scope,
         }));
         expect({
-            refused,
-            asked,
-            consented,
+            granted: { ...granted, id: "grant" },
             url: launched.url.replace(/token=[^&]+/u, "token=…"),
             target: launched.target,
             traded: [traded.status, header(traded, "location"), cookie.split("=")[0]],
@@ -497,13 +527,7 @@ test(
             unopened: [unopened.status, await contextOf(unopened)],
             forged: forged.status,
         }).toEqual({
-            refused: [
-                "FORBIDDEN",
-                "CONSENT_REQUIRED",
-                `${opened.address} notes is waiting for the person's consent`,
-            ],
-            asked: { permissions },
-            consented: { permissions, grant },
+            granted: { id: "grant", scope: owner.id, permissions },
             url: `http://notes--${opened.address}.localhost:${port}/home?token=…`,
             target: installation.id,
             traded: [303, "/home", SESSION_COOKIE],
@@ -534,6 +558,34 @@ test(
                 },
             ],
             forged: 401,
+        });
+    },
+    SCENARIO_MILLISECONDS,
+);
+
+test(
+    "ask a person for a grant before a view another installed reaches beyond its space, launching it once they grant it and again without asking",
+    async () => {
+        // install notes in the owner's work space, which the person they shared it with opens
+        const opened = await openShared(await openHome());
+        const { computer, member } = opened;
+        await install(opened, await notesBuild(computer.environment.crypto), "notes");
+        const session = await computer.device.session(member);
+        const address = { space: opened.address, installation: "notes", view: "home", path: "/" };
+
+        // refuse the launch until the person grants it, then launch it twice
+        const refused = await refusal(session.launch(address));
+        const grant = await session.grant(address);
+        const launched = await session.launch(address);
+        const again = await session.launch(address);
+        expect({ refused, targets: [launched.target, again.target], grant: grant.scope }).toEqual({
+            refused: [
+                "FORBIDDEN",
+                "GRANT_REQUIRED",
+                `${opened.address} notes asks the person for a grant`,
+            ],
+            targets: [launched.target, launched.target],
+            grant: session.login.subject.id,
         });
     },
     SCENARIO_MILLISECONDS,

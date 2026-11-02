@@ -69,15 +69,15 @@ await Computer.run({ localObjects, servers }, environment); // the machine proce
 
 ## Device
 
-`Device` is this computer's device, a root partition no universe knows, and a person's `Session` consents to, grants and launches views.
+`Device` is this computer's device, a root partition no universe knows, and a person's `Session` launches views under the person's grant, granting at once what they already decided.
 
 ```ts
 const device = await Device.current(environment);
 const login = await device.signIn(open);
 const session = await device.session(login.id);
 const address = { space: "home--acme", installation: "notes", view: "home", path: "/" };
-await session.grant(address);
-const { url } = await session.launch(address);
+const { url } = await session.launch(address); // GRANT_REQUIRED with the permissions to ask for
+await session.grant(address); // once the person allows, then launch again
 ```
 
 ## Checkouts

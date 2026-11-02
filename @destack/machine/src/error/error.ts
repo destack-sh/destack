@@ -1,6 +1,14 @@
+import { GrantPermission } from "@destack/access";
 import { defineErrorFamily, type ReasonOf } from "@destack/error";
+import { schema } from "@destack/schema";
 import { ERROR_DATA } from "@destack/object";
 import type {} from "@destack/package/import-meta";
+
+/** What a person is asked to grant an installation before its view opens. */
+const GrantPrompt = schema.object({
+    /** The permissions the view asks the person to grant. */
+    permissions: schema.array(GrantPermission.schema),
+});
 
 /** The machine package's failures, each reason with the call error code it answers. */
 const machineError = defineErrorFamily(import.meta.destack.package, {
@@ -31,9 +39,9 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
 
     // forbidden
     CONNECTION_MISMATCH: { code: "FORBIDDEN" },
-    CONSENT_REQUIRED: { code: "FORBIDDEN" },
     FOREIGN_SCOPE_PUSH: { code: "FORBIDDEN" },
     FOREIGN_PARTITION_TOKEN: { code: "FORBIDDEN" },
+    GRANT_REQUIRED: { code: "FORBIDDEN", data: GrantPrompt },
     OWNER_MISSING: { code: "FORBIDDEN" },
     ORIGIN_MISMATCH: { code: "FORBIDDEN" },
     OWNER_REQUIRED: { code: "FORBIDDEN" },

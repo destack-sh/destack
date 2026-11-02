@@ -1,5 +1,5 @@
-import type { GrantClaim, GrantPermission } from "@destack/access";
-import { PermissionSet, principal } from "@destack/access";
+import type { GrantClaim } from "@destack/access";
+import { GrantPermission, PermissionSet, principal } from "@destack/access";
 import { DOMAINS, InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import type { PlacementEndpoint } from "@destack/account/object";
 import type { Login } from "@destack/account/native";
@@ -21,7 +21,7 @@ import {
     ViewPresentationPriority,
 } from "@destack/package/manifest";
 import { type Identifier, schema, Text } from "@destack/schema";
-import type { ObjectReference } from "@destack/sync";
+import { ObjectReference, Subject } from "@destack/sync";
 import { Declaration } from "@destack/stack/client";
 import { InstallationView, type InstallationRollout } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
@@ -223,16 +223,7 @@ export class Session {
         return this.device.replicate(scopeId, objects, caller, reached, reconnect, homes);
     }
 
-    /** Read what a view, or one presenting an object, asks the person to grant, and their grant. */
-    async consent(
-        address: Address,
-    ): Promise<{ readonly permissions: readonly GrantPermission[]; readonly grant?: GrantClaim }> {
-        const { permissions, grant } = await this.#request(address);
-
-        return grant === undefined ? { permissions } : { permissions, grant };
-    }
-
-    /** Grant a view's installation what the view asks the person to lend: their consent. */
+    /** Grant a view's installation what the view asks the person to grant. */
     async grant(address: Address): Promise<GrantClaim> {
         const { delegate, permissions } = await this.#request(address);
 
@@ -243,13 +234,21 @@ export class Session {
     async launch(
         address: Address,
     ): Promise<{ readonly url: string; readonly target: Identifier<"installation"> }> {
-        // refuse a view the person has not consented to
+        // use the person's grant including what the view asks, growing it once they decided already
         const requested = await this.#request(address);
-        const { view, place, installation: found, grant } = requested;
-        if (grant === undefined) {
+        const { view, place, installation: found, delegate, permissions, granted } = requested;
+        let grant: GrantClaim;
+        if (granted !== undefined && GrantPermission.includes(granted.permissions, permissions)) {
+            grant = { id: granted.id, scope: granted.scope };
+        } else if (Session.#isDecided(requested, this.login.subject)) {
+            grant = await this.login.grant(delegate, permissions);
+        }
+        // ask the person otherwise
+        else {
             throw MachineError.of(
-                "CONSENT_REQUIRED",
-                `${view.space} ${view.installation} is waiting for the person's consent`,
+                "GRANT_REQUIRED",
+                `${view.space} ${view.installation} asks the person for a grant`,
+                { data: { permissions: [...permissions] } },
             );
         }
 
@@ -345,7 +344,7 @@ export class Session {
 
         // choose the view presenting an object among the views the space's installations apply
         let view: ViewAddress;
-        let found: Pick<Installation, "id" | "packageId"> | undefined;
+        let found: Installation | undefined;
         if ("object" in address) {
             const views = await Declaration.read(stack, objects, spaceId, [View.kind]);
             const presented = Session.#present(views, address.object, address.view);
@@ -394,9 +393,38 @@ export class Session {
             home: [this.login.subject.id, opened.home],
             account: place.placement.scope,
         });
-        const grant = await this.login.granted(delegate, permissions);
+        const granted = await this.login.granted(delegate);
 
-        return { view, place, installation: found, delegate, permissions, grant };
+        return {
+            view,
+            place,
+            installation: found,
+            home: opened.home,
+            delegate,
+            permissions,
+            granted,
+        };
+    }
+
+    /** Report whether a person decided a view's grant already. */
+    static #isDecided(
+        requested: {
+            readonly place: PlacementEndpoint;
+            readonly installation: Installation;
+            readonly home: Identifier<"space">;
+            readonly permissions: readonly GrantPermission[];
+        },
+        person: Subject,
+    ): boolean {
+        // decide for an installation in the person's home or one they installed
+        const spaceId = requested.place.placement.id;
+        const installer = ObjectReference.at("createdBy", requested.installation);
+        const isOwn = spaceId === requested.home || Subject.same(installer, person);
+
+        // decide for a view reaching only its space, where it sees what the person sees
+        const isWithinSpace = requested.permissions.every((entry) => entry.scope === spaceId);
+
+        return isOwn || isWithinSpace;
     }
 
     /** Choose the view presenting an object most strongly among builds, or the view asked for. */
