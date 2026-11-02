@@ -45,7 +45,7 @@ import type { AggregateGroup } from "../query/aggregate.ts";
 import type { Page } from "../query/page.ts";
 import { Scope } from "../scope/scope.ts";
 import { Simulation } from "@destack/environment/simulation";
-import { until } from "@destack/environment";
+import { waitAborted } from "@destack/environment";
 
 /** The lag a replica stays live within, as access sets it: 30 s. */
 const LAG = 30_000;
@@ -1119,7 +1119,7 @@ test("resume a follow after a backoff once its source refuses a fresh credential
         controller.signal,
         { synced: () => {} },
     );
-    await simulation.until(() => controller.signal.aborted);
+    await simulation.waitUntil(() => controller.signal.aborted);
     await following;
 
     // request again a second later, at the policy's first interval
@@ -1158,7 +1158,7 @@ test("fail a follow whose source lapses five fresh credentials in a row before a
             isSettled = true;
         });
     const refused = refusal(following);
-    await simulation.until(() => isSettled);
+    await simulation.waitUntil(() => isSettled);
 
     // try five times, doubling the wait from a second, then refuse the follow
     expect([requests, await refused]).toEqual([
@@ -1684,7 +1684,7 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
                 await beat.promise;
                 yield page(5);
             }
-            await until(signal);
+            await waitAborted(signal);
         },
         controller.signal,
         { synced: () => {}, lag: 30_000 },
@@ -1692,7 +1692,7 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
     const isLive = () => Replica.isLive(local, "notes", "inbox", LAG);
 
     // receive the snapshot, stay live through a beat inside the lag, then go silent past the lag
-    await simulation.until(() => isLive());
+    await simulation.waitUntil(() => isLive());
     const live = isLive();
     await simulation.jump(clock.now() + 20_000);
     beat.resolve();
@@ -1740,12 +1740,12 @@ test("keep a replica live across its follows while its pages arrive within the l
                     changes: [],
                     position: { log: LOG, epoch, sequence },
                 };
-                await until(signal);
+                await waitAborted(signal);
             },
             controller.signal,
             { synced: () => {}, lag: 30_000 },
         );
-        await simulation.until(
+        await simulation.waitUntil(
             () => Replica.marked(local, "notes", "inbox")?.position.sequence === sequence,
         );
         controller.abort();

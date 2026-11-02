@@ -32,7 +32,7 @@ import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { PAGE_SIZE } from "../dataflow/selection.ts";
 import { Run, type RunCost } from "../dataflow/run.ts";
 import { Memo, View, type Cache, type Window } from "../dataflow/view.ts";
-import { Clock, type Scheduler, until } from "@destack/environment";
+import { Clock, type Scheduler, waitAborted } from "@destack/environment";
 
 /** The default count of recent changes a feed stores in memory. */
 const FEED_CHANGES = 10_000;
@@ -637,7 +637,7 @@ export class Feed implements Cache {
             const [row] = await Subscription.requests(this.database, [key]);
             apply(row);
             while (!signal.aborted) {
-                await Promise.race([until(signal), this.#watch()]);
+                await Promise.race([waitAborted(signal), this.#watch()]);
             }
         } finally {
             // stop the watch once its last follower leaves
@@ -670,7 +670,7 @@ export class Feed implements Cache {
         this.#requesting = requesting;
         const table = subscriptionTable[TABLE].sqlName;
         try {
-            await this.database.log.until(async (committed) => {
+            await this.database.log.waitUntil(async (committed) => {
                 // read every followed request at once and hand each row to its followers
                 if (committed.has(table) && this.#requests.size > 0) {
                     const keys = [...this.#requests.values()].map((followed) => followed.key);

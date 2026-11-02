@@ -60,7 +60,7 @@ import { Run } from "../dataflow/run.ts";
 import { Trace, type Group, type Upstream } from "../dataflow/upstream.ts";
 import { View } from "../dataflow/view.ts";
 import { scopeTable } from "../scope/table.ts";
-import { RetryPolicy, until } from "@destack/environment";
+import { RetryPolicy, waitAborted } from "@destack/environment";
 
 /** The staged pages a run's completion reads at once. */
 const STAGED_BATCH = 16;
@@ -707,7 +707,7 @@ export class Replica {
         // read the replicas including the scope, again at each mark while none does
         let replicas = await Replica.including(database, scope);
 
-        return await Replica.#untilMarked(
+        return await Replica.#waitMarked(
             database,
             async () => {
                 if (replicas.length === 0) {
@@ -721,13 +721,13 @@ export class Replica {
     }
 
     /** Wait until some replicas arrived at a position, as their marks show. */
-    static async untilAt(
+    static async waitAt(
         database: DatabaseConnection,
         replicas: readonly { readonly name: string; readonly scope: string }[],
         position: LogPosition,
         signal: AbortSignal,
     ): Promise<boolean> {
-        return await Replica.#untilMarked(
+        return await Replica.#waitMarked(
             database,
             () => Replica.isAt(database, replicas, position),
             signal,
@@ -735,12 +735,12 @@ export class Replica {
     }
 
     /** Check now and at each mark change, until the check passes or the signal aborts. */
-    static async #untilMarked(
+    static async #waitMarked(
         database: DatabaseConnection,
         check: () => Promise<boolean>,
         signal: AbortSignal,
     ): Promise<boolean> {
-        const aborted = until(signal);
+        const aborted = waitAborted(signal);
         while (!signal.aborted) {
             // watch the marks from before the check, so no change passes unseen
             const changed = Promise.withResolvers<void>();
@@ -802,7 +802,7 @@ export class Replica {
         position: LogPosition,
         signal: AbortSignal,
     ): Promise<boolean> {
-        return await Replica.untilAt(database, [this], position, signal);
+        return await Replica.waitAt(database, [this], position, signal);
     }
 
     /** Report whether a home position arrived at a position of its log, refusing older history. */
@@ -981,7 +981,7 @@ export class Replica {
     }
 
     /** Wait until a publication's replicas of some scopes are live, answering one still stale. */
-    static async untilLive(
+    static async waitLive(
         database: DatabaseConnection,
         publication: string,
         scopes: readonly string[],
@@ -989,7 +989,7 @@ export class Replica {
         signal: AbortSignal,
     ): Promise<string | undefined> {
         let stale: string | undefined;
-        await Replica.#untilMarked(
+        await Replica.#waitMarked(
             database,
             async () => {
                 stale = await Replica.stale(database, publication, scopes, lag);

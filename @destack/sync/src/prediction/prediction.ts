@@ -478,7 +478,7 @@ export class Prediction {
 
     /** Wait until a committed mutation is pending, returning false once the signal aborts. */
     wait(database: DatabaseConnection, signal: AbortSignal): Promise<boolean> {
-        return database.log.until(
+        return database.log.waitUntil(
             async () => (await this.pending(database, { limit: 1 })).length > 0,
             signal,
         );
