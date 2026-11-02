@@ -1,3 +1,4 @@
+import { eventTables } from "../stack/db.ts";
 import {
     Order,
     and,
@@ -79,14 +80,14 @@ export interface EventStoreOptions {
 export class EventStore {
     /** The database of the hot events. */
     readonly database: DatabaseConnection;
-    /** The controllers flushing, compacting and expiring segments. */
-    readonly controllers: readonly Controller[];
-    /** The kinds by their key. */
-    readonly #kinds: ReadonlyMap<string, EventKind>;
+    /** The kinds by their key, each start registering the kinds it stores. */
+    readonly #kinds = new Map<string, EventKind>();
     /** The segments. */
     readonly #archive: EventArchive;
     /** The keyring sealing personal values. */
     readonly #personal: PersonalKeyring | undefined;
+    /** Read the retention a scope's setting gives, absent for none. */
+    readonly #settings: EventStoreOptions["settings"];
     /** The clock that tells a late event from a recent one, as segments flush by it. */
     readonly #clock: Clock;
     /** The instruments capturing the dropped writes of events stored at most once. */
@@ -94,12 +95,31 @@ export class EventStore {
 
     /** Store events of some kinds over a host's database and buckets. */
     constructor(options: EventStoreOptions) {
-        // require a keyring for subjects
-        const { kinds } = options;
-        if (options.personal === undefined && kinds.some((kind) => kind.subject !== undefined)) {
+        // store segments under each kind's policy, flushed and delivered by the controllers
+        this.database = options.database;
+        this.#telemetry = TelemetryScope.of(
+            import.meta.destack.package,
+            options.database.state.environment.telemetry,
+        );
+        this.#archive = new EventArchive({
+            database: options.database,
+            files: options.files,
+            prefix: options.prefix ?? SEGMENT_PREFIX,
+            settings: options.settings,
+        });
+        this.#personal = options.personal;
+        this.#settings = options.settings;
+        this.#clock = options.clock;
+        this.register(options.kinds);
+    }
+
+    /** Store events of some more kinds, replacing an earlier kind of the same key. */
+    register(kinds: readonly EventKind[]): void {
+        // require a keyring for subjects and a settings reader for retention settings
+        if (this.#personal === undefined && kinds.some((kind) => kind.subject !== undefined)) {
             throw new TypeError("event kinds with a subject need a personal keyring");
         } else if (
-            options.settings === undefined &&
+            this.#settings === undefined &&
             kinds.some((kind) => typeof kind.policy.retention !== "number")
         ) {
             throw new TypeError("event kinds with a retention setting need a settings reader");
@@ -112,22 +132,16 @@ export class EventStore {
             throw new TypeError(`event kind ${repeated} is registered twice`);
         }
 
-        // store segments under each kind's policy, flushed and delivered by the controllers
-        this.database = options.database;
-        this.#telemetry = TelemetryScope.of(
-            import.meta.destack.package,
-            options.database.state.environment.telemetry,
-        );
-        this.#kinds = new Map(kinds.map((kind) => [kind.key, kind]));
-        this.#archive = new EventArchive({
-            database: options.database,
-            files: options.files,
-            prefix: options.prefix ?? SEGMENT_PREFIX,
-            settings: options.settings,
-        });
-        this.#personal = options.personal;
-        this.#clock = options.clock;
-        this.controllers = [new ArchiveController(this.#archive, kinds, options.clock)];
+        // register each kind by its key, declaring its tables, which the database's migrations create
+        for (const kind of kinds) {
+            this.#kinds.set(kind.key, kind);
+        }
+        this.database.state.declare(eventTables(kinds));
+    }
+
+    /** Build the controller flushing, compacting and expiring the registered kinds' segments. */
+    controller(): Controller {
+        return new ArchiveController(this.#archive, [...this.#kinds.values()], this.#clock);
     }
 
     /** Append events of a kind once each, sealing personal values. */
@@ -657,7 +671,7 @@ export class EventStore {
 
     /** Report whether the store has a kind. */
     has(kind: EventKind): boolean {
-        return this.#kinds.get(kind.key) === kind;
+        return this.#kinds.has(kind.key);
     }
 
     /** Find a stored kind by its key, refusing a key no stored kind has. */

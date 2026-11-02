@@ -121,8 +121,8 @@ export class TestEventStore implements AsyncDisposable {
         this.bucket = new MemoryBucket(simulation.clock);
         this.store = open(this);
 
-        // run the store's controllers in the world, failing it on their reports
-        const loop = new ControlLoop(this.store.database, this.store.controllers, {
+        // run the store's controller in the world, failing it on their reports
+        const loop = new ControlLoop(this.store.database, [this.store.controller()], {
             report: (_controller, _key, error) => simulation.scheduler.fail(error),
         });
         this.#running = loop.run(this.#stop.signal).catch((error: unknown) => {

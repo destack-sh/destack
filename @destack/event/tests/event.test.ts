@@ -8,6 +8,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { eventSegment } from "../src/archive/catalog.ts";
 import { type EventKind, Histogram, OUT_OF_ORDER_MILLISECONDS, type Series } from "../src/index.ts";
 import { TestEventStore, testKind } from "../src/test/index.ts";
+import { eventTables } from "../src/stack/db.ts";
 
 /** The package declaring the test kinds. */
 const meters = Package.parse({
@@ -137,6 +138,27 @@ test("page a scope's events a condition selects in time order", async () => {
         second.cursor,
         large.events.map((event) => event.id),
     ]).toEqual([[["a", 10]], ["c"], undefined, ["b", "c"]]);
+});
+
+test("store a kind registered after opening like one opened with, once the database's migrations create its tables", async () => {
+    // open readings, then migrate and register log lines as a later installation does
+    const fixture = await open();
+    const { store } = fixture;
+    const before = store.has(line);
+    await fixture.database.database.migrate(eventTables([line]), { others: "retain" });
+    store.register([line]);
+
+    // append and read a line, and refuse a registration naming one kind twice
+    await store.append(line, [
+        { scope: "space-1", id: "l", time: at(1), keys: { severity: 3 }, data: { message: "up" } },
+    ]);
+    const read = await store.query(line, { scopes: ["space-1"] });
+    expect({
+        before,
+        after: store.has(line),
+        read: read.events.map((event) => [event.id, event.data.message]),
+    }).toEqual({ before: false, after: true, read: [["l", "up"]] });
+    expect(() => store.register([line, line])).toThrow(`event kind ${line.key} is registered twice`);
 });
 
 test("flush a scope's hot events at the row cap into segments that queries read like hot ones", async () => {
