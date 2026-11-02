@@ -39,7 +39,7 @@ export default definePackage({
     errors: FinanceError,
     // mirror the provider's billing in its home, write entitlements and serve its residency's accounts
     permissions: {
-        installation: {
+        space: {
             space: [
                 customer.permission("provide"),
                 seller.permission("provide"),
