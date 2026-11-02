@@ -15,7 +15,7 @@ export default definePackage({
     objects: { message, attempt: messageAttempt, endpoint, mail, ...task.objects },
     resources: { outbound: outboundMail },
     permissions: {
-        installation: {
+        space: {
             // send messages and deliver endpoints in the space, recording each attempt
             space: [
                 message.permission("read"),
@@ -35,7 +35,7 @@ export default definePackage({
             optional: true,
             sandbox: { network: { connect: ["*"] } },
             permissions: {
-                installation: {
+                space: {
                     universe: [user.permission("recipient"), client.permission("unsubscribe")],
                 },
             },
