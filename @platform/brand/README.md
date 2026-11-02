@@ -4,5 +4,5 @@
 
 ```ts
 const mark = import.meta.resolve("@platform/brand/mark.svg");
-const icon = import.meta.resolve("@platform/brand/icon/icon-dev-rounded.svg"); // per channel: "", "-dev"
+const icon = import.meta.resolve("@platform/brand/icon/icon-local-rounded.svg"); // per channel: "", "-local"
 ```
