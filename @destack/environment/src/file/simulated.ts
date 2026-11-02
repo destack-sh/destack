@@ -91,6 +91,11 @@ export class SimulatedFileSystem implements FileSystem {
         return this.#track(() => this.#host.realPath(this.#resolve(path)));
     }
 
+    /** Join a directory and the names below it into one path, as the host does. */
+    join(directory: string, ...names: readonly string[]): string {
+        return this.#host.join(directory, ...names);
+    }
+
     /** List a directory's entries. */
     readDirectory(path: string, options?: ReadDirectoryOptions): Promise<DirectoryEntry[]> {
         return this.#track(() => this.#host.readDirectory(this.#resolve(path), options));

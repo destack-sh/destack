@@ -115,6 +115,11 @@ export class BunFileSystem implements FileSystem {
         return BunFileSystem.#run(`resolve ${path}`, () => realpath(path));
     }
 
+    /** Join a directory and the names below it into one path, in the platform's separators. */
+    join(directory: string, ...names: readonly string[]): string {
+        return join(directory, ...names);
+    }
+
     /** List a directory's entries. */
     readDirectory(path: string, options: ReadDirectoryOptions = {}): Promise<DirectoryEntry[]> {
         return BunFileSystem.#run(`list ${path}`, async () => {

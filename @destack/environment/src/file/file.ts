@@ -172,6 +172,8 @@ export interface FileSystem {
     readonly lstat: (path: string) => Promise<FileStatus>;
     /** Read the absolute path a path resolves to, its links followed. */
     readonly realPath: (path: string) => Promise<string>;
+    /** Join a directory and the names below it into one path. */
+    readonly join: (directory: string, ...names: readonly string[]) => string;
     /** List a directory's entries. */
     readonly readDirectory: (
         path: string,

@@ -294,6 +294,13 @@ export class MemoryFileSystem implements FileSystem {
         return this.#existing(path, true, `resolve ${path}`).path;
     }
 
+    /** Join a directory and the names below it into one path, with single slashes between them. */
+    join(directory: string, ...names: readonly string[]): string {
+        const joined = [directory, ...names].join("/").replaceAll(/\/{2,}/gu, "/");
+
+        return joined.length > 1 && joined.endsWith("/") ? joined.slice(0, -1) : joined;
+    }
+
     /** List a directory's entries in walk order, inside subdirectories too when recursive. */
     async readDirectory(
         path: string,
@@ -345,7 +352,7 @@ export class MemoryFileSystem implements FileSystem {
         await this.mkdir(parent, { recursive: true });
         for (;;) {
             // draw a name, taking it unless a path has it
-            const path = join(parent, TemporaryDirectory.draw(prefix, this.#tree.random));
+            const path = this.join(parent, TemporaryDirectory.draw(prefix, this.#tree.random));
             if (this.#locate(path, false, `create ${prefix} in ${parent}`).node === undefined) {
                 await this.mkdir(path, { mode: 0o700 });
 
@@ -445,7 +452,7 @@ export class MemoryFileSystem implements FileSystem {
                 this.#asDirectory(target, action);
             }
             for (const name of node.entries.keys()) {
-                await this.copy(join(source.path, name), join(this.#resolve(to), name));
+                await this.copy(this.join(source.path, name), this.join(this.#resolve(to), name));
             }
         }
     }
@@ -583,7 +590,7 @@ export class MemoryFileSystem implements FileSystem {
 
     /** Find the runtime's private directory below the working directory, made on first use. */
     async runtimeDirectory(): Promise<string> {
-        const directory = join(this.#tree.workingDirectory, "runtime");
+        const directory = this.join(this.#tree.workingDirectory, "runtime");
         await this.mkdir(directory, { recursive: true, mode: 0o700 });
 
         return directory;
@@ -837,7 +844,7 @@ export class MemoryFileSystem implements FileSystem {
 
     /** Resolve a path against the working directory, without following links. */
     #resolve(path: string): string {
-        return path.startsWith("/") ? path : join(this.#tree.workingDirectory, path);
+        return path.startsWith("/") ? path : this.join(this.#tree.workingDirectory, path);
     }
 
     /** Read the file at a path, its links followed, refusing a directory. */
@@ -938,9 +945,4 @@ function normalize(directory: string, path: string): string {
     }
 
     return `/${names.join("/")}`;
-}
-
-/** Join a directory's path and a name. */
-function join(directory: string, name: string): string {
-    return directory === "/" ? `/${name}` : `${directory}/${name}`;
 }

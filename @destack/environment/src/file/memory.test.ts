@@ -120,6 +120,25 @@ test("behave as the host's files do across writes, links, moves, copies, removal
     expect(played).toEqual(expected);
 });
 
+test("join paths as the host's files do, below the root and below a directory with a trailing slash", () => {
+    // join the same paths on the host's files and on memory files
+    const host = new BunFileSystem();
+    const memory = MemoryFileSystem.create({
+        clock: new SimulatedClock(START),
+        random: new SimulatedRandom(1),
+        workingDirectory: "/base",
+    });
+    const paths: (readonly [string, ...string[]])[] = [
+        ["/", "layer", "index.json"],
+        ["/base", "trees", "root"],
+        ["/base/", "trees"],
+    ];
+
+    expect(paths.map((path) => memory.join(...path))).toEqual(
+        paths.map((path) => host.join(...path)),
+    );
+});
+
 test("resolve relative paths from the working directory, and stop a watch its reader leaves", async () => {
     // write through a relative path, and read it at its absolute one
     const memory = MemoryFileSystem.create({
