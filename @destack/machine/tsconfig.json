@@ -30,5 +30,5 @@
         "types": ["bun"]
     },
     "include": ["src", "tests", "*.config.ts"],
-    "exclude": ["tests/fixture/apps", "tests/fixture/board"]
+    "exclude": ["tests/fixture/apps", "tests/fixture/board", "tests/fixture/mention"]
 }

@@ -1,0 +1,20 @@
+{
+    "name": "@destack/machine-mention-fixture",
+    "version": "2026.10.0",
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts",
+        "./package": "./src/package.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/notification": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/sync": "workspace:*"
+    }
+}

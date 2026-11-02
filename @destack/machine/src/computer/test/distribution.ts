@@ -123,10 +123,7 @@ const RESIDENCY_STACK = Package.parse({
 const SHIPPED_COMMIT = Commit.parse("a".repeat(40));
 
 /** The vault of the residencies' homes, whose secrets the forge binds. */
-const PLATFORM_VAULT = defineVault(
-    { name: "platform", spec: {} },
-    { package: RESIDENCY_STACK },
-);
+const PLATFORM_VAULT = defineVault({ name: "platform", spec: {} }, { package: RESIDENCY_STACK });
 
 /** The vault of every account's home that stores its connections' credentials. */
 const CONNECTION_VAULT = defineVault({ name: "credentials", spec: {} }, { package: ACCOUNT_STACK });
@@ -437,6 +434,11 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
             written === undefined ? (inject("fixtures") ?? {}) : JSON.parse(written);
 
         return schema.record(schema.string(), Digest).parse(fixtures);
+    }
+
+    /** Read the digests of the packages only scenarios install, which no distribution ships. */
+    static scenarios(): Readonly<Record<string, Digest>> {
+        return schema.record(schema.string(), Digest).parse(inject("scenarios") ?? {});
     }
 
     /** Publish a build with the Destack releases its closure was built against. */

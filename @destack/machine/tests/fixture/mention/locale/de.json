@@ -1,0 +1,7 @@
+{
+    "package": "package-01a3c2b0-0000-7000-8000-000000000c11",
+    "locale": "de",
+    "messages": {
+        "2i8xss5u9cf0c": ".input {$count :number}\n.match $count\none {{{$count} Erwähnung}}\n* {{{$count} Erwähnungen}}"
+    }
+}

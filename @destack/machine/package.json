@@ -60,6 +60,7 @@
         "@destack/view": "workspace:*"
     },
     "devDependencies": {
+        "@destack/machine-mention-fixture": "workspace:*",
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",

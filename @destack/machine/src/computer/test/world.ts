@@ -42,12 +42,17 @@ const VISIBLE_MILLISECONDS = 30_000;
 /** The fixture packages worlds install, which the run's setup builds before any world. */
 export const WORLD_FIXTURES = ["apps", "board"] as const;
 
+/** The fixture packages only scenarios install, which no template ships. */
+export const SCENARIO_FIXTURES = ["mention"] as const;
+
 /** The run's provided values the worlds read. */
 declare module "vitest" {
     /** The values a run's setup provides to its tests. */
     export interface ProvidedContext {
         /** The manifest digests of the fixtures worlds install, by name, absent without a setup. */
         fixtures?: Readonly<Record<string, string>>;
+        /** The manifest digests of the packages only scenarios install, by name. */
+        scenarios?: Readonly<Record<string, string>>;
         /** Where computers' state directories move after their tests, absent without a setup. */
         trash?: string;
     }
@@ -263,7 +268,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
     ): Promise<BuildReader> {
         // open the store for as long as the test reads the build
         const built = present(
-            TestDistribution.fixtures()[fixture],
+            { ...TestDistribution.fixtures(), ...TestDistribution.scenarios() }[fixture],
             `the run's build of ${fixture}`,
         );
         const store = await testStore(environment);
