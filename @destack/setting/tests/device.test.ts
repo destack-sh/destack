@@ -276,7 +276,7 @@ async function follow(
     });
 
     // wait until the scope's access replica arrives, as following its chain requires
-    await local.log.until(
+    await local.log.waitUntil(
         async () => (await client.access.position(local)) !== undefined,
         controller.signal,
     );
