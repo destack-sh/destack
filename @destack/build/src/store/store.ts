@@ -1,4 +1,4 @@
-import { type Environment, type FileSystem, Pipe, until } from "@destack/environment";
+import { type Environment, type FileSystem, Pipe, waitAborted } from "@destack/environment";
 import { Digest, type DigestCrypto, present } from "@destack/schema";
 import type { BlobStorage } from "@destack/resource";
 import {
@@ -180,7 +180,7 @@ export class BuildStore<
             ? storing
             : Promise.race([
                   storing,
-                  until(signal).then(() => {
+                  waitAborted(signal).then(() => {
                       throw signal.reason;
                   }),
               ]));
