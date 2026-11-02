@@ -186,7 +186,7 @@ test("permit a scope's row to the principals inside it and a row living in a sco
     ]);
 });
 
-test("resolve a credential bound to a scope within that scope and the scopes inside it, refusing every other scope", async () => {
+test("resolve a credential bound to a scope in that scope, its descendants and its ancestors, refusing other scopes", async () => {
     // place a district in each of two realms
     await using simulation = testSimulation();
     const environment = simulation.environment("access");
@@ -227,13 +227,13 @@ test("resolve a credential bound to a scope within that scope and the scopes ins
         ),
     );
 
-    // resolve the realm and its district, refusing the other realm, its district and the universe above
+    // resolve the realm, its district and the universe, its ancestor, refusing the other realm and its district
     const refused = [
         "UNAUTHORIZED",
         "CREDENTIAL_CONFINED",
         "the caller's credential only applies to near",
     ];
-    expect(resolved).toEqual(["done", "done", refused, refused, refused]);
+    expect(resolved).toEqual(["done", "done", refused, refused, "done"]);
 });
 
 test("contain a space's principals under its global principal reference", async () => {

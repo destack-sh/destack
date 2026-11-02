@@ -100,15 +100,14 @@ export class Compiler {
         // decide the rows of the scope with its chain
         const scope = TableMapping.scopeColumn(table, mapping);
         const inside = sql`(${scope} = ${access.scope} AND ${this.#match(permission, mapping, table, access, access.scope, access.scopes)})`;
-        const object = access.scopeObject(mapping);
-        if (object === undefined) {
-            return inside;
-        }
 
-        // decide the scope's row in the scope containing it with that scope's chain
-        const itself = sql`(${scope} = ${object.scope} AND ${TableMapping.column(table, mapping.id)} = ${object.id} AND ${this.#match(permission, mapping, table, access, object.scope, access.scopes.slice(1))})`;
+        // decide the rows of each ancestor, whose replica the scope holds, with that ancestor's chain
+        const ancestors = access.scopes.map(
+            (object, index) =>
+                sql`(${scope} = ${object.scope} AND ${this.#match(permission, mapping, table, access, object.scope, access.scopes.slice(index + 1))})`,
+        );
 
-        return sql`(${inside} OR ${itself})`;
+        return sql`(${sql.join([inside, ...ancestors], sql` OR `)})`;
     }
 
     /** Match a table's rows of one scope chain that the caller has a permission on. */

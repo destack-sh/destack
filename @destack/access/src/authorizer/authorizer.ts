@@ -1897,16 +1897,12 @@ export class Authorizer {
             return undefined;
         }
 
-        // require a listed row to live in the scope or be the scope's row, as a row of the mapped type
+        // require a listed row to live in the scope or an ancestor, whose replica it holds, as a row of the mapped type
         const definition = mapping.policy.definition;
         const scope = TableMapping.scope(mapping, row);
-        const object = access.scopeObject(mapping);
-        const isScopeObject =
-            object !== undefined &&
-            scope === object.scope &&
-            TableMapping.text(row, mapping.id) === object.id;
+        const isAncestor = access.scopes.some((object) => object.scope === scope);
 
-        return (scope !== access.scope && !isScopeObject) ||
+        return (scope !== access.scope && !isAncestor) ||
             (mapping.isShared === true &&
                 (row["packageId"] !== definition.packageId || row["type"] !== definition.name))
             ? "outside"

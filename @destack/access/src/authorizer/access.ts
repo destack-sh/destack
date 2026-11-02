@@ -180,9 +180,13 @@ export class Access {
         const chain = [scope, ...links.map((link) => link.object.id).filter((id) => id !== scope)];
         const scopes = links.map((link) => link.object);
 
-        // refuse a credential bound to a scope the chain leaves out
+        // refuse a credential bound to a scope neither in the chain nor a descendant, whose ancestors' replicas it holds
         const confined = context.credential?.scope;
-        if (confined !== undefined && !chain.includes(confined)) {
+        const isConfined =
+            confined !== undefined &&
+            !chain.includes(confined) &&
+            !(await Scope.chain(snapshot, confined)).some((link) => link.object.id === scope);
+        if (isConfined) {
             throw AccessError.of(
                 "CREDENTIAL_CONFINED",
                 `the caller's credential only applies to ${confined}`,
@@ -687,19 +691,6 @@ export class Access {
         ]);
     }
 
-    /** Read the scope's object from its containing scope, when a mapping has its type. */
-    scopeObject(mapping: TableMapping): ObjectReference | undefined {
-        // match the containing scope's object by the mapped type
-        const object = this.scopes[0];
-        const definition = mapping.policy.definition;
-        const isMapped =
-            object !== undefined &&
-            object.packageId === definition.packageId &&
-            object.type === definition.name;
-
-        return isMapped ? object : undefined;
-    }
-
     /** Refuse a chain whose access replica stays stale for a lag, waiting for its next page. */
     static async #requireLive(
         database: DatabaseConnection,
@@ -714,7 +705,7 @@ export class Access {
 
         // wait a lag for a stale replica's next page, then refuse it
         const deadline = database.state.clock.timeout(lag);
-        const stale = await Replica.untilLive(database, CHAIN_PUBLICATION, chain, lag, deadline);
+        const stale = await Replica.waitLive(database, CHAIN_PUBLICATION, chain, lag, deadline);
         if (stale !== undefined) {
             throw AccessError.of(
                 "STALE",
