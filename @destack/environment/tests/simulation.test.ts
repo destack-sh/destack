@@ -1435,7 +1435,8 @@ test("release a crashed node's children, workers and file locks", async () => {
     simulation.workers.define(new URL("https://app.test/idle.worker.js"), () => {});
     const node = simulation.environment("node");
     const child = node.process.spawn(["/bin/sleep", "5"], { tracking: "none" });
-    const worker = node.workers.start(new URL("https://app.test/idle.worker.js"));
+    const idle = new URL("https://app.test/idle.worker.js");
+    const worker = node.workers.start((Worker) => new Worker(idle, { type: "module" }));
     const answers: unknown[] = [];
     worker.addEventListener("message", (event) => answers.push(event.data));
     await node.files.lock("/lock", "exclusive");

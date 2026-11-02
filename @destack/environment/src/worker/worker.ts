@@ -1,9 +1,3 @@
-/** How a worker thread starts. */
-export interface WorkerOptions {
-    /** The worker's name, as debuggers show it. */
-    readonly name?: string;
-}
-
 /** A running worker thread, as the platform's `Worker` has it. */
 export interface WorkerThread {
     /** Send the worker a message. */
@@ -14,16 +8,20 @@ export interface WorkerThread {
     readonly terminate: () => void;
 }
 
-/** The host of worker threads, which starts them from module scripts. */
+/** A constructor of module workers, as the platform's `Worker` has it. */
+export type WorkerConstructor = new (
+    url: URL,
+    options: { readonly type: "module"; readonly name?: string },
+) => WorkerThread;
+
+/** The host of worker threads, handing its worker constructor to the code starting one. */
 export interface WorkerHost {
-    /** Start a worker thread from a module script. */
-    readonly start: (url: URL, options?: WorkerOptions) => WorkerThread;
+    /** Start a worker as `new Worker(new URL(module, import.meta.url))`, which builds bundle. */
+    readonly start: (create: (Worker: WorkerConstructor) => WorkerThread) => WorkerThread;
 }
 
 /** Worker hosts. */
 export const WorkerHost = {
     /** The platform's module workers. */
-    system: {
-        start: (url, options = {}) => new Worker(url, { ...options, type: "module" }),
-    } satisfies WorkerHost,
+    system: { start: (create) => create(Worker) } satisfies WorkerHost,
 };

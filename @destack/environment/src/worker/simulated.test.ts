@@ -19,7 +19,7 @@ test("run a worker's body on a node of its own, answering messages as the world'
 
     // start it from a node, send a message and wait for the world to settle
     const { workers } = simulation.environment("tab");
-    const worker = workers.start(MODULE, { name: "echo" });
+    const worker = workers.start((Worker) => new Worker(MODULE, { type: "module", name: "echo" }));
     const answers: unknown[] = [];
     worker.addEventListener("message", (event) => answers.push(event.data));
     worker.postMessage("first");
@@ -33,7 +33,8 @@ test("run a worker's body on a node of its own, answering messages as the world'
     expect(answers).toEqual([{ echo: "first", at: 0 }]);
 
     // refuse a module the world defines no body for
-    expect(() => workers.start(new URL("https://app.test/missing.js"))).toThrow(
+    const missing = new URL("https://app.test/missing.js");
+    expect(() => workers.start((Worker) => new Worker(missing, { type: "module" }))).toThrow(
         new TypeError("this world defines no worker body for https://app.test/missing.js"),
     );
 });

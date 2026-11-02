@@ -1,6 +1,6 @@
 import type { Environment, HostCapability } from "../environment/environment.ts";
 import type { Scheduler } from "../scheduler/scheduler.ts";
-import type { WorkerThread, WorkerHost } from "./worker.ts";
+import type { WorkerConstructor, WorkerHost, WorkerThread } from "./worker.ts";
 
 /** The scope a worker's body runs in: its messages to and from the node that started it. */
 export interface WorkerScope {
@@ -66,7 +66,10 @@ export class SimulatedWorkerHost {
 
     /** Read a node's workers, each started on a separate node. */
     of(parent: string): WorkerHost {
-        return { start: (url, options) => this.#thread(parent, url, options?.name) };
+        return {
+            start: (create) =>
+                create(workerConstructor((url, name) => this.#thread(parent, url, name))),
+        };
     }
 
     /** Start a worker of a module on a separate node, refusing a module with no body. */
@@ -142,4 +145,34 @@ export class SimulatedWorkerHost {
             "world",
         );
     }
+}
+
+/** Make a worker constructor whose workers are the threads a start function answers. */
+function workerConstructor(
+    start: (url: URL, name: string | undefined) => WorkerThread,
+): WorkerConstructor {
+    return class implements WorkerThread {
+        /** The thread the start function answered. */
+        readonly #thread: WorkerThread;
+
+        /** Start a module's worker. */
+        constructor(url: URL, options: { readonly name?: string }) {
+            this.#thread = start(url, options.name);
+        }
+
+        /** Send the worker a message. */
+        postMessage(message: unknown): void {
+            this.#thread.postMessage(message);
+        }
+
+        /** Take each message the worker sends. */
+        addEventListener(type: "message", listener: (event: MessageEvent) => void): void {
+            this.#thread.addEventListener(type, listener);
+        }
+
+        /** Stop the worker at once. */
+        terminate(): void {
+            this.#thread.terminate();
+        }
+    };
 }
