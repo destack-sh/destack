@@ -2,16 +2,18 @@ import { eq, Snapshot } from "@destack/db";
 import { nth, Digest, Identifier } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Package, PackageId } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ids, insertRelease, insertRollout, readStack, TestSpace } from "../test/index.ts";
 import { STACKS } from "@destack/account/test";
 import { Database, database, installationRevision, rollout } from "./index.ts";
 import { installation } from "@destack/object";
+import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
 
 /** The tables the notes installation asks main for. */
 const STATE = { tables: { sqlite: [], postgresql: [] } };
 
-test("serve an installation once its targets are bound and the space's main database applied its tables, while a later plan waits too, and none before or without main", async () => {
+test("serve an installation once its targets are bound and the space's main database applied its tables, while a later plan waits, a stack at once, and none without main", async () => {
     // install notes at a revision declaring a note type, bound to main
     const fixture = await TestSpace.open();
     const { database: connection } = fixture;
@@ -72,10 +74,34 @@ test("serve an installation once its targets are bound and the space's main data
     const builds = await fixture.builds();
     const open = async (packageId: PackageId, manifest: Digest) =>
         manifest === release.manifest ? notes : builds.pull(fixture.registry, packageId, manifest);
-    const served = async () =>
-        (await Database.installed(Snapshot.live(connection), ids.space, open))
+    const served = async (
+        opening: (
+            packageId: PackageId,
+            manifest: Digest,
+        ) => Promise<Pick<BuildReader, "declarations">> = open,
+    ) =>
+        (await Database.installed(Snapshot.live(connection), ids.space, opening))
             .map((entry) => [entry.rollout.id, entry.declarations.map((each) => each.name)])
             .toSorted(([left], [right]) => String(left).localeCompare(String(right)));
+
+    // open the stack's build with a vault it declares for its document, which nothing binds to it
+    const vaulted = async (packageId: PackageId, manifest: Digest) => {
+        const built = await open(packageId, manifest);
+        if (packageId !== stack.installation.packageId) {
+            return built;
+        }
+        const declarations = await built.declarations();
+        const vault = {
+            kind: RESOURCE_DECLARATION,
+            kindPackageId: RESOURCE_KIND_PACKAGE_ID,
+            name: "credentials",
+            description: {},
+        };
+
+        return {
+            declarations: async () => [...declarations, { ...nth(declarations, 0), ...vault }],
+        };
+    };
 
     // serve nothing while the notes' targets are not bound, though main applied their tables
     await connection.transaction(
@@ -140,6 +166,7 @@ test("serve an installation once its targets are bound and the space's main data
                 .where(eq(database.table.id, main.id)),
     );
     const waiting = await served();
+    const withVault = await served(vaulted);
 
     // serve nothing in a space without main
     await connection.transaction(
@@ -148,13 +175,17 @@ test("serve an installation once its targets are bound and the space's main data
     );
     const unborn = await served();
 
-    // serve the space's stack throughout, and notes once its targets are bound and main applied it
+    // serve the space's stack throughout, its document's vault unbound, and notes once bound and applied
     const stacked = [stack.id, [STACKS.space.export]];
-    expect({ unbound, unapplied, applied, waiting, unborn }).toEqual({
+    expect({ unbound, unapplied, applied, waiting, withVault, unborn }).toEqual({
         unbound: [stacked],
         unapplied: [stacked],
         applied: [[ids.notes, ["note"]], stacked],
         waiting: [[ids.notes, ["note"]], stacked],
+        withVault: [
+            [ids.notes, ["note"]],
+            [stack.id, [STACKS.space.export, "credentials"]],
+        ],
         unborn: [],
     });
 });

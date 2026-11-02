@@ -157,17 +157,23 @@ export const Database = {
         );
 
         return served.flat().flatMap(({ rollout: entry, revisionId }) => {
+            // read the served revision's build and declarations
             const { manifest, declarations } = present(
                 declared.get(revisionId),
                 `revision ${revisionId}`,
             );
+
+            // serve a stack at once, which runs nothing and whose resources its document instantiates
+            const isStack = entry.installation.export !== null;
             const hasBindings = declarations
                 .filter((each) => each.kind === RESOURCE_DECLARATION)
                 .every((each) =>
                     bound.has(`${entry.id}:${entry.installation.packageId}:${each.name}`),
                 );
 
-            return hasBindings ? [{ rollout: entry, revisionId, manifest, declarations }] : [];
+            return isStack || hasBindings
+                ? [{ rollout: entry, revisionId, manifest, declarations }]
+                : [];
         });
     },
 };
