@@ -151,10 +151,11 @@ export class BrowserTab<
             // ask to persist the storage, and start the database worker
             await environment.storage.persist();
             const worker = environment.workers.start(
-                new URL("./database.worker.ts", import.meta.url),
-                {
-                    name: `destack:${name}`,
-                },
+                (Worker) =>
+                    new Worker(new URL("./database.worker.ts", import.meta.url), {
+                        type: "module",
+                        name: `destack:${name}`,
+                    }),
             );
             worker.postMessage({ name });
 
