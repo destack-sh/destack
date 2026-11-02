@@ -1,0 +1,32 @@
+{
+    "name": "@destack/git",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Declare Git storage in Destack and keep its repositories locally or in Cloudflare Artifacts.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./error": "./src/error/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./local": "./src/local/index.ts",
+        "./cloudflare": "./src/cloudflare/index.ts",
+        "./test": "./src/test/index.ts"
+    },
+    "dependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
+    }
+}

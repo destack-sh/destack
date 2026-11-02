@@ -1,0 +1,35 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a1a0cf-c560-74bd-a05a-01e5dfcf9e34",
+    "language": "typescript",
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./inspect": {
+            "runtimes": ["bun"]
+        },
+        "./local": {
+            "runtimes": ["bun"]
+        },
+        "./cloudflare": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
+        }
+    },
+    "declarations": {
+        "defineGitStorage": {
+            "describes": [
+                {
+                    "kind": "resource",
+                    "function": "./inspect#describeGitStorage"
+                }
+            ]
+        }
+    },
+    "stamps": {
+        "defineGitStorage": {
+            "module": 1
+        }
+    }
+}
