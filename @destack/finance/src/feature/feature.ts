@@ -23,7 +23,7 @@ export const RESOURCE_KINDS: Readonly<Record<EntitlementResource, FeatureKind>> 
     network: "metered",
     tenancy: "static",
     domain: "boolean",
-    retention: "static",
+    retention: "boolean",
 };
 
 /** When a metered feature's usage starts again: at each billing period of its source, or never. */
