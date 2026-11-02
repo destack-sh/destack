@@ -50,7 +50,7 @@ import { type ModuleOptions } from "../build/build.ts";
 import { BuildError, extensionFailureOf, bundleFailureOf } from "../error/index.ts";
 import { sourcePlugin, mapSource } from "./source.ts";
 import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts";
-import { ASSET, assetPlugin, directoryPlugin, rawPlugin } from "./asset.ts";
+import { ASSET, assetPlugin, directoryPlugin, moduleScriptPlugin, rawPlugin } from "./asset.ts";
 import { transformPlugins } from "./extension.ts";
 
 /** A stylesheet import, by its extension, with or without a query. */
@@ -366,6 +366,8 @@ export class OutputCompilation implements Compilation {
                 resolve: { conditions },
             },
             plugins: [
+                // refuse a module script a browser module references as an asset, as no browser runs one
+                ...(project.runtime === "browser" ? [moduleScriptPlugin()] : []),
                 ...this.#packagePlugins(compiled, facades, input, locations),
                 ...plugins,
                 modulePlugin(this.#transformer),
@@ -493,8 +495,8 @@ export class OutputCompilation implements Compilation {
             experimental: { attachDebugInfo: "none" },
             input: [...input.entries],
             preserveEntrySignatures: "strict",
-            // ignore plugin timings
-            checks: { pluginTimings: false },
+            // ignore bundler timings
+            checks: { bundlerTimings: false },
             onLog: failOnWarning,
             external: (specifier, importer) =>
                 this.#isExternal(specifier, importer, input.dependencies, compiled),

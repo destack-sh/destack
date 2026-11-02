@@ -51,6 +51,30 @@ export function rawPlugin(files: FileSystem): Plugin {
     };
 }
 
+/** A module script, by its extension, which builds bundle and never serve as an asset. */
+const MODULE_SCRIPT = /\.[cm]?[jt]sx?$/u;
+
+/** Refuse a module script a module references as an asset, which no runtime could run. */
+export function moduleScriptPlugin(): Plugin {
+    return {
+        name: "destack-module-script",
+        enforce: "pre",
+        transform: {
+            filter: { id: /\.[cm]?[jt]sx?$/u, code: /import\.meta\.url/u },
+            handler(code, id) {
+                // refuse each module script referenced outside a worker's construction
+                const [referenced] = moduleScriptReferences(code, id);
+                if (referenced !== undefined) {
+                    throw BuildError.of(
+                        "ASSET_INVALID",
+                        `${id} references the module ${referenced} as an asset: start it as new Worker(new URL(...)) or import it`,
+                    );
+                }
+            },
+        },
+    };
+}
+
 /** Retain literal module-relative directories, including committed database migrations. */
 export function directoryPlugin(
     directory: string,
@@ -169,6 +193,34 @@ function directoryReferences(code: string, path: string): DirectoryReference[] {
     }).visit(program);
 
     return references;
+}
+
+/** List the module scripts a module references by URL outside a worker's construction. */
+function moduleScriptReferences(code: string, path: string): string[] {
+    // take the URLs that start workers, visited before the URLs inside them
+    const program = parseAst(code, { lang: /\.[cm]?tsx$/u.test(path) ? "tsx" : "ts" }, path);
+    const started = new Set<number>();
+    const referenced: string[] = [];
+    new Visitor({
+        NewExpression(node) {
+            const [location, base] = node.arguments;
+            const callee = node.callee.type === "Identifier" ? node.callee.name : undefined;
+            if ((callee === "Worker" || callee === "SharedWorker") && location !== undefined) {
+                started.add(location.start);
+            } else if (
+                callee === "URL" &&
+                location?.type === "Literal" &&
+                typeof location.value === "string" &&
+                MODULE_SCRIPT.test(location.value) &&
+                isModuleUrl(base) &&
+                !started.has(node.start)
+            ) {
+                referenced.push(location.value);
+            }
+        },
+    }).visit(program);
+
+    return referenced;
 }
 
 /** Report whether an argument is a literal relative directory path, such as `./migration/`. */

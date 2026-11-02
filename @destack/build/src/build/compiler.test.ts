@@ -628,3 +628,58 @@ async function importNotes(destination: string, path: string): Promise<NoteModul
 
     return module;
 }
+
+test("bundle a module a page starts as a worker, and refuse one it references as an asset", async () => {
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("build-worker-");
+    const source = join(directory, "source");
+    const browser = {
+        directory: source,
+        dependencies: {},
+        outputs: { library: { ...request.outputs.library, runtime: "browser" } },
+    } as const;
+
+    try {
+        // add an echo worker to the library
+        await files.copy(
+            fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url)),
+            source,
+        );
+        await files.writeTextFile(
+            join(source, "src/echo.worker.ts"),
+            'self.addEventListener("message", (event) => self.postMessage(event.data));\n',
+        );
+        const notePath = join(source, "src/note.ts");
+        const note = await files.readTextFile(notePath);
+        await using store = await LocalBuildStore.temporary(environment);
+        await using builder = await Compiler.start(source, { store });
+
+        // start it as a worker, then reference it as an asset
+        await files.writeTextFile(
+            notePath,
+            `${note}\n/** Start the echo worker. */\nexport const echo = () =>\n    new Worker(new URL("./echo.worker.ts", import.meta.url), { type: "module" });\n`,
+        );
+        const started = await builder.build(browser);
+        const workers = (await started.files()).filter((file) =>
+            /echo\.worker[^/]*\.js$/u.test(file.path),
+        );
+        await files.writeTextFile(
+            notePath,
+            `${note}\n/** The echo worker's address. */\nexport const echo = new URL("./echo.worker.ts", import.meta.url).href;\n`,
+        );
+        const referenced = await refusal(builder.build(browser));
+
+        // expect one bundled JavaScript worker, and the asset reference refused
+        expect({
+            workers: workers.map((file) => [file.path.endsWith(".js"), file.mediaType]),
+            referenced: referenced === "done" ? referenced : referenced.slice(0, 2),
+        }).toEqual({
+            workers: [[true, "text/javascript"]],
+            referenced: ["UNPROCESSABLE_CONTENT", "ASSET_INVALID"],
+        });
+    } finally {
+        await files.remove(directory, { recursive: true });
+    }
+});
