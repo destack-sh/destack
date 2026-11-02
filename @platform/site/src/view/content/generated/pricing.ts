@@ -17,51 +17,67 @@ export const currencies = ["USD", "CAD", "EUR", "CHF", "GBP", "AUD"] as const;
 /** A US dollar of rate in each currency. */
 export const creditPrices = { USD: 1, CAD: 1.4, EUR: 1, CHF: 1, GBP: 1, AUD: 1.5 } as const;
 
-/** The plans, cheapest first, each fee a month in each currency. */
+/** The plans, cheapest first, then the enterprise contract, each fee a month in each currency. */
 export const plans = [
     {
         key: "free",
         name: "Free",
         fees: { USD: 0, CAD: 0, EUR: 0, CHF: 0, GBP: 0, AUD: 0 },
         support: "community",
-        retention: 7,
         isUncapped: false,
         isCustomDomains: false,
+        isCustomRetention: false,
         isEarlyAccess: false,
         isDedicated: false,
+        isContract: false,
     },
     {
         key: "go",
         name: "Go",
         fees: { USD: 8, CAD: 11, EUR: 8, CHF: 8, GBP: 8, AUD: 13 },
         support: "community",
-        retention: 30,
         isUncapped: true,
         isCustomDomains: false,
+        isCustomRetention: true,
         isEarlyAccess: true,
         isDedicated: false,
+        isContract: false,
     },
     {
         key: "plus",
         name: "Plus",
         fees: { USD: 20, CAD: 28, EUR: 20, CHF: 20, GBP: 20, AUD: 32 },
         support: "email",
-        retention: 90,
         isUncapped: true,
         isCustomDomains: true,
+        isCustomRetention: true,
         isEarlyAccess: true,
         isDedicated: false,
+        isContract: false,
     },
     {
         key: "pro",
         name: "Pro",
         fees: { USD: 100, CAD: 140, EUR: 100, CHF: 100, GBP: 100, AUD: 160 },
         support: "priority",
-        retention: 365,
         isUncapped: true,
         isCustomDomains: true,
+        isCustomRetention: true,
         isEarlyAccess: true,
         isDedicated: true,
+        isContract: false,
+    },
+    {
+        key: "enterprise",
+        name: "Enterprise",
+        fees: { USD: 1000, CAD: 1400, EUR: 1000, CHF: 1000, GBP: 1000, AUD: 1600 },
+        support: "sla",
+        isUncapped: true,
+        isCustomDomains: true,
+        isCustomRetention: true,
+        isEarlyAccess: true,
+        isDedicated: true,
+        isContract: true,
     },
 ] as const;
 
@@ -70,8 +86,8 @@ export const allowance = { database: 1, files: 10, compute: 12.5, egress: 100 } 
 
 /** The dedicated machines, smallest first, priced in US dollars. */
 export const machines = [
-    { size: "small", vcpus: 2, memory: 4, hourly: 0.08, monthly: 40 },
-    { size: "medium", vcpus: 4, memory: 8, hourly: 0.16, monthly: 80 },
-    { size: "large", vcpus: 8, memory: 16, hourly: 0.32, monthly: 160 },
-    { size: "xlarge", vcpus: 16, memory: 32, hourly: 0.64, monthly: 320 },
+    { size: "small", vcpus: 2, memory: 4, disk: 80, hourly: 0.08, monthly: 40 },
+    { size: "medium", vcpus: 4, memory: 8, disk: 160, hourly: 0.16, monthly: 80 },
+    { size: "large", vcpus: 8, memory: 16, disk: 320, hourly: 0.32, monthly: 160 },
+    { size: "xlarge", vcpus: 16, memory: 32, disk: 640, hourly: 0.64, monthly: 320 },
 ] as const;

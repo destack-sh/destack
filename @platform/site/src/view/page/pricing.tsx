@@ -12,6 +12,7 @@ import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
 import { screen } from "../layout/screen.stylex";
 import { type Currency, currencyOf } from "../pricing/money";
+import { Comparison, ComparisonLabel } from "../pricing/comparison";
 import { type Audience, Plans, PlansLabel } from "../pricing/plan";
 import { Rates } from "../pricing/rate";
 import "../home/figure/figure.css";
@@ -100,6 +101,8 @@ export function Pricing() {
                     onCurrency={setCurrency}
                 />
                 <Plans audience={audience()} currency={currency()} />
+                <ComparisonLabel />
+                <Comparison audience={audience()} currency={currency()} />
             </section>
             <div aria-hidden="true" {...style.attrs(lattice.frame, lattice.interval)} />
 
@@ -114,7 +117,7 @@ export function Pricing() {
             <section {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.figure)}>
                 <Entry form={bill} />
                 <Tally
-                    number={3}
+                    number={4}
                     stacked="your tools at seat prices"
                     destacked="your apps at usage prices"
                     isOpen={isOpen()}
@@ -133,10 +136,10 @@ const styles = style.create({
     figure: {
         gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
-    // the entry, the label, the plan rows and the stack, one screen tall or more when the cards need it
+    // the entry, the label, the plan rows, then the comparison's label and table
     plans: {
         gridTemplateRows: {
-            default: "auto auto repeat(8, auto) minmax(auto, 1fr) auto",
+            default: "auto auto repeat(9, auto) minmax(auto, 1fr) auto auto",
             [screen.belowDesktop]: "auto",
         },
         height: "auto",

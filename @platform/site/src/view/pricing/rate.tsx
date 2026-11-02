@@ -14,18 +14,33 @@ const CPU_HOUR_MILLIONS = 3.6;
 /** A meter: what it measures and per which unit, and its price in US dollars. */
 type Meter = { name: string; price: number };
 
-/** The meters at their generated rates: the apps', then the database's, files' and network's. */
-const meters: readonly Meter[] = [
-    { name: "Compute, per GB-hour", price: rates.memory },
-    { name: "Requests, per million", price: rates.requests },
-    { name: "CPU time, per CPU-hour", price: rates.cpu * CPU_HOUR_MILLIONS },
-    { name: "Database storage, per GB-month", price: rates.database },
-    { name: "Database writes, per million rows", price: rates.rowsWritten },
-    { name: "Database reads, per million rows", price: rates.rowsRead },
-    { name: "File storage, per GB-month", price: rates.files },
-    { name: "File writes, per million", price: rates.fileWrites },
-    { name: "File reads, per million", price: rates.fileReads },
-    { name: "Egress", price: 0 },
+/** The meters at their generated rates, grouped: the apps', then the database's, files' and network's. */
+const meterGroups: readonly { name: string; meters: readonly Meter[] }[] = [
+    {
+        name: "Compute",
+        meters: [
+            { name: "Memory, per GB-hour", price: rates.memory },
+            { name: "CPU time, per CPU-hour", price: rates.cpu * CPU_HOUR_MILLIONS },
+            { name: "Requests, per million", price: rates.requests },
+        ],
+    },
+    {
+        name: "Database",
+        meters: [
+            { name: "Storage, per GB-month", price: rates.database },
+            { name: "Writes, per million rows", price: rates.rowsWritten },
+            { name: "Reads, per million rows", price: rates.rowsRead },
+        ],
+    },
+    {
+        name: "Files",
+        meters: [
+            { name: "Storage, per GB-month", price: rates.files },
+            { name: "Writes, per million", price: rates.fileWrites },
+            { name: "Reads, per million", price: rates.fileReads },
+        ],
+    },
+    { name: "Network", meters: [{ name: "Egress", price: 0 }] },
 ];
 
 /** The name each machine size is shown under. */
@@ -48,7 +63,7 @@ export function Rates(properties: { currency: Currency }) {
 
     return (
         <>
-            <FigureLabel number={2} isOpen={false} stacked="unit prices" destacked="unit prices" />
+            <FigureLabel number={3} isOpen={false} stacked="unit prices" destacked="unit prices" />
 
             {/* the usage meters */}
             <section {...style.attrs(lattice.cell, styles.panel, styles.usage)}>
@@ -61,16 +76,23 @@ export function Rates(properties: { currency: Currency }) {
                             <th {...style.attrs(styles.head, styles.end)}>Price</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {meters.map((meter) => (
+                    {meterGroups.map((group) => (
+                        <tbody>
                             <tr>
-                                <td {...style.attrs(styles.cell)}>{meter.name}</td>
-                                <td {...style.attrs(styles.cell, styles.end, styles.figure)}>
-                                    {rate(meter.price)}
-                                </td>
+                                <th colspan={2} scope="colgroup" {...style.attrs(styles.group)}>
+                                    {group.name}
+                                </th>
                             </tr>
-                        ))}
-                    </tbody>
+                            {group.meters.map((meter) => (
+                                <tr>
+                                    <td {...style.attrs(styles.cell)}>{meter.name}</td>
+                                    <td {...style.attrs(styles.cell, styles.end, styles.figure)}>
+                                        {rate(meter.price)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    ))}
                 </table>
                 <p {...style.attrs(styles.note)}>
                     The Free plan includes {allowance.compute} GB-hours of compute,{" "}
@@ -83,7 +105,7 @@ export function Rates(properties: { currency: Currency }) {
             <section {...style.attrs(lattice.cell, styles.panel, styles.machines)}>
                 <h3 {...style.attrs(styles.title)}>Dedicated machines</h3>
                 <p {...style.attrs(styles.lede)}>
-                    A machine of your own on the Pro plan, billed by the hour it runs.
+                    A machine of your own on Pro and Enterprise, billed by the hour it runs.
                 </p>
                 <table {...style.attrs(styles.table)}>
                     <thead>
@@ -100,7 +122,8 @@ export function Rates(properties: { currency: Currency }) {
                                     {sizeNames[machine.size]}
                                     <span {...style.attrs(styles.specs)}>
                                         {" "}
-                                        · {machine.vcpus} vCPU · {machine.memory} GB
+                                        · {machine.vcpus} vCPU · {machine.memory} GB ·{" "}
+                                        {machine.disk} GB disk
                                     </span>
                                 </td>
                                 <td {...style.attrs(styles.cell, styles.end, styles.figure)}>
@@ -111,10 +134,21 @@ export function Rates(properties: { currency: Currency }) {
                                 </td>
                             </tr>
                         ))}
+
+                        {/* your own machine, on any plan */}
+                        <tr>
+                            <td {...style.attrs(styles.cell)}>
+                                Your own machine
+                                <span {...style.attrs(styles.specs)}> · any size, any plan</span>
+                            </td>
+                            <td {...style.attrs(styles.cell, styles.end, styles.figure)}>Free</td>
+                            <td {...style.attrs(styles.cell, styles.end, styles.figure)}>Free</td>
+                        </tr>
                     </tbody>
                 </table>
                 <p {...style.attrs(styles.note)}>
-                    The monthly price is a cap: a machine running all month costs no more.
+                    The monthly price is a cap: a machine running all month costs no more. On your
+                    own machine, you pay only your provider.
                 </p>
             </section>
         </>
@@ -168,6 +202,16 @@ const styles = style.create({
     end: {
         paddingInlineStart: "1rem",
         textAlign: "end",
+    },
+    group: {
+        color: color.mutedForeground,
+        fontFamily: font.code,
+        fontSize: typeScale.label,
+        fontWeight: weight.regular,
+        letterSpacing: tracking.label,
+        paddingBlock: "1.5rem 0.5rem",
+        textAlign: "start",
+        textTransform: "uppercase",
     },
     cell: {
         borderBottomColor: color.border,

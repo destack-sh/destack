@@ -8,6 +8,7 @@ import {
     CREDIT_PRICES,
     CURRENCIES,
     databaseBytesUnit,
+    ENTERPRISE,
     MACHINES,
     memoryUnit,
     PLANS,
@@ -55,9 +56,9 @@ const rates = {
     fileWrites: rateOf(storageWritesUnit, MILLION),
 };
 
-// read each plan's name, fee in each currency, support, retention and gates
+// read each plan's name, fee in each currency, support and gates
 /** The plans, cheapest first. */
-const plans = Object.entries(PLANS).map(([key, plan]) => {
+const catalogPlans = Object.entries(PLANS).map(([key, plan]) => {
     // require the list of places each plan may run in
     const tenancies = plan.productFeatures.tenancy.value;
     if (!Array.isArray(tenancies)) {
@@ -77,13 +78,30 @@ const plans = Object.entries(PLANS).map(([key, plan]) => {
             ]),
         ),
         support: plan.productFeatures.support.value,
-        retention: plan.productFeatures.retention.value,
         isUncapped: plan.productFeatures.database.value === null,
         isCustomDomains: "custom-domains" in plan.productFeatures,
+        isCustomRetention: "custom-retention" in plan.productFeatures,
         isEarlyAccess: "early-access" in plan.productFeatures,
         isDedicated: tenancies.includes("dedicated"),
+        isContract: false,
     };
 });
+
+// follow them with the enterprise contract: all of the last plan, with its own fee and support
+/** The plans, then the enterprise contract. */
+const plans = [
+    ...catalogPlans,
+    {
+        ...present(catalogPlans.at(-1), "last plan"),
+        key: "enterprise",
+        name: ENTERPRISE.name.source,
+        fees: Object.fromEntries(
+            CURRENCIES.map((currency) => [currency, ENTERPRISE.commitment[currency] / MINOR_UNITS]),
+        ),
+        support: ENTERPRISE.support,
+        isContract: true,
+    },
+];
 
 // read a credit's price in each currency, which converts the rates
 /** A credit's price in each currency, in its major unit per US dollar of rate. */
@@ -103,12 +121,13 @@ const allowance = {
     egress: limitOf(PLANS.free.productFeatures.network.value, "network") / GIGABYTE,
 };
 
-// read each machine size's vCPUs, memory, hourly price and monthly cap in US dollars
+// read each machine size's vCPUs, memory, disk, hourly price and monthly cap in US dollars
 /** The dedicated machines, smallest first. */
 const machines = Object.entries(MACHINES).map(([size, machine]) => ({
     size,
     vcpus: machine.vcpus,
     memory: machine.memory,
+    disk: machine.disk,
     hourly: dollarsOf(machine.hourly),
     monthly: dollarsOf(machine.monthly),
 }));
@@ -123,7 +142,7 @@ const generatedSource = await formatSource(
         `export const currencies = ${JSON.stringify(CURRENCIES)} as const;\n\n` +
         `/** A US dollar of rate in each currency. */\n` +
         `export const creditPrices = ${JSON.stringify(creditPrices)} as const;\n\n` +
-        `/** The plans, cheapest first, each fee a month in each currency. */\n` +
+        `/** The plans, cheapest first, then the enterprise contract, each fee a month in each currency. */\n` +
         `export const plans = ${JSON.stringify(plans)} as const;\n\n` +
         `/** The free plan's monthly allowance, in GB and GB-hours. */\n` +
         `export const allowance = ${JSON.stringify(allowance)} as const;\n\n` +

@@ -1,5 +1,5 @@
 import { media } from "@destack/style/media.stylex";
-import { color, font, shadow, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { present } from "@destack/schema";
 import { buttonVariants } from "@destack/ui/button";
@@ -7,11 +7,8 @@ import { For } from "@destack/view";
 
 import { allowance, currencies, plans } from "../content/generated/pricing";
 import { FigureLabel } from "../home/entry/entry";
-import { Label } from "../home/entry/label";
 import { Toggle } from "../home/entry/switch";
 import { Glyph, type GlyphName } from "../home/figure/glyph";
-import { Tile } from "../home/figure/tile";
-import { chrome } from "../home/figure/chrome.stylex";
 import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
 import { Hint } from "./hint";
@@ -20,6 +17,9 @@ import { typeScale, tracking } from "../layout/type.stylex";
 
 /** The product, where accounts subscribe to a plan. */
 const PRODUCT = "https://destack.app/";
+
+/** Where organisations write to ask for the enterprise contract. */
+const CONTACT = "mailto:hello@destack.sh?subject=Destack%20Enterprise";
 
 /** The names of the currencies, as the currency picker lists them. */
 const currencyNames: Readonly<Record<Currency, string>> = {
@@ -51,20 +51,26 @@ const taxNotes: Readonly<Record<Audience, Readonly<Record<Currency, string>>>> =
     },
 };
 
-/** The days in a year, the retention shown as a year. */
-const YEAR_DAYS = 365;
-
 /** A plan of the generated price list. */
-type Plan = (typeof plans)[number];
+export type Plan = (typeof plans)[number];
 
 /** Who a plan is shown to: a person, or an organisation. */
 export type Audience = "personal" | "organisation";
 
 /** The specs every card lists on the same rows, under its usage. */
-const SPECS = ["apps", "hosting", "ai", "retention", "support"] as const;
+const SPECS = ["apps", "hosting", "ai", "managed", "history", "support"] as const;
 
 /** What a plan unlocks, listed where it first appears and stacking from there. */
-const EXTRAS = ["early", "domains", "machines"] as const;
+const EXTRAS = [
+    "caps",
+    "early",
+    "domains",
+    "machines",
+    "uptime",
+    "moving",
+    "invoice",
+    "agreement",
+] as const;
 
 /** The rows of a card: head, price, action, one per spec, and the extras taking the rest. */
 const CARD_ROWS = 3 + SPECS.length + 1;
@@ -81,25 +87,14 @@ const taglines: Readonly<Record<Plan["key"], string>> = {
     go: "For your personal stack",
     plus: "For your daily work",
     pro: "For your critical software",
+    enterprise: "For your whole organisation",
 };
 
 /** The plans each audience is shown. */
-const audiencePlans: Readonly<Record<Audience, readonly Plan["key"][]>> = {
+export const audiencePlans: Readonly<Record<Audience, readonly Plan["key"][]>> = {
     personal: ["free", "go", "plus", "pro"],
-    organisation: ["free", "plus", "pro"],
+    organisation: ["free", "plus", "pro", "enterprise"],
 };
-
-/** The parts of the stack every plan includes, each with its tile and what it does. */
-const stackParts: readonly { name: string; icon: string; detail: string }[] = [
-    { name: "Branching", icon: "source", detail: "Every app branches, with previews" },
-    { name: "Access", icon: "auth", detail: "Roles for people, guests and agents" },
-    { name: "Vault", icon: "vault", detail: "Secrets, encrypted and shared" },
-    { name: "Audit", icon: "audit", detail: "Every change, by whom and when" },
-    { name: "Telemetry", icon: "telemetry", detail: "Traces, logs and alerts" },
-    { name: "Inference", icon: "ai", detail: "Subscriptions, keys or local models" },
-    { name: "Self-hosting", icon: "computer", detail: "Run Destack on your own machines" },
-    { name: "Tunneling", icon: "cloud", detail: "Reach your machines anywhere" },
-];
 
 /** The support each level gives, as a benefit. */
 const supportBenefits: Readonly<Record<Plan["support"], Benefit>> = {
@@ -117,6 +112,11 @@ const supportBenefits: Readonly<Record<Plan["support"], Benefit>> = {
         icon: "bolt",
         text: "Priority support",
         detail: "Your questions go to the front of the queue.",
+    },
+    sla: {
+        icon: "person",
+        text: "SLA support",
+        detail: "Guaranteed response times from engineers who know your stack.",
     },
 };
 
@@ -198,31 +198,13 @@ export function Plans(properties: { audience: Audience; currency: Currency }) {
                     />
                 )}
             </For>
-
-            {/* the full stack, included in every plan */}
-            <div {...style.attrs(lattice.cell, styles.stack)}>
-                <div {...style.attrs(styles.stackCard)}>
-                    <Label>The full stack, always included</Label>
-                    <ul {...style.attrs(styles.parts)}>
-                        {stackParts.map((part) => (
-                            <li {...style.attrs(styles.part)}>
-                                <Tile icon={part.icon} size="large" />
-                                <span {...style.attrs(styles.partWords)}>
-                                    <span {...style.attrs(styles.partName)}>{part.name}</span>
-                                    <span {...style.attrs(styles.partDetail)}>{part.detail}</span>
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
         </>
     );
 }
 
 /** Draw one plan's card: its name, tagline, fee, action and, on its topic's row, what it adds. */
 function PlanCard(properties: { plan: Plan; tagline: string; count: number; currency: Currency }) {
-    // read the plan's fee, and whether it is the free plan or the one most people pick
+    // read the plan's fee, and whether it is the free plan, a contract, or the one most people pick
     const plan = properties.plan;
     const fee = () => plan.fees[properties.currency];
     const isFree = plan.fees.USD === 0;
@@ -254,24 +236,27 @@ function PlanCard(properties: { plan: Plan; tagline: string; count: number; curr
             {/* fee, and the usage it includes */}
             <div {...style.attrs(styles.price)}>
                 <p {...style.attrs(styles.fee)}>
-                    <span {...style.attrs(styles.amount)}>{money(fee(), properties.currency)}</span>
-                    <span {...style.attrs(styles.period)}>/ month</span>
+                    <span {...style.attrs(styles.amount)}>
+                        {money(fee(), properties.currency)}
+                        {plan.isContract && "+"}
+                    </span>
+                    {!plan.isContract && <span {...style.attrs(styles.period)}>/ month</span>}
                 </p>
                 <Usage plan={plan} fee={fee()} currency={properties.currency} />
             </div>
 
-            {/* start for free, or subscribe */}
+            {/* start for free, subscribe, or write to us */}
             <a
-                href={isFree ? "/#present-participle" : PRODUCT}
+                href={isFree ? "/#present-participle" : plan.isContract ? CONTACT : PRODUCT}
                 {...style.attrs(
                     buttonVariants({ variant: isPicked ? "default" : "outline", size: "lg" }),
                     styles.action,
                 )}
             >
-                {isFree ? "Start for free" : `Get ${plan.name}`}
+                {isFree ? "Start for free" : plan.isContract ? "Talk to us" : `Get ${plan.name}`}
             </a>
 
-            {/* apps, hosting, AI, retention and support, on the same rows on every card */}
+            {/* apps, hosting, both kinds of AI, history and support, on the same rows on every card */}
             {SPECS.map((topic, index) => (
                 <BenefitRow
                     benefit={present(benefitOf(plan, topic), "spec")}
@@ -291,7 +276,17 @@ function PlanCard(properties: { plan: Plan; tagline: string; count: number; curr
 
 /** Set the usage a plan includes each month under its fee. */
 function Usage(properties: { plan: Plan; fee: number; currency: Currency }) {
-    return properties.plan.isUncapped ? (
+    // state a contract's least monthly usage, the usage a fee includes, or the free allowance
+    return properties.plan.isContract ? (
+        <p {...style.attrs(styles.usage)}>
+            <Hint
+                text="a month in usage"
+                detail="Your contract commits to at least this much usage a month, billed at the prices below."
+            />
+            <br />
+            then pay as you go
+        </p>
+    ) : properties.plan.isUncapped ? (
         <p {...style.attrs(styles.usage)}>
             <Hint
                 text={`${money(properties.fee, properties.currency)} of usage included`}
@@ -331,7 +326,7 @@ function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
         return {
             icon: "grid",
             text: "Software included",
-            detail: "Every Destack app and package, with no seats or licences to pay.",
+            detail: "Destack's standard apps and packages, with no seats or licences to pay.",
         };
     } else if (topic === "hosting") {
         return {
@@ -341,20 +336,30 @@ function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
         };
     } else if (topic === "ai") {
         return {
-            icon: "sparkle",
+            icon: "plug",
             text: "Bring your own AI",
             detail: "Use your subscriptions, your API keys or local models.",
         };
-    }
-    // read how long the plan keeps events
-    else if (topic === "retention") {
-        const span = plan.retention >= YEAR_DAYS ? "1-year" : `${plan.retention}-day`;
-
+    } else if (topic === "managed") {
         return {
-            icon: "clock",
-            text: `${span} retention`,
-            detail: "How long activity, history, logs and analytics stay. Your content never expires.",
+            icon: "cloud",
+            text: "Managed AI",
+            detail: "Use models through us, with no keys or accounts to manage, billed as usage.",
         };
+    }
+    // keep events for their default spans, or as long as each space chooses, billed as storage
+    else if (topic === "history") {
+        return plan.isCustomRetention
+            ? {
+                  icon: "clock",
+                  text: "Custom retention",
+                  detail: "Keep logs, traces and activity as long as you like. They count as storage.",
+              }
+            : {
+                  icon: "clock",
+                  text: "Default retention",
+                  detail: "Logs, traces and activity stay for their default spans, or shorter if you like.",
+              };
     }
     // read what the plan unlocks
     else if (topic === "domains") {
@@ -363,6 +368,14 @@ function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
                   icon: "globe",
                   text: "Custom domains",
                   detail: "Serve your spaces and your profile under your own domain names.",
+              }
+            : undefined;
+    } else if (topic === "caps") {
+        return plan.isUncapped
+            ? {
+                  icon: "up",
+                  text: "No caps",
+                  detail: "Your apps never slow down: past the included usage, you pay as you go.",
               }
             : undefined;
     } else if (topic === "early") {
@@ -379,6 +392,38 @@ function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
                   icon: "chip",
                   text: "Dedicated machines",
                   detail: "A machine of your own, billed by the hour up to a monthly cap.",
+              }
+            : undefined;
+    } else if (topic === "uptime") {
+        return plan.isContract
+            ? {
+                  icon: "check",
+                  text: "Uptime SLA",
+                  detail: "An uptime we promise in your contract, with credits when we miss it.",
+              }
+            : undefined;
+    } else if (topic === "moving") {
+        return plan.isContract
+            ? {
+                  icon: "download",
+                  text: "Onboarding and migration",
+                  detail: "We move your data and tools over, and help build your first apps.",
+              }
+            : undefined;
+    } else if (topic === "invoice") {
+        return plan.isContract
+            ? {
+                  icon: "file",
+                  text: "Invoice billing",
+                  detail: "Pay by invoice and bank transfer, with purchase orders.",
+              }
+            : undefined;
+    } else if (topic === "agreement") {
+        return plan.isContract
+            ? {
+                  icon: "lock",
+                  text: "Data processing agreement",
+                  detail: "A signed agreement on how we process your data, for your privacy reviews.",
               }
             : undefined;
     }
@@ -540,58 +585,5 @@ const styles = style.create({
         alignContent: "start",
         display: "grid",
         rowGap: "0.75rem",
-    },
-    stack: {
-        gridColumn: "1 / -1",
-        paddingBlock: "1.25rem",
-        paddingInline: frame.inset,
-    },
-    stackCard: {
-        backgroundColor: color.card,
-        borderColor: color.border,
-        borderRadius: chrome.radius,
-        borderStyle: "solid",
-        borderWidth: stroke.border,
-        boxShadow: shadow.raised,
-        display: "grid",
-        paddingBlock: "1.25rem",
-        paddingInline: "1.5rem",
-        rowGap: "1rem",
-    },
-    parts: {
-        columnGap: "1.5rem",
-        display: "grid",
-        gridTemplateColumns: {
-            default: "repeat(4, minmax(0, 1fr))",
-            [media.maxLg]: "repeat(auto-fit, minmax(15rem, 1fr))",
-        },
-        listStyleType: "none",
-        margin: 0,
-        padding: 0,
-        rowGap: "1.125rem",
-    },
-    part: {
-        alignItems: "center",
-        columnGap: "0.75rem",
-        display: "flex",
-        minWidth: 0,
-    },
-    partWords: {
-        display: "grid",
-        minWidth: 0,
-        rowGap: "0.125rem",
-    },
-    partName: {
-        fontSize: typeScale.body,
-        fontWeight: weight.semibold,
-        lineHeight: 1.25,
-    },
-    partDetail: {
-        color: color.mutedForeground,
-        fontSize: typeScale.small,
-        lineHeight: 1.35,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
     },
 });
