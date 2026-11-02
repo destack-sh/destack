@@ -1,6 +1,7 @@
 import type { Select } from "@destack/db";
 import { contained, principal } from "@destack/access";
-import { defineObject, device, field } from "@destack/object";
+import { t } from "@destack/locale";
+import { defineCommand, defineObject, device, field } from "@destack/object";
 import { schema, Version } from "@destack/schema";
 
 /** What staging found: the installed release, and the release staged for activation. */
@@ -45,5 +46,24 @@ export const distribution = defineObject(
         activate: method.mutation({ permission: "update", prepared: Version }),
     }),
 );
+
+/** The command staging the newest release of a current distribution, when one is newer. */
+export const checkForUpdates = defineCommand({
+    name: "check-for-updates",
+    title: t`Check for Updates…`,
+    object: distribution,
+    method: "stage",
+    when: { status: "current" },
+});
+
+/** The command restarting a distribution into the release it staged. */
+export const restartToUpdate = defineCommand({
+    name: "restart-to-update",
+    title: t`Restart to Update`,
+    object: distribution,
+    method: "activate",
+    when: { status: "staged" },
+});
+
 /** A distribution as its table stores it. */
 export type DistributionRow = Select<typeof distribution.table>;

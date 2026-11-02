@@ -7,7 +7,7 @@ import { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { afterAll, beforeAll, expect, onTestFinished, refusal, test } from "@destack/test";
 import { Distribution } from "../distribution/index.ts";
-import { distribution } from "../object/index.ts";
+import { checkForUpdates, distribution, restartToUpdate } from "../object/index.ts";
 import updatePackage from "../package.ts";
 import { SignedRepository, type SigningKey } from "../publish/index.ts";
 import { Release } from "../release/index.ts";
@@ -28,7 +28,7 @@ afterAll(async () => {
     await testHost().files.remove(fixture, { recursive: true });
 });
 
-test("record a device's distribution once and stage the published release as the device, refusing another device", async () => {
+test("record a device's distribution once, stage the published release and offer restarting into it as the device, refusing another device", async () => {
     // run 2026.9.0 of a distribution following the fixture's repository
     await using repository = await TestUpdate.open(
         fixture,
@@ -65,7 +65,17 @@ test("record a device's distribution once and stage the published release as the
     });
     await served.simulation.idle();
 
-    // read the row as the device, and refuse another device
+    // read the row and the update commands applying to it as the device, and refuse another device
+    const offered = await Promise.all(
+        [checkForUpdates, restartToUpdate].map(async (command) => {
+            const { items } = await served
+                .as(device)
+                .client(updatePackage)
+                .distribution.list({ deviceId, ...command.query() });
+
+            return items.length === 1 ? [command.name] : [];
+        }),
+    );
     const other = principal.device.reference(
         Scope.universe.id,
         Identifier.create("device", repository.environment),
@@ -76,9 +86,11 @@ test("record a device's distribution once and stage the published release as the
     );
     expect({
         rows: rows.map((row) => [row.scope, row.installed, row.staged, row.status]),
+        offered: offered.flat(),
         refused,
     }).toEqual({
         rows: [[deviceId, "2026.9.0", "2026.9.1", "staged"]],
+        offered: ["restart-to-update"],
         refused: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${deviceId} not found`],
     });
 });
