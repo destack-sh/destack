@@ -6,12 +6,12 @@ import { MemoryBuild } from "@destack/package/test";
 import type { Package } from "@destack/package";
 import type { Uplink } from "@destack/sync";
 import type { InstalledServerContext } from "../workload/workload.ts";
-import { until, type Environment } from "@destack/environment";
+import { waitAborted, type Environment } from "@destack/environment";
 
 /** An uplink that streams nothing until stopped and refuses changes. */
 const IDLE: Uplink = {
     async *stream(_subscription, signal) {
-        await until(signal);
+        await waitAborted(signal);
         yield* [];
     },
     request: async () => {},

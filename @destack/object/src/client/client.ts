@@ -1121,7 +1121,7 @@ export class ObjectClient<
 
             // wait for a change or move after a final failure
             if (isFinal) {
-                await this.database.log.until(
+                await this.database.log.waitUntil(
                     isChanged,
                     AbortSignal.any([signal, this.#moves.signal]),
                 );
@@ -1153,7 +1153,7 @@ export class ObjectClient<
         reshaped: AbortController,
         report: (error: unknown) => void,
     ): void {
-        void this.database.log.until(isChanged, stream).then(
+        void this.database.log.waitUntil(isChanged, stream).then(
             (changed) => changed && reshaped.abort(),
             (error: unknown) => {
                 // report a failed watch and restart
@@ -1599,7 +1599,7 @@ export class ObjectClient<
         // settle known outcomes
         let failure: Error | undefined;
         try {
-            const isSettled = await this.database.log.until(async () => {
+            const isSettled = await this.database.log.waitUntil(async () => {
                 const outcomes = await this.prediction.outcomes(this.database, [
                     ...this.#waiting.keys(),
                 ]);
@@ -2038,7 +2038,7 @@ export class ObjectClient<
         const replicated = named.then(async (name) => {
             if (!isLocal) {
                 const replica = this.#pickReplica(split.object.storage);
-                await this.database.log.until(
+                await this.database.log.waitUntil(
                     async () =>
                         Object.hasOwn(
                             ObjectClient.#queriesOf(await replica.subscribed(this.database)),

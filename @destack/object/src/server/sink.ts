@@ -4,7 +4,7 @@ import { Key, type LogPosition, Snapshot, TABLE, type Table } from "@destack/db"
 import { canonicalize, Digest, schema, present } from "@destack/schema";
 import * as sync from "@destack/sync";
 import type { FollowController, Delta } from "@destack/db";
-import { until } from "@destack/environment";
+import { waitAborted } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
 
 /** The replicas a store follows: what its subscriber asks for, followed and dropped by key. */
@@ -163,7 +163,7 @@ export class ObjectSink {
             const replica = this.#listed.get(key);
             if (replica === undefined) {
                 synced();
-                await until(signal);
+                await waitAborted(signal);
 
                 return undefined;
             }
@@ -180,7 +180,7 @@ export class ObjectSink {
                     tables: [],
                 });
                 synced();
-                await until(revised);
+                await waitAborted(revised);
             }
         }
 
@@ -231,7 +231,7 @@ export class ObjectSink {
         let waking = requested.waking;
         while (!signal.aborted) {
             // wait for the subscription to move, taking the next move's signal before requesting
-            await until(AbortSignal.any([signal, waking.signal]));
+            await waitAborted(AbortSignal.any([signal, waking.signal]));
             waking = requested.waking;
 
             // request the moved subscription, failing the follow on a refusal

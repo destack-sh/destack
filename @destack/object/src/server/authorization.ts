@@ -204,16 +204,21 @@ export class Authorization extends access.Authorization {
             passed = new Set();
         }
 
-        // resolve the scopes the scope encloses, which the rows left over live in
+        // resolve the scope's ancestors, and the scopes it encloses, which the rows left over below it live in
+        const ancestors = new Set(
+            scope === this.access.scope ? this.access.scopes.map((link) => link.scope) : [],
+        );
         const left = others.filter((entry) => !passed.has(entry.position));
-        if (object.storage === "durable" && object.inherited === undefined && left.length > 0) {
-            below = await this.descend(scope, [...new Set(left.map((entry) => entry.scope))]);
+        const under = left.filter((entry) => !ancestors.has(entry.scope));
+        if (object.storage === "durable" && object.inherited === undefined && under.length > 0) {
+            below = await this.descend(scope, [...new Set(under.map((entry) => entry.scope))]);
         }
 
-        // check the permission on the scope's rows and on the rows of the scopes it encloses
+        // check the permission on the rows of the scope, its ancestors and the scopes it encloses
         const local = scoped.filter(
             (entry) =>
-                !passed.has(entry.position) && (entry.scope === scope || below.has(entry.scope)),
+                !passed.has(entry.position) &&
+                (entry.scope === scope || ancestors.has(entry.scope) || below.has(entry.scope)),
         );
         const checked = await this.checkRows(
             permission,
@@ -223,8 +228,8 @@ export class Authorization extends access.Authorization {
             below,
         );
 
-        // check the permission on each checked replica of another scope at its governing scope
-        const outside = left.filter((entry) => replicas === "checked" && !below.has(entry.scope));
+        // check the permission on each checked replica of a scope apart at its governing scope
+        const outside = under.filter((entry) => replicas === "checked" && !below.has(entry.scope));
         const decisions = await Promise.all(
             outside.map(async (entry) => {
                 const id = schema.string().parse(entry.row["id"]);

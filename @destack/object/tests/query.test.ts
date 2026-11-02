@@ -469,7 +469,7 @@ test("go on following a closed query for a while, receiving the server's changes
         name: "Later",
     });
     const database = device.client.database;
-    const isReceived = await database.log.until(
+    const isReceived = await database.log.waitUntil(
         async () =>
             (await database.select().from(notebook.table)).some((row) => row.name === "Later"),
         environment.clock.timeout(4000),
@@ -505,13 +505,13 @@ test("let go of followed queries beyond the storage budget, following forever-fo
     // evict notebooks beyond the budget, and home once released
     const waiting = new AbortController();
     onTestFinished(() => waiting.abort());
-    const isEvicted = await database.log.until(
+    const isEvicted = await database.log.waitUntil(
         async () => (await names()).length === 1,
         waiting.signal,
     );
     const remaining = await names();
     await device.client.release(notebook, home);
-    const isReleased = await database.log.until(
+    const isReleased = await database.log.waitUntil(
         async () => (await names()).length === 0,
         waiting.signal,
     );

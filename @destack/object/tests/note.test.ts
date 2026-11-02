@@ -479,7 +479,7 @@ test("share one browser database between tabs, handing it over when the leading 
     const isPresent = async () => (await first.client.origins()).has(third.client.origin);
     const before = await isPresent();
     await third.close();
-    await first.client.database.log.until(
+    await first.client.database.log.waitUntil(
         async () => !(await isPresent()),
         environment.clock.timeout(5000),
     );

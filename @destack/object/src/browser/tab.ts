@@ -1,12 +1,20 @@
-import type { Duration } from "@destack/schema";
+import { type Duration, schema } from "@destack/schema";
+import { ObjectError } from "../error/index.ts";
 import type { Subject } from "@destack/sync";
 import { broadcastChannel, connectShared } from "@destack/db/browser";
 import type { ClientOptions } from "../client/package.ts";
 import { RequestId } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import { ObjectClient } from "../client/client.ts";
+import { Replay } from "../audit/replay.ts";
 import type { Environment } from "@destack/environment";
 import type {} from "@destack/environment/browser";
+
+/** What the database worker tells the tab that started it: it serves, or it failed to open. */
+const WorkerAnswer = schema.discriminatedUnion("kind", [
+    schema.object({ kind: schema.literal("serving") }),
+    schema.object({ kind: schema.literal("failed"), message: schema.string() }),
+]);
 
 /** The browser effects a tab takes: the origin's locks, broadcast channels and storage. */
 export type BrowserTabEnvironment = Environment<"locks" | "broadcast" | "storage">;
@@ -53,7 +61,6 @@ export class BrowserTab<
     ) {
         // take the presence lock
         this.client = client;
-        this.ready = ready;
         this.#database = database;
         this.#environment = environment;
         this.#worker = worker;
@@ -79,6 +86,9 @@ export class BrowserTab<
                 throw error;
             }
         });
+
+        // fail readiness once leading the database fails, such as a worker unable to open it
+        this.ready = Promise.race([ready, this.#owning.then(() => ready)]);
     }
 
     /** Open a tab's objects over the database of the leading tab's worker. */
@@ -121,14 +131,29 @@ export class BrowserTab<
         );
         const client = await ObjectClient.open({ ...options, database, origin, isMigrated: true });
 
-        // settle once the tables exist
+        // refuse readiness on the leading loops' first final failure, such as a refused follow
+        const failed = Promise.withResolvers<never>();
+        failed.promise.catch(() => undefined);
+        const report = (error: unknown) => {
+            if (Replay.failure(error) !== undefined) {
+                failed.reject(error);
+            }
+            options.report(error);
+        };
+
+        // settle once the tables exist and the access replica holds its first snapshot of the scope's chain
         const stopping = new AbortController();
-        const ready = (async () => {
-            await database.log.until(
+        const synced = (async () => {
+            await database.log.waitUntil(
                 async () => (await ObjectClient.unapplied(database, objects)).length === 0,
                 stopping.signal,
             );
+            await database.log.waitUntil(
+                async () => (await client.access.position(database)) !== undefined,
+                stopping.signal,
+            );
         })();
+        const ready = Promise.race([synced, failed.promise]);
 
         return new BrowserTab(
             client,
@@ -140,7 +165,7 @@ export class BrowserTab<
             stopping,
             {
                 objects,
-                report: options.report,
+                report,
             },
         );
     }
@@ -158,6 +183,22 @@ export class BrowserTab<
                     }),
             );
             worker.postMessage({ name });
+
+            // wait until the worker serves the database, refusing one that cannot open it or fails to load
+            const message = await new Promise<unknown>((resolve, reject) => {
+                worker.addEventListener("message", (event) => resolve(event.data));
+                worker.addEventListener("error", (event) =>
+                    reject(new Error(`the database worker failed: ${event.message}`)),
+                );
+            });
+            const answer = WorkerAnswer.parse(message);
+            if (answer.kind === "failed") {
+                worker.terminate();
+                throw ObjectError.of(
+                    "DATABASE_UNAVAILABLE",
+                    `this browser cannot open database ${name}: ${answer.message}`,
+                );
+            }
 
             return async () => worker.terminate();
         };
@@ -221,7 +262,7 @@ export class BrowserTab<
             }
 
             // wait for a party to appear
-            await this.client.database.log.until(
+            await this.client.database.log.waitUntil(
                 async () => (await unwatched()).length > 0,
                 signal,
             );

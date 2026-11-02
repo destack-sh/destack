@@ -178,6 +178,7 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
 
     // service unavailable
     BUILD_FILE_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
+    DATABASE_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
     WORKLOAD_MISSING: { code: "SERVICE_UNAVAILABLE" },
     REPLICA_BEHIND: { code: "SERVICE_UNAVAILABLE" },
     REPLICA_SYNCING: { code: "SERVICE_UNAVAILABLE" },

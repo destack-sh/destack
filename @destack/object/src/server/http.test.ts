@@ -302,14 +302,18 @@ test("drain complete HTTP response streams before reporting the server stopped",
     const healthStream = await client.health.watch();
     expect(await healthStream.next()).toEqual({
         done: false,
-        value: { name: "reader", status: "serving" },
+        value: {
+            name: "reader",
+            status: "serving",
+            reason: "the server serves without a readiness wait",
+        },
     });
 
     // end health subscriptions on drain
     const closing = server.close();
     expect(await healthStream.next()).toEqual({
         done: false,
-        value: { name: "reader", status: "draining" },
+        value: { name: "reader", status: "draining", reason: "the server drains its requests" },
     });
     expect(await healthStream.next()).toEqual({ done: true, value: undefined });
 
@@ -326,7 +330,11 @@ test("drain complete HTTP response streams before reporting the server stopped",
     expect(await stream.next()).toEqual({ done: false, value: "last" });
     expect(await stream.next()).toEqual({ done: true, value: undefined });
     await closing;
-    expect(server.health.check()).toEqual({ name: "reader", status: "stopped" });
+    expect(server.health.check()).toEqual({
+        name: "reader",
+        status: "stopped",
+        reason: "the server drained and stopped",
+    });
 });
 
 test("end a stream that follows its context signal once the server drains, stopping within the deadline", async () => {
@@ -899,7 +907,11 @@ test("refuse waiting for a server stopped while it waits for readiness, ending t
     await server.close();
 
     expect([await ready, server.health.status]).toEqual([
-        ["SERVICE_UNAVAILABLE", "SERVER_STOPPED", "the server stopped before it started serving"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "SERVER_STOPPED",
+            "waiting is stopped: the server drained and stopped",
+        ],
         "stopped",
     ]);
 });

@@ -41,9 +41,9 @@ test("report a socket close its instance refuses, delivering the close once", as
 
     // open and close the socket from the client
     const socket = simulation.network.of("client").websocket("ws://host.test/");
-    await simulation.until(() => socket.readyState === WebSocket.OPEN);
+    await simulation.waitUntil(() => socket.readyState === WebSocket.OPEN);
     socket.close();
-    await simulation.until(() => telemetry.exceptions().length === 1);
+    await simulation.waitUntil(() => telemetry.exceptions().length === 1);
 
     // deliver the close once and capture its refusal once
     expect([delivered, telemetry.take()]).toEqual([
@@ -78,9 +78,9 @@ test("drop an instance's send, store and close to a socket once its client close
         websocket: host.websocket,
     });
     const socket = simulation.network.of("client").websocket("ws://host.test/");
-    await simulation.until(() => socket.readyState === WebSocket.OPEN);
+    await simulation.waitUntil(() => socket.readyState === WebSocket.OPEN);
     socket.close();
-    await simulation.until(async () => (await hibernated(host)).length === 0);
+    await simulation.waitUntil(async () => (await hibernated(host)).length === 0);
 
     // answer each call to the closed socket as done, leaving no socket behind
     const url = "http://host.test/.destack/socket/socket-1";

@@ -321,7 +321,7 @@ export class DynamicObjectClient {
         name: string,
         signal: AbortSignal,
     ): Promise<void> {
-        await database.log.until(async () => {
+        await database.log.waitUntil(async () => {
             const queries = (await replica.subscribed(database))?.parameters["queries"];
 
             return typeof queries === "object" && queries !== null && name in queries;

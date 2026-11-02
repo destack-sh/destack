@@ -40,7 +40,7 @@ import { followKey } from "../src/replica/key.ts";
 
 import { CallError } from "@destack/object";
 import { RequestId, Scope, Feed, Replica, type Page, type Subscription } from "@destack/sync";
-import { until, yieldToEventLoop } from "@destack/environment";
+import { waitAborted, yieldToEventLoop } from "@destack/environment";
 import * as sync from "@destack/sync";
 import { defineObject, defineShape, field, Shape } from "../src/index.ts";
 import { ObjectSink, ObjectStore } from "../src/server/index.ts";
@@ -733,7 +733,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
                 .set({ title: "Archived" })
                 .where(eq(document.table.id, requesting)),
     );
-    await machine.database.log.until(
+    await machine.database.log.waitUntil(
         async () => (await localReplicas(machine.database)) === LOCAL_REPLICAS,
         controller.signal,
     );
@@ -1061,7 +1061,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
     });
     const following = follow(woken, waking.signal);
     const isListed = async () => (await woken.sink.gates()).length > 0;
-    await installed.database.log.until(isListed, world.clock.timeout(5000));
+    await installed.database.log.waitUntil(isListed, world.clock.timeout(5000));
     for (let turn = 0; turn < READY_TURNS; turn++) {
         await yieldToEventLoop();
     }
@@ -1712,7 +1712,7 @@ test("serve a store once its chain is confirmed while the source of a followed s
             ),
             async *stream(subscription, signal) {
                 if (subscription.name !== chain) {
-                    await until(signal);
+                    await waitAborted(signal);
                 }
                 yield* FeedPublisher.of(
                     feed,
@@ -1865,7 +1865,7 @@ test("replicate a scoped table an installation's database declares beside its fo
     // receive the followed space's document, then lose it once the installation may no longer read the space
     const documents = () =>
         installed.database.select({ scope: document.table.scope }).from(document.table);
-    await installed.database.log.until(
+    await installed.database.log.waitUntil(
         async () => (await documents()).length > 0,
         world.clock.timeout(REPLICA_MILLISECONDS),
     );
@@ -1874,7 +1874,7 @@ test("replicate a scoped table an installation's database declares beside its fo
         async (transaction) =>
             await transaction.delete(accessRelationship).where(eq(accessRelationship.id, reading)),
     );
-    await installed.database.log.until(
+    await installed.database.log.waitUntil(
         async () => (await documents()).length === 0,
         world.clock.timeout(REPLICA_MILLISECONDS),
     );
@@ -2082,7 +2082,7 @@ test("replicate the chain of an account another replica brought first, once the 
                 if (Array.isArray(via) && via.includes(accountId)) {
                     followed.resolve(via);
                 }
-                await until(signal);
+                await waitAborted(signal);
             }
         },
     };
@@ -2157,7 +2157,7 @@ test("replicate the chain of an account another replica brought first, once the 
     });
 
     // list the replicas again and follow the chain via the account
-    const timeout = until(world.clock.timeout(REPLICA_MILLISECONDS)).then(
+    const timeout = waitAborted(world.clock.timeout(REPLICA_MILLISECONDS)).then(
         () => "no chain via the account",
     );
     expect(await Promise.race([followed.promise, timeout])).toEqual([accountId]);

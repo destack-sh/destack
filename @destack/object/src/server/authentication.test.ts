@@ -214,7 +214,7 @@ test("serve a caller handed over in-process while it is current for this package
     });
 });
 
-test("authorize a caller bound to a space in the scopes inside it, refusing the universe above it", async () => {
+test("authorize a caller bound to a space in the space, its descendants and its ancestors", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -254,22 +254,13 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
     });
     const authorization = context.requireAuthorization();
 
-    // resolve the space and its folder, refusing the universe, and access the folder as the caller
+    // resolve the space, its folder and the universe, its ancestor, and access the folder as the caller
     expect([
         await refusal(authorization.in(spaceId)),
         await refusal(authorization.in(folderId)),
         await refusal(authorization.in("universe")),
         context.access(folderId).subject,
-    ]).toEqual([
-        "done",
-        "done",
-        [
-            "UNAUTHORIZED",
-            "CREDENTIAL_CONFINED",
-            `the caller's credential only applies to ${spaceId}`,
-        ],
-        alice.caller.subject,
-    ]);
+    ]).toEqual(["done", "done", "done", alice.caller.subject]);
 });
 
 /** Apply the same identity and object rules to direct and forwarded requests. */

@@ -12,6 +12,8 @@ export type FindOptions<
     Cardinality extends "one" | "many" = "many",
     Computed extends Extras = Extras,
 > = db.FindOptions<ModelOf<Object, Objects>, Cardinality, Computed> & {
+    /** Every scope the follower may read, instead of the followed scope's chain. */
+    readonly scopes?: "every";
     /** Which trashed rows of a recoverable type to select, none by default. */
     readonly deleted?: "exclude" | "include" | "only";
     /** The permission the caller also has on each row, beside reading it. */

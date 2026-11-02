@@ -3,7 +3,7 @@ import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
-import { accessTables, none, principal } from "@destack/access";
+import { accessTables, none, principal, relation } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { defineDatabase, eq, Snapshot } from "@destack/db";
 import { present, schema } from "@destack/schema";
@@ -46,7 +46,8 @@ const person = defineObject({
     isScope: true,
     partition: true,
     fields: {},
-    permissions: { read: none(), write: none() },
+    relations: { self: { subjects: [principal.user] } },
+    permissions: { read: relation("self"), write: none() },
 });
 
 /** Rooms within a person, whose replicas store the person's preferences. */
@@ -113,6 +114,11 @@ async function serveHomes(world: Environment, options: { readonly isFollowing?: 
     await fixture.replicateScope(person.reference(Scope.universe.id, personId), person.policy);
     await fixture.replicateScope(room.reference(personId, roomId), room.policy);
     await fixture.replicateOwner(person.reference(Scope.universe.id, personId), alice);
+    await fixture.replicateRelationship(
+        person.reference(Scope.universe.id, personId),
+        "self",
+        alice,
+    );
     await homeStorage.database.transaction(
         async (transaction) =>
             await transaction
@@ -242,7 +248,7 @@ async function followChain(
         for (const key of keys) {
             const [name, scope] = key.split(" ");
             const listed = { name: present(name, "a name"), scope: present(scope, "a scope") };
-            await Replica.untilAt(database, [listed], head, controller.signal);
+            await Replica.waitAt(database, [listed], head, controller.signal);
         }
         isGrowing = keys.length > 0;
     }
@@ -298,7 +304,7 @@ async function setTheme(home: ObjectStore, value: string): Promise<string> {
 
 /** Wait until a client's database meets a condition, failing after the replica's bound. */
 async function waitFor(client: ObjectClient, condition: () => Promise<boolean>): Promise<void> {
-    const isMet = await client.database.log.until(
+    const isMet = await client.database.log.waitUntil(
         condition,
         client.environment.clock.timeout(REPLICA_MILLISECONDS),
     );
@@ -401,6 +407,46 @@ test("push a row the room's replica writes after a client subscribed to the clie
         value: Valued.parse(await client.row(client.database, preference, id)).value,
         failures,
     }).toEqual({ value: "light", failures: [] });
+});
+
+test("read a universe row the room's replica holds through a client of the room, reading every scope", async () => {
+    // replicate alice's person and the room's preferences on her device
+    const world = testSimulation().environment("test");
+    const served = await serveHomes(world);
+    const storage = await TestDatabase.create(ObjectClient.tables({ person, preference }), {
+        environment: world,
+        dialect: "sqlite",
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const client = await ObjectClient.open({
+        database: storage.database,
+        objects: { person, preference },
+        scope: roomId,
+        caller: principal.user.reference(Scope.universe.id, users.alice),
+        endpoint: served.replicateEndpoint,
+        reconnect: unmoved,
+        homes: () => served.homeEndpoint,
+        environment: world,
+    });
+
+    // follow her person through the room until it arrives
+    const controller = new AbortController();
+    const failures: unknown[] = [];
+    const loops = client.run(controller.signal, (error) => failures.push(error));
+    onTestFinished(async () => {
+        controller.abort();
+        await loops;
+        await client.close();
+    });
+    const live = client.query.person
+        .findMany({ scopes: "every", where: { id: personId } })
+        .subscribe();
+    await live.ready;
+
+    // read the person row the room's replica holds
+    const rows = await live.read();
+    expect({ ids: rows.map((row) => row.id), failures }).toEqual({ ids: [personId], failures: [] });
 });
 
 test("push a row of the room's ancestor to a client that subscribed before the room knew its chain", async () => {
@@ -511,6 +557,7 @@ test("enter a scope after its replica reaches a commit its chain's scope wrote a
     await served.replica.enter(
         userContext(users.alice, roomId, { environment: world, bookmark }),
         roomId,
+        false,
     );
     const replicated = await served.replica.database
         .select({ id: preference.table.id })
@@ -520,6 +567,28 @@ test("enter a scope after its replica reaches a commit its chain's scope wrote a
         scopes: [personId],
         replicated: [{ id }],
     });
+});
+
+/** Describe the refusal of a scope outside the request's scope. */
+function outsideRequest(scope: string): readonly string[] {
+    return ["NOT_FOUND", "SCOPE_OUTSIDE_REQUEST", `scope ${scope} is outside the request's scope`];
+}
+
+test("let a caller bound to a room read its ancestors, refusing a write there and another person's scope", async () => {
+    // serve the room in its person's scope, and call it as alice bound to the room
+    const world = testSimulation().environment("test");
+    const served = await serveHomes(world);
+    const context = userContext(users.alice, roomId, {
+        environment: world,
+        bookmark: new Bookmark(),
+    });
+
+    // enter the person's scope above the room to read and to write, and another person's to read
+    expect([
+        await refusal(served.replica.enter(context, personId, false)),
+        await refusal(served.replica.enter(context, personId, true)),
+        await refusal(served.replica.enter(context, otherPersonId, false)),
+    ]).toEqual(["done", outsideRequest(personId), outsideRequest(otherPersonId)]);
 });
 
 test("enter a scope at once past a watermark of a scope outside its chain", async () => {
@@ -534,7 +603,7 @@ test("enter a scope at once past a watermark of a scope outside its chain", asyn
 
     // enter the room without waiting for the other person's scope
     const entered = await served.replica
-        .enter(userContext(users.alice, roomId, { environment: world, bookmark }), roomId)
+        .enter(userContext(users.alice, roomId, { environment: world, bookmark }), roomId, false)
         .then(() => "entered");
     expect(entered).toBe("entered");
 });

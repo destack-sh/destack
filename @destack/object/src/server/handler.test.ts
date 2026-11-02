@@ -220,7 +220,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     const probe = new Request("https://test.local/readyz");
     const starting = await handler.handle(probe, { context: { caller: "", request: probe } });
     expect(starting.matched && starting.response.status).toBe(503);
-    health.set("serving");
+    health.set("serving", "the handler is ready");
     const ready = await handler.handle(probe, { context: { caller: "", request: probe } });
     expect(ready.matched && ready.response.status).toBe(200);
 

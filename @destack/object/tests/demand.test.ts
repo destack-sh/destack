@@ -222,7 +222,7 @@ test("follow a shape's keys on demand: replicate only the acquired keys, renew a
     // let both lapse, then acquire a third title, evicting the lapsed ones and their cards
     await simulation.jump(clock.now() + TTL_MINUTES * 60_000);
     await follower.acquire(byTitle, { key: { scope: spaceId, title: "Eggs" } }, signal());
-    await follower.database.log.until(async () => (await titles()).length === 1, signal());
+    await follower.database.log.waitUntil(async () => (await titles()).length === 1, signal());
 
     // expect the replica to have exactly the keys followed at each step
     expect({
@@ -253,9 +253,17 @@ test("follow the row standing for a calling machine on demand as it enters, plac
 
     // enter as a user and as the machine, reading the scopes the machine's row places it inside
     const before = await follower.source.within(caller, follower.database);
-    await follower.enter(subjectContext(user, undefined, { environment: world }), followerId);
+    await follower.enter(
+        subjectContext(user, undefined, { environment: world }),
+        followerId,
+        false,
+    );
     const afterUser = await keys();
-    await follower.enter(subjectContext(caller, undefined, { environment: world }), followerId);
+    await follower.enter(
+        subjectContext(caller, undefined, { environment: world }),
+        followerId,
+        false,
+    );
     const after = await follower.source.within(caller, follower.database);
 
     // expect the machine's row followed once it entered, placing it inside its space

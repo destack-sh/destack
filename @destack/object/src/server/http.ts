@@ -13,7 +13,7 @@ import { BOOKMARK_HEADER, type Bookmark } from "../procedure/bookmark.ts";
 import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context.ts";
 import type { ProcedureContext } from "./procedure.ts";
 import { type Alarm, ControlLoop, type Controller } from "@destack/db";
-import { copyRequest, type Environment, LONGEST_DELAY, until } from "@destack/environment";
+import { copyRequest, type Environment, LONGEST_DELAY } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
 
@@ -34,8 +34,6 @@ export class Server implements AsyncDisposable {
     readonly #drained = Promise.withResolvers<void>();
     /** Resolve when draining and disposal finish. */
     readonly #stopped = Promise.withResolvers<void>();
-    /** Resolve once the server serves. */
-    readonly #readiness = Promise.withResolvers<void>();
     /** The shutdown. */
     #closing?: Promise<void>;
     /** End the streams of accepted requests once draining starts. */
@@ -60,9 +58,6 @@ export class Server implements AsyncDisposable {
 
     /** Create the server. */
     private constructor(options: ServerOptions) {
-        // leave the refusal of a server stopped before it served to those waiting for it
-        this.#readiness.promise.catch(() => undefined);
-
         // reject missing enforcement
         for (const callback of ["authenticate", "authorizeMachine"] as const) {
             if (typeof options[callback] !== "function") {
@@ -121,9 +116,9 @@ export class Server implements AsyncDisposable {
         });
     }
 
-    /** Settle once the server serves, its readiness met. */
+    /** Settle once the server serves, refusing once it fails or stops first. */
     ready(): Promise<void> {
-        return this.#readiness.promise;
+        return this.health.waitUp();
     }
 
     /** Settle once no controller key is due now or reconciling, or at a deadline. */
@@ -150,7 +145,8 @@ export class Server implements AsyncDisposable {
             reportError(error, options.environment.telemetry);
             options.report?.(error);
             if (!server.#reconciling.signal.aborted) {
-                server.health.set("not-serving");
+                const message = error instanceof Error ? error.message : String(error);
+                server.health.set("not-serving", `the server failed: ${message}`);
             }
         });
 
@@ -175,13 +171,12 @@ export class Server implements AsyncDisposable {
         const signal = this.#reconciling.signal;
         const { ready } = this.#options;
         if (ready === undefined) {
-            this.health.set("serving");
-            this.#readiness.resolve();
+            this.health.set("serving", "the server serves without a readiness wait");
         }
         // wait for readiness, delaying requests while starting
         else {
             try {
-                await ready(signal);
+                await ready(signal, this.health);
             } catch (error) {
                 // fail with the readiness failure, unless the stop that aborts it ended the wait
                 if (!signal.aborted) {
@@ -189,26 +184,18 @@ export class Server implements AsyncDisposable {
                 }
             }
 
-            // refuse waiting for a server stopped before it served, else serve
-            if (signal.aborted) {
-                this.#readiness.reject(
-                    ObjectError.of(
-                        "SERVER_STOPPED",
-                        "the server stopped before it started serving",
-                    ),
-                );
-            } else {
-                this.health.set("serving");
-                this.#readiness.resolve();
+            // serve, unless the stop that aborted the wait moves the health on
+            if (!signal.aborted) {
+                this.health.set("serving", "the server's readiness is met");
             }
         }
     }
 
     /** Wait until the server serves, or for the retry window of a starting server. */
-    async #awaitServing(): Promise<void> {
-        // race serving with the window on the server's clock
+    async #waitUp(): Promise<void> {
+        // wait for serving up to the window on the server's clock, the refusal answering any other end
         const window = this.#options.environment.clock.timeout(STARTING_RETRY_SECONDS * 1000);
-        await Promise.race([this.#readiness.promise, until(window)]);
+        await this.health.waitUp(window).catch(() => undefined);
     }
 
     /** Serve a request, as a caller verified elsewhere in this process where one is given. */
@@ -220,19 +207,19 @@ export class Server implements AsyncDisposable {
         }
 
         // delay a request while starting, up to the retry window
-        if (!this.#closing && this.health.status === "starting") {
-            await this.#awaitServing();
+        if (this.health.status === "starting") {
+            await this.#waitUp();
         }
 
-        // refuse requests still starting, asking to retry soon, and while draining, stopped or failed
-        if (!this.#closing && this.health.status === "starting") {
-            const starting = ObjectError.of("SERVER_STARTING", "the server is starting");
-            const refused = refusal(starting, this.#options.environment.telemetry);
-            refused.headers.set("retry-after", String(STARTING_RETRY_SECONDS));
+        // refuse a request while not serving, asking a starting server's caller to retry soon
+        const refused = this.health.refusal();
+        if (refused !== undefined) {
+            const response = refusal(refused, this.#options.environment.telemetry);
+            if (this.health.status === "starting") {
+                response.headers.set("retry-after", String(STARTING_RETRY_SECONDS));
+            }
 
-            return this.#headers(refused);
-        } else if (this.#closing || this.health.status !== "serving") {
-            return this.#headers(refusal(this.#unavailable(), this.#options.environment.telemetry));
+            return this.#headers(response);
         }
 
         // pass cancellation across the response
@@ -283,21 +270,6 @@ export class Server implements AsyncDisposable {
         this.#closing ??= this.#close();
 
         return this.#closing;
-    }
-
-    /** Describe why a server past starting refuses a request: draining, stopped or failed. */
-    #unavailable(): Error {
-        const { status } = this.health;
-        if (status === "stopped") {
-            return ObjectError.of("SERVER_STOPPED", "the server stopped");
-        } else if (status === "not-serving") {
-            return ObjectError.of(
-                "SERVER_NOT_SERVING",
-                "the server stopped serving after a failure",
-            );
-        } else {
-            return ObjectError.of("SERVER_DRAINING", "the server is draining");
-        }
     }
 
     /** Apply the response headers. */
@@ -535,7 +507,7 @@ export class Server implements AsyncDisposable {
     /** Drain within the deadline. */
     async #close(): Promise<void> {
         // refuse new requests and end the open streams at their next consistent point
-        this.health.set("draining");
+        this.health.set("draining", "the server drains its requests");
         this.#draining.abort(new DOMException("the server drains", "AbortError"));
         if (!this.#requests.size) {
             this.#drained.resolve();
@@ -543,7 +515,7 @@ export class Server implements AsyncDisposable {
 
         // report stopped after the requests finish
         const completion = this.#drained.promise.then(() => {
-            this.health.set("stopped");
+            this.health.set("stopped", "the server drained and stopped");
             this.#stopped.resolve();
         });
 
@@ -659,7 +631,7 @@ export interface PackageHandler extends Omit<
     /** Verify a credential whose keys the package has before the host, undefined for another. */
     readonly verify?: (request: Request) => Promise<Authentication | undefined>;
     /** Wait until the package can answer before it serves. */
-    readonly ready?: (signal: AbortSignal) => Promise<void>;
+    readonly ready?: (signal: AbortSignal, health?: Health) => Promise<void>;
     /** Activate the package before its controllers run, stopping once the signal aborts. */
     readonly activation?: (signal: AbortSignal) => Promise<void>;
 }

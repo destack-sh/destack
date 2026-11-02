@@ -1,4 +1,4 @@
-import { until } from "@destack/environment";
+import { waitAborted } from "@destack/environment";
 import { present } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
 import type { Authentication } from "@destack/access";
@@ -313,7 +313,7 @@ class WorkloadStart {
             ...(clock === undefined ? {} : { alarm: clock.alarm() }),
             activation: async (signal) => {
                 // wait for this start's turn, then the package's own activation
-                await Promise.race([activation, until(signal)]);
+                await Promise.race([activation, waitAborted(signal)]);
                 if (!signal.aborted) {
                     await served.activation?.(signal);
                 }

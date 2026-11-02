@@ -262,7 +262,7 @@ export class ObjectSource {
         switch (publication.audience) {
             case "caller": {
                 // decide for the caller, or for the principal it may follow on behalf of
-                await this.store.enter(context, request.scope);
+                await this.store.enter(context, request.scope, false);
                 if (subject === undefined) {
                     return { context };
                 }
@@ -546,13 +546,13 @@ export class ObjectSource {
         };
     }
 
-    /** Filter a follow's queries to the types this store serves, as others have no rows here. */
+    /** Filter a follow's queries to the types this store serves or follows, with rows here. */
     #served(named: QueriesParameters["queries"]): QueriesParameters["queries"] {
         return named === undefined
             ? undefined
             : Object.fromEntries(
                   Object.entries(named).filter(([, query]) =>
-                      this.store.durable.some((object) => object.name === query.object),
+                      this.store.followed.some((object) => object.name === query.object),
                   ),
               );
     }
@@ -573,7 +573,7 @@ export class ObjectSource {
         // compile a request's queries over the scope's chain now
         const compile = (parameters: JsonObject) =>
             ObjectType.queries(
-                this.store.durable,
+                this.store.followed,
                 this.#served(QueriesParameters.parse(parameters).queries),
                 audience.chain,
             );
@@ -651,7 +651,7 @@ export class ObjectSource {
         const watching = new AbortController();
         const failed = new AbortController();
         const watched = database.log
-            .until(
+            .waitUntil(
                 async (tables) => {
                     // reshape over the replicas the reader holds anew
                     const current = canonicalize(held);
@@ -958,7 +958,7 @@ export class ObjectSource {
                 `a broadcast cannot exceed ${BROADCAST_BYTES} bytes`,
             );
         }
-        await this.store.enter(context, scope);
+        await this.store.enter(context, scope, false);
         const reference = { ...target, scope };
         const authorization = await this.store.authorizeHere(
             Transaction.reading(this.store.database),

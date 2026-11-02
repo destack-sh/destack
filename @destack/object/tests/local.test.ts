@@ -27,6 +27,9 @@ import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 
+/** The module the database worker starts from, as the tab resolves it. */
+const DATABASE_WORKER = new URL("../src/browser/database.worker.ts", import.meta.url);
+
 test("read a local object one tab writes in another tab over the shared database, out of the outbox", async () => {
     // run in a world of its own
     const simulation = testSimulation();
@@ -382,6 +385,42 @@ function failure(build: () => unknown): string {
 
     throw new Error("the build did not fail");
 }
+
+test("refuse a tab's readiness with the reason its database worker could not open the database", async () => {
+    // let the browser's database worker fail to open its database, as a second holder of its storage does
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    simulation.workers.define(DATABASE_WORKER, (scope) => {
+        scope.addEventListener("message", () =>
+            scope.postMessage({ kind: "failed", message: "InvalidStateError: the handle is held" }),
+        );
+    });
+
+    // open a tab leading the database through the real worker start
+    const { endpoint } = await serveNotes({ simulation, node: "browser" });
+    const alice = Identifier.create("user", world);
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const tab = await BrowserTab.open({
+        environment,
+        name: "notes",
+        objects: { notebook, note, draft },
+        scope: spaceId,
+        caller: principal.user.reference("universe", alice),
+        device: principal.device.reference("universe", Identifier.create("device", world)),
+        endpoint: endpoint(alice),
+        reconnect: unmoved,
+        worker: BrowserTab.worker("notes", environment),
+        report: (error) => {
+            throw error;
+        },
+    });
+
+    expect(await refusal(tab.ready)).toEqual([
+        "SERVICE_UNAVAILABLE",
+        "DATABASE_UNAVAILABLE",
+        "this browser cannot open database notes: InvalidStateError: the handle is held",
+    ]);
+});
 
 /** Serve one database to a browser's tabs on their broadcast channel, as its worker does. */
 function databaseWorker(

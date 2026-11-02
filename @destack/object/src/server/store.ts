@@ -1,3 +1,4 @@
+import type { Health } from "./health.ts";
 import { CLIENT_HEAD_HEADER, ROUTE_PATH } from "../workload/start.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import type { BlobStorage } from "@destack/resource";
@@ -564,6 +565,8 @@ export class ObjectStore {
     readonly packages: readonly (PackageHandler & { readonly objects: ObjectStore })[];
     /** The wait for the replicas gating readiness, shared by every implemented package. */
     #readiness: Promise<boolean> | undefined;
+    /** The health of each server waiting on the replicas gating readiness. */
+    readonly #waiting = new Set<Health>();
 
     /** Serve object types over one database. */
     constructor(given: ObjectStoreOptions) {
@@ -1135,8 +1138,8 @@ export class ObjectStore {
             ...(subscriber === undefined
                 ? {}
                 : {
-                      ready: (signal) => this.#awaitReady(signal),
-                      synced: (signal) => this.#awaitReady(signal),
+                      ready: (signal, health) => this.#waitReady(signal, health),
+                      synced: (signal) => this.#waitReady(signal),
                   }),
             router: this.router(routed),
         };
@@ -1194,7 +1197,7 @@ export class ObjectStore {
         // wait on commits until the synced replica follows the key's queries, refusing a late one
         const timeout = this.clock.timeout(ACQUIRE_MILLISECONDS);
         try {
-            await this.database.log.until(
+            await this.database.log.waitUntil(
                 () => shape.isSynced(this.database, at.key, this.#follower(at.subject)),
                 signal === undefined ? timeout : AbortSignal.any([signal, timeout]),
             );
@@ -1211,63 +1214,74 @@ export class ObjectStore {
     }
 
     /** Wait for the replicas gating readiness, checked once for all packages, or until stopped. */
-    async #awaitReady(signal: AbortSignal): Promise<void> {
+    async #waitReady(signal: AbortSignal, health?: Health): Promise<void> {
+        // report what the shared check waits for on the server's health
+        if (health !== undefined) {
+            this.#waiting.add(health);
+        }
+
         // share one check of the replicas, checking again after the checking server stopped first
         const stopped = new Promise<boolean>((resolve) => {
             signal.addEventListener("abort", () => resolve(false), { once: true });
         });
-        while (!signal.aborted) {
-            const readiness = (this.#readiness ??= this.#ready(signal));
-            if (await Promise.race([readiness, stopped])) {
-                return;
+        try {
+            while (!signal.aborted) {
+                const readiness = (this.#readiness ??= this.#ready(signal));
+                if (await Promise.race([readiness, stopped])) {
+                    return;
+                }
+                if (this.#readiness === readiness) {
+                    this.#readiness = undefined;
+                }
             }
-            if (this.#readiness === readiness) {
-                this.#readiness = undefined;
+        } finally {
+            if (health !== undefined) {
+                this.#waiting.delete(health);
             }
         }
     }
 
     /** Wait until each access replica of the store's chain is live. */
-    async untilLive(signal: AbortSignal): Promise<void> {
-        await this.#untilLive(async () => {
+    async waitLive(signal: AbortSignal): Promise<void> {
+        await this.#waitLive(async () => {
             const chain = (await Scope.chain(Snapshot.live(this.database), this.scope)).map(
                 (link) => link.object.id,
             );
+            const stale = await Access.stale(this.database, chain, this.authorizer.lag);
 
-            return (await Access.stale(this.database, chain, this.authorizer.lag)) === undefined;
+            return stale === undefined ? undefined : `the access replica of ${stale} is not live`;
         }, signal);
     }
 
     /** Wait until each current gating replica is live. */
     async #ready(signal: AbortSignal): Promise<boolean> {
-        return await this.#untilLive(async () => {
+        return await this.#waitLive(async () => {
             // wait for a pending chain, whose replicas the store lists once it is known
             const { database } = this;
             const chain = await this.chain(Snapshot.live(database));
             if (chain?.kind === "pending") {
-                return false;
+                return `the chain of ${this.scope} is pending`;
             }
 
-            // require each gating replica live and current
-            const gates = await this.sink.gates();
-            const current = await Promise.all(
-                gates.map(
-                    async ({ subscription }) =>
-                        sync.Replica.isLive(
-                            database,
-                            subscription.name,
-                            subscription.scope,
-                            this.authorizer.lag,
-                        ) && (await sync.Replica.isCurrent(database, subscription)),
-                ),
-            );
+            // require each gating replica live and current, naming the first that is not
+            for (const { subscription } of await this.sink.gates()) {
+                const { name, scope } = subscription;
+                if (!sync.Replica.isLive(database, name, scope, this.authorizer.lag)) {
+                    return `the replica ${name} of ${scope} is not live`;
+                } else if (!(await sync.Replica.isCurrent(database, subscription))) {
+                    return `the replica ${name} of ${scope} is not current`;
+                }
+            }
 
-            return current.every(Boolean);
+            return undefined;
         }, signal);
     }
 
     /** Check now and after each replica record or liveness change, until it passes. */
-    async #untilLive(check: () => Promise<boolean>, signal: AbortSignal): Promise<boolean> {
+    async #waitLive(
+        check: () => Promise<string | undefined>,
+        signal: AbortSignal,
+    ): Promise<boolean> {
         // check until passed or aborted
         const { database } = this;
         const records = new Set(sync.replicaRecordTables.map((table) => table[TABLE].sqlName));
@@ -1277,14 +1291,18 @@ export class ObjectStore {
             const unwatch = database.tracker.watchMarked(() => changed.abort());
             const { generation } = database.state.commits;
             try {
-                if (await check()) {
+                const reason = await check();
+                if (reason === undefined) {
                     return true;
+                }
+                for (const health of this.#waiting) {
+                    health.set("starting", reason);
                 }
 
                 // wait for a replica record commit or a liveness change
                 const waking = AbortSignal.any([signal, changed.signal]);
                 await database.log
-                    .until(
+                    .waitUntil(
                         async (committed) => [...committed].some((table) => records.has(table)),
                         waking,
                         generation,
@@ -1345,8 +1363,8 @@ export class ObjectStore {
             ),
             watermark: store.watermark.handler(async ({ input, context }) => {
                 // read the scope's watermark once its replicas have the homes' commits
-                await this.enter(context, input.scope);
-                await this.#waitForHomes(context, input.scope, input.homes);
+                await this.enter(context, input.scope, false);
+                await this.#waitHomes(context, input.scope, input.homes);
 
                 return await this.watermark(input.scope);
             }),
@@ -1417,7 +1435,7 @@ export class ObjectStore {
         const isEphemeral = object.storage === "ephemeral";
         const { [isEphemeral ? "writerId" : "requestId"]: named, ...rest } = input;
         const scope = object.readScope(name, rest);
-        await this.enter(context, scope);
+        await this.enter(context, scope, method.mutates);
         const caller = context.access(scope);
 
         // read through a query
@@ -2034,7 +2052,7 @@ export class ObjectStore {
         writerId?: string,
     ): Promise<PushResult> {
         // enter the pushed scope as the request's caller
-        await this.enter(context, scope);
+        await this.enter(context, scope, true);
         const caller = context.access(scope);
 
         // run each mutation in a separate transaction
@@ -2489,8 +2507,8 @@ export class ObjectStore {
         authorization.requireMethods(calls);
     }
 
-    /** Enter a scope: follow the caller's row, require the scope, and wait for seen writes. */
-    async enter(context: RequestContext, scope: string): Promise<void> {
+    /** Enter a scope to read or write, requiring it and waiting for the writes the caller saw. */
+    async enter(context: RequestContext, scope: string, mutates: boolean): Promise<void> {
         // follow the row standing for the caller where it is missing
         await this.source.stand(context.access(scope).subject, context.signal);
 
@@ -2502,13 +2520,19 @@ export class ObjectStore {
             return;
         }
 
-        // read the scope's row, refusing one outside the request's scope or not here yet
-        const [row] = await Scope.read(Snapshot.live(this.database), [scope]);
-        if (!isRequested && (row === undefined || !Scope.within(row, requested))) {
-            throw ObjectError.of(
-                "SCOPE_OUTSIDE_REQUEST",
-                `scope ${scope} is outside the request's scope`,
-            );
+        // refuse a scope outside the request's scope, letting reads reach its ancestors
+        if (!isRequested) {
+            const rows = await Scope.read(Snapshot.live(this.database), [scope, requested]);
+            const row = rows.find((each) => each.scope === scope);
+            const outer = rows.find((each) => each.scope === requested);
+            const isInside = row !== undefined && Scope.within(row, requested);
+            const isReplicated = !mutates && outer !== undefined && Scope.within(outer, scope);
+            if (!isInside && !isReplicated) {
+                throw ObjectError.of(
+                    "SCOPE_OUTSIDE_REQUEST",
+                    `scope ${scope} is outside the request's scope`,
+                );
+            }
         }
 
         // wait for each of the caller's watermarks this store has a history of, read your writes
@@ -2517,11 +2541,11 @@ export class ObjectStore {
                 (await this.history(entry)).kind === "unknown" ? [] : [entry],
             ),
         );
-        await this.#waitForAll(context, known.flat());
+        await this.#waitWatermarks(context, known.flat());
     }
 
     /** Wait until a scope's chain replicas have their homes' commits, refusing other homes. */
-    async #waitForHomes(
+    async #waitHomes(
         context: RequestContext,
         scope: string,
         homes: readonly Watermark[],
@@ -2537,7 +2561,7 @@ export class ObjectStore {
         }
 
         // wait for each home's commit
-        await this.#waitForAll(context, homes);
+        await this.#waitWatermarks(context, homes);
     }
 
     /** Read a scope and the scopes enclosing it, by identifier. */
@@ -2548,7 +2572,10 @@ export class ObjectStore {
     }
 
     /** Wait until the scope's log or its replicas have each watermark, in a bounded wait each. */
-    async #waitForAll(context: RequestContext, watermarks: readonly Watermark[]): Promise<void> {
+    async #waitWatermarks(
+        context: RequestContext,
+        watermarks: readonly Watermark[],
+    ): Promise<void> {
         for (const watermark of watermarks) {
             const signal = AbortSignal.any([
                 context.signal,
@@ -2621,7 +2648,7 @@ export class ObjectStore {
         }
         // wait until the followed replicas reading the scope reach it, as only a followed replica moves
         else if (history.kind === "replicated" && history.followed.length > 0) {
-            return await sync.Replica.untilAt(this.database, history.followed, watermark, signal);
+            return await sync.Replica.waitAt(this.database, history.followed, watermark, signal);
         }
         // wait until the replicas including the scope reach it, for a store following none yet
         else {

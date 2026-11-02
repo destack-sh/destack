@@ -19,6 +19,8 @@ export const HealthDescription = schema.object({
     name: schema.string().min(1),
     /** The status. */
     status: HealthStatus,
+    /** Why the status holds. */
+    reason: schema.string().min(1),
 });
 
 /** The health procedures. */

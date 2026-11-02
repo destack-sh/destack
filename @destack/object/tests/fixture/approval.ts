@@ -231,7 +231,7 @@ export async function openApprovals(): Promise<TestApproval> {
         const signal = clock.timeout(REPLICA_MILLISECONDS);
         const isFollowed = async () =>
             (await Grant.read(Snapshot.live(served.database), created.id)) !== undefined;
-        if (!(await served.database.log.until(isFollowed, signal))) {
+        if (!(await served.database.log.waitUntil(isFollowed, signal))) {
             throw new Error(`the space did not follow grant ${created.id}`);
         }
 
@@ -241,7 +241,7 @@ export async function openApprovals(): Promise<TestApproval> {
     // run the world idle, then until the condition holds, the controllers' reports failing it
     const when = async (isMet: () => Promise<boolean>) => {
         await simulation.idle();
-        await simulation.until(isMet, clock.now() + UNTIL_MILLISECONDS);
+        await simulation.waitUntil(isMet, clock.now() + UNTIL_MILLISECONDS);
     };
 
     // decide an approval as its approver through the package's client
