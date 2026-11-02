@@ -10,8 +10,8 @@ import type { AccessContext, GrantClaim } from "../context/context.ts";
 import { GrantPermission } from "./permission.ts";
 import { accessGrant } from "./table.ts";
 
-/** What a delegator grants: delegate, permissions and lapse. */
-export const GrantRequest = schema.object({
+/** The schema of what a delegator grants: delegate, permissions and lapse. */
+const grantInputSchema = schema.object({
     /** The principal acting for the delegator. */
     delegate: Subject,
     /** The permissions the delegate may use for the delegator. */
@@ -19,14 +19,15 @@ export const GrantRequest = schema.object({
     /** The exclusive time the grant lapses, in Unix milliseconds, absent for none. */
     expiresAt: Instant.exactOptional(),
 });
-/** What a delegator grants. */
-export type GrantRequest = schema.Infer<typeof GrantRequest>;
 
 /** A delegator's grant of permissions to a delegate acting for it. */
 export type Grant = Select<typeof accessGrant>;
 
 /** A grant: its token claim, and its liveness for a caller. */
 export const Grant = {
+    /** The schema of what a delegator grants: delegate, permissions and lapse. */
+    input: grantInputSchema,
+
     /** Read the claim a token includes for a grant. */
     claim(grant: Grant): GrantClaim {
         return { id: grant.id, scope: grant.scope };
@@ -147,7 +148,7 @@ export const Grant = {
     /** Grant a delegate some of the caller's authority in its scope, replacing an earlier grant. */
     async create(
         scope: ObjectReference,
-        request: GrantRequest,
+        input: schema.Infer<typeof grantInputSchema>,
         authorization: Authorization,
     ): Promise<Grant> {
         // write only the grants of a homed scope
@@ -164,7 +165,7 @@ export const Grant = {
         }
 
         // grant to one other principal, until a later time
-        const { delegate } = request;
+        const { delegate } = input;
         if (
             !isPrincipal(delegate) ||
             delegate.id === "*" ||
@@ -175,7 +176,7 @@ export const Grant = {
                 "DELEGATE_REQUIRED",
                 "a grant needs one other principal as delegate",
             );
-        } else if (request.expiresAt !== undefined && request.expiresAt <= context.now) {
+        } else if (input.expiresAt !== undefined && input.expiresAt <= context.now) {
             throw AccessError.of("GRANT_EXPIRY_INVALID", "a grant must expire after its creation");
         }
 
@@ -201,8 +202,8 @@ export const Grant = {
             scope: scope.id,
             ...ObjectReference.columns("delegator", delegator),
             ...ObjectReference.columns("delegate", delegate),
-            permissions: [...request.permissions],
-            expiresAt: request.expiresAt ?? null,
+            permissions: [...input.permissions],
+            expiresAt: input.expiresAt ?? null,
         });
         await authorization.transaction.write({ table: accessGrant, before: null, after: grant });
 

@@ -106,6 +106,40 @@ export const GrantPermission = {
         );
     },
 
+    /** Report whether given grant permissions include every wanted one, at least as wide. */
+    includes(given: readonly GrantPermission[], wanted: readonly GrantPermission[]): boolean {
+        return wanted.every((entry) =>
+            given.some((other) => GrantPermission.contains(other, entry)),
+        );
+    },
+
+    /** Merge wanted grant permissions into given ones, adding each the given do not include. */
+    merge(
+        given: readonly GrantPermission[],
+        wanted: readonly GrantPermission[],
+    ): GrantPermission[] {
+        // add each wanted permission the given ones and the earlier added ones do not include
+        const merged = [...given];
+        for (const entry of wanted) {
+            if (!merged.some((other) => GrantPermission.contains(other, entry))) {
+                merged.push(entry);
+            }
+        }
+
+        return merged;
+    },
+
+    /** Report whether an entry gives everything another does: the same or a wider selection. */
+    contains(entry: GrantPermission, other: GrantPermission): boolean {
+        return (
+            PermissionReference.key(entry) === PermissionReference.key(other) &&
+            GrantPermission.spans(entry.scope, other.scope) &&
+            GrantPermission.spans(entry.objectId, other.objectId) &&
+            GrantPermission.spans(entry.method, other.method) &&
+            (!GrantPermission.isOnApproval(entry) || GrantPermission.isOnApproval(other))
+        );
+    },
+
     /** Report whether grant permissions allow a method of a type in a scope. */
     allowsMethod(
         type: Pick<PermissionReference, "packageId" | "type">,
@@ -162,6 +196,11 @@ export const GrantPermission = {
             entry.name === permission.name &&
             GrantPermission.overlaps(entry.scope, scope)
         );
+    },
+
+    /** Report whether a selection spans another, an absent one selecting everything. */
+    spans(selection: string | undefined, other: string | undefined): boolean {
+        return selection === undefined || selection === other;
     },
 
     /** Report whether two selections overlap, an absent one selecting everything. */

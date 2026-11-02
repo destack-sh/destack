@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
-import { PermissionRequest, PermissionSet } from "./request.ts";
+import { GrantRequest, PermissionSet } from "./request.ts";
 
 /** The package declaring the requested types. */
 const NOTES = PackageId.parse("package-01996ab0-0000-7000-8000-000000000001");
@@ -39,20 +39,20 @@ test("grant a permission set in its scopes, the home's in each home scope and th
 });
 
 test("accept a package's request of each delegator's scopes, refusing a scope that delegator cannot lend", () => {
-    // request the space's lendable scopes for the installation and a user's for the user
+    // request the scopes a space grants at install and a user's on use
     const packageId = NOTES;
     const read = (type: string) => [{ packageId, type, name: "read" }];
-    const accepted = PermissionRequest.safeParse({
-        installation: { space: read("note"), universe: read("user") },
+    const accepted = GrantRequest.safeParse({
+        space: { space: read("note"), universe: read("user") },
         user: { home: read("notification") },
     });
 
     // refuse a home the space cannot lend, and the universe a user does not lend
-    const home = PermissionRequest.safeParse({ installation: { home: read("notification") } });
-    const universe = PermissionRequest.safeParse({ user: { universe: read("user") } });
+    const home = GrantRequest.safeParse({ space: { home: read("notification") } });
+    const universe = GrantRequest.safeParse({ user: { universe: read("user") } });
     expect([
         accepted.success,
         home.error?.issues.map((issue) => [issue.code, issue.path.join(".")]),
         universe.error?.issues.map((issue) => [issue.code, issue.path.join(".")]),
-    ]).toEqual([true, [["unrecognized_keys", "installation"]], [["unrecognized_keys", "user"]]]);
+    ]).toEqual([true, [["unrecognized_keys", "space"]], [["unrecognized_keys", "user"]]]);
 });

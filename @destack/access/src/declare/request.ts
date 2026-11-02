@@ -51,20 +51,20 @@ export const PermissionSet = Object.assign(permissionSetSchema, {
 /** Permissions by the scope they apply in. */
 export type PermissionSet = schema.Infer<typeof PermissionSet>;
 
-/** What an installation's space lends it at install: in the space, account and universe. */
-const InstallationSet = permissionSetSchema.pick({ space: true, account: true, universe: true });
+/** What a space grants an installation at install: in the space, account and universe. */
+const SpaceSet = permissionSetSchema.pick({ space: true, account: true, universe: true });
 
-/** What a user lends an installation on use: in the space, the account and their home. */
+/** What a user grants an installation on use: in the space, the account and their home. */
 const UserSet = permissionSetSchema.pick({ space: true, account: true, home: true });
 
-/** What a package or its capability requests by delegator, consented at install or on use. */
-export const PermissionRequest = schema
+/** What a package or its capability may be granted by each delegator, at install or on use. */
+export const GrantRequest = schema
     .object({
-        /** What the installation's space lends it at install. */
-        installation: InstallationSet.exactOptional(),
-        /** What each user lends it on use, as when they open its view or start its agent. */
+        /** What the installation's space grants it at install. */
+        space: SpaceSet.exactOptional(),
+        /** What each user grants it on use, as when they open its view or start its agent. */
         user: UserSet.exactOptional(),
     })
     .strict();
-/** What a package's installations request, by delegator. */
-export type PermissionRequest = schema.Infer<typeof PermissionRequest>;
+/** What a package may be granted, by delegator. */
+export type GrantRequest = schema.Infer<typeof GrantRequest>;

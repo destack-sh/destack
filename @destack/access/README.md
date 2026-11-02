@@ -138,6 +138,8 @@ const grant = await Grant.create(
     },
     authorization,
 ); // replaces alice's earlier grant to the installation
+GrantPermission.includes(grant.permissions, wanted); // whether the grant covers what a view asks
+GrantPermission.merge(grant.permissions, wanted); // what a grant grown to cover it gives
 const caller = await Grant.act(snapshot, { delegator: alice, delegate: installation }, now);
 // { subject: alice, actors: [installation], grants: [{ id, scope }] }, a sub-agent adding its own link
 await Grant.permissions(snapshot, context); // what every live grant of the chain gives
@@ -146,12 +148,12 @@ await Grant.revoke(aliceScope, grant.id, authorization);
 
 ## Requests
 
-A `PermissionRequest` asks each delegator for a `PermissionSet`: its installation's space at install and each user on use, for a package or one of its capabilities (GitHub App installation and user permissions).
+A `GrantRequest` declares what each delegator may grant a package or one of its capabilities as a `PermissionSet`: its space at install and each user on use (GitHub App installation and user permissions).
 
 ```ts
 definePackage({
     permissions: {
-        installation: {
+        space: {
             space: [note.permission("write")],
             universe: [user.permission("recipient")],
         },

@@ -123,7 +123,7 @@ export class Compiler {
         // evaluate the authority, and constrain a grant to the objects it allows
         const compilation = Compiler.#compilation(access, scope, chain);
         const predicates = [this.#permission(permission, mapping, table, compilation)];
-        if (access.context.grants.length > 0) {
+        if (access.permissions !== undefined) {
             predicates.push(
                 this.#restricted(permission, TableMapping.column(table, mapping.id), access, {
                     mapping,

@@ -348,6 +348,37 @@ async function decided(
     return { listed: listed.map((row) => row.id), permitted, checked };
 }
 
+test("include wanted permissions in given ones at least as wide, and merge only what they lack", () => {
+    // give reading every page of a scope, and writing one page each use approved
+    const read = page.permission("read");
+    const edit = page.permission("edit");
+    const given: GrantPermission[] = [
+        { ...read, scope: "personal" },
+        { ...edit, scope: "personal", objectId: "one", mode: "approval" },
+    ];
+
+    // want narrower, equal, wider and differently approved permissions
+    const onePage = { ...read, scope: "personal", objectId: "one" };
+    const everyScope = { ...read };
+    const editAtOnce = { ...edit, scope: "personal", objectId: "one" };
+    const editApproved = { ...edit, scope: "personal", objectId: "one", mode: "approval" as const };
+
+    // expect a narrower or equal selection included, a wider one or one used at once missing, and only those merged
+    expect({
+        narrower: GrantPermission.includes(given, [onePage]),
+        approved: GrantPermission.includes(given, [editApproved]),
+        wider: GrantPermission.includes(given, [everyScope]),
+        atOnce: GrantPermission.includes(given, [editAtOnce]),
+        merged: GrantPermission.merge(given, [onePage, everyScope, editApproved, editAtOnce]),
+    }).toEqual({
+        narrower: true,
+        approved: true,
+        wider: false,
+        atOnce: false,
+        merged: [...given, everyScope, editAtOnce],
+    });
+});
+
 test("intersect two grants on the narrower object and method, taking either side alone when the other gives everything", () => {
     const read = { packageId: module1.package.id, type: "page", name: "read", scope: "space-1" };
     const write = { ...read, name: "write" };
