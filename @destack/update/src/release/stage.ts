@@ -1,8 +1,8 @@
 import type { Environment, OperatingSystem } from "@destack/environment";
 import { UpdateError } from "../error/error.ts";
 
-/** The names of the stages a build belongs to: the published platform, or local development. */
-const NAMES = ["production", "dev"] as const;
+/** The names of the stages a build belongs to: the published platform, or the local universe. */
+const NAMES = ["production", "local"] as const;
 
 /** The distribution tag of production's first-party releases, npm's default. */
 const PRODUCTION_TAG = "latest";
@@ -13,7 +13,7 @@ const FEED = "https://download.destack.sh/stable/";
 /** The account service each stage signs people in with. */
 const ISSUERS = {
     production: "https://destack.app",
-    dev: "http://127.0.0.1:4100",
+    local: "http://127.0.0.1:4100",
 } as const satisfies Readonly<Record<(typeof NAMES)[number], string>>;
 
 /** The machine executable's file name a release ships on each operating system. */
@@ -71,24 +71,24 @@ export class Stage {
         return this.name === "production" ? "" : `-${this.name}`;
     }
 
-    /** The native application identifier, such as `app.destack.desktop.dev`. */
+    /** The native application identifier, such as `app.destack.desktop.local`. */
     get applicationIdentifier(): string {
         return `app.destack.desktop${this.name === "production" ? "" : `.${this.name}`}`;
     }
 
-    /** The application's display name, such as `Destack Dev`. */
+    /** The application's display name, such as `Destack Local`. */
     get title(): string {
         return this.name === "production"
             ? "Destack"
             : `Destack ${this.name.charAt(0).toUpperCase()}${this.name.slice(1)}`;
     }
 
-    /** The command the stage installs, such as `destack-dev`. */
+    /** The command the stage installs, such as `destack-local`. */
     get command(): string {
         return `destack${this.suffix}`;
     }
 
-    /** The stage's device directory name in a user's home directory, such as `.destack-dev`. */
+    /** The stage's device directory name in a user's home directory, such as `.destack-local`. */
     get directory(): string {
         return `.destack${this.suffix}`;
     }

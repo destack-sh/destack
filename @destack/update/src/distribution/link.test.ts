@@ -5,7 +5,7 @@ import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Distribution, type DistributionEnvironment } from "./distribution.ts";
 
-test("link and unlink independent Linux desktop entries and link handlers for production and dev archives", async () => {
+test("link and unlink independent Linux desktop entries and link handlers for production and local archives", async () => {
     // give a Linux person a home with an activated archive release
     const { files } = testSimulation().environment("setup");
     const directory = await files.makeTemporaryDirectory("destack-menu-");
@@ -41,18 +41,18 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
         '<svg xmlns="http://www.w3.org/2000/svg"/>',
     );
 
-    // link the production and dev stages, production twice, then unlink production twice
+    // link the production and local stages, production twice, then unlink production twice
     const record = { method: "archive" as const, application: join(release, "Destack") };
     const production = distributionAt(join(directory, ".destack"), "production", environment);
-    const dev = distributionAt(join(directory, ".destack-dev"), "dev", environment);
+    const local = distributionAt(join(directory, ".destack-local"), "local", environment);
     const machine = await production.link(record, { isShell: true });
-    await dev.link(record, { isShell: true });
+    await local.link(record, { isShell: true });
     await production.link(record, { isShell: true });
     const entry = await files.readTextFile(join(data, "applications/app.destack.desktop.desktop"));
     await production.unlink({ isShell: true });
     await production.unlink({ isShell: true });
 
-    // keep dev's entry and icon, and answer the archive's machine
+    // keep local's entry and icon, and answer the archive's machine
     const names = async (path: string) =>
         (await files.readDirectory(join(data, path))).map((found) => found.name);
     expect({
@@ -63,15 +63,15 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
     }).toEqual({
         machine: join(release, "bin", "destack-machine"),
         entry: `[Desktop Entry]\nType=Application\nName=Destack\nExec="${directory}/.destack/bin/destack" desktop %u\nIcon=app.destack.desktop\nTerminal=false\nCategories=Utility;Development;\nMimeType=x-scheme-handler/destack;\n`,
-        applications: ["app.destack.desktop.dev.desktop"],
-        icons: ["app.destack.desktop.dev.svg"],
+        applications: ["app.destack.desktop.local.desktop"],
+        icons: ["app.destack.desktop.local.svg"],
     });
 });
 
 /** Describe a stage's Linux distribution in a home. */
 function distributionAt(
     home: string,
-    stage: "production" | "dev",
+    stage: "production" | "local",
     environment: DistributionEnvironment,
 ): Distribution {
     return new Distribution({

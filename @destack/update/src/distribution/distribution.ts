@@ -495,7 +495,7 @@ export class Distribution {
     /** Open a locked update session, refusing an installation that changed under it. */
     async open(isInstalling = false): Promise<Updater> {
         // refuse a development build, which takes no published updates
-        if (this.options.stage.name === "dev") {
+        if (this.options.stage.name === "local") {
             throw UpdateError.of(
                 "DEVELOPMENT_BUILD",
                 "development builds cannot take published updates",
