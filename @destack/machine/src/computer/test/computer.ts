@@ -227,7 +227,7 @@ export class TestComputer implements AsyncDisposable {
         return `${prefix}-${id.slice(-NAME_SUFFIX_LENGTH)}`;
     }
 
-    /** Start a copy of the run's world shipping the given builds too, else a new one. */
+    /** Start a copy of the run's world, shipping the given builds too. */
     static async world(
         options: {
             /** The further builds the computers ship, such as a library a test builds against. */
@@ -235,17 +235,6 @@ export class TestComputer implements AsyncDisposable {
         } = {},
         defer: Defer = onTestFinished,
     ): Promise<TestWorld> {
-        // start a new universe when a further build replaces one the template's stacks pin
-        if (options.bundled !== undefined && TestDistribution.isReplacing(options.bundled)) {
-            const fresh = TestComputer.#simulation();
-            const distribution = await TestDistribution.build(
-                fresh.environment(FILES_NODE),
-                options.bundled,
-            );
-
-            return await TestComputer.#start(distribution, fresh, {}, defer);
-        }
-
         // fork the template's world with its universe and owner
         const { simulation, databases, value } = await TestDatabase.copy(TestComputer.#universe(), {
             label: "copy",
@@ -262,11 +251,6 @@ export class TestComputer implements AsyncDisposable {
             { storage: databases.universe, world: value.universe },
             defer,
         );
-    }
-
-    /** Open a simulation at the worlds' start, standing still until a world starts on it. */
-    static #simulation(): Simulation {
-        return new Simulation({ seed: SEED, start: START });
     }
 
     /** Start the universe on a simulation, over a template's database and keys when given. */
@@ -528,35 +512,15 @@ export class TestComputer implements AsyncDisposable {
 
     /** Start the residency's cloud computer serving the owner's home, from the run's template. */
     static async home(
-        options: Omit<TestComputerOptions, "residency" | "directory" | "keychains"> & {
-            /** The further builds the computers ship beside the run's. */
-            readonly bundled?: readonly BuildReader[];
-        } = {},
+        started: Omit<TestComputerOptions, "residency" | "directory" | "keychains"> = {},
         defer: Defer = onTestFinished,
     ): Promise<{ readonly home: TestComputer; readonly login: Identifier<"login"> }> {
-        // boot a new world when a further build replaces one the template's stacks pin
-        const { bundled = [], ...started } = options;
-        if (TestDistribution.isReplacing(bundled)) {
-            const world = await TestComputer.world({ bundled }, defer);
-            const home = await TestComputer.open(
-                { ...started, world, residency: RESIDENCY },
-                defer,
-            );
-            const login = await home.signIn(OWNER_EMAIL);
-            await home.ready(world.owner.home);
-
-            return { home, login: login.id };
-        }
-
         // fork the template's world with its universe
         const { simulation, databases, value } = await TestDatabase.copy(TestComputer.#home(), {
             label: "copy",
         });
         defer(() => databases.universe.close());
-        const distribution = await TestDistribution.build(
-            simulation.environment(FILES_NODE),
-            bundled,
-        );
+        const distribution = await TestDistribution.build(simulation.environment(FILES_NODE));
         const world = await TestComputer.#start(
             distribution,
             simulation,
@@ -828,10 +792,18 @@ export class TestComputer implements AsyncDisposable {
             );
         };
 
-        // name each installation's conditions when the space does not get ready
+        // name each installation's revisions and conditions when the space does not get ready
         await this.until(database, isReady, READY_MILLISECONDS).catch(async (error: unknown) => {
             const conditions = JSON.stringify(
-                (await read()).map((row) => [row.id, row.installation.conditions]),
+                (await read()).map((row) => [
+                    row.installation.name,
+                    {
+                        revision: row.revisionId,
+                        applied: row.appliedRevisionId,
+                        served: row.servedRevisionId,
+                        conditions: row.installation.conditions,
+                    },
+                ]),
             );
             throw this.#failure(`space ${spaceId} did not get ready: ${conditions}`, error);
         });

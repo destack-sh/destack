@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { principal } from "@destack/access";
 import type { Login } from "@destack/account/native";
-import type { LocalBuildStore } from "@destack/build";
+import type { CompilerPool } from "@destack/build";
 import { testStore } from "@destack/build/test";
 import type { DatabaseConnection } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
@@ -49,8 +49,8 @@ export const SCENARIO_FIXTURES = ["mention"] as const;
 declare module "vitest" {
     /** The values a run's setup provides to its tests. */
     export interface ProvidedContext {
-        /** The manifest digests of the fixtures worlds install, by name, absent without a setup. */
-        fixtures?: Readonly<Record<string, string>>;
+        /** The manifest digests of the run's builds, by name, absent without a setup. */
+        built?: Readonly<Record<string, string>>;
         /** The manifest digests of the packages only scenarios install, by name. */
         scenarios?: Readonly<Record<string, string>>;
         /** Where computers' state directories move after their tests, absent without a setup. */
@@ -268,7 +268,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
     ): Promise<BuildReader> {
         // open the store for as long as the test reads the build
         const built = present(
-            { ...TestDistribution.fixtures(), ...TestDistribution.scenarios() }[fixture],
+            { ...TestDistribution.built(), ...TestDistribution.scenarios() }[fixture],
             `the run's build of ${fixture}`,
         );
         const store = await testStore(environment);
@@ -278,8 +278,8 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
     }
 
     /** Build a fixture package's server outputs. */
-    static build(fixture: string, store: LocalBuildStore): Promise<BuildReader> {
-        return TestDistribution.server(store, WorldDriver.#fixture(fixture));
+    static build(fixture: string, compilers: CompilerPool): Promise<BuildReader> {
+        return TestDistribution.compile(compilers, WorldDriver.#fixture(fixture));
     }
 
     /** Install a fixture build in the owner's home as the owner, recording its object types. */

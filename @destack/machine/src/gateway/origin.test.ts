@@ -35,12 +35,8 @@ import { expect, refusal, test } from "@destack/test";
 import { type Address, HOME_PATH, PLATFORM_PATH } from "@destack/view/declare";
 import viewPackage from "@destack/view/destack.json" with { type: "json" };
 import { LINK_COOKIE, SESSION_COOKIE } from "./origin.ts";
-import {
-    OWNER_EMAIL,
-    TestComputer,
-    TestDistribution,
-    SCENARIO_MILLISECONDS,
-} from "../computer/test/index.ts";
+import { OWNER_EMAIL, TestComputer, SCENARIO_MILLISECONDS } from "../computer/test/index.ts";
+import { TestViewBuild } from "./test/view.ts";
 
 /** The greeting package, whose view reads its own catalogs and its widget library's. */
 const GREETING = Package.parse({
@@ -127,7 +123,7 @@ const Launched = schema.looseObject({ view: schema.string(), target: ObjectRefer
 
 /** Write a notes build with a home view listing notes and an editor presenting them. */
 function notesBuild(crypto: Crypto): Promise<BuildReader> {
-    return TestDistribution.view(
+    return TestViewBuild.of(
         notes,
         {
             home: {
@@ -324,9 +320,9 @@ interface Served {
     readonly address: string;
 }
 
-/** Serve the owner's home on its cloud computer, in a new world when further builds ship. */
-async function openHome(bundled?: readonly BuildReader[]): Promise<Served> {
-    const { home, login } = await TestComputer.home(bundled === undefined ? {} : { bundled });
+/** Serve the owner's home on its cloud computer. */
+async function openHome(): Promise<Served> {
+    const { home, login } = await TestComputer.home();
     const { owner } = home.world;
 
     return { computer: home, login, spaceId: owner.home, address: `home--${owner.handle}` };
@@ -1155,13 +1151,13 @@ test(
     async () => {
         // publish a widget library with its German catalog, and install a greeting view pinning it
         const { crypto } = testHost();
-        const widgets = await TestDistribution.view(
+        const widgets = await TestViewBuild.of(
             WIDGETS,
             {},
             { files: new Map([["locale/de.json", catalog(WIDGETS.id, "Schließen")]]) },
             crypto,
         );
-        const greeting = await TestDistribution.view(
+        const greeting = await TestViewBuild.of(
             GREETING,
             {
                 greeting: {
@@ -1246,7 +1242,7 @@ function siteBuild(crypto: Crypto): Promise<BuildReader> {
         version: "2026.9.0",
     });
 
-    return TestDistribution.view(
+    return TestViewBuild.of(
         site,
         {
             site: {

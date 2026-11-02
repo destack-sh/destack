@@ -1,0 +1,19 @@
+{
+    "name": "@destack/machine-stack-fixture",
+    "version": "2026.10.0",
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "dependencies": {
+        "@app/home": "workspace:*",
+        "@destack/connection": "workspace:*",
+        "@destack/forge": "workspace:*",
+        "@destack/message": "workspace:*",
+        "@destack/notification": "workspace:*",
+        "@destack/observability": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/vault": "workspace:*"
+    }
+}
