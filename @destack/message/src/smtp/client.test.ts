@@ -844,7 +844,7 @@ function createClient(
                     isSettled = true;
                 },
             );
-            await world.simulation.until(() => isSettled);
+            await world.simulation.waitUntil(() => isSettled);
 
             return submitting;
         },

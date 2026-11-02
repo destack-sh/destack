@@ -355,7 +355,9 @@ export class TestMessage {
         // reach it, at least a moment on, and run until the attempt it was due for
         const tried = (await this.sending(id)).attempts.length;
         await this.simulation.run(Math.max(retryAt, this.clock.now() + 1));
-        await this.simulation.until(async () => (await this.sending(id)).attempts.length > tried);
+        await this.simulation.waitUntil(
+            async () => (await this.sending(id)).attempts.length > tried,
+        );
     }
 
     /** Read a message's sending: its status, its erasure, its attempts and its Sent condition. */
