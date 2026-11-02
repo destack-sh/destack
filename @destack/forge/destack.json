@@ -13,9 +13,6 @@
         "./stack": {
             "runtimes": ["bun", "workerd"]
         },
-        "./pack": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./local": {
             "runtimes": ["bun"]
         },
