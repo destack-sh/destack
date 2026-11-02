@@ -1,6 +1,6 @@
 import { isAbsolute, join } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
-import { createServer, type ServerOptions, type ViteDevServer } from "vite";
+import { createServer, isCSSRequest, type ServerOptions, type ViteDevServer } from "vite";
 import type { Workspace } from "@destack/build";
 import { loadTransforms } from "@destack/build/local";
 import { DeclarationDescription } from "@destack/package";
@@ -261,8 +261,9 @@ async function respond(
         return undefined;
     }
 
-    // answer an endpoint, or the page with its browser entry loading through Vite and its updates
-    const assets: PageAssets = { script: `/@id/__x00__${entry}`, stylesheets: [] };
+    // answer an endpoint, or the page with its browser entry, the stylesheets it renders, and Vite's updates
+    const stylesheets = await renderedStylesheets(vite, entry);
+    const assets: PageAssets = { script: `/@id/__x00__${entry}`, stylesheets };
     const response = await module.respond(new Request(url), assets);
     if (isFile) {
         return response;
@@ -270,6 +271,34 @@ async function respond(
     const html = (await response.text()).replace("</head>", `${VITE_CLIENT}</head>`);
 
     return new Response(html, { status: response.status, headers: response.headers });
+}
+
+/** List the stylesheets a server entry imports, as the build links them. */
+async function renderedStylesheets(vite: ViteDevServer, entry: string): Promise<string[]> {
+    // start from the entry the server loaded
+    const graph = vite.environments.ssr.moduleGraph;
+    const root = await graph.getModuleByUrl(entry);
+    if (root === undefined) {
+        throw new TypeError(`the server loaded no module for its entry: ${entry}`);
+    }
+
+    // collect each reached stylesheet file, following imports, served as a stylesheet instead of a module
+    const reached = [root];
+    const visited = new Set([root]);
+    const stylesheets: string[] = [];
+    for (const module of reached) {
+        if (isCSSRequest(module.url) && module.url.startsWith("/")) {
+            stylesheets.push(`${module.url}${module.url.includes("?") ? "&" : "?"}direct`);
+        }
+        for (const imported of module.importedModules) {
+            if (!visited.has(imported)) {
+                visited.add(imported);
+                reached.push(imported);
+            }
+        }
+    }
+
+    return stylesheets;
 }
 
 /** Report whether a module exports a static view's routes and respond functions. */
