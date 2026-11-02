@@ -24,7 +24,7 @@ Every documentation page is also published as Markdown for agents: add `.md` to 
 ## Version
 
 ```sh
-destack version
+destack --version
 ```
 
 ## Updates

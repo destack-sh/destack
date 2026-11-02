@@ -9,10 +9,10 @@ author: "Florian"
 > Destack is an open-source software engine for general purpose application software, just like Unity and Unreal are engines for games.
 > Think GitHub + NPM + Convex + Vercel + Sentry with all the boring decisions already made: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry.
 > 
-> To destack is to take back control over your software, step by step:
-> 1. Build high quality custom software, easily, in a standardised pipeline.
-> 2. Grow _your_ own suite of custom software, in one unified platform.
-> 3. Own your data and context, and take your software wherever you want.
+> Basically, Destack lets you own your whole stack, step by step:
+> 1. Build great custom software easily.
+> 2. Cultivate _your_ personal agent-friendly stack.
+> 3. Own your data and context.
 > 
 > The Destack comprises both the platform core for building malleable software _and_ standardised apps representing classic SaaS (think Notion, Linear, Miro).
 > Everything built on Destack is fully standardised and integrated by default, and thus fully hackable and programmable by your agents.
@@ -119,7 +119,7 @@ If we truly have higher order programming, where is the higher order software?
 # The Destack
 
 Higher order programming requires higher order processes with higher order specifications,
-the necessary control for which can only be achieved by integrating and standardising the full stack.
+which requires integrating and standardising the full stack.
 Thus, we need a complete _software engine_ that provides both the fundamental building blocks for development and the platform services for deployment.
 
 That is Destack: an open-source, hackable software engine and platform.
@@ -128,7 +128,7 @@ In product terms, think of Destack as an integrated system of software productio
 ![Eleven versions of Picasso's bull, progressing from a detailed animal to a few essential lines.](./picasso-bull.jpg)
 [The Bull, 1945–46](https://drawpaintacademy.com/the-bull/) — Pablo Picasso, reproduction via Draw Paint Academy.
 
-The standardised Destack lets users actually _own_ their data and _rent_ the infrastructure as desired, 
+The standardised Destack lets users actually _own_ their software and _rent_ the hardwares, 
 This gets us integration and customisation for "free" while also reducing app switching to just a single click, and does not require everyone to "own their stack" _literally_, which would be too annoying, and give up all the nice benefits of modern cloud-based software.
 
 In technical terms, think of Destack as a unified GitHub + npm + SQLite + Durable Objects with all the boring integration like auth, schemas, migrations, sync, triggers, workflows, telemetry, infra.
