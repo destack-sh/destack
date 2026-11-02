@@ -6,6 +6,7 @@ import { renderView } from "@destack/view/test";
 import { NotificationBadge, NotificationInbox } from "../../src/view/index.ts";
 import { openHome, type Home } from "./home.ts";
 import type {} from "@destack/package/import-meta";
+import { CommandRegistry } from "@destack/view/palette";
 
 /** The German catalog this package ships of its built-in messages. */
 const GERMAN = Catalog.of("locale/de.json", germanCatalog, t`Unread`.package);
@@ -29,6 +30,7 @@ function drawInHome(
                 context: home.context,
                 clients: new Map(Object.entries(home.clients)),
                 packages: new Map(),
+                commands: new CommandRegistry(),
                 origin: (path) => {
                     throw new TypeError(`the inbox cannot call ${path}`);
                 },
