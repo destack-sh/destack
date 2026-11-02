@@ -158,7 +158,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
             return createClient(objectPackage, { url, fetch }, environment);
         };
         const whenPlaced = (signal: AbortSignal) =>
-            this.waitForPlacement(space, environment.clock, signal);
+            this.waitPlaced(space, environment.clock, signal);
         const located = () => this.locate(space, environment.clock.now());
 
         return {
@@ -176,7 +176,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     }
 
     /** Wait until the directory places a space at a machine that answers, and locate it. */
-    async waitForPlacement(
+    async waitPlaced(
         this: Directory,
         spaceId: Identifier<"space">,
         clock: Pick<Clock, "now">,
@@ -185,7 +185,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         // find the space at each commit of placements or endpoints until it is placed and its machine answers
         const watched = [placement.table[TABLE].sqlName, endpoint.table[TABLE].sqlName];
         let located: PlacementEndpoint | undefined;
-        await this.snapshot.database.log.until(async (committed) => {
+        await this.snapshot.database.log.waitUntil(async (committed) => {
             if (watched.some((table) => committed.has(table))) {
                 located = await this.#find(spaceId, clock.now());
             }

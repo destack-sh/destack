@@ -11,7 +11,7 @@ import {
     Scope,
     type Subscription,
 } from "@destack/sync";
-import { type Environment, until } from "@destack/environment";
+import { type Environment, waitAborted } from "@destack/environment";
 import {
     entitlement,
     type Entitlement,
@@ -28,7 +28,7 @@ export const TestEntitlement = {
     publisher: {
         request: async () => {},
         stream: async function* (_subscription: Subscription, signal: AbortSignal) {
-            await until(signal);
+            await waitAborted(signal);
             yield* [];
         },
     } satisfies Publisher,
