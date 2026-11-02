@@ -989,7 +989,9 @@ export class Computer implements AsyncDisposable {
                 pid: environment.process.id,
                 startedAt: environment.clock.now(),
             },
-            ...(home.stage.name === "dev" ? {} : { distribution: home.distribution(environment) }),
+            ...(home.stage.name === "local"
+                ? {}
+                : { distribution: home.distribution(environment) }),
             report: (event, error) =>
                 instruments === undefined
                     ? environment.process.stderr.writeSync(`${event}: ${String(error)}\n`)
