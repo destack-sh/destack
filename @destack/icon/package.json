@@ -21,7 +21,7 @@
         "@destack/package": "workspace:*",
         "@destack/style": "workspace:*",
         "@solidjs/web": "2.0.0-rc.8",
-        "rolldown": "1.2.9",
+        "rolldown": "1.2.16",
         "solid-js": "2.0.0-rc.8"
     },
     "peerDependencies": {
