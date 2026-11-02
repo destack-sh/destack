@@ -15,7 +15,6 @@
 <p align="center">
   <a href="https://destack.sh">Website</a> ·
   <a href="https://destack.sh/docs/">Docs</a> ·
-  <a href="https://destack.sh/pricing/">Pricing</a> ·
   <a href="https://destack.sh/blog/">Blog</a>
 </p>
 
