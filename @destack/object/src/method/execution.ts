@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { Snapshot, TABLE, Transaction, type DatabaseConnection, Key } from "@destack/db";
 import type { RowChange } from "@destack/db";
 import type { Authorization } from "../server/authorization.ts";
@@ -23,6 +23,10 @@ export type Execution =
           readonly transaction: Transaction;
           /** The call's reads: its transaction, or a snapshot at a requested position or branch. */
           readonly view: Transaction | Snapshot;
+          /** The identifier the call's record takes. */
+          readonly callId: Identifier<"call">;
+          /** The call that ran this one inside its transaction, absent for a sent call. */
+          readonly parentId?: Identifier<"call">;
       }
     | {
           /** A client predicting the call. */

@@ -28,8 +28,8 @@ export const CallOrigin = schema.object({
     sessionId: schema.identifier("session").exactOptional(),
     /** The caller's token, without its secret. */
     tokenId: schema.identifier("token").exactOptional(),
-    /** The call that caused this one. */
-    causeId: schema.identifier("call").exactOptional(),
+    /** The call this one ran under, absent for a call sent to the store. */
+    parentId: schema.identifier("call").exactOptional(),
     /** The trace the call belongs to, as 32 lowercase hexadecimal digits. */
     traceId: schema
         .string()

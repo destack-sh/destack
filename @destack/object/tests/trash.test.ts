@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
-import { defineObject, definePackage, field } from "../src/index.ts";
+import { call, CallEvent, defineObject, definePackage, field } from "../src/index.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { space } from "./fixture/space.ts";
 import { users } from "./fixture/user.ts";
@@ -83,6 +83,47 @@ test("trash a folder's pages with it, restore only the ones trashed with it, ref
             ["Second", secondDeleted],
         ],
         purged: [],
+    });
+});
+
+test("record a folder's deletion as the parent of its pages' deletions, which its package runs", async () => {
+    // serve alice's folder with a page, and trash the folder as her
+    await using objects = await TestObjectStore.open({
+        packages: [pagesPackage],
+        scope: space.reference(Scope.universe.id, "space-01996ab0-0000-7000-8000-000000000301"),
+        owners: [principal.user.reference(Scope.universe.id, users.alice)],
+    });
+    const client = objects.as(users.alice).client(pagesPackage);
+    const request = () => ({
+        spaceId: objects.scope,
+        requestId: RequestId.create(objects.environment),
+    });
+    const folderCreated = await client.folder.create({ ...request(), name: "Plans" });
+    await client.page.create({ ...request(), parentId: folderCreated.id, title: "First" });
+    await client.folder.delete({ ...request(), id: folderCreated.id });
+
+    // read the recorded deletions
+    const recorded = await objects.store.events.query(
+        call.eventKind(),
+        { scopes: [objects.scope] },
+        { limit: 100 },
+    );
+    const calls = recorded.events.map((event) => CallEvent.parse(event.data));
+    const deletions = calls.filter((each) => each.method.endsWith(".delete"));
+    const [folderDeletion, pageDeletion] = [
+        deletions.find((each) => each.method === "folder.delete"),
+        deletions.find((each) => each.method === "page.delete"),
+    ];
+
+    // expect the page's deletion run as the package, run under alice's deletion of the folder
+    expect({
+        folder: folderDeletion?.execution.context.caller.subject.id,
+        page: pageDeletion?.execution.context.caller.subject.type,
+        parent: pageDeletion?.execution.context.parentId,
+    }).toEqual({
+        folder: users.alice,
+        page: "installation",
+        parent: folderDeletion?.execution.id,
     });
 });
 

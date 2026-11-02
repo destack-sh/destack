@@ -64,7 +64,7 @@ import {
     nth,
     canonicalize,
     Duration,
-    type Identifier,
+    Identifier,
     type JsonObject,
     JsonValue,
     present,
@@ -336,6 +336,8 @@ type CallOptions = {
     readonly component?: string;
     /** The declaration the call writes for, if any. */
     readonly manager?: Manager;
+    /** The call running this one inside its transaction, absent for a call sent to the store. */
+    readonly parentId?: Identifier<"call">;
     /** The authorizations the run resolved for its calls, by scope and caller. */
     readonly authorizations: Map<string, Authorization>;
 };
@@ -2794,7 +2796,7 @@ export class ObjectStore {
         name: string,
         input: JsonObject,
         caller: AccessContext,
-        options: Pick<CallOptions, "as" | "expansion" | "requestId"> = {},
+        options: Pick<CallOptions, "as" | "expansion" | "requestId" | "parentId"> = {},
     ): Promise<{
         context: MethodContext;
         execution: StoreExecution;
@@ -2825,6 +2827,8 @@ export class ObjectStore {
             authorization,
             transaction,
             view: snapshot ?? transaction,
+            callId: Identifier.create("call", this.environment),
+            ...(options.parentId === undefined ? {} : { parentId: options.parentId }),
         };
         const { now } = authorization.access.context;
         const acting =
@@ -3205,7 +3209,7 @@ export class ObjectStore {
         const called = context.with({
             ...ObjectStore.#preparedFields(prepared),
             ...(writerId === undefined ? {} : { writerId }),
-            run: this.#invoker(transaction, authorization, context, options),
+            run: this.#invoker(transaction, authorization, context, execution.callId, options),
         });
 
         // authorize the call here unless prepared, or asked at its rows' home for a caller acting alone, which the home authorizes
@@ -3242,6 +3246,7 @@ export class ObjectStore {
             transaction,
             object,
             context,
+            execution,
             id,
             presented,
             caller,
@@ -3282,9 +3287,10 @@ export class ObjectStore {
         transaction: Transaction,
         authorization: Authorization,
         parent: MethodContext,
+        parentId: Identifier<"call">,
         options: CallOptions,
     ): Run {
-        // pass the call's options down, with the transaction's authorizations of nested calls
+        // pass the call's options down as the nested calls' parent, with the transaction's authorizations
         const { from, writerId, requestId, component } = options;
         const { authorizations } = options;
         const recorded: CallOptions = {
@@ -3292,6 +3298,7 @@ export class ObjectStore {
             ...(writerId === undefined ? {} : { writerId }),
             ...(requestId === undefined ? {} : { requestId }),
             ...(component === undefined ? {} : { component }),
+            parentId,
             authorizations,
         };
 
@@ -3428,6 +3435,7 @@ export class ObjectStore {
         transaction: Transaction,
         object: ObjectType,
         context: MethodContext,
+        execution: StoreExecution,
         id: string | undefined,
         presented: unknown,
         caller: AccessContext,
@@ -3442,7 +3450,9 @@ export class ObjectStore {
             target: typeof target;
             details: {};
             outcome: sync.Outcome;
+            id: Identifier<"call">;
         } = {
+            id: execution.callId,
             target,
             details: {},
             outcome: {
@@ -3455,6 +3465,7 @@ export class ObjectStore {
         const recorder = this.audit(scope, caller, {
             package: object.package,
             ...(component === undefined ? {} : { component }),
+            ...(execution.parentId === undefined ? {} : { parentId: execution.parentId }),
         });
         transaction.record(async (committing) => {
             const stamp = await committing.log.transaction();

@@ -40,6 +40,8 @@ export interface AuditRecorderOptions {
     readonly requestId?: string;
     /** The code making the calls, such as a controller's name. */
     readonly component?: string;
+    /** The call running these inside its transaction, absent for calls sent to the store. */
+    readonly parentId?: Identifier<"call">;
 }
 
 /** The request a recorded call belongs to, and what a retry replays. */
@@ -68,6 +70,8 @@ type Ended<Target extends schema.Schema<AuditTarget>, Details extends schema.Sch
     readonly details: schema.Input<Details>;
     /** How the call ended. */
     readonly outcome: Outcome;
+    /** The identifier the call took at its start, minted on recording when absent. */
+    readonly id?: Identifier<"call">;
 };
 
 /** The outcome of a cancelled call. */
@@ -144,6 +148,7 @@ export class AuditRecorder {
                     package: options.package,
                     scope,
                     ...(options.component === undefined ? {} : { component: options.component }),
+                    ...(options.parentId === undefined ? {} : { parentId: options.parentId }),
                 },
                 options.requestId,
             );
@@ -458,7 +463,7 @@ export class AuditRecorder {
             input: request?.input ?? {},
             release: request?.release ?? action.package.version,
             execution: {
-                id: Identifier.create("call", this.#journal.environment),
+                id: values.id ?? Identifier.create("call", this.#journal.environment),
                 ...(requestId === undefined ? {} : { requestId }),
                 category,
                 context: this.#context,
