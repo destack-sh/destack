@@ -342,3 +342,23 @@ test("read a person's account through tokens refreshed after a mailed code signe
     );
     expect(await person.account()).toBe(owner.account);
 });
+
+test("list the addresses of the spaces of every account a signed-in person belongs to", async () => {
+    await using accounts = await TestAccountStore.open();
+    const owner = await accounts.signIn(EMAIL);
+    const { signIn, sessions, laptop } = await native(accounts);
+
+    // sign in with the mailed code and list the person's spaces
+    const started = await signIn.startEmail(EMAIL);
+    const signedIn = await started.verify(await accounts.code());
+    const person = new Login(
+        signedIn,
+        sessions,
+        (request) => accounts.fetch(request),
+        laptop,
+        new Bookmark(),
+    );
+
+    // expect the home of their personal account, their only space
+    expect(await person.spaces()).toEqual([`home--${owner.handle}`]);
+});

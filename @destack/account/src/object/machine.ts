@@ -309,6 +309,7 @@ export const machine = defineObject(
         },
     },
 });
+
 /** A persisted machine record with the fields of its kind. */
 export type Machine = Omit<
     Select<typeof machine.table>,

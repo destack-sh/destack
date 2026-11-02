@@ -13,6 +13,7 @@ import { type Fetch, PACKAGE_PATH, PackageMount, type PackageHandle } from "@des
 import { type Bookmark, type ClientOptions, createClient } from "@destack/object/client";
 import { RequestId, ObjectReference, Scope, type Subject } from "@destack/sync";
 import { canonicalize, type Identifier, schema } from "@destack/schema";
+import { SpaceAddress } from "../address/index.ts";
 import { Account } from "../object/account.ts";
 import { client } from "../object/client.ts";
 import objectPackage from "@destack/object/package";
@@ -122,6 +123,30 @@ export class Login {
         }
 
         return personal.id;
+    }
+
+    /** List the addresses of the spaces of every account the person belongs to. */
+    async spaces(): Promise<SpaceAddress[]> {
+        // list the person's accounts, then each account's spaces
+        const accounts = this.accounts();
+        const owned = await Array.fromAsync(
+            ListPage.all(accounts.account.list, { scope: this.row.subjectId }),
+        );
+        const spaces = await Promise.all(
+            owned.map(async (account) => {
+                const listed = await Array.fromAsync(
+                    ListPage.all(accounts.space.list, { accountId: account.id }),
+                );
+
+                return listed.map((entry) =>
+                    SpaceAddress.parse(
+                        SpaceAddress.of({ space: entry.name, handle: account.handle }),
+                    ),
+                );
+            }),
+        );
+
+        return spaces.flat().toSorted();
     }
 
     /** Find the home space of the person's personal account. */
