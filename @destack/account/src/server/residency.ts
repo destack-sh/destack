@@ -53,7 +53,7 @@ async function touch(
     if (description === undefined) {
         throw AccountError.of("PACKAGE_UNDECLARED", `${packageId}@${release} declares no package`);
     }
-    const requested = description.permissions.installation?.universe ?? [];
+    const requested = description.permissions.space?.universe ?? [];
     const asked = permissionKeys(requested);
     const given = permissionKeys(Residency.installedPermissions());
     const isGiven =

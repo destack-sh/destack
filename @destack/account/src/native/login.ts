@@ -1,10 +1,4 @@
-import {
-    type GrantClaim,
-    type GrantPermission,
-    principal,
-    type StepUp,
-    through,
-} from "@destack/access";
+import { type GrantClaim, GrantPermission, principal, type StepUp, through } from "@destack/access";
 import { type Select } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { defineObject, device, field, ListPage } from "@destack/object";
@@ -201,40 +195,36 @@ export class Login {
         );
     }
 
-    /** Find the person's unexpiring grant of exactly some permissions to a delegate. */
+    /** Read the person's unexpiring grant to a delegate, absent without one. */
     async granted(
         delegate: Subject,
-        permissions: readonly GrantPermission[],
-    ): Promise<GrantClaim | undefined> {
-        // list the person's grants to the delegate and take the unexpiring one of exactly these permissions
-        const items = await Array.fromAsync(
-            ListPage.all(this.objects().grant.list, {
-                scope: this.subject.id,
-                where: ObjectReference.columns("delegate", delegate),
-            }),
-        );
-        const wanted = canonicalize(permissions);
-        const existing = items.find(
-            (grant) => grant.expiresAt === null && canonicalize(grant.permissions) === wanted,
-        );
+    ): Promise<(GrantClaim & { readonly permissions: GrantPermission[] }) | undefined> {
+        // read the person's one grant to the delegate, an expiring one asking again
+        const { items } = await this.objects().grant.list({
+            scope: this.subject.id,
+            where: ObjectReference.columns("delegate", delegate),
+        });
+        const [found] = items;
 
-        return existing === undefined ? undefined : { id: existing.id, scope: this.subject.id };
+        return found === undefined || found.expiresAt !== null
+            ? undefined
+            : { id: found.id, scope: this.subject.id, permissions: found.permissions };
     }
 
-    /** Grant a delegate exactly some permissions, reusing the person's unexpiring grant of them. */
+    /** Grant a delegate some permissions, growing the person's grant to it to include them. */
     async grant(delegate: Subject, permissions: readonly GrantPermission[]): Promise<GrantClaim> {
-        // reuse the person's unexpiring grant of exactly these permissions
-        const existing = await this.granted(delegate, permissions);
-        if (existing !== undefined) {
-            return existing;
+        // reuse the person's grant when it includes them
+        const found = await this.granted(delegate);
+        if (found !== undefined && GrantPermission.includes(found.permissions, permissions)) {
+            return { id: found.id, scope: found.scope };
         }
 
-        // grant them otherwise
+        // grant them together with what the person granted already
         const created = await this.objects().grant.create({
             scope: this.subject.id,
             requestId: RequestId.create(this.#environment),
             delegate,
-            permissions: [...permissions],
+            permissions: GrantPermission.merge(found?.permissions ?? [], permissions),
         });
 
         return { id: created.id, scope: this.subject.id };

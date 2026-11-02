@@ -94,7 +94,7 @@ export default definePackage({
     errors: AccountError,
     // request what the platform's code does in the universe
     permissions: {
-        installation: {
+        space: {
             universe: [
                 role.permission("create"),
                 role.permission("update"),

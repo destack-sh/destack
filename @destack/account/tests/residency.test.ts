@@ -502,7 +502,7 @@ test("relate an installation its residency's space declares once its release ask
         openRelease: (packageId) => {
             const owner = present(opened.get(packageId), `the release of ${packageId}`);
             const handle = PackageHandle.of(owner, {
-                permissions: { installation: { universe: asking.get(packageId) ?? [] } },
+                permissions: { space: { universe: asking.get(packageId) ?? [] } },
             });
 
             return MemoryBuild.of(
@@ -608,7 +608,7 @@ test("let an installation its residency's home declares provide entitlements in 
                         description: describePackage(
                             PackageHandle.of(billing, {
                                 permissions: {
-                                    installation: {
+                                    space: {
                                         universe: [
                                             account.permission("serve"),
                                             entitlement.permission("provide"),
