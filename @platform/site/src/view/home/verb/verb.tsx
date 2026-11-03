@@ -60,7 +60,7 @@ const verb: Form = {
         definition: "to make software yours",
         highlight: ["yours"],
         sentence: "Own your whole stack, build great custom software, and bring all your agents.",
-        gloss: "to standardise how software is made, shipped, and changed",
+        gloss: "to build anything, integrate everything, and control it all",
     },
 };
 
