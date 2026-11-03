@@ -255,7 +255,7 @@ export class BetterAuthAuthenticator {
             audit,
             server.paths,
             (headers) => readBrowserSession(auth, headers, environment.scheduler),
-            (request) => environment.scheduler.track(() => server.answer(request), "world"),
+            (request) => environment.scheduler.task(() => server.answer(request)),
         );
         const signIn = new SignInPage({
             ...pages,
@@ -338,7 +338,7 @@ function auditedProtocol(
         audit,
         routes,
         (headers) => readBrowserSession(authentication, headers, scheduler),
-        (request) => scheduler.track(() => authentication.handler(request), "world"),
+        (request) => scheduler.task(() => authentication.handler(request)),
     );
 }
 
@@ -363,13 +363,11 @@ function readBrowserSession(
     scheduler: Scheduler,
 ) {
     return readSession(headers, (presented) =>
-        scheduler.track(
-            () =>
-                authentication.api.getSession({
-                    headers: presented,
-                    query: { disableRefresh: true },
-                }),
-            "world",
+        scheduler.task(() =>
+            authentication.api.getSession({
+                headers: presented,
+                query: { disableRefresh: true },
+            }),
         ),
     );
 }
