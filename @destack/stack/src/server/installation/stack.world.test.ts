@@ -6,7 +6,7 @@ import { STACKS } from "@destack/account/test";
 import { space } from "@destack/account/object";
 import { type SpaceOptions, SpaceStore } from "../index.ts";
 import { pathToFileURL } from "node:url";
-import { PACKAGE_DECLARATION, PackageHandle, SERVER_EXPORT } from "@destack/object";
+import { PACKAGE_KIND, PackageHandle, SERVER_EXPORT } from "@destack/object";
 import { expect, refusal, test } from "@destack/test";
 import { and, databaseProvider, defineDatabase, eq, isNotNull } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
@@ -751,8 +751,7 @@ async function fixtureRelease(
     const declared = isInstallable
         ? [
               {
-                  kind: PACKAGE_DECLARATION,
-                  kindPackageId: objectPackage.id,
+                  ...PACKAGE_KIND.identity,
                   name: "default",
                   description: describePackage(PackageHandle.of(owner, { objects: {} })),
               },

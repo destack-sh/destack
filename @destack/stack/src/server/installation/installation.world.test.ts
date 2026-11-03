@@ -8,7 +8,7 @@ import { UNIVERSE_NODE } from "@destack/universe/test";
 import {
     installation,
     type ObjectType,
-    PACKAGE_DECLARATION,
+    PACKAGE_KIND,
     PACKAGE_EXPORT,
     PackageHandle,
 } from "@destack/object";
@@ -19,7 +19,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { Package } from "@destack/package";
 import { defineBucket } from "@destack/bucket";
 import { describeBucket } from "@destack/bucket/inspect";
-import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
+import { RESOURCE_KIND } from "@destack/resource";
 import { testHost } from "@destack/test/host";
 import { PROCESS_RUNTIME } from "../../object/index.ts";
 import { PackageManifest } from "@destack/package/manifest";
@@ -306,8 +306,7 @@ test("relate a residency home's declared installation at the universe once a pas
         Package.of(registry),
         [
             {
-                kind: PACKAGE_DECLARATION,
-                kindPackageId: objectPackage.id,
+                ...PACKAGE_KIND.identity,
                 name: PACKAGE_EXPORT,
                 description: describePackage(registry),
             },
@@ -354,14 +353,12 @@ test("relate a shipped server as consumer of the bucket it binds while its revis
         Package.of(boxes),
         [
             {
-                kind: PACKAGE_DECLARATION,
-                kindPackageId: objectPackage.id,
+                ...PACKAGE_KIND.identity,
                 name: PACKAGE_EXPORT,
                 description: describePackage(boxes),
             },
             {
-                kind: RESOURCE_DECLARATION,
-                kindPackageId: RESOURCE_KIND_PACKAGE_ID,
+                ...RESOURCE_KIND.identity,
                 name: box.name,
                 description: describeBucket(box),
             },

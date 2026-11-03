@@ -1,3 +1,4 @@
+import { RESOURCE_KIND } from "@destack/resource";
 import { defineSetting } from "@destack/setting/declare";
 import { describeSetting } from "@destack/setting/inspect";
 import settingPackage from "@destack/setting/package";
@@ -204,12 +205,13 @@ async function notesBuild(
                   },
     });
 
-    // declare each resource, package and trigger as its definer's inspector records it
+    // declare each resource as resource's kind, and each other declaration as its definer's
     const built = await MemoryBuild.of(
         notesPackage,
         declared.map((entry) => ({
-            kind: entry.kind ?? "resource",
-            kindPackageId: entry.definer.id,
+            ...(entry.kind === undefined
+                ? RESOURCE_KIND.identity
+                : { kind: entry.kind, kindPackageId: entry.definer.id }),
             module: "src/resource.ts",
             name: entry.name,
             description: entry.description,

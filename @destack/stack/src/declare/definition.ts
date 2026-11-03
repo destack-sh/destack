@@ -1,3 +1,4 @@
+import { defineDeclarationKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { graph, type PackageId, type PackageRelease } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
@@ -12,6 +13,9 @@ import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
 import { install, InstallationDefinition } from "./installation.ts";
 import { SPACE_KERNEL } from "./kernel.ts";
+
+/** The stack declaration kind, which stack defines. */
+export const STACK_KIND = defineDeclarationKind("stack");
 
 /** The database every space has, which no stack declares. */
 export const MAIN_DATABASE = "main";
@@ -55,9 +59,9 @@ export async function declaredStack(
     read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
 ): Promise<JsonObject> {
     // require the package's stack declared at the export the name has
-    const found = (
-        await reader.declared(import.meta.destack.package.id, "stack", StackDefinition)
-    ).find((entry) => graph.Moniker.name(entry.symbol) === name);
+    const found = (await reader.declared(STACK_KIND, StackDefinition)).find(
+        (entry) => graph.Moniker.name(entry.symbol) === name,
+    );
     if (found === undefined) {
         throw StackError.of("STACK_NOT_FOUND", `stack package declares no stack ${name}`);
     }

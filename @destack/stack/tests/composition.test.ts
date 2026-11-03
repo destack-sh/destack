@@ -12,7 +12,7 @@ import { TABLE } from "@destack/db";
 import { space } from "@destack/account/object";
 import { graph, Package } from "@destack/package";
 import { type Identifier, nth, schema } from "@destack/schema";
-import { PACKAGE_DECLARATION, PackageHandle } from "@destack/object";
+import { OBJECT_KIND, PACKAGE_KIND, PackageHandle } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { RequestId } from "@destack/sync";
 import { testServerContext } from "@destack/object/test";
@@ -21,7 +21,7 @@ import { SpaceStore } from "../src/server/index.ts";
 import { ids, TestSpace } from "../src/test/index.ts";
 
 /** A build declaration, as a sandbox receives it. */
-type Declared = Pick<graph.Declaration, "symbol" | "kind" | "description">;
+type Declared = Pick<graph.Declaration, "symbol" | "kind" | "kindPackageId" | "description">;
 
 /** The notebooks package. */
 const notebooks = Package.parse({
@@ -88,8 +88,8 @@ function declared(owner: Package, type: ObjectType, route: string): Declared[] {
     const symbol = graph.Moniker.of({ packageId: owner.id, module: "src/index.ts", name: route });
 
     return [
-        { symbol, kind: "object", description },
-        { symbol, kind: PACKAGE_DECLARATION, description: describePackage(handle) },
+        { symbol, ...OBJECT_KIND.identity, description },
+        { symbol, ...PACKAGE_KIND.identity, description: describePackage(handle) },
     ];
 }
 

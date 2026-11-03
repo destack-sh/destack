@@ -40,7 +40,7 @@ import { sharedNote } from "../src/test/schema.ts";
 import { installation } from "@destack/object";
 import { Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
-import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
+import { RESOURCE_KIND } from "@destack/resource";
 import objectPackage from "@destack/object/package";
 import * as object from "../src/object/index.ts";
 import * as accountObject from "@destack/account/object";
@@ -221,8 +221,7 @@ test(
             Package.parse({ id: ids.package, name: "@test/package", version: "2026.9.0" }),
             [
                 {
-                    kind: RESOURCE_DECLARATION,
-                    kindPackageId: RESOURCE_KIND_PACKAGE_ID,
+                    ...RESOURCE_KIND.identity,
                     name: "notes",
                     description: {
                         name: "notes",

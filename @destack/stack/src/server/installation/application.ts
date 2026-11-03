@@ -36,7 +36,7 @@ import { ServerRuntime } from "@destack/package/runtime";
 import {
     Address,
     Plan,
-    RESOURCE_DECLARATION,
+    RESOURCE_KIND,
     ResourceDescription,
     type Step,
     Upgrade,
@@ -635,7 +635,7 @@ export class ApplicationInstallation {
         const declarations = await build.declarations();
         const databases = declarations.filter(
             (declaration) =>
-                declaration.kind === RESOURCE_DECLARATION &&
+                RESOURCE_KIND.has(declaration) &&
                 ResourceDescription.loose().parse(declaration.description).kind ===
                     DatabaseKind.name,
         );
@@ -955,7 +955,6 @@ export class ApplicationInstallation {
             description: {
                 entrypoint: ".",
                 packages: [],
-                triggers: [],
                 resources: [],
                 secrets: [],
                 compute: {},
@@ -1078,7 +1077,7 @@ export class ApplicationInstallation {
 
         // describe each of its declarations the binder binds, which its servers and workloads open
         const needs = declarations
-            .filter((declaration) => this.#options.binder.binds(declaration.kind))
+            .filter((declaration) => this.#options.binder.binds(declaration))
             .map((declaration) => describeNeed(build, declaration));
 
         // require a description of every used declaration
@@ -1179,7 +1178,7 @@ function describeNeed(
 ): ResourceNeed {
     // split a resource's description into its kind and specification
     const owner = PackageManifest.package(build.manifest);
-    if (declaration.kind === RESOURCE_DECLARATION) {
+    if (RESOURCE_KIND.has(declaration)) {
         const { name, kind, spec } = ResourceDescription.catchall(schema.json()).parse(
             declaration.description,
         );

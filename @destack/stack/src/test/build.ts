@@ -1,3 +1,4 @@
+import { RESOURCE_KIND } from "@destack/resource";
 import type { Crypto } from "@destack/environment";
 import { StackDefinition } from "../declare/index.ts";
 import { CallError } from "@destack/object";
@@ -18,7 +19,6 @@ export const TAGS: Readonly<Record<string, string>> = { latest: "2026.10.0" };
 export const workload = {
     entrypoint: ".",
     packages: [],
-    triggers: [],
     resources: [],
     secrets: [],
     compute: {},
@@ -31,6 +31,7 @@ const DECLARED: Readonly<
         string,
         (packageId: PackageId) => readonly {
             readonly kind: string;
+            readonly kindPackageId?: string;
             readonly name: string;
             readonly description?: Readonly<Record<string, unknown>>;
         }[]
@@ -40,7 +41,7 @@ const DECLARED: Readonly<
     "2026.9.1": () => [
         { kind: "relation", name: "editor" },
         ...["ledger", "archive"].map((name) => ({
-            kind: "resource",
+            ...RESOURCE_KIND.identity,
             name,
             description: { name, kind: "bucket", spec: {} },
         })),
@@ -48,7 +49,7 @@ const DECLARED: Readonly<
     "2026.9.2": () => [
         { kind: "relation", name: "editor" },
         {
-            kind: "resource",
+            ...RESOURCE_KIND.identity,
             name: "files",
             description: { name: "files", kind: "bucket", spec: {} },
         },
@@ -56,7 +57,7 @@ const DECLARED: Readonly<
     "2026.9.3": (packageId) => [
         { kind: "relation", name: "editor" },
         {
-            kind: "resource",
+            ...RESOURCE_KIND.identity,
             name: "tasks",
             description: { name: "tasks", kind: "installation", spec: { package: packageId } },
         },
@@ -216,8 +217,8 @@ export async function fixtureBuild(
             },
             ...(DECLARED[version]?.(packageId) ?? []).map((declared) => ({
                 description: {},
-                ...declared,
                 kindPackageId: packageId,
+                ...declared,
             })),
         ],
         crypto,

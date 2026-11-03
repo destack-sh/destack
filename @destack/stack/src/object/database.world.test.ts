@@ -11,7 +11,7 @@ import { installation } from "@destack/object";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
 import { describeObject } from "@destack/object/inspect";
 import { note } from "../test/schema.ts";
-import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
+import { RESOURCE_KIND } from "@destack/resource";
 
 /** The tables the notes installation asks main for. */
 const STATE = { tables: { sqlite: [], postgresql: [] } };
@@ -102,8 +102,7 @@ test("serve an installation once its targets are bound and the space's main data
         }
         const declarations = await built.declarations();
         const vault = {
-            kind: RESOURCE_DECLARATION,
-            kindPackageId: RESOURCE_KIND_PACKAGE_ID,
+            ...RESOURCE_KIND.identity,
             name: "credentials",
             description: {},
         };

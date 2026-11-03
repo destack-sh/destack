@@ -48,5 +48,11 @@
         "defineStack": {
             "module": 2
         }
-    }
+    },
+    "kinds": [
+        {
+            "kind": "secret",
+            "function": "./inspect#describeSecret"
+        }
+    ]
 }

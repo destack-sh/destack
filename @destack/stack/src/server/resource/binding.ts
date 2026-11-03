@@ -15,7 +15,7 @@ import {
 import { AccessContext, Caller, principal } from "@destack/access";
 import type { Row, Select, Snapshot, Table } from "@destack/db";
 import type { ObjectStore, PackageImplementation, StackPlan } from "@destack/object/server";
-import { RESOURCE_DECLARATION, type ResourceKind } from "@destack/resource";
+import { RESOURCE_KIND, type ResourceKind } from "@destack/resource";
 import { canonicalize, Digest, type Identifier, nth, present, schema } from "@destack/schema";
 import { StackError } from "../../error/index.ts";
 import {
@@ -108,7 +108,7 @@ export const ResourceBindable = {
         return {
             object,
             kind,
-            declaration: RESOURCE_DECLARATION,
+            declaration: RESOURCE_KIND,
             used: [object],
             version: (target, pin) => pin ?? target.generation,
             uses: async (captured) => [object.reference(captured.scope, captured.target)],
@@ -130,7 +130,7 @@ export class Binder {
         // index the kinds by resource kind and by declaration kind
         this.#kinds = [...resources, ...objects];
         this.#resources = new Map(resources.map((kind) => [kind.kind.name, kind]));
-        this.#objects = new Map(objects.map((kind) => [kind.declaration, kind]));
+        this.#objects = new Map(objects.map((kind) => [kind.declaration.name, kind]));
     }
 
     /** List the kinds packages serve to workloads, such as secrets. */
@@ -143,9 +143,9 @@ export class Binder {
         return this.#kinds.map((kind) => kind.object);
     }
 
-    /** Report whether a bindable kind binds the declarations of a kind. */
-    binds(declaration: string): boolean {
-        return this.#kinds.some((kind) => kind.declaration === declaration);
+    /** Report whether a bindable kind binds a declaration, by its kind's identity. */
+    binds(declaration: { readonly kind: string; readonly kindPackageId: string }): boolean {
+        return this.#kinds.some((kind) => kind.declaration.has(declaration));
     }
 
     /** Serve bindings, each released with the owned resource of its installation. */

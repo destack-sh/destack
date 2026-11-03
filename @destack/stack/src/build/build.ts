@@ -1,4 +1,4 @@
-import { SECRET_DECLARATION } from "../declare/index.ts";
+import { SECRET_KIND } from "../declare/index.ts";
 import {
     Sandbox,
     ComputeDefinition,
@@ -15,17 +15,14 @@ import type {
 } from "@destack/package/build";
 import { DeclarationReference } from "@destack/package/declare";
 import { WorkloadDefinition, WorkloadDescription } from "@destack/package/manifest";
-import { WORKLOAD_EXPORT } from "@destack/object/workload";
-import { PackageDescription } from "@destack/object";
+import { WORKLOAD_EXPORT, WORKLOAD_KIND } from "@destack/object/workload";
+import { PACKAGE_KIND, PackageDescription } from "@destack/object";
 import { StackError } from "../error/index.ts";
 import { HOOK_WORKLOAD } from "../workload/hook.ts";
-import { RESOURCE_DECLARATION } from "@destack/resource";
+import { RESOURCE_KIND } from "@destack/resource";
 
 /** The prefix of the generated modules running each workload. */
 const PREFIX = "virtual:@destack/stack/workload/";
-
-/** The declaration kinds a workload description references. */
-const REFERENCED_KINDS = [RESOURCE_DECLARATION, SECRET_DECLARATION, "package", "trigger"] as const;
 
 /** Run each package workload in its own Bun process or Durable Object as its machine starts it. */
 export const stackBuild: BuildExtension = {
@@ -75,8 +72,7 @@ function runnable(compilation: Compilation): Runnable[] {
     // import every resource and secret the package declares
     const declarations = owned(compilation);
     const bound = declarations.filter(
-        (declaration) =>
-            declaration.kind === RESOURCE_DECLARATION || declaration.kind === SECRET_DECLARATION,
+        ({ kind, package: { id } }) => RESOURCE_KIND.is(kind, id) || SECRET_KIND.is(kind, id),
     );
     const resources = bound.map((declaration) => ({
         name: declaration.name,
@@ -84,7 +80,7 @@ function runnable(compilation: Compilation): Runnable[] {
     }));
 
     // run each declared workload, refusing one under the hooks workload's name
-    const declared = declarations.filter((declaration) => declaration.kind === "workload");
+    const declared = declarations.filter(({ kind, package: { id } }) => WORKLOAD_KIND.is(kind, id));
     if (declared.some((workload) => workload.name === HOOK_WORKLOAD)) {
         throw StackError.of(
             "DEFINITION_INVALID",
@@ -154,12 +150,11 @@ function hasHooks(declaration: DeclarationDescription): boolean {
     return Object.values(objects).some((routed) => Object.keys(routed.hooks).length > 0);
 }
 
-/** Describe the hooks workload: no packages, triggers, bindings or sandbox abilities. */
+/** Describe the hooks workload: no packages, bindings or sandbox abilities. */
 function describeHooks(workload: Runnable, compilation: Compilation): WorkloadDescription {
     return WorkloadDescription.parse({
         entrypoint: workload.entrypoint,
         packages: [],
-        triggers: [],
         resources: [],
         secrets: [],
         compute: ComputeDefinition.merge(),
@@ -173,19 +168,24 @@ function describe(
     compilation: Compilation,
     compiled: CompiledOutput,
 ): WorkloadDescription {
-    // select each kind's references and implement only the package's own handle and triggers
-    const selections: Record<(typeof REFERENCED_KINDS)[number], DeclarationReference[]> = {
-        resource: [],
-        secret: [],
-        package: [],
-        trigger: [],
+    // select the resources and secrets the workload imports, and the package's own handles
+    const selections: Record<"resources" | "secrets" | "packages", DeclarationReference[]> = {
+        resources: [],
+        secrets: [],
+        packages: [],
     };
     const seen = new Set<string>();
     for (const declaration of compiled.declarations(workload.entrypoint)) {
         const owner = declaration.symbol.package;
-        const kind = REFERENCED_KINDS.find((referenced) => referenced === declaration.kind);
-        const isImplemented = kind === "package" || kind === "trigger";
-        if (kind === undefined || (isImplemented && owner.id !== compilation.package.id)) {
+        const { kind, package: defining } = declaration;
+        const selected = RESOURCE_KIND.is(kind, defining.id)
+            ? selections.resources
+            : SECRET_KIND.is(kind, defining.id)
+              ? selections.secrets
+              : PACKAGE_KIND.is(kind, defining.id) && owner.id === compilation.package.id
+                ? selections.packages
+                : undefined;
+        if (selected === undefined) {
             continue;
         }
 
@@ -195,7 +195,7 @@ function describe(
             throw StackError.of("DEFINITION_INVALID", `duplicate declaration: ${key}`);
         }
         seen.add(key);
-        selections[kind].push(DeclarationReference.of({ package: owner, name: declaration.name }));
+        selected.push(DeclarationReference.of({ package: owner, name: declaration.name }));
     }
 
     // grant the workload the package's sandbox abilities it lists
@@ -203,10 +203,9 @@ function describe(
 
     return WorkloadDescription.parse({
         entrypoint: workload.entrypoint,
-        packages: selections.package,
-        triggers: selections.trigger,
-        resources: selections.resource,
-        secrets: selections.secret,
+        packages: selections.packages,
+        resources: selections.resources,
+        secrets: selections.secrets,
         compute: ComputeDefinition.merge(definition.compute),
         sandbox: Sandbox.select(
             compilation.sandbox,

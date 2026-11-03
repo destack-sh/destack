@@ -453,7 +453,6 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
                 description: {
                     entrypoint: ".",
                     packages: [],
-                    triggers: [],
                     resources: [],
                     secrets: [],
                     compute: {},

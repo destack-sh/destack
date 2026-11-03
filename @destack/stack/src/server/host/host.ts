@@ -607,7 +607,7 @@ export class SpaceHost {
         const found = present(bound, `the binding of ${declaration.name} by ${id}`);
         const { target } = found;
         const bindable = ObjectBindable.of(trusted).find(
-            (each) => each.declaration === declaration.kind,
+            (each) => each.declaration.name === declaration.kind,
         );
         const provider = [...start.providers, ...StoreProvider.of(trusted)].find(
             (each) => each.kind.name === declaration.kind,

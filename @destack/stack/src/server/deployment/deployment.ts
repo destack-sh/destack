@@ -8,7 +8,7 @@ import {
     InstallationKind,
 } from "@destack/object";
 import { Space, space } from "@destack/account/object";
-import { RESOURCE_DECLARATION, ResourceId, type ResourceKind } from "@destack/resource";
+import { RESOURCE_KIND, ResourceId, type ResourceKind } from "@destack/resource";
 import {
     and,
     type DatabaseConnection,
@@ -660,7 +660,7 @@ class Reconcile {
                       {
                           packageId: row.packageId,
                           name: row.name,
-                          kind: kind.declaration,
+                          kind: kind.declaration.name,
                           provider: kind.provider,
                           target: ResourceId.parse(row.target),
                           version: row.version,
@@ -683,7 +683,7 @@ class Reconcile {
         return rows.map((row) => {
             const declared = declarations.find(
                 (declaration) =>
-                    declaration.kind === RESOURCE_DECLARATION &&
+                    RESOURCE_KIND.has(declaration) &&
                     declaration.name === row.name &&
                     declaration.moniker.startsWith(`${row.packageId}/`),
             );

@@ -4,7 +4,7 @@ import { defineObject, ObjectDescription, Observation } from "@destack/object";
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
 import { Digest, type Identifier, present } from "@destack/schema";
-import { RESOURCE_DECLARATION } from "@destack/resource";
+import { RESOURCE_KIND } from "@destack/resource";
 import { binding } from "./binding.ts";
 import { Build, build } from "./build.ts";
 import {
@@ -167,7 +167,7 @@ export const Database = {
             // serve a stack at once, which runs nothing and whose resources its document instantiates
             const isStack = entry.installation.export !== null;
             const hasBindings = declarations
-                .filter((each) => each.kind === RESOURCE_DECLARATION)
+                .filter((each) => RESOURCE_KIND.has(each))
                 .every((each) =>
                     bound.has(`${entry.id}:${entry.installation.packageId}:${each.name}`),
                 );

@@ -52,7 +52,7 @@ import {
 import type { ObjectStore } from "@destack/object/server";
 import { DeclarationName, PackageId, Package, PackageRelease, Sandbox } from "@destack/package";
 import { type BuildReader, PackageManifest, ViewDescription } from "@destack/package/manifest";
-import { Plan, RESOURCE_DECLARATION, ResourceDescription } from "@destack/resource";
+import { Plan, RESOURCE_KIND, ResourceDescription } from "@destack/resource";
 import {
     canonicalize,
     Digest,
@@ -1542,7 +1542,7 @@ async function declaredStates(reader: BuildReader): Promise<Map<string, JsonValu
     // read the build's resource declarations and its exact dependencies once an installation of another package is declared
     const own = PackageManifest.package(reader.manifest);
     const resources = (await reader.declarations())
-        .filter((declaration) => declaration.kind === RESOURCE_DECLARATION)
+        .filter((declaration) => RESOURCE_KIND.has(declaration))
         .map((declaration) =>
             ResourceDescription.catchall(schema.json()).parse(declaration.description),
         );
