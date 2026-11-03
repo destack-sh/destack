@@ -8,7 +8,7 @@ import type { Simulation, SimulatedClock } from "@destack/environment/simulation
 import type { ObjectStore, PackageImplementation } from "@destack/object/server";
 import type { TestCaller, TestObjectStore } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
-import { RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
+import { RESOURCE_KIND } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
 import { fixtureOutputs, OWNER_EMAIL, TestPackage, TestSpace, workload } from "@destack/stack/test";
 import { testHost } from "@destack/test/host";
@@ -459,8 +459,7 @@ function messageBuild(crypto: Crypto) {
     return testBuild(messagePackage, crypto, {
         declared: [
             {
-                kind: "resource",
-                kindPackageId: RESOURCE_KIND_PACKAGE_ID,
+                ...RESOURCE_KIND.identity,
                 name: outboundMail.name,
                 description: describeMail(outboundMail),
             },
