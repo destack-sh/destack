@@ -8,16 +8,9 @@ import {
 } from "@destack/environment/simulation";
 import { notification } from "@destack/notification";
 import { TestNotification } from "@destack/notification/test";
-import {
-    ObjectType,
-    PACKAGE_DECLARATION,
-    PACKAGE_EXPORT,
-    type PackageHandle,
-} from "@destack/object";
-import { describePackage } from "@destack/object/inspect";
-import objectPackage from "@destack/object/package";
+import { ObjectType } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";
-import type { TestCaller, TestObjectStore } from "@destack/object/test";
+import { type TestCaller, type TestObjectStore, testBuild } from "@destack/object/test";
 import { Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { nth, schema } from "@destack/schema";
@@ -33,31 +26,34 @@ import { articlesPackage, articlesServer } from "./article.ts";
 /** When the fixture's simulation starts: 16 October 2026, UTC. */
 export const START = Date.UTC(2026, 9, 16);
 
+/** Social as the machine ships it, with its notifications. */
+export const SOCIAL: TestPackage = {
+    handle: socialPackage,
+    build: await testBuild(socialPackage, testHost().crypto, {
+        dependencies: [await TestNotification.build(testHost().crypto)],
+        declared: [mention, thread, reply].map((declared) => ({
+            kind: "notification",
+            kindPackageId: notification.package.id,
+            name: declared.name,
+            description: declared.describe(),
+        })),
+    }),
+    server: socialServer,
+    connectors: [],
+    providers: [],
+};
+
 /** The packages the space installs, in dependency order. */
 export const PACKAGES: readonly TestPackage[] = [
     ...(await TestNotification.packages(testHost().crypto)),
+    SOCIAL,
     {
         handle: articlesPackage,
-        build: await packageBuild(articlesPackage, []),
+        build: await testBuild(articlesPackage, testHost().crypto, {
+            dependencies: [SOCIAL.build],
+        }),
         server: articlesServer,
         connectors: [],
-        servers: [],
-        providers: [],
-    },
-    {
-        handle: socialPackage,
-        build: await packageBuild(
-            socialPackage,
-            [mention, thread, reply].map((declared) => ({
-                kind: "notification",
-                kindPackageId: notification.package.id,
-                name: declared.name,
-                description: declared.describe(),
-            })),
-        ),
-        server: socialServer,
-        connectors: [],
-        servers: [],
         providers: [],
     },
 ];
@@ -367,24 +363,4 @@ export class TestFollower {
         await this.#client.close();
         await this.#resources.disposeAsync();
     }
-}
-
-/** Write a package's build describing it, with further declarations. */
-function packageBuild(
-    handle: PackageHandle,
-    declared: Parameters<typeof MemoryBuild.of>[1],
-): ReturnType<typeof MemoryBuild.of> {
-    return MemoryBuild.of(
-        Package.of(handle),
-        [
-            {
-                kind: PACKAGE_DECLARATION,
-                kindPackageId: objectPackage.id,
-                name: PACKAGE_EXPORT,
-                description: describePackage(handle),
-            },
-            ...declared,
-        ],
-        testHost().crypto,
-    );
 }

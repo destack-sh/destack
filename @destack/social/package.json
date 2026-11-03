@@ -10,7 +10,8 @@
         "./server": "./src/server.ts",
         "./error": "./src/error/index.ts",
         "./package": "./src/package.ts",
-        "./destack.json": "./destack.json"
+        "./destack.json": "./destack.json",
+        "./test": "./src/test/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
