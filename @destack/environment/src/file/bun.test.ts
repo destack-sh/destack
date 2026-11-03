@@ -239,7 +239,7 @@ test("watch a directory from the call on, reading a new file as created, a write
     const stopping = new AbortController();
     const events = files.watch(directory, { signal: stopping.signal })[Symbol.asyncIterator]();
     const next = async (): Promise<FileEvent | undefined> => {
-        const read = await events.next();
+        const read = await simulation.wait(events.next());
 
         return read.done === true ? undefined : read.value;
     };

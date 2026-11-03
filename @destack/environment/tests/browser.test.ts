@@ -57,7 +57,7 @@ test("show frames at 60 Hz on the simulated clock, idle periods and set media", 
         }
         await display.idle(50);
     })();
-    await shown;
+    await simulation.wait(shown);
 
     expect({
         frames: frames.map((time) => time - START),

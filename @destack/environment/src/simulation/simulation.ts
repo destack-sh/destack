@@ -323,6 +323,8 @@ export class Simulation {
     #steps: { readonly answer: PromiseWithResolvers<void>; readonly moves: number }[] = [];
     /** The times the loop moved the world's time, to a timer or by a jump. */
     #moves = 0;
+    /** The driver's waits moving the world's time, which stands still without one. */
+    #drives = 0;
     /** The failure of the loop, refusing later waits, thrown at dispose unless a wait took it. */
     #failure: { readonly error: unknown; readonly isTaken: boolean } | undefined;
     /** The world's disposal, absent until it began. */
@@ -636,8 +638,25 @@ export class Simulation {
 
     /** Run the world on time to a later time, each timer firing at its time, until idle. */
     async run(to: number): Promise<void> {
-        await this.clock.sleep(to - this.clock.now());
+        await this.wait(this.clock.sleep(to - this.clock.now()));
         await this.idle();
+    }
+
+    /** Sleep the driver on the world's time, moving it as far, until idle. */
+    async sleep(milliseconds: number): Promise<void> {
+        await this.run(this.clock.now() + milliseconds);
+    }
+
+    /** Wait for a world's result, moving its time while the result waits on it. */
+    async wait<Value>(result: Promise<Value>): Promise<Value> {
+        // move time until the result settles
+        this.#drives += 1;
+        this.#wake?.();
+        try {
+            return await result;
+        } finally {
+            this.#drives -= 1;
+        }
     }
 
     /** Jump to a later time at once, waking each due timer once, until the world is idle. */
@@ -710,8 +729,8 @@ export class Simulation {
                     this.#moves += 1;
                     this.#idlers.push(jump.answer);
                 }
-                // move time to the next timer
-                else if (next !== undefined) {
+                // move time to the next timer while the driver waits on it
+                else if (next !== undefined && (this.#drives > 0 || this.#steps.length > 0)) {
                     this.record({ kind: "timer", at: next });
                     this.#setTime(next);
                     this.#moves += 1;
@@ -810,8 +829,8 @@ export class Simulation {
                 busy = 0;
                 await yieldToEventLoop();
             }
-            // answer the settled lifetimes once the world is quiescent, no operation running
-            else if (scheduler.lifetimes > 0 && scheduler.running.all === 0) {
+            // answer the settled lifetimes once the world is quiescent, every operation answered
+            else if (scheduler.lifetimes > 0 && scheduler.isQuiescent) {
                 const at = clock.now();
                 for (const order of scheduler.answerLifetimes()) {
                     this.record({ kind: "release", at, order, work: "lifetime" });

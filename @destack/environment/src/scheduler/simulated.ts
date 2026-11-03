@@ -294,6 +294,11 @@ export class SimulatedScheduler implements Scheduler {
         return this.#operations.has(this.#next);
     }
 
+    /** Whether every operation begun so far is answered, so lifetimes may be. */
+    get isQuiescent(): boolean {
+        return this.#next === this.#sequence.operation;
+    }
+
     /** The settled lifetimes the loop has not answered yet. */
     get lifetimes(): number {
         return this.#lifetimes.length;

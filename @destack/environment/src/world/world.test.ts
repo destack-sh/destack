@@ -48,10 +48,12 @@ async function play(world: World<FetchStep>) {
         }
         // fetch by hand
         else {
-            const answer = await network
-                .fetch(new Request(`https://server.test${step.path}`))
-                .then((response) => response.text())
-                .catch((error: Error) => error.message);
+            const answer = await simulation.wait(
+                network
+                    .fetch(new Request(`https://server.test${step.path}`))
+                    .then((response) => response.text())
+                    .catch((error: Error) => error.message),
+            );
             answers.push(answer);
         }
     }

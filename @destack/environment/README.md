@@ -79,7 +79,7 @@ const tab = new BrowserSimulation(simulation).environment("tab");
 
 ## Simulation
 
-A `Simulation` runs nodes on one clock, scheduler, randomness and network, and moves time only once no real work runs: operations answered in the order they began, lifetimes once the world is quiescent.
+A `Simulation` runs nodes on one clock, scheduler, randomness and network, and moves time only while the test waits on it and no real work runs: operations answered in the order they began, lifetimes once the world is quiescent.
 
 ```ts
 await using simulation = new Simulation({
@@ -98,7 +98,9 @@ simulation.network.bridge("lab"); // http://<origin>.localhost:<port> reaches ht
 simulation.workers.define(new URL("./db.worker.ts", import.meta.url), serve); // a worker body, run as a node
 host.crash(); // drops its memory, listeners, sockets, children, workers and locks, keeps its files
 await simulation.idle(); // the next point with nothing left before the next timer
-await simulation.until(() => run.state === "completed", deadline); // moving time to each next timer
+await simulation.sleep(5000); // move time 5 s, each timer firing at its time
+await simulation.wait(client.fetch(request)); // move time while a world result waits on it
+await simulation.waitUntil(() => run.state === "completed", deadline); // moving time to each next timer
 await simulation.jump(simulation.clock.now() + 30 * DAY); // a 30-day sleep: each due wait wakes once
 simulation.scheduler.pending(); // the work in flight: who finishes it, running or settled, and where it began
 simulation.fingerprint; // equal across runs of one seed and the same work
