@@ -525,8 +525,8 @@ export class MemoryFileSystem implements FileSystem {
         return this.#handle(file, opened.path, options);
     }
 
-    /** Report the changes at a path until the signal aborts or the reader stops. */
-    watch(path: string, options: WatchOptions = {}): AsyncIterable<FileEvent> {
+    /** Watch a path at once, reporting its changes until the signal aborts or the reader stops. */
+    async watch(path: string, options: WatchOptions = {}): Promise<AsyncIterable<FileEvent>> {
         return this.#tree.watcher.watch(this.#existing(path, true, `watch ${path}`).path, options);
     }
 

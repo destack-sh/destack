@@ -150,7 +150,7 @@ test("resolve relative paths from the working directory, and stop a watch its re
     const read = await memory.readTextFile("/world/note.txt");
 
     // read a watch's first change, then leave it, which ends it
-    const watched = memory.watch("/world")[Symbol.asyncIterator]();
+    const watched = (await memory.watch("/world"))[Symbol.asyncIterator]();
     const first = watched.next();
     await memory.writeTextFile("later.txt", "x");
     const firstRead = await first;
@@ -206,7 +206,7 @@ test("watch a directory's changes relative to it, below it only when recursive",
     const stop = new AbortController();
     const read = async (isRecursive: boolean) => {
         const events: unknown[] = [];
-        for await (const event of memory.watch("/watched", {
+        for await (const event of await memory.watch("/watched", {
             recursive: isRecursive,
             signal: stop.signal,
         })) {

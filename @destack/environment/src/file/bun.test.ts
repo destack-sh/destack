@@ -236,7 +236,9 @@ test("watch a host directory from the call on, reading a new file as created, a 
     const files = new BunFileSystem();
     const directory = await files.makeTemporaryDirectory("watch-");
     const stopping = new AbortController();
-    const events = files.watch(directory, { signal: stopping.signal })[Symbol.asyncIterator]();
+    const events = (await files.watch(directory, { signal: stopping.signal }))[
+        Symbol.asyncIterator
+    ]();
     const next = async (): Promise<FileEvent | undefined> => {
         const read = await events.next();
 
@@ -271,7 +273,9 @@ test("watch a world's directory, reading the world's own writes as created, modi
     const { files } = simulation.environment("host");
     const directory = await files.makeTemporaryDirectory("watch-");
     const stopping = new AbortController();
-    const events = files.watch(directory, { signal: stopping.signal })[Symbol.asyncIterator]();
+    const events = (await files.watch(directory, { signal: stopping.signal }))[
+        Symbol.asyncIterator
+    ]();
     const next = async (): Promise<FileEvent | undefined> => {
         const read = await simulation.wait(events.next());
 

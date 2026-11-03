@@ -274,17 +274,13 @@ export class SimulatedFileSystem implements FileSystem {
         };
     }
 
-    /** Report the changes this file system's verbs make at a path until the signal aborts. */
-    watch(path: string, options?: WatchOptions): AsyncIterable<FileEvent> {
-        // watch at once, then refuse a missing path on the first read
+    /** Watch the changes this file system's verbs make at an existing path until aborted. */
+    async watch(path: string, options?: WatchOptions): Promise<AsyncIterable<FileEvent>> {
+        // refuse a missing path, then watch at once
         const resolved = this.#resolve(path);
-        const events = this.#watcher.watch(resolved, options);
-        const status = () => this.stat(resolved);
+        await this.stat(resolved);
 
-        return (async function* () {
-            await status();
-            yield* events;
-        })();
+        return this.#watcher.watch(resolved, options);
     }
 
     /** Read the world's cache directory under its root, created on first use. */
