@@ -237,8 +237,7 @@ export class TestSocial implements AsyncDisposable {
         const result = await this.#callers[actor].call(called, { writerId });
 
         // step the world past the call's millisecond, so the next write orders after it by time
-        await this.simulation.clock.sleep(1);
-        await this.simulation.idle();
+        await this.simulation.sleep(1);
 
         return result;
     }
