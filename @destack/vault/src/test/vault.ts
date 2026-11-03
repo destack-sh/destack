@@ -1,4 +1,6 @@
 import { SECRET_DECLARATION } from "@destack/stack/declare";
+import { TestPackage } from "@destack/stack/test";
+import { testHost } from "@destack/test/host";
 import type { Crypto, Environment } from "@destack/environment";
 import { AccessContext, Caller, type PermissionReference, principal } from "@destack/access";
 import * as account from "@destack/account/object";
@@ -6,6 +8,7 @@ import type { TestPerson } from "@destack/account/test";
 import { and, eq } from "@destack/db";
 import { SimulatedClock } from "@destack/environment/simulation";
 import type { TestCaller, TestObjectStore } from "@destack/object/test";
+import { testBuild } from "@destack/object/test";
 import { type BuildReader, Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
@@ -279,3 +282,12 @@ export class TestVault {
         });
     }
 }
+
+/** The vault as the machine ships it, which stacks install to keep their secrets and vaults. */
+export const VAULT: TestPackage = {
+    handle: vaultPackage,
+    build: await testBuild(vaultPackage, testHost().crypto),
+    server: vaultServer,
+    connectors: [],
+    providers: [],
+};
