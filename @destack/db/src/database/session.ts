@@ -246,10 +246,7 @@ export class PostgresSession implements Session {
         // run it in the open transaction, nested ones included, as the log identity stamps there
         const { connection, schema } = this;
         if (!("pool" in connection)) {
-            return await this.#environment.scheduler.track(
-                () => run(connection.transaction),
-                "peer",
-            );
+            return await this.#environment.scheduler.waitUntil(run(connection.transaction));
         }
 
         // send the statement after any search path change on a connection reserved in the schema
@@ -257,9 +254,8 @@ export class PostgresSession implements Session {
         const environment = this.#environment;
         const { sql, ready } = await pool.reserve(environment, schema);
         try {
-            const settled = await environment.scheduler.track(
-                () => Promise.allSettled([ready, run(sql)]),
-                "peer",
+            const settled = await environment.scheduler.waitUntil(
+                Promise.allSettled([ready, run(sql)]),
             );
 
             // answer the statement's result, or fail with the first failure
@@ -284,8 +280,8 @@ async function block<Value>(
     // send the opening before the body's statements, after the connection's search path, each statement a peer
     const client = reserved.sql;
     const send = (statement: string) =>
-        scheduler.track(() => client.unsafe(statement).simple().execute(), "peer");
-    const ready = scheduler.track(() => reserved.ready, "peer");
+        scheduler.waitUntil(client.unsafe(statement).simple().execute());
+    const ready = scheduler.waitUntil(reserved.ready);
     const settled = await Promise.allSettled([ready, send(statements.open), body()]);
 
     // commit a block whose opening and body succeeded, refusing a commit the server rolled back
@@ -340,14 +336,14 @@ async function transact<Value>(
     // count the opening until the body starts, and the commit or rollback once it ends
     const opening = Promise.withResolvers<void>();
     const ending = Promise.withResolvers<void>();
-    void scheduler.track(() => opening.promise, "world");
+    void scheduler.task(() => opening.promise);
     try {
         return await open(async (session) => {
             opening.resolve();
             try {
                 return await operation(session);
             } finally {
-                void scheduler.track(() => ending.promise, "world");
+                void scheduler.task(() => ending.promise);
             }
         });
     } finally {

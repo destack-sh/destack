@@ -86,7 +86,7 @@ export class WasmClient extends WasmQuery implements SqliteConnectionClient {
     /** Open an in-memory database. */
     static async memory(environment: DatabaseEnvironment): Promise<WasmClient> {
         // open with foreign keys enforced
-        const sqlite = await environment.scheduler.track(() => init(), "host");
+        const sqlite = await environment.scheduler.run(() => init());
         const database = new sqlite.oo1.DB(":memory:");
         database.exec("PRAGMA foreign_keys = ON;");
 

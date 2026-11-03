@@ -39,7 +39,7 @@ test("refuse a reservation while the world's own work keeps every connection pas
     ]);
 });
 
-test("count a wait behind another world's connection as peer work, reserving it once released", async () => {
+test("keep a world's time while it waits behind another world's connection, reserving it once released", async () => {
     // reserve the one connection in one world, then wait for it in another
     const pool = openPool();
     const holder = environmentOn(new SimulatedClock(START));
@@ -53,7 +53,7 @@ test("count a wait behind another world's connection as peer work, reserving it 
     const reserved = await waiting;
     const afterwards = kinds(waiter.scheduler.pending());
     pool.release(reserved.sql);
-    expect([whileWaiting, afterwards]).toEqual([["peer"], []]);
+    expect([whileWaiting, afterwards]).toEqual([["lifetime"], []]);
 });
 
 test("end a timed-out wait behind another world's connection as peer work, leaving the queue", async () => {

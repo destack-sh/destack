@@ -85,7 +85,7 @@ export class SqliteWorkQueue {
         return result;
     }
 
-    /** Start work in its turn, counting it as peer work in every other world waiting behind it. */
+    /** Start work in its turn, keeping the time of every other world waiting behind it. */
     #start<Value>(work: () => Promise<Value>, scheduler: Scheduler): Promise<Value> {
         // run the work, remembering its world until it ends
         const running = work();
@@ -103,7 +103,7 @@ export class SqliteWorkQueue {
         // keep the other worlds waiting for the file from moving time past it
         for (const waiting of this.#waiting.keys()) {
             if (waiting !== scheduler) {
-                void waiting.track(() => settled, "peer");
+                void waiting.waitUntil(settled);
             }
         }
 
@@ -116,12 +116,12 @@ export class SqliteWorkQueue {
         start: () => Promise<Value>,
         environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
     ): Promise<Value> {
-        // count the wait as peer work while another world's work runs ahead
+        // keep this world's time while another world's work runs ahead
         const { clock, scheduler } = environment;
         this.#waiting.set(scheduler, (this.#waiting.get(scheduler) ?? 0) + 1);
         const running = this.#running;
         if (running !== undefined && running.scheduler !== scheduler) {
-            void scheduler.track(() => running.settled, "peer");
+            void scheduler.waitUntil(running.settled);
         }
 
         // race the turn against the wait on the clock, which the turn stops

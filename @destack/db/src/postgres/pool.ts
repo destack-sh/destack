@@ -165,13 +165,13 @@ export class PostgresPool {
     async #waitReleased(
         environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
     ): Promise<postgres.Sql> {
-        // queue the wait, counting it as peer work while other worlds' work has connections
+        // queue the wait, keeping the world's time while other worlds' work has connections
         const { clock, scheduler } = environment;
         const released = Promise.withResolvers<postgres.Sql>();
         const ended = Promise.withResolvers<void>();
         this.#waiters.push(released.resolve);
         if ([...this.#holders.values()].some((holder) => holder !== scheduler)) {
-            void scheduler.track(() => ended.promise, "peer");
+            void scheduler.waitUntil(ended.promise);
         }
         try {
             // race the release against the wait on the clock
