@@ -19,7 +19,7 @@ import {
     symlink,
     writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import {
     DirectoryEntry,
@@ -430,6 +430,27 @@ export class BunFileSystem implements FileSystem {
         }
 
         return BunFileSystem.trust(join(tmpdir(), `destack-${user}`), user);
+    }
+
+    /** Find the person's cache directory: XDG_CACHE_HOME, else the platform's own. */
+    async cacheDirectory(): Promise<string> {
+        return BunFileSystem.cacheDirectoryOf(process.env);
+    }
+
+    /** Find the person's cache directory from their variables, XDG_CACHE_HOME first. */
+    static cacheDirectoryOf(variables: Readonly<Record<string, string | undefined>>): string {
+        // take the XDG directory when set, else the platform's caches
+        const named = variables["XDG_CACHE_HOME"];
+        const local = variables["LOCALAPPDATA"];
+        if (named !== undefined && named !== "") {
+            return named;
+        } else if (process.platform === "darwin") {
+            return join(homedir(), "Library", "Caches");
+        } else if (process.platform === "win32" && local !== undefined && local !== "") {
+            return local;
+        }
+
+        return join(homedir(), ".cache");
     }
 
     /** Create a user's private directory once, refusing a link or a directory others may open. */

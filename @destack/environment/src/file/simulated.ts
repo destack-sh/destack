@@ -287,6 +287,15 @@ export class SimulatedFileSystem implements FileSystem {
         })();
     }
 
+    /** Read the world's cache directory under its root, created on first use. */
+    cacheDirectory(): Promise<string> {
+        const directory = join(this.root, "cache");
+
+        return this.#run(() =>
+            this.#host.mkdir(directory, { recursive: true }).then(() => directory),
+        );
+    }
+
     /** Read the world's runtime directory under its root, created private on first use. */
     runtimeDirectory(): Promise<string> {
         const directory = join(this.root, "runtime");

@@ -209,6 +209,8 @@ export interface FileSystem {
     readonly watch: (path: string, options?: WatchOptions) => AsyncIterable<FileEvent>;
     /** Find the private directory of the person's runtime files, such as sockets and locks. */
     readonly runtimeDirectory: () => Promise<string>;
+    /** Find the directory of the person's caches, which they may delete at any time. */
+    readonly cacheDirectory: () => Promise<string>;
     /** Open or create a file and wait to lock it in a mode. */
     readonly lock: (
         path: string,

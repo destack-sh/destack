@@ -530,6 +530,14 @@ export class MemoryFileSystem implements FileSystem {
         return this.#tree.watcher.watch(this.#existing(path, true, `watch ${path}`).path, options);
     }
 
+    /** Find the cache directory below the working directory, made on first use. */
+    async cacheDirectory(): Promise<string> {
+        const directory = this.join(this.#tree.workingDirectory, "cache");
+        await this.mkdir(directory, { recursive: true });
+
+        return directory;
+    }
+
     /** Find the runtime's private directory below the working directory, made on first use. */
     async runtimeDirectory(): Promise<string> {
         const directory = this.join(this.#tree.workingDirectory, "runtime");
