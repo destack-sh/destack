@@ -1,7 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
-import { DeclarationName, Package, PackageId } from "@destack/package";
+import { DeclarationName, defineDeclarationKind, Package } from "@destack/package";
 import { schema } from "@destack/schema";
 
 /** How a meter folds a period's events into one usage. */
@@ -31,11 +31,11 @@ export const MeterDescription = MeterMetadata.extend({
 /** A meter declaration as manifests describe it. */
 export type MeterDescription = schema.Infer<typeof MeterDescription>;
 
+/** The meter declaration kind, which telemetry defines. */
+export const METER_KIND = defineDeclarationKind("meter");
+
 /** A meter declaration: what its events count and how a period's events fold into usage. */
 export class Meter {
-    /** The package declaring the meter kind, whose id builds record meter declarations under. */
-    static readonly kindPackageId: PackageId = PackageId.parse(import.meta.destack.package.id);
-
     /** The declaring package. */
     readonly package: Package;
     /** The name, description, aggregation and unit. */
@@ -49,7 +49,7 @@ export class Meter {
 
     /** Read the meters a build declares. */
     static async list(build: Pick<BuildReader, "declared">): Promise<Meter[]> {
-        const declared = await build.declared(Meter.kindPackageId, "meter", MeterDescription);
+        const declared = await build.declared(METER_KIND, MeterDescription);
 
         return declared.map(
             ({ description: { package: declaring, ...definition } }) =>
