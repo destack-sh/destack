@@ -21,8 +21,6 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     // forbidden
     FOREIGN_PARTITION_TOKEN: { code: "FORBIDDEN" },
     HOOKS_MISSING: { code: "FORBIDDEN" },
-    RELEASE_MISMATCH: { code: "FORBIDDEN" },
-    RELEASE_NOT_SHIPPED: { code: "FORBIDDEN" },
     SPACE_ONLY: { code: "FORBIDDEN" },
     NETWORK_UNDECLARED: { code: "FORBIDDEN" },
 

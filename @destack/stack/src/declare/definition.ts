@@ -2,7 +2,12 @@ import { DeclarationReference } from "@destack/package/declare";
 import { graph, type PackageId, type PackageRelease } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { type Digest, type JsonObject, JsonValue, schema } from "@destack/schema";
-import { Installation, ObjectDescription, PackageDescription } from "@destack/object";
+import {
+    Installation,
+    ObjectDescription,
+    PackageDescription,
+    SERVER_EXPORT,
+} from "@destack/object";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
 import { install, InstallationDefinition } from "./installation.ts";
@@ -125,10 +130,25 @@ export async function declaredStack(
         }),
     );
 
+    // run in the store each dependency of an installation in the store, whose build runs its code there already
+    const installations = Object.values(pinned);
+    const stored = new Set(
+        closures.flatMap((releases, index) =>
+            installations[index]?.isolation === "process"
+                ? releases.map((release) => release.package.id)
+                : [],
+        ),
+    );
+
     // install each once as any package, bound to nothing, at the release its dependents resolved
     const transitive: Record<string, InstallationDefinition> = {};
     for (const release of oneReleaseEach(closures.flat(), name).values()) {
-        const installed = install({ ...release.package, resources: {}, secrets: {} }, {});
+        const isolation = stored.has(release.package.id) ? "process" : "sandbox";
+        const installed = install(
+            { ...release.package, resources: {}, secrets: {} },
+            {},
+            { isolation },
+        );
         if (Object.hasOwn(document.installations, installed.name)) {
             throw StackError.of(
                 "DEFINITION_INVALID",
@@ -158,12 +178,17 @@ export async function installableReleases(
 ): Promise<PackageRelease[]> {
     const installable = await Promise.all(
         (await reader.releases()).map(async (release) => {
-            // take a dependency declaring a package with a type stored in a space
+            // take a dependency serving its own package with a type stored in a space, leaving a contract another package implements
             const dependency = await read(release.package.id, release.manifest);
             const declared = await PackageDescription.of(dependency);
             const types = ObjectDescription.installed(await dependency.declarations());
+            const isServing = Object.values(dependency.manifest.outputs).some((output) =>
+                Object.hasOwn(output.exports, SERVER_EXPORT),
+            );
             const isInstallable =
-                declared !== undefined && types.some((type) => ObjectDescription.isInSpace(type));
+                declared !== undefined &&
+                isServing &&
+                types.some((type) => ObjectDescription.isInSpace(type));
 
             return isInstallable ? [release] : [];
         }),

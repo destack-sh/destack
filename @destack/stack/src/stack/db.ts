@@ -13,10 +13,8 @@ import {
     space,
     user,
 } from "@destack/account/object";
-import { bucket } from "../object/bucket.ts";
-import { dependency } from "../object/dependency.ts";
-import { database } from "../object/database.ts";
-import { https } from "../object/https.ts";
+import registryPackage from "@destack/registry/package";
+import { PROVISIONED } from "./kernel.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
 
@@ -34,9 +32,6 @@ export const spaceReplicated: readonly Table[] = [
     residency.table,
 ];
 
-/** The resource types the stack provisions in a space in addition to its package's objects. */
-const PROVISIONED = { database, bucket, dependency, https };
-
 /** List a space database's tables: object, stack, settings and its host's own. */
 export function spaceTables(host: {
     /** The packages the host serves in addition to the platform's. */
@@ -52,6 +47,7 @@ export function spaceTables(host: {
             stackPackage,
             settingPackage,
             { objects: PROVISIONED, tables: [] },
+            registryPackage,
             ...(host.packages ?? []),
         ],
         follows: host.follows ?? [],

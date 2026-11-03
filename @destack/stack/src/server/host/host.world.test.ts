@@ -1,17 +1,9 @@
+import { testBuild } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { present } from "@destack/schema";
-import {
-    type Capability,
-    type ObjectType,
-    PACKAGE_DECLARATION,
-    PACKAGE_EXPORT,
-    PackageHandle,
-} from "@destack/object";
-import { describePackage } from "@destack/object/inspect";
-import objectPackage from "@destack/object/package";
+import { type Capability, type ObjectType, PackageHandle } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import type { InstalledServerContext } from "@destack/object/workload";
-import { MemoryBuild } from "@destack/package/test";
 import { Package } from "@destack/package";
 import { testHost } from "@destack/test/host";
 import { TestSpace } from "../../test/index.ts";
@@ -33,18 +25,7 @@ async function installCaller(connect: readonly string[]) {
     };
     const objects: Readonly<Record<string, ObjectType>> = {};
     const handle = PackageHandle.of(released, { objects, capabilities: { call } });
-    const build = await MemoryBuild.of(
-        Package.of(handle),
-        [
-            {
-                kind: PACKAGE_DECLARATION,
-                kindPackageId: objectPackage.id,
-                name: PACKAGE_EXPORT,
-                description: describePackage(handle),
-            },
-        ],
-        testHost().crypto,
-    );
+    const build = await testBuild(handle, testHost().crypto);
     const contexts: InstalledServerContext[] = [];
     const fixture = await TestSpace.open({
         servers: [
@@ -54,7 +35,7 @@ async function installCaller(connect: readonly string[]) {
                 return { objects: [] };
             }),
         ],
-        bundled: [build],
+        linked: [build],
     });
     await fixture.install(await fixture.serve(), build);
     await fixture.serve();
@@ -62,7 +43,7 @@ async function installCaller(connect: readonly string[]) {
     return { fixture, context: present(contexts.at(-1), "the installation's context") };
 }
 
-test("call only the hosts an in-store installation's capabilities declare, as an instance's sandbox does", async () => {
+test("call only the hosts an in-process installation's capabilities declare, as an instance's sandbox does", async () => {
     const { context } = await installCaller([DECLARED_HOST]);
 
     // call an undeclared host and open a socket to another

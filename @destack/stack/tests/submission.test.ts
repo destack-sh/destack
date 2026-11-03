@@ -74,6 +74,7 @@ test("apply a submitted stack build and open its installations' views", async ()
                         compute: {},
                         capabilities: [],
                         directories: [],
+                        isolation: "sandbox",
                         tags: {},
                     },
                 },

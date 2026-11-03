@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { KERNEL_TYPES } from "../stack/kernel.ts";
 import { copyRequest, Crypto } from "@destack/environment";
 import { InstallationDefinition, StackDefinition } from "../declare/index.ts";
 import type { Environment, HostCapability } from "@destack/environment";
@@ -134,7 +135,7 @@ export const spaceDatabase = defineDatabase({
 /** Run a cleanup once a fixture's test or template write ends. */
 type Defer = (cleanup: () => Promise<void> | void) => void;
 
-/** The releases a test machine ships with the fixture's space, built in its world. */
+/** The releases a test machine links with the fixture's space, built in its world. */
 export interface StackReleases {
     /** The fixture space's stack: the empty stack of a space without apps. */
     readonly space: BuildReader;
@@ -187,8 +188,8 @@ function spaceWorldOf<World extends JsonValue>(world: schema.Schema<World>) {
                 stack: schema.jsonObject(),
                 /** The releases the registry published, published again on restore. */
                 releases: schema.array(Digest),
-                /** The release of each shipped server's package the write installed, by package. */
-                bundled: schema.array(schema.object({ packageId: PackageId, manifest: Digest })),
+                /** The linked release of each server's package the write installed, by package. */
+                linked: schema.array(schema.object({ packageId: PackageId, manifest: Digest })),
             }),
         ),
         /** What the fixture's write returned. */
@@ -334,9 +335,11 @@ export class TestSpace implements AsyncDisposable {
     readonly #connectors: readonly Connector[];
     /** What each serve of the space serves in addition to its packages. */
     readonly #beside: Required<Pick<TestSpaceOptions, "companions" | "providers">>;
-    /** The release the machine ships of each shipped server's package, as the test installs it. */
-    readonly #bundled: Map<PackageId, PackageRelease>;
-    /** The releases the machine ships with the space. */
+    /** The release the machine links of each server's package, as the test installs it. */
+    readonly #linked: Map<PackageId, PackageRelease>;
+    /** The servers the test runs in the store, by the linked releases of their packages. */
+    readonly #servers: readonly PackageImplementation[];
+    /** The releases the machine links with the space. */
     readonly releases: StackReleases;
     /** The index of the builds, opened once. */
     #index: Promise<BunGraphStorage> | undefined;
@@ -373,18 +376,20 @@ export class TestSpace implements AsyncDisposable {
         readonly packages: readonly Pick<PackageHandle, "objects" | "tables">[];
         readonly connectors: readonly Connector[];
         readonly beside: Required<Pick<TestSpaceOptions, "companions" | "providers">>;
-        readonly bundled: Map<PackageId, PackageRelease>;
+        readonly linked: Map<PackageId, PackageRelease>;
+        readonly servers: readonly PackageImplementation[];
         readonly releases: StackReleases;
         readonly defer: Defer;
     }) {
-        // store the space, its universe, owner, machine and host, the machine's stores and shipped releases
+        // store the space, its universe, owner, machine and host, the machine's stores and linked releases
         this.id = fields.id;
         this.account = fields.account;
         this.universe = fields.universe;
         this.#packages = fields.packages;
         this.#connectors = fields.connectors;
         this.#beside = fields.beside;
-        this.#bundled = fields.bundled;
+        this.#linked = fields.linked;
+        this.#servers = fields.servers;
         this.releases = fields.releases;
         this.#buckets = fields.buckets;
         this.#main = fields.main;
@@ -624,7 +629,7 @@ export class TestSpace implements AsyncDisposable {
 
     /** Describe what a copy restores of the space in addition to its database and owner. */
     #state(): Omit<SpaceWorld<null>["spaces"][number], "key" | "owner"> {
-        const bundled = [...this.#bundled.values()]
+        const linked = [...this.#linked.values()]
             .filter((release) => release.package.id !== stackPackage.id)
             .map((release) => ({ packageId: release.package.id, manifest: release.manifest }));
 
@@ -633,7 +638,7 @@ export class TestSpace implements AsyncDisposable {
             account: this.account,
             stack: this.#stack,
             releases: [...this.registry.manifests],
-            bundled,
+            linked,
         };
     }
 
@@ -795,10 +800,10 @@ export class TestSpace implements AsyncDisposable {
 
         // store the stack the write applied, and ship the releases it installed of the servers given
         this.#stack = restored.stack;
-        for (const { packageId, manifest } of restored.bundled) {
+        for (const { packageId, manifest } of restored.linked) {
             const server = (options.servers ?? []).find((each) => each.package.id === packageId);
             if (server !== undefined) {
-                this.#bundled.set(packageId, { package: Package.of(server.package), manifest });
+                this.#linked.set(packageId, { package: Package.of(server.package), manifest });
             }
         }
     }
@@ -886,7 +891,7 @@ export class TestSpace implements AsyncDisposable {
         return new Simulation({ seed: WORLD_SEED, start });
     }
 
-    /** Build the releases a test machine ships with the fixture's space, with a world's crypto. */
+    /** Build the releases a test machine links with the fixture's space, with a world's crypto. */
     static async releases(crypto: Crypto): Promise<StackReleases> {
         // build the empty stack and the stack package, declaring its settings
         const empty = await MemoryBuild.of(
@@ -1014,7 +1019,7 @@ export class TestSpace implements AsyncDisposable {
         );
         const servers = [...(options.servers ?? []), ...(options.companions ?? [])];
         const releases = await TestSpace.releases(machine.environment.crypto);
-        const bundled = new Map<PackageId, PackageRelease>([
+        const linked = new Map<PackageId, PackageRelease>([
             [stackPackage.id, { package: Package.of(stackPackage), manifest: releases.manifest }],
         ]);
 
@@ -1032,8 +1037,7 @@ export class TestSpace implements AsyncDisposable {
             fetch: (audience) => machine.fetch(audience),
             send: (request) => simulation.network.of(machine.id).fetch(request),
             builds,
-            servers,
-            bundled,
+            linked,
         };
 
         // store the machine's own resources below its files, such as Git storage
@@ -1065,7 +1069,8 @@ export class TestSpace implements AsyncDisposable {
                 companions: options.companions ?? [],
                 providers: [...(options.providers ?? []), ...(local?.providers ?? [])],
             },
-            bundled,
+            linked,
+            servers,
             releases,
             defer,
         });
@@ -1075,11 +1080,11 @@ export class TestSpace implements AsyncDisposable {
         }
 
         // ship the machine's builds of its servers' packages, fixed before the space serves
-        for (const build of options.bundled ?? []) {
+        for (const build of options.linked ?? []) {
             await fixture.registry.release(build);
             const released = PackageManifest.package(build.manifest);
             const manifest = await fixture.registry.find(released.id, released.version);
-            bundled.set(released.id, { package: released, manifest });
+            linked.set(released.id, { package: released, manifest });
         }
 
         return fixture;
@@ -1133,6 +1138,7 @@ export class TestSpace implements AsyncDisposable {
             buildRunner: this.machine.id,
             main: spaceDatabase,
             sandboxes: [],
+            report: (error) => this.#reported.push(error),
             blobs: this.blobs,
             registry: this.registry,
             buckets: await this.buckets(),
@@ -1241,7 +1247,7 @@ export class TestSpace implements AsyncDisposable {
         return [...refusals.values()];
     }
 
-    /** Send an in-store installation's call to a peer installation as it, as a dispatcher does. */
+    /** Send an in-process installation's call to a peer installation as it, as dispatchers do. */
     async #egress(caller: EgressCaller, request: Request): Promise<Response> {
         // require a peer installation's address and a package mount below it
         const egressed = Egress.of(request);
@@ -1388,7 +1394,12 @@ export class TestSpace implements AsyncDisposable {
         reader: BuildReader,
     ): Promise<Pick<object.InstallationRevision, "dependencies" | "states">> {
         const { store } = serveSpace(await this.options());
-        const options = { builds: await this.builds(), registry: this.registry, blobs: this.blobs };
+        const options = {
+            builds: await this.builds(),
+            registry: this.registry,
+            blobs: this.blobs,
+            kernel: KERNEL_TYPES,
+        };
 
         return InstallationRevision.describe(target, reader, store.objects, options);
     }
@@ -1522,7 +1533,7 @@ export class TestSpace implements AsyncDisposable {
         return sockets;
     }
 
-    /** Serve the space as its machine does, hosting the installed revisions of shipped packages. */
+    /** Serve the space as its machine does, hosting the installed revisions of linked packages. */
     serve(
         options: FixtureOptions & {
             /** Whether the store runs its controllers, true by default. */
@@ -1532,7 +1543,7 @@ export class TestSpace implements AsyncDisposable {
         return this.#serve(options);
     }
 
-    /** Serve the space as its machine does, hosting the installed revisions of shipped packages. */
+    /** Serve the space as its machine does, hosting the installed revisions of linked packages. */
     async #serve(
         options: FixtureOptions & {
             /** Whether the store runs its controllers, true by default. */
@@ -1561,6 +1572,13 @@ export class TestSpace implements AsyncDisposable {
         const hosted = await this.host.servers(
             installed,
             {
+                report: (error) => {
+                    throw error;
+                },
+                server: async (manifest) =>
+                    this.#servers.find(
+                        (server) => this.#linked.get(server.package.id)?.manifest === manifest,
+                    ),
                 call: async (packageId, request, authentication) => {
                     const served = await serving.promise;
                     const handler = present(
@@ -1882,6 +1900,8 @@ export class TestSpace implements AsyncDisposable {
             readonly bindings?: schema.Input<typeof InstallationDefinition>["bindings"];
             /** The capabilities the installation is given, none by default. */
             readonly capabilities?: schema.Input<typeof InstallationDefinition>["capabilities"];
+            /** Where the installation's server runs, a sandbox by default. */
+            readonly isolation?: schema.Input<typeof InstallationDefinition>["isolation"];
         } = {},
     ): Promise<Identifier<"installation">> {
         return this.#install(served, build, options);
@@ -1896,6 +1916,8 @@ export class TestSpace implements AsyncDisposable {
             readonly bindings?: schema.Input<typeof InstallationDefinition>["bindings"];
             /** The capabilities the installation is given, none by default. */
             readonly capabilities?: schema.Input<typeof InstallationDefinition>["capabilities"];
+            /** Where the installation's server runs, a sandbox by default. */
+            readonly isolation?: schema.Input<typeof InstallationDefinition>["isolation"];
         } = {},
     ): Promise<Identifier<"installation">> {
         // publish the build as its package's release
@@ -1913,6 +1935,7 @@ export class TestSpace implements AsyncDisposable {
             compute: {},
             capabilities: options.capabilities ?? [],
             directories: [],
+            isolation: options.isolation ?? "sandbox",
             tags: {},
         };
         const { installations } = StackDefinition.collections(this.#stack);
@@ -1990,10 +2013,10 @@ export interface TestSpaceOptions {
     readonly origin?: string;
     /** The machine hosting the space, the residency's cloud machine by default. */
     readonly machine?: TestMachine;
-    /** The servers the machine ships, whose packages' installations run in process. */
+    /** The servers the store runs, whose packages' installations run in its process. */
     readonly servers?: readonly PackageImplementation[];
-    /** The builds the machine ships of its servers' packages, fixed before the space serves. */
-    readonly bundled?: readonly BuildReader[];
+    /** The builds the machine links of its servers' packages, fixed before the space serves. */
+    readonly linked?: readonly BuildReader[];
     /** The servers every serve runs with the packages, such as a vault, none by default. */
     readonly companions?: readonly PackageImplementation[];
     /** The providers every serve offers with its database host, served ones in process. */

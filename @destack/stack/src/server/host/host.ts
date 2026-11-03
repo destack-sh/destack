@@ -68,7 +68,7 @@ import type {
     WorkloadResource,
 } from "../../runtime/runtime.ts";
 
-/** The origin in-store installations call their space's stack service at, in process. */
+/** The origin in-process installations call their space's stack service at, in process. */
 const STACK_ORIGIN = "http://stack.localhost";
 
 /** The redirects a fetch follows at most, as the Fetch standard limits them. */
@@ -89,7 +89,7 @@ const BODY_HEADERS = [
     "content-type",
 ];
 
-/** The origin below which in-store installations address other installations. */
+/** The origin below which in-process installations address other installations. */
 const EGRESS_ORIGIN = `http://egress.localhost${Egress.path}`;
 
 /** What a machine lends the spaces it hosts: its identity, directory, network and servers. */
@@ -114,10 +114,8 @@ export interface SpaceMachine {
     readonly send: (request: Request) => Promise<Response>;
     /** The machine's builds, which installations' revisions read. */
     readonly builds: Pick<SpaceBuildStore, "contents">;
-    /** The servers the machine runs in process, by their package. */
-    readonly servers: readonly PackageImplementation[];
-    /** The release the machine ships of each server's package. */
-    readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
+    /** The releases of the packages the machine links, by package. */
+    readonly linked: ReadonlyMap<PackageId, PackageRelease>;
 }
 
 /** What a hosted space's start lends its installations' servers, as its host decides. */
@@ -138,7 +136,11 @@ export interface SpaceStart {
     readonly buckets: Pick<CatalogueBucketHost, "open">;
     /** Send an installation's call below the machine's egress, as it sends an instance's. */
     readonly egress: (caller: EgressCaller, request: Request) => Promise<Response>;
-    /** Run the hooks of an installation whose package the machine ships no server of. */
+    /** Load the server a build exports, absent for a build exporting none. */
+    readonly server: (manifest: Digest) => Promise<PackageImplementation | undefined>;
+    /** Report an installation the start leaves unserved, such as one whose server fails to load. */
+    readonly report: (error: unknown) => void;
+    /** Run the hooks of an installation served in its sandbox. */
     readonly sandbox: (
         row: InstallationRollout,
         server: InstalledServerContext,
@@ -146,9 +148,9 @@ export interface SpaceStart {
     ) => HookSandbox;
 }
 
-/** The installations a space serves at one start: shipped ones in process, others sandboxed. */
+/** The installations a space serves at one start: trusted ones in the store, others sandboxed. */
 export interface SpaceServers {
-    /** The servers of the shipped installations. */
+    /** The servers of the installations the store runs, loaded from their builds. */
     readonly servers: readonly PackageImplementation[];
     /** The sandboxes of the others' hooks. */
     readonly sandboxes: readonly HookSandbox[];
@@ -349,7 +351,7 @@ export class SpaceHost {
             | "publisher"
             | "publisherAt"
             | "keystore"
-            | "bundled"
+            | "linked"
         >
     > {
         // call the universe as the machine, and claim names at the universe through it
@@ -384,36 +386,75 @@ export class SpaceHost {
                 home: RemoteStore.of(accounts.store, Scope.universe.id),
             },
             environment: this.machine.environment,
-            bundled: this.machine.bundled,
+            linked: this.machine.linked,
             publisher: this.uplink(),
             publisherAt: (home, partition) => this.publisherAt(home, partition),
             keystore: this.keystore,
         };
     }
 
-    /** Serve each installation main applied: a shipped one in process, another in its sandbox. */
+    /** Serve each installation main applied: a trusted one in the store, another in its sandbox. */
     async servers(
         installed: Awaited<ReturnType<typeof Database.installed>>,
         start: SpaceStart,
         signal: AbortSignal,
     ): Promise<SpaceServers> {
-        // serve each installation in process or in its sandbox
+        // load the server of each installation the store runs from its build
+        const loaded = await Promise.all(
+            installed.map(async ({ rollout: row, manifest }) => {
+                // report a server that fails to load, leaving its installation unserved
+                const isLinked =
+                    this.machine.linked.get(row.installation.packageId)?.manifest === manifest;
+                if (row.installation.isolation !== "process" && !isLinked) {
+                    return { kind: "sandbox" } as const;
+                }
+                try {
+                    return { kind: "process", server: await start.server(manifest) } as const;
+                } catch (error) {
+                    const name = row.installation.name ?? row.id;
+                    start.report(
+                        new Error(
+                            `installation ${name} serves nothing: its server failed to load`,
+                            {
+                                cause: error,
+                            },
+                        ),
+                    );
+
+                    return { kind: "unserved" } as const;
+                }
+            }),
+        );
+        const trusted = loaded.flatMap((each) =>
+            each.kind === "process" && each.server !== undefined ? [each.server] : [],
+        );
+
+        // serve each installation in the store or in its sandbox
         const servers: PackageImplementation[] = [];
         const sandboxes: HookSandbox[] = [];
-        for (const { rollout: row, revisionId, manifest, declarations } of installed) {
-            // serve a shipped server in process, with an activation that waits for its revision and any lent grant
-            const shipped = this.#shipped(row, manifest);
-            if (shipped !== undefined) {
-                const caller = this.#callerOnce(row, shipped.package, start);
-                const resources = await this.#resources(row, shipped.package, start, caller);
+        for (const [index, { rollout: row, revisionId, declarations }] of installed.entries()) {
+            // serve a loaded server in the store, activated once its revision and any lent grant exist
+            const load = present(loaded[index], `the load of installation ${row.id}`);
+            const stored = load.kind === "process" ? load.server : undefined;
+            if (load.kind === "unserved") {
+                continue;
+            } else if (stored !== undefined) {
+                const caller = this.#callerOnce(row, stored.package, start);
+                const resources = await this.#resources(
+                    row,
+                    stored.package,
+                    start,
+                    caller,
+                    trusted,
+                );
                 const context = await this.#context(row, revisionId, resources, start, caller);
-                const requested = Rollout.permissions(row.installation, shipped.package, "space");
+                const requested = Rollout.permissions(row.installation, stored.package, "space");
                 const isLent = Object.entries(requested).some(
                     ([scope, each]) => scope !== "space" && each.length > 0,
                 );
                 const activation = (stopped: AbortSignal) =>
                     this.#activate(row, revisionId, isLent, AbortSignal.any([signal, stopped]));
-                servers.push(shipped.at({ ...context, activation }));
+                servers.push(stored.at({ ...context, activation }));
             }
             // run another package's hooks in its sandbox, which binds its resources itself
             else {
@@ -473,36 +514,13 @@ export class SpaceHost {
         }, signal);
     }
 
-    /** Find the server the machine ships for an installation, refusing an unshipped release. */
-    #shipped(row: InstallationRollout, manifest: Digest): PackageImplementation | undefined {
-        // find the server the machine runs for the installation's package
-        const { servers, bundled } = this.machine;
-        const server = servers.find((each) => each.package.id === row.installation.packageId);
-        if (server === undefined) {
-            return undefined;
-        }
-
-        // require the revision to install the release the machine ships with the server
-        const { name } = server.package;
-        const shipped = bundled.get(row.installation.packageId);
-        if (shipped === undefined) {
-            throw StackError.of("RELEASE_NOT_SHIPPED", `this machine has no release of ${name}`);
-        } else if (shipped.manifest !== manifest) {
-            throw StackError.of(
-                "RELEASE_MISMATCH",
-                `${name} only has release ${shipped.manifest}, not ${manifest}`,
-            );
-        }
-
-        return server;
-    }
-
     /** Bind a package's declared resources and secrets to the host's clients for it. */
     async #resources(
         row: InstallationRollout,
         handle: Pick<PackageHandle, "resources" | "secrets">,
         start: SpaceStart,
         caller: () => Promise<EgressCaller>,
+        trusted: readonly PackageImplementation[],
     ): Promise<ResourceContext> {
         const bound = new ResourceContext();
         for (const declaration of [
@@ -511,9 +529,11 @@ export class SpaceHost {
         ]) {
             // refuse a requirement another package declares
             if (!ResourceDeclaration.is(declaration)) {
-                throw new TypeError("an in-process package can only bind its own declarations");
+                throw new TypeError(
+                    `installation ${row.id} binds ${declaration.name}, which is no declaration of this process's resource kinds`,
+                );
             }
-            bound.bind(declaration, await this.#open(row, declaration, start, caller));
+            bound.bind(declaration, await this.#open(row, declaration, start, caller, trusted));
         }
 
         return bound;
@@ -525,6 +545,7 @@ export class SpaceHost {
         declaration: ResourceDeclaration<unknown>,
         start: SpaceStart,
         caller: () => Promise<EgressCaller>,
+        trusted: readonly PackageImplementation[],
     ): Promise<unknown> {
         // read the target the installation binds the declaration to
         const { scope, id } = row;
@@ -534,10 +555,10 @@ export class SpaceHost {
             .findMany({ where: { scope, installationId: id, packageId, name: declaration.name } });
         const found = present(bound, `the binding of ${declaration.name} by ${id}`);
         const { target } = found;
-        const bindable = ObjectBindable.of(this.machine.servers).find(
+        const bindable = ObjectBindable.of(trusted).find(
             (each) => each.declaration === declaration.kind,
         );
-        const provider = [...start.providers, ...StoreProvider.of(this.machine.servers)].find(
+        const provider = [...start.providers, ...StoreProvider.of(trusted)].find(
             (each) => each.kind.name === declaration.kind,
         );
 
@@ -640,7 +661,7 @@ export class SpaceHost {
         return () => (built ??= this.#caller(row, handle, start));
     }
 
-    /** Read an in-store installation as its egress's caller, with what it binds. */
+    /** Read an in-process installation as its egress's caller, with what it binds. */
     async #caller(
         row: InstallationRollout,
         handle: Pick<PackageHandle, "resources">,
@@ -857,7 +878,7 @@ export class SpaceHost {
         };
     }
 
-    /** Build the network an in-store installation reaches: the hosts its sandbox lists. */
+    /** Build the network an in-process installation reaches: the hosts its sandbox lists. */
     #network(name: string, sandbox: Sandbox): Network {
         const { network } = this.machine.environment;
         const allow = (address: SocketAddress) => {

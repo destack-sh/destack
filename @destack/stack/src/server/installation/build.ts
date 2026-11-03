@@ -322,10 +322,38 @@ export class SpaceBuildStore {
     }
 
     /** Bring a build into the machine's cache to run it: the space's own, else a published one. */
-    async pull(
+    pull(
         registry: Pick<Registry, "locate">,
         packageId: PackageId,
         manifest: Digest,
+    ): Promise<BuildReader> {
+        return this.#pull(registry, packageId, manifest, new Map());
+    }
+
+    /** Bring a build into the cache after the builds it pins, visiting each build once per pull. */
+    #pull(
+        registry: Pick<Registry, "locate">,
+        packageId: PackageId,
+        manifest: Digest,
+        visited: Map<Digest, Promise<BuildReader>>,
+    ): Promise<BuildReader> {
+        // share the visit of a build another dependent reached first
+        const known = visited.get(manifest);
+        if (known !== undefined) {
+            return known;
+        }
+        const visiting = this.#visit(registry, packageId, manifest, visited);
+        visited.set(manifest, visiting);
+
+        return visiting;
+    }
+
+    /** Pull a published build with its closure, or the space's own after the builds it pins. */
+    async #visit(
+        registry: Pick<Registry, "locate">,
+        packageId: PackageId,
+        manifest: Digest,
+        visited: Map<Digest, Promise<BuildReader>>,
     ): Promise<BuildReader> {
         // pull a published build with its runtime closure
         if (!(await this.space.contains(manifest))) {
@@ -337,7 +365,7 @@ export class SpaceBuildStore {
         for (const output of Object.values(own.manifest.outputs)) {
             for (const dependency of Object.values(output.dependencies)) {
                 const owner = dependency.kind === "destack" ? dependency.package.id : packageId;
-                await this.pull(registry, PackageId.parse(owner), dependency.manifest);
+                await this.#pull(registry, PackageId.parse(owner), dependency.manifest, visited);
             }
         }
 

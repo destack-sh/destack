@@ -598,6 +598,15 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                 .filter((entry) => entry.conditions["Ready"]?.reason === "WaitingForSpace")
                 .map((entry) => ({ id: entry.id }));
         }),
+        // wake a space's rollouts once its row arrives or changes, as the space serves its applications only then
+        ObjectWatch.of(space.table, async (row, database) => {
+            const rollouts = await database
+                .select({ id: rollout.table.id })
+                .from(rollout.table)
+                .where(eq(rollout.table.scope, row.id));
+
+            return rollouts.map((entry) => ({ id: entry.id }));
+        }),
         ObjectWatch.of(deployment.table, (row) => [{ id: row.installationId }]),
         ObjectWatch.of(binding.table, (row) => [{ id: row.installationId }]),
         // wake the applications of the account's spaces refused for an unentitled capability

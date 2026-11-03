@@ -47,8 +47,8 @@ export class ConsumerController implements ReconcileController {
     readonly #objects: readonly ResourceType<typeof space>[];
     /** The main database declaring the platform's tables in every space's main database. */
     readonly #main: Database;
-    /** The releases the machine ships by package, which the platform's tables are stated at. */
-    readonly #bundled: ReadonlyMap<PackageId, PackageRelease>;
+    /** The releases the machine links by package, which the platform's tables are stated at. */
+    readonly #linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The state of the platform's tables by its digest, per set of replicated tables left out. */
     readonly #platform = new Map<string, Promise<ReadonlyMap<Digest, ResourceState>>>();
 
@@ -57,13 +57,13 @@ export class ConsumerController implements ReconcileController {
         store: Pick<ObjectStore, "database" | "blobs" | "as" | "mutate" | "clock" | "environment">,
         objects: readonly ResourceType<typeof space>[],
         main: Database,
-        bundled: ReadonlyMap<PackageId, PackageRelease>,
+        linked: ReadonlyMap<PackageId, PackageRelease>,
     ) {
-        // store the object store, the kinds' objects, the platform's main database and the shipped releases
+        // store the object store, the kinds' objects, the platform's main database and the linked releases
         this.#store = store;
         this.#objects = objects;
         this.#main = main;
-        this.#bundled = bundled;
+        this.#linked = linked;
 
         // watch the consumers, the spaces and the resources
         this.watches = [
@@ -223,18 +223,16 @@ export class ConsumerController implements ReconcileController {
             .map((state) => state.table.name)
             .join(" ");
 
-        // describe the other tables once per set left out, each at the release the machine ships of its package
+        // describe the other tables once per set left out, each at the release the machine links of its package
         let read = this.#platform.get(key);
         if (read === undefined) {
             const kept = (states: readonly TableState[]) =>
                 states
                     .filter((state) => !isOwned(state))
                     .map((state) => {
-                        const shipped = this.#bundled.get(state.package.id);
+                        const linked = this.#linked.get(state.package.id);
 
-                        return shipped === undefined
-                            ? state
-                            : { ...state, package: shipped.package };
+                        return linked === undefined ? state : { ...state, package: linked.package };
                     });
             const state = {
                 tables: { sqlite: kept(tables.sqlite), postgresql: kept(tables.postgresql) },

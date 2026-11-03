@@ -16,6 +16,8 @@ import {
     snapshot,
     socket,
     transfer,
+    reading,
+    usage,
 } from "./object/index.ts";
 import { StackError } from "./error/error.ts";
 
@@ -51,6 +53,8 @@ export default definePackage({
         declaration,
         symbol,
         catalog,
+        reading,
+        usage,
     },
     // the index of the space's builds, beside its objects
     tables: BUILD_STORE_TABLES,

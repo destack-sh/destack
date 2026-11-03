@@ -3,14 +3,14 @@ import { StackError } from "../error/index.ts";
 import { PROCESS_RUNTIME } from "../object/index.ts";
 import type { InstanceSpec, Runtime } from "./runtime.ts";
 
-/** The machine's own process, which serves the deployments of the servers it ships in its store. */
+/** The machine's own process, which serves the deployments of the servers its store runs. */
 export class ProcessRuntime implements Runtime {
     /** The runtime of deployments served in process. */
     readonly name = PROCESS_RUNTIME;
     /** The instances served in process, by instance. */
     readonly #running = new Map<Identifier<"instance">, InstanceSpec>();
 
-    /** Record an instance served, as the machine's store serves its shipped server already. */
+    /** Record an instance served, as the machine's store serves the server already. */
     async start(spec: InstanceSpec): Promise<void> {
         this.#running.set(spec.instanceId, spec);
     }

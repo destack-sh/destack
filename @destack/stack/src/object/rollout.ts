@@ -415,6 +415,8 @@ export interface RevisionOptions {
     readonly blobs: BlobStore;
     /** The forge whose references and tags installations select, null without one. */
     readonly forge: Forge | null;
+    /** The types the kernel declares, which packages implement and their descriptions refer to. */
+    readonly kernel: readonly ObjectType[];
 }
 
 /** The build a selection resolves to: the space's build, its manifest and source. */
@@ -1251,7 +1253,7 @@ export const InstallationRevision = {
         target: Pick<Installation, "name" | "capabilities" | "allowed">,
         reader: BuildReader,
         objects: readonly ObjectType[],
-        options: Pick<RevisionOptions, "builds" | "registry" | "blobs">,
+        options: Pick<RevisionOptions, "builds" | "registry" | "blobs" | "kernel">,
     ): Promise<Pick<InstallationRevision, "dependencies" | "states">> {
         // read the installable packages it depends on, at the releases it compiled against
         const { builds, registry, blobs } = options;
@@ -1486,7 +1488,7 @@ async function mainTables(
     reader: BuildReader,
     revision: Pick<InstallationRevision, "dependencies">,
     objects: readonly ObjectType[],
-    options: Pick<RevisionOptions, "builds" | "registry">,
+    options: Pick<RevisionOptions, "builds" | "registry" | "kernel">,
 ): Promise<DatabaseState | undefined> {
     // declare no tables for a package declaring no object types
     const packageId = PackageManifest.package(reader.manifest).id;
@@ -1496,7 +1498,10 @@ async function mainTables(
     }
 
     // read the types the builds of the packages it needs declare, reading none of a package the pool knows
-    const pooled = ObjectType.known(objects, Object.values(accountPackage.objects));
+    const pooled = ObjectType.known(objects, [
+        ...Object.values(accountPackage.objects),
+        ...options.kernel,
+    ]);
     const known = new Set(objects.map((type) => ObjectTypeReference.key(type.typeReference)));
     const pooledPackages = new Set(pooled.map((type) => type.package.id));
     const description = await PackageDescription.of(reader);
@@ -1521,11 +1526,11 @@ async function mainTables(
     // declare the package's own types against the served ones and those of its dependencies
     const declared = ObjectTypePool.of(pooled).declare([...unserved, ...owned]);
 
-    // describe its durable objects' tables, placing the other packages' they refer to
+    // describe its durable and events objects' tables, placing the other packages' they refer to
     const others = objects.filter((type) => type.package.id !== packageId);
     const tables = new Set(
         [...others, ...declared]
-            .filter((type) => type.storage === "durable")
+            .filter((type) => type.storage === "durable" || type.storage === "events")
             .flatMap((type) => type.tables),
     );
 

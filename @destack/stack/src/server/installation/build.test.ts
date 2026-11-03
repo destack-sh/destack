@@ -4,7 +4,7 @@ import { testSimulation } from "@destack/object/test";
 import { Package, type PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { Commit, type Digest } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, test, vi } from "@destack/test";
 import { fixtureOutputs, TestRegistry, workload } from "../../test/build.ts";
 import { BuildCache, SpaceBuildStore } from "./build.ts";
 
@@ -15,6 +15,13 @@ const TINY = { name: "tiny", version: "1.0.0", integrity: "sha512-dGlueQ==" };
 const LIBRARY = Package.parse({
     id: "package-01996ab0-0000-7000-8000-00000000b001",
     name: "@example/library",
+    version: "2026.9.0",
+});
+
+/** The second library the application depends on, pinning the same npm unit as the first. */
+const OTHER_LIBRARY = Package.parse({
+    id: "package-01996ab0-0000-7000-8000-00000000b003",
+    name: "@example/other-library",
     version: "2026.9.0",
 });
 
@@ -134,5 +141,87 @@ test("pull the Bun outputs of a release's runtime closure, locating each build o
             [false, true],
         ],
         isTypeStored: false,
+    });
+});
+
+test("pull a space's own build whose dependencies share a build, reading each build once", async () => {
+    // build an npm unit, two libraries pinning it, and an application pinning both, all in the space
+    const environment = testSimulation().environment("test");
+    const { crypto } = environment;
+    await using space = await TestBuildStore.create(environment);
+    const unit = await MemoryBuild.write(
+        new Map([["package.json", new TextEncoder().encode(JSON.stringify(TINY))]]),
+        {
+            package: TINY,
+            outputs: fixtureOutputs({
+                bun: { runtime: "bun", emit: true, workloads: {}, views: {} },
+            }),
+        },
+        crypto,
+    );
+    const unitManifest = await space.put(unit);
+    const tiny = {
+        kind: "npm" as const,
+        package: { name: TINY.name, version: TINY.version },
+        registry: "https://registry.npmjs.org",
+        integrity: TINY.integrity,
+        manifest: unitManifest,
+    };
+    const pinningTiny = {
+        commit: COMMIT,
+        outputs: fixtureOutputs({
+            bun: { runtime: "bun", emit: true, workloads: {}, views: {}, dependencies: { tiny } },
+        }),
+    } as const;
+    const libraryManifest = await space.put(await MemoryBuild.of(LIBRARY, [], crypto, pinningTiny));
+    const otherManifest = await space.put(
+        await MemoryBuild.of(OTHER_LIBRARY, [], crypto, pinningTiny),
+    );
+    const applicationManifest = await space.put(
+        await MemoryBuild.of(APPLICATION, [], crypto, {
+            commit: COMMIT,
+            outputs: fixtureOutputs({
+                bun: {
+                    runtime: "bun",
+                    emit: true,
+                    workloads: {},
+                    views: {},
+                    dependencies: {
+                        [LIBRARY.name]: {
+                            kind: "destack",
+                            package: LIBRARY,
+                            manifest: libraryManifest,
+                        },
+                        [OTHER_LIBRARY.name]: {
+                            kind: "destack",
+                            package: OTHER_LIBRARY,
+                            manifest: otherManifest,
+                        },
+                    },
+                },
+            }),
+        }),
+    );
+
+    // pull the application, counting the space's reads of each build
+    await using pulled = await TestBuildStore.create(environment);
+    const reads = vi.spyOn(space, "contents");
+    const builds = new SpaceBuildStore(space, new BuildCache(pulled, ["bun"]));
+    await builds.pull(
+        { locate: () => Promise.reject(new Error("no build is published")) },
+        APPLICATION.id,
+        applicationManifest,
+    );
+
+    // read the application, each library and the shared unit once
+    const counted = new Map<string, number>();
+    for (const [manifest] of reads.mock.calls) {
+        counted.set(String(manifest), (counted.get(String(manifest)) ?? 0) + 1);
+    }
+    expect(Object.fromEntries(counted)).toEqual({
+        [String(applicationManifest)]: 1,
+        [String(libraryManifest)]: 1,
+        [String(otherManifest)]: 1,
+        [String(unitManifest)]: 1,
     });
 });

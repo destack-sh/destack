@@ -1,4 +1,5 @@
 import { account, Entitlement, Space, space } from "@destack/account/object";
+import type { ObjectType } from "@destack/object";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { DeclarationReference } from "@destack/package/declare";
@@ -94,12 +95,14 @@ export interface ApplicationOptions {
     readonly isEnforcingEntitlements: boolean;
     /** The space's database, with the replicas of its account's entitlements. */
     readonly database: DatabaseConnection;
-    /** The release the machine serves in process of each package it ships, by package. */
-    readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
+    /** The release the machine links of each package, by package. */
+    readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The space's blobs, storing the states its revisions require. */
     readonly blobs: BlobStore;
     /** The forge whose references and tags installations select, null without one. */
     readonly forge: Forge | null;
+    /** The types the kernel declares, which packages implement and their descriptions refer to. */
+    readonly kernel: readonly ObjectType[];
 }
 
 /** What a revision deploys: its build, workloads, replaced deployments and needs. */
@@ -130,7 +133,7 @@ interface BuildWorkload {
     readonly output: string;
     /** The package-local workload name. */
     readonly name: string;
-    /** The output's runtime, or the machine's process for a shipped server. */
+    /** The output's runtime, or the machine's process for a server the store runs. */
     readonly runtime: DeploymentRuntime;
     /** The workload's description, with the sandbox it runs with. */
     readonly description: (typeof deployment.table.$inferSelect)["description"];
@@ -140,7 +143,7 @@ interface BuildWorkload {
     readonly enabled: readonly string[];
 }
 
-/** The workload of a shipped server, which the machine's process serves in its store. */
+/** The workload of a server the store runs in the machine's process. */
 const PROCESS_WORKLOAD = "server";
 
 /** The ready reasons of an application refusing to deploy a build, apart from those it waits on. */
@@ -178,13 +181,13 @@ export class ApplicationInstallation {
 
     /** Target an unmanaged installation's release, deploy it in a served space, then relate it. */
     async reconcile(reconciliation: ObjectReconciliation): Promise<undefined> {
-        // leave the application of a space not served here
+        // leave the application of a space not served here, or suspended until its resume wakes it
         const target = this.#target;
         const [served] = await reconciliation.database
-            .select({ id: space.table.id })
+            .select({ suspendedAt: space.table.suspendedAt })
             .from(space.table)
             .where(and(eq(space.table.id, target.scope), Space.served()));
-        if (served === undefined) {
+        if (served === undefined || served.suspendedAt !== null) {
             return undefined;
         }
 
@@ -324,10 +327,11 @@ export class ApplicationInstallation {
             revision.buildId,
         );
 
-        // serve a shipped server's release in the machine's process, else select its build's workloads
-        const isShipped =
-            this.#options.bundled.get(target.installation.packageId)?.manifest === built.manifest;
-        const { workloads, stranded } = isShipped
+        // serve a linked release or a trusted installation's build in the store, else select its build's workloads
+        const isStored =
+            this.#options.linked.get(target.installation.packageId)?.manifest === built.manifest ||
+            target.installation.isolation === "process";
+        const { workloads, stranded } = isStored
             ? { workloads: [this.#processWorkload(description)], stranded: [] }
             : this.#selectWorkloads(build, description);
 
@@ -502,13 +506,13 @@ export class ApplicationInstallation {
             return { reason: "NoRuntime", message };
         }
 
-        // refuse a package routing hooks that nothing serves: its build's hook workload, or the machine in process
+        // refuse a package routing hooks that nothing serves: its build's hook workload, or the store
         const isHooked = Object.values(description?.objects ?? {}).some(
             (routed) => Object.keys(routed.hooks).length > 0,
         );
         const isHosted =
-            this.#options.bundled.get(PackageManifest.package(build.manifest).id)?.manifest ===
-            manifest;
+            this.#options.linked.get(PackageManifest.package(build.manifest).id)?.manifest ===
+                manifest || this.#target.installation.isolation === "process";
         const isServed =
             isHosted ||
             Object.values(build.manifest.outputs).some((output) =>
@@ -520,7 +524,7 @@ export class ApplicationInstallation {
             return { reason: "UnservedHook", message };
         }
 
-        // refuse a package declaring adapters that nothing answers: a workload of its build, or the machine in process
+        // refuse a package declaring adapters that nothing answers: a workload of its build, or the store
         const isAdapted = Object.keys(description?.adapters ?? {}).length > 0;
         const isAnswered =
             isHosted ||
@@ -942,7 +946,7 @@ export class ApplicationInstallation {
         return await this.#options.builds.pull(this.#options.registry, packageId, release.manifest);
     }
 
-    /** Describe the workload of a shipped server, which the machine serves in its process. */
+    /** Describe the workload of a server the store runs in the machine's process. */
     #processWorkload(description: PackageDescription | undefined): BuildWorkload {
         return {
             output: PROCESS_RUNTIME,

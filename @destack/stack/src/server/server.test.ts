@@ -33,16 +33,20 @@ function isInSpace(type: ObjectType): boolean {
     );
 }
 
-test("serve as a space's kernel the installer and each package it depends on with types stored in a space", async () => {
-    // read the object packages stack depends on, by their manifests' package export
+test("serve as a space's kernel the installer and each package it depends on serving its own types stored in a space", async () => {
+    // read the object packages stack depends on in the workspace, by their manifests' package and server exports
     const installable: PackageHandle[] = [];
-    for (const name of Object.keys(manifest.dependencies)) {
+    const workspace = Object.keys(manifest.dependencies).filter((name) =>
+        name.startsWith("@destack/"),
+    );
+    for (const name of workspace) {
         const directory = name.slice(name.indexOf("/") + 1);
         const read: unknown = await import(`../../../${directory}/package.json`, {
             with: { type: "json" },
         });
-        if (Object.hasOwn(Module.parse(read).default.exports, "./package")) {
-            // take an object package's handle, leaving a package declaring no objects
+        const { exports } = Module.parse(read).default;
+        if (Object.hasOwn(exports, "./package") && Object.hasOwn(exports, "./server")) {
+            // take the handle of an object package serving itself, leaving a contract another package serves
             const imported: unknown = await import(`${name}/package`);
             const handle = Handle.parse(imported).default;
             if (isObjectPackage(handle)) {
@@ -51,7 +55,7 @@ test("serve as a space's kernel the installer and each package it depends on wit
         }
     }
 
-    // derive the kernel: the installer and the dependencies with types stored in a space
+    // derive the kernel: the installer and the dependencies serving their own types stored in a space
     const derived = [
         stackPackage,
         ...installable.filter((handle) =>

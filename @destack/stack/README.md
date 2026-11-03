@@ -6,7 +6,7 @@
 // a stack, as Pulumi and CloudFormation declare one
 export const personal = defineStack({
     resources,
-    installations: { pages: install(pages, { files: "files" }) },
+    installations: { notes: install(notes, { files: "files" }) },
 });
 // a release by npm dist-tag, recorded at its resolved version as a lockfile does
 await client.rollout.submit({
@@ -33,16 +33,16 @@ await reconciliation.mutate([rollout.call("target", { ...rollout.target(managed)
 `defineStack` declares a space's resources, installations, roles, relationships and routes, and `install` installs a package with its bindings.
 
 ```ts
-import pages from "@app/pages/package";
+import notes, { note } from "@acme/notes/package";
 import { defineStack, install } from "@destack/stack";
 import { files } from "@template/stack";
 
 export const personal = defineStack({
     resources: { files: { declaration: files, retention: { within: { days: 30 } }, tags: {} } },
-    // allow pages its optional publishing capability
-    installations: { pages: install(pages, { files: "files" }, { capabilities: ["publishing"] }) },
-    roles: { editor: { description: "Edit pages", permissions: [page.permission("update")] } },
-    relationships: { pages: { subject: { kind: "installation", name: "pages" }, role: "editor" } },
+    // allow notes its optional publishing capability
+    installations: { notes: install(notes, { files: "files" }, { capabilities: ["publishing"] }) },
+    roles: { editor: { description: "Edit notes", permissions: [note.permission("update")] } },
+    relationships: { notes: { subject: { kind: "installation", name: "notes" }, role: "editor" } },
 });
 ```
 
@@ -182,6 +182,6 @@ await installer.installation.create({
     requestId,
     packageId,
     selection,
-    name: "pages",
+    name: "notes",
 });
 ```

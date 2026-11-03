@@ -1,4 +1,5 @@
 import { PROCESS_RUNTIME } from "../object/index.ts";
+import { KERNEL_TYPES } from "../stack/kernel.ts";
 import { type BlobStore, type Database, type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { principal } from "@destack/access";
 import { hostname, machine } from "@destack/account/object";
@@ -106,6 +107,8 @@ export interface SpaceOptions {
     readonly bases: ReadonlyMap<PackageId, BaseServerContext>;
     /** The principal the store's own work runs as. */
     readonly principal: Subject;
+    /** Report an installation the space leaves unserved, such as a sandbox of unserved types. */
+    readonly report: (error: unknown) => void;
     /** The partitions the space serves: itself, and its account when it is the home. */
     readonly partitions: readonly string[];
     /** The space's database. */
@@ -145,8 +148,8 @@ export interface SpaceOptions {
     readonly sandboxes: readonly HookSandbox[];
     /** The registry of published releases. */
     readonly registry: Registry;
-    /** The release the machine ships of each package it serves in process, by package. */
-    readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
+    /** The release the machine links of each package, by package. */
+    readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The platform's declaration of every space's main database, with the platform's tables. */
     readonly main: Database;
     /** The host of the spaces' buckets. */
@@ -235,8 +238,7 @@ function primaryControllers(
                 options.machine,
                 options,
             ),
-        (store) =>
-            new ConsumerController(store, providers.objects(), options.main, options.bundled),
+        (store) => new ConsumerController(store, providers.objects(), options.main, options.linked),
         (store) => new RetentionController(store, options.builds),
         ...options.providers.flatMap((provider) =>
             (provider.controllers ?? []).map((controller) => () => controller),
@@ -292,6 +294,7 @@ export function serveSpace(options: SpaceOptions): {
         present(options.bases.get(handle.id), `the base installation of ${handle.name}`);
     const born = [stack.at(base(stackPackage)), access.at(base(objectPackage))];
     const store = new ObjectStore({
+        report: options.report,
         servers:
             options.role === "primary"
                 ? [
@@ -416,10 +419,11 @@ function installationOptions(
         runtimes: options.runtimes.filter((runtime) => runtime.name !== PROCESS_RUNTIME),
         accounts: options.accounts,
         forge: options.forge,
+        kernel: KERNEL_TYPES,
         issuer: options.keystore.issuer(options.database, options.principal.id),
         isEnforcingEntitlements: options.isEnforcingEntitlements,
         database: options.database,
-        bundled: options.bundled,
+        linked: options.linked,
     };
 }
 
@@ -435,9 +439,9 @@ function stackObjects(served: readonly ObjectType[]): ObjectType[] {
 /** Serve the space's installations' settings, read from the builds they install. */
 function installedSettingsServer(options: SpaceOptions): PackageImplementation {
     const declared = Setting.declared(async (written, view) => {
-        // read the declaring package's build from the release serving it: an installation's revision, else the machine's shipped release
+        // read the declaring package's build from the release serving it: an installation's revision, else the machine's linked release
         const spaceId = schema.identifier("space").parse(written.scope);
-        const shipped = options.bundled.get(written.packageId);
+        const linked = options.linked.get(written.packageId);
         const installed = await view
             .read(installation.table)
             .findMany({ where: { scope: spaceId, packageId: written.packageId } });
@@ -446,13 +450,13 @@ function installedSettingsServer(options: SpaceOptions): PackageImplementation {
         });
 
         // answer none for a package the space does not install yet, whose stack waits for it
-        if (installed.length === 0 && shipped === undefined) {
+        if (installed.length === 0 && linked === undefined) {
             return undefined;
         }
 
-        return following.length > 0 || shipped === undefined
+        return following.length > 0 || linked === undefined
             ? Rollout.reader(view, spaceId, written.packageId, written.installation, options)
-            : options.builds.pull(options.registry, written.packageId, shipped.manifest);
+            : options.builds.pull(options.registry, written.packageId, linked.manifest);
     });
 
     return settingServer({ declared, after: [rollout] });

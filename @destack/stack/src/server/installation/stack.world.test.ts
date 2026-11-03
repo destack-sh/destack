@@ -6,7 +6,7 @@ import { STACKS } from "@destack/account/test";
 import { space } from "@destack/account/object";
 import { type SpaceOptions, serveSpace } from "../index.ts";
 import { pathToFileURL } from "node:url";
-import { PACKAGE_DECLARATION, PackageHandle } from "@destack/object";
+import { PACKAGE_DECLARATION, PackageHandle, SERVER_EXPORT } from "@destack/object";
 import { expect, refusal, test } from "@destack/test";
 import { and, databaseProvider, defineDatabase, eq, isNotNull } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
@@ -219,6 +219,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
         compute: {},
         capabilities: [],
         directories: [],
+        isolation: "sandbox",
         tags: {},
     };
     const stack = await readStack(database);
@@ -313,6 +314,7 @@ test("leave a declared installation whose fields are unchanged as it is when its
         compute: {},
         capabilities: [],
         directories: [],
+        isolation: "sandbox",
         tags: {},
     };
     const store = await serve(fixture);
@@ -378,6 +380,7 @@ test("replace an installation's own binding once its stack binds the declaration
         compute: {},
         capabilities: [],
         directories: [],
+        isolation: "sandbox",
         tags: {},
     };
     const stack = await readStack(database);
@@ -462,6 +465,7 @@ test("bind a declaration to an installation of another space by name, unpinned, 
             compute: {},
             capabilities: [],
             directories: [],
+            isolation: "sandbox",
             tags: {},
         };
         const submitted = await submit(fixture, store, stack, {
@@ -618,6 +622,7 @@ test("install a package and declare records of its type in one approved plan, ap
         compute: {},
         capabilities: [],
         directories: [],
+        isolation: "sandbox",
         tags: {},
     };
     const definition = { installations: { notes }, meters: { main: {} } };
@@ -741,7 +746,7 @@ async function fixtureRelease(
     environment: Environment,
     id: string = Identifier.create("package", environment),
 ): Promise<FixtureRelease> {
-    // describe the package as installable with a type stored in a space, else as a library
+    // describe the package as installable, serving a type stored in a space, else as a library
     const owner = Package.parse({ id, name, version });
     const declared = isInstallable
         ? [
@@ -759,8 +764,20 @@ async function fixtureRelease(
               },
           ]
         : [];
+    const outputs = fixtureOutputs({
+        server: {
+            runtime: "bun",
+            emit: true,
+            workloads: {},
+            views: {},
+            exports: isInstallable
+                ? { [SERVER_EXPORT]: { path: "server/index.js", imports: [] } }
+                : {},
+        },
+    });
     const build = await MemoryBuild.of(owner, declared, environment.crypto, {
         dependencies: resolutions(dependencies),
+        outputs,
     });
     const manifest = await Digest.of(
         new TextEncoder().encode(`${name}@${version}`),

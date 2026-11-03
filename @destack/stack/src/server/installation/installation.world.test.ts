@@ -370,7 +370,7 @@ test("relate a shipped server as consumer of the bucket it binds while its revis
     );
     const fixture = await TestSpace.open({
         servers: [implementPackage(boxes, { objects: [] })],
-        bundled: [build],
+        linked: [build],
     });
     const served = await fixture.serve();
     const installed = await fixture.install(served, build);

@@ -1,4 +1,5 @@
 import { Account, Space, space } from "@destack/account/object";
+import { KERNEL_TYPES } from "../../stack/kernel.ts";
 import { Identifier, type JsonObject, schema } from "@destack/schema";
 import {
     and,
@@ -43,6 +44,8 @@ export interface StackOptions {
     readonly blobs: BlobStore;
     /** The forge whose references and tags installations select, null without one. */
     readonly forge: Forge | null;
+    /** The types the kernel declares, which packages implement and their descriptions refer to. */
+    readonly kernel: readonly ObjectType[];
 }
 
 /** The space's stack installation: it applies its document and targets what it manages. */
@@ -363,9 +366,9 @@ async function installedTypes(
         }),
     );
 
-    // declare them against the space's types and account's, which they refer to
+    // declare them against the space's types, the account's and the kernel's, which they refer to
     const pool = ObjectTypePool.of(
-        ObjectType.known(objects, Object.values(accountPackage.objects)),
+        ObjectType.known(objects, [...Object.values(accountPackage.objects), ...KERNEL_TYPES]),
     );
 
     // report an installation the document declares that follows no build yet

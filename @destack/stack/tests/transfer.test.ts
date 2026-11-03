@@ -531,7 +531,10 @@ test("move every table of the space database with rows in spaces, leaving out th
         packages: [{ objects: { note: sharedNote }, tables: [] }],
     });
     const moving = { id: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
-    const steps = await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE);
+
+    // plan the move from the served store, whose servers declared their tables
+    const served = await fixture.serve();
+    const steps = await SpaceTransfer.of(served.store, moving, UNKNOWN_MACHINE);
     // list the transfer table first, then the logged space tables in declaration order,
     //  leaving out the space's row from the universe
     expect(steps.space.tables.map((table) => table[TABLE].sqlName)).toEqual([
@@ -559,11 +562,19 @@ test("move every table of the space database with rows in spaces, leaving out th
         "destack__stack__instance",
         "destack__stack__build",
         "destack__stack__route",
+        "destack__stack__reading",
         "destack__setting__setting",
         "destack__stack__database",
         "destack__stack__bucket",
         "destack__stack__dependency",
         "destack__stack__https",
+        "destack__stack__mail",
+        "destack__stack__git",
+        "destack__registry__repository",
+        "destack__registry__reference",
+        "destack__registry__package",
+        "destack__registry__release",
+        "destack__registry__tag",
         "destack__stack__shared_note",
         "destack__object__chunk",
         "destack__object__chunk_run",
