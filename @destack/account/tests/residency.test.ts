@@ -39,13 +39,12 @@ import { claimNames, firstPage, place } from "./fixture.ts";
 import {
     Claim,
     Claimant,
-    PACKAGE_DECLARATION,
+    PACKAGE_KIND,
     PackageHandle,
     QUERIES_PUBLICATION,
     RESERVATION_MILLISECONDS,
 } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
-import objectPackage from "@destack/object/package";
 import { Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 
@@ -509,8 +508,7 @@ test("relate an installation its residency's space declares once its release ask
                 owner,
                 [
                     {
-                        kind: PACKAGE_DECLARATION,
-                        kindPackageId: objectPackage.id,
+                        ...PACKAGE_KIND.identity,
                         name: "default",
                         description: describePackage(handle),
                     },
@@ -602,8 +600,7 @@ test("let an installation its residency's home declares provide entitlements in 
                 billing,
                 [
                     {
-                        kind: PACKAGE_DECLARATION,
-                        kindPackageId: objectPackage.id,
+                        ...PACKAGE_KIND.identity,
                         name: "default",
                         description: describePackage(
                             PackageHandle.of(billing, {
