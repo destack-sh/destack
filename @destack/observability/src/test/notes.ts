@@ -1,6 +1,6 @@
 import { testHost } from "@destack/test/host";
 import { space } from "@destack/account/object";
-import { defineObject, field, OBJECT_DECLARATION, ObjectDescription } from "@destack/object";
+import { defineObject, field, OBJECT_KIND, ObjectDescription } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { graph, Package } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
@@ -91,8 +91,7 @@ export const TestNotes = {
 async function notesModule(): Promise<graph.Module> {
     // declare the `note` object at `Note` and the `rename` method it derives
     const object = graph.Declaration.at(symbol("Note"), {
-        kind: OBJECT_DECLARATION,
-        kindPackageId: objectPackage.id,
+        ...OBJECT_KIND.identity,
         name: note.name,
         description: ObjectDescription.of(note),
     });
