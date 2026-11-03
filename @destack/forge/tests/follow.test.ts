@@ -8,7 +8,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { Commit, Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { build, installationRevision, rollout } from "@destack/stack/object";
-import { serveSpace } from "@destack/stack/server";
+import { SpaceStore } from "@destack/stack/server";
 import stackPackage from "@destack/stack/package";
 import objectPackage from "@destack/object/package";
 import { ids, reconcile, TestSpace } from "@destack/stack/test";
@@ -169,7 +169,7 @@ async function serveCommits() {
     const owner = served.as(fixture.owner.subject).client(stackPackage);
     const installer = served.as(fixture.owner.subject).client(objectPackage);
     const options = await fixture.options(followed);
-    const store = serveSpace(options).store;
+    const store = new SpaceStore(options).store;
     const follow = (id: string) => reconcile(store, "rollout", { id });
 
     // install a package following the main branch of a repository in the space's account
