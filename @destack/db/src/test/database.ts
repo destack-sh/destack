@@ -196,7 +196,7 @@ export class TestDatabase<
         run: { readonly id: string; readonly directory: string },
     ): Promise<TemplateImage> {
         // open the template's world, then each database migrated in turn, named by the digest of the template's name and its own
-        const simulation = new Simulation(template.world);
+        await using simulation = new Simulation(template.world);
         const environment = simulation.environment(TEMPLATE_NODE);
         const opened = new Map<string, ImageDatabase>();
         let value: Value;

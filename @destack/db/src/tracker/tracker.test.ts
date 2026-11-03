@@ -7,7 +7,7 @@ import { Simulation } from "@destack/environment/simulation";
 const HEARTBEAT = 5;
 
 test("replicate which instance tracks an owner, released everywhere at its last release or once its instance stops", async () => {
-    const simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(), simulation);
     const west = open(join(), simulation);
@@ -38,7 +38,7 @@ test("replicate which instance tracks an owner, released everywhere at its last 
 });
 
 test("hand a late instance the tracked owners, and count a silent instance stopped after three missed heartbeats", async () => {
-    const simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(), simulation);
     east.track("alice");
@@ -75,7 +75,7 @@ test("hand a late instance the tracked owners, and count a silent instance stopp
 });
 
 test("count an unknown instance live only until this one could receive from it, and report each instance that stops", async () => {
-    const simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(), simulation);
     const west = open(join(), simulation);
@@ -102,7 +102,7 @@ test("count an unknown instance live only until this one could receive from it, 
 });
 
 test("deliver a broadcast on every instance with its sender, and track alone without a channel", async () => {
-    const simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(), simulation);
     const west = open(join(), simulation);
@@ -135,7 +135,7 @@ test("deliver a broadcast on every instance with its sender, and track alone wit
 });
 
 test("skip the messages a channel echoes back to their sender, as PostgreSQL's does", async () => {
-    const simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(), simulation);
     const echo = join();
@@ -154,7 +154,7 @@ test("skip the messages a channel echoes back to their sender, as PostgreSQL's d
 });
 
 test("announce a mark at once and a refresh with the next heartbeat, hand a late instance the marks, and forget unmarked and stopped ones", async () => {
-    const simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(), simulation);
     const west = open(join(), simulation);
