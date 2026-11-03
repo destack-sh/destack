@@ -27,7 +27,7 @@ export async function connectBunSqlite<
             for (const pragma of [
                 `busy_timeout = ${BUSY_TIMEOUT_MILLISECONDS}`,
                 "journal_mode = WAL",
-                "synchronous = FULL",
+                "synchronous = NORMAL",
                 "foreign_keys = ON",
             ]) {
                 database.run(`PRAGMA ${pragma}`);

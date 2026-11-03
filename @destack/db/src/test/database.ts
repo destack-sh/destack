@@ -420,7 +420,7 @@ export class TestDatabase<
         );
         const file = join(directory, "test.db");
 
-        // migrate a template as a lifetime, as it runs the world's effects
+        // migrate a template as a long operation, as it runs the world's effects
         const source =
             template ??
             (options.isMigrated === true
