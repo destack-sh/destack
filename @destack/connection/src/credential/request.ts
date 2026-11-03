@@ -73,7 +73,7 @@ export const ConnectionRequest = {
     /** Lease a connection's credential at its primary as the consumer, applied to its request. */
     async lease(
         primary: ClientOf<typeof connectionPackage>,
-        reference: ObjectReference,
+        reference: Pick<ObjectReference, "scope" | "id">,
         request: Request,
         now: number,
         crypto: Crypto,
