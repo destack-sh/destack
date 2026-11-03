@@ -44,6 +44,7 @@
             "describes": [
                 {
                     "kind": "resource",
+                    "package": "@destack/resource",
                     "function": "./inspect#describeBucket"
                 }
             ]
