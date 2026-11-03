@@ -10,7 +10,7 @@ test("register the terminal command once in the user's shell file, keeping their
     const { files } = testSimulation().environment("setup");
     const home = await files.makeTemporaryDirectory("destack-shell-");
     onTestFinished(() => files.remove(home, { recursive: true }));
-    const simulation = new Simulation({
+    await using simulation = new Simulation({
         seed: 1,
         start: 0,
         host: { os: "darwin", architecture: "arm64", version: "24.1.0", hostname: "mac", home },

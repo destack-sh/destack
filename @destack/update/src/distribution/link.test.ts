@@ -11,7 +11,7 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
     const directory = await files.makeTemporaryDirectory("destack-menu-");
     onTestFinished(() => files.remove(directory, { recursive: true, force: true }));
     const data = join(directory, "share");
-    const simulation = new Simulation({
+    await using simulation = new Simulation({
         seed: 1,
         start: 0,
         host: {
