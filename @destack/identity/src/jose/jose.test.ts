@@ -215,13 +215,11 @@ test("fetch a remote key set once while it is fresh, again once it is stale, and
     };
     await lookup("key-1");
     await lookup("key-1");
-    await simulation.clock.sleep(TEST_START + 61_000 - simulation.clock.now());
-    await simulation.idle();
+    await simulation.run(TEST_START + 61_000);
     await lookup("key-1");
     published.push({ ...exported, kid: "key-2" });
     await lookup("key-2");
-    await simulation.clock.sleep(TEST_START + 72_000 - simulation.clock.now());
-    await simulation.idle();
+    await simulation.run(TEST_START + 72_000);
     await lookup("key-2");
 
     expect(lookups).toEqual([1, 1, 1, 1, 1, 2, "no key of the set signed the token", 2, 1, 3]);
