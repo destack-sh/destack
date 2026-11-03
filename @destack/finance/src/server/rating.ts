@@ -6,7 +6,7 @@ import type { MethodContext } from "@destack/object";
 import { type Identifier, present } from "@destack/schema";
 import { CallError } from "@destack/object";
 import type { ReleaseReader } from "../release/reader.ts";
-import type { Meter } from "@destack/observability/meter";
+import type { Meter } from "@destack/telemetry/meter";
 import { Period } from "../rate/period.ts";
 import {
     charge,

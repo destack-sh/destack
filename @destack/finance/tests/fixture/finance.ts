@@ -33,7 +33,7 @@ import { TestFinance, type FinanceFixtureOptions, ids, type Person } from "../..
 
 export { ids, type Person, spaces } from "../../src/test/index.ts";
 import type { Feature, FeatureGrant } from "../../src/feature/index.ts";
-import type { Meter } from "@destack/observability/meter";
+import type { Meter } from "@destack/telemetry/meter";
 import type { Package } from "@destack/package";
 import {
     archived,

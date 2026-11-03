@@ -12,7 +12,7 @@ import {
 import { build, installationRevision, rollout } from "@destack/stack/object";
 import { call, installation, journal } from "@destack/object";
 import { defineDatabase } from "@destack/db";
-import { packageObject, release, tag } from "@destack/forge/object";
+import { packageObject, release, tag } from "@destack/registry/object";
 import { messageTables } from "@destack/message/stack";
 import { notificationTables } from "@destack/notification/stack";
 import {
@@ -26,8 +26,8 @@ import {
     seller,
     subscription,
     subscriptionItem,
-    usage,
 } from "../object/index.ts";
+import { usage } from "@destack/stack/object";
 
 /** The tables of the residency home's main database that finance uses, with its replicas. */
 export const homeDatabase = defineDatabase({

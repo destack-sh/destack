@@ -1,4 +1,5 @@
-import { charge, usage } from "../object/index.ts";
+import { usage } from "@destack/stack/object";
+import { charge } from "../object/index.ts";
 import type { Metering } from "./metering.ts";
 
 /** Implement charges: rating a claimed page of an account's usage into its lines. */

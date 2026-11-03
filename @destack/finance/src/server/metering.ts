@@ -1,4 +1,6 @@
 import { DeclarationReference } from "@destack/package/declare";
+import { CallError } from "@destack/object";
+import type { StackPlan } from "@destack/object/server";
 import type { Call } from "@destack/sync";
 import { residency } from "@destack/account/object";
 import { AccessContext } from "@destack/access";
@@ -8,7 +10,7 @@ import type { BuildReader } from "@destack/package/manifest";
 import type { Digest, Identifier } from "@destack/schema";
 import type { Environment } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
-import { release } from "@destack/forge/object";
+import { release } from "@destack/registry/object";
 import { ReleaseReader } from "../release/reader.ts";
 import { type Publisher, Usage } from "../object/index.ts";
 import { Rating } from "./rating.ts";
@@ -43,6 +45,24 @@ export class Metering {
             // ask the universe as the installation, which runs in the space of the residency selling to its buyers
             return context.query(context.self, residency.call("publisher", { handle }));
         };
+    }
+
+    /** Defer a declaration until the registry here resolves a package's release at the tag. */
+    async requirePublished(plan: StackPlan, packageId: string): Promise<void> {
+        // defer while the registry serves no release of the package at the tag, rethrowing other failures
+        const resolving = plan.query(
+            release.call("resolve", {
+                ...release.in(plan.stack.scope),
+                parentId: packageId,
+                release: this.tag,
+            }),
+        );
+        await resolving.catch((error: unknown) => {
+            if (CallError.of(error) !== undefined) {
+                plan.defer(`${packageId} waits for its ${this.tag} release`);
+            }
+            throw error;
+        });
     }
 
     /** Read the releases the tag points at for one call, parsing each release once. */

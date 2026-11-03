@@ -8,21 +8,20 @@ import { reconciliation } from "@destack/db/test";
 import type { Crypto, Clock, Environment } from "@destack/environment";
 import type { Simulation } from "@destack/environment/simulation";
 import { type EventStore, EventTime } from "@destack/event";
-import { packageObject, tag } from "@destack/forge/object";
+import { packageObject, tag } from "@destack/registry/object";
 import forgePackage from "@destack/forge/package";
 import { publishBuild, resolvedRelease } from "@destack/forge/test";
 import { notification } from "@destack/notification";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import { TestNotification } from "@destack/notification/test";
-import { EventView, PACKAGE_DECLARATION, PACKAGE_EXPORT, type ReaderPage } from "@destack/object";
+import { EventView, PACKAGE_DECLARATION, PACKAGE_EXPORT } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { implementPackage, type ObjectStore } from "@destack/object/server";
 import type { InstalledServerContext } from "@destack/object/workload";
 import { serversOf, type TestObjectStore } from "@destack/object/test";
-import { describeMeter } from "@destack/observability/inspect";
-import type { Meter } from "@destack/observability/meter";
-import observabilityPackage from "@destack/observability/package";
+import { describeMeter } from "@destack/telemetry/inspect";
+import { Meter } from "@destack/telemetry/meter";
 import { Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { type BuildReader } from "@destack/package/manifest";
@@ -33,14 +32,14 @@ import { install } from "@destack/stack/declare";
 import { TestPackage, TestSpace } from "@destack/stack/test";
 import { defineVault } from "@destack/vault/declare";
 import vaultPackage from "@destack/vault/package";
-import { TestVault } from "@destack/vault/test";
-import vaultServer from "@destack/vault/server";
+import { TestVault, VAULT } from "@destack/vault/test";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { testHost } from "@destack/test/host";
 import { Feature } from "../feature/index.ts";
 import { describeFeature, describeSku } from "../inspect/index.ts";
-import { type Resolution, usage, Usage, usageLimit } from "../object/index.ts";
+import { usage } from "@destack/stack/object";
+import { type Resolution, Usage, usageLimit } from "../object/index.ts";
 import financePackage, { FINANCE_INSTALLATION } from "../package.ts";
 import type { PaymentProvider } from "../provider/index.ts";
 import type { Period } from "../rate/index.ts";
@@ -133,12 +132,12 @@ const FINANCE: TestPackage = {
     ),
     server: financeServer(new Map(), undefined),
     connectors: [],
-    servers: [vaultServer],
     providers: [],
 };
 
 /** The packages the residency's home installs beside its base ones, as its stack does. */
 const PACKAGES: readonly TestPackage[] = [
+    VAULT,
     ...(await TestNotification.packages(testHost().crypto)),
     FINANCE,
 ];
@@ -154,6 +153,7 @@ const HOME_STACK = {
     vaults: { platform: PLATFORM_VAULT.declare() },
     secrets: { "stripe-secret-key": { parent: "platform", name: "stripe-secret-key" } },
     installations: {
+        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
         message: install(messagePackage, {}, { name: "message" }),
         notification: install(notificationPackage, {}, { name: "notification" }),
         finance: install(
@@ -169,10 +169,7 @@ const HOME_OPTIONS = {
     ...TestPackage.options(PACKAGES),
     publishers: ["platform"],
     packages: [...TestPackage.options(PACKAGES).packages, forgePackage],
-    companions: [
-        ...TestPackage.options(PACKAGES).companions,
-        ...serversOf([packageObject, resolvedRelease, tag]),
-    ],
+    companions: serversOf([packageObject, resolvedRelease, tag]),
 };
 
 /** What the fixture's world shares: the platform's account. */
@@ -283,6 +280,13 @@ export class TestFinance {
 
     /** Install finance in the residency's home, and create Acme, the shop and their spaces. */
     static async #write(home: TestSpace): Promise<FinanceWorld> {
+        // install the vault, then serve its types, as the machine's restart does
+        const vaulted = { installations: { vault: HOME_STACK.installations.vault } };
+        const installingVault = await home.serve();
+        await home.apply(installingVault, HOME_TYPES, vaulted);
+        await home.serveInstalled(installingVault.store, home.id);
+        await installingVault[Symbol.asyncDispose]();
+
         // install finance bound to the platform's Stripe key, as the residency's stack does
         const installing = await home.serve();
         await home.apply(installing, HOME_TYPES, HOME_STACK);
@@ -467,21 +471,6 @@ export class TestFinance {
         }
     }
 
-    /** Append a page of a space's readings as each payer's uses, as its serving machine does. */
-    async bill(_owner: string, page: ReaderPage): Promise<void> {
-        const sender = this.#serving();
-        const now = this.clock.now();
-        for (const { accountId, requestId, items } of await Usage.of(
-            page,
-            this.environment.crypto,
-        )) {
-            await this.store.mutate(AccessContext.of(sender, now), {
-                id: requestId,
-                calls: [usage.call("append", { ...usage.in(accountId), items })],
-            });
-        }
-    }
-
     /** Call as the residency's cloud machine serving its accounts' spaces. */
     #serving(): Caller {
         const subject = principal.machine.reference(Scope.universe.id, this.space.machine.id);
@@ -543,9 +532,9 @@ export class TestFinance {
 
     /** Flush the hot usage of an account into segments, as the event store's controller does. */
     async flush(payer: string): Promise<void> {
-        for (const controller of this.events.controllers) {
-            await controller.reconcile(`${usage.eventKind().key} ${payer}`, reconciliation());
-        }
+        await this.events
+            .controller()
+            .reconcile(`${usage.eventKind().key} ${payer}`, reconciliation());
     }
 
     /** Rate each payer a restarted usage controller lists until its pages run out. */
@@ -616,7 +605,7 @@ export class TestFinance {
         }
 
         return {
-            kindPackageId: observabilityPackage.id,
+            kindPackageId: Meter.kindPackageId,
             kind: "meter",
             description: describeMeter(entry),
         };

@@ -1,5 +1,5 @@
 import forgePackage from "@destack/forge/package";
-import { Registry } from "@destack/forge/client";
+import { Registry } from "@destack/registry/client";
 import { implementPackage } from "@destack/object/server";
 import { provider, tag } from "./declare/setting.ts";
 import financePackage from "./package.ts";

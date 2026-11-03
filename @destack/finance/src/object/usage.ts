@@ -1,114 +1,28 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { FinanceError } from "../error/error.ts";
-import { through, union } from "@destack/access";
-import { account, entitlement, machine, space } from "@destack/account/object";
+import { entitlement } from "@destack/account/object";
 import { Table } from "@destack/db";
 import { argument, plural, select, t } from "@destack/locale";
 import { defineNotification } from "@destack/notification/declare";
-import { Event, type EventKind, EventTime, type SERIES_FOLDS } from "@destack/event";
-import {
-    type MethodContext,
-    defineObject,
-    type EventOf,
-    type EventView,
-    field,
-} from "@destack/object";
-import type { Meter } from "@destack/observability/meter";
-import type { Crypto } from "@destack/environment";
+import { type EventKind, EventTime, type SERIES_FOLDS } from "@destack/event";
+import { type MethodContext, type EventOf, type EventView } from "@destack/object";
+import { usage } from "@destack/stack/object";
+import type { Meter } from "@destack/telemetry/meter";
 import type { Identifier } from "@destack/schema";
 import type { Period } from "../rate/period.ts";
 import { CallError } from "@destack/object";
-import { RequestId } from "@destack/sync";
-import { present, schema } from "@destack/schema";
-import type { ReaderPage } from "@destack/object";
-import { reading } from "@destack/observability/object";
-import { installation } from "@destack/object";
+import { schema } from "@destack/schema";
 import type { ReleaseReader } from "../release/reader.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The share of a limit or budget at which usage is near it, where the soft cap first notifies. */
 export const NEAR_SHARE = 0.8;
 
-/** When usage flushes into a segment: hourly, or at 100,000 uses. */
-const USAGE_FLUSH = { maxAge: { hours: 1 }, maxRows: 100_000 } as const;
-
-/** How long the payer's home stores usage: ten years, as long as the invoices billing it. */
-const USAGE_RETENTION = { days: 3650 } as const;
-
 /** The keys a level is told apart by: each space, dedicated machine and installation. */
 const LEVEL_KEYS = ["spaceId", "machineId", "installationId"] as const;
 
 /** A fold a meter's usage is read with. */
 type SeriesFold = (typeof SERIES_FOLDS)[number];
-
-/** What a use has beside its keys. */
-export const UsageData = schema.object({
-    /** When the measure starts, in UTC epoch milliseconds. */
-    from: schema.number().int(),
-    /** When the measure ends, in UTC epoch milliseconds. */
-    to: schema.number().int(),
-});
-
-/** A metered use of a resource, stored in the home of the account paying for it. */
-export const usage = defineObject(
-    {
-        name: "usage",
-        plural: "usages",
-        scope: account,
-        storage: {
-            kind: "events",
-            flush: USAGE_FLUSH,
-            retention: USAGE_RETENTION,
-            delivery: "exactly-once",
-            isLocked: true,
-        },
-        // read each payer's usage from the log's start, stored thirty days past any rating outage
-        readers: { usage: { by: "scope", start: "earliest", hold: { days: 30 } } },
-        fields: {
-            /** The measure's unit and interval. */
-            data: field.json(UsageData),
-            /** The meter measuring the use, by its package and name. */
-            meter: field.string(),
-            /** The SKU rating the use on the machine it ran on, absent for a seller's own meter. */
-            sku: field.string().optional(),
-            /** The space the use ran in, absent for a dedicated machine's own hours. */
-            space: field.reference(space).optional(),
-            /** The dedicated machine whose hours were used, absent for a space's use. */
-            machine: field.reference(machine).optional(),
-            /** The installation that used it, absent for the space itself. */
-            installation: field.reference(installation).optional(),
-            /** The amount used in the meter's unit, or the share of a month a level was held. */
-            quantity: field.number(),
-            /** The level held at the end of the measure, for meters averaged over time. */
-            level: field.number().optional(),
-        },
-        permissions: {
-            // let the payer's readers and its residency's servers read every use, a space's readers its own
-            read: union(
-                through("scope", "read"),
-                through("scope", "serve"),
-                through("space", "read"),
-            ),
-            // let the paying account's servers append what they measured: its residency's machines and its own
-            append: through("scope", "serve"),
-        },
-    },
-    (method) => ({
-        /** Append measured uses. */
-        append: method.createMany("append", {
-            fields: [
-                "meter",
-                "sku",
-                "spaceId",
-                "machineId",
-                "installationId",
-                "quantity",
-                "level",
-                "data",
-            ],
-        }),
-    }),
-);
 
 /** The series reads of the usage events, through a call or the store's event log. */
 export type UsageSeries =
@@ -149,74 +63,6 @@ export const usageLimit = defineNotification({
 
 /** The uses of resources finance rates. */
 export const Usage = {
-    /** Fold a page of a space's readings into each payer's uses, one per meter, SKU and month. */
-    async of(page: ReaderPage, crypto: Crypto) {
-        // read each reading with the keys and data its kind declares
-        const kind = reading.eventKind();
-        const spaceId = schema.identifier("space").parse(page.key);
-        const readings = page.events.map((event) => ({
-            id: event.id,
-            time: EventTime.milliseconds(event.time),
-            keys: kind.parseKeys(event.keys),
-            data: kind.parseData(event.data),
-        }));
-
-        // sum each payer's readings of a meter, SKU, installation and month
-        const totals = Map.groupBy(readings, ({ time, keys }) =>
-            JSON.stringify([
-                keys.payerId,
-                keys.meter,
-                keys.sku,
-                keys.installationId,
-                monthStart(time),
-            ]),
-        );
-        const uses = await Promise.all(
-            [...totals.values()].map(async (summed) => {
-                // span the readings' times, a level as its share of the month and an amount as read
-                const first = present(summed[0], "a use's first reading");
-                const last = present(summed.at(-1), "a use's last reading");
-                const { payerId, meter, sku, installationId } = first.keys;
-                const times = summed.map((each) => each.time);
-                const from = Math.min(...times);
-                const value = summed.reduce((total, each) => total + each.keys.value, 0);
-                const { level } = last.data;
-                const read = summed.map((each) => each.id).toSorted();
-                const contents = [payerId, meter, sku, installationId, monthStart(from), ...read];
-
-                return {
-                    accountId: payerId,
-                    read,
-                    item: {
-                        id: await Event.identity(spaceId, contents, crypto),
-                        time: EventTime.of(from),
-                        meter,
-                        sku,
-                        spaceId,
-                        machineId: null,
-                        installationId,
-                        quantity: level === undefined ? value : value / monthLength(from),
-                        level: level ?? null,
-                        data: { from, to: Math.max(...times) },
-                    },
-                };
-            }),
-        );
-
-        // gather each payer's uses in one request, keyed by its readings and timed by the claim, which a retry repeats
-        return Promise.all(
-            [...Map.groupBy(uses, (use) => use.accountId)].map(async ([accountId, held]) => ({
-                accountId,
-                requestId: await RequestId.derive(
-                    page.claimedAt,
-                    JSON.stringify([accountId, ...held.flatMap((use) => use.read).toSorted()]),
-                    crypto,
-                ),
-                items: held.map((use) => use.item),
-            })),
-        );
-    },
-
     /** Refuse a use its meter or SKU declaration rejects. */
     async require(used: Usage, releases: ReleaseReader): Promise<void> {
         // read the use's meter from its package's current release
@@ -323,17 +169,3 @@ export const Usage = {
         return known;
     },
 };
-
-/** Read the start of the UTC month a time falls in, in Unix milliseconds. */
-function monthStart(time: number): number {
-    const date = new Date(time);
-
-    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth());
-}
-
-/** Read the length of the UTC month a time falls in, in milliseconds. */
-function monthLength(time: number): number {
-    const date = new Date(time);
-
-    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1) - monthStart(time);
-}

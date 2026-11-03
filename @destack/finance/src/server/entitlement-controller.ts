@@ -12,8 +12,8 @@ import {
     productFeature,
     subscription,
     subscriptionItem,
-    usage,
 } from "../object/index.ts";
+import { usage } from "@destack/stack/object";
 import type { Metering } from "./metering.ts";
 
 /** Derives each account's entitlements as its usage, subscriptions or defaults change. */

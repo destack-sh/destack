@@ -1,7 +1,7 @@
 import { CREDITS } from "../../src/rate/index.ts";
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
-import { defineMeter } from "@destack/observability/declare";
+import { defineMeter } from "@destack/telemetry/declare";
 import { defineFeature, defineSku } from "../../src/declare/index.ts";
 
 /** The release of Carol's shop package declaring the fixture's features and meters. */

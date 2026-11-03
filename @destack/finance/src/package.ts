@@ -12,7 +12,6 @@ import {
     seller,
     subscription,
     subscriptionItem,
-    usage,
 } from "./object/index.ts";
 import { stripeSecretKey } from "./provider/stripe/secret.ts";
 
@@ -32,7 +31,6 @@ export default definePackage({
         checkoutSession,
         charge,
         invoice,
-        usage,
     },
     adapters: { stripe: defineAdapter("stripe", { path: "/stripe" }) },
     secrets: { "stripe-secret-key": stripeSecretKey },

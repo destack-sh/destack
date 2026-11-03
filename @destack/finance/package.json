@@ -41,7 +41,8 @@
         "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@destack/vault": "workspace:*"
+        "@destack/vault": "workspace:*",
+        "@destack/registry": "workspace:*"
     },
     "peerDependencies": {
         "@destack/environment": "workspace:*"

@@ -2,7 +2,7 @@ import { DeclarationReference } from "@destack/package/declare";
 import { FinanceError } from "../error/error.ts";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import { Meter } from "@destack/observability/meter";
+import { Meter } from "@destack/telemetry/meter";
 import { Feature } from "../feature/feature.ts";
 import { Sku } from "../sku/sku.ts";
 import type {} from "@destack/package/import-meta";

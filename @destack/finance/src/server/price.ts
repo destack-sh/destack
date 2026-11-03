@@ -17,8 +17,15 @@ export function implementPrice(metering: Metering): typeof price {
             },
         },
         declaration: {
-            // apply after the product, and archive a price its stack stops declaring
+            // apply after the product once a metered price's meter is published, and archive a price its stack stops declaring
             after: [product],
+            resolve: async (_name, declared, plan) => {
+                if (declared.recurring.usage === "metered") {
+                    await metering.requirePublished(plan, declared.recurring.meter.packageId);
+                }
+
+                return declared;
+            },
             retire: "archived",
         },
     });
