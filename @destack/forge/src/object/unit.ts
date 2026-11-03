@@ -2,7 +2,7 @@ import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { release } from "./release.ts";
+import { release } from "@destack/registry/object";
 
 /** The build of an npm package a release depends on, which the release's readers read. */
 export const unit = defineObject(

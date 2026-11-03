@@ -16,8 +16,8 @@ import {
 } from "@destack/object";
 import { nth, Identifier } from "@destack/schema";
 import { PackageId } from "@destack/package";
-import { reference, referenceShape, repository } from "../src/object/index.ts";
-import { History } from "./fixture/git.ts";
+import { reference, referenceShape, repository } from "@destack/registry/object";
+import { History } from "@destack/git/test";
 import type { TestPerson } from "@destack/account/test";
 import { TestForge } from "../src/test/index.ts";
 
@@ -372,7 +372,7 @@ test("let a space inside the account read its private packages, and no other acc
     // read the package as each space
     const read = async (space: Identifier<"space">) => {
         const found = await forge
-            .as(principal.space.reference(Scope.universe.id, space))
+            .asRegistry(principal.space.reference(Scope.universe.id, space))
             .package.get({ spaceId: forge.space, id });
 
         return found.name;
@@ -629,7 +629,7 @@ test("record the references a machine reports of the repository it hosts, and re
     const reader = forge.client(tenant.reader);
     const accountId = tenant.accountId;
     const machineId = await forge.machine(accountId, tenant.owner);
-    const machine = forge.as(principal.machine.reference(Scope.universe.id, machineId));
+    const machine = forge.asRegistry(principal.machine.reference(Scope.universe.id, machineId));
     const laptop = await owner.repository.create({
         spaceId: forge.space,
         accountId,
@@ -679,7 +679,7 @@ test("record the references a machine reports of the repository it hosts, and re
     ]);
 
     // hide the repository from another machine, and forbid its owner reporting for the machine
-    const hiding = (client: ReturnType<TestForge["as"]>) =>
+    const hiding = (client: ReturnType<TestForge["asRegistry"]>) =>
         outcome(
             client.repository.report({
                 spaceId: forge.space,
@@ -693,7 +693,7 @@ test("record the references a machine reports of the repository it hosts, and re
         Scope.universe.id,
         await forge.machine(other.accountId, other.owner),
     );
-    expect([await hiding(forge.as(otherMachine)), await hiding(owner)]).toEqual([
+    expect([await hiding(forge.asRegistry(otherMachine)), await hiding(owner)]).toEqual([
         "NOT_FOUND",
         "FORBIDDEN",
     ]);

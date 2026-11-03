@@ -19,14 +19,14 @@ import {
     reference,
     repository,
     RepositoryOrigin,
-} from "../object/index.ts";
+} from "@destack/registry/object";
 import {
     GitAdvertisement,
     GitCredential,
     type GitListing,
     type GitReference,
     type GitStorage,
-} from "../storage/index.ts";
+} from "@destack/git";
 
 /** A repository's row. */
 type Row = Select<typeof repository.table>;

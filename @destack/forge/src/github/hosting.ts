@@ -4,7 +4,7 @@ import type { Runner } from "@destack/connection/server";
 import type { Lease, LeaseMode } from "@destack/resource";
 import { ForgeError } from "../error/index.ts";
 import { GitHubSignature } from "./signature.ts";
-import { type Repository, repository } from "../object/index.ts";
+import { type Repository, repository } from "@destack/registry/object";
 import { GitHubApp } from "./app.ts";
 import { GitHubEvent } from "./event.ts";
 

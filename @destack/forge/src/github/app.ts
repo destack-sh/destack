@@ -6,7 +6,7 @@ import { nth, present, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import { ForgeError } from "../error/index.ts";
 import type { Lease, LeaseMode } from "@destack/resource";
-import { GitCredential } from "../storage/index.ts";
+import { GitCredential } from "@destack/git";
 
 /** The host of github.com remotes. */
 const GITHUB_HOST = "github.com";

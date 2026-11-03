@@ -2,7 +2,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import type { Environment } from "@destack/environment";
 import { Digest, Identifier } from "@destack/schema";
-import { LATEST_TAG, packageObject, release, tag } from "../object/index.ts";
+import { LATEST_TAG, packageObject, release, tag } from "@destack/registry/object";
 import { ReleaseMethod } from "../server/release.ts";
 
 /** The commit a test release records, the all-zero SHA-1. */

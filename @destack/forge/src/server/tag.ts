@@ -1,7 +1,7 @@
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { Identifier } from "@destack/schema";
 import { ForgeError } from "../error/index.ts";
-import { release, tag, TagName } from "../object/index.ts";
+import { release, tag, TagName } from "@destack/registry/object";
 
 /** Implement distribution tags. */
 export function implementTag(): typeof tag {

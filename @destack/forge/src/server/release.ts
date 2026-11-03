@@ -13,8 +13,8 @@ import {
     release,
     tag,
     TagName,
-    unit,
-} from "../object/index.ts";
+} from "@destack/registry/object";
+import { unit } from "../object/index.ts";
 
 /** What releases check builds against: the store of pushed builds. */
 export interface ReleaseOptions {

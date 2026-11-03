@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
-import { packageObject, tag } from "../object/index.ts";
+import { packageObject, tag } from "@destack/registry/object";
 import { Forge } from "./forge.ts";
 
 /** The package methods' handlers: resolving a global name and pointing a tag. */

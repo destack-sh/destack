@@ -1,2 +1,1 @@
-export * from "./registry.ts";
-export * from "./forge.ts";
+export * from "./installation.ts";

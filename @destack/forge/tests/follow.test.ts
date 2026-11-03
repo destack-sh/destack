@@ -2,7 +2,7 @@ import type { Crypto } from "@destack/environment";
 import type { Environment } from "@destack/environment";
 import { PackageId } from "@destack/package";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
-import { reference, referenceShape, repository, tag } from "../src/object/index.ts";
+import { reference, referenceShape, repository, tag } from "@destack/registry/object";
 import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { Commit, Identifier, present, schema } from "@destack/schema";
@@ -14,7 +14,7 @@ import objectPackage from "@destack/object/package";
 import { ids, reconcile, TestSpace } from "@destack/stack/test";
 import { TestEntitlement } from "@destack/account/test";
 import { expect, refusal, test } from "@destack/test";
-import { Forge } from "../src/client/index.ts";
+import { Forge } from "@destack/registry/client";
 import { Claim, ClaimLookup, claimTable, Shape } from "@destack/object";
 
 /** The residency's home space, where its forge stores the repositories' references. */

@@ -1,4 +1,5 @@
 import { install } from "@destack/stack/declare";
+import { VAULT } from "@destack/vault/test";
 import { Account, account, type ResidencyCode } from "@destack/account/object";
 import { principal } from "@destack/access";
 import { integration, Issuer } from "@destack/connection/object";
@@ -11,21 +12,14 @@ import { Forge } from "../server/forge.ts";
 import { Snapshot, type Select } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import type { Simulation } from "@destack/environment/simulation";
-import {
-    ClaimLookup,
-    claimTable,
-    OBJECT_DECLARATION,
-    ObjectDescription,
-    PACKAGE_DECLARATION,
-    PACKAGE_EXPORT,
-} from "@destack/object";
+import { ClaimLookup, claimTable } from "@destack/object";
 import { createClient } from "@destack/object/client";
-import { describePackage } from "@destack/object/inspect";
+import registryPackage from "@destack/registry/package";
 import objectPackage from "@destack/object/package";
 import type { TestObjectStore } from "@destack/object/test";
+import { testBuild } from "@destack/object/test";
 import { Package, PackageName, type PackageId } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import { MemoryBuild } from "@destack/package/test";
 import { type Digest, Identifier, present, schema } from "@destack/schema";
 import { join } from "node:path";
 import settingPackage from "@destack/setting/package";
@@ -38,16 +32,16 @@ import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resourc
 import { secret, vault } from "@destack/vault/object";
 import vaultPackage from "@destack/vault/package";
 import { TestVault } from "@destack/vault/test";
-import vaultServer from "@destack/vault/server";
 import { onTestFinished } from "@destack/test";
 import { testHost } from "@destack/test/host";
-import { LocalGitStorage, localGitProvider } from "../local/index.ts";
-import { issuer, packageObject, type Release } from "../object/index.ts";
+import { LocalGitStorage, localGitProvider } from "@destack/git/local";
+import { issuer } from "../object/index.ts";
+import { packageObject, type Release } from "@destack/registry/object";
 import forgePackage, { FORGE_INSTALLATION } from "../package.ts";
 import forgeServer from "../server.ts";
 import { claimFollow, standingFollow } from "../server/index.ts";
 import { credentialVault, github, repositoryStorage } from "../stack/index.ts";
-import { gitStorage } from "../storage/index.ts";
+import { gitStorage } from "@destack/stack/object";
 import { GITHUB_API } from "../github/index.ts";
 import { APP_ID, GITHUB_HOST, GitHubStandIn, githubPrivateKey, WEBHOOK_SECRET } from "./github.ts";
 
@@ -95,21 +89,8 @@ const PLATFORM_VAULT = defineVault({ name: "platform", spec: {} });
 /** The forge as the machine ships it, beside the vault, with Git storage below its files. */
 export const FORGE: TestPackage = {
     handle: forgePackage,
-    build: await MemoryBuild.of(
-        Package.of(forgePackage),
-        [
-            {
-                kind: PACKAGE_DECLARATION,
-                kindPackageId: objectPackage.id,
-                name: PACKAGE_EXPORT,
-                description: describePackage(forgePackage),
-            },
-            ...Object.values(forgePackage.objects).map((type) => ({
-                kind: OBJECT_DECLARATION,
-                kindPackageId: objectPackage.id,
-                name: type.name,
-                description: ObjectDescription.of(type),
-            })),
+    build: await testBuild(forgePackage, testHost().crypto, {
+        declared: [
             {
                 kind: "setting",
                 kindPackageId: settingPackage.id,
@@ -129,38 +110,18 @@ export const FORGE: TestPackage = {
             })),
             ...TestVault.declarations([], Object.values(forgePackage.secrets)),
         ],
-        testHost().crypto,
-    ),
+    }),
     server: forgeServer,
     connectors: [],
-    servers: [vaultServer],
     providers: [],
 };
 
 /** Connections as the machine ships them, beside the vault keeping their credentials. */
 export const CONNECTION: TestPackage = {
     handle: connectionPackage,
-    build: await MemoryBuild.of(
-        Package.of(connectionPackage),
-        [
-            {
-                kind: PACKAGE_DECLARATION,
-                kindPackageId: objectPackage.id,
-                name: PACKAGE_EXPORT,
-                description: describePackage(connectionPackage),
-            },
-            ...Object.values(connectionPackage.objects).map((type) => ({
-                kind: OBJECT_DECLARATION,
-                kindPackageId: objectPackage.id,
-                name: type.name,
-                description: ObjectDescription.of(type),
-            })),
-        ],
-        testHost().crypto,
-    ),
+    build: await testBuild(connectionPackage, testHost().crypto),
     server: connectionServer,
     connectors: [],
-    servers: [vaultServer],
     providers: [],
 };
 
@@ -171,6 +132,7 @@ const CONNECTION_VAULT = defineVault({ name: "credentials", spec: {} });
 const ACCOUNT_STACK = {
     vaults: { credentials: { ...CONNECTION_VAULT.declare(), scope: "enclosing" as const } },
     installations: {
+        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
         connection: install(connectionPackage, {}, { name: CONNECTION_INSTALLATION }),
     },
 };
@@ -191,6 +153,7 @@ const HOME_STACK = {
         "github-private-key": { parent: "platform", name: "github-private-key" },
     },
     installations: {
+        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
         forge: install(
             forgePackage,
             {
@@ -207,8 +170,7 @@ const HOME_STACK = {
 /** The residency's home its tests copy: the forge with the vault's tables and Git storage. */
 const HOME_OPTIONS = {
     residencies: RESIDENCIES,
-    ...TestPackage.options([FORGE]),
-    packages: [...TestPackage.options([FORGE]).packages, vaultPackage],
+    ...TestPackage.options([VAULT, FORGE]),
     tables: gitStorage.tables,
     // replicate the connections the forge follows as its installation, beside its names and callers
     follows: [{ shape: connectionShape, keys: [] }, claimFollow, standingFollow],
@@ -400,12 +362,19 @@ export class TestForge {
 
     /** Write the world: the forge, its GitHub App, the publishing account and the tenants. */
     static async write(home: TestSpace): Promise<ForgeWorld> {
-        // install the forge with its vaults, bucket, Git storage and secrets, as the residency's stack declares it
+        // install the vault, then serve its types, as the machine's restart does
         const { issuers: _issuers, ...declared } = HOME_STACK;
-        const born = await home.serve();
-        await home.apply(born, HOME_TYPES, declared);
-        await home.serveInstalled(born.store, home.id);
-        await born[Symbol.asyncDispose]();
+        const vaulted = { installations: { vault: declared.installations.vault } };
+        const installingVault = await home.serve();
+        await home.apply(installingVault, HOME_TYPES, vaulted);
+        await home.serveInstalled(installingVault.store, home.id);
+        await installingVault[Symbol.asyncDispose]();
+
+        // install the forge with its vaults, Git storage and secrets, as the residency's stack declares it
+        const reloaded = await home.serve();
+        await home.apply(reloaded, HOME_TYPES, declared);
+        await home.serveInstalled(reloaded.store, home.id);
+        await reloaded[Symbol.asyncDispose]();
 
         // declare the GitHub App's issuer once the home serves the forge's types, as the machine's restart does
         const installing = await home.serve();
@@ -451,7 +420,7 @@ export class TestForge {
 
     /** Call the forge as a person with their client's token, or anonymously. */
     client(person?: TestPerson) {
-        return createClient(forgePackage, this.endpoint(person), this.environment);
+        return createClient(registryPackage, this.endpoint(person), this.environment);
     }
 
     /** Address the forge's package as a person with their token, or anonymously. */
@@ -624,12 +593,18 @@ export class TestForge {
             owner: tenant.owner,
             account: tenant.accountId,
             id: Account.home(tenant.accountId),
-            ...TestPackage.options([CONNECTION]),
+            ...TestPackage.options([VAULT, CONNECTION]),
         });
-        const born = await home.serve();
-        await home.apply(born, [vaultPackage], ACCOUNT_STACK);
-        await home.serveInstalled(born.store, home.id);
-        await born[Symbol.asyncDispose]();
+        // install the vault, then its vault and the connections once the store serves the vault's types
+        const vaulted = { installations: { vault: ACCOUNT_STACK.installations.vault } };
+        const installingVault = await home.serve();
+        await home.apply(installingVault, [vaultPackage], vaulted);
+        await home.serveInstalled(installingVault.store, home.id);
+        await installingVault[Symbol.asyncDispose]();
+        const reloaded = await home.serve();
+        await home.apply(reloaded, [vaultPackage], ACCOUNT_STACK);
+        await home.serveInstalled(reloaded.store, home.id);
+        await reloaded[Symbol.asyncDispose]();
 
         // serve it again with the connections installed, as the machine's restart does
         const served = await home.serve();
@@ -727,6 +702,11 @@ export class TestForge {
     /** Call the forge as a principal its stores verify, such as a machine or a space. */
     as(subject: Subject) {
         return this.served.as(subject).client(forgePackage);
+    }
+
+    /** Call the registry protocol the forge implements as a subject. */
+    asRegistry(subject: Subject) {
+        return this.served.as(subject).client(registryPackage, forgePackage);
     }
 
     /** Open the forge's platform repositories as its bound Git storage keeps them. */

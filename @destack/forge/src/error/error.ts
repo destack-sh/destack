@@ -9,8 +9,6 @@ export const ForgeError = defineErrorFamily(import.meta.destack.package, {
     FOREIGN_MANIFEST: { code: "BAD_REQUEST" },
     IMMOVABLE_REPOSITORY: { code: "BAD_REQUEST" },
     MANIFEST_INVALID: { code: "BAD_REQUEST" },
-    ORIGIN_INVALID: { code: "BAD_REQUEST" },
-    TAG_INVALID: { code: "BAD_REQUEST" },
     MACHINE_REPOSITORY: { code: "BAD_REQUEST" },
     EVENT_TYPE_MISSING: { code: "BAD_REQUEST" },
     GITHUB_REPOSITORY_REQUIRED: { code: "BAD_REQUEST" },
@@ -26,7 +24,6 @@ export const ForgeError = defineErrorFamily(import.meta.destack.package, {
     BUILD_NOT_FOUND: { code: "NOT_FOUND" },
     BUILD_NOT_PUSHED: { code: "NOT_FOUND" },
     GITHUB_WEBHOOK_MISSING: { code: "NOT_FOUND" },
-    PUBLISHER_MISSING: { code: "NOT_FOUND" },
     PACKAGE_NOT_FOUND: { code: "NOT_FOUND" },
     RELEASE_NOT_FOUND: { code: "NOT_FOUND" },
     UNPUBLISHED_TARGET: { code: "NOT_FOUND" },
@@ -47,17 +44,6 @@ export const ForgeError = defineErrorFamily(import.meta.destack.package, {
     SECRET_TEXT_MISSING: { code: "PRECONDITION_FAILED" },
     CONNECTION_REPLICA_MISSING: { code: "PRECONDITION_FAILED" },
     GITHUB_APP_MISSING: { code: "PRECONDITION_FAILED" },
-
-    // internal server error
-    GIT_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-
-    // bad gateway
-    ARTIFACT_NAME_MISMATCH: { code: "BAD_GATEWAY" },
-    TOKEN_EXPIRY_INVALID: { code: "BAD_GATEWAY" },
-    UPLOAD_PACK_MISSING: { code: "BAD_GATEWAY" },
-    REMOTE_FAILED: { code: "BAD_GATEWAY" },
-    ADVERTISEMENT_UNEXPECTED: { code: "BAD_GATEWAY" },
-    PKT_LINE_UNEXPECTED: { code: "BAD_GATEWAY" },
 
     // service unavailable
     FOREIGN_STORAGE: { code: "SERVICE_UNAVAILABLE" },

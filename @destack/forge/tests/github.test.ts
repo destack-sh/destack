@@ -6,7 +6,7 @@ import { found, type Identifier } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { RequestId } from "@destack/sync";
 import { GitHubSignature, GitHubApp, GITHUB_API } from "../src/github/index.ts";
-import { repository } from "../src/object/index.ts";
+import { repository } from "@destack/registry/object";
 import forgePackage from "../src/package.ts";
 import {
     APP_ID,
@@ -15,7 +15,7 @@ import {
     TestForge,
     WEBHOOK_SECRET,
 } from "../src/test/index.ts";
-import { auditedCalls } from "./fixture/audit.ts";
+import { auditedCalls } from "@destack/object/test";
 
 /** The fixture GitHub App's installation on the tenant's GitHub organization. */
 const INSTALLATION = 4242;

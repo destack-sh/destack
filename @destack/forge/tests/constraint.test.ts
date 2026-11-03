@@ -3,7 +3,7 @@ import { classifyError, DatabaseError, type Insert } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { repository } from "../src/object/index.ts";
+import { repository } from "@destack/registry/object";
 
 test("refuse repository rows that mix the columns of their origins", async () => {
     // store the repositories' table

@@ -1,4 +1,5 @@
 import { Caller, principal } from "@destack/access";
+import registryPackage from "@destack/registry/package";
 import { connectionShape, Runner } from "@destack/connection/server";
 import { BuildStore } from "@destack/build/store";
 import type { Environment } from "@destack/environment";
@@ -22,7 +23,8 @@ import { type Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
 import type { PackageContext } from "@destack/object/workload";
 import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
-import { packageObject, reference, release, repository, unit } from "../object/index.ts";
+import { packageObject, reference, release, repository } from "@destack/registry/object";
+import { unit } from "../object/index.ts";
 import forgePackage from "../package.ts";
 import { github } from "../stack/setting.ts";
 import {
@@ -31,7 +33,7 @@ import {
     githubWebhookSecret,
     repositoryStorage,
 } from "../stack/index.ts";
-import type { GitStorage } from "../storage/index.ts";
+import type { GitStorage } from "@destack/git";
 import { ForgeError, type ForgeReason } from "../error/index.ts";
 import { implementPackageObject } from "./package.ts";
 import { implementRelease } from "./release.ts";
@@ -177,6 +179,7 @@ export class Forge {
     definition(): ImplementationInput<typeof forgePackage> {
         return {
             objects: this.handled,
+            protocols: [registryPackage],
             follows: [this.#connectionFollow(), claimFollow],
             standing: [standingFollow],
             // answer builds and the GitHub App's deliveries

@@ -1,15 +1,6 @@
 import { BUILD_STORE_TABLES } from "@destack/build/table";
 import { defineAdapter, definePackage } from "@destack/object";
-import {
-    appInstallation,
-    issuer,
-    packageObject,
-    reference,
-    release,
-    repository,
-    tag,
-    unit,
-} from "./object/index.ts";
+import { appInstallation, issuer, unit } from "./object/index.ts";
 import {
     credentialVault,
     githubPrivateKey,
@@ -18,17 +9,11 @@ import {
 } from "./stack/index.ts";
 import { ForgeError } from "./error/error.ts";
 
-/** The name the platform stack installs the forge under in each residency home. */
-export const FORGE_INSTALLATION = "forge";
+export { FORGE_INSTALLATION } from "./client/installation.ts";
 
 /** The handle stacks install the forge by, and clients call its packages and repositories by. */
 export default definePackage({
     objects: {
-        repository,
-        reference,
-        package: packageObject,
-        release,
-        tag,
         unit,
         issuer,
         appInstallation,

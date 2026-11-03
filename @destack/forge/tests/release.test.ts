@@ -1,12 +1,12 @@
-import { auditedCalls } from "./fixture/audit.ts";
+import { auditedCalls } from "@destack/object/test";
 import type { TestPerson } from "@destack/account/test";
 import { ACCOUNT_ID, TestForge } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { Digest, found, Identifier } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { PackageId } from "@destack/package";
-import { Registry } from "../src/client/index.ts";
-import { LATEST_TAG, packageObject } from "../src/object/index.ts";
+import { Registry } from "@destack/registry/client";
+import { LATEST_TAG, packageObject } from "@destack/registry/object";
 import { fixtureBuild, prereleaseBuild, uncommittedBuild } from "./fixture/build.ts";
 import { COMMIT } from "./fixture/package.ts";
 import { Claim } from "@destack/object";

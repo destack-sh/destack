@@ -1,5 +1,5 @@
 import { BORN_SPACE, ids, TestSpace } from "@destack/stack/test";
-import { Forge } from "../src/client/index.ts";
+import { Forge } from "@destack/registry/client";
 import { FORGE_TEMPLATE } from "../src/test/index.ts";
 
 /** The forge a template's space follows, claiming no names: it selects no repository or tag. */
