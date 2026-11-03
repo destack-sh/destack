@@ -19,32 +19,18 @@ function pair(delay?: number) {
     const simulation = testSimulation();
     const { clock } = simulation;
 
-    // signal each frame sent and received, and each stream accepted
+    // record each frame sent and each stream accepted
     const accepted: Stream[] = [];
     const sent: Frame[] = [];
-    let changing = Promise.withResolvers<void>();
-    const change = () => {
-        changing.resolve();
-        changing = Promise.withResolvers<void>();
-    };
 
-    // wait on the signal until a condition holds
-    const until = async (condition: () => boolean): Promise<void> => {
-        while (!condition()) {
-            await changing.promise;
-        }
-    };
+    // wait on the world until a condition holds
+    const until = (condition: () => boolean): Promise<void> => simulation.waitUntil(condition);
 
     // deliver each frame to the other session
     const channel = (deliver: () => Session) => ({
         send: (message: Uint8Array) => {
             sent.push(Frame.decode(message.slice()));
-            change();
-            const receive = () => {
-                deliver().receive(message);
-                change();
-            };
-            void clock.sleep(delay ?? 0).then(receive);
+            void clock.sleep(delay ?? 0).then(() => deliver().receive(message));
         },
         close: () => void clock.sleep(0).then(() => deliver().terminate()),
     });
@@ -59,12 +45,11 @@ function pair(delay?: number) {
         {
             accept: (stream) => {
                 accepted.push(stream);
-                change();
             },
         },
     );
 
-    return { relay, machine, accepted, sent, until };
+    return { simulation, relay, machine, accepted, sent, until };
 }
 
 /** Read a stream of bytes to its end, each chunk as it arrives on the world's time. */
@@ -205,7 +190,7 @@ test("stop the writers of every stream at the session's window until their reade
 });
 
 test("grow a window the writer outpaces while the reader catches up, up to its limit", async () => {
-    const { relay, accepted, until } = pair(5);
+    const { simulation, relay, accepted, until } = pair(5);
     const opened = relay.open(head);
     const payload = new Uint8Array(4 * MAX_WINDOW_BYTES).fill(7);
     const writer = opened.writable.getWriter();
@@ -213,7 +198,7 @@ test("grow a window the writer outpaces while the reader catches up, up to its l
     await until(() => accepted.length === 1);
 
     // read everything on arrival and find the window grown to its limit
-    const received = await drain(nth(accepted, 0).readable);
+    const received = await simulation.wait(drain(nth(accepted, 0).readable));
     expect([received.length, nth(accepted, 0).window]).toEqual([payload.length, MAX_WINDOW_BYTES]);
 });
 
