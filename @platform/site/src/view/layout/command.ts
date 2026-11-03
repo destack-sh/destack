@@ -13,7 +13,7 @@ import robot from "@destack/icon/phosphor/robot";
 import sun from "@destack/icon/phosphor/sun";
 import terminalWindow from "@destack/icon/phosphor/terminal-window";
 import type { Appearance } from "@destack/theme";
-import type { Accelerator } from "@destack/view/palette";
+import type { Shortcut } from "@destack/object";
 
 import { collectionAt } from "../../../content";
 import type { SearchEntry, SearchEntryKind } from "../content/search";
@@ -77,7 +77,7 @@ export type PaletteCommand = {
     icon: IconBodies;
 
     /** The key combination that runs the command, for commands that have one. */
-    keybinding?: Accelerator;
+    keybinding?: Shortcut;
 
     /** The searchable content or command description. */
     text: string;

@@ -20,7 +20,8 @@ import { present, schema } from "@destack/schema";
 import { Kbd } from "@destack/ui/kbd";
 import { createMemo, createSignal, For, onSettled, Show, useEnvironment } from "@destack/view";
 import type { LocalAppearance } from "@destack/view/document";
-import { Accelerator, isCommandPlatform } from "@destack/view/palette";
+import { Shortcut } from "@destack/object";
+import { isCommandPlatform } from "@destack/view/palette";
 import { createShortcut } from "@destack/view/primitives/keyboard";
 
 import {
@@ -140,8 +141,8 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
 
     // open on the key combinations and on the event other parts of the site dispatch
     const shortcut = { preventDefault: true, ignoreWithinInputs: true, anyOrder: true };
-    createShortcut(Accelerator.keys("mod+k", isCommandPlatform()), () => void open(), shortcut);
-    createShortcut(Accelerator.keys("/", isCommandPlatform()), () => void open(), shortcut);
+    createShortcut(Shortcut.keys("mod+k", isCommandPlatform()), () => void open(), shortcut);
+    createShortcut(Shortcut.keys("/", isCommandPlatform()), () => void open(), shortcut);
     createEventListener(
         () => document,
         commandEvents.open,
@@ -360,7 +361,7 @@ function Row(properties: {
                 ) : command().action.kind === "menu" ? (
                     <Icon icon={caretRight} xstyle={styles.endIcon} />
                 ) : command().keybinding === undefined ? undefined : (
-                    <Kbd>{Accelerator.format(command().keybinding ?? "", properties.isMac)}</Kbd>
+                    <Kbd>{Shortcut.format(command().keybinding ?? "", properties.isMac)}</Kbd>
                 )}
             </span>
         </CommandItem>

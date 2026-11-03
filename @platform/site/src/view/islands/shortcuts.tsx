@@ -1,5 +1,6 @@
 import { useEnvironment } from "@destack/view";
-import { Accelerator, isCommandPlatform } from "@destack/view/palette";
+import { Shortcut } from "@destack/object";
+import { isCommandPlatform } from "@destack/view/palette";
 import { createShortcut } from "@destack/view/primitives/keyboard";
 import { destinations, isExternal } from "../layout/navigation";
 
@@ -8,7 +9,7 @@ export default function Shortcuts() {
     const environment = useEnvironment();
     for (const destination of destinations) {
         createShortcut(
-            Accelerator.keys(destination.keybinding, isCommandPlatform()),
+            Shortcut.keys(destination.keybinding, isCommandPlatform()),
             () => {
                 if (isExternal(destination)) {
                     window.open(destination.href, "_blank", "noopener");

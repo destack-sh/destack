@@ -8,7 +8,7 @@ import megaphone from "@destack/icon/phosphor/megaphone";
 import packageIcon from "@destack/icon/phosphor/package";
 import tag from "@destack/icon/phosphor/tag";
 import xLogo from "@destack/icon/phosphor/x-logo";
-import type { Accelerator } from "@destack/view/palette";
+import type { Shortcut } from "@destack/object";
 
 /** A site destination, with the key combination that opens it. */
 export interface Destination {
@@ -17,7 +17,7 @@ export interface Destination {
     /** The destination's label. */
     readonly label: string;
     /** The key combination that opens the destination. */
-    readonly keybinding: Accelerator;
+    readonly keybinding: Shortcut;
     /** The destination's icon. */
     readonly icon: IconBodies;
 }
