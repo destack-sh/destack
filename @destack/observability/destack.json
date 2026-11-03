@@ -12,26 +12,6 @@
         },
         "./setting": {
             "runtimes": ["bun", "workerd"]
-        },
-        "./inspect": {
-            "runtimes": ["bun"]
-        }
-    },
-    "declarations": {
-        "defineMeter": {
-            "describes": [
-                {
-                    "kind": "meter",
-                    "function": "./inspect#describeMeter",
-                    "compare": "./inspect#compareMeter",
-                    "vocabulary": "./inspect#meterVocabulary"
-                }
-            ]
-        }
-    },
-    "stamps": {
-        "defineMeter": {
-            "module": 1
         }
     }
 }

@@ -11,4 +11,3 @@ export * from "./metric.ts";
 export * from "./visit.ts";
 export * from "./action.ts";
 export * from "./session.ts";
-export * from "./reading.ts";

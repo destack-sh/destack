@@ -25,7 +25,7 @@ import {
 import { visitorSalt } from "../object/index.ts";
 import observabilityPackage from "../package.ts";
 import { TestObservability } from "../test/index.ts";
-import { EMITTER_ATTRIBUTES } from "./otlp.ts";
+import { EMITTER_ATTRIBUTES } from "@destack/telemetry/otlp";
 
 /** The hexadecimal digits of a visitor's hash. */
 const VISITOR_DIGITS = 32;

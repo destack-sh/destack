@@ -7,14 +7,12 @@
     "description": "Query, follow and alert on the telemetry and analytics of Destack scopes, group their failures into issues, and measure what their spaces use.",
     "exports": {
         ".": "./src/index.ts",
+        "./client": "./src/client/index.ts",
         "./server": "./src/server.ts",
         "./setting": "./src/setting/index.ts",
         "./object": "./src/object/index.ts",
         "./package": "./src/package.ts",
-        "./error": "./src/error/index.ts",
-        "./meter": "./src/meter/index.ts",
-        "./declare": "./src/declare/index.ts",
-        "./inspect": "./src/inspect/index.ts"
+        "./error": "./src/error/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

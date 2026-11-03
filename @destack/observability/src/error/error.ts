@@ -25,7 +25,6 @@ export const ObservabilityError = defineErrorFamily(import.meta.destack.package,
     UNTIL_PASSED: { code: "BAD_REQUEST" },
 
     // forbidden
-    EMITTER_ATTRIBUTE_RESERVED: { code: "FORBIDDEN" },
     PERSON_UNVERIFIED: { code: "FORBIDDEN" },
 
     // precondition failed

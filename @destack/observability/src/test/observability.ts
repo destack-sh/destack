@@ -6,16 +6,13 @@ import type { Simulation, SimulatedClock } from "@destack/environment/simulation
 import { notification } from "@destack/notification";
 import { TestNotification } from "@destack/notification/test";
 import { testHost } from "@destack/test/host";
-import { CallError, PACKAGE_DECLARATION, PACKAGE_EXPORT } from "@destack/object";
-import { describePackage } from "@destack/object/inspect";
-import objectPackage from "@destack/object/package";
+import { CallError } from "@destack/object";
 import type { TestCaller, TestObjectStore } from "@destack/object/test";
-import { Package } from "@destack/package";
-import { MemoryBuild } from "@destack/package/test";
+import { testBuild } from "@destack/object/test";
 import { type Identifier, present, schema } from "@destack/schema";
 import { describeSetting } from "@destack/setting/inspect";
 import settingPackage from "@destack/setting/package";
-import socialPackage from "@destack/social/package";
+import { SOCIAL } from "@destack/social/test";
 import type { StackDocument, StackTypes } from "@destack/stack/declare";
 import { TestPackage, TestSpace } from "@destack/stack/test";
 import { Scope } from "@destack/sync";
@@ -31,8 +28,8 @@ import {
     RESPOND_CAPABILITY,
     silence,
 } from "../object/index.ts";
-import { EMITTER_ATTRIBUTES } from "../otlp/index.ts";
-import { analyticsRetention, telemetryRetention, traceSampling } from "../setting/index.ts";
+import { EMITTER_ATTRIBUTES } from "@destack/telemetry/otlp";
+import { analyticsRetention, telemetryRetention } from "../setting/index.ts";
 import observabilityPackage from "../package.ts";
 import observabilityServer from "../server.ts";
 import { type TestException, TestEmitter } from "./emitter.ts";
@@ -53,12 +50,11 @@ const OBSERVABILITY: TestPackage = {
     build: await observabilityBuild(testHost().crypto),
     server: observabilityServer,
     connectors: [],
-    servers: [],
     providers: [],
 };
 
 /** The packages the space installs, in dependency order. */
-export const PACKAGES: readonly TestPackage[] = [...NOTIFICATIONS, OBSERVABILITY];
+export const PACKAGES: readonly TestPackage[] = [...NOTIFICATIONS, SOCIAL, OBSERVABILITY];
 
 /** The origin the test's exports address, which no request leaves the process for. */
 const OTLP_ORIGIN = "https://observability.test";
@@ -83,8 +79,8 @@ type ObservabilityWorld = schema.Infer<typeof ObservabilityWorld>;
 /** The shipped servers and builds of the packages the space installs. */
 const INSTALLED = TestPackage.options(PACKAGES);
 
-/** The space the fixture's tests copy: its packages beside social, for comments on issues. */
-const SPACE_OPTIONS = { ...INSTALLED, packages: [...INSTALLED.packages, socialPackage] };
+/** The space the fixture's tests copy: its packages, social among them for comments on issues. */
+const SPACE_OPTIONS = INSTALLED;
 
 /** Every permission an observer of the space's issues, alerts and silences needs. */
 export const OBSERVER_PERMISSIONS: readonly PermissionReference[] = [
@@ -219,9 +215,9 @@ export class TestObservability implements AsyncDisposable {
 
     /** Install observability and the notes application, and sign up a member allowed to observe. */
     static async #write(space: TestSpace): Promise<ObservabilityWorld> {
-        // install notifications, observability allowed to respond to alerts, and the notes application
+        // install notifications, social, observability allowed to respond to alerts, and the notes application
         const installing = await space.serve();
-        for (const installed of NOTIFICATIONS) {
+        for (const installed of [...NOTIFICATIONS, SOCIAL]) {
             await space.install(installing, installed.build);
         }
         await space.install(installing, OBSERVABILITY.build, {
@@ -343,16 +339,10 @@ export class TestObservability implements AsyncDisposable {
 
 /** Write observability's build: its package, its settings and its notifications. */
 function observabilityBuild(crypto: Crypto) {
-    return MemoryBuild.of(
-        Package.of(observabilityPackage),
-        [
-            {
-                kind: PACKAGE_DECLARATION,
-                kindPackageId: objectPackage.id,
-                name: PACKAGE_EXPORT,
-                description: describePackage(observabilityPackage),
-            },
-            ...[telemetryRetention, analyticsRetention, traceSampling].map((declared) => ({
+    return testBuild(observabilityPackage, crypto, {
+        dependencies: [SOCIAL.build],
+        declared: [
+            ...[telemetryRetention, analyticsRetention].map((declared) => ({
                 kind: "setting",
                 kindPackageId: settingPackage.id,
                 name: declared.name,
@@ -365,6 +355,5 @@ function observabilityBuild(crypto: Crypto) {
                 description: declared.describe(),
             })),
         ],
-        crypto,
-    );
+    });
 }

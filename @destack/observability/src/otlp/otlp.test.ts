@@ -10,7 +10,8 @@ import {
 } from "@destack/telemetry/otlp";
 import { type TestLog, TestEmitter } from "../test/emitter.ts";
 import { NOTES } from "../test/notes.ts";
-import { EMITTER_ATTRIBUTES, OtlpExport } from "./otlp.ts";
+import { EMITTER_ATTRIBUTES, OtlpExport } from "@destack/telemetry/otlp";
+import { OtlpResource } from "./otlp.ts";
 
 /** The time the exports record at: 2027-01-15, in Unix milliseconds. */
 const START = Date.UTC(2027, 0, 15, 12);
@@ -62,41 +63,49 @@ function metricsExport(time: number) {
 
 /** Decode an export in the space, answering its refusal. */
 function decode(signal: "logs" | "metrics", body: unknown) {
-    return refusal(new OtlpExport(signal, body).decode(ids.space, testHost().crypto));
+    return refusal(OtlpResource.decode(new OtlpExport(signal, body), ids.space, testHost().crypto));
 }
 
 test("read a resource's spans and records under the emitter its forwarder names, keying their session and sealing personal attributes only under a person", async () => {
     // read a span for dana in her session and two records, one of them for nobody, in the notes instance's resource
-    const [traced] = await new OtlpExport(
-        "traces",
-        emitter.traces([
-            {
-                trace: TRACE,
-                span: SPAN,
-                name: "note.rename",
-                start: START,
-                end: START + 2,
-                status: 2,
-                attributes: {
-                    "enduser.id": "dana",
-                    "session.id": "session-1",
-                    "sensitive.email": "dana@example.com",
+    const [traced] = await OtlpResource.decode(
+        new OtlpExport(
+            "traces",
+            emitter.traces([
+                {
+                    trace: TRACE,
+                    span: SPAN,
+                    name: "note.rename",
+                    start: START,
+                    end: START + 2,
+                    status: 2,
+                    attributes: {
+                        "enduser.id": "dana",
+                        "session.id": "session-1",
+                        "sensitive.email": "dana@example.com",
+                    },
                 },
-            },
-        ]),
-    ).decode(ids.space, testHost().crypto);
-    const [logged] = await new OtlpExport(
-        "logs",
-        emitter.logs([
-            { time: START, name: "note.saved", severity: 9, trace: TRACE, span: SPAN },
-            {
-                time: START + 1,
-                name: "note.conflict",
-                severity: 13,
-                attributes: { attempts: 2, "sensitive.token": "secret" },
-            },
-        ]),
-    ).decode(ids.space, testHost().crypto);
+            ]),
+        ),
+        ids.space,
+        testHost().crypto,
+    );
+    const [logged] = await OtlpResource.decode(
+        new OtlpExport(
+            "logs",
+            emitter.logs([
+                { time: START, name: "note.saved", severity: 9, trace: TRACE, span: SPAN },
+                {
+                    time: START + 1,
+                    name: "note.conflict",
+                    severity: 13,
+                    attributes: { attempts: 2, "sensitive.token": "secret" },
+                },
+            ]),
+        ),
+        ids.space,
+        testHost().crypto,
+    );
 
     // stamp each with the forwarder's installation, instance and build, keep dana's email apart and drop the unclaimed token
     const stamp = { installationId: NOTES_INSTALLATION, build: NOTES_MANIFEST };
@@ -168,9 +177,9 @@ test("identify the same records alike in one scope and apart across scopes, and 
     // read one export twice in the space and once in another scope
     const exported = emitter.logs([{ time: START, name: "note.saved", severity: 9 }]);
     const identities = async (scope: string) =>
-        (await new OtlpExport("logs", exported).decode(scope, testHost().crypto)).flatMap((each) =>
-            each.events.log.map((record) => record.id),
-        );
+        (
+            await OtlpResource.decode(new OtlpExport("logs", exported), scope, testHost().crypto)
+        ).flatMap((each) => each.events.log.map((record) => record.id));
     const [first, again, elsewhere] = [
         await identities(ids.space),
         await identities(ids.space),
@@ -183,7 +192,11 @@ test("identify the same records alike in one scope and apart across scopes, and 
         again,
         elsewhere,
         cumulative: await refusal(
-            new OtlpExport("metrics", metricsExport(START)).decode(ids.space, testHost().crypto),
+            OtlpResource.decode(
+                new OtlpExport("metrics", metricsExport(START)),
+                ids.space,
+                testHost().crypto,
+            ),
         ),
     }).toEqual({
         first: ["9a742f480682e247f897575afdb51f21"],
@@ -195,41 +208,6 @@ test("identify the same records alike in one scope and apart across scopes, and 
             "metric note.render.cumulative is cumulative: export deltas",
         ],
     });
-});
-
-test("stamp each resource of an export with its forwarder's emitter, refusing an export claiming one", async () => {
-    // stamp a resource with its own attributes, and one without any
-    const own = { key: "service.name", value: { stringValue: "notes" } };
-    const stamped = new OtlpExport("logs", {
-        resourceLogs: [{ resource: { attributes: [own] }, scopeLogs: [] }, { scopeLogs: [] }],
-    }).stamp({ installation: NOTES_INSTALLATION, build: NOTES_MANIFEST }).body;
-
-    // refuse a resource claiming its build and another installation
-    const forged = [
-        { key: "destack.build.manifest", value: { stringValue: NOTES_MANIFEST } },
-        { key: "destack.installation.id", value: { stringValue: "installation-forged" } },
-    ];
-    const claim = () =>
-        new OtlpExport("logs", {
-            resourceLogs: [{ resource: { attributes: [own, ...forged] }, scopeLogs: [] }],
-        }).stamp({ installation: NOTES_INSTALLATION });
-
-    // set the known emitter on each resource after its other attributes, and refuse the claim
-    const known = [
-        { key: "destack.installation.id", value: { stringValue: NOTES_INSTALLATION } },
-        { key: "destack.build.manifest", value: { stringValue: NOTES_MANIFEST } },
-    ];
-    expect(stamped).toEqual({
-        resourceLogs: [
-            { resource: { attributes: [own, ...known] }, scopeLogs: [] },
-            { resource: { attributes: known }, scopeLogs: [] },
-        ],
-    });
-    expect(await refusal(Promise.resolve().then(claim))).toEqual([
-        "FORBIDDEN",
-        "EMITTER_ATTRIBUTE_RESERVED",
-        "only the receiver can record an export's emitter, found destack.build.manifest, destack.installation.id",
-    ]);
 });
 
 test("refuse records and points missing what their kind requires", async () => {
@@ -326,7 +304,11 @@ test("take a page's person from its machine alone, refusing a page record naming
 
 /** Decode a logs export in the space, reading the person of each log record. */
 async function personsOf(exported: unknown): Promise<(string | null)[]> {
-    const resources = await new OtlpExport("logs", exported).decode(ids.space, testHost().crypto);
+    const resources = await OtlpResource.decode(
+        new OtlpExport("logs", exported),
+        ids.space,
+        testHost().crypto,
+    );
 
     return resources.flatMap((resource) => resource.events.log.map((event) => event.person));
 }

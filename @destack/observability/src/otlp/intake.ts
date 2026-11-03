@@ -8,7 +8,8 @@ import { action, exception, log, metric, session, span, visit } from "../object/
 import { Exception } from "../issue/exception.ts";
 import { Grouper, type Grouping, type Occurrence } from "../issue/grouper.ts";
 import { Visitor } from "./visitor.ts";
-import { OtlpExport, type OtlpResource } from "./otlp.ts";
+import { OtlpExport } from "@destack/telemetry/otlp";
+import { OtlpResource } from "./otlp.ts";
 
 /** The largest OTLP/JSON export taken, the OpenTelemetry Collector's default of 20 MiB. */
 const EXPORT_BYTES = 20 * 1024 * 1024;
@@ -78,7 +79,8 @@ export class OtlpIntake {
         body: unknown,
     ): Promise<void> {
         // decode each resource's records, then build its items with their issues and visitor
-        const resources = await new OtlpExport(signal, body).decode(
+        const resources = await OtlpResource.decode(
+            new OtlpExport(signal, body),
             scope,
             this.#store.environment.crypto,
         );
@@ -114,7 +116,7 @@ export class OtlpIntake {
             await this.#store.mutate(
                 caller,
                 { id: RequestId.create(this.#store.environment), calls },
-                { site: CallSite.package(log.package.id) },
+                { site: CallSite.package(log.package.id, (type) => this.#store.implementer(type)) },
             );
         }
     }
