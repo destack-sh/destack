@@ -11,10 +11,10 @@ export const SIMULATION_SCOPE = "destack.simulation";
 /** The most real milliseconds jitter delays real work's settling: past a host event loop turn. */
 const JITTER_MILLISECONDS = 4;
 
-/** What real or world work is: an ordered operation, a lifetime, or the world's own task. */
-export type WorkKind = "operation" | "lifetime" | "task";
+/** What work is: a real operation, short or long, or the world's own task. */
+export type WorkKind = "operation" | "task";
 
-/** Work in flight: what it is, where it began, and whether its answer waits for the loop. */
+/** Work in flight: what it is, where it began, and whether its completion waits for the loop. */
 interface Flight {
     /** What it is. */
     readonly kind: WorkKind;
@@ -22,43 +22,43 @@ interface Flight {
     readonly isLong: boolean;
     /** Where it began, as an error whose stack is read only when listed. */
     readonly began: Error;
-    /** Whether it settled, its answer waiting for the loop to release it. */
+    /** Whether it settled, its completion waiting for the loop. */
     isSettled: boolean;
 }
 
-/** Settled real work the loop has not answered yet. */
-interface Answer {
-    /** The order the work began in among its kind. */
+/** A settled operation the loop has not completed yet. */
+interface Completion {
+    /** The order the operation began in among the short or the long ones. */
     readonly order: number;
-    /** Answer the work with what it settled with. */
-    readonly answer: () => void;
+    /** Complete the operation with what it settled with. */
+    readonly complete: () => void;
     /** Fail the work with the loop's failure. */
     readonly fail: (error: unknown) => void;
 }
 
-/** A world's scheduler: operations answered in the order they began, lifetimes at quiescence. */
+/** A world's scheduler: short operations complete in settled batches, long ones at idle. */
 export class SimulatedScheduler implements Scheduler {
-    /** Whether a loop releases settled real work, instead of answering it at once. */
+    /** Whether a loop completes settled operations, instead of completing them at once. */
     #isOrdered: boolean;
     /** The work in flight. */
     readonly #flights = new Set<Flight>();
-    /** The real work in flight: operations and lifetimes not answered yet. */
+    /** The operations in flight, not completed yet. */
     #real = 0;
     /** The operations running, not settled yet, and those of them that run short. */
     #running = { all: 0, short: 0 };
-    /** The order the next operation and the next lifetime begin in. */
-    readonly #sequence = { operation: 0, lifetime: 0 };
-    /** The order of the next operation to answer. */
+    /** The order the next short and the next long operation begin in. */
+    readonly #sequence = { short: 0, long: 0 };
+    /** The order of the next short operation to complete. */
     #next = 0;
-    /** The settled operations the loop has not answered yet, by their order. */
-    readonly #operations = new Map<number, Answer>();
-    /** The settled lifetimes the loop has not answered yet. */
-    readonly #lifetimes: Answer[] = [];
+    /** The settled short operations the loop has not completed yet, by their order. */
+    readonly #short = new Map<number, Completion>();
+    /** The settled long operations the loop has not completed yet, in their order. */
+    readonly #long: Completion[] = [];
     /** The work settled so far. */
     #settled = 0;
     /** The waiters for the next work to begin or settle. */
     #activity: (() => void)[] = [];
-    /** The world's failure, refusing every later answer. */
+    /** The world's failure, refusing every later completion. */
     #failure: { readonly error: unknown } | undefined;
     /** The world's failure as a promise, rejected once the world fails. */
     readonly #failed = Promise.withResolvers<never>();
@@ -73,7 +73,7 @@ export class SimulatedScheduler implements Scheduler {
     /** The state of the seeded generator delaying real work's settling, absent without jitter. */
     #jitter: number | undefined;
 
-    /** Schedule a world's work, releasing real work in order when ordered, traced as asked. */
+    /** Schedule a world's work, completing operations in order when ordered, traced as asked. */
     constructor(options: {
         readonly isOrdered: boolean;
         readonly telemetry?: Telemetry;
@@ -99,12 +99,12 @@ export class SimulatedScheduler implements Scheduler {
         return scheduler;
     }
 
-    /** Let the host's event loop run once, as the world's task, as no real work answers it. */
+    /** Let the host's event loop run once, as the world's task, as no operation completes it. */
     yield(): Promise<void> {
         return this.task(yieldToEventLoop);
     }
 
-    /** Run real work as one operation, answered in the order operations began. */
+    /** Run real work as one operation: a short one completes in its batch, a long one at idle. */
     run<Value>(start: () => Promise<Value>, options: RunOptions = {}): Promise<Value> {
         // run real work a running operation begins as part of it, as the world sees the operation whole
         if (this.#runningOperation() !== undefined) {
@@ -126,32 +126,43 @@ export class SimulatedScheduler implements Scheduler {
         };
         void work.then(ran, ran);
 
-        // answer it in its order
-        const order = this.#sequence.operation;
-        this.#sequence.operation += 1;
+        // complete a long one at idle, as its length follows the host
+        if (flight.isLong) {
+            return this.#holdLong(work, flight);
+        }
+
+        // complete a short one in its order, in the batch settling with it
+        const order = this.#sequence.short;
+        this.#sequence.short += 1;
 
         return this.#count(
-            this.#held(work, flight, (answer) => this.#operations.set(order, { ...answer, order })),
+            this.#held(work, flight, (completion) =>
+                this.#short.set(order, { ...completion, order }),
+            ),
             flight,
         );
     }
 
-    /** Keep the world's time until real work ends, answering it once the world is quiescent. */
+    /** Keep the world's time until real work ends, completing it as a long operation at idle. */
     waitUntil<Value>(settled: Promise<Value>): Promise<Value> {
         // wait for real work a running operation begins as part of it, as the world sees it whole
         if (this.#runningOperation() !== undefined) {
             return settled;
         }
 
-        // answer it among the settled lifetimes, in the order they began
-        const flight = this.#flight("lifetime", true);
-        const order = this.#sequence.lifetime;
-        this.#sequence.lifetime += 1;
+        // complete it as a long operation
+        return this.#holdLong(settled, this.#flight("operation", true));
+    }
+
+    /** Hold a long operation until the world is idle, completing it in the order it began. */
+    #holdLong<Value>(work: Promise<Value>, flight: Flight): Promise<Value> {
+        const order = this.#sequence.long;
+        this.#sequence.long += 1;
 
         return this.#count(
-            this.#held(settled, flight, (answer) => {
-                this.#lifetimes.push({ ...answer, order });
-                this.#lifetimes.sort((left, right) => left.order - right.order);
+            this.#held(work, flight, (completion) => {
+                this.#long.push({ ...completion, order });
+                this.#long.sort((left, right) => left.order - right.order);
             }),
             flight,
         );
@@ -180,61 +191,61 @@ export class SimulatedScheduler implements Scheduler {
         return this.#count(Promise.try(start), flight);
     }
 
-    /** Answer the settled operations whose earlier operations are all answered, in their order. */
-    answerOperations(): readonly number[] {
-        // answer the settled run of operations from the next one
-        const answered: number[] = [];
+    /** Complete the settled short operations in the order they began. */
+    completeShort(): readonly number[] {
+        // complete the settled run of short operations from the next one
+        const completed: number[] = [];
         for (
-            let answer = this.#operations.get(this.#next);
-            answer !== undefined;
-            answer = this.#operations.get(this.#next)
+            let completion = this.#short.get(this.#next);
+            completion !== undefined;
+            completion = this.#short.get(this.#next)
         ) {
-            this.#operations.delete(this.#next);
-            answer.answer();
-            answered.push(this.#next);
+            this.#short.delete(this.#next);
+            completion.complete();
+            completed.push(this.#next);
             this.#next += 1;
         }
 
-        return answered;
+        return completed;
     }
 
-    /** Answer the settled lifetimes in the order they began, as the world is quiescent. */
-    answerLifetimes(): readonly number[] {
-        const answers = this.#lifetimes.splice(0);
-        for (const each of answers) {
-            each.answer();
+    /** Complete the settled long operations in the order they began, as the world is idle. */
+    completeLong(): readonly number[] {
+        const completions = this.#long.splice(0);
+        for (const each of completions) {
+            each.complete();
         }
 
-        return answers.map(({ order }) => order);
+        return completions.map(({ order }) => order);
     }
 
-    /** Answer real work at once from now on, settled answers first, once no loop orders it. */
+    /** Complete operations at once from now on, settled ones first, once no loop orders them. */
     detach(): void {
         this.#isOrdered = false;
-        for (const [order, answer] of [...this.#operations].toSorted(
+        for (const [order, completion] of [...this.#short].toSorted(
             ([left], [right]) => left - right,
         )) {
-            this.#operations.delete(order);
-            answer.answer();
+            this.#short.delete(order);
+            completion.complete();
         }
-        this.answerLifetimes();
+        this.completeLong();
     }
 
-    /** Fail the world with its first failure, refusing settled and later answers, counting them. */
+    /** Fail the world with its first failure, returning how many settled completions it refused. */
     fail(error: unknown): number {
         // keep the first failure, rejecting its waiters and waking the loop to fail the world
         this.#failure ??= { error };
         this.#failed.reject(this.#failure.error);
         this.#wake();
 
-        // fail the settled answers
-        const answers = [...this.#operations.values(), ...this.#lifetimes.splice(0)];
-        this.#operations.clear();
-        for (const each of answers) {
+        // fail the settled completions
+        const completions = [...this.#short.values(), ...this.#long.splice(0)];
+        this.#short.clear();
+        for (const each of completions) {
             each.fail(this.#failure.error);
         }
 
-        return answers.length;
+        return completions.length;
     }
 
     /** The world's failure, absent while it runs. */
@@ -279,7 +290,7 @@ export class SimulatedScheduler implements Scheduler {
         return this.#flights.size;
     }
 
-    /** The real work in flight: operations and lifetimes not answered yet. */
+    /** The operations in flight, not completed yet. */
     get real(): number {
         return this.#real;
     }
@@ -289,19 +300,21 @@ export class SimulatedScheduler implements Scheduler {
         return { ...this.#running };
     }
 
-    /** Whether the next operation in order settled, so the loop can answer it. */
-    get isAnswerable(): boolean {
-        return this.#operations.has(this.#next);
+    /** Whether every uncompleted short operation settled, to complete them as one batch. */
+    get isShortSettled(): boolean {
+        const uncompleted = this.#sequence.short - this.#next;
+
+        return uncompleted > 0 && this.#short.size === uncompleted;
     }
 
-    /** Whether every operation begun so far is answered, so lifetimes may be. */
-    get isQuiescent(): boolean {
-        return this.#next === this.#sequence.operation;
+    /** Whether every short operation begun so far completed, so long ones may. */
+    get isShortCompleted(): boolean {
+        return this.#next === this.#sequence.short;
     }
 
-    /** The settled lifetimes the loop has not answered yet. */
-    get lifetimes(): number {
-        return this.#lifetimes.length;
+    /** The settled long operations the loop has not completed yet. */
+    get settledLong(): number {
+        return this.#long.length;
     }
 
     /** The work settled so far. */
@@ -321,16 +334,16 @@ export class SimulatedScheduler implements Scheduler {
         return { kind, isLong, began: new Error(kind), isSettled: false };
     }
 
-    /** Keep settled real work for the loop to release, or answer it at once without a loop. */
+    /** Keep a settled operation for the loop to complete, or complete it at once without a loop. */
     #held<Value>(
         work: Promise<Value>,
         flight: Flight,
-        keep: (answer: Omit<Answer, "order">) => void,
+        keep: (completion: Omit<Completion, "order">) => void,
     ): Promise<Value> {
-        // answer the work once released, or fail it with the loop's failure
-        const answered = Promise.withResolvers<Value>();
-        const fail = (error: unknown) => answered.reject(error);
-        const settle = (answer: () => void) => {
+        // complete the work once the loop does, or fail it with the loop's failure
+        const completed = Promise.withResolvers<Value>();
+        const fail = (error: unknown) => completed.reject(error);
+        const settle = (complete: () => void) => {
             // mark it settled, then refuse the work once the loop failed
             flight.isSettled = true;
             if (this.#failure !== undefined) {
@@ -338,29 +351,29 @@ export class SimulatedScheduler implements Scheduler {
             }
             // leave it for the loop
             else if (this.#isOrdered) {
-                keep({ answer, fail });
+                keep({ complete, fail });
                 this.#wake();
             }
-            // answer it at once without a loop
+            // complete it at once without a loop
             else {
-                answer();
+                complete();
             }
         };
-        const delayed = (answer: () => void) => {
+        const delayed = (complete: () => void) => {
             // settle at once, or after a seeded random real delay while jittering
             const delay = this.#delay();
             if (delay === undefined) {
-                settle(answer);
+                settle(complete);
             } else {
-                setTimeout(() => settle(answer), delay);
+                setTimeout(() => settle(complete), delay);
             }
         };
         void work.then(
-            (value) => delayed(() => answered.resolve(value)),
-            (error: unknown) => delayed(() => answered.reject(error)),
+            (value) => delayed(() => completed.resolve(value)),
+            (error: unknown) => delayed(() => completed.reject(error)),
         );
 
-        return answered.promise;
+        return completed.promise;
     }
 
     /** Draw the next jitter delay in real milliseconds with mulberry32, absent without jitter. */
@@ -387,7 +400,7 @@ export class SimulatedScheduler implements Scheduler {
         this.#wake();
         const end = this.#span(kind, began);
 
-        // uncount it once answered, and wake the waiters
+        // uncount it once completed, and wake the waiters
         const settle = (failure?: { readonly error: unknown }) => {
             // uncount it, then wake each waiter
             this.#flights.delete(flight);

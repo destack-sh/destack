@@ -6,13 +6,13 @@ export interface RunOptions {
     readonly isLong?: boolean;
 }
 
-/** How a world schedules work leaving it: real operations, lifetimes, and its own tasks. */
+/** How a world schedules work: real operations, short or long, and its own tasks. */
 export interface Scheduler {
     /** Let the host's event loop run its waiting tasks once, as the web's `scheduler.yield()`. */
     readonly yield: () => Promise<void>;
-    /** Run real work as one operation, answered in the order operations began. */
+    /** Run real work as one operation, completed in the order operations began. */
     readonly run: <Value>(start: () => Promise<Value>, options?: RunOptions) => Promise<Value>;
-    /** Keep the world's time until real work ends, answering it once the world is quiescent. */
+    /** Keep the world's time until real work ends, completing it as a long operation at idle. */
     readonly waitUntil: <Value>(settled: Promise<Value>) => Promise<Value>;
     /** Run the world's own work, counted in flight until it settles. */
     readonly task: <Value>(start: () => Promise<Value>) => Promise<Value>;

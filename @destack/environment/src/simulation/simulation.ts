@@ -22,7 +22,7 @@ import type { World, WorldStep } from "../world/world.ts";
 import { Clock } from "../clock/clock.ts";
 import { yieldToEventLoop } from "../clock/wait.ts";
 
-/** The turns world work may spin between host answers: at about 1 µs a turn, 200 ms. */
+/** The turns world work may spin between completions: at about 1 µs a turn, 200 ms. */
 const LIVELOCK_TURNS = 200_000;
 
 /** The real time a short operation may stall in flight before a run fails, ten seconds. */
@@ -148,14 +148,14 @@ export type SimulationEvent =
           readonly by: number;
       }
     | {
-          /** Settled real work answered: operations in order, lifetimes at quiescence. */
-          readonly kind: "release";
+          /** A settled operation completed: short ones in settled batches, long ones at idle. */
+          readonly kind: "completion";
           /** When, in the simulation's UTC epoch milliseconds. */
           readonly at: number;
-          /** The order the work began in among its kind. */
+          /** The order the operation began in among the short or the long ones. */
           readonly order: number;
-          /** What it is: an operation or a lifetime. */
-          readonly work: "operation" | "lifetime";
+          /** How long the operation may run: short as a file read, long as a compile. */
+          readonly length: "short" | "long";
       };
 
 /** Start a node's work in its environment, stopping it once the signal aborts. */
@@ -253,7 +253,7 @@ export interface SimulationOptions {
     readonly stallTimeout?: number;
     /** The real milliseconds long work may run without progress before a run fails. */
     readonly longStallTimeout?: number;
-    /** The turns world work may spin between real answers before it fails as busy. */
+    /** The turns world work may spin between completions before it fails as busy. */
     readonly livelockTurns?: number;
     /** Whether real work settles after a seeded random real delay, exposing untracked real work. */
     readonly jitter?: boolean;
@@ -279,7 +279,7 @@ export class Simulation {
     readonly seed: number;
     /** The simulated time. */
     readonly clock: SimulatedClock;
-    /** The scheduler the world's work runs under, its host results answered in order. */
+    /** The scheduler the world's work runs under, its operations completed in order. */
     readonly scheduler: SimulatedScheduler;
     /** The seeded randomness. */
     readonly random: SimulatedRandom;
@@ -407,7 +407,7 @@ export class Simulation {
 
     /** Stop the world's loop, remove the nodes' files, and stop the telemetry's context. */
     async #dispose(): Promise<void> {
-        // stop the loop, answering host work at once from now on, then refuse a failure no wait took
+        // stop the loop, completing operations at once from now on, then refuse a failure no wait took
         this.#isRunning = false;
         this.#wake?.();
         await this.#moving;
@@ -426,7 +426,7 @@ export class Simulation {
         this.#events += 1;
 
         // fold a world event's encoding into the fingerprint with FNV-1a, leaving out releases of real work, whose count follows the host's caches
-        if (event.kind !== "release") {
+        if (event.kind !== "completion") {
             const encoded = JSON.stringify(event);
             let hash = this.#fingerprint;
             for (let index = 0; index < encoded.length; index += 1) {
@@ -820,20 +820,20 @@ export class Simulation {
             if (isMoving || scheduler.real === 0) {
                 await yieldToEventLoop();
             }
-            // answer the operations settled in order from the next one, as they began
-            else if (scheduler.isAnswerable) {
+            // complete the short operations as one batch once all of them settled, in the order they began
+            else if (scheduler.isShortSettled) {
                 const at = clock.now();
-                for (const order of scheduler.answerOperations()) {
-                    this.record({ kind: "release", at, order, work: "operation" });
+                for (const order of scheduler.completeShort()) {
+                    this.record({ kind: "completion", at, order, length: "short" });
                 }
                 busy = 0;
                 await yieldToEventLoop();
             }
-            // answer the settled lifetimes once the world is quiescent, every operation answered
-            else if (scheduler.lifetimes > 0 && scheduler.isQuiescent) {
+            // complete the settled long operations once idle, every short one completed
+            else if (scheduler.settledLong > 0 && scheduler.isShortCompleted) {
                 const at = clock.now();
-                for (const order of scheduler.answerLifetimes()) {
-                    this.record({ kind: "release", at, order, work: "lifetime" });
+                for (const order of scheduler.completeLong()) {
+                    this.record({ kind: "completion", at, order, length: "long" });
                 }
                 busy = 0;
                 await yieldToEventLoop();
@@ -878,7 +878,7 @@ export class Simulation {
                 );
             }
 
-            // refuse the world's own work spinning between real answers without moving time, listing its call sites
+            // refuse the world's own work spinning between completions without moving time, listing its call sites
             busy += scheduler.real === 0 ? 1 : 0;
             if (busy >= livelockTurns) {
                 const sites = [...(await this.#busy()), ...this.scheduler.pending()];

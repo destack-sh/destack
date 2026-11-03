@@ -71,7 +71,7 @@ export class SimulatedProcess implements Process {
     readonly #failures = new Set<(error: unknown) => Promise<void> | void>();
     /** The host's process, which starts the children. */
     readonly #host = new BunProcess();
-    /** The scheduler each child's lifetime counts on. */
+    /** The scheduler each child's long operations count on. */
     readonly #scheduler: Scheduler;
     /** The ids of the children the node started that have not exited. */
     readonly #children = new Set<number>();
@@ -176,7 +176,7 @@ export class SimulatedProcess implements Process {
         }
     }
 
-    /** Start a real child with the node's variables, counting its lifetime as its option says. */
+    /** Start a real child with the node's variables, counting it as its option says. */
     spawn(command: readonly string[], options: SpawnOptions = {}): Subprocess {
         return this.#adopt(
             this.#host.spawn(command, this.#options(options)),
@@ -202,7 +202,7 @@ export class SimulatedProcess implements Process {
         );
     }
 
-    /** Count a child as the node's until it exits, its exit and reads as lifetimes. */
+    /** Count a child as the node's until it exits, its exit and reads as long operations. */
     #adopt<Child extends Subprocess>(child: Child, isService: boolean): Child {
         // know the child's id while it runs
         this.#children.add(child.id);
@@ -213,12 +213,12 @@ export class SimulatedProcess implements Process {
             return child;
         }
 
-        // wait for its exit and each read of its output as lifetimes, writing its input as it is
+        // wait for its exit and each read of its output as long operations, writing its input as it is
         const exited = this.#scheduler.waitUntil(child.exited);
         const stdout = this.#readable(child.stdout);
         const stderr = this.#readable(child.stderr);
 
-        // answer it with the waited streams and exit, its output read through them
+        // return it with the waited streams and exit, its output read through them
         const adopted: Child = {
             ...child,
             stdout,
@@ -238,7 +238,7 @@ export class SimulatedProcess implements Process {
         return options.isService ?? options.isDetached === true;
     }
 
-    /** Read a child's stream on demand, each read a lifetime, as the child may wait. */
+    /** Read a child's stream on demand, each read a long operation, as the child may wait. */
     #readable(stream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
         const reader = stream.getReader();
 

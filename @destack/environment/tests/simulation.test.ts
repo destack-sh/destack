@@ -1198,9 +1198,9 @@ test("publish a node's listener at a world address for nodes and a host address 
     });
 });
 
-test("refuse a short operation stalled past the stall timeout, and a lifetime past the long one, naming each", async () => {
+test("refuse a short operation stalled past the stall timeout, and a long one past the long timeout, naming each", async () => {
     // read a stall's message, its milliseconds and call sites left out
-    const stallOf = async (kind: "operation" | "lifetime") => {
+    const stallOf = async (length: "short" | "long") => {
         await using simulation = new Simulation({
             seed: 1,
             start: START,
@@ -1208,7 +1208,7 @@ test("refuse a short operation stalled past the stall timeout, and a lifetime pa
             longStallTimeout: 80,
         });
         const never = new Promise<void>(() => {});
-        void (kind === "operation"
+        void (length === "short"
             ? simulation.scheduler.run(() => never)
             : simulation.scheduler.waitUntil(never));
         const message = await simulation.sleep(1000).then(
@@ -1223,24 +1223,24 @@ test("refuse a short operation stalled past the stall timeout, and a lifetime pa
         ];
     };
 
-    expect([await stallOf("operation"), await stallOf("lifetime")]).toEqual([
+    expect([await stallOf("short"), await stallOf("long")]).toEqual([
         [
             "work stayed in flight for N ms without settling, 1 of 1 real work running (1 short):",
             [["operation", "running"]],
         ],
         [
             "work stayed in flight for N ms without settling, 0 of 1 real work running (0 short):",
-            [["lifetime", "running"]],
+            [["operation", "running"]],
         ],
     ]);
 });
 
-test("refuse world work begun inside an operation with both sites, failing the world, and allow it inside a lifetime", async () => {
-    // begin world work inside a lifetime, and inside an operation after a host turn
+test("refuse world work begun inside an operation with both sites, failing the world, and allow it inside a waited one", async () => {
+    // begin world work inside a waited long operation, and inside a run one after a host turn
     const simulation = new Simulation({ seed: 1, start: START });
     const { scheduler } = simulation;
-    const lifetime = await scheduler.waitUntil(
-        Promise.resolve().then(() => scheduler.task(() => Promise.resolve("lifetime"))),
+    const waited = await scheduler.waitUntil(
+        Promise.resolve().then(() => scheduler.task(() => Promise.resolve("waited"))),
     );
     const operation = await scheduler
         .run(() => Promise.resolve().then(() => scheduler.task(() => Promise.resolve("operation"))))
@@ -1260,8 +1260,8 @@ test("refuse world work begun inside an operation with both sites, failing the w
     );
     const message =
         "world work began inside an operation, which keeps the world's time until it settles: wait for the real work with waitUntil";
-    expect({ lifetime, operation, disposed }).toEqual({
-        lifetime: "lifetime",
+    expect({ waited, operation, disposed }).toEqual({
+        waited: "waited",
         operation: [message, { world: "string", isOperationSited: true }],
         disposed: message,
     });
@@ -1286,8 +1286,8 @@ test("reject work whose start throws before it returns a promise, as its own fai
     ]);
 });
 
-test("answer operations in the order they began and a lifetime at quiescence, recording each release with its kind", async () => {
-    // run two operations settling in reverse, beside a lifetime that stays running
+test("complete short operations in the order they began and a long one at idle, recording each completion with its length", async () => {
+    // run two short operations settling in reverse, beside a long one that stays running
     await using simulation = new Simulation({ seed: 1, start: START, isTracing: true });
     const { scheduler } = simulation;
     const order: string[] = [];
@@ -1297,36 +1297,36 @@ test("answer operations in the order they began and a lifetime at quiescence, re
                 setTimeout(resolve, after);
             }).then(() => order.push(name)),
         );
-    const lifetime = Promise.withResolvers<void>();
-    void scheduler.waitUntil(lifetime.promise);
+    const long = Promise.withResolvers<void>();
+    void scheduler.waitUntil(long.promise);
     const [first, second] = [settle("first", 20), settle("second", 1)];
-    const answered: string[] = [];
-    void first.then(() => answered.push("first"));
-    void second.then(() => answered.push("second"));
-    while (answered.length < 2) {
+    const completed: string[] = [];
+    void first.then(() => completed.push("first"));
+    void second.then(() => completed.push("second"));
+    while (completed.length < 2) {
         await new Promise<void>((resolve) => {
             setTimeout(resolve, 5);
         });
     }
     const pending = scheduler.pending().map((line) => line.split(" ").slice(0, 2));
-    lifetime.resolve();
+    long.resolve();
     await simulation.idle();
 
-    // settle on the host in reverse, answer in begin order unheld by the lifetime, then the lifetime
-    const releases = simulation.telemetry.logs
-        .filter((record) => record.eventName === "destack.simulation.release")
+    // settle on the host in reverse, complete in begin order unheld by the long one, then the long one
+    const completions = simulation.telemetry.logs
+        .filter((record) => record.eventName === "destack.simulation.completion")
         .map((record) => [
             record.attributes["destack.simulation.order"],
-            record.attributes["destack.simulation.work"],
+            record.attributes["destack.simulation.length"],
         ]);
-    expect({ order, answered, pending, releases }).toEqual({
+    expect({ order, completed, pending, completions }).toEqual({
         order: ["second", "first"],
-        answered: ["first", "second"],
-        pending: [["lifetime", "running"]],
-        releases: [
-            [0, "operation"],
-            [1, "operation"],
-            [0, "lifetime"],
+        completed: ["first", "second"],
+        pending: [["operation", "running"]],
+        completions: [
+            [0, "short"],
+            [1, "short"],
+            [0, "long"],
         ],
     });
 });
@@ -1633,8 +1633,8 @@ function throwRefused(kind: string): never {
     throw new Error(`${kind} refused`);
 }
 
-test("run real work an operation begins as part of it, unordered, and answer the operation whole", async () => {
-    // begin an operation whose own operation and lifetime settle inside it
+test("run real work an operation begins as part of it, unordered, and complete the operation whole", async () => {
+    // begin an operation whose own short and waited operations settle inside it
     await using simulation = new Simulation({ seed: 1, start: START });
     const { scheduler } = simulation;
     const whole = await scheduler.run(async () => {
@@ -1644,7 +1644,7 @@ test("run real work an operation begins as part of it, unordered, and answer the
         return [inner, lived];
     });
 
-    // answer it with its parts, nothing left in flight
+    // complete it with its parts, nothing left in flight
     expect({ whole, inFlight: scheduler.inFlight }).toEqual({
         whole: ["inner", "lived"],
         inFlight: 0,
@@ -1652,7 +1652,7 @@ test("run real work an operation begins as part of it, unordered, and answer the
 });
 
 test("observe the same timeline with and without jitter, as the world schedules all its real work", async () => {
-    // run operations settling in reverse, a lifetime and timers, recording what the world sees when
+    // run operations settling in reverse, a waited one and timers, recording what the world sees when
     const timeline = async (jitter: boolean) => {
         await using simulation = new Simulation({ seed: 3, start: START, jitter });
         const { clock, scheduler } = simulation;
@@ -1671,7 +1671,7 @@ test("observe the same timeline with and without jitter, as the world schedules 
             Promise.all([
                 real("slow", 6),
                 real("quick", 0),
-                scheduler.waitUntil(Promise.resolve()).then(() => note("lifetime")),
+                scheduler.waitUntil(Promise.resolve()).then(() => note("waited")),
                 clock.sleep(5).then(() => note("timer")),
             ]),
         );
@@ -1697,25 +1697,25 @@ test("schedule work a settled operation's late callback begins as the world's ow
     expect(await simulation.wait(present(late, "the late work"))).toBe("late");
 });
 
-test("finish world work awaiting native body reads before answering a settled operation", async () => {
+test("finish world work awaiting native body reads before completing a settled operation", async () => {
     // begin an operation settling at once beside world work reading bodies natively
     await using simulation = new Simulation({ seed: 1, start: START });
     const { scheduler } = simulation;
     const seen: string[] = [];
-    const answered = scheduler.run(() => Promise.resolve()).then(() => seen.push("operation"));
+    const completed = scheduler.run(() => Promise.resolve()).then(() => seen.push("operation"));
     const handled = scheduler.task(async () => {
         const text = await new Response("body").text();
         const bytes = await new Blob([text]).bytes();
         seen.push(`handler ${bytes.length}`);
     });
-    await Promise.all([answered, handled]);
+    await Promise.all([completed, handled]);
 
-    // answer the operation only once the world rested, after the native reads settled
+    // complete the operation only once the world rested, after the native reads settled
     expect(seen).toEqual(["handler 4", "operation"]);
 });
 
-test("answer a lifetime only after an earlier operation, though the lifetime settles first", async () => {
-    // begin a slow operation, then a lifetime settling at once
+test("complete a long operation only after an earlier short one, though the long one settles first", async () => {
+    // begin a slow short operation, then a long one settling at once
     await using simulation = new Simulation({ seed: 1, start: START });
     const { scheduler } = simulation;
     const seen: string[] = [];
@@ -1727,11 +1727,11 @@ test("answer a lifetime only after an earlier operation, though the lifetime set
                 }),
         )
         .then(() => seen.push("operation"));
-    const lifetime = scheduler.waitUntil(Promise.resolve()).then(() => seen.push("lifetime"));
-    await Promise.all([operation, lifetime]);
+    const long = scheduler.waitUntil(Promise.resolve()).then(() => seen.push("long"));
+    await Promise.all([operation, long]);
 
-    // answer the lifetime once no operation is left unanswered
-    expect(seen).toEqual(["operation", "lifetime"]);
+    // complete the long one once no short one is left uncompleted
+    expect(seen).toEqual(["operation", "long"]);
 });
 
 test("keep a world's time still while its driver works, moving it only while the driver waits", async () => {
