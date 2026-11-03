@@ -21,7 +21,7 @@ import { schema, present, type Identifier } from "@destack/schema";
 import { defineObject, field, ObjectWatch } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { auditedCalls } from "./fixture/audit.ts";
+import { auditedCalls } from "../src/test/index.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 

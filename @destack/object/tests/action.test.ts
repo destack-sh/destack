@@ -11,7 +11,7 @@ const target = {
     $schema: DIALECT,
     type: "object",
     properties: { type: { type: "string", const: "document" }, id: { type: "string" } },
-    required: ["type", "id"],
+    required: ["id", "type"],
     additionalProperties: false,
 };
 

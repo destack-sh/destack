@@ -117,6 +117,9 @@ export const PACKAGE_DECLARATION = DeclarationName.parse("package");
 /** The export a build's package declaration comes from: its module's default export. */
 export const PACKAGE_EXPORT = "default";
 
+/** The subpath a package's build exports its server under. */
+export const SERVER_EXPORT = "./server";
+
 /** The package defining the package kind: object itself. */
 const KIND_PACKAGE_ID = PackageId.parse(import.meta.destack.package.id);
 

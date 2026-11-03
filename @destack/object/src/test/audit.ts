@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from "@destack/db";
-import { CallEvent, call, journal } from "../../src/index.ts";
+import { CallEvent, call, journal } from "../index.ts";
 
 /** Read the audited calls a database records as call events, in journal order. */
 export async function auditedCalls(database: DatabaseConnection): Promise<CallEvent[]> {

@@ -449,6 +449,50 @@ test("read a universe row the room's replica holds through a client of the room,
     expect({ ids: rows.map((row) => row.id), failures }).toEqual({ ids: [personId], failures: [] });
 });
 
+test("read a person's own universe row through a client of their scope at their home, reading every scope", async () => {
+    // replicate alice's person on her device, through a client of her person's scope at its home
+    const world = testSimulation().environment("test");
+    const served = await serveHomes(world);
+    const storage = await TestDatabase.create(ObjectClient.tables({ person, preference }), {
+        environment: world,
+        dialect: "sqlite",
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const client = await ObjectClient.open({
+        database: storage.database,
+        objects: { person, preference },
+        scope: personId,
+        caller: principal.user.reference(Scope.universe.id, users.alice),
+        endpoint: served.homeEndpoint,
+        reconnect: unmoved,
+        homes: () => served.homeEndpoint,
+        environment: world,
+    });
+
+    // replicate her scope without queries first, then follow her person until it arrives
+    const controller = new AbortController();
+    const failures: unknown[] = [];
+    const loops = client.run(controller.signal, (error) => failures.push(error));
+    onTestFinished(async () => {
+        controller.abort();
+        await loops;
+        await client.close();
+    });
+    await waitFor(
+        client,
+        async () => (await client.replica.position(client.database)) !== undefined,
+    );
+    const live = client.query.person
+        .findMany({ scopes: "every", where: { id: personId } })
+        .subscribe();
+    await live.ready;
+
+    // read the person row her home stores
+    const rows = await live.read();
+    expect({ ids: rows.map((row) => row.id), failures }).toEqual({ ids: [personId], failures: [] });
+});
+
 test("push a row of the room's ancestor to a client that subscribed before the room knew its chain", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");

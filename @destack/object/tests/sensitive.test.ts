@@ -12,7 +12,7 @@ import { OtlpExporter } from "@destack/telemetry/otlp";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { auditedCalls } from "./fixture/audit.ts";
+import { auditedCalls } from "../src/test/index.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";

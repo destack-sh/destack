@@ -1,5 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { ACCENT_PRESETS, type AccentPreset } from "@destack/theme";
+import { ACCENT_PRESETS, type AccentPreset } from "@destack/theme/declare";
 import { type JsonValue, present, schema } from "@destack/schema";
 import { field, type Field } from "../field/field.ts";
 import type { ObjectDefinition } from "../object/object.ts";

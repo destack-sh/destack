@@ -141,8 +141,11 @@ export class Server implements AsyncDisposable {
         })();
         server.#controlled = Promise.all([server.#running, server.#serve()]).then(() => undefined);
 
-        // stop serving once readiness or the controllers fail
+        // stop serving once readiness or the controllers fail, a stop's own abort ending them quietly
         server.#controlled.catch((error: unknown) => {
+            if (error === server.#reconciling.signal.reason) {
+                return;
+            }
             reportError(error, options.environment.telemetry);
             options.report?.(error);
             if (!server.#reconciling.signal.aborted) {
@@ -555,7 +558,12 @@ export class Server implements AsyncDisposable {
             disarm.abort();
             deadline.catch(() => undefined);
             this.#reconciling.abort();
-            await this.#controlled;
+            await this.#controlled?.catch((error: unknown) => {
+                // end quietly on the stop's own abort, failing the close on any other error
+                if (error !== this.#reconciling.signal.reason) {
+                    throw error;
+                }
+            });
         }
     }
 

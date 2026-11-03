@@ -13,7 +13,7 @@ import { Replica, Scope, RequestId } from "@destack/sync";
 import { defineObject, definePackage, defineShape, field } from "../src/index.ts";
 import { ExpiringController } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { auditedActions } from "./fixture/audit.ts";
+import { auditedActions } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";

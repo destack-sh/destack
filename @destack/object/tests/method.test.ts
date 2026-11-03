@@ -28,7 +28,7 @@ import {
 } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { auditedActions } from "./fixture/audit.ts";
+import { auditedActions } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 
@@ -107,7 +107,7 @@ test("derive routes and describe each method with its permission, input and audi
         .parse(toJsonSchema(present(update.inputSchema, "the update input")));
     expect([Object.keys(updateInput.properties), updateInput.required]).toEqual([
         ["spaceId", "id", "requestId", "revision", "title", "estimate", "currentId", "tags"],
-        ["spaceId", "id", "requestId"],
+        ["id", "requestId", "spaceId"],
     ]);
 });
 

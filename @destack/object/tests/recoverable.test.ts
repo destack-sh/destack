@@ -13,7 +13,7 @@ import { schema, present } from "@destack/schema";
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
 import { RecoverableController } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { auditedActions } from "./fixture/audit.ts";
+import { auditedActions } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { tablesOf } from "../src/index.ts";

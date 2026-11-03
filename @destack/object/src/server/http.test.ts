@@ -916,6 +916,29 @@ test("refuse waiting for a server stopped while it waits for readiness, ending t
     ]);
 });
 
+test("end a server stopped while its activation waits quietly, reporting nothing", async () => {
+    // start a server whose activation waits until its stop aborts it, recording what it reports
+    const world = testSimulation().environment("test");
+    const reported: unknown[] = [];
+    const server = Server.start({
+        environment: world,
+        ...hosting,
+        authenticate: authenticateByName(world.clock),
+        health: new Health("activating"),
+        drainTimeout: 1000,
+        activation: (signal) =>
+            new Promise<void>((_resolve, reject) => {
+                signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+            }),
+        report: (error) => reported.push(error),
+        router: implement({}).router({}),
+    });
+
+    // stop it while it waits, reporting no failure for the stop's own abort
+    await server.close();
+    expect({ reported, status: server.health.status }).toEqual({ reported: [], status: "stopped" });
+});
+
 test("refuse a caller authenticated for another package as unauthenticated, auditing the denial", async () => {
     // serve an audited procedure to a caller with a credential for another package
     const procedures = {
