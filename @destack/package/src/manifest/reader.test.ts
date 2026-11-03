@@ -2,6 +2,7 @@ import { testSimulation } from "@destack/test/world";
 import { dirname, join } from "node:path";
 import { expect, refusal, test } from "@destack/test";
 import { Digest, schema } from "@destack/schema";
+import { DeclarationKind } from "../definition/kind.ts";
 import { Package } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
 import { MemoryBuild } from "../test/memory.ts";
@@ -283,13 +284,10 @@ test("parse a kind's declarations once per schema, however often a reader is ask
 
         return true;
     });
-    const first = await reader.declared(owner.id, "setting", counted);
-    const second = await reader.declared(owner.id, "setting", counted);
-    const other = await reader.declared(
-        owner.id,
-        "setting",
-        schema.object({ title: schema.string() }),
-    );
+    const setting = new DeclarationKind(owner.id, "setting");
+    const first = await reader.declared(setting, counted);
+    const second = await reader.declared(setting, counted);
+    const other = await reader.declared(setting, schema.object({ title: schema.string() }));
     expect({
         titles: first.map((entry) => entry.description.title).toSorted(),
         second: second.map((entry) => entry.name).toSorted(),

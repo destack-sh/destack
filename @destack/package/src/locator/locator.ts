@@ -1,6 +1,9 @@
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import { basename, dirname, join, sep } from "node:path";
-import type { DeclarationConstructorMap } from "../definition/constructor.ts";
+import type {
+    DeclarationConstructorMap,
+    DeclarationKindDefinition,
+} from "../definition/constructor.ts";
 import { Definition, type PackageDefinition } from "../definition/definition.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { DependencyName } from "../definition/package.ts";
@@ -110,6 +113,11 @@ export class PackageLocator {
             }
             throw error;
         }
+    }
+
+    /** Read the kinds a package defines for its dependents, resolved from a directory. */
+    async kinds(name: string, from: string): Promise<readonly DeclarationKindDefinition[]> {
+        return (await this.#definition(name, from))?.kinds ?? [];
     }
 
     /** Read the declaration constructors of a package's build, resolved from a directory. */

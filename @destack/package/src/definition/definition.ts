@@ -3,7 +3,12 @@ import { Language } from "./language.ts";
 import { Runtime } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
 import { PackageId, PackageName } from "./package.ts";
-import { DeclarationConstructorMap, FunctionReference, StampMap } from "./constructor.ts";
+import {
+    DeclarationConstructorMap,
+    DeclarationKindDefinition,
+    FunctionReference,
+    StampMap,
+} from "./constructor.ts";
 import { Sandbox } from "./sandbox.ts";
 import { PackagePath } from "../file/file.ts";
 import { PackageError } from "../error/index.ts";
@@ -58,6 +63,8 @@ const definition = schema.object({
     sandbox: Sandbox.exactOptional(),
     /** The declaration constructors the build describes, by name. */
     declarations: DeclarationConstructorMap.exactOptional(),
+    /** The kinds the package defines for its dependents' constructors, such as `resource`. */
+    kinds: schema.array(DeclarationKindDefinition).exactOptional(),
     /** The functions, tags and constructors receiving the calling module, by export path. */
     stamps: StampMap.exactOptional(),
     /** The extension building dependent packages, such as `./build#viewExtension`. */

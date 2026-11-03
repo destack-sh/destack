@@ -7,7 +7,7 @@ import type { PackageRelease } from "../definition/package.ts";
 import { SourceMapReference } from "../source/map.ts";
 import { Declaration } from "../graph/declaration.ts";
 import { PackageError } from "../error/index.ts";
-import type { DeclarationName, PackageId } from "../definition/package.ts";
+import type { DeclarationKind } from "../definition/kind.ts";
 import { PackageLocation, PackageManifest } from "./manifest.ts";
 
 /** The path of a build's root manifest beside its files, in stores and running workloads. */
@@ -173,23 +173,18 @@ export class BuildReader {
 
     /** Read one kind's declarations from a package's constructors, parsing each description. */
     async declared<Item extends schema.Schema>(
-        kindPackageId: PackageId,
-        kind: DeclarationName,
+        kind: DeclarationKind,
         item: Item,
     ): Promise<Declared<schema.Output<Item>>[]> {
         // parse a kind's declarations once per schema, as a build never changes
-        const key = `${kindPackageId} ${kind}`;
+        const key = `${kind.packageId} ${kind.name}`;
         const parsed = this.#declared.get(item) ?? new Map<string, Promise<readonly unknown[]>>();
         this.#declared.set(item, parsed);
         let declared = parsed.get(key);
         if (declared === undefined) {
             declared = this.declarations().then((declarations) =>
                 declarations
-                    .filter(
-                        (declaration) =>
-                            declaration.kindPackageId === kindPackageId &&
-                            declaration.kind === kind,
-                    )
+                    .filter((declaration) => kind.has(declaration))
                     .map((declaration) => ({
                         ...declaration,
                         description: item.parse(declaration.description),

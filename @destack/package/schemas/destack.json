@@ -277,28 +277,68 @@
                                             "additionalProperties": false
                                         },
                                         {
-                                            "type": "object",
-                                            "properties": {
-                                                "kind": {
-                                                    "type": "string",
-                                                    "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*|[a-z][a-zA-Z0-9]*(?:\\.[a-z][a-zA-Z0-9]*)*)$"
+                                            "anyOf": [
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "kind": {
+                                                            "type": "string",
+                                                            "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*|[a-z][a-zA-Z0-9]*(?:\\.[a-z][a-zA-Z0-9]*)*)$"
+                                                        },
+                                                        "package": {
+                                                            "type": "string",
+                                                            "maxLength": 214,
+                                                            "pattern": "^(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*$"
+                                                        },
+                                                        "value": {
+                                                            "type": "string",
+                                                            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "kind",
+                                                        "package",
+                                                        "value"
+                                                    ],
+                                                    "additionalProperties": false
                                                 },
-                                                "package": {
-                                                    "type": "string",
-                                                    "maxLength": 214,
-                                                    "pattern": "^(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*$"
-                                                },
-                                                "value": {
-                                                    "type": "string",
-                                                    "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "kind": {
+                                                            "type": "string",
+                                                            "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*|[a-z][a-zA-Z0-9]*(?:\\.[a-z][a-zA-Z0-9]*)*)$"
+                                                        },
+                                                        "function": {
+                                                            "type": "string",
+                                                            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                        },
+                                                        "compare": {
+                                                            "type": "string",
+                                                            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                        },
+                                                        "vocabulary": {
+                                                            "type": "string",
+                                                            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                        },
+                                                        "symbols": {
+                                                            "type": "string",
+                                                            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                        },
+                                                        "package": {
+                                                            "type": "string",
+                                                            "maxLength": 214,
+                                                            "pattern": "^(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*$"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "function",
+                                                        "kind",
+                                                        "package"
+                                                    ],
+                                                    "additionalProperties": false
                                                 }
-                                            },
-                                            "required": [
-                                                "kind",
-                                                "package",
-                                                "value"
-                                            ],
-                                            "additionalProperties": false
+                                            ]
                                         }
                                     ]
                                 }
@@ -306,6 +346,39 @@
                         },
                         "required": [
                             "describes"
+                        ],
+                        "additionalProperties": false
+                    }
+                },
+                "kinds": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*|[a-z][a-zA-Z0-9]*(?:\\.[a-z][a-zA-Z0-9]*)*)$"
+                            },
+                            "function": {
+                                "type": "string",
+                                "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                            },
+                            "compare": {
+                                "type": "string",
+                                "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                            },
+                            "vocabulary": {
+                                "type": "string",
+                                "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                            },
+                            "symbols": {
+                                "type": "string",
+                                "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                            }
+                        },
+                        "required": [
+                            "function",
+                            "kind"
                         ],
                         "additionalProperties": false
                     }

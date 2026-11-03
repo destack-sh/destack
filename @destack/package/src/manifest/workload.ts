@@ -24,8 +24,6 @@ export const WorkloadDescription = schema.object({
     entrypoint: Entrypoint,
     /** The handles of this package the workload serves. */
     packages: schema.array(DeclarationReference),
-    /** The package's trigger declarations the workload imports, such as schedules. */
-    triggers: schema.array(DeclarationReference),
     /** Resource declarations the workload imports. */
     resources: schema.array(DeclarationReference),
     /** Secret declarations the workload imports. */

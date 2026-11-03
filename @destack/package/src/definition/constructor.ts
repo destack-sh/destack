@@ -8,8 +8,8 @@ export const FunctionReference = schema
 /** A function a package exports, as export and name. */
 export type FunctionReference = schema.Infer<typeof FunctionReference>;
 
-/** A kind of declaration the package owns, with the functions that describe and compare it. */
-export const DeclarationKind = schema.object({
+/** The definition of a kind of declaration the package owns: its describing functions. */
+export const DeclarationKindDefinition = schema.object({
     /** The description kind. */
     kind: DeclarationName,
     /** The describing function. */
@@ -21,11 +21,11 @@ export const DeclarationKind = schema.object({
     /** The function listing the symbols a declaration derives with their relationships. */
     symbols: FunctionReference.exactOptional(),
 });
-/** A kind of declaration the package owns. */
-export type DeclarationKind = schema.Infer<typeof DeclarationKind>;
+/** The definition of a kind of declaration the package owns. */
+export type DeclarationKindDefinition = schema.Infer<typeof DeclarationKindDefinition>;
 
-/** A dependency's kind each declaration also makes, with the function reading that kind's value. */
-export const DeclarationKindValue = schema.object({
+/** A dependency's kind each declaration makes, as a value the kind describes. */
+const KindValueRead = schema.object({
     /** The description kind. */
     kind: DeclarationName,
     /** The dependency declaring the kind. */
@@ -33,13 +33,22 @@ export const DeclarationKindValue = schema.object({
     /** The function reading the kind's value from a declaration. */
     value: FunctionReference,
 });
+
+/** A dependency's kind each declaration makes, described by this package's own functions. */
+const KindValueDescribed = DeclarationKindDefinition.extend({
+    /** The dependency declaring the kind. */
+    package: DependencyName,
+});
+
+/** A dependency's kind each declaration makes: as a value, or described by this package. */
+export const DeclarationKindValue = schema.union([KindValueRead, KindValueDescribed]);
 /** A dependency's kind each declaration also makes. */
 export type DeclarationKindValue = schema.Infer<typeof DeclarationKindValue>;
 
 /** A declaration constructor the build describes, as its package declares it in destack.json. */
 export const DeclarationConstructor = schema.object({
     /** The kinds the build describes each declaration as. */
-    describes: schema.array(schema.union([DeclarationKind, DeclarationKindValue])).min(1),
+    describes: schema.array(schema.union([DeclarationKindDefinition, DeclarationKindValue])).min(1),
 });
 /** A declaration constructor the build describes. */
 export type DeclarationConstructor = schema.Infer<typeof DeclarationConstructor>;

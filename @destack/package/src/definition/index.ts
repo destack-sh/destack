@@ -1,4 +1,5 @@
 export * from "./package.ts";
+export * from "./kind.ts";
 export * from "./definition.ts";
 export * from "./description.ts";
 export * from "./language.ts";
