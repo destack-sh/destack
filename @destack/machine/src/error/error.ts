@@ -105,6 +105,7 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     START_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     STOP_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     ROUTE_BASE_MISMATCH: { code: "INTERNAL_SERVER_ERROR" },
+    SERVER_INVALID: { code: "INTERNAL_SERVER_ERROR" },
 
     // not implemented
     RUNTIME_MISSING: { code: "NOT_IMPLEMENTED" },
@@ -117,10 +118,8 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     SETTINGS_ENDED: { code: "BAD_GATEWAY" },
 
     // service unavailable
-    DEPENDENCY_MISSING: { code: "SERVICE_UNAVAILABLE" },
+    INSTALLATION_NOT_SERVED: { code: "SERVICE_UNAVAILABLE" },
     INSTANCE_NOT_RUNNING: { code: "SERVICE_UNAVAILABLE" },
-    MACHINE_NOT_SERVING: { code: "SERVICE_UNAVAILABLE" },
-    MACHINE_PAUSED: { code: "SERVICE_UNAVAILABLE" },
     MACHINE_STOPPED: { code: "SERVICE_UNAVAILABLE" },
     REVISION_MISSING: { code: "SERVICE_UNAVAILABLE" },
     RUNNING_DEPLOYMENT_MISSING: { code: "SERVICE_UNAVAILABLE" },

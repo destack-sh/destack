@@ -14,7 +14,7 @@ await machine.serve(request); // a request to a space this machine serves
 
 ```ts
 await machine.enroll(accounts, issuer, { accountId, name });
-await machine.serving(); // settled once the machine serves its spaces
+await machine.health.waitUp(); // settled once the machine serves its spaces
 const stack = await machine.connect(stackPackage, spaceId); // a client at the machine serving the space
 const response = await machine.serveName(request); // an installation origin's or a route's request
 ```

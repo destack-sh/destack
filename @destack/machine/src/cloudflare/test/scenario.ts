@@ -20,8 +20,8 @@ import { ObjectReference } from "@destack/sync";
 import { SpaceStorage } from "../../space/storage.ts";
 import { DurableObjectSpaceDatabaseHost } from "../database.ts";
 
-/** The space's main database on a cloud machine running no servers. */
-const MAIN = SpaceStorage.declare([]).main;
+/** The space's main database on a cloud machine. */
+const MAIN = SpaceStorage.declare().main;
 
 /** The space whose object stores the installations' databases' copies. */
 const SPACE = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-00000000e001");

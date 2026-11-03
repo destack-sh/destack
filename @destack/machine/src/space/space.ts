@@ -1,10 +1,12 @@
-import { Forge, Registry } from "@destack/forge/client";
+import { Forge, Registry } from "@destack/registry/client";
 import { type Authentication, principal } from "@destack/access";
 import * as accountObject from "@destack/account/object";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { S3Credentials, type S3Server } from "@destack/bucket/s3";
-import { connection, ConnectionRequest } from "@destack/connection";
-import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
+import connectionPackage, {
+    CONNECTION_INSTALLATION,
+    ConnectionRequest,
+} from "@destack/connection/client";
 import { BlobStore, Change, type DatabaseConnection, Snapshot, type Table } from "@destack/db";
 import { BuildStore } from "@destack/build/store";
 import * as stackObject from "@destack/stack/object";
@@ -22,12 +24,11 @@ import {
     type ObjectStore,
     type PackageImplementation,
 } from "@destack/object/server";
-import { reading } from "@destack/observability";
 import { PackageId } from "@destack/package";
 import { type Lease, ResourceHandle } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import type { ReconcileController } from "@destack/db";
-import type { PackageHandler } from "@destack/object/server";
+import { Health, type PackageHandler } from "@destack/object/server";
 import { defineWorkload, type WorkloadContext, WorkloadInstance } from "@destack/object/workload";
 import { type Identifier, present } from "@destack/schema";
 import {
@@ -37,12 +38,13 @@ import {
     rollout,
     type InstallationRollout,
 } from "@destack/stack/object";
-import stackPackage from "@destack/stack/package";
+import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import {
     SpaceBuildStore,
     type SpaceOptions,
     serveS3,
-    serveSpace,
+    SpaceStore,
+    type SpaceStart,
     SpaceHost,
     type SpaceMachine,
     type SpaceRole,
@@ -53,9 +55,7 @@ import type { InstanceSpec } from "@destack/stack/runtime";
 import { Gateway } from "../gateway/index.ts";
 import { Traffic } from "../gateway/traffic.ts";
 import { DRAIN_TIMEOUT_MILLISECONDS, type Machine } from "../machine/index.ts";
-import { MeterController } from "../meter/index.ts";
-import { Usage } from "@destack/finance/object";
-import financePackage, { FINANCE_INSTALLATION } from "@destack/finance/package";
+import { MeterController, Reading } from "../meter/index.ts";
 import { MachineError } from "../error/index.ts";
 
 /** The adapter of OTLP/HTTP, which the installations taking a space's telemetry serve. */
@@ -64,7 +64,7 @@ const OTLP_ADAPTER = "otlp";
 /** What one start of a space's workload serves with: its keys, its store and its buckets. */
 export interface SpaceRun {
     /** The installations taking the space's telemetry: their package and the adapter's path. */
-    readonly receivers: readonly { readonly packageId: PackageId; readonly path: string }[];
+    receivers: readonly { readonly packageId: PackageId; readonly path: string }[];
     /** The host of the space's buckets. */
     readonly buckets: CatalogueBucketHost;
     /** The S3 API over the space's buckets, and the host name it answers at. */
@@ -76,11 +76,10 @@ export interface SpaceRun {
     /** The space's role on the machine this start serves. */
     readonly role: SpaceRole;
     /** The revision this start serves each installation at. */
-    readonly revisions: ReadonlyMap<
-        Identifier<"installation">,
-        Identifier<"installation-revision">
-    >;
-    /** Start the workload again, once what the space serves changed. */
+    revisions: ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">>;
+    /** Serve a changed installed set in this start, keeping the unchanged installations served. */
+    readonly apply: (installed: Awaited<ReturnType<typeof Database.installed>>) => Promise<void>;
+    /** Start the workload again, once the space's role here changed. */
     readonly restart: () => void;
 }
 
@@ -107,10 +106,14 @@ export class Space implements ReconcileController {
     readonly builds: SpaceBuildStore;
     /** The space's traffic, which its gateway counts and its meters take. */
     readonly traffic = new Traffic();
+    /** Whether the space serves every installation at its revision, and why not. */
+    readonly health: Health;
     /** The space's running workload, once started. */
     #instance: WorkloadInstance | undefined;
     /** What the workload's current start serves with. */
     #serving: SpaceRun | undefined;
+    /** The space's store of the current start, which applies its installed set's changes. */
+    #store: SpaceStore | undefined;
 
     /** Take a space its machine opened. */
     private constructor(fields: Pick<Space, "machine" | "volume" | "host" | "blobs" | "builds">) {
@@ -120,6 +123,7 @@ export class Space implements ReconcileController {
         this.host = fields.host;
         this.blobs = fields.blobs;
         this.builds = fields.builds;
+        this.health = new Health(`space ${fields.host.id}`);
     }
 
     /** The space. */
@@ -159,8 +163,7 @@ export class Space implements ReconcileController {
                 fetch: (audience) => machine.fetch(audience),
                 send: (request) => machine.send(request),
                 builds,
-                servers: machine.servers,
-                bundled: machine.bundled,
+                linked: machine.linked,
             };
             const space = new Space({
                 machine,
@@ -235,6 +238,7 @@ export class Space implements ReconcileController {
             await this.#instance?.close();
         } finally {
             await this.volume.close();
+            this.health.set("stopped", "the space closed");
         }
     }
 
@@ -255,7 +259,7 @@ export class Space implements ReconcileController {
             return root === undefined ? undefined : S3Credentials.derive(root, scope);
         });
 
-        // serve a primary's applied installations, restarting when they change
+        // serve a primary's applied installations, applying their changes in this start
         const hosted = await this.host.options();
         const { role } = hosted;
         const installed =
@@ -268,12 +272,7 @@ export class Space implements ReconcileController {
                   )
                 : [];
         this.#serving = {
-            receivers: installed.flatMap((entry) => {
-                const adapter = PackageDescription.find(entry.declarations)?.adapters[OTLP_ADAPTER];
-                const packageId = PackageId.parse(entry.rollout.installation.packageId);
-
-                return adapter === undefined ? [] : [{ packageId, path: adapter.path }];
-            }),
+            receivers: Space.#receivers(installed),
             buckets,
             s3: {
                 server: serveS3(buckets, database, this.machine.environment),
@@ -283,38 +282,46 @@ export class Space implements ReconcileController {
             gateway: Promise.withResolvers(),
             role,
             revisions: Space.#revisions(installed),
+            apply: (changed) => this.#apply(changed, start, context),
             restart: () => {
                 context.reload().catch((error: unknown) => context.report(error));
             },
         };
+
+        // load the installations' servers through the space's store and gateway, once they serve
+        const start: SpaceStart = {
+            call: (packageId, request, authentication) =>
+                this.call(packageId, request, authentication),
+            store: this.#serving.store.promise,
+            providers,
+            connectors: volume.connectors,
+            buckets,
+            egress: async (caller, request) =>
+                (await this.#current().gateway.promise).send(caller, request),
+            server: (manifest) => machine.server(manifest),
+            report: (error) => context.report(error),
+            sandbox: (row, server, declarations) =>
+                new HookSandbox({
+                    server,
+                    declarations,
+                    send: async (request) =>
+                        (await this.#current().gateway.promise).hook(row.id, request),
+                }),
+        };
+
         // fail the store and gateway waits of a start that fails, which its calls await
         const serving = this.#serving;
         try {
             const { servers, sandboxes } = await this.host.servers(
                 installed,
-                {
-                    call: (packageId, request, authentication) =>
-                        this.call(packageId, request, authentication),
-                    store: this.#serving.store.promise,
-                    providers,
-                    connectors: volume.connectors,
-                    buckets,
-                    egress: async (caller, request) =>
-                        (await this.#current().gateway.promise).send(caller, request),
-                    sandbox: (row, server, declarations) =>
-                        new HookSandbox({
-                            server,
-                            declarations,
-                            send: async (request) =>
-                                (await this.#current().gateway.promise).hook(row.id, request),
-                        }),
-                },
+                start,
                 context.signal,
             );
+
             // serve the space with the host's controllers: its lifecycle, and a rated primary's metering
-            const { rates } = machine;
+            const { skus } = machine;
             const metering: NonNullable<ImplementationInput["controllers"]> =
-                rates === undefined || role === "standby"
+                skus === undefined || role === "standby"
                     ? []
                     : [
                           (store) =>
@@ -322,7 +329,7 @@ export class Space implements ReconcileController {
                                   space: this.id,
                                   measure: (from, to) =>
                                       volume.measure(buckets, from, to, this.traffic),
-                                  skus: rates.skus,
+                                  skus,
                                   payer: async () =>
                                       accountObject.Account.payer(
                                           this.machine.directory.snapshot,
@@ -331,7 +338,7 @@ export class Space implements ReconcileController {
                                   traffic: (signal) => this.traffic.next(signal),
                               }),
                           // append each payer's uses of a page at their finance primary
-                          reading.consume("metering", (page) => this.#append(page)),
+                          stackObject.reading.consume("metering", (page) => this.#append(page)),
                       ];
             const served = this.#serveSpace(
                 hosted,
@@ -340,15 +347,11 @@ export class Space implements ReconcileController {
                 servers,
                 sandboxes,
             );
+            this.#store = served;
             this.#serving.store.resolve(served.store);
 
             // route the installations' calls through the space's gateway
-            const gateway = new Gateway(
-                this,
-                this.#serving,
-                served.packages.map((each) => each.package),
-            );
-            this.#serving.gateway.resolve(gateway);
+            this.#serving.gateway.resolve(new Gateway(this, this.#serving, served.store));
 
             return { packages: served.packages };
         }
@@ -372,9 +375,9 @@ export class Space implements ReconcileController {
         return [this.id];
     }
 
-    /** Restart a primary once its installed set changed, else record what it serves. */
+    /** Serve a primary's changed installed set in place, then record the revisions it serves. */
     async reconcile(): Promise<undefined> {
-        // restart a primary whose installed set changed, else record its served revisions
+        // apply a primary's changed installed set, then record its served revisions
         const serving = present(this.#serving, `the serving of ${this.id}`);
         if (serving.role === "primary") {
             const installed = await Database.installed(
@@ -384,15 +387,82 @@ export class Space implements ReconcileController {
                     this.builds.pull(this.machine.releases, packageId, manifest),
             );
             if (Space.#key(Space.#revisions(installed)) !== Space.#key(serving.revisions)) {
-                serving.restart();
+                await serving.apply(installed);
             }
-            // record the revisions it serves otherwise
-            else {
-                await Rollout.serve(await serving.store.promise, this.id, serving.revisions);
-            }
+            await Rollout.serve(await serving.store.promise, this.id, serving.revisions);
         }
 
+        // report whether every installation serves its revision
+        const [status, reason] = await this.#readiness(serving.role);
+        this.health.set(status, reason);
+
         return undefined;
+    }
+
+    /** Read whether the space serves each installation at its revision, else the lagging one. */
+    async #readiness(role: SpaceRole): Promise<["starting" | "up", string]> {
+        // serve a follower as its primary does
+        if (role !== "primary") {
+            return ["up", `it follows its primary as ${role}`];
+        }
+
+        // read the rollouts with their installations' conditions
+        const snapshot = Snapshot.live(this.database);
+        const rows = await Rollout.read(
+            snapshot,
+            await snapshot.read(rollout.table).findMany({ where: { scope: this.id } }),
+        );
+        const lagging = rows.find(
+            (row) =>
+                row.revisionId === null ||
+                row.appliedRevisionId !== row.revisionId ||
+                row.servedRevisionId !== row.revisionId,
+        );
+
+        // wait for a first installation, then for each to serve its revision, naming its open condition
+        if (rows.length === 0) {
+            return ["starting", "no installation is applied yet"];
+        } else if (lagging !== undefined) {
+            const installed = lagging.installation.name;
+            const open = Object.entries(lagging.installation.conditions).find(
+                ([, condition]) => condition.status !== "true",
+            );
+            const condition =
+                open === undefined ? "" : `: ${open[0]} ${open[1].reason}, ${open[1].message}`;
+
+            return [
+                "starting",
+                `installation ${installed} does not serve its revision yet${condition}`,
+            ];
+        } else {
+            return ["up", "every installation serves its revision"];
+        }
+    }
+
+    /** Wait until an installation of the space serves its revision, refusing once a signal ends. */
+    async waitServed(name: string, signal: AbortSignal): Promise<void> {
+        const isServed = await this.database.log.waitUntil(async () => {
+            // read the named installation's rollout with its revisions
+            const snapshot = Snapshot.live(this.database);
+            const rows = await Rollout.read(
+                snapshot,
+                await snapshot.read(rollout.table).findMany({ where: { scope: this.id } }),
+            );
+            const named = rows.find((row) => row.installation.name === name);
+
+            return (
+                named !== undefined &&
+                named.revisionId !== null &&
+                named.servedRevisionId === named.revisionId
+            );
+        }, signal);
+        if (!isServed) {
+            const { status, reason } = this.health;
+            throw MachineError.of(
+                "INSTALLATION_NOT_SERVED",
+                `installation ${name} of space ${this.id} serves nothing yet, the space is ${status}: ${reason}`,
+            );
+        }
     }
 
     /** Restart the workload once the directory places the space here in another role. */
@@ -401,6 +471,35 @@ export class Space implements ReconcileController {
         if (serving !== undefined && (await this.host.role()) !== serving.role) {
             serving.restart();
         }
+    }
+
+    /** Serve a changed installed set in this start: load the changed servers, then apply them. */
+    async #apply(
+        installed: Awaited<ReturnType<typeof Database.installed>>,
+        start: SpaceStart,
+        context: WorkloadContext,
+    ): Promise<void> {
+        // load the changed installations' servers, apply them to the store and serve their packages
+        const serving = present(this.#serving, `the serving of ${this.id}`);
+        const { servers, sandboxes } = await this.host.servers(installed, start, context.signal);
+        const packages = present(this.#store, `the store of ${this.id}`).apply(servers, sandboxes);
+        context.serve(packages);
+
+        // record what the start serves now
+        serving.revisions = Space.#revisions(installed);
+        serving.receivers = Space.#receivers(installed);
+    }
+
+    /** Read the installations taking the space's telemetry: their package and adapter's path. */
+    static #receivers(
+        installed: Awaited<ReturnType<typeof Database.installed>>,
+    ): SpaceRun["receivers"] {
+        return installed.flatMap((entry) => {
+            const adapter = PackageDescription.find(entry.declarations)?.adapters[OTLP_ADAPTER];
+            const packageId = PackageId.parse(entry.rollout.installation.packageId);
+
+            return adapter === undefined ? [] : [{ packageId, path: adapter.path }];
+        });
     }
 
     /** Read the revision each installed entry is served at. */
@@ -432,6 +531,7 @@ export class Space implements ReconcileController {
             (account) => this.#residencyHome(account),
             () => this.host.source(self).fetchSigned(stackPackage.id),
             this.machine.environment,
+            this.machine.registry,
         );
 
         return forges.lease(await this.host.account(), repositoryId);
@@ -476,12 +576,8 @@ export class Space implements ReconcileController {
         now: number,
     ): Promise<ConnectionRequest> {
         // call the connections' primary in the home of the scope's account as the consumer
-        const reference = connection.reference(lent.scope, lent.id);
         const { environment } = this.machine;
-        const home = await accountObject.Account.homeOf(
-            Snapshot.live(this.database),
-            reference.scope,
-        );
+        const home = await accountObject.Account.homeOf(Snapshot.live(this.database), lent.scope);
         const source = this.host.source(consumer);
         const primary = this.machine.directory.client(
             connectionPackage,
@@ -491,24 +587,24 @@ export class Space implements ReconcileController {
             environment,
         );
 
-        return ConnectionRequest.lease(primary, reference, request, now, environment.crypto);
+        return ConnectionRequest.lease(primary, lent, request, now, environment.crypto);
     }
 
-    /** Append each payer's uses of a page of readings at their finance primary, as the machine. */
+    /** Append each payer's uses of a page of readings in its residency's home, as the machine. */
     async #append(page: ReaderPage): Promise<void> {
         const { directory, environment } = this.machine;
-        for (const use of await Usage.of(page, environment.crypto)) {
-            // call the finance primary in the home of the payer's residency
+        for (const use of await Reading.uses(page, environment.crypto)) {
+            // call the stack in the home of the payer's residency
             const home = await this.#residencyHome(use.accountId);
-            const fetch = this.machine.fetch(financePackage.id);
-            const finance = directory.client(
-                financePackage,
+            const fetch = this.machine.fetch(stackPackage.id);
+            const stack = directory.client(
+                stackPackage,
                 home,
-                FINANCE_INSTALLATION,
+                STACK_INSTALLATION,
                 fetch,
                 environment,
             );
-            await finance.usage.append(use);
+            await stack.usage.append(use);
         }
     }
 
@@ -529,7 +625,7 @@ export class Space implements ReconcileController {
         opened: Pick<SpaceOptions, "providers" | "sockets">,
         servers: readonly PackageImplementation[],
         sandboxes: readonly HookSandbox[],
-    ): ReturnType<typeof serveSpace> {
+    ): SpaceStore {
         // read external object types from builds, following the forge's references and tags when building
         const { machine, volume } = this;
         const { buckets } = this.#current();
@@ -539,8 +635,9 @@ export class Space implements ReconcileController {
             ? new Forge(claims, (account) => this.#residencyHome(account))
             : null;
 
-        return serveSpace({
+        return new SpaceStore({
             ...hosted,
+            report: (error) => machine.report(error),
             buildRunner: machine.isBuilding ? machine.id : null,
             handoff: (source, spaceId) => machine.handoff(source, spaceId),
             isEnforcingEntitlements: machine.isEnforcingEntitlements,

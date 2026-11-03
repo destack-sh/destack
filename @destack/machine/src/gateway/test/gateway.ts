@@ -61,6 +61,7 @@ export function openGateway(
             call: options.call ?? refuse("serve calls"),
             observe: options.observe ?? refuse("receive telemetry"),
             borrow,
+            instance: { implements: () => false },
             host: {
                 database,
                 source: () => {
@@ -116,7 +117,7 @@ export function openGateway(
                 hostname: "s3.test",
             },
         },
-        options.packages ?? [],
+        { packages: (options.packages ?? []).map((handle) => ({ package: handle })) },
         options.tokens,
     );
 }

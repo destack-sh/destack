@@ -7,7 +7,7 @@ import type * as Cloudflare from "@cloudflare/workers-types";
 import { Entitlement } from "@destack/account/object";
 import { SettingValue } from "@destack/setting/object";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
-import { rowsRead, rowsWritten, storageReads, storageWrites } from "@destack/observability/meter";
+import { rowsRead, rowsWritten, storageReads, storageWrites } from "@destack/telemetry/meter";
 import {
     DurableObjectCatalogueStore,
     R2BlobStorage,
@@ -31,11 +31,10 @@ import {
     type ArtifactsNamespace,
     ArtifactsStorage,
     artifactsProvider,
-} from "@destack/forge/cloudflare";
-import { gitStorage } from "@destack/forge/storage";
-import { type MailDeclaration, mailProvider, type MailTransport } from "@destack/message/email";
-import { mail } from "@destack/message/object";
-import type { PackageImplementation } from "@destack/object/server";
+} from "@destack/git/cloudflare";
+import { gitStorage } from "@destack/stack/object";
+import type { MailDeclaration } from "@destack/mail/declare";
+import { mailProvider, type MailTransport } from "@destack/mail/transport";
 import type { Keyring } from "@destack/identity";
 import type { Identifier } from "@destack/schema";
 import { DurableObjectGraphStorage } from "@destack/stack/cloudflare";
@@ -86,8 +85,6 @@ export interface DurableObjectSpaceStorageOptions {
     readonly keyring: Keyring;
     /** Send a request as the machine, as Artifacts calls go out. */
     readonly send: (request: Request) => Promise<Response>;
-    /** The servers the machine runs in process, whose types the space stores. */
-    readonly servers: readonly PackageImplementation[];
     /** The transport the space's mail goes out through. */
     readonly mail: Connector<MailTransport, MailDeclaration>;
     /** Report a failure of the space's background work. */
@@ -144,7 +141,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         options: DurableObjectSpaceStorageOptions,
     ): Promise<DurableObjectSpaceStorage> {
         // open the space's database in its namespace of the object's one storage host
-        const declared = SpaceStorage.declare(options.servers);
+        const declared = SpaceStorage.declare();
         const host = new DurableObjectDatabaseHost(options.storage, options.environment);
         const database = host.connect(declared.main, {
             namespace: SPACE_NAMESPACE,
@@ -301,7 +298,7 @@ export class DurableObjectVolume implements Volume {
                 stackObject.database,
             ),
             artifactsProvider(artifacts, gitStorage, send),
-            mailProvider(transport.code, mail),
+            mailProvider(transport.code, stackObject.mail),
         ];
         this.connectors = [ArtifactsStorage.connector(artifacts, send), transport];
     }

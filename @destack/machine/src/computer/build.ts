@@ -1,4 +1,4 @@
-import type { LocalGitEnvironment } from "@destack/forge/local";
+import type { LocalGitEnvironment } from "@destack/git/local";
 import { join } from "node:path";
 import type { ClientOf } from "@destack/object/client";
 import { type CompilerPool, type DependencyBuild, outputsOf, Workspace } from "@destack/build";
@@ -13,7 +13,7 @@ import {
     type ReconcileController,
     Reconciliation,
 } from "@destack/db";
-import { GitLease } from "@destack/forge/local";
+import { GitLease } from "@destack/git/local";
 import { Commit, Digest, type Identifier, present, schema, Uuid } from "@destack/schema";
 import { HOST_RUNTIME, PRIMARY_RUNTIMES } from "@destack/package/runtime";
 import { CallError } from "@destack/object";

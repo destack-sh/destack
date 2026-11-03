@@ -878,7 +878,7 @@ export class Device implements AsyncDisposable {
             const isAccessed = async () =>
                 (await client.access.position(client.database)) !== undefined;
             await Promise.race([
-                client.database.log.until(isAccessed, replica.signal),
+                client.database.log.waitUntil(isAccessed, replica.signal),
                 replica.failed,
             ]);
 

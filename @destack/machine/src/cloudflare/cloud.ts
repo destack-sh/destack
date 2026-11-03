@@ -1,15 +1,16 @@
+import { Kernel } from "../computer/kernel.ts";
 import type * as Cloudflare from "@cloudflare/workers-types";
 import { MachineIdentity } from "@destack/account/client";
 import * as accountObject from "@destack/account/object";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
-import type { ArtifactsNamespace } from "@destack/forge/cloudflare";
+import type { ArtifactsNamespace } from "@destack/git/cloudflare";
 import type { DatabaseConnection, Snapshot } from "@destack/db";
 import { DurableObjectReader, Jurisdiction } from "@destack/db/cloudflare";
 import { copyRequest, type Environment, type FetchOptions } from "@destack/environment";
 import { type LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { Envelope, EnvelopeConfiguration } from "@destack/identity/aws";
-import { SesClient, SesTransport } from "@destack/message/aws";
-import { mailConnector } from "@destack/message/email";
+import { SesClient, SesTransport } from "@destack/mail/ses";
+import { mailConnector } from "@destack/mail/transport";
 import { CallKey, PackageMount } from "@destack/object";
 import { PackageRelease } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
@@ -88,6 +89,10 @@ export interface MachineBindings extends PartitionBindings, CloudflareStorageBin
     readonly DESTACK_HOST: string;
     /** The releases the deploy shipped into the build bucket, as JSON. */
     readonly DESTACK_BUNDLED: string;
+    /** The packages the machine's script provides, as its kernel file's JSON. */
+    readonly DESTACK_KERNEL: string;
+    /** The installation residency homes serve the registry protocol at. */
+    readonly DESTACK_REGISTRY: string;
     /** The binding of each cloud machine, by the hosts of it and its relay, as JSON. */
     readonly DESTACK_PEERS: string;
 }
@@ -277,6 +282,11 @@ export class CloudMachine {
     /** Read the releases the deploy shipped to the machine. */
     bundled(): PackageRelease[] {
         return schema.array(PackageRelease).parse(JSON.parse(this.bindings.DESTACK_BUNDLED));
+    }
+
+    /** Read the packages the machine's script provides, as its deploy derived them. */
+    kernel(): Kernel {
+        return Kernel.parse(this.bindings.DESTACK_KERNEL);
     }
 
     /** Derive the key the machine's journals fingerprint sensitive inputs under. */

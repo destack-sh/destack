@@ -21,7 +21,7 @@ import {
     type Following,
 } from "@destack/db";
 import type { Environment, FetchOptions } from "@destack/environment";
-import { Registry } from "@destack/forge/client";
+import { Registry } from "@destack/registry/client";
 import type { SpaceOptions } from "@destack/stack/server";
 import type { Keyring } from "@destack/identity";
 import {
@@ -43,22 +43,22 @@ import type {
     Server,
 } from "@destack/object/server";
 import type { PackageId, PackageRelease } from "@destack/package";
-import relayPackage from "@destack/relay/package";
-import { TUNNEL_PATH, TunnelClient } from "@destack/relay/tunnel";
+import relayPackage from "@destack/relay/client";
+import { TUNNEL_PATH, TunnelClient } from "@destack/tunnel";
 import { Bearer, type PartitionId, SPACE_KEY } from "@destack/access/token";
 import { createClient, type ClientOf } from "@destack/object/client";
+import { Health } from "@destack/object/server";
 import type { Alarm } from "@destack/db";
-import { copyRequest, until } from "@destack/environment";
+import { copyRequest, waitAborted } from "@destack/environment";
 import { RequestId, type Publisher, Scope } from "@destack/sync";
 import type { HibernationHost } from "@destack/object/workload";
-import { canonicalize, type Identifier, present, schema } from "@destack/schema";
+import { canonicalize, type Digest, type Identifier, present, schema } from "@destack/schema";
 import * as stackObject from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { PROCESS_RUNTIME } from "@destack/stack/object";
 import type { Runtime } from "@destack/stack/runtime";
 import { type BuildCache, Handoff } from "@destack/stack/server";
 import { computer, MachineEnrollment } from "../computer/device/object/index.ts";
-import type { Sku } from "@destack/finance";
 import { Space, type SpaceStorage, SpaceRequest } from "../space/index.ts";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
@@ -89,9 +89,9 @@ export type MachineOptions = Pick<
     | "runtimes"
     | "hibernation"
     | "alarm"
-    | "servers"
-    | "bundled"
-    | "rates"
+    | "server"
+    | "linked"
+    | "skus"
     | "endpoint"
     | "authenticate"
     | "authorizeSpace"
@@ -109,6 +109,8 @@ export type MachineOptions = Pick<
     readonly releases?: SpaceOptions["registry"];
     /** Every release the machine ships, whose manifests its registry answers before any forge's. */
     readonly shipped: readonly PackageRelease[];
+    /** The installation residency homes serve the registry protocol at, such as forge. */
+    readonly registry: string;
     /** The Destack version the machine runs. */
     readonly version: string;
     /** The relay the machine tunnels through while enrolled, absent to publish its endpoint. */
@@ -124,9 +126,6 @@ export type MachineOptions = Pick<
 
 /** The enrollment of a person's machine, as the approving person submits it. */
 type PersonalEnrollment = Extract<Enrollment, { readonly kind: "personal" }>;
-
-/** Whether a machine is idle, serves, pauses while its account drains or disables it, or stops. */
-type ServingState = "idle" | "serving" | "paused" | "stopping";
 
 /** A machine: its standing at the universe, the storage of its spaces, and the spaces it serves. */
 export class Machine implements FollowController {
@@ -168,6 +167,8 @@ export class Machine implements FollowController {
     readonly cache: BuildCache;
     /** The forges' registry of published releases, called as the machine. */
     readonly releases: SpaceOptions["registry"];
+    /** The installation residency homes serve the registry protocol at. */
+    readonly registry: string;
     /** Whether the machine builds the commits its spaces' installations select. */
     readonly isBuilding: boolean;
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
@@ -180,12 +181,12 @@ export class Machine implements FollowController {
     readonly hibernation: Pick<HibernationHost, "answer"> | undefined;
     /** Set a wake-up for a space's earliest due controller key, absent where timers wake them. */
     readonly alarm: Alarm | undefined;
-    /** The servers the machine bundles and runs in process for installations of their packages. */
-    readonly servers: readonly PackageImplementation[];
-    /** The release the machine ships of each server's package, by package. */
-    readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
-    /** The SKUs rating the spaces' meters, absent unbilled. */
-    readonly rates: { readonly skus: readonly Sku[] } | undefined;
+    /** Load the server a build exports into the machine's process, absent for none. */
+    readonly server: (manifest: Digest) => Promise<PackageImplementation | undefined>;
+    /** The releases of the packages the machine links, by package. */
+    readonly linked: ReadonlyMap<PackageId, PackageRelease>;
+    /** The key of the SKU rating each meter of the spaces, by the meter's key, absent unbilled. */
+    readonly skus: ReadonlyMap<string, string> | undefined;
     /** The URL a cloud machine publishes, and a personal machine answers at locally. */
     readonly endpoint: string;
     /** The origin the machine answers at: its endpoint, else its relayed name once renewed. */
@@ -214,15 +215,15 @@ export class Machine implements FollowController {
     readonly #describe: MachineOptions["describe"];
     /** The spaces started while serving, by space. */
     readonly #started = new Map<Identifier<"space">, Promise<Space>>();
-    /** Whether the machine is idle, serves, pauses or stops serving. */
-    #state: ServingState = "idle";
-    /** Settled once the machine serves, anew each time it pauses or stops. */
-    #serving = Promise.withResolvers<void>();
+    /** Whether the machine serves its spaces, and why not. */
+    readonly health: Health;
 
     /** Serve spaces with a machine's identity, its storage and its runtimes. */
     constructor(options: MachineOptions) {
         // set the machine's identity and its storage
         this.id = options.id;
+        this.health = new Health(`machine ${options.id}`);
+        this.health.set("starting", "it has not enrolled yet: its first sign-in enrolls it");
         this.environment = options.environment;
         this.identity = options.identity;
         this.keyring = options.keyring;
@@ -240,9 +241,9 @@ export class Machine implements FollowController {
         this.runtimes = options.runtimes;
         this.hibernation = options.hibernation;
         this.alarm = options.alarm;
-        this.servers = options.servers;
-        this.bundled = options.bundled;
-        this.rates = options.rates;
+        this.server = options.server;
+        this.linked = options.linked;
+        this.skus = options.skus;
 
         // set where peers call the machine and how it verifies and reports
         this.endpoint = options.endpoint;
@@ -260,6 +261,7 @@ export class Machine implements FollowController {
         // read releases the machine ships first, else at the forges in their accounts' residency homes
         const home = async (account: Identifier<"account">) =>
             (await this.accounts()).residency.locate({ account });
+        this.registry = options.registry;
         this.releases =
             options.releases ??
             Registry.of(
@@ -267,6 +269,7 @@ export class Machine implements FollowController {
                 home,
                 (audience) => this.fetch(audience),
                 this.environment,
+                options.registry,
                 options.shipped,
             );
     }
@@ -316,7 +319,7 @@ export class Machine implements FollowController {
     async synced(signal: AbortSignal): Promise<boolean> {
         const key = { scope: Scope.universe.id };
 
-        return this.database.log.until(
+        return this.database.log.waitUntil(
             () => accountObject.directoryShape.isSynced(this.database, key),
             signal,
         );
@@ -460,7 +463,7 @@ export class Machine implements FollowController {
                 stream: async function* (subscription, signal) {
                     // follow nothing while unenrolled, as a revoked machine's store drops the follow
                     if (!(await isEnrolled())) {
-                        await until(signal);
+                        await waitAborted(signal);
 
                         return;
                     }
@@ -475,16 +478,15 @@ export class Machine implements FollowController {
         // follow a space at the stack package of the machine serving it, once this machine serves
         const spaceId = schema.identifier("space").parse(scope);
         const stackOf = async (signal: AbortSignal) => {
-            // wait until this machine serves, then call the space as itself
-            await Promise.race([this.serving(), until(signal)]);
-            signal.throwIfAborted();
+            // wait until this machine serves, refusing while it pauses, then call the space as itself
+            await this.health.waitUp(signal);
 
             return this.connect(stackPackage, spaceId);
         };
         const placed = () => this.#placed(spaceId);
         const moved = (from: string | undefined, signal: AbortSignal) =>
-            this.database.log.until(async () => (await placed()) !== from, signal);
-        const isServing = () => this.#state === "serving";
+            this.database.log.waitUntil(async () => (await placed()) !== from, signal);
+        const isServing = () => this.health.status === "up";
 
         return {
             stream: async function* (subscription, signal) {
@@ -587,25 +589,12 @@ export class Machine implements FollowController {
 
     // spaces
 
-    /** Wait until the machine serves its spaces. */
-    serving(): Promise<void> {
-        return this.#serving.promise;
-    }
-
     /** Start a space once while serving, trying again after a failed start. */
     space(space: Identifier<"space">): Promise<Space> {
-        // refuse while paused
-        if (this.#state === "paused") {
-            return Promise.reject(this.#paused());
-        }
-        // refuse while idle or stopping, as no stop would close the space
-        else if (this.#state !== "serving") {
-            return Promise.reject(
-                MachineError.of(
-                    "MACHINE_NOT_SERVING",
-                    `machine ${this.id} cannot serve spaces while ${this.#state}`,
-                ),
-            );
+        // refuse unless serving, as no stop would close the space
+        const refused = this.health.refusal();
+        if (refused !== undefined) {
+            return Promise.reject(refused);
         }
 
         // start it once
@@ -666,9 +655,11 @@ export class Machine implements FollowController {
 
     /** Serve one of the spaces' packages below its mount, in the space each request names. */
     package(handle: PackageHandle): Pick<Server, "fetch"> | undefined {
-        return this.#state === "idle" || this.#state === "stopping"
-            ? undefined
-            : { fetch: (request) => this.serve(Machine.#mounted(handle, request)) };
+        const { status } = this.health;
+
+        return status === "up" || status === "down"
+            ? { fetch: (request) => this.serve(Machine.#mounted(handle, request)) }
+            : undefined;
     }
 
     /** Serve a request at the machine's own hosts, in the space it names. */
@@ -698,7 +689,7 @@ export class Machine implements FollowController {
     /** Report whether a request is for a space started here with the package below its mount. */
     async isSpaceRequest(request: Request): Promise<boolean> {
         // find a started space the request names, none before the machine serves
-        const routed = this.#state === "serving" ? await this.#route(request) : undefined;
+        const routed = this.health.status === "up" ? await this.#route(request) : undefined;
         const started = routed === undefined ? undefined : this.#started.get(routed.space);
         const mounted =
             routed === undefined
@@ -717,14 +708,17 @@ export class Machine implements FollowController {
     /** Serve the spaces while the account enables the machine, until it is revoked or stops. */
     async reconcile(_key: string, { signal, synced }: Following): Promise<undefined> {
         // wait for the loop to stop a machine before it enrolls
+        this.health.set("starting", "it reads its enrollment");
         if ((await this.#enrollment()) === undefined) {
+            this.health.set("starting", "it has not enrolled yet");
             synced();
-            await until(signal);
+            await waitAborted(signal);
 
             return undefined;
         }
 
         // serve the machine's own partition, which follows its replicas, while enrolled
+        this.health.set("starting", "it opens its own partition");
         const partition = await this.#partition?.();
 
         // announce what this machine runs whether it serves or pauses
@@ -734,7 +728,7 @@ export class Machine implements FollowController {
             // follow the replicas of this machine's status and the placements here until stopped
             let replicated = "";
             const isChanged = async () => canonicalize(await this.#replicated()) !== replicated;
-            while (await this.database.log.until(isChanged, signal)) {
+            while (await this.database.log.waitUntil(isChanged, signal)) {
                 // read the replicas
                 const current = await this.#replicated();
                 replicated = canonicalize(current);
@@ -750,7 +744,14 @@ export class Machine implements FollowController {
                 }
                 // pause while it drains or disables the machine
                 else if (current.status !== undefined) {
-                    await this.#pause();
+                    await this.#pause(current.status);
+                }
+                // wait for the status
+                else {
+                    this.health.set(
+                        "starting",
+                        "its status has not replicated from the universe yet",
+                    );
                 }
 
                 // report caught up once this machine acted on its first replicas
@@ -782,30 +783,11 @@ export class Machine implements FollowController {
         });
     }
 
-    /** Refuse a request before the machine serves, and with the pause while paused. */
+    /** Refuse a request with the machine's health unless it serves. */
     #refusal(): Response | undefined {
-        // refuse while the machine is idle or stops
-        if (this.#state === "idle" || this.#state === "stopping") {
-            const error = MachineError.of(
-                "MACHINE_NOT_SERVING",
-                `machine ${this.id} answers no requests while ${this.#state}`,
-            );
+        const refused = this.health.refusal();
 
-            return refusal(error, this.environment.telemetry);
-        }
-        // refuse with the pause while paused
-        else if (this.#state === "paused") {
-            return refusal(this.#paused(), this.environment.telemetry);
-        }
-        // let through while serving
-        else {
-            return undefined;
-        }
-    }
-
-    /** Describe the refusal of a paused machine. */
-    #paused(): Error {
-        return MachineError.of("MACHINE_PAUSED", `machine ${this.id} is paused`);
+        return refused === undefined ? undefined : refusal(refused, this.environment.telemetry);
     }
 
     /** Serve a request in the space the machine found for it. */
@@ -856,9 +838,8 @@ export class Machine implements FollowController {
     async #serveSpaces(rows: readonly Select<typeof placement.table>[]): Promise<void> {
         // start serving the spaces this machine stores
         const stored: Identifier<"space">[] = [];
-        if (this.#state !== "serving") {
-            this.#state = "serving";
-            this.#serving.resolve();
+        if (this.health.status !== "up") {
+            this.health.set("up", "its account enables it");
             stored.push(...(await this.spaces.list()));
         }
 
@@ -874,12 +855,9 @@ export class Machine implements FollowController {
     }
 
     /** Pause serving: refuse requests and close every space. */
-    async #pause(): Promise<void> {
+    async #pause(status: Select<typeof accountObject.machine.table>["status"]): Promise<void> {
         // refuse requests until the next serve
-        if (this.#state === "serving") {
-            this.#serving = Promise.withResolvers();
-        }
-        this.#state = "paused";
+        this.health.set("down", `its account set its status to ${status}`);
 
         // close every space
         await this.#closeSpaces();
@@ -891,10 +869,7 @@ export class Machine implements FollowController {
         announced: Promise<void>,
     ): Promise<void> {
         // refuse requests until the next serve
-        if (this.#state === "serving") {
-            this.#serving = Promise.withResolvers();
-        }
-        this.#state = "stopping";
+        this.health.set("draining", "it stops serving");
 
         // close every space, then end the publication and settle the announcement, idle again
         try {
@@ -902,7 +877,7 @@ export class Machine implements FollowController {
         } finally {
             await publication?.[Symbol.asyncDispose]();
             await announced;
-            this.#state = "idle";
+            this.health.set("stopped", "it stopped serving");
         }
     }
 

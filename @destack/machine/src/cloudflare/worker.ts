@@ -1,7 +1,6 @@
 import { Once } from "@destack/package/manifest";
 import { ProcessRuntime } from "@destack/stack/runtime";
-import type { PackageImplementation } from "@destack/object/server";
-import { traceSampling } from "@destack/observability";
+import { traceSampling } from "@destack/stack/setting";
 import { Directory, type SpaceAddress } from "@destack/account/address";
 import * as accountObject from "@destack/account/object";
 import { Snapshot } from "@destack/db";
@@ -82,8 +81,6 @@ export class PartitionObject {
     readonly #storage: PartitionStorage;
     /** The Worker's bindings. */
     readonly #bindings: MachineBindings;
-    /** The servers the machine runs in process for installations of their packages. */
-    readonly #servers: readonly PackageImplementation[];
     /** The cloud machine the object runs as, once read. */
     readonly #cloud = new Once<CloudMachine>();
     /** The machine's directory replica, in the machine partition's object alone. */
@@ -93,16 +90,11 @@ export class PartitionObject {
     /** The installation's partition, its workload in a facet. */
     readonly #facet: PartitionFacet;
 
-    /** Resume the space the object served before any event, running some servers in process. */
-    constructor(
-        state: PartitionObjectState,
-        bindings: MachineBindings,
-        servers: readonly PackageImplementation[],
-    ) {
-        // set the storage, the bindings, the servers and the facet
+    /** Resume the space the object served before any event. */
+    constructor(state: PartitionObjectState, bindings: MachineBindings) {
+        // set the storage, the bindings and the facet
         this.#storage = state.storage;
         this.#bindings = bindings;
-        this.#servers = servers;
         this.#facet = new PartitionFacet(state, bindings, WorkerdEnvironment.system);
 
         // follow the directory in the machine partition's object
@@ -244,7 +236,8 @@ export class PartitionObject {
             cloud.environment.telemetry,
         );
         const report = (error: unknown) => instruments.captureException(error, { isEscaped: true });
-        const rates = RateCard.read(bindings.DESTACK_RATES);
+        const rates = RateCard.parse(JSON.parse(bindings.DESTACK_RATES));
+        const kernel = cloud.kernel();
         const host = await DurableObjectSpaceStorage.open({
             space,
             environment: cloud.environment,
@@ -259,7 +252,6 @@ export class PartitionObject {
             gigabytes: rates.gigabytes,
             keyring: cloud.keyring,
             send: (request) => cloud.environment.network.fetch(request),
-            servers: this.#servers,
             mail: cloud.mail(),
             report,
         });
@@ -312,10 +304,22 @@ export class PartitionObject {
             runtimes: [runtime, new ProcessRuntime()],
             hibernation: undefined,
             alarm: this.#storage,
-            servers: this.#servers,
-            bundled: new Map(cloud.bundled().map((release) => [release.package.id, release])),
+            // TODO #Incomplete: load a trusted installation's server into a loader isolate holding the store binding
+            server: async (manifest) => {
+                throw MachineError.of(
+                    "SERVER_INVALID",
+                    `a cloud machine cannot load the server of build ${manifest} yet`,
+                );
+            },
+            linked: new Map(
+                cloud
+                    .bundled()
+                    .filter((release) => kernel.packages.has(release.package.name))
+                    .map((release) => [release.package.id, release]),
+            ),
             shipped: cloud.bundled(),
-            rates: { skus: rates.skus },
+            registry: bindings.DESTACK_REGISTRY,
+            skus: rates.skus,
             endpoint: `https://${bindings.DESTACK_HOST}`,
             version: machinePackage.version,
             authenticate: async (request, audience, partition) => {

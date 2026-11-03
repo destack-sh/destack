@@ -2,7 +2,7 @@ import homePackage from "@app/home/package";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import forgePackage from "@destack/forge/package";
 import { credentialVault, repositoryStorage } from "@destack/forge/stack";
-import { gitStorage } from "@destack/forge/storage";
+import { gitStorage } from "@destack/stack/object";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import observabilityPackage from "@destack/observability/package";
@@ -21,8 +21,12 @@ export const platformVault = defineVault({ name: "platform", spec: {} });
 const ACCOUNT_HOME = {
     vaults: { credentials: { ...connectionVault.declare(), scope: "enclosing" } },
     installations: {
-        vault: install(vaultPackage, {}, { name: "vault" }),
-        connection: install(connectionPackage, {}, { name: CONNECTION_INSTALLATION }),
+        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
+        connection: install(
+            connectionPackage,
+            {},
+            { isolation: "process", name: CONNECTION_INSTALLATION },
+        ),
     },
 } as const;
 
@@ -35,16 +39,32 @@ export const PERSON_STACK = defineStack([vaultPackage], {
     installations: {
         ...ACCOUNT_HOME.installations,
         home: install(homePackage, {}, { name: "home" }),
-        message: install(messagePackage, {}, { name: "message", capabilities: ["deliver"] }),
-        inbox: install(notificationPackage, {}, { name: "inbox", capabilities: ["deliver"] }),
-        observability: install(observabilityPackage, {}, { name: "observability" }),
+        message: install(
+            messagePackage,
+            {},
+            { isolation: "process", name: "message", capabilities: ["deliver"] },
+        ),
+        inbox: install(
+            notificationPackage,
+            {},
+            { isolation: "process", name: "inbox", capabilities: ["deliver"] },
+        ),
+        observability: install(
+            observabilityPackage,
+            {},
+            { isolation: "process", name: "observability" },
+        ),
     },
 });
 
 /** The stack of every other space, as the platform's: observability. */
 export const SPACE_STACK = defineStack([], {
     installations: {
-        observability: install(observabilityPackage, {}, { name: "observability" }),
+        observability: install(
+            observabilityPackage,
+            {},
+            { isolation: "process", name: "observability" },
+        ),
     },
 });
 
@@ -58,7 +78,7 @@ export const RESIDENCY_STACK = defineStack([vaultPackage, forgePackage, gitStora
         "github-private-key": { parent: "platform", name: "github-private-key" },
     },
     installations: {
-        vault: install(vaultPackage, {}, { name: "vault" }),
+        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
         forge: install(
             forgePackage,
             {
@@ -67,7 +87,7 @@ export const RESIDENCY_STACK = defineStack([vaultPackage, forgePackage, gitStora
                 "github-webhook": "github-webhook",
                 "github-private-key": "github-private-key",
             },
-            { name: "forge" },
+            { isolation: "process", name: "forge" },
         ),
     },
 });

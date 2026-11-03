@@ -1,7 +1,7 @@
-import type { Meter } from "@destack/observability/meter";
+import type { Meter } from "@destack/telemetry/meter";
 import { Pipe } from "@destack/environment";
-import { OtlpMetricsRequest } from "@destack/observability";
-import { cpu, egress, requests } from "@destack/observability/meter";
+import { OtlpMetricsRequest } from "@destack/telemetry/otlp";
+import { cpu, egress, requests } from "@destack/telemetry/meter";
 import { Reading } from "../meter/index.ts";
 import { Duration, type Identifier, schema } from "@destack/schema";
 import { PROCESS_CPU_TIME } from "@destack/telemetry/metric";

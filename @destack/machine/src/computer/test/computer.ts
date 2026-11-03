@@ -1,3 +1,4 @@
+import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { basename, dirname, join } from "node:path";
@@ -6,41 +7,40 @@ import { DOMAINS } from "@destack/account/address";
 import type { StepUp } from "@destack/access";
 import type { Login } from "@destack/account/native";
 import { freshHandle, type TestPerson } from "@destack/account/test";
-import connectionServer from "@destack/connection/server";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { TestDatabase, TestTemplate } from "@destack/db/test";
 import { Simulation, SimulatedClock } from "@destack/environment/simulation";
-import financeServer from "@destack/finance/server";
-import { reference, repository } from "@destack/forge/object";
-import forgeServer from "@destack/forge/server";
+import { reference, repository } from "@destack/registry/object";
 import { MemoryKeychain } from "@destack/identity";
-import messageServer from "@destack/message/server";
-import notificationServer from "@destack/notification/server";
 import { type ObjectType, type PackageHandle, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
-import type { PackageImplementation } from "@destack/object/server";
-import observabilityServer from "@destack/observability/server";
 import { Identifier, schema } from "@destack/schema";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { rollout, Rollout } from "@destack/stack/object";
 import type { Installation } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { TestRegistry } from "@destack/stack/test";
-import socialServer from "@destack/social/server";
 import { RequestId, Scope } from "@destack/sync";
-import { inject, onTestFinished, refusal } from "@destack/test";
+import { inject, onTestFinished } from "@destack/test";
 import { Universe } from "@destack/universe";
 import { TestUniverse, UniverseWorld } from "@destack/universe/test";
 import relayPackage from "@destack/relay/package";
 import { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "@destack/relay/server";
 import { TestRelay } from "@destack/relay/test";
-import vaultServer from "@destack/vault/server";
 import type { MachineEnrollment } from "../device/object/index.ts";
 import machinePackage from "../../package.ts";
 import { Computer, type ComputerOptions, MACHINE_KEYS } from "../computer.ts";
+import { Kernel } from "../kernel.ts";
+import { testHost } from "@destack/test/host";
+import { fileURLToPath } from "node:url";
 import { LoopbackEndpoint, ENDPOINT_FILE, ENDPOINT_MODE } from "../process/index.ts";
 import { TestDistribution } from "./distribution.ts";
 
+/** The packages the computer provides: its module's closure, walked once as the kit loads. */
+const COMPUTER_KERNEL = await Kernel.read(
+    fileURLToPath(new URL("../index.ts", import.meta.url)),
+    testHost(),
+);
 /** How long a scenario of machines in a universe takes at most. */
 export const SCENARIO_MILLISECONDS = 30_000;
 
@@ -82,18 +82,6 @@ const READY_MILLISECONDS = 30_000;
 
 /** How long an install may take to apply: 2 min, as a space pulls an app's closure in ~30 s. */
 const INSTALL_MILLISECONDS = 120_000;
-
-/** The first-party servers test computers run in process for installations of their packages. */
-const SERVERS: readonly PackageImplementation[] = [
-    vaultServer,
-    messageServer,
-    connectionServer,
-    notificationServer,
-    socialServer,
-    observabilityServer,
-    financeServer,
-    forgeServer,
-];
 
 /** The policies of the forge's objects, which the universe decides repository access with. */
 const POLICIES = [repository.policy, reference.policy];
@@ -338,7 +326,7 @@ export class TestComputer implements AsyncDisposable {
 
         // wait until its replicas reached the universe
         const deadline = simulation.clock.timeout(RECEIVE_MILLISECONDS);
-        if (!(await relay.untilCaughtUp(deadline))) {
+        if (!(await relay.waitCaughtUp(deadline))) {
             throw new TypeError(`the relay did not catch up in ${RECEIVE_MILLISECONDS} ms`, {
                 cause: deadline.reason,
             });
@@ -447,6 +435,8 @@ export class TestComputer implements AsyncDisposable {
         const computer = await Computer.start({
             // run instances in this process on the world's clock and network, deterministic under simulation
             isolation: "process",
+            kernel: COMPUTER_KERNEL,
+            registry: FORGE_INSTALLATION,
             environment,
             directory,
             issuer: universe.origin,
@@ -454,7 +444,6 @@ export class TestComputer implements AsyncDisposable {
             ...(declared === undefined ? {} : { endpoint: declared }),
             ...(options.relay === undefined ? {} : { relay: { kind: "url", url: options.relay } }),
             localObjects: options.localObjects ?? {},
-            servers: SERVERS,
             keychain,
             ...(cloud === undefined ? {} : { machineId: cloud.id }),
             process: {
@@ -681,7 +670,7 @@ export class TestComputer implements AsyncDisposable {
         });
 
         // wait until its partition received its scope
-        await this.until(this.machine.database, async () => {
+        await this.waitUntil(this.machine.database, async () => {
             const [received] = await Scope.read(Snapshot.live(this.machine.database), [id]);
 
             return received !== undefined;
@@ -741,7 +730,7 @@ export class TestComputer implements AsyncDisposable {
         });
 
         // wait until the space applies it, naming its conditions when it does not
-        await this.machine.serving();
+        await this.machine.health.waitUp();
         const { database } = await this.machine.space(spaceId);
         const read = async () => {
             // read its rollout with the installation
@@ -756,67 +745,41 @@ export class TestComputer implements AsyncDisposable {
 
             return row?.appliedRevisionId !== null && row?.appliedRevisionId !== undefined;
         };
-        await this.until(database, applied, INSTALL_MILLISECONDS).catch(async (error: unknown) => {
-            const conditions = JSON.stringify((await read())?.installation.conditions);
-            throw this.#failure(`${name} did not apply: ${conditions}`, error);
-        });
+        await this.waitUntil(database, applied, INSTALL_MILLISECONDS).catch(
+            async (error: unknown) => {
+                const conditions = JSON.stringify((await read())?.installation.conditions);
+                throw this.#failure(`${name} did not apply: ${conditions}`, error);
+            },
+        );
 
         return await service.installation.get({ scope: spaceId, id: created.id });
     }
 
     /** Wait until the machine serves a space with its stack and every installation applied. */
     async ready(spaceId: Identifier<"space">): Promise<void> {
-        // wait until the machine serves the space with every installation applied
-        await this.machine.serving();
-        const { database } = await this.machine.space(spaceId);
-        const read = async () => {
-            const snapshot = Snapshot.live(database);
-            const rows = await snapshot.read(rollout.table).findMany({ where: { scope: spaceId } });
-
-            return await Rollout.read(snapshot, rows);
-        };
-        const isReady = async () => {
-            if ((await refusal(this.machine.space(spaceId))) !== "done") {
-                return false;
-            }
-            const rows = await read();
-
-            return (
-                rows.some((row) => row.installation.export !== null) &&
-                rows.every(
-                    (row) =>
-                        row.revisionId !== null &&
-                        row.appliedRevisionId === row.revisionId &&
-                        row.servedRevisionId === row.revisionId,
-                )
+        // wait on the world until the machine serves the space with every installation applied and served
+        await this.world.simulation.wait(this.machine.health.waitUp());
+        const space = await this.machine.space(spaceId);
+        await this.waitUntil(
+            space.database,
+            async () => space.health.status === "up",
+            READY_MILLISECONDS,
+        ).catch((error: unknown) => {
+            throw this.#failure(
+                `space ${spaceId} did not get ready: ${space.health.reason}`,
+                error,
             );
-        };
-
-        // name each installation's revisions and conditions when the space does not get ready
-        await this.until(database, isReady, READY_MILLISECONDS).catch(async (error: unknown) => {
-            const conditions = JSON.stringify(
-                (await read()).map((row) => [
-                    row.installation.name,
-                    {
-                        revision: row.revisionId,
-                        applied: row.appliedRevisionId,
-                        served: row.servedRevisionId,
-                        conditions: row.installation.conditions,
-                    },
-                ]),
-            );
-            throw this.#failure(`space ${spaceId} did not get ready: ${conditions}`, error);
         });
     }
 
     /** Wait until a check passes at a database's commits, within the receive limit. */
-    async until(
+    async waitUntil(
         database: DatabaseConnection,
         check: () => Promise<boolean>,
         limit = RECEIVE_MILLISECONDS,
     ): Promise<void> {
         const deadline = this.clock.timeout(limit);
-        if (!(await database.log.until(check, deadline))) {
+        if (!(await this.world.simulation.wait(database.log.waitUntil(check, deadline)))) {
             throw this.#failure(`the check did not pass within ${limit} ms`, [
                 deadline.reason,
                 ...this.reports,

@@ -1,7 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { Event, EventTime } from "@destack/event";
 import { AccessContext, Caller } from "@destack/access";
-import { reading } from "@destack/observability";
+import { reading } from "@destack/stack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { journal } from "@destack/object";
 import { type FollowController, type Following, TABLE } from "@destack/db";
@@ -9,8 +9,7 @@ import { RequestId } from "@destack/sync";
 import { MachineError } from "../error/index.ts";
 import type { DigestCrypto, Identifier } from "@destack/schema";
 import type { Reading } from "./reading.ts";
-import type { Sku } from "@destack/finance";
-import type { Meter } from "@destack/observability/meter";
+import type { Meter } from "@destack/telemetry/meter";
 
 /** How long an active space's use gathers before a reading: a minute, the most a restart loses. */
 const READING_MILLISECONDS = 60_000;
@@ -27,8 +26,8 @@ export interface MeterOptions {
     readonly space: Identifier<"space">;
     /** Read what the space used over an interval. */
     readonly measure: (from: number, to: number) => Promise<readonly Reading[]>;
-    /** The SKUs rating each meter on the machine serving the space, one per meter. */
-    readonly skus: readonly Sku[];
+    /** The key of the SKU rating each meter on the space's machine, by the meter's key. */
+    readonly skus: ReadonlyMap<string, string>;
     /** Read the account paying for the space now. */
     readonly payer: () => Promise<Identifier<"account">>;
     /** Wait until the space's traffic is counted, or until the signal aborts. */
@@ -121,7 +120,7 @@ export class MeterController implements FollowController {
         try {
             await Promise.race([
                 this.#options.traffic(waiting),
-                this.#store.database.log.until(
+                this.#store.database.log.waitUntil(
                     async (tables) => [...tables].some((table) => !OWN_TABLES.has(table)),
                     waiting,
                     generation,
@@ -151,7 +150,7 @@ export class MeterController implements FollowController {
         measured: Reading,
         from: number,
         to: number,
-        sku: Sku,
+        sku: string,
         payer: string,
         crypto: DigestCrypto,
     ) {
@@ -166,7 +165,7 @@ export class MeterController implements FollowController {
             time: EventTime.of(end),
             meter: key,
             installationId: installation,
-            sku: DeclarationReference.key(sku.reference),
+            sku,
             payerId: payer,
             value: isAverage ? measured.value * (end - start) : measured.value,
             data: isAverage ? { level: measured.value } : {},
@@ -198,18 +197,13 @@ export class MeterController implements FollowController {
         return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1);
     }
 
-    /** Find the one SKU rating a meter, refusing a meter rated by none or several. */
-    static #skuOf(skus: readonly Sku[], meter: Meter): Sku {
-        // find the SKUs of the meter, requiring exactly one
-        const key = DeclarationReference.key(meter.reference);
-        const rating = skus.filter(
-            (each) => DeclarationReference.key(each.definition.meter) === key,
-        );
-        const [sku] = rating;
-        if (sku === undefined || rating.length > 1) {
+    /** Find the SKU rating a meter, refusing a meter the machine rates with none. */
+    static #skuOf(skus: ReadonlyMap<string, string>, meter: Meter): string {
+        const sku = skus.get(DeclarationReference.key(meter.reference));
+        if (sku === undefined) {
             throw MachineError.of(
                 "CONFIGURATION_INVALID",
-                `the machine's rates need one sku for meter ${meter.name}, not ${rating.length}`,
+                `the machine rates meter ${meter.name} with no sku`,
             );
         }
 

@@ -1,11 +1,12 @@
 import { testHost } from "@destack/test/host";
+import registryPackage from "@destack/registry/package";
 import { PackageManifest } from "@destack/package/manifest";
 import type { FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import type { Session } from "./device/session.ts";
 import { PackageId } from "@destack/package";
-import { reference, referenceShape } from "@destack/forge/object";
+import { reference, referenceShape } from "@destack/registry/object";
 import forgePackage from "@destack/forge/package";
 import { type Identifier, present } from "@destack/schema";
 import { createClient } from "@destack/object/client";
@@ -125,9 +126,11 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
                 entry.rollout.appliedRevisionId !== null,
         )?.rollout;
     if (
-        !(await database.log.until(
-            async () => (await deployed()) !== undefined,
-            home.clock.timeout(DEPLOY_MILLISECONDS),
+        !(await home.world.simulation.wait(
+            database.log.waitUntil(
+                async () => (await deployed()) !== undefined,
+                home.clock.timeout(DEPLOY_MILLISECONDS),
+            ),
         ))
     ) {
         const [installed] = await Snapshot.live(database)
@@ -148,8 +151,8 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
 
     // call its package below the installation on the cloud machine serving the home, as the owner
     const owner = createClient(
-        forgePackage,
-        await person.platform(forgePackage.id, found.installation.name, residency),
+        registryPackage,
+        await person.platform(registryPackage.id, found.installation.name, residency),
         device.environment,
     );
 
@@ -159,7 +162,11 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
 
         return answered === "done" || answered[0] !== "SERVICE_UNAVAILABLE";
     };
-    if (!(await database.log.until(isServed, home.clock.timeout(DEPLOY_MILLISECONDS)))) {
+    if (
+        !(await home.world.simulation.wait(
+            database.log.waitUntil(isServed, home.clock.timeout(DEPLOY_MILLISECONDS)),
+        ))
+    ) {
         throw new TypeError(`the store of ${residency} serves no forge`);
     }
 
@@ -259,18 +266,20 @@ test(
 
         // wait until the installation follows the first commit's build
         const wait = async (commit: string) => {
-            const isDeployed = await served.log.until(async () => {
-                const current = await followed(served, installed.id);
-                if (current === undefined) {
-                    return false;
-                }
-                const [built] = await served
-                    .select({ source: build.table.source })
-                    .from(build.table)
-                    .where(eq(build.table.id, current));
+            const isDeployed = await site.home.world.simulation.wait(
+                served.log.waitUntil(async () => {
+                    const current = await followed(served, installed.id);
+                    if (current === undefined) {
+                        return false;
+                    }
+                    const [built] = await served
+                        .select({ source: build.table.source })
+                        .from(build.table)
+                        .where(eq(build.table.id, current));
 
-                return built?.source.kind === "commit" && built.source.commit === commit;
-            }, site.home.clock.timeout(DEPLOY_MILLISECONDS));
+                    return built?.source.kind === "commit" && built.source.commit === commit;
+                }, site.home.clock.timeout(DEPLOY_MILLISECONDS)),
+            );
             if (!isDeployed) {
                 const builds = await served.select().from(build.table);
                 throw new Error(`commit ${commit} was not deployed: ${JSON.stringify(builds)}`);
@@ -329,9 +338,11 @@ test(
 
         // wait until the space's replica of main applied its first snapshot
         const key = { scope: site.residency, repository: site.repository.id, name: MAIN };
-        await served.log.until(
-            () => referenceShape.isSynced(served, key),
-            site.home.clock.timeout(DEPLOY_MILLISECONDS),
+        await site.home.world.simulation.wait(
+            served.log.waitUntil(
+                () => referenceShape.isSynced(served, key),
+                site.home.clock.timeout(DEPLOY_MILLISECONDS),
+            ),
         );
 
         // replicate main at the pushed commit

@@ -1,3 +1,4 @@
+import { Kernel } from "./kernel.ts";
 import { PackageMount, refusal, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { checkout, preview } from "./checkout/index.ts";
@@ -29,11 +30,11 @@ import { DatabasePersonalKeyring, type EventKind, EventStore } from "@destack/ev
 import type { Registry } from "@destack/stack/server";
 import { type Deriver, type Keychain, type Keyring, LocalKeyring } from "@destack/identity";
 import { BunKeychain } from "@destack/identity/bun";
-import { mailConnector } from "@destack/message/email";
-import { PrintTransport } from "@destack/message/print";
+import { mailConnector } from "@destack/mail/transport";
+import { PrintTransport } from "@destack/mail/print";
 import type { ObjectType } from "@destack/object";
-import type { ObjectStore, PackageImplementation } from "@destack/object/server";
-import { traceSampling } from "@destack/observability";
+import type { ObjectStore } from "@destack/object/server";
+import { traceSampling } from "@destack/stack/setting";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, present, schema } from "@destack/schema";
 import { serveProcess } from "@destack/object/bun";
@@ -123,10 +124,10 @@ export interface ComputerOptions {
           };
     /** The local object types the device stores beside its logins, settings and visits, by key. */
     readonly localObjects: Readonly<Record<string, ObjectType>>;
-    /** The servers the computer bundles and runs in process for installations of their packages. */
-    readonly servers: readonly PackageImplementation[];
     /** The builds the computer ships with what they run: its servers and the platform's stacks. */
     readonly bundled: BuildLayer;
+    /** The packages the computer provides to the servers it loads, as its launcher wrote them. */
+    readonly kernel: Kernel;
     /** Open the keychain of a service's secrets. */
     readonly keychain: (service: string) => Keychain;
     /** The machine to run, the stored one or a new one by default. */
@@ -141,6 +142,8 @@ export interface ComputerOptions {
     };
     /** How the machine isolates its instances: in sandboxed processes, or in this process. */
     readonly isolation: BunIsolation;
+    /** The installation residency homes serve the registry protocol at, such as forge. */
+    readonly registry: string;
     /** Run the machine's instances that call addresses through an egress. */
     readonly runtime?: (
         egress: (scope: Identifier<"space">) => string,
@@ -278,7 +281,6 @@ export class Computer implements AsyncDisposable {
                 directory: join(options.directory, "spaces"),
                 endpoint: origin,
                 keyring,
-                servers: options.servers,
                 // print the spaces' mail, as a computer sends none
                 mail: mailConnector(
                     "print",
@@ -289,8 +291,13 @@ export class Computer implements AsyncDisposable {
             }),
         );
 
-        // run the spaces' instances, their WebSockets open through the runtime
-        const runtime = Computer.#startRuntime(options, origin, builds.packages, () => machine);
+        // run the spaces' instances, their WebSockets open through the runtime, and load trusted servers through the Bun processes' builds
+        const { runtime, processes } = Computer.#startRuntime(
+            options,
+            origin,
+            builds.packages,
+            () => machine,
+        );
         stack.defer(() => runtime.close());
         const hibernation = new HibernationHost(
             (instanceId, path, request) =>
@@ -314,8 +321,7 @@ export class Computer implements AsyncDisposable {
             options.environment,
         );
 
-        // read the shipped releases of the computer's servers by package, their builds in place
-        const serverPackages = new Set(options.servers.map((server) => server.package.id));
+        // read the releases of the packages the machine links, their builds in place
         const shipped = await Promise.all(
             options.bundled.releases.map(async (manifest) => {
                 const reader = present(
@@ -326,9 +332,9 @@ export class Computer implements AsyncDisposable {
                 return { package: (await reader).manifest.package, manifest };
             }),
         );
-        const bundled = new Map(
+        const linked = new Map(
             shipped.flatMap((release) =>
-                "id" in release.package && serverPackages.has(release.package.id)
+                "id" in release.package && options.kernel.packages.has(release.package.name)
                     ? [
                           [
                               release.package.id,
@@ -366,14 +372,15 @@ export class Computer implements AsyncDisposable {
             runtimes: [runtime, new ProcessRuntime()],
             hibernation,
             alarm: undefined,
-            servers: options.servers,
-            bundled,
+            server: (manifest) => processes.server(manifest),
+            linked,
             shipped: shipped.flatMap((release) =>
                 "id" in release.package
                     ? [{ package: release.package, manifest: release.manifest }]
                     : [],
             ),
-            rates: undefined,
+            skus: undefined,
+            registry: options.registry,
             endpoint,
             version: MACHINE_PACKAGE.version,
             ...(options.relay === undefined
@@ -417,7 +424,7 @@ export class Computer implements AsyncDisposable {
         const distributed = distribution.table[TABLE].sqlName;
         const { device } = state;
         const announced = device.database.log
-            .until(
+            .waitUntil(
                 async (committed) => {
                     if (committed.has(distributed) && (await machine.isEnrolled())) {
                         await machine.announce();
@@ -606,23 +613,31 @@ export class Computer implements AsyncDisposable {
         return { cache: new BuildCache(packages, COMPUTER_RUNTIMES), packages };
     }
 
-    /** Start the runtime of the spaces' instances, as Bun processes unless replaced. */
+    /** Start the instances' runtime, unless replaced, and the Bun processes loading builds. */
     static #startRuntime(
         options: ComputerOptions,
         origin: string,
         packages: LocalBuildStore,
         machine: () => Machine,
-    ): Runtime & { readonly close: () => Promise<void> } {
+    ): {
+        readonly runtime: Runtime & { readonly close: () => Promise<void> };
+        readonly processes: BunRuntime;
+    } {
         // run each space's instances calling out through the egress of its space on this machine
         const identity = async (scope: Identifier<"space">) =>
             (await machine().space(scope)).host.identity();
         const egress = (scope: Identifier<"space">) =>
             `${SpaceMount.url(origin, scope)}${Egress.path}`;
-        const runtime =
-            options.runtime?.(egress, identity) ??
-            Computer.#startProcesses(options, origin, packages, egress, identity, machine);
+        const processes = Computer.#startProcesses(
+            options,
+            origin,
+            packages,
+            egress,
+            identity,
+            machine,
+        );
 
-        return runtime;
+        return { runtime: options.runtime?.(egress, identity) ?? processes, processes };
     }
 
     /** Start the runtime running each instance as a Bun process of its own. */
@@ -635,6 +650,7 @@ export class Computer implements AsyncDisposable {
         machine: () => Machine,
     ): BunRuntime {
         return new BunRuntime({
+            kernel: options.kernel,
             environment: options.environment,
             report: (error) => options.report("runtime.failed", error),
             isolation: options.isolation,
@@ -951,9 +967,9 @@ export class Computer implements AsyncDisposable {
         };
     }
 
-    /** Serve this computer until shutdown, with its device's local objects and bundled servers. */
+    /** Serve this computer until shutdown, with its device's local objects. */
     static async run(
-        bundle: Pick<ComputerOptions, "localObjects" | "servers">,
+        bundle: Pick<ComputerOptions, "localObjects" | "registry">,
         environment: ComputerOptions["environment"],
         configuration = Computer.configure(environment),
     ): Promise<void> {
@@ -983,6 +999,7 @@ export class Computer implements AsyncDisposable {
             ...(configuration.relay === undefined ? {} : { relay: configuration.relay }),
             ...bundle,
             bundled: await BuildLayer.open(configuration.bundled, environment),
+            kernel: await Kernel.open(configuration.bundled, environment),
             keychain: (service) => new BunKeychain(service, files),
             process: {
                 version: MACHINE_PACKAGE.version,
@@ -1015,7 +1032,7 @@ export class Computer implements AsyncDisposable {
         // start it as the first sign-in enrolls the machine
         else {
             void device.database.log
-                .until(isEnrolled, stopping.signal)
+                .waitUntil(isEnrolled, stopping.signal)
                 .then(async () => {
                     if (!stopping.signal.aborted) {
                         await instrument();

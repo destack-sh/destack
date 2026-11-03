@@ -1,6 +1,7 @@
 import * as accountObject from "@destack/account/object";
+import type { WorkloadInstance } from "@destack/object/workload";
 import { Identity } from "@destack/account/object";
-import { OtlpExport } from "@destack/observability";
+import { OtlpExport } from "@destack/telemetry/otlp";
 import { DeclarationName, PackageId, PackageName } from "@destack/package";
 import { canonicalize, type Digest, type Identifier, schema, Version } from "@destack/schema";
 import {
@@ -69,7 +70,7 @@ import { ViewOrigin } from "./origin.ts";
 import { MachineError } from "../error/index.ts";
 import { Failure } from "@destack/error";
 import { HOOK_WORKLOAD } from "@destack/stack/workload";
-import type { ConnectionRequest } from "@destack/connection";
+import type { ConnectionRequest } from "@destack/connection/client";
 import { DOMAINS, InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import { RouteRequest } from "./route.ts";
 import type {} from "@destack/package/import-meta";
@@ -91,6 +92,8 @@ export type GatewaySpace = Pick<
     Space,
     "id" | "database" | "traffic" | "call" | "observe" | "borrow"
 > & {
+    /** The space's workload, which tells the protocols its packages implement. */
+    readonly instance: Pick<WorkloadInstance, "implements">;
     /** The space's builds, read through to the machine's cache. */
     readonly builds: Pick<
         SpaceBuildStore,
@@ -195,8 +198,8 @@ export class Gateway {
     readonly #space: GatewaySpace;
     /** What the workload's run serves with: the S3 API over the space's buckets. */
     readonly #serving: Pick<SpaceRun, "s3">;
-    /** The packages the space's store serves, which its workloads call by package name. */
-    readonly #packages: readonly PackageHandle[];
+    /** What the space's store serves: the packages its workloads call by package name. */
+    readonly #served: { readonly packages: readonly { readonly package: PackageHandle }[] };
     /** The runtimes running the space's instances, by server runtime. */
     readonly #runtimes: ReadonlyMap<string, Runtime>;
     /** How the space acts for its installations' subjects under their grants. */
@@ -211,18 +214,23 @@ export class Gateway {
     constructor(
         space: GatewaySpace,
         serving: Pick<SpaceRun, "s3">,
-        packages: readonly PackageHandle[],
+        store: { readonly packages: readonly { readonly package: PackageHandle }[] },
         tokens: TokenExchange = Gateway.#exchange(space),
     ) {
-        // set the space, what its run serves with, its packages and the runtimes by name
+        // set the space, what its run serves with, its store and the runtimes by name
         this.#space = space;
         this.#serving = serving;
-        this.#packages = packages;
+        this.#served = store;
         this.#runtimes = new Map(space.machine.runtimes.map((runtime) => [runtime.name, runtime]));
         this.#tokens = tokens;
 
         // serve the installations' origins through the gateway
         this.#views = new ViewOrigin(space, this);
+    }
+
+    /** List the packages the space's store serves now. */
+    #packages(): readonly PackageHandle[] {
+        return this.#served.packages.map((served) => served.package);
     }
 
     /** Exchange tokens for the installations' subjects at the universe, reusing live ones. */
@@ -290,7 +298,15 @@ export class Gateway {
                 (await this.#space.call(stackPackage.id, forwarded, authentication))
             );
         } catch (error) {
-            return refusal(error, this.#space.machine.environment.telemetry);
+            // answer a request its caller aborted as closed by the client, and refuse any other failure
+            const failure = request.signal.aborted
+                ? CallError.http("CLIENT_CLOSED_REQUEST", {
+                      message: "the caller closed the request",
+                      cause: error,
+                  })
+                : error;
+
+            return refusal(failure, this.#space.machine.environment.telemetry);
         }
     }
 
@@ -408,7 +424,7 @@ export class Gateway {
         // hand an installation the space's store serves to its package there
         const { database, traffic } = this.#space;
         const served = await Rollout.requireServed(database, installed);
-        if (this.#packages.some((handle) => handle.id === served.installation.packageId)) {
+        if (this.#packages().some((handle) => handle.id === served.installation.packageId)) {
             const answered = await this.#store(served, installed, authentication);
 
             return traffic.countResponse(served.scope, served.id, answered);
@@ -440,8 +456,9 @@ export class Gateway {
             return traffic.countResponse(served.scope, served.id, answered);
         }
 
-        // verify the caller and route the call to the deployment serving its release
-        const called = await this.#authenticate(installed, served, authentication);
+        // verify the caller for the installation's package and route the call to the deployment serving its release
+        const own = PackageId.parse(served.installation.packageId);
+        const called = await this.#authenticate(installed, served, own, authentication);
         const answered = await this.ingress(
             called.rollout.id,
             path,
@@ -468,23 +485,31 @@ export class Gateway {
             return this.#space.call(packageId, copyRequest(installed.request, {}, url.href));
         }
 
-        // hand a call below the package's mount over as its verified caller
+        // hand a call below its package's mount or a protocol's the package implements over as its verified caller
         const mounted = PackageMount.of(installed.request);
-        if (mounted?.packageId !== packageId) {
+        const handle = this.#packages().find((each) => each.id === packageId);
+        const isServed =
+            mounted !== undefined &&
+            (mounted.packageId === packageId ||
+                (handle !== undefined &&
+                    this.#space.instance.implements(handle, mounted.packageId, mounted.request)));
+        if (mounted === undefined || !isServed) {
             throw MachineError.of(
                 "NOTHING_SERVED",
                 `the installation's package has nothing at ${path}`,
             );
         }
-        const called = await this.#authenticate(installed, served, authentication);
+        const audience = PackageId.parse(mounted.packageId);
+        const called = await this.#authenticate(installed, served, audience, authentication);
 
         return this.#space.call(packageId, mounted.request, called.authentication);
     }
 
-    /** Verify an installation's caller, taking one verified for its package where handed. */
+    /** Verify an installation's caller for a package it serves, taking one handed verified. */
     async #authenticate(
         installed: NonNullable<ReturnType<typeof InstallationMount.of>>,
         served: InstallationRollout,
+        audience: PackageId,
         handed: Authentication | undefined,
     ) {
         // verify another space's installation by its space's token
@@ -494,8 +519,7 @@ export class Gateway {
             return peer.receive(this.#space.host, installed);
         }
 
-        // take a caller verified for the installation's package, else verify the request
-        const audience = PackageId.parse(served.installation.packageId);
+        // take a caller verified for the called package, else verify the request
         const authentication =
             handed?.credential.audience === audience
                 ? handed
@@ -814,7 +838,7 @@ export class Gateway {
     /** Resolve an address an installation calls, from an instance or its store. */
     async resolve(caller: EgressCaller, address: string, path: string): Promise<Destination> {
         // take a package the space serves for every workload as a caller verified here
-        const served = this.#packages.find((handle) => handle.name === address);
+        const served = this.#packages().find((handle) => handle.name === address);
         if (served !== undefined) {
             return {
                 kind: "package",

@@ -1,4 +1,4 @@
-import { cpu, egress, requests } from "@destack/observability/meter";
+import { cpu, egress, requests } from "@destack/telemetry/meter";
 import { schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { Traffic } from "./traffic.ts";

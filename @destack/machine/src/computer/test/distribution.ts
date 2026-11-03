@@ -1,5 +1,4 @@
-import { type Crypto, type Environment, FileSystemError } from "@destack/environment";
-import { join } from "node:path";
+import type { Crypto, Environment } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import type { StackRelease } from "@destack/account/object";
 import type { PlatformDefinition, ReleaseRegistry } from "@destack/account/server";
@@ -48,8 +47,8 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     /** The run's build store the server builds read from, open until the distribution closes. */
     readonly #store: LocalBuildStore;
 
-    /** The layers this process writes or wrote, by directory, each written once. */
-    static readonly #distributed = new Map<string, Promise<void>>();
+    /** The layers this process writes or wrote, by their releases, each written once. */
+    static readonly #distributed = new Map<string, Promise<string>>();
 
     /** Take the stacks, the builds, their registry and the store they read from. */
     private constructor(
@@ -154,36 +153,25 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         return await this.registry.release(build);
     }
 
-    /** Write a layer of releases once per store as a distribution does, and open it. */
+    /** Write a layer of releases once per process as a distribution does, and open it. */
     static async #distribute(
         releases: readonly Digest[],
         store: LocalBuildStore,
     ): Promise<BuildLayer> {
-        // write it once per process, beside the store under its releases' digest
-        const { files, crypto, process } = store.environment;
-        const key = await Digest.json({ releases, runtimes: COMPUTER_RUNTIMES }, crypto);
-        const directory = join(store.directory, "layers", key);
-        const writing =
-            TestDistribution.#distributed.get(directory) ??
-            (async () => {
-                // write it under a name of this process's own, then move it in, leaving one another process moved in first
-                if (await files.exists(directory)) {
-                    return;
-                }
-                const written = `${directory}.${process.id}`;
-                await files.remove(written, { recursive: true, force: true });
-                await store.writeLayer(releases, COMPUTER_RUNTIMES, written);
-                await files.rename(written, directory).catch(async (error: unknown) => {
-                    if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
-                        throw error;
-                    }
-                    await files.remove(written, { recursive: true });
-                });
-            })();
-        TestDistribution.#distributed.set(directory, writing);
-        await writing;
+        // write it once per process on the host's store, one long operation of the world whether written before or not
+        const key = JSON.stringify(releases);
+        const writing = TestDistribution.#distributed.get(key) ?? TestDistribution.#write(releases);
+        TestDistribution.#distributed.set(key, writing);
+        const directory = await store.environment.scheduler.run(() => writing, { isLong: true });
 
         return await BuildLayer.open(directory, store.environment);
+    }
+
+    /** Write a linked layer of releases in the host's store, returning its directory. */
+    static async #write(releases: readonly Digest[]): Promise<string> {
+        await using store = await testStore();
+
+        return await store.writeLinkedLayer(releases, COMPUTER_RUNTIMES);
     }
 
     /** Open a shipped release of a package by its version, refusing one the distribution lacks. */

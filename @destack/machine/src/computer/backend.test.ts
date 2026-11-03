@@ -36,8 +36,8 @@ test("start a space while the machine serves, and refuse to start it once the ma
         spaceId,
         [
             "SERVICE_UNAVAILABLE",
-            "MACHINE_NOT_SERVING",
-            `machine ${home.machine.id} cannot serve spaces while idle`,
+            "SERVER_STOPPED",
+            `machine ${home.machine.id} is stopped: it stopped serving`,
         ],
     ]);
 });

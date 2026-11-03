@@ -1,4 +1,6 @@
-import { RequestBody } from "@destack/object";
+import { linkKernel } from "./link.ts";
+import type { Kernel } from "../computer/kernel.ts";
+import { RequestBody, SERVER_EXPORT } from "@destack/object";
 import { Authentication } from "@destack/access";
 import { dirname, join } from "node:path";
 import { type Environment, Pipe } from "@destack/environment";
@@ -21,6 +23,7 @@ import { Failure } from "@destack/error";
 import { type BunInstanceLayout, BunWorkloadSandbox } from "./sandbox.ts";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
+import { PackageImplementation } from "@destack/object/server";
 
 /** The server runtime this runtime runs instances on. */
 const BUN_RUNTIME = "bun";
@@ -81,6 +84,8 @@ export class BunRuntime implements Runtime {
     readonly #directory: string;
     /** The machine's store of builds, with every build's closure. */
     readonly #packages: LocalBuildStore;
+    /** The packages the machine provides, whose modules a loaded server shares with it. */
+    readonly #kernel: Kernel;
     /** The machine's egress of a space's instances, below which they call addresses. */
     readonly #egress: (scope: Identifier<"space">) => string;
     /** Resolve the share of traces an installation samples. */
@@ -114,6 +119,8 @@ export class BunRuntime implements Runtime {
         readonly directory: string;
         /** The machine's store of builds, with every build's closure. */
         readonly packages: LocalBuildStore;
+        /** The packages the machine provides, whose modules a loaded server shares with it. */
+        readonly kernel: Kernel;
         /** The machine's egress of a space's instances, below which they call addresses. */
         readonly egress: (scope: Identifier<"space">) => string;
         /** Resolve the share of traces an installation samples, as its space's settings set it. */
@@ -140,6 +147,7 @@ export class BunRuntime implements Runtime {
         // set the directory, the egress, the output and the spaces' identities
         this.#directory = options.directory;
         this.#packages = options.packages;
+        this.#kernel = options.kernel;
         this.#egress = options.egress;
         this.#sampling = options.sampling;
         this.#url = options.url;
@@ -148,6 +156,103 @@ export class BunRuntime implements Runtime {
         this.#identity = options.identity;
         this.#environment = options.environment;
         this.#isolation = options.isolation;
+    }
+
+    /** Load the server a build exports into this process, absent for a build exporting none. */
+    async server(manifest: Digest): Promise<PackageImplementation | undefined> {
+        // take none of a build without a server export
+        const build = await this.#packages.contents(manifest);
+        const output = Object.values(build.manifest.outputs).find(
+            (each) => each.runtime === BUN_RUNTIME,
+        );
+        if (output?.exports[SERVER_EXPORT] === undefined) {
+            return undefined;
+        }
+
+        // import it, refusing a module exporting no package implementation
+        const module = await this.import(manifest, SERVER_EXPORT);
+        const exported =
+            typeof module === "object" && module !== null && "default" in module
+                ? module.default
+                : undefined;
+        if (!PackageImplementation.is(exported)) {
+            throw MachineError.of(
+                "SERVER_INVALID",
+                `${build.manifest.package.name} exports no package implementation as its server`,
+            );
+        }
+
+        return exported;
+    }
+
+    /** Import an export of a build's Bun output, its kernel imports this process's own. */
+    async import(manifest: Digest, specifier: string): Promise<unknown> {
+        // find the export in the build's Bun output
+        const build = await this.#packages.contents(manifest);
+        const output = present(
+            Object.values(build.manifest.outputs).find((each) => each.runtime === BUN_RUNTIME),
+            `the ${BUN_RUNTIME} output of ${build.manifest.package.name}`,
+        );
+        const exported = present(
+            output.exports[specifier],
+            `the ${specifier} export of ${build.manifest.package.name}`,
+        );
+
+        // place the build, link the kernel modules its closure may load to this process's own, and import the export
+        const { build: placed } = await this.#write(build);
+        const imports = await this.#imports(build, manifest);
+
+        // load the modules as one real operation, completed in order whether the host loaded them before or not
+        return await this.#environment.scheduler.run(async () => {
+            await linkKernel(imports, this.#kernel);
+            const module: unknown = await import(join(placed, exported.path));
+
+            return module;
+        });
+    }
+
+    /** List the modules a build's closure may load: its imports and each build's Bun exports. */
+    async #imports(build: BuildReader, manifest: Digest): Promise<string[]> {
+        // read each build of the closure once, as placing it did
+        const closure = await this.#packages.closure(
+            manifest,
+            PackageManifest.package(build.manifest).id,
+            BUN_RUNTIME,
+            (needed) => this.#packages.get(needed),
+            "export",
+        );
+        const manifests = await Promise.all(
+            [...closure].map(async (each) =>
+                present(await this.#packages.get(each), `build ${each} of the closure`),
+            ),
+        );
+
+        // take every module the outputs import, and each build's exports but its workloads' entries and tests
+        return manifests.flatMap((built) => {
+            // read the build's Bun outputs and the modules they import
+            const { name } = built.package;
+            const outputs = Object.values(built.outputs).filter(
+                (output) => output.runtime === BUN_RUNTIME,
+            );
+            const imported = outputs.flatMap((output) =>
+                Object.values(output.exports).flatMap((entry) => entry.imports),
+            );
+
+            // leave a workload's entry and a test subpath, which no placed copy answers
+            const exported = outputs.flatMap((output) => {
+                const entries = new Set(
+                    Object.values(output.workloads).map((workload) => workload.entrypoint),
+                );
+
+                return Object.keys(output.exports)
+                    .filter(
+                        (subpath) => !entries.has(subpath) && !subpath.split("/").includes("test"),
+                    )
+                    .map((subpath) => `${name}${subpath.slice(1)}`);
+            });
+
+            return [...imported, ...exported];
+        });
     }
 
     /** Start an instance's runner and resolve when it serves. */
@@ -276,11 +381,8 @@ export class BunRuntime implements Runtime {
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
-        // import the module as host work and call the export, refusing a module without the function
-        const imported: unknown = await this.#environment.scheduler.track(
-            () => import(module),
-            "host",
-        );
+        // import the module as an operation and call the export, refusing a module without the function
+        const imported: unknown = await this.#environment.scheduler.run(() => import(module));
         const exported: unknown =
             typeof imported === "object" && imported !== null
                 ? Reflect.get(imported, name)
@@ -369,12 +471,9 @@ export class BunRuntime implements Runtime {
         directories: BunInstanceLayout,
         start: WorkloadStart,
     ): Promise<Runner> {
-        // import the entry's hosted workload as host work, and start it with the build's own runner
+        // import the entry's hosted workload as an operation, and start it with the build's own runner
         const entry = join(directories.build, InstanceSpec.entry(spec).path);
-        const module: unknown = await this.#environment.scheduler.track(
-            () => import(entry),
-            "host",
-        );
+        const module: unknown = await this.#environment.scheduler.run(() => import(entry));
         const hosted = BunRuntime.#workload(module, entry);
         const runner = await hosted.start(this.#environment, start, spec.build, (error) =>
             this.#output(spec, `workload failed: ${String(error)}`),
@@ -490,10 +589,18 @@ export class BunRuntime implements Runtime {
 
     /** Place a build's Bun output in the runtime's directory, its closure in the store's trees. */
     async #place(digest: Digest): Promise<Pick<BunInstanceLayout, "build" | "roots">> {
-        // place the closure's Bun outputs in the store's trees, shared with every build reaching them
+        // run a layered build in place, its run tree linked beside it
         const { files } = this.#environment;
+        const layered = this.#packages.layered(digest);
+        if (layered !== undefined && (await files.exists(join(layered, "node_modules")))) {
+            const build = await files.realPath(layered);
+
+            return { build, roots: await DependencyTree.linkedRoots(build, files) };
+        }
+
+        // place the closure's Bun outputs in the store's trees, shared with every build reaching them
         const build = await this.#packages.contents(digest);
-        const tree = await this.#materialize(build, digest);
+        const tree = await this.#packages.runTree(build, digest, BUN_RUNTIME);
         const roots = await tree.roots(files);
 
         // leave a build written before, whose manifest a write publishes last
@@ -537,45 +644,6 @@ export class BunRuntime implements Runtime {
         }
 
         return { build: written, roots };
-    }
-
-    /** Materialize the Bun outputs of a build's closure in the store's trees. */
-    async #materialize(built: BuildReader, digest: Digest): Promise<DependencyTree> {
-        // read the closure, refusing a build whose Bun output the store lacks, as a pull brings the whole closure
-        const { manifest } = built;
-        const closure = await this.#packages.closure(
-            digest,
-            PackageManifest.package(manifest).id,
-            BUN_RUNTIME,
-            async (needed) => {
-                if (!(await this.#packages.has(needed))) {
-                    throw MachineError.of(
-                        "DEPENDENCY_MISSING",
-                        `build ${needed} of ${manifest.package.name} is missing from the machine's store`,
-                    );
-                }
-
-                return this.#packages.get(needed);
-            },
-        );
-
-        // place each closure build's Bun output once
-        const output = present(
-            Object.values(manifest.outputs).find((each) => each.runtime === BUN_RUNTIME),
-            `the ${BUN_RUNTIME} output of ${manifest.package.name}`,
-        );
-        const dependencies = Object.values(output.dependencies).filter((dependency) =>
-            closure.has(dependency.manifest),
-        );
-
-        return await DependencyTree.materialize(
-            this.#packages,
-            dependencies,
-            this.#packages.trees,
-            {
-                run: { runtime: BUN_RUNTIME, closure },
-            },
-        );
     }
 
     /** Describe a runner's start with a fresh secret. */
@@ -643,7 +711,7 @@ export class BunRuntime implements Runtime {
         stdout: ReadableStream<Uint8Array>,
         environment: Pick<Environment, "clock" | "scheduler">,
     ): Promise<void> {
-        // read the first line as host work until it ends, the process exits or the timeout passes
+        // read the first line as an operation until it ends, the process exits or the timeout passes
         const timer = new AbortController();
         const deadline = environment.clock
             .sleep(START_TIMEOUT_MILLISECONDS, timer.signal)
@@ -651,7 +719,7 @@ export class BunRuntime implements Runtime {
             .catch(() => undefined);
         try {
             const first = await Promise.race([
-                environment.scheduler.track(() => BunRuntime.#firstLine(stdout), "peer"),
+                environment.scheduler.run(() => BunRuntime.#firstLine(stdout), { isLong: true }),
                 deadline,
             ]);
             if (first === undefined) {

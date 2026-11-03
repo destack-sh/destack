@@ -10,6 +10,7 @@ import { schema } from "@destack/schema";
 import { PackageMount } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { BunRuntime } from "./runtime.ts";
+import { Kernel } from "../computer/kernel.ts";
 import { WEBHOOK_PATH } from "@destack/object/workload";
 import type { InstanceSpec } from "@destack/stack/runtime";
 import { testKeys, testSimulation } from "@destack/object/test";
@@ -72,6 +73,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     onTestFinished(() => packages[Symbol.asyncDispose]());
     const runtime = new BunRuntime({
         isolation: "sandbox",
+        kernel: new Kernel(new Map()),
         environment: world,
         identity: async () => testKeys(world),
         directory,
@@ -333,6 +335,7 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
     onTestFinished(() => packages[Symbol.asyncDispose]());
     const runtime = new BunRuntime({
         isolation: "sandbox",
+        kernel: new Kernel(new Map()),
         environment: world,
         identity: async () => testKeys(world),
         directory,

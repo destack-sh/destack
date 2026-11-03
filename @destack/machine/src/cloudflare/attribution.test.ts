@@ -1,5 +1,5 @@
 import { subscribe, unsubscribe } from "node:diagnostics_channel";
-import { cpu } from "@destack/observability/meter";
+import { cpu } from "@destack/telemetry/meter";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Traffic } from "../gateway/index.ts";

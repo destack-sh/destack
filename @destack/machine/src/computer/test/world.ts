@@ -229,8 +229,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
         }
 
         // end the step once the work it started settles at the current time, failing on a device's failure
-        await simulation.clock.sleep(this.clock.now() - simulation.clock.now());
-        await simulation.idle();
+        await simulation.run(this.clock.now());
         if (this.#failures.length > 0) {
             throw new AggregateError(this.#failures.splice(0), "a member's device failed");
         }
@@ -290,9 +289,8 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
 
         // record its object types by name
         const packageId = PackageManifest.package(build.manifest).id;
-        const module: unknown = await world.simulation.scheduler.track(
+        const module: unknown = await world.simulation.scheduler.run(
             () => import(`${WorldDriver.#fixture(fixture)}src/package.ts`),
-            "host",
         );
         const handle = FixturePackage.parse(module).default;
         for (const type of Object.values(handle.objects)) {
@@ -430,7 +428,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
         const calls: Promise<unknown>[] = [];
         for (let index = 0; index < (step.repeat ?? 1); index += 1) {
             if (index > 0 && step.rate !== undefined) {
-                await this.clock.sleep(MILLISECONDS_PER_SECOND / step.rate);
+                await this.home.world.simulation.sleep(MILLISECONDS_PER_SECOND / step.rate);
             }
             calls.push(call(this.#input(step)));
         }
@@ -498,7 +496,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
         );
         for (let index = 0; index < step.repeat; index += 1) {
             if (index > 0) {
-                await this.clock.sleep(MILLISECONDS_PER_SECOND / step.rate);
+                await this.home.world.simulation.sleep(MILLISECONDS_PER_SECOND / step.rate);
             }
             this.#sequence += 1;
             const event = schema

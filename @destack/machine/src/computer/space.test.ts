@@ -239,6 +239,7 @@ async function openEcho(world: TestWorld, name: string, relay: TestRelay): Promi
         relay: relay.url,
         runtime: (egress, identity) => {
             const runtime = new LocalRuntime({
+                scheduler: world.simulation.scheduler,
                 egress,
                 identity,
                 runner: (spec) => found(runners, PackageManifest.package(spec.build.manifest).id),
@@ -296,7 +297,7 @@ async function keepBucket(
     });
 
     // wait for the machine to provision it
-    await computer.until(database, async () => {
+    await computer.waitUntil(database, async () => {
         const [row] = await database
             .select({ reference: bucket.table.reference })
             .from(bucket.table)
@@ -336,7 +337,7 @@ async function install(served: Echoing, release: BuildReader, name: string, peer
 /** Wait until a computer's space store serves an installed package's objects. */
 async function storing(served: Served, packageId: string): Promise<void> {
     const database = (await served.computer.machine.space(served.space)).database;
-    await served.computer.until(
+    await served.computer.waitUntil(
         database,
         async () => (await storePackage(served, packageId)) !== undefined,
     );
@@ -358,7 +359,7 @@ async function serving(
 ): Promise<void> {
     const database = (await served.computer.machine.space(spaceId)).database;
     await served.computer
-        .until(
+        .waitUntil(
             database,
             async () =>
                 (await stackObject.Instance.endpoints(database, installationId)).filter(
@@ -406,7 +407,7 @@ async function openBoard(world: TestWorld, options: TestComputerOptions = {}): P
         .read(installation.table)
         .findFirst({ where: { scope: space, packageId: boardPackage.id } });
     const boardId = present(board, "the board's installation").id;
-    await computer.until(
+    await computer.waitUntil(
         database,
         async () => (await stackObject.Instance.endpoints(database, boardId)).length > 0,
     );
@@ -565,7 +566,7 @@ test(
 
         // drop the caller's computer's replica of the cancelled move with the buckets it provisioned
         const replica = (await caller.computer.machine.space(source.space)).database;
-        await caller.computer.until(
+        await caller.computer.waitUntil(
             replica,
             async () =>
                 (
@@ -582,7 +583,10 @@ test(
                 .open({ bucketId: files })
                 .then(() => "open")
                 .catch((error: unknown) => (BucketError.is(error) ? error.reason : error));
-        await caller.computer.until(replica, async () => (await abandoned()) === "NO_SUCH_BUCKET");
+        await caller.computer.waitUntil(
+            replica,
+            async () => (await abandoned()) === "NO_SUCH_BUCKET",
+        );
 
         // rejoin the source computer to the relay, waiting for its tunnel
         const universe = world.universe.storage.database;
@@ -596,7 +600,7 @@ test(
         };
         const before = await published();
         network.heal(source.node, RELAY_NODE);
-        await source.computer.until(universe, async () => (await published()) !== before);
+        await source.computer.waitUntil(universe, async () => (await published()) !== before);
         const cancelled = await call("/cancelled");
 
         // move it again once the caller can capture it
@@ -605,7 +609,7 @@ test(
             requestId: RequestId.create(world.universe.environment),
             targetId: target,
         });
-        await source.computer.until(
+        await source.computer.waitUntil(
             universe,
             async () =>
                 (
@@ -704,7 +708,7 @@ test(
                 ]);
 
         // record it under the board's installation, its running instance and its build
-        await computer.until(sourced, async () => (await started()).length > 0);
+        await computer.waitUntil(sourced, async () => (await started()).length > 0);
         expect([await started(), computer.reports]).toEqual([[[boardId, instance, manifest]], []]);
     },
 );
@@ -759,7 +763,7 @@ test(
                 .select({ revokedAt: accountObject.key.table.revokedAt })
                 .from(accountObject.key.table)
                 .where(eq(accountObject.key.table.parentId, peer.machine.id));
-        await computer.until(computer.machine.database, async () => {
+        await computer.waitUntil(computer.machine.database, async () => {
             const keys = await peerKeys();
 
             return keys.length === 1 && keys.every((each) => each.revokedAt === null);
@@ -780,7 +784,7 @@ test(
             id: peer.machine.id,
             requestId: RequestId.create(computer.environment),
         });
-        await computer.until(computer.machine.database, async () =>
+        await computer.waitUntil(computer.machine.database, async () =>
             (await peerKeys()).every((each) => each.revokedAt !== null),
         );
         expect({
@@ -888,7 +892,7 @@ test(
             name: "renamed",
         });
         const universe = world.universe.storage.database;
-        await computer.until(universe, async () => {
+        await computer.waitUntil(universe, async () => {
             const [published] = await universe
                 .select({ url: accountObject.endpoint.table.url })
                 .from(accountObject.endpoint.table)

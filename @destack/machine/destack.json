@@ -41,6 +41,11 @@
                 "files": ["src/cloudflare/runtime/instance.ts"],
                 "rules": ["destack/prevent-abbreviations"],
                 "reason": "env is the Worker Loader's name for a loaded worker's bindings, which its code object keeps"
+            },
+            {
+                "files": ["src/computer/kernel.ts", "src/bun/link.ts"],
+                "rules": ["destack/no-ambient-effect"],
+                "reason": "a runtime's kernel and its links resolve modules as Bun loads them, which only Bun's resolver over the process's own files does"
             }
         ]
     }

@@ -3,10 +3,7 @@ import { claim, entitlement, organization } from "@destack/account/object";
 import { identityKey } from "@destack/account/identity";
 import { call, type ObjectType } from "@destack/object";
 import { spaceReplicated, spaceTables } from "@destack/stack/stack";
-import { Forge } from "@destack/forge/client";
-import { gitStorage } from "@destack/forge/storage";
-import { mail } from "@destack/message/object";
-import * as stackObject from "@destack/stack/object";
+import { Forge } from "@destack/registry/client";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import type { S3Credentials } from "@destack/bucket/s3";
 import { type DatabaseConnection, defineDatabase, type Table } from "@destack/db";
@@ -14,12 +11,9 @@ import type { EventKind, EventStore } from "@destack/event";
 import type { BlobStorage, Connector } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import type { SpaceBuildStore, SpaceOptions } from "@destack/stack/server";
-import type { ExternalStorage, PackageImplementation } from "@destack/object/server";
+import type { ExternalStorage } from "@destack/object/server";
 import type { Traffic } from "../gateway/traffic.ts";
 import type { Reading } from "../meter/index.ts";
-
-/** The record types of the kinds every space's storage hosts: databases, Git and mail. */
-const HOSTED = [stackObject.database, gitStorage, mail];
 
 /** The storage of a machine's spaces, opened as one volume per space. */
 export interface SpaceStorage {
@@ -68,39 +62,32 @@ export interface Volume {
     readonly close: () => Promise<void>;
 }
 
-/** The storage of a machine's spaces, as its servers declare what every space stores. */
+/** The storage of a machine's spaces: the kernel's, each installation adding its own. */
 export const SpaceStorage = {
-    /** Declare what every space stores, by the servers a machine runs and the kinds it hosts. */
-    declare(
-        servers: readonly PackageImplementation[],
-    ): Pick<SpaceStorage, "main" | "kinds" | "ephemeral"> {
-        // read the servers' types by where they are stored
-        const types = servers.flatMap((server) => Object.values(server.package.objects));
-        const events = [call, ...types.filter((type) => type.storage === "events")];
-
-        // store the stack's tables, the space's identity keys, the hosted records and the events
-        const tables = new Set<Table>([
-            ...spaceTables({}).tables,
-            identityKey,
-            ...HOSTED.flatMap((type) => type.tables),
-            ...events.flatMap((type) => type.tables),
+    /** Declare what every space stores before its installations: the kernel's tables and events. */
+    declare(): Pick<SpaceStorage, "main" | "kinds" | "ephemeral"> {
+        // replicate the stack's rows, the account's entitlements, the registry's references and tags, and the names it resolves handles by
+        const replicated = new Set<Table>([
+            ...spaceReplicated,
+            organization.table,
+            entitlement.table,
+            ...Forge.replicated.map((type) => type.table),
+            claim.table,
         ]);
 
-        // replicate the stack's rows, the account's entitlements, the forge's references and tags, and the names it resolves handles by
+        // store the stack's other tables, the space's identity keys and the calls
+        const tables = [...spaceTables({}).tables, identityKey, ...call.tables].filter(
+            (table) => !replicated.has(table),
+        );
+
         return {
             main: defineDatabase({
                 name: MAIN_DATABASE,
-                tables: [...tables],
-                replicated: [
-                    ...spaceReplicated,
-                    organization.table,
-                    entitlement.table,
-                    ...Forge.replicated.map((type) => type.table),
-                    claim.table,
-                ],
+                tables: [...new Set(tables)],
+                replicated: [...replicated],
             }),
-            kinds: events.map((type) => type.eventKind()),
-            ephemeral: types.filter((type) => type.storage === "ephemeral"),
+            kinds: [call.eventKind()],
+            ephemeral: [],
         };
     },
 };

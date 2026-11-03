@@ -454,7 +454,11 @@ test(
                 requestId: RequestId.create(opened.environment),
             });
         const list = () => refusal(service.socket.list({ spaceId: created }));
-        const paused = ["SERVICE_UNAVAILABLE", "MACHINE_PAUSED", `machine ${machine.id} is paused`];
+        const paused = [
+            "SERVICE_UNAVAILABLE",
+            "SERVER_DOWN",
+            `machine ${machine.id} is down: its account set its status to draining`,
+        ];
 
         // drain the machine until it refuses the space's calls and starts
         await change("drain");
@@ -552,7 +556,9 @@ test("let the machine's local client and its account's owner work its checkouts 
     };
 
     // wait until the chain above the machine synced, letting the owner operate the machine
-    await opened.until(partition.database, async () => decide(owner, "read").catch(() => false));
+    await opened.waitUntil(partition.database, async () =>
+        decide(owner, "read").catch(() => false),
+    );
     const permissions = async (subject: typeof owner) => [
         await decide(subject, "read"),
         await decide(subject, "relocate"),
@@ -688,7 +694,7 @@ test("derive a workspace's members, and start a preview's next generation once i
     const { machine } = computer;
     const client = computer.connect(machinePackage);
     const machineId = machine.id;
-    const { clock } = computer;
+    const settle = () => computer.world.simulation.sleep(SETTLED_MILLISECONDS);
     const previewer = await computer.signIn(OWNER_EMAIL);
     await computer.enroll(previewer, computer.world.owner.account);
 
@@ -750,7 +756,8 @@ test("derive a workspace's members, and start a preview's next generation once i
     const library = join(root, "packages/library/src/index.ts");
     await expect
         .poll(async () => {
-            await files.writeTextFile(library, `export const edited = ${clock.now()};\n`);
+            await files.writeTextFile(library, `export const edited = ${computer.clock.now()};\n`);
+            await settle();
 
             return generation();
         }, WATCH_POLL)
@@ -759,7 +766,7 @@ test("derive a workspace's members, and start a preview's next generation once i
     // wait until the library's last edits settle into one generation, unchanged over a settle
     const unchanged = async () => {
         const before = await generation();
-        await clock.sleep(SETTLED_MILLISECONDS);
+        await settle();
 
         return (await generation()) === before;
     };
@@ -768,10 +775,15 @@ test("derive a workspace's members, and start a preview's next generation once i
 
     // edit the app once and change only an unrelated tool and installed dependencies after
     await files.writeTextFile(join(root, "packages/app/src/index.ts"), "export const app = 1;\n");
-    await expect.poll(generation, WATCH_POLL).toBe(started + 1);
+    const settled = async () => {
+        await settle();
+
+        return generation();
+    };
+    await expect.poll(settled, WATCH_POLL).toBe(started + 1);
     await files.writeTextFile(join(root, "packages/app/node_modules/marker"), "installed\n");
     await files.writeTextFile(join(root, "tools/check/src/index.ts"), "export const check = 1;\n");
-    await clock.sleep(SETTLED_MILLISECONDS);
+    await settle();
 
     expect({
         packages: await client.checkout.members({ machineId, id: registered.id }),

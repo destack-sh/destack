@@ -78,7 +78,10 @@ test(
             await Snapshot.live(universe)
                 .read(endpoint.table)
                 .findFirst({ where: { id: relayed.machine.id } });
-        await relayed.until(universe, async () => (await published())?.relay?.url !== undefined);
+        await relayed.waitUntil(
+            universe,
+            async () => (await published())?.relay?.url !== undefined,
+        );
         const tunnel = await published();
         expect([local.machine.origin, relayed.machine.origin, tunnel?.relay?.url]).toEqual([
             local.endpoint,
@@ -106,7 +109,7 @@ test(
 
         // wait until the relay publishes the relayed computer's tunnel
         const universe = world.universe.storage.database;
-        await relayed.until(universe, async () => {
+        await relayed.waitUntil(universe, async () => {
             const published = await Snapshot.live(universe)
                 .read(endpoint.table)
                 .findFirst({ where: { id: relayed.machine.id } });

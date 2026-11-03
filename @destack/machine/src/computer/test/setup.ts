@@ -2,6 +2,7 @@ import { BuildStore } from "@destack/build/store";
 import { CompilerPool } from "@destack/build";
 import { testStore } from "@destack/build/test";
 import { TestRun } from "@destack/db/test/run";
+import { canonicalize } from "@destack/schema";
 import type { TestProject } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import {
@@ -47,7 +48,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     // hand the digests to the tests, and to the templates, whose distributions ship the platform's builds
     project.provide("built", built);
     project.provide("scenarios", scenario);
-    const variables = { [BUILDS_VARIABLE]: JSON.stringify(built) };
+    const variables = { [BUILDS_VARIABLE]: canonicalize(built) };
     const remove = await TestRun.setup(TEMPLATES, variables)(project);
 
     // move the computers' state directories into one trash, removed with the run, as Bazel's execroots

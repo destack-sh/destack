@@ -170,7 +170,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
         [
             {
                 kind: "object",
-                kindPackageId: tasks.id,
+                kindPackageId: objectDefinition.id,
                 name: "task",
                 description: describeObject(task),
             },
@@ -270,7 +270,7 @@ function articlesBuild(crypto: Crypto): Promise<BuildReader> {
         [
             {
                 kind: "object",
-                kindPackageId: articles.id,
+                kindPackageId: objectDefinition.id,
                 name: "article",
                 description: describeObject(article),
             },
@@ -1424,7 +1424,7 @@ test(
 
         // wait until the space's replica of its account's hostnames has the new one
         const database = (await computer.machine.space(spaceId)).database;
-        await computer.until(database, async () => {
+        await computer.waitUntil(database, async () => {
             const [found] = await database
                 .select({ id: accountObject.hostname.table.id })
                 .from(accountObject.hostname.table)

@@ -11,11 +11,10 @@ import { BunSqliteDatabaseHost, connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import type { Environment } from "@destack/environment";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
-import { LocalGitStorage, localGitProvider } from "@destack/forge/local";
-import { gitStorage } from "@destack/forge/storage";
-import { type MailDeclaration, mailProvider, type MailTransport } from "@destack/message/email";
-import { mail } from "@destack/message/object";
-import type { PackageImplementation } from "@destack/object/server";
+import { LocalGitStorage, localGitProvider } from "@destack/git/local";
+import { gitStorage } from "@destack/stack/object";
+import type { MailDeclaration } from "@destack/mail/declare";
+import { mailProvider, type MailTransport } from "@destack/mail/transport";
 import type { Keyring } from "@destack/identity";
 import { type Identifier, schema } from "@destack/schema";
 import { BunGraphStorage } from "@destack/stack/bun";
@@ -44,8 +43,6 @@ export interface LocalSpaceStorageOptions {
     readonly keyring: Keyring;
     /** The host the spaces run on: its clock, randomness, crypto, network, files and git. */
     readonly environment: Environment<"files" | "process" | "host" | "server">;
-    /** The servers the machine runs in process, whose types the spaces store. */
-    readonly servers: readonly PackageImplementation[];
     /** The transport the spaces' mail goes out through, such as printing it. */
     readonly mail: Connector<MailTransport, MailDeclaration>;
     /** Report a failure of the spaces' sockets. */
@@ -98,13 +95,15 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
         const providers = [
             databaseProvider(databases, stackObject.database),
             databaseProvider(
-                new SpaceDatabaseHost(databases, (spaceId) => LocalSpaceStorage.#reference(spaceId)),
+                new SpaceDatabaseHost(databases, (spaceId) =>
+                    LocalSpaceStorage.#reference(spaceId),
+                ),
                 stackObject.database,
             ),
             localGitProvider(join(options.directory, "git"), gitStorage, options.environment),
-            mailProvider(options.mail.code, mail),
+            mailProvider(options.mail.code, stackObject.mail),
         ];
-        const declared = SpaceStorage.declare(options.servers);
+        const declared = SpaceStorage.declare();
 
         // store the spaces' live sockets and their other ephemeral objects in memory
         const sockets = await SocketRegistry.open({
@@ -140,7 +139,9 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
         try {
             await environment.files.mkdir(this.#directory("databases"), { recursive: true });
             const definition = this.main;
-            const file = fileURLToPath(this.#databases.resolve(LocalSpaceStorage.#reference(space)));
+            const file = fileURLToPath(
+                this.#databases.resolve(LocalSpaceStorage.#reference(space)),
+            );
             const database = await connectBunSqlite(file, definition, { environment });
             lifetime.defer(() => database.close());
             await database.migrate(definition.tables, { others: "retain" });

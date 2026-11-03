@@ -81,7 +81,7 @@ test(
             (await notifications.select().from(activity.table))
                 .filter((row) => row.recipientId === recipient.id && row.scope === spaceId)
                 .map((row) => [row.content.body, row.content.title, row.summary]);
-        await home.until(notifications, async () => (await read()).length === 1);
+        await home.waitUntil(notifications, async () => (await read()).length === 1);
         expect(await read()).toEqual([["⁨a question for you⁩", "Mentioned", "1 mention"]]);
     },
 );
@@ -119,14 +119,14 @@ async function openBoard(world: TestWorld, options: TestComputerOptions = {}): P
         }
     }
     const served = { computer, login, space };
-    await computer.until(database, async () => (await storePackage(served)) !== undefined);
+    await computer.waitUntil(database, async () => (await storePackage(served)) !== undefined);
 
     // wait until the board's sandboxed instance serves
     const board = await Snapshot.live(database)
         .read(installation.table)
         .findFirst({ where: { scope: space, packageId: boardPackage.id } });
     const boardId = present(board, "the board's installation").id;
-    await computer.until(
+    await computer.waitUntil(
         database,
         async () => (await stackObject.Instance.endpoints(database, boardId)).length > 0,
     );
@@ -162,7 +162,7 @@ async function grantStranger(world: TestWorld, served: Served): Promise<TestPers
 
     // wait for the computer's replica of the grant
     const database = (await computer.machine.space(space)).database;
-    await computer.until(
+    await computer.waitUntil(
         database,
         async () =>
             (

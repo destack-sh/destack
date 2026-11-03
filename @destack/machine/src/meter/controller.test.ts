@@ -1,9 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { Event, EventTime } from "@destack/event";
-import { reading } from "@destack/observability";
-import { databaseBytes, memory } from "@destack/observability/meter";
-import observabilityServer from "@destack/observability/server";
-import { defineSku } from "@destack/finance/declare";
+import { reading } from "@destack/stack/object";
+import { databaseBytes, memory } from "@destack/telemetry/meter";
 import { Identifier, Text } from "@destack/schema";
 import { TestSpace } from "@destack/stack/test";
 import { expect, test } from "@destack/test";
@@ -30,9 +28,6 @@ interface Logged {
 /** The milliseconds in a minute, the space's reading interval. */
 const MINUTE = 60_000;
 
-/** The day the test's prices were read. */
-const OBSERVED_AT = "2026-10-01";
-
 /** Wait for traffic that never comes, until the signal aborts. */
 function quiet(signal: AbortSignal): Promise<void> {
     const { promise, resolve } = Promise.withResolvers<void>();
@@ -44,43 +39,23 @@ function quiet(signal: AbortSignal): Promise<void> {
 /** The start of the month after the scenario's, which an idle space crosses. */
 const FEBRUARY_START = Date.UTC(2026, 1, 1);
 
-/** Database storage, rated per GB-month. */
-const databaseSku = defineSku({
-    name: "test.database.storage",
-    description: "Database storage, kept on average over the month.",
-    provider: "test",
-    service: "Database",
-    category: "Storage",
-    meter: databaseBytes.reference,
-    pricingUnit: "GB-month",
-    unitSize: 1_000_000_000,
-    currency: "USD",
-    unitAmount: "0.2",
-    source: "https://example.com/pricing",
-    observedAt: OBSERVED_AT,
-});
+/** The SKU rating database storage per GB-month, by declaration key. */
+const DATABASE_SKU = "package-019f5530-8000-7000-8000-000000000402/test.database.storage";
 
-/** Memory, rated per GB-second. */
-const memorySku = defineSku({
-    name: "test.memory",
-    description: "Memory held while installations run.",
-    provider: "test",
-    service: "Compute",
-    category: "Compute",
-    meter: memory.reference,
-    pricingUnit: "GB-second",
-    unitSize: 1,
-    currency: "USD",
-    unitAmount: "0.0000125",
-    source: "https://example.com/pricing",
-    observedAt: OBSERVED_AT,
-});
+/** The SKU rating memory per GB-second, by declaration key. */
+const MEMORY_SKU = "package-019f5530-8000-7000-8000-000000000402/test.memory";
+
+/** The SKU rating each meter on the test's machine, by the meter's key. */
+const SKUS = new Map([
+    [DeclarationReference.key(databaseBytes.reference), DATABASE_SKU],
+    [DeclarationReference.key(memory.reference), MEMORY_SKU],
+]);
 
 test("append a space's use as readings each round, measuring a failed round in the next and resuming after a restart from the latest reading", async () => {
-    // serve a space with observability's readings, in a world the scenario moves
+    // serve a space, in a world the scenario moves
     const fixture = await TestSpace.open(METER_OPTIONS);
     const world = fixture.environment;
-    const served = await fixture.serve({ isControlled: false, servers: [observabilityServer] });
+    const served = await fixture.serve({ isControlled: false });
     const { store } = served;
     const { events } = store;
     const spaceId = fixture.id;
@@ -101,7 +76,7 @@ test("append a space's use as readings each round, measuring a failed round in t
     const measured: [number, number][] = [];
     const options = {
         space: spaceId,
-        skus: [databaseSku, memorySku],
+        skus: SKUS,
         payer: async () => accountId,
         traffic: quiet,
         measure: async (from: number, to: number) => {
@@ -133,7 +108,7 @@ test("append a space's use as readings each round, measuring a failed round in t
     // record each reading once, a level as constant over its interval
     const read = async (
         meter: typeof memory,
-        sku: typeof memorySku,
+        sku: string,
         installation: string | null,
         to: number,
         value: number,
@@ -147,7 +122,7 @@ test("append a space's use as readings each round, measuring a failed round in t
             keys: {
                 meter: key,
                 installationId: installation,
-                sku: DeclarationReference.key(sku.reference),
+                sku,
                 payerId: accountId,
                 value,
             },
@@ -175,12 +150,12 @@ test("append a space's use as readings each round, measuring a failed round in t
         ],
         failed: "the machine's records are unreachable",
         logged: [
-            await read(databaseBytes, databaseSku, null, METER_START, 0, 2e9),
-            await read(memory, memorySku, notes, METER_START, 100, null),
-            await read(memory, memorySku, notes, METER_START + 4 * MINUTE, 50, null),
+            await read(databaseBytes, DATABASE_SKU, null, METER_START, 0, 2e9),
+            await read(memory, MEMORY_SKU, notes, METER_START, 100, null),
+            await read(memory, MEMORY_SKU, notes, METER_START + 4 * MINUTE, 50, null),
             await read(
                 databaseBytes,
-                databaseSku,
+                DATABASE_SKU,
                 null,
                 METER_START + 5 * MINUTE,
                 1e9 * MINUTE,
@@ -191,17 +166,17 @@ test("append a space's use as readings each round, measuring a failed round in t
 });
 
 test("read nothing while a space idles, then its use a minute into its next traffic, a level split at the month it crossed", async () => {
-    // serve a space with observability's readings, read once, then follow its activity
+    // serve a space, read once, then follow its activity
     const fixture = await TestSpace.open(METER_OPTIONS);
     const world = fixture.environment;
-    const served = await fixture.serve({ isControlled: false, servers: [observabilityServer] });
+    const served = await fixture.serve({ isControlled: false });
     const { store } = served;
     const spaceId = fixture.id;
     const traffic = new Traffic();
     const measured: [number, number][] = [];
     const meters = new MeterController(store, {
         space: spaceId,
-        skus: [databaseSku],
+        skus: SKUS,
         payer: async () => fixture.account,
         traffic: (signal) => traffic.next(signal),
         measure: async (from, to) => {

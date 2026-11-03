@@ -1,10 +1,12 @@
-import { Provisioned } from "@destack/object";
-import { bucket } from "@destack/stack/object";
+import { Provisioned, type ReaderPage } from "@destack/object";
 import { and, type DatabaseConnection, eq, gt, isNotNull, isNull, lt, or } from "@destack/db";
-import type { Meter } from "@destack/observability/meter";
-import { Duration, type Identifier, present } from "@destack/schema";
-import { database, deployment, instance } from "@destack/stack/object";
-import { databaseBytes, memory, storageBytes } from "@destack/observability/meter";
+import type { Meter } from "@destack/telemetry/meter";
+import { Duration, type Identifier, present, schema } from "@destack/schema";
+import { bucket, database, deployment, instance, reading } from "@destack/stack/object";
+import { Event, EventTime } from "@destack/event";
+import type { Crypto } from "@destack/environment";
+import { RequestId } from "@destack/sync";
+import { databaseBytes, memory, storageBytes } from "@destack/telemetry/meter";
 
 /** A machine's reading of one meter in a space. */
 export interface Reading {
@@ -158,6 +160,74 @@ export const Reading = {
             })),
         );
     },
+
+    /** Fold a page of a space's readings into each payer's uses, one per meter, SKU and month. */
+    async uses(page: ReaderPage, crypto: Crypto) {
+        // read each reading with the keys and data its kind declares
+        const kind = reading.eventKind();
+        const spaceId = schema.identifier("space").parse(page.key);
+        const readings = page.events.map((event) => ({
+            id: event.id,
+            time: EventTime.milliseconds(event.time),
+            keys: kind.parseKeys(event.keys),
+            data: kind.parseData(event.data),
+        }));
+
+        // sum each payer's readings of a meter, SKU, installation and month
+        const totals = Map.groupBy(readings, ({ time, keys }) =>
+            JSON.stringify([
+                keys.payerId,
+                keys.meter,
+                keys.sku,
+                keys.installationId,
+                monthStart(time),
+            ]),
+        );
+        const uses = await Promise.all(
+            [...totals.values()].map(async (summed) => {
+                // span the readings' times, a level as its share of the month and an amount as read
+                const first = present(summed[0], "a use's first reading");
+                const last = present(summed.at(-1), "a use's last reading");
+                const { payerId, meter, sku, installationId } = first.keys;
+                const times = summed.map((each) => each.time);
+                const from = Math.min(...times);
+                const value = summed.reduce((total, each) => total + each.keys.value, 0);
+                const { level } = last.data;
+                const read = summed.map((each) => each.id).toSorted();
+                const contents = [payerId, meter, sku, installationId, monthStart(from), ...read];
+
+                return {
+                    accountId: payerId,
+                    read,
+                    item: {
+                        id: await Event.identity(spaceId, contents, crypto),
+                        time: EventTime.of(from),
+                        meter,
+                        sku,
+                        spaceId,
+                        machineId: null,
+                        installationId,
+                        quantity: level === undefined ? value : value / monthLength(from),
+                        level: level ?? null,
+                        data: { from, to: Math.max(...times) },
+                    },
+                };
+            }),
+        );
+
+        // gather each payer's uses in one request, keyed by its readings and timed by the claim, which a retry repeats
+        return Promise.all(
+            [...Map.groupBy(uses, (use) => use.accountId)].map(async ([accountId, payerUses]) => ({
+                accountId,
+                requestId: await RequestId.derive(
+                    page.claimedAt,
+                    JSON.stringify([accountId, ...payerUses.flatMap((use) => use.read).toSorted()]),
+                    crypto,
+                ),
+                items: payerUses.map((use) => use.item),
+            })),
+        );
+    },
 };
 
 /** Read the installation owning a resource as a reading has it, none for the space's own. */
@@ -167,4 +237,18 @@ function ownerOf(row: Parameters<typeof Provisioned.owner>[0]): {
     const installation = Provisioned.owner(row);
 
     return installation === undefined ? {} : { installation };
+}
+
+/** Read the start of the UTC month a time falls in, in Unix milliseconds. */
+function monthStart(time: number): number {
+    const date = new Date(time);
+
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth());
+}
+
+/** Read the length of the UTC month a time falls in, in milliseconds. */
+function monthLength(time: number): number {
+    const date = new Date(time);
+
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1) - monthStart(time);
 }

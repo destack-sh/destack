@@ -55,7 +55,7 @@ test("record this machine's distribution, stage the published release and hand i
             (await objects.database.select().from(distribution.table)).some(
                 (recorded) => recorded.status === "staged",
             );
-        await opened.until(objects.database, isStaged);
+        await opened.waitUntil(objects.database, isStaged);
         const client = opened.connect(updatePackage);
         const [row] = (await client.distribution.list({ deviceId: device.id })).items;
 
