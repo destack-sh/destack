@@ -40,7 +40,7 @@ test("send a client's writes on to the machine serving a moved scope", async () 
     const world = testSimulation().environment("test");
 
     // serve the space on its source and on the machine it moves to, and fence the source
-    const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
+    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
     const source = await serveNotes({ simulation, node: "source" });
     const target = await serveNotes({ simulation, node: "target" });
     const { clock, environment } = source;
