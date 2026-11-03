@@ -757,14 +757,11 @@ export class TestComputer implements AsyncDisposable {
 
     /** Wait until the machine serves a space with its stack and every installation applied. */
     async ready(spaceId: Identifier<"space">): Promise<void> {
-        // wait on the world until the machine serves the space with every installation applied and served
+        // wait on the world until the machine serves the space, then until the space reports itself up
         await this.world.simulation.wait(this.machine.health.waitUp());
         const space = await this.machine.space(spaceId);
-        await this.waitUntil(
-            space.database,
-            async () => space.health.status === "up",
-            READY_MILLISECONDS,
-        ).catch((error: unknown) => {
+        const deadline = this.clock.timeout(READY_MILLISECONDS);
+        await this.world.simulation.wait(space.health.waitUp(deadline)).catch((error: unknown) => {
             throw this.#failure(
                 `space ${spaceId} did not get ready: ${space.health.reason}`,
                 error,
