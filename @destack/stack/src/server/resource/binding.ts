@@ -654,9 +654,10 @@ export class Binder {
             context.environment.crypto,
         );
         if (digest !== related) {
-            // relate it to the objects of each used type, as the installation's declarer
+            // relate it to each used type's objects as their declarer, skipping types it never related
             const consumer = principal.installation.reference(target.scope, target.id);
-            for (const { object, ids } of consumed) {
+            const relating = consumed.filter(({ ids }) => related !== null || ids.length > 0);
+            for (const { object, ids } of relating) {
                 const declarer = Binder.#declarer(context, target, object);
                 await context.mutate(declarer, [object.call("bind", { consumer, ids })]);
             }
