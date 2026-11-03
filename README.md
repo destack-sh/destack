@@ -20,24 +20,23 @@
 
 ---
 
-Destack is an open-source software engine for general purpose application software, just like Unity and Unreal are engines for games.
-Think GitHub + NPM + Convex + Vercel + Sentry in one, with all the boring decisions already made: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry and hosting.
+Destack is an **open-source software engine** for building and deploying general purpose applications, much like what Unreal Engine is for games.
+Think **GitHub + NPM + Convex + Vercel + Sentry in one**, with all the boring decisions already made: auth, migrations, services, multiplayer, workflows, telemetry, testing, and hosting.
 
-Basically, Destack lets you own your whole stack, step by step:
- 1. Build great quality custom software easily.
- 2. Cultivate _your_ personal agent-friendly stack.
- 3. Own your data and context.
+Destack bundles the tools and processes needed to own your software, without the traditional headache:
+ 1. **Build great custom software** easily, with your own AI, in a proper pipeline.
+ 2. Cultivate **your personal agent-friendly stack** from robust, tested templates.
+ 3. **Keep your data** with you, stay in control, leave anytime you like.
 
-The Destack comprises both the platform core for building malleable software _and_ standard apps for siloed SaaS applications (like Notion or Linear).
-All apps built on Destack - ours and yours - get the advantages of standardisation and integration out of the box and are thus fully hackable and programmable by your agents.
+The Destack comprises both the platform core for building malleable software _and_ standard apps for classicaly siloed use cases (like Notion or Linear).
+All apps built on Destack get the advantages of standardisation and integration out of the box and are thus fully hackable and programmable by your agents.
 
-_Your_ entire Destack - your own personal superapp, with your complete personal context, standardised apps, and custom tools - runs on a _single_ machine (e.g., a SQLite instance on a Cloudflare worker), on your laptop, or on your server.
-Or you can let us host it for you.
-Or any combination!
+_Your_ entire Destack - your own personal superapp, with your complete personal context, standardised apps, and custom tools - runs on a _single_ machine (e.g., a SQLite instance on a Cloudflare worker), on your laptop, or on your server, or on our cloud.
+It's as simple and portable as we could make it.
 
 ## Install
 
-Moving in to Destack is a single prompt - just ask your agent:
+Moving in to your Destack is a single prompt - just ask your agent:
 ```md
 Set up my Destack: https://destack.me
 ```
@@ -51,20 +50,20 @@ curl -fsSL https://destack.sh/install | sh
 ## Architecture
 
 Destack is almost entirely written "in itself" using TypeScript and other modern boring Web technologies.
-The actual "stack" is carefully composed with [incremental granularity](https://caseymuratori.com/blog_0016) in mind, roughly broken into the six layers of:
+The actual "stack" is carefully composed with [incremental granularity](https://caseymuratori.com/blog_0016) in mind, generally organised into six layers:
 
  1. **[Identity](ARCHITECTURE.md#01-identity)**: one account for every person, agent and app
- 2. **[Presentation](ARCHITECTURE.md#02-presentation)**: one look and feel, on web, desktop and terminal
- 3. **[Application](ARCHITECTURE.md#03-application)**: one API for access, workflows, messages and telemetry
- 4. **[Persistence](ARCHITECTURE.md#04-persistence)**: one database, synced everywhere
- 5. **[Source](ARCHITECTURE.md#05-source)**: every app's code, open to read and fork
- 6. **[Infrastructure](ARCHITECTURE.md#06-infrastructure)**: runs anywhere, from your laptop to the edge
+ 2. **[Presentation](ARCHITECTURE.md#02-presentation)**: one look and feel, on web and desktop
+ 3. **[Application](ARCHITECTURE.md#03-application)**: one API for basically everything
+ 4. **[Persistence](ARCHITECTURE.md#04-persistence)**: one data plane, synced everywhere
+ 5. **[Source](ARCHITECTURE.md#05-source)**: every app's code, transparent, forkable
+ 6. **[Infrastructure](ARCHITECTURE.md#06-infrastructure)**: run anywhere, from your laptop to the edge
 
 The packages of each layer, with what they do and the prior art they follow, are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Contributing
 
-Destack is not currently open for public source contributions, but we welcome feedback, issues, and ideas.
+Destack is not currently open for public *source* contributions, but we welcome feedback, issues, and ideas.
 
 ## License
 
