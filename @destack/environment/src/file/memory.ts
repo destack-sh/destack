@@ -19,6 +19,7 @@ import {
     type WriteFileOptions,
 } from "./file.ts";
 import { TemporaryDirectory } from "./temporary.ts";
+import { FileWatcher } from "./watcher.ts";
 
 /** The file type bits of a file, a directory and a symbolic link, as POSIX `st_mode` has them. */
 const FILE_TYPES = { file: 0o100000, directory: 0o040000, symlink: 0o120000 } as const;
@@ -155,24 +156,14 @@ interface Located {
     readonly node: Inode | undefined;
 }
 
-/** A watch of a path: where it looks, how deep, and how it takes each change. */
-interface MemoryWatch {
-    /** The watched path. */
-    readonly path: string;
-    /** Whether it reports changes inside subdirectories. */
-    readonly isRecursive: boolean;
-    /** Take a change. */
-    readonly take: (event: FileEvent) => void;
-}
-
-/** A world's tree of files: its root, working directory, watches, clock and randomness. */
+/** A world's tree of files: its root, working directory, watcher, clock and randomness. */
 interface MemoryTree {
     /** The root directory. */
     readonly root: MemoryDirectory;
     /** The directory relative paths start from, and temporary and runtime directories go below. */
     readonly workingDirectory: string;
-    /** The watches of paths. */
-    readonly watches: Set<MemoryWatch>;
+    /** The watcher of the tree's paths. */
+    readonly watcher: FileWatcher;
     /** The world's clock, which stamps each change. */
     readonly clock: Clock;
     /** The world's randomness, which temporary names draw from. */
@@ -210,7 +201,7 @@ export class MemoryFileSystem implements FileSystem {
         const files = new MemoryFileSystem({
             root,
             workingDirectory,
-            watches: new Set(),
+            watcher: new FileWatcher(),
             clock,
             random,
         });
@@ -536,56 +527,7 @@ export class MemoryFileSystem implements FileSystem {
 
     /** Report the changes at a path until the signal aborts or the reader stops. */
     watch(path: string, options: WatchOptions = {}): AsyncIterable<FileEvent> {
-        // buffer each change until read, waking a waiting reader
-        const { watches } = this.#tree;
-        const events: FileEvent[] = [];
-        let wake: (() => void) | undefined;
-        const watch: MemoryWatch = {
-            path: this.#existing(path, true, `watch ${path}`).path,
-            isRecursive: options.recursive ?? false,
-            take: (event) => {
-                events.push(event);
-                wake?.();
-            },
-        };
-        watches.add(watch);
-
-        // stop watching once the signal aborts
-        const { signal } = options;
-        const stop = () => {
-            watches.delete(watch);
-            wake?.();
-        };
-        signal?.addEventListener("abort", stop, { once: true });
-        if (signal?.aborted === true) {
-            stop();
-        }
-
-        // wait for the next change, as the reader does once the buffer runs dry
-        const changed = () =>
-            new Promise<void>((resolve) => {
-                wake = resolve;
-            });
-
-        return (async function* () {
-            try {
-                // yield each buffered change, then end once stopped, or wait for the next
-                for (;;) {
-                    const event = events.shift();
-                    if (event !== undefined) {
-                        yield event;
-                    } else if (signal?.aborted === true) {
-                        return;
-                    } else {
-                        await changed();
-                    }
-                }
-            } finally {
-                // stop watching once the reader stops early
-                signal?.removeEventListener("abort", stop);
-                watches.delete(watch);
-            }
-        })();
+        return this.#tree.watcher.watch(this.#existing(path, true, `watch ${path}`).path, options);
     }
 
     /** Find the runtime's private directory below the working directory, made on first use. */
@@ -899,20 +841,9 @@ export class MemoryFileSystem implements FileSystem {
         };
     }
 
-    /** Report a change at a path to each watch that sees it, relative to the watched path. */
+    /** Report a change at a path to each watch that sees it. */
     #emit(kind: FileEvent["kind"], path: string): void {
-        for (const watch of this.#tree.watches) {
-            // report the watched path by its name, and a path below it relative to it
-            const below = watch.path === "/" ? path.slice(1) : path.slice(watch.path.length + 1);
-            if (path === watch.path) {
-                watch.take({ kind, path: path.slice(path.lastIndexOf("/") + 1) });
-            } else if (
-                path.startsWith(watch.path === "/" ? "/" : `${watch.path}/`) &&
-                (watch.isRecursive || !below.includes("/"))
-            ) {
-                watch.take({ kind, path: below });
-            }
-        }
+        this.#tree.watcher.emit(kind, path);
     }
 
     /** Read a node's status. */

@@ -20,6 +20,7 @@ import type {
 } from "./file.ts";
 import type { Random } from "../random/random.ts";
 import { TemporaryDirectory } from "./temporary.ts";
+import { FileWatcher } from "./watcher.ts";
 
 /** The host's files at their real paths, each operation tracked as host work. */
 export class SimulatedFileSystem implements FileSystem {
@@ -33,6 +34,8 @@ export class SimulatedFileSystem implements FileSystem {
     readonly #random: Random;
     /** The locks the node took, released once it crashes. */
     readonly #locks = new Set<FileLock>();
+    /** The watcher of the changes this file system's verbs make. */
+    readonly #watcher = new FileWatcher();
 
     /** Track the host's files on a scheduler, its temporary directories under its root. */
     constructor(root: string, scheduler: Scheduler, random: Random) {
@@ -51,6 +54,40 @@ export class SimulatedFileSystem implements FileSystem {
         return this.#scheduler.run(start);
     }
 
+    /** Run host work writing a path, then report it as created when new, else as modified. */
+    async #write<Value>(
+        path: string,
+        start: () => Promise<Value>,
+        isModifying = true,
+    ): Promise<Value> {
+        // read whether a watched path is new before the work
+        const isWatched = this.#watcher.sees(path);
+        const isNew = isWatched && !(await this.#run(() => this.#host.exists(path)));
+        const value = await this.#run(start);
+
+        // report the change once the work is done
+        if (isNew) {
+            this.#watcher.emit("create", path);
+        } else if (isWatched && isModifying) {
+            this.#watcher.emit("modify", path);
+        }
+
+        return value;
+    }
+
+    /** Run host work removing a path, then report it as removed when it existed. */
+    async #delete(path: string, start: () => Promise<unknown>): Promise<void> {
+        // read whether a watched path exists before the work
+        const isWatched = this.#watcher.sees(path);
+        const isExisting = isWatched && (await this.#run(() => this.#host.exists(path)));
+        await this.#run(start);
+
+        // report the removal once the work is done
+        if (isExisting) {
+            this.#watcher.emit("remove", path);
+        }
+    }
+
     /** Read a file's bytes. */
     readFile(path: string): Promise<Uint8Array<ArrayBuffer>> {
         return this.#run(() => this.#host.readFile(this.#resolve(path)));
@@ -63,12 +100,16 @@ export class SimulatedFileSystem implements FileSystem {
 
     /** Write bytes to a file. */
     writeFile(path: string, data: Uint8Array, options?: WriteFileOptions): Promise<void> {
-        return this.#run(() => this.#host.writeFile(this.#resolve(path), data, options));
+        const resolved = this.#resolve(path);
+
+        return this.#write(resolved, () => this.#host.writeFile(resolved, data, options));
     }
 
     /** Write text to a file as UTF-8. */
     writeTextFile(path: string, text: string, options?: WriteFileOptions): Promise<void> {
-        return this.#run(() => this.#host.writeTextFile(this.#resolve(path), text, options));
+        const resolved = this.#resolve(path);
+
+        return this.#write(resolved, () => this.#host.writeTextFile(resolved, text, options));
     }
 
     /** Read whether a path exists. */
@@ -103,11 +144,13 @@ export class SimulatedFileSystem implements FileSystem {
 
     /** Create a directory. */
     mkdir(path: string, options?: MkdirOptions): Promise<void> {
-        return this.#run(() => this.#host.mkdir(this.#resolve(path), options));
+        const resolved = this.#resolve(path);
+
+        return this.#write(resolved, () => this.#host.mkdir(resolved, options), false);
     }
 
     /** Create a new empty directory with a prefix, under the world's root by default. */
-    makeTemporaryDirectory(
+    async makeTemporaryDirectory(
         prefix: string,
         options: TemporaryDirectoryOptions = {},
     ): Promise<string> {
@@ -116,36 +159,49 @@ export class SimulatedFileSystem implements FileSystem {
         const directory = join(parent, TemporaryDirectory.draw(prefix, this.#random));
 
         // create the parent, then the directory
-        return this.#run(() =>
-            mkdir(parent, { recursive: true })
-                .then(() => mkdir(directory))
-                .then(() => directory),
-        );
+        await this.#run(() => mkdir(parent, { recursive: true }));
+        await this.#write(directory, () => mkdir(directory), false);
+
+        return directory;
     }
 
     /** Remove a path. */
     remove(path: string, options?: RemoveOptions): Promise<void> {
-        return this.#run(() => this.#host.remove(this.#resolve(path), options));
+        const resolved = this.#resolve(path);
+
+        return this.#delete(resolved, () => this.#host.remove(resolved, options));
     }
 
     /** Move a path to another, replacing a file there. */
-    rename(from: string, to: string): Promise<void> {
-        return this.#run(() => this.#host.rename(this.#resolve(from), this.#resolve(to)));
+    async rename(from: string, to: string): Promise<void> {
+        // report the source removed, then the target written
+        const [source, target] = [this.#resolve(from), this.#resolve(to)];
+        const isNew = this.#watcher.sees(target) && !(await this.exists(target));
+        await this.#delete(source, () => this.#host.rename(source, target));
+        if (this.#watcher.sees(target)) {
+            this.#watcher.emit(isNew ? "create" : "modify", target);
+        }
     }
 
     /** Copy a file to another path. */
     copyFile(from: string, to: string): Promise<void> {
-        return this.#run(() => this.#host.copyFile(this.#resolve(from), this.#resolve(to)));
+        const target = this.#resolve(to);
+
+        return this.#write(target, () => this.#host.copyFile(this.#resolve(from), target));
     }
 
     /** Copy a path to another, with everything inside a directory. */
     copy(from: string, to: string): Promise<void> {
-        return this.#run(() => this.#host.copy(this.#resolve(from), this.#resolve(to)));
+        const target = this.#resolve(to);
+
+        return this.#write(target, () => this.#host.copy(this.#resolve(from), target));
     }
 
     /** Create a symbolic link at a path to a target. */
     symlink(target: string, path: string): Promise<void> {
-        return this.#run(() => this.#host.symlink(target, this.#resolve(path)));
+        const resolved = this.#resolve(path);
+
+        return this.#write(resolved, () => this.#host.symlink(target, resolved));
     }
 
     /** Read a symbolic link's target. */
@@ -155,7 +211,9 @@ export class SimulatedFileSystem implements FileSystem {
 
     /** Create a hard link at a path to a file. */
     link(target: string, path: string): Promise<void> {
-        return this.#run(() => this.#host.link(this.#resolve(target), this.#resolve(path)));
+        const resolved = this.#resolve(path);
+
+        return this.#write(resolved, () => this.#host.link(this.#resolve(target), resolved));
     }
 
     /** Change a path's permission bits. */
@@ -165,12 +223,19 @@ export class SimulatedFileSystem implements FileSystem {
 
     /** Open a file, tracking each read, write and operation on it. */
     async open(path: string, options: OpenOptions): Promise<FileHandle> {
-        const file = await this.#run(() => this.#host.open(this.#resolve(path), options));
+        // open it, reporting a created or truncated file
+        const resolved = this.#resolve(path);
+        const opening = () => this.#host.open(resolved, options);
+        const isWriting = options.create === true || options.truncate === true;
+        const opened = await (isWriting
+            ? this.#write(resolved, opening, options.truncate === true)
+            : this.#run(opening));
+        const modified = () => this.#watcher.emit("modify", resolved);
 
         return {
             readable: () => {
                 // pull each chunk as tracked work
-                const reader = file.readable().getReader();
+                const reader = opened.readable().getReader();
 
                 return new ReadableStream<Uint8Array>({
                     pull: async (controller) => {
@@ -186,26 +251,40 @@ export class SimulatedFileSystem implements FileSystem {
             },
             writable: () => {
                 // write each chunk as tracked work
-                const writer = file.writable().getWriter();
+                const writer = opened.writable().getWriter();
 
                 return new WritableStream<Uint8Array>({
-                    write: (chunk) => this.#run(() => writer.write(chunk)),
+                    write: async (chunk) => {
+                        await this.#run(() => writer.write(chunk));
+                        modified();
+                    },
                     close: () => this.#run(() => writer.close()),
                 });
             },
-            read: (buffer) => this.#run(() => file.read(buffer)),
-            seek: (offset) => file.seek(offset),
-            stat: () => this.#run(() => file.stat()),
-            sync: () => this.#run(() => file.sync()),
-            truncate: (length) => this.#run(() => file.truncate(length)),
-            close: () => this.#run(() => file.close()),
-            [Symbol.asyncDispose]: () => this.#run(() => file.close()),
+            read: (buffer) => this.#run(() => opened.read(buffer)),
+            seek: (offset) => opened.seek(offset),
+            stat: () => this.#run(() => opened.stat()),
+            sync: () => this.#run(() => opened.sync()),
+            truncate: async (length) => {
+                await this.#run(() => opened.truncate(length));
+                modified();
+            },
+            close: () => this.#run(() => opened.close()),
+            [Symbol.asyncDispose]: () => this.#run(() => opened.close()),
         };
     }
 
-    /** Report the changes at a path until the signal aborts, as untracked waits. */
+    /** Report the changes this file system's verbs make at a path until the signal aborts. */
     watch(path: string, options?: WatchOptions): AsyncIterable<FileEvent> {
-        return this.#host.watch(this.#resolve(path), options);
+        // watch at once, then refuse a missing path on the first read
+        const resolved = this.#resolve(path);
+        const events = this.#watcher.watch(resolved, options);
+        const status = () => this.stat(resolved);
+
+        return (async function* () {
+            await status();
+            yield* events;
+        })();
     }
 
     /** Read the world's runtime directory under its root, created private on first use. */

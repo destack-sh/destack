@@ -231,8 +231,42 @@ test("refuse reading below a directory without permissions as denied", async () 
     }
 });
 
-test("watch a directory from the call on, reading a new file as created, a write as modified and a deletion as removed, until aborted", async () => {
+test("watch a host directory from the call on, reading a new file as created, a write as modified and a deletion as removed, until aborted", async () => {
     // watch a temporary directory of the host's files
+    const files = new BunFileSystem();
+    const directory = await files.makeTemporaryDirectory("watch-");
+    const stopping = new AbortController();
+    const events = files.watch(directory, { signal: stopping.signal })[Symbol.asyncIterator]();
+    const next = async (): Promise<FileEvent | undefined> => {
+        const read = await events.next();
+
+        return read.done === true ? undefined : read.value;
+    };
+
+    // create, write and remove one file, the first before any read, reading each event as it arrives
+    const path = join(directory, "note.txt");
+    await files.writeTextFile(path, "draft");
+    const created = await next();
+    await files.writeTextFile(path, "final", { append: true });
+    const modified = await next();
+    await files.remove(path);
+    const removed = await next();
+
+    // end the watch once aborted
+    stopping.abort();
+    const ended = await next();
+    await files.remove(directory, { recursive: true });
+
+    expect([created, modified, removed, ended]).toEqual([
+        { kind: "create", path: "note.txt" },
+        { kind: "modify", path: "note.txt" },
+        { kind: "remove", path: "note.txt" },
+        undefined,
+    ]);
+});
+
+test("watch a world's directory, reading the world's own writes as created, modified and removed, until aborted", async () => {
+    // watch a temporary directory of the world's host files
     await using simulation = new Simulation({ seed: 1, start: START });
     const { files } = simulation.environment("host");
     const directory = await files.makeTemporaryDirectory("watch-");
@@ -244,13 +278,13 @@ test("watch a directory from the call on, reading a new file as created, a write
         return read.done === true ? undefined : read.value;
     };
 
-    // create, write and remove one file, the first before any read, reading each event as it arrives
+    // create, write and remove one file through the world, the first before any read
     const path = join(directory, "note.txt");
-    await new BunFileSystem().writeTextFile(path, "draft");
+    await files.writeTextFile(path, "draft");
     const created = await next();
-    await new BunFileSystem().writeTextFile(path, "final", { append: true });
+    await files.writeTextFile(path, "final", { append: true });
     const modified = await next();
-    await new BunFileSystem().remove(path);
+    await files.remove(path);
     const removed = await next();
 
     // end the watch once aborted
