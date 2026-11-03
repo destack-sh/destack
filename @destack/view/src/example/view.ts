@@ -46,10 +46,7 @@ export function ViewExample(properties: ViewExampleProperties): JSX.Element {
     const closing = new AbortController();
     onCleanup(() => closing.abort());
     const opened = createMemo(() =>
-        environment.scheduler.track(
-            () => openSample(properties, environment, closing.signal),
-            "world",
-        ),
+        environment.scheduler.task(() => openSample(properties, environment, closing.signal)),
     );
 
     return createComponent(Loading, {
