@@ -343,18 +343,20 @@ export class Authorizer {
             .filter(
                 (policy) =>
                     policy.definition.scope === true &&
-                    !mappings.some((mapping) => mapping.policy.same(policy)),
+                    !mappings.some((mapping) => Authorizer.#isSameType(mapping.policy, policy)),
             )
             .map((policy) => TableMapping.ancestry(policy));
 
         // map access's types onto its tables where no declared type represents them
         const unrepresented = ACCESS_MAPPINGS.filter(
             (mapping) =>
-                this.policy({
-                    packageId: mapping.policy.definition.packageId,
-                    type: mapping.policy.definition.name,
-                }).same(mapping.policy) &&
-                !mappings.some((declared) => declared.table === mapping.table),
+                Authorizer.#isSameType(
+                    this.policy({
+                        packageId: mapping.policy.definition.packageId,
+                        type: mapping.policy.definition.name,
+                    }),
+                    mapping.policy,
+                ) && !mappings.some((declared) => declared.table === mapping.table),
         );
 
         return [...scopes, ...unrepresented];
@@ -366,7 +368,7 @@ export class Authorizer {
         const mapping = TableMapping.freeze(source);
         const definition = mapping.policy.definition;
         const registered = this.policy({ packageId: definition.packageId, type: definition.name });
-        if (!registered.same(mapping.policy)) {
+        if (!Authorizer.#isSameType(registered, mapping.policy)) {
             throw AccessError.of(
                 "DECLARATION_INVALID",
                 "mapping must reference the registered object declaration",
@@ -2509,18 +2511,10 @@ export class Authorizer {
             visited.add(type);
             pending.push(...type.references);
 
-            // take one policy per type: a representing one over the intrinsic one, and one of equal copies
+            // take one policy per type, a representing one over the intrinsic one
             const existing = byType.get(Authorizer.#policyKey(type));
-            const isEqual = existing !== undefined && existing.same(type);
             if (existing === undefined || INTRINSIC_POLICIES.includes(existing)) {
                 byType.set(Authorizer.#policyKey(type), type);
-            }
-            // refuse two distinct policies for one type
-            else if (!INTRINSIC_POLICIES.includes(type) && !isEqual) {
-                throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `duplicate object type: ${Authorizer.#policyKey(type)}`,
-                );
             }
         }
 
@@ -2582,6 +2576,15 @@ export class Authorizer {
                     }),
                 ),
             ),
+        );
+    }
+
+    /** Decide whether two policies declare one type: one key, both intrinsic or both declared. */
+    static #isSameType(left: Policy, right: Policy): boolean {
+        return (
+            left === right ||
+            (Authorizer.#policyKey(left) === Authorizer.#policyKey(right) &&
+                INTRINSIC_POLICIES.includes(left) === INTRINSIC_POLICIES.includes(right))
         );
     }
 

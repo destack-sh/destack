@@ -19,7 +19,7 @@ test("include the policies declared policies reference, transitively", () => {
     expect(authorizer.policy(group.reference("space-1", "group-1"))).toBe(group);
 });
 
-test("prefer a policy representing a principal and refuse two policies for one type", () => {
+test("take the policy a package declares representing a principal over access's own", () => {
     // list the intrinsic user before the policy representing it
     const user = new Policy(principal.user.package, {
         name: principal.user.name,
@@ -36,12 +36,6 @@ test("prefer a policy representing a principal and refuse two policies for one t
         permissions: { read: relation("viewer") },
     });
     expect(new Authorizer([document]).policy(principal.user.reference("universe", "u"))).toBe(user);
-
-    // refuse a second policy declaring the same type
-    const duplicate = new Policy(module1.package, { name: "document", permissions: {} });
-    expect(() => new Authorizer([document, duplicate])).toThrow(
-        `duplicate object type: ${JSON.stringify([module1.package.id, "document"])}`,
-    );
 });
 
 /** Declare a document its viewers read, as each build loading it does. */
@@ -53,20 +47,13 @@ function viewedDocument(): Policy {
     });
 }
 
-test("take equal copies of a policy as one type, as each build loads its own, and refuse a differing one", () => {
-    // declare one document type twice, as two builds load it, and once with other rules
+test("take copies of a policy as one type, as each build loads its own", () => {
+    // declare one document type twice, as two builds load it
     const [document, copy] = [viewedDocument(), viewedDocument()];
-    const differing = new Policy(module1.package, { name: "document", permissions: {} });
 
-    // compare by content, and keep one policy for both copies
+    // keep one policy for both copies, by the package and name they declare
     const authorizer = new Authorizer([document, copy]);
-    expect({
-        isSame: [document.same(copy), document.same(differing)],
-        policy: authorizer.policy({ packageId: module1.package.id, type: "document" }) === document,
-    }).toEqual({ isSame: [true, false], policy: true });
-    expect(() => new Authorizer([document, differing])).toThrow(
-        `duplicate object type: ${JSON.stringify([module1.package.id, "document"])}`,
-    );
+    expect(authorizer.policy({ packageId: module1.package.id, type: "document" })).toBe(document);
 });
 
 test("grant relations through the policy's grant permission unless they declare another or none", () => {
