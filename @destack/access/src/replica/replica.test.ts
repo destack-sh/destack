@@ -161,10 +161,7 @@ test("relay an account's access through the space's database into an app's, and 
     const revoked = await global.database.log.position();
     await app.simulation.jump(app.simulation.clock.now() + notes.lag);
     const resolving = refusal(notes.resolve(Snapshot.live(app.database), "personal", carol));
-    await app.simulation.clock.sleep(
-        app.simulation.clock.now() + notes.lag - app.simulation.clock.now(),
-    );
-    await app.simulation.idle();
+    await app.simulation.run(app.simulation.clock.now() + notes.lag);
     expect(await resolving).toEqual([
         "SERVICE_UNAVAILABLE",
         "STALE",
