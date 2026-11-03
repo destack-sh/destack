@@ -370,16 +370,13 @@ export class Stream {
         return yield* this.#catchUp(start, last, signal);
     }
 
-    /** Rebuild a resuming subscriber's state at its position, returning the last sequence. */
+    /** Resume a subscriber at its position, walking its rows once a change needs them. */
     async *#resume(after: LogPosition, signal: AbortSignal): AsyncGenerator<Page, number> {
-        // rebuild the selected rows and windows and send every group
-        this.#evaluation.forget(after);
-        const rebuilt = yield* this.#evaluation.walk(
-            new View(this.#feed.database, after, this.#feed),
-            "rebuild",
-        );
+        // stand at the position with the rows unwalked, then catch up
+        this.#evaluation.defer(after);
+        const pending = { reset: false, complete: false, changes: [], position: after };
 
-        return yield* this.#catchUp(after, rebuilt, signal);
+        return yield* this.#catchUp(after, pending, signal);
     }
 
     /** Move a subscriber from previous queries to these. */

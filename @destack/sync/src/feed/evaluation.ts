@@ -43,6 +43,8 @@ export class Evaluation {
     #position: LogPosition | undefined;
     /** The expiry of the decisions the waiting streams share, absent while none waits. */
     #expiry: Expiry | undefined;
+    /** Whether the subscriber's rows stand at the position unwalked, until a change needs them. */
+    #isDeferred = false;
 
     /** Compile queries for an audience over a feed. */
     constructor(feed: Feed, queries: Readonly<Record<string, Query>>, audience: Audience) {
@@ -216,6 +218,7 @@ export class Evaluation {
     async reshape(queries: Readonly<Record<string, Query>>): Promise<Page> {
         // keep the queries that stay alike, and compile the added and changed ones
         const position = this.#requirePosition();
+        await this.#walkDeferred(position);
         const kept = new Map<string, Dataflow>();
         const added = new Map<string, Dataflow>();
         for (const [name, query] of Object.entries(queries)) {
@@ -274,6 +277,7 @@ export class Evaluation {
         changes: readonly Change[],
     ): Promise<Page> {
         // read what the subscriber has, decide again, and collect what the new decisions allow
+        await this.#walkDeferred(position);
         const before = this.rows();
         await this.#audience.refresh();
         const after = await this.collect(this.#view(position));
@@ -309,6 +313,11 @@ export class Evaluation {
                 "CHANGES_COMPACTED",
                 `log no longer has changes after ${sequence}`,
             );
+        }
+
+        // walk deferred rows before their first changes
+        if (read.changes.length > 0) {
+            await this.#walkDeferred(after);
         }
 
         // step each run of whole transactions
@@ -426,11 +435,34 @@ export class Evaluation {
 
     /** Forget everything and select nothing as of a position. */
     forget(position: LogPosition): void {
+        // empty each dataflow at the position
         for (const dataflow of this.#dataflows.values()) {
             dataflow.forget(position);
         }
         this.#present.clear();
         this.#position = position;
+        this.#isDeferred = false;
+    }
+
+    /** Take the subscriber's rows as standing at a position, walked once a change needs them. */
+    defer(position: LogPosition): void {
+        this.forget(position);
+        this.#isDeferred = true;
+    }
+
+    /** Walk deferred rows at a position without sending them, which the subscriber has. */
+    async #walkDeferred(position: LogPosition): Promise<void> {
+        // leave rows walked already
+        if (!this.#isDeferred) {
+            return;
+        }
+
+        // walk them, dropping every page
+        this.#isDeferred = false;
+        const pages = this.walk(this.#view(position), "rebuild");
+        while ((await pages.next()).done !== true) {
+            // drop each page
+        }
     }
 
     /** Join the queries' decisions into the subscriber's rows. */
