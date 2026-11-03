@@ -1,0 +1,39 @@
+{
+    "name": "@destack/registry",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Publish and resolve packages, releases and tags, and push builds and Git, through the registry a space installs.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./object": "./src/object/index.ts",
+        "./client": "./src/client/index.ts",
+        "./package": "./src/package.ts",
+        "./error": "./src/error/index.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/build": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/git": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "semver": "7.8.5"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*",
+        "@types/semver": "7.8.0",
+        "@types/bun": "1.4.2"
+    }
+}
