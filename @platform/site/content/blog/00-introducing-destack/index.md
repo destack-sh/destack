@@ -6,15 +6,15 @@ author: "Florian"
 ---
 
 > [!ABSTRACT]
-> Destack is an open-source software engine for general purpose application software, just like Unity and Unreal are engines for games.
-> Think GitHub + NPM + Convex + Vercel + Sentry with all the boring decisions already made: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry.
+> Destack is an **open-source software engine** for general purpose application software, just like Unity and Unreal are engines for games.
+> Think GitHub + NPM + Convex + Vercel + Sentry with all the boring decisions already made: auth, migrations, multiplayer, permissions, workflows, telemetry, testing.
 > 
-> Basically, Destack lets you own your whole stack, step by step:
+> Destack bundles the tools and processes for software production:
 > 1. **Build anything**, with your own AI, in a standardised pipeline.
 > 2. **Integrate everything**: one account, one database, no walls.
 > 3. **Control it all**: your data, your context, your machine.
 > 
-> The Destack comprises both the platform core for building malleable software _and_ standardised apps representing classic SaaS (think Notion, Linear, Miro).
+> The Destack comprises both the platform core for building malleable software _and_ standard apps for common use cases (think Notion, Linear, Miro).
 > Everything built on Destack is fully standardised and integrated by default, and thus fully hackable and programmable by your agents.
 >
 > [Skip to The Destack](#the-destack)
@@ -82,7 +82,7 @@ General purpose software is now hitting the same issues that games have long sol
 The principal components of modern software have ossified, but they're scattered and reconstituted a thousand different ways.
 General software needs its own "software engine": _integrated_ "platform software" with building blocks for a new level of "userland software". 
 
-It is insufficient to accelerate the software production _process_, not just because of Amdahl's law, but because to miss _any_ part of the software is to lose the shape of the whole product - and software that doesn't solve any reality-shaped problem is pointless.
+It is insufficient to accelerate the software production _process_, because to lose command of even part of the software is to lose the shape of the whole product - and software that doesn't solve any reality-shaped problem is pointless.
 Steering only through the peephole of a chatbox, you lose track of where to go next, and how to get there, in frighteningly short order.
 
 Oddly, the primary objective of "software factories" seems to be _removing_ oneself from all production processes without any new higher order specification to anchor this higher level of programming.
