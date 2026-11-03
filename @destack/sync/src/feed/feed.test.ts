@@ -113,7 +113,7 @@ test("publish nothing past a commit outside a caught-up stream's queries until t
             await transaction.insert(note).values({ ...first, id: "later", scope: "archive" }),
     );
     const later = await database.log.position();
-    const beat = await next;
+    const beat = await simulation.wait(next);
     expect({ isQuiet, beat, at: clock.now() - 1000 }).toEqual({
         isQuiet: true,
         beat: { reset: false, complete: true, changes: [], position: later },

@@ -20,7 +20,7 @@ import {
 import { TestDatabase } from "@destack/db/test";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
-import { nth, schema } from "@destack/schema";
+import { canonicalize, nth, schema } from "@destack/schema";
 import { replicaTables, Replica, replicaPosition, replicaKey } from "./replica.ts";
 import type { Resumption } from "./publication.ts";
 import { Subject } from "../call/subject.ts";
@@ -114,7 +114,7 @@ test("follow a scope of another database into a local replica, then promote its 
     );
     expect(await confirmed()).toBe(true);
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // retain the renamed rows and prune the rest
     expect((await local.select().from(note)).map((row) => [row.id, row.title])).toEqual([
@@ -160,7 +160,7 @@ test("delete the rows of a table a reshaped replica stopped replicating, retaini
         const signal = AbortSignal.timeout(5000);
         expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
         controller.abort();
-        await following;
+        await simulation.wait(following);
 
         return [
             (await local.select().from(note)).map((row) => row.id),
@@ -217,7 +217,10 @@ test("follow two databases each replicating the other's table, receiving each wr
         (await other.select().from(note)).map((row) => row.id),
         (await home.select().from(project)).map((row) => row.id),
     ];
-    await expect.poll(rows).toEqual([["a"], ["p"]]);
+    await simulation.waitUntil(
+        async () => canonicalize(await rows()) === canonicalize([["a"], ["p"]]),
+    );
+    expect(await rows()).toEqual([["a"], ["p"]]);
 
     // write once more on each side, receiving each write as one page and every other page bare
     received.notes.length = 0;
@@ -229,12 +232,14 @@ test("follow two databases each replicating the other's table, receiving each wr
         async (transaction) =>
             await transaction.insert(project).values({ id: "q", scope: "inbox", name: "Ship" }),
     );
-    await expect.poll(rows).toEqual([
+    const written = [
         ["a", "b"],
         ["p", "q"],
-    ]);
+    ];
+    await simulation.waitUntil(async () => canonicalize(await rows()) === canonicalize(written));
+    expect(await rows()).toEqual(written);
     controller.abort();
-    await following;
+    await simulation.wait(following);
     const split = (pages: readonly Page[]) => ({
         written: changedIds(pages.filter((page) => page.changes.length > 0)),
         isRestBare: pages.every(
@@ -264,7 +269,7 @@ test("refuse publishing a replicated table back to the database it replicates fr
     const signal = AbortSignal.timeout(5000);
     expect(await Replica.wait(other, "inbox", await home.log.position(), signal)).toBe(true);
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // publish the replica on to a third database, never back to the notes' home
     const homeOrigin = (await home.log.position()).log;
@@ -346,7 +351,7 @@ test("replicate several scopes in one replica recorded elsewhere, storing each s
         await Replica.wait(local, "archive", head, signal),
     ];
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // store both scopes' notes, and find the one silent record past the lag as the replica of each scope with its row in the replica
     await simulation.jump(simulation.clock.now() + LAG);
@@ -394,7 +399,7 @@ test("promote a replica of scope rows so the transaction promoting it finds them
     );
     await Replica.wait(local, "inbox", await source.log.position(), AbortSignal.timeout(5000));
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // read the scope row's copy record before and within the promoting transaction
     const scopeKey = {
@@ -478,7 +483,7 @@ test("replicate a whole database: follow its logged rows, then capture every col
     );
     expect(await Replica.wait(target, "database", await source.log.position(), signal)).toBe(true);
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // capture every column once the source stops writing
     const seal = async (table: Table, row: Row) => rewrapped(table, row, "source:", "moving:");
@@ -534,7 +539,7 @@ test("follow and wait for each commit of one row in a fixed count of statements,
         costs.push(local.driver.state.statements - before);
     }
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // spend five statements on each commit, the wait's own read and the position included
     expect(new Set(costs)).toEqual(new Set([5]));
@@ -636,7 +641,7 @@ test("snapshot again once the replicated tables change shape", async () => {
     const signal = AbortSignal.timeout(5000);
     expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
     controller.abort();
-    await following;
+    await simulation.wait(following);
     const work = new Replica({ name: "work", scope: "inbox", tables: [project, task] });
 
     // record a position per publication
@@ -945,7 +950,7 @@ test("nest each retained row's measures, whole or per group, in the rows a repli
         await Replica.wait(local, "inbox", await source.log.position(), AbortSignal.timeout(5000)),
     ).toBe(true);
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // nest the measures of each project and state
     const { scopes: _routes, ...unrouted } = query;
@@ -992,7 +997,7 @@ test("replicate a table's binary column and store nothing for a required column 
     const signal = AbortSignal.timeout(5000);
     expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // store the row with its content and without its secret
     expect(await local.select().from(asset)).toEqual([
@@ -1046,7 +1051,7 @@ test("resume a stream the source ends from the replica's position at once, repor
     const signal = AbortSignal.timeout(5000);
     expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // resume from the snapshot's position, store the renamed note, and report synced at the first stream's complete page only
     expect({
@@ -1120,7 +1125,7 @@ test("resume a follow after a backoff once its source refuses a fresh credential
         { synced: () => {} },
     );
     await simulation.waitUntil(() => controller.signal.aborted);
-    await following;
+    await simulation.wait(following);
 
     // request again a second later, at the policy's first interval
     expect([
@@ -1218,7 +1223,7 @@ test("finish a snapshot of several pages past a drain, then resume from its comp
     const position = await source.log.position();
     await third.promise;
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // complete the snapshot and resume twice from its position
     expect({
@@ -1449,7 +1454,7 @@ test("replicate the rows in the scopes of replicated rows, and take them out wit
         ["g6", "t1"],
     ]);
     controller.abort();
-    await following;
+    await simulation.wait(following);
 
     // take out the tags a later snapshot leaves out
     await source.transaction(
@@ -1696,21 +1701,17 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
     const live = isLive();
     await simulation.jump(clock.now() + 20_000);
     beat.resolve();
-    await simulation.clock.sleep(clock.now() - simulation.clock.now());
-    await simulation.idle();
-    await clock.sleep(20_000);
-    await simulation.idle();
+    await simulation.run(clock.now());
+    await simulation.sleep(20_000);
     const beaten = isLive();
-    await clock.sleep(20_000);
-    await simulation.idle();
+    await simulation.sleep(20_000);
     const silent = isLive();
     const kept = streams;
 
     // end the silent stream to resume once the second lag passes without a page
-    await clock.sleep(30_000);
-    await simulation.idle();
+    await simulation.sleep(30_000);
     controller.abort();
-    await following;
+    await simulation.wait(following);
     expect({ live, beaten, silent, kept, streams, stopped: isLive() }).toEqual({
         live: true,
         beaten: true,
@@ -1722,7 +1723,6 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
 });
 test("keep a replica live across its follows while its pages arrive within the lag, past a follow's stop", async () => {
     const simulation = new Simulation({ seed: 1, start: 1000 });
-    const { clock } = simulation;
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
@@ -1749,20 +1749,17 @@ test("keep a replica live across its follows while its pages arrive within the l
             () => Replica.marked(local, "notes", "inbox")?.position.sequence === sequence,
         );
         controller.abort();
-        await following;
+        await simulation.wait(following);
     };
 
     // stay live past the first follow's stop and through the next follow, then release the lag after the last page
     await followOnce(4);
     const stopped = isLive();
-    await clock.sleep(20_000);
-    await simulation.idle();
+    await simulation.sleep(20_000);
     await followOnce(5);
-    await clock.sleep(20_000);
-    await simulation.idle();
+    await simulation.sleep(20_000);
     const continued = isLive();
-    await clock.sleep(10_000);
-    await simulation.idle();
+    await simulation.sleep(10_000);
     expect({ stopped, continued, lapsed: isLive() }).toEqual({
         stopped: true,
         continued: true,
@@ -2075,7 +2072,7 @@ test("include the links two steps from the links a replica stores in its scope, 
     await confirmed();
     const relinked = await linkedRows();
     controller.abort();
-    await following;
+    await simulation.wait(following);
     expect({ linked, relinked }).toEqual({
         linked: ["a1", "a2", "a3"],
         relinked: ["a1", "a2", "a5"],

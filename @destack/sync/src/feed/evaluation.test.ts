@@ -263,7 +263,7 @@ test("wake every stream sharing an evaluation at its expiry, after another strea
             .then(() => woken.push(`second ${clock.now()}`)),
     ];
     void clock.sleep(500).then(() => stopping.abort());
-    await Promise.all(waits);
+    await simulation.wait(Promise.all(waits));
 
     // wake the second stream at the expiry the first one no longer waits for
     expect(woken).toEqual(["first 1500", "second 2000"]);
