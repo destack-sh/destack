@@ -1,7 +1,7 @@
 import type { MachineSize } from "@destack/account/object";
 import { CREDITS, type Sku } from "@destack/finance";
 import { defineSku } from "@destack/finance/declare";
-import { machineHours } from "@destack/observability/meter";
+import { machineHours } from "@destack/telemetry/meter";
 import { hetzner } from "../vendor/hetzner.ts";
 import type { MachineType, MachineVendor } from "../vendor/vendor.ts";
 

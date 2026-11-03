@@ -1,6 +1,6 @@
 import { Tenancy } from "@destack/account/object";
 import { defineFeature } from "@destack/finance/declare";
-import * as meters from "@destack/observability/meter";
+import * as meters from "@destack/telemetry/meter";
 import { schema } from "@destack/schema";
 
 /** The bytes an account keeps in its databases, capped at the bytes kept now. */

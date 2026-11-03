@@ -1,6 +1,6 @@
 import { CREDITS, type Sku } from "@destack/finance";
 import { defineSku } from "@destack/finance/declare";
-import * as meters from "@destack/observability/meter";
+import * as meters from "@destack/telemetry/meter";
 import { PricingModel } from "./model.ts";
 
 /** The page publishing Destack's unit prices with their cost basis. */

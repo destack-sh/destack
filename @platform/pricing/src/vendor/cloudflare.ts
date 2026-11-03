@@ -1,5 +1,5 @@
 import { Sku } from "@destack/finance";
-import * as meters from "@destack/observability/meter";
+import * as meters from "@destack/telemetry/meter";
 import { PricingModel } from "../price/model.ts";
 
 /** The package keeping the vendors' list prices as data. */
