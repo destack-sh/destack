@@ -53,11 +53,12 @@ export class TestCaller {
         return new TestCaller(this.#served, this.subject, true);
     }
 
-    /** Call a served package through its typed client. */
+    /** Call a package's typed client at the package implementing it, its own by default. */
     client<Definition extends ProcedureRouter>(
         handle: PackageHandle & ClientTarget<Definition>,
+        implementer: PackageHandle = handle,
     ): Client<Definition> {
-        return createClient(handle, this.endpoint(handle), this.#served.environment);
+        return createClient(handle, this.endpoint(implementer), this.#served.environment);
     }
 
     /** Address a served package through a fetch that signs each request. */

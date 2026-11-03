@@ -6,7 +6,11 @@ import { Method } from "./method.ts";
 /** Where a call is made: the store, a package's own code, another installation, or a client. */
 export type CallSite =
     | { readonly kind: "store" }
-    | { readonly kind: "package"; readonly packageId: PackageId }
+    | {
+          readonly kind: "package";
+          readonly packageId: PackageId;
+          readonly implementer: (object: ObjectType) => PackageId;
+      }
     | { readonly kind: "installation" }
     | { readonly kind: "client" };
 
@@ -18,9 +22,9 @@ export const CallSite = {
     /** A client, which can call client methods. */
     client: { kind: "client" } as const satisfies CallSite,
 
-    /** Read the site of a package's own code, in its store or its sandbox. */
-    package(packageId: PackageId): CallSite {
-        return { kind: "package", packageId };
+    /** Read the site of a package's code, with the package implementing each type. */
+    package(packageId: PackageId, implementer: (object: ObjectType) => PackageId): CallSite {
+        return { kind: "package", packageId, implementer };
     },
 
     /** Read the site of a caller: another installation or a client when remote, else the store. */
@@ -45,11 +49,13 @@ export const CallSite = {
         else if (method.visibility === "installation") {
             return site.kind !== "client";
         }
-        // let the store and the declaring package's code call a package method
+        // let the store and the code of the package declaring or implementing the type call a package method
         else {
             return (
                 site.kind === "store" ||
-                (site.kind === "package" && site.packageId === object.package.id)
+                (site.kind === "package" &&
+                    (site.packageId === object.package.id ||
+                        site.packageId === site.implementer(object)))
             );
         }
     },

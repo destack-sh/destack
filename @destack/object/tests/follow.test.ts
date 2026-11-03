@@ -2183,9 +2183,14 @@ async function followUniverse(
         await Promise.allSettled(following);
     });
 
-    // wait for it to arrive at the home's head
+    // wait for each followed replica to arrive at the home's head, by the name and scope of its key
     const head = await home.log.position();
-    await Replica.wait(replicating.database, Scope.universe.id, head, controller.signal);
+    const followed = keys.map((key) => {
+        const [name = "", scope = ""] = key.split(" ");
+
+        return { name, scope };
+    });
+    await Replica.waitAt(replicating.database, followed, head, controller.signal);
 
     return controller;
 }

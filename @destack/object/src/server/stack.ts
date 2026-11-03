@@ -687,6 +687,11 @@ export class StackPlan {
         return AccessContext.of(Caller.of(this.stack.as), this.now);
     }
 
+    /** Defer a declaration until what it needs exists, such as a release published later. */
+    defer(reason: string): never {
+        throw new DependencyWait(reason);
+    }
+
     /** Open a package release's build in the scope, the installation's if given, via the step. */
     release(packageId: PackageId, installation?: Identifier<"installation">): Promise<BuildReader> {
         // require the machine opening releases
@@ -734,9 +739,10 @@ export class StackPlan {
                 await this.#manage(declaration);
                 steps.push(...(await this.#write(declaration, desired)));
             } catch (error) {
-                // stop at a wait of the type itself
+                // defer a type that waits itself, planning the types after it that do not need it
                 if (error instanceof DependencyWait) {
-                    return { steps, deferred: error.message };
+                    waiting ??= error.message;
+                    continue;
                 }
                 throw error;
             }

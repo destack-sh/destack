@@ -154,6 +154,11 @@ export class WorkloadInstance implements AsyncDisposable {
         return this.#current.has(handle);
     }
 
+    /** Report whether a package implements a request's route of another package's types. */
+    implements(handle: PackageHandle, protocol: string, request: Request): boolean {
+        return this.#current.implements(handle, protocol, request);
+    }
+
     /** What the workload does with its hibernated sockets' events, refused without them. */
     requireSocketHandler(): SocketHandler {
         return this.#current.requireSocketHandler();
@@ -218,7 +223,11 @@ class WorkloadStart {
     /** The served packages and their servers by package id. */
     readonly #packages = new Map<
         string,
-        { readonly handle: PackageHandle; readonly server: Server }
+        {
+            readonly handle: PackageHandle;
+            readonly server: Server;
+            readonly protocols: ReadonlyMap<string, readonly RegExp[]>;
+        }
     >();
     /** The controller aborting the start's background work at its retirement. */
     readonly #controller = new AbortController();
@@ -319,7 +328,25 @@ class WorkloadStart {
                 }
             },
         });
-        this.#packages.set(handle.id, { handle, server });
+        // match each protocol route's path and the paths below it, each parameter one segment
+        const protocols = new Map(
+            [...(served.protocols ?? [])].map(([protocol, routes]) => [
+                protocol,
+                [...routes].map(
+                    (route) =>
+                        new RegExp(`^${route.replaceAll(/\{[^}]+\}/gu, "[^/]+")}(?:[/:]|$)`, "u"),
+                ),
+            ]),
+        );
+        this.#packages.set(handle.id, { handle, server, protocols });
+    }
+
+    /** Report whether a package implements a request's route of another package's types. */
+    implements(handle: PackageHandle, protocol: string, request: Request): boolean {
+        const { pathname } = new URL(request.url);
+        const routes = this.#packages.get(handle.id)?.protocols.get(protocol) ?? [];
+
+        return routes.some((route) => route.test(pathname));
     }
 
     /** The served packages, in workload order. */

@@ -277,11 +277,16 @@ export class MethodContext<
     #site(): CallSite {
         const location = this.#location;
 
-        return CallSite.package(
-            location.kind === "store"
-                ? location.store.implementer(this.object)
-                : this.object.package.id,
-        );
+        // read implementers from the store, else take each type's declaring package
+        if (location.kind === "store") {
+            const { store } = location;
+
+            return CallSite.package(store.implementer(this.object), (type) =>
+                store.implementer(type),
+            );
+        }
+
+        return CallSite.package(this.object.package.id, (type) => type.package.id);
     }
 
     /** Run a call a package's sandboxed hook sent in this call's transaction. */
@@ -291,7 +296,12 @@ export class MethodContext<
         mutates: boolean,
         packageId: PackageId,
     ): Promise<unknown> {
-        return this.#run(caller, entry, mutates, CallSite.package(packageId));
+        return this.#run(
+            caller,
+            entry,
+            mutates,
+            CallSite.package(packageId, (type) => type.package.id),
+        );
     }
 
     /** Run one platform call in this call's transaction and scope, refusing it without a runner. */

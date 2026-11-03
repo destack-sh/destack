@@ -304,7 +304,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
         done: false,
         value: {
             name: "reader",
-            status: "serving",
+            status: "up",
             reason: "the server serves without a readiness wait",
         },
     });
@@ -883,7 +883,7 @@ test("delay a request while starting and answer it once ready, and refuse it wit
         starting.headers.get("retry-after"),
         await answered,
         server.health.status,
-    ]).toEqual([503, "1", { text: "hello" }, "serving"]);
+    ]).toEqual([503, "1", { text: "hello" }, "up"]);
 });
 
 test("refuse waiting for a server stopped while it waits for readiness, ending the wait quietly", async () => {

@@ -36,6 +36,8 @@ export type ObjectPackage = PackageHandle & {
 export type ImplementationInput<Handle extends ObjectPackage = ObjectPackage> = {
     /** The handle's object types with handlers; the others serve their declared defaults. */
     readonly objects?: readonly ObjectType[];
+    /** The other packages' handles whose types and adapters the package answers. */
+    readonly protocols?: readonly PackageHandle[];
     /** The controllers beside the objects' controllers, each built over the package's store. */
     readonly controllers?: readonly ((store: ObjectStore) => Controller)[];
     /** The providers of the resource kinds the package provides to every space serving it. */
@@ -83,6 +85,20 @@ export interface PackageImplementation {
     /** The kinds of objects the package lets every installation bind. */
     readonly bindables: readonly Bindable[];
 }
+
+/** Package implementations, as a module exports one by default. */
+export const PackageImplementation = {
+    /** Report whether a value is a package implementation, as server modules export. */
+    is(value: unknown): value is PackageImplementation {
+        return (
+            typeof value === "object" &&
+            value !== null &&
+            "package" in value &&
+            "at" in value &&
+            typeof value.at === "function"
+        );
+    },
+};
 
 /** Implement a package from its code, or per installation from its context. */
 export function implementPackage<const Handle extends ObjectPackage>(

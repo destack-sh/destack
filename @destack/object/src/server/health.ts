@@ -63,18 +63,18 @@ export class Health {
 
     /** Wait until the server is up, refusing at once once it fails, drains or stops. */
     async waitUp(signal?: AbortSignal): Promise<void> {
-        // settle on serving, and refuse any status past starting
+        // settle once up, and refuse any status past starting
         for await (const { status, reason } of this.#state.watch(signal)) {
-            if (status === "serving") {
+            if (status === "up") {
                 return;
             } else if (status !== "starting") {
                 throw this.#refusal(status, reason);
             }
         }
 
-        // refuse a wait its signal aborted with why the server is not serving yet
+        // refuse a wait its signal aborted with why the server is not up yet
         const { status, reason } = this.#state.value;
-        if (status !== "serving") {
+        if (status !== "up") {
             throw this.#refusal(status, reason);
         }
     }
@@ -83,16 +83,16 @@ export class Health {
     refusal(): Error | undefined {
         const { status, reason } = this.#state.value;
 
-        return status === "serving" ? undefined : this.#refusal(status, reason);
+        return status === "up" ? undefined : this.#refusal(status, reason);
     }
 
     /** Describe the refusal a status gives, naming the server, the status and its reason. */
-    #refusal(status: Exclude<HealthStatus, "serving">, reason: string): Error {
+    #refusal(status: Exclude<HealthStatus, "up">, reason: string): Error {
         const message = `${this.name} is ${status}: ${reason}`;
         if (status === "starting") {
             return ObjectError.of("SERVER_STARTING", message);
-        } else if (status === "not-serving") {
-            return ObjectError.of("SERVER_NOT_SERVING", message);
+        } else if (status === "down") {
+            return ObjectError.of("SERVER_DOWN", message);
         } else if (status === "draining") {
             return ObjectError.of("SERVER_DRAINING", message);
         } else {
@@ -114,7 +114,7 @@ export class Health {
         }
 
         // check liveness or readiness
-        const ready = path === "/livez" ? this.status !== "stopped" : this.status === "serving";
+        const ready = path === "/livez" ? this.status !== "stopped" : this.status === "up";
         const body = ready ? "ok\n" : `${this.status}: ${this.reason}\n`;
 
         return new Response(request.method === "HEAD" ? null : body, {

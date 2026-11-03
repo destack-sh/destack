@@ -57,6 +57,8 @@ export const installation = defineObject(
             allowed: field.json(schema.array(DeclarationName)).default([]),
             /** The directories granted to the package's `files` ability, each with its access. */
             directories: field.json(schema.array(DirectoryGrant)).default([]),
+            /** How its server is isolated: a sandbox, or the store's process once trusted. */
+            isolation: field.enum(["sandbox", "process"]).default("sandbox"),
         },
         permissions: {
             read: none(),
@@ -123,6 +125,7 @@ export const installation = defineObject(
                 "compute",
                 "capabilities",
                 "directories",
+                "isolation",
             ],
         }),
         update: method.update("update", {
@@ -135,6 +138,7 @@ export const installation = defineObject(
                 "compute",
                 "capabilities",
                 "directories",
+                "isolation",
             ],
         }),
         delete: method.delete("delete"),

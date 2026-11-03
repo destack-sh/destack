@@ -56,10 +56,10 @@ test("stream current health and subsequent readiness changes", async () => {
     });
 
     // observe a change
-    readiness.set("serving", "the notes are open");
+    readiness.set("up", "the notes are open");
     expect(await stream.next()).toEqual({
         done: false,
-        value: { name: "notes", status: "serving", reason: "the notes are open" },
+        value: { name: "notes", status: "up", reason: "the notes are open" },
     });
 
     // deliver the final state
@@ -77,8 +77,8 @@ test("wait for a server to serve, refusing at once with its reason once it fails
     const failing = new Health("files");
     const served = serving.waitUp();
     const refused = refusal(failing.waitUp());
-    serving.set("serving", "the notes are open");
-    failing.set("not-serving", "the files' database is missing");
+    serving.set("up", "the notes are open");
+    failing.set("down", "the files' database is missing");
 
     // settle the first, and refuse the second with its status and reason, as its readiness probe does
     const probe = failing.probe(new Request("https://test.local/readyz"));
@@ -90,9 +90,9 @@ test("wait for a server to serve, refusing at once with its reason once it fails
         served: undefined,
         refused: [
             "SERVICE_UNAVAILABLE",
-            "SERVER_NOT_SERVING",
-            "files is not-serving: the files' database is missing",
+            "SERVER_DOWN",
+            "files is down: the files' database is missing",
         ],
-        probe: [503, "not-serving: the files' database is missing\n"],
+        probe: [503, "down: the files' database is missing\n"],
     });
 });

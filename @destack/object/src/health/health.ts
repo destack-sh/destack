@@ -3,13 +3,7 @@ import { Package } from "@destack/package";
 import { defineProcedure, eventIterator } from "../procedure/index.ts";
 
 /** The readiness of a package's server. */
-export const HealthStatus = schema.enum([
-    "starting",
-    "serving",
-    "not-serving",
-    "draining",
-    "stopped",
-]);
+export const HealthStatus = schema.enum(["starting", "up", "down", "draining", "stopped"]);
 /** The readiness of a package's server. */
 export type HealthStatus = schema.Infer<typeof HealthStatus>;
 

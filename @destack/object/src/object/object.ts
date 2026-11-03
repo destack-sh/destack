@@ -1038,9 +1038,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return schema.identifier(this.identity).parse(id);
     }
 
-    /** Decide whether another type shares this one's table. */
+    /** Decide whether another type shares this one's table, such as another build's copy. */
     same(other: ObjectType | "any" | undefined): boolean {
-        return other instanceof ObjectType && other.table === this.table;
+        return (
+            other instanceof ObjectType && other.table[TABLE].sqlName === this.table[TABLE].sqlName
+        );
     }
 
     /** Decide whether the type copies a declared one, sharing its table, methods and policy. */

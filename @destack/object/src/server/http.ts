@@ -1,4 +1,5 @@
 import type { DigestCrypto } from "@destack/schema";
+import type { PackageId } from "@destack/package";
 import type { Health } from "./health.ts";
 import { ObjectError } from "../error/error.ts";
 import { RequestHandler, type HandlerOptions, type Router } from "./handler.ts";
@@ -146,7 +147,7 @@ export class Server implements AsyncDisposable {
             options.report?.(error);
             if (!server.#reconciling.signal.aborted) {
                 const message = error instanceof Error ? error.message : String(error);
-                server.health.set("not-serving", `the server failed: ${message}`);
+                server.health.set("down", `the server failed: ${message}`);
             }
         });
 
@@ -171,7 +172,7 @@ export class Server implements AsyncDisposable {
         const signal = this.#reconciling.signal;
         const { ready } = this.#options;
         if (ready === undefined) {
-            this.health.set("serving", "the server serves without a readiness wait");
+            this.health.set("up", "the server serves without a readiness wait");
         }
         // wait for readiness, delaying requests while starting
         else {
@@ -186,7 +187,7 @@ export class Server implements AsyncDisposable {
 
             // serve, unless the stop that aborted the wait moves the health on
             if (!signal.aborted) {
-                this.health.set("serving", "the server's readiness is met");
+                this.health.set("up", "the server's readiness is met");
             }
         }
     }
@@ -316,7 +317,8 @@ export class Server implements AsyncDisposable {
         const options = this.#options;
         const draining = this.#draining.signal;
 
-        // take the given caller, else authenticate the request, and require it current here
+        // take the given caller, else authenticate the request, and require it current for the package or a protocol it implements
+        let audience: PackageId = options.package.id;
         let authenticated: Authentication | undefined;
         let authenticationError: Error | undefined;
         try {
@@ -325,9 +327,12 @@ export class Server implements AsyncDisposable {
             if (verified !== undefined) {
                 const { credential } = verified;
                 const scope = Server.#scopeOf(options.scopes, credential.scope);
+                if (options.protocols?.has(credential.audience) === true) {
+                    audience = credential.audience;
+                }
                 Credential.requireCurrent(
                     credential,
-                    options.package.id,
+                    audience,
                     options.environment.clock.now(),
                     scope,
                 );
@@ -345,7 +350,7 @@ export class Server implements AsyncDisposable {
         const scope = Server.#scopeOf(options.scopes, authenticated?.credential.scope);
 
         return new RequestContext(request, {
-            audience: options.package.id,
+            audience,
             ...(scope === undefined ? {} : { scope }),
             ...(authenticated === undefined ? {} : { authentication: authenticated }),
             resources: options.resources,
@@ -622,6 +627,8 @@ export interface PackageHandler extends Omit<
     access?: ServerAccess;
     /** Serve another HTTP protocol for an authenticated request, or return undefined. */
     readonly fetch?: (request: Request, context: RequestContext) => Promise<Response | undefined>;
+    /** The routes of each protocol the package implements, by the protocol's package. */
+    readonly protocols?: ReadonlyMap<string, ReadonlySet<string>>;
     /** The package's controllers, started once its replicas are synced. */
     readonly controllers?: readonly Controller[];
     /** The controllers syncing the package's replicas, started at once. */

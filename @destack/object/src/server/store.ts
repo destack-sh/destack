@@ -1,4 +1,5 @@
 import type { Health } from "./health.ts";
+import { Casing } from "../object/name.ts";
 import { CLIENT_HEAD_HEADER, ROUTE_PATH } from "../workload/start.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import type { BlobStorage } from "@destack/resource";
@@ -89,7 +90,7 @@ import { type PackageHandler } from "./http.ts";
 import { type ProcedureContext } from "./procedure.ts";
 import { Egress } from "../declare/egress.ts";
 import { PACKAGE_DECLARATION, PackageDescription } from "../declare/description.ts";
-import { PackageHandle } from "../declare/package.ts";
+import { type AdapterDeclaration, PackageHandle } from "../declare/package.ts";
 import { type ProcedureRouter } from "../procedure/index.ts";
 import * as sync from "@destack/sync";
 import { type Follow, type FollowKey, type RowFollow, Shape } from "../replica/shape.ts";
@@ -476,7 +477,7 @@ interface ServedType {
     /** The installation serving the type. */
     readonly server: ServerContext;
     /** The package implementing the type. */
-    readonly packageId: PackageId;
+    readonly package: Package;
 }
 
 /** A store serving object types' methods over one database. */
@@ -869,7 +870,7 @@ export class ObjectStore {
         };
     }
 
-    /** Control each served kind's resources with its trait's loop, if it has providers. */
+    /** Control each served kind's resources that a provider here provides. */
     static #control(
         objects: readonly ObjectType[],
         provisioned: ResourceControllerOptions | undefined,
@@ -878,6 +879,9 @@ export class ObjectStore {
             ? []
             : objects
                   .filter((object) => Provisioned.is(object))
+                  .filter((object) =>
+                      provisioned.providers.some((provider) => provider.object.same(object)),
+                  )
                   .map((object) =>
                       object.implement({
                           controller: new ResourceController(object, provisioned),
@@ -951,7 +955,7 @@ export class ObjectStore {
         const sets = isInstalled ? [mapInstalledPackages(installation.table)] : [];
         const servers = new Map(
             isInstalled
-                ? [...(options.installed ?? [])].map(([key, served]) => [key, served.packageId])
+                ? [...(options.installed ?? [])].map(([key, served]) => [key, served.package.id])
                 : [],
         );
 
@@ -1090,17 +1094,15 @@ export class ObjectStore {
         }
         options.ephemeral?.serve(ephemeral);
 
-        // require the event log over the store's database for events types
-        const unlogged = objects.find(
-            (object) =>
-                object.storage === "events" &&
-                (options.events === undefined ||
-                    !options.events.has(object.eventKind()) ||
-                    options.events.database !== options.database),
-        );
-        if (unlogged !== undefined) {
+        // require the event log over the store's database for events types, storing their kinds in it
+        const events = objects.filter((object) => object.storage === "events");
+        const [unlogged] = events;
+        const isLogged =
+            options.events !== undefined && options.events.database === options.database;
+        if (unlogged !== undefined && !isLogged) {
             throw new TypeError(`events object ${unlogged.name} needs the store's event log`);
         }
+        options.events?.register(events.map((object) => object.eventKind()));
 
         // require files for external objects
         const unfiled = objects.find(
@@ -1530,7 +1532,7 @@ export class ObjectStore {
         }
 
         // audit one object, or the scope's collection
-        const recorder = this.audit(scope, caller, { package: object.package });
+        const recorder = this.audit(scope, caller, { package: this.#implementing(object) });
         const { action, values } = object.auditCall(name, input, scope);
         const details = method.audit?.details;
 
@@ -2367,7 +2369,7 @@ export class ObjectStore {
             new BlobController(this.blobs),
             ...(this.#journal === undefined
                 ? []
-                : [this.#journal.controller(), ...this.#journal.events.controllers]),
+                : [this.#journal.controller(), this.#journal.events.controller()]),
             ...(this.claims === undefined
                 ? []
                 : [
@@ -2668,7 +2670,15 @@ export class ObjectStore {
             throw new TypeError(`no installation serves ${object.name} in this store`);
         }
 
-        return served.packageId;
+        return served.package.id;
+    }
+
+    /** Read the package implementing a type here, as its calls' audit records it. */
+    #implementing(object: ObjectType): Package {
+        // take the installed implementer, or the declaring package in a store serving no installations
+        const served = this.#installed.get(ObjectTypeReference.key(object.typeReference));
+
+        return served?.package ?? object.package;
     }
 
     /** Read the memory store with the ephemeral objects, failing without one. */
@@ -3356,7 +3366,7 @@ export class ObjectStore {
     }): Promise<void> {
         const { scope, caller, object, operation, id, requestId } = read;
         await this.audit(scope, caller, {
-            package: object.package,
+            package: this.#implementing(object),
             ...(requestId === undefined ? {} : { requestId }),
         }).record(
             undefined,
@@ -3490,7 +3500,7 @@ export class ObjectStore {
 
         // audit a durable change, or journal a request's other call for retries, once the mutation commits under its transaction
         const recorder = this.audit(scope, caller, {
-            package: object.package,
+            package: this.#implementing(object),
             ...(component === undefined ? {} : { component }),
             ...(execution.parentId === undefined ? {} : { parentId: execution.parentId }),
         });
@@ -3638,7 +3648,22 @@ export class ObjectStore {
         ]);
         const served = [
             ...implementations,
-            ...sandboxes.flatMap((sandbox) => ObjectStore.#sandboxPackages(sandbox, known)),
+            ...sandboxes.flatMap((sandbox) => {
+                // leave a sandbox referring to types this store does not serve yet unserved, reporting it
+                try {
+                    return ObjectStore.#sandboxPackages(sandbox, known);
+                } catch (error) {
+                    const report = given.report ?? ((reported) => ObjectStore.#rethrow(reported));
+                    report(
+                        new Error(
+                            `installation ${sandbox.server.installation} serves nothing: its types refer to ones this start does not serve`,
+                            { cause: error },
+                        ),
+                    );
+
+                    return [];
+                }
+            }),
         ];
 
         // route every package's types, answering queries of replicated types nothing here serves
@@ -3673,7 +3698,7 @@ export class ObjectStore {
                     throw new TypeError(`${type.name} is served at no installation`);
                 }
 
-                return [key, { server: context, packageId: entry.package.id }] as const;
+                return [key, { server: context, package: Package.of(entry.package) }] as const;
             }),
         );
 
@@ -3737,10 +3762,15 @@ export class ObjectStore {
             throw new TypeError(`${server.package.name} does not declare object ${stray.name}`);
         }
 
-        // serve the declared types, external ones only with their files, beside other packages' handled types
+        // serve the declared types, external ones only with their files, provisioned ones only handled or provisioned
         const filed = definition.external?.objects ?? [];
         const declared = served
             .filter((type) => type.storage !== "external" || filed.some((each) => each.same(type)))
+            .filter(
+                (type) =>
+                    type.provisioned === undefined ||
+                    [...handled, ...provisioned].some((each) => each.same(type)),
+            )
             .map((type) => handled.find((each) => each.same(type)) ?? type);
 
         return {
@@ -3893,8 +3923,14 @@ export class ObjectStore {
         const built = controllers.map((controller) => controller(this));
         const implemented = this.implement(entry.package, entry.objects, [...listed, ...built]);
 
-        // answer the package's adapters below its mount
+        // answer the package's adapters below its mount, and the routes of each protocol it implements
         const fetch = ObjectStore.#adapterFetch(entry.package, adapters, this);
+        const protocols = new Map(
+            (entry.definition.protocols ?? []).map((protocol) => [
+                protocol.id,
+                ObjectStore.#protocolRoutes(protocol, entry),
+            ]),
+        );
 
         // run the controllers of a package served at an installed installation once its host activates it, a base one's at once
         const { server } = entry;
@@ -3910,7 +3946,36 @@ export class ObjectStore {
             ...(responseHeaders === undefined ? {} : { responseHeaders }),
             ...(fetch === undefined ? {} : { fetch }),
             ...(activation === undefined ? {} : { activation }),
+            protocols,
         };
+    }
+
+    /** List the routes of a protocol a package implements, refusing a type or adapter it skips. */
+    static #protocolRoutes(protocol: PackageHandle, entry: StorePackage): ReadonlySet<string> {
+        // require each of the protocol's types handled and each of its adapters answered
+        const types: readonly ObjectType[] = Object.values(protocol.objects).filter(
+            (type) => type instanceof ObjectType,
+        );
+        const unhandled = types.find((type) => !entry.objects.some((each) => each.same(type)));
+        const adapters: readonly AdapterDeclaration[] = Object.values(protocol.adapters);
+        const unanswered = adapters.find(
+            (adapter) => entry.definition.adapters?.[adapter.name] === undefined,
+        );
+        if (unhandled !== undefined) {
+            throw new TypeError(
+                `${entry.package.name} implements ${protocol.name} without handling ${unhandled.name}`,
+            );
+        } else if (unanswered !== undefined) {
+            throw new TypeError(
+                `${entry.package.name} implements ${protocol.name} without answering adapter ${unanswered.name}`,
+            );
+        }
+
+        // route its types' collections and its adapters' paths
+        return new Set([
+            ...types.map((type) => `${type.route.prefix}/${Casing.kebab(type.plural)}`),
+            ...adapters.map((adapter) => adapter.path),
+        ]);
     }
 
     /** Route requests below a package's mount to the adapters answering their paths. */

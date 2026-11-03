@@ -210,7 +210,7 @@ export const ObjectController = {
         // reconcile them as the type's serving principal and implementing package, at one time
         const now = store.clock.now();
         const caller = store.as(object, now);
-        const site = CallSite.package(store.implementer(object));
+        const site = CallSite.package(store.implementer(object), (type) => store.implementer(type));
         const mutate: ObjectReconciliation["mutate"] = (calls, options) =>
             store.mutate(
                 caller,

@@ -637,12 +637,13 @@ test("serve the installation's package from its sandbox, never a bundled depende
     expect(store.packages.map((served) => served.package.id)).toEqual([card.package.id]);
 });
 
-test("call package methods from the store and the package's code, installation methods from any installation, client methods from anyone", () => {
+test("call package methods from the store and the code of the package declaring or implementing the type, installation methods from any installation, client methods from anyone", () => {
     // ask each site for the package stamp, the installation mark and the client get
     const sites: readonly CallSite[] = [
         CallSite.store,
-        CallSite.package(card.package.id),
-        CallSite.package(OTHER_PACKAGE),
+        CallSite.package(card.package.id, (type) => type.package.id),
+        CallSite.package(OTHER_PACKAGE, () => OTHER_PACKAGE),
+        CallSite.package(OTHER_PACKAGE, (type) => type.package.id),
         { kind: "installation" },
         CallSite.client,
     ];
@@ -651,6 +652,7 @@ test("call package methods from the store and the package's code, installation m
     );
 
     expect(covered).toEqual([
+        [true, true, true],
         [true, true, true],
         [true, true, true],
         [false, true, true],
