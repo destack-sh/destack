@@ -211,11 +211,15 @@ export class BuildReader {
         return definition.parse(decode(await this.load(file.path)));
     }
 
-    /** Write the build to a new directory, its manifest last, as `openDirectory` reads it. */
-    async writeDirectory(directory: string, files: FileSystem): Promise<void> {
+    /** Write the build, or the files given of it, to a new directory, its manifest last. */
+    async writeDirectory(
+        directory: string,
+        files: FileSystem,
+        selected?: readonly PackageFile[],
+    ): Promise<void> {
         // require a new directory so a failed write cannot damage an existing build
         await files.mkdir(directory);
-        for (const file of await this.distributed()) {
+        for (const file of selected ?? (await this.distributed())) {
             const destination = `${directory}/${PackagePath.parse(file.path)}`;
             await files.mkdir(destination.slice(0, destination.lastIndexOf("/")), {
                 recursive: true,
@@ -228,21 +232,25 @@ export class BuildReader {
         await files.writeFile(`${directory}/${MANIFEST_PATH}`, manifest, { createNew: true });
     }
 
-    /** Open the build a directory keeps in files: its manifest at the root and its files below. */
+    /** Open the build a directory keeps, reading the files it lacks from elsewhere when given. */
     static async openDirectory(
         directory: string,
         files: FileSystem,
         crypto: Crypto,
+        missing?: BuildReader["stream"],
     ): Promise<BuildReader> {
-        // read the manifest, then stream each file it lists from the directory
+        // read the manifest, then stream each file it lists from the directory, else from where the caller keeps it
         const bytes = await files.readFile(`${directory}/${MANIFEST_PATH}`);
         const manifest = PackageManifest.parse(decode(bytes));
+        const stream: BuildReader["stream"] = async (path, signal) => {
+            const file = `${directory}/${PackagePath.parse(path)}`;
 
-        return new BuildReader(
-            manifest,
-            (path, signal) => streamFile(`${directory}/${PackagePath.parse(path)}`, files, signal),
-            crypto,
-        );
+            return missing === undefined || (await files.exists(file))
+                ? streamFile(file, files, signal)
+                : missing(path, signal);
+        };
+
+        return new BuildReader(manifest, stream, crypto);
     }
 
     /** Open an immutable remote package and verify its root manifest. */
