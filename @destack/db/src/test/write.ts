@@ -66,7 +66,10 @@ try {
     await write(module, directory, id, target);
 } catch (error) {
     throw error instanceof SuppressedError
-        ? new AggregateError([error.error, error.suppressed], "writing a template failed while disposing")
+        ? new AggregateError(
+              [error.error, error.suppressed],
+              "writing a template failed while disposing",
+          )
         : error;
 } finally {
     await TestDatabase.close();

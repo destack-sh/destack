@@ -243,11 +243,14 @@ function render(condition: Condition, table: Table, namespace?: Namespace): SQL 
     return Predicate.render(predicate, Predicate.bind(table, {}, namespace));
 }
 
-/** Resolve a condition's entries, which must all match. */
+/** Resolve a condition's entries, which must all match, in key order so equal ones render alike. */
 function resolveCondition(condition: Condition, fields: ReadonlySet<string>): Predicate {
-    return Predicate.all(
-        ...Object.entries(condition).map(([name, entry]) => resolveEntry(name, entry, fields)),
+    // take the entries by UTF-16 key order, as canonical JSON keeps a declaration's condition
+    const entries = Object.entries(condition).toSorted(([left], [right]) =>
+        left < right ? -1 : 1,
     );
+
+    return Predicate.all(...entries.map(([name, entry]) => resolveEntry(name, entry, fields)));
 }
 
 /** Resolve one entry of a condition. */

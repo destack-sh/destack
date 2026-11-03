@@ -411,7 +411,7 @@ test("merge ordered rows of two tables into the first of their order, tying by l
     ]);
 });
 
-test("resolve conditions by their row's fields, and read their fields, relations and size", () => {
+test("resolve conditions by their row's fields in key order, and read their fields, relations and size", () => {
     const condition: Condition = {
         status: "open",
         due: { isNotNull: true },
@@ -421,28 +421,32 @@ test("resolve conditions by their row's fields, and read their fields, relations
     };
     const predicate = Condition.resolve(condition, new Set(["status", "due", "priority"]));
 
-    // resolve fields to comparisons and any other name to a relation
+    // resolve fields to comparisons and any other name to a relation, in key order
     expect(predicate).toEqual({
         kind: "all",
         predicates: [
-            { kind: "compare", operator: "eq", name: "status", value: "open" },
-            { kind: "not", predicate: { kind: "missing", name: "due" } },
-            { kind: "oneOf", name: "priority", values: ["high", "low"] },
             {
                 kind: "exists",
                 via: "assignee",
                 where: { level: { gt: sql.placeholder("level") } },
             },
+            { kind: "not", predicate: { kind: "missing", name: "due" } },
             { kind: "exists", via: "labels", where: {} },
+            { kind: "oneOf", name: "priority", values: ["high", "low"] },
+            { kind: "compare", operator: "eq", name: "status", value: "open" },
         ],
     });
+
+    // resolve the same condition with its keys in another order alike, as a manifest's canonical JSON keeps it
+    const reordered: Condition = Object.fromEntries(Object.entries(condition).toReversed());
+    expect(Condition.resolve(reordered, new Set(["status", "due", "priority"]))).toEqual(predicate);
 
     // list what the predicate reads
     expect([
         [...Predicate.fields(predicate)],
         Predicate.relations(predicate).map((relation) => relation.via),
         Predicate.size(predicate),
-    ]).toEqual([["status", "due", "priority"], ["assignee", "labels"], 8]);
+    ]).toEqual([["due", "priority", "status"], ["assignee", "labels"], 8]);
 
     // round-trip through JSON and the schema to the same predicate, placeholders in their JSON form
     const parsed = Condition.schema.parse(JSON.parse(JSON.stringify(condition)));
