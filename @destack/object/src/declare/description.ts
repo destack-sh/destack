@@ -1,7 +1,13 @@
 import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
 import { GrantRequest } from "@destack/access";
-import { DeclarationName, type graph, PackageId, Sandbox } from "@destack/package";
+import {
+    defineDeclarationKind,
+    DeclarationName,
+    type graph,
+    PackageId,
+    Sandbox,
+} from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { ObjectTypeReference } from "@destack/sync";
 
@@ -111,17 +117,14 @@ export const Capability = schema
 /** Something a package's installations can do, and what it needs. */
 export type Capability = schema.Infer<typeof Capability>;
 
-/** The kind of the declaration `definePackage` makes, as manifests list it. */
-export const PACKAGE_DECLARATION = DeclarationName.parse("package");
+/** The kind of the declaration `definePackage` makes, which object defines. */
+export const PACKAGE_KIND = defineDeclarationKind("package");
 
 /** The export a build's package declaration comes from: its module's default export. */
 export const PACKAGE_EXPORT = "default";
 
 /** The subpath a package's build exports its server under. */
 export const SERVER_EXPORT = "./server";
-
-/** The package defining the package kind: object itself. */
-const KIND_PACKAGE_ID = PackageId.parse(import.meta.destack.package.id);
 
 /** A declared package: the API its objects derive, its adapters and its views. */
 const packageDescription = schema.object({
@@ -155,11 +158,7 @@ export const PackageDescription = Object.assign(packageDescription, {
     async of(
         build: Pick<BuildReader, "declared">,
     ): Promise<schema.Infer<typeof packageDescription> | undefined> {
-        const [declared] = await build.declared(
-            KIND_PACKAGE_ID,
-            PACKAGE_DECLARATION,
-            packageDescription,
-        );
+        const [declared] = await build.declared(PACKAGE_KIND, packageDescription);
 
         return declared?.description;
     },
@@ -168,9 +167,7 @@ export const PackageDescription = Object.assign(packageDescription, {
     find(
         declarations: readonly Pick<graph.Declaration, "kind" | "kindPackageId" | "description">[],
     ): schema.Infer<typeof packageDescription> | undefined {
-        const declared = declarations.find(
-            (each) => each.kind === PACKAGE_DECLARATION && each.kindPackageId === KIND_PACKAGE_ID,
-        );
+        const declared = declarations.find((each) => PACKAGE_KIND.has(each));
 
         return declared === undefined ? undefined : packageDescription.parse(declared.description);
     },

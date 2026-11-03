@@ -1,7 +1,7 @@
 import * as accessExports from "@destack/access";
 import { Policy, PolicySubject } from "@destack/access";
 import { TABLE, type Table } from "@destack/db";
-import { DeclarationName, graph, Package, PackageId } from "@destack/package";
+import { defineDeclarationKind, DeclarationName, graph, Package } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { NO_STATE, ResourceDeclaration, ResourceKind, ResourceManagement } from "@destack/resource";
 import {
@@ -176,11 +176,8 @@ export class ExportIndex {
     }
 }
 
-/** The kind of the declarations `defineObject` makes, as manifests list them. */
-export const OBJECT_DECLARATION = DeclarationName.parse("object");
-
-/** The package defining the object kind: object itself. */
-const OBJECT_KIND_PACKAGE_ID = PackageId.parse(import.meta.destack.package.id);
+/** The kind of the declarations `defineObject` makes, which object defines. */
+export const OBJECT_KIND = defineDeclarationKind("object");
 
 /** A builder call as written: the builder's name and its arguments. */
 export interface BuilderCall {
@@ -256,21 +253,17 @@ export const ObjectDescription = Object.assign(objectDescription, {
 
     /** Read the object descriptions a build declares, parsed once per build. */
     async read(build: Pick<BuildReader, "declared">): Promise<ObjectDescription[]> {
-        const declared = await build.declared(
-            OBJECT_KIND_PACKAGE_ID,
-            OBJECT_DECLARATION,
-            objectDescription,
-        );
+        const declared = await build.declared(OBJECT_KIND, objectDescription);
 
         return declared.map((each) => each.description);
     },
 
     /** Read the object descriptions among an installation's declarations. */
     installed(
-        declarations: readonly Pick<graph.Declaration, "kind" | "description">[],
+        declarations: readonly Pick<graph.Declaration, "kind" | "kindPackageId" | "description">[],
     ): ObjectDescription[] {
         return declarations
-            .filter((entry) => entry.kind === OBJECT_DECLARATION)
+            .filter((entry) => OBJECT_KIND.has(entry))
             .map((entry) => ObjectDescription.parse(entry.description));
     },
 

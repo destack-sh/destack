@@ -51,6 +51,7 @@
             "describes": [
                 {
                     "kind": "resource",
+                    "package": "@destack/resource",
                     "function": "./inspect#describeHttps"
                 }
             ]
@@ -69,6 +70,7 @@
             "describes": [
                 {
                     "kind": "resource",
+                    "package": "@destack/resource",
                     "function": "./inspect#describeInstallationBinding",
                     "symbols": "./inspect#installationBindingSymbols"
                 }

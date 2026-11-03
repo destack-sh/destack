@@ -44,7 +44,10 @@ export class HookSandbox {
     /** The server context of the installation the sandbox runs as. */
     readonly server: InstalledServerContext;
     /** The declarations of the installation's followed build, its object types among them. */
-    readonly declarations: readonly Pick<graph.Declaration, "symbol" | "kind" | "description">[];
+    readonly declarations: readonly Pick<
+        graph.Declaration,
+        "symbol" | "kind" | "kindPackageId" | "description"
+    >[];
     /** Send a request to run a hook to the sandbox. */
     readonly #send: (request: HandlerRequest) => Promise<HandlerAnswer>;
     /** The types the installation serves, whose rows its hooks read, by their tables' SQL names. */
@@ -59,7 +62,7 @@ export class HookSandbox {
         /** The declarations of the installation's followed build. */
         readonly declarations: readonly Pick<
             graph.Declaration,
-            "symbol" | "kind" | "description"
+            "symbol" | "kind" | "kindPackageId" | "description"
         >[];
         /** Send a request to run a hook to the sandbox. */
         readonly send: (request: HandlerRequest) => Promise<HandlerAnswer>;

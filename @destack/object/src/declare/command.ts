@@ -1,6 +1,7 @@
 import { Condition } from "@destack/db";
 import { Message } from "@destack/locale";
 import {
+    defineDeclarationKind,
     DeclarationName,
     ModuleMetadata,
     Package,
@@ -13,6 +14,9 @@ import type { MethodName } from "../method/procedure.ts";
 import type { ObjectType, PermissionOf } from "../object/object.ts";
 import type { ConditionOf } from "../query/index.ts";
 import { Shortcut, type ShortcutText } from "./shortcut.ts";
+
+/** The command declaration kind, which object defines. */
+export const COMMAND_KIND = defineDeclarationKind("command");
 
 /** The method kinds that remove their target, for good unless its type deletes to a trash. */
 const DELETING_KINDS: ReadonlySet<string> = new Set(["delete", "deleteMany"]);
@@ -216,11 +220,6 @@ export class Command<
             ...(description.when === undefined ? {} : { when: description.when }),
             ...(description.keybinding === undefined ? {} : { keybinding: description.keybinding }),
         });
-    }
-
-    /** The declaration kind of commands, by its package and name, as builds index them. */
-    static get kind() {
-        return { kindPackageId: import.meta.destack.package.id, kind: "command" } as const;
     }
 }
 

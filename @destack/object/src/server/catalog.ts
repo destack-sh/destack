@@ -6,7 +6,7 @@ import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { type BlobStore, type DatabaseConnection, TABLE, type Table } from "@destack/db";
 import type { Identifier } from "@destack/schema";
 import { PackageContext, ServerContext } from "../workload/workload.ts";
-import { PACKAGE_DECLARATION, PackageDescription } from "../declare/description.ts";
+import { PACKAGE_KIND, PackageDescription } from "../declare/description.ts";
 import { PackageHandle } from "../declare/package.ts";
 import type { Follow } from "../replica/shape.ts";
 import { branchType, type BranchType } from "../branch/index.ts";
@@ -615,7 +615,7 @@ export class Catalog {
 
         // serve the package's objects, its adapters left to its workloads
         return local
-            .filter((entry) => entry.kind === PACKAGE_DECLARATION)
+            .filter((entry) => PACKAGE_KIND.has(entry))
             .map((entry) => PackageDescription.parse(entry.description))
             .flatMap((described): Served[] => {
                 // leave a package of no objects unserved, its adapters to its workloads

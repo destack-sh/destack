@@ -3,14 +3,13 @@ import { Package } from "@destack/package";
 import { type BuildReader, type OutputContent, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import {
-    PACKAGE_DECLARATION,
+    PACKAGE_KIND,
     PACKAGE_EXPORT,
     type PackageHandle,
     SERVER_EXPORT,
 } from "../declare/index.ts";
 import { describePackage } from "../inspect/index.ts";
-import { OBJECT_DECLARATION, ObjectDescription, type ObjectType } from "../object/index.ts";
-import objectPackage from "../package.ts";
+import { OBJECT_KIND, ObjectDescription, type ObjectType } from "../object/index.ts";
 
 /** The output of every test build: a Bun server output exporting the server, running nothing. */
 const SERVER_OUTPUT: OutputContent = {
@@ -47,14 +46,12 @@ export async function testBuild(
     const { declared = [], dependencies = [], ...contents } = options;
     const described: TestDeclaration[] = [
         {
-            kind: PACKAGE_DECLARATION,
-            kindPackageId: objectPackage.id,
+            ...PACKAGE_KIND.identity,
             name: PACKAGE_EXPORT,
             description: describePackage(handle),
         },
         ...Object.values(handle.objects).map((type) => ({
-            kind: OBJECT_DECLARATION,
-            kindPackageId: objectPackage.id,
+            ...OBJECT_KIND.identity,
             name: type.name,
             description: ObjectDescription.of(type),
         })),

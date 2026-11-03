@@ -1,4 +1,5 @@
 import type { Select, Snapshot } from "@destack/db";
+import type { DeclarationKind } from "@destack/package";
 import type { ObjectReference } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 
@@ -20,5 +21,5 @@ export interface Bindable<Object extends ObjectType = ObjectType> {
         snapshot: Pick<Snapshot, "read">,
     ) => Promise<readonly ObjectReference[]>;
     /** The declaration kind whose needs this kind binds, such as resource or secret. */
-    readonly declaration: string;
+    readonly declaration: DeclarationKind;
 }

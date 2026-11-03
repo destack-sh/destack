@@ -23,7 +23,7 @@ import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
 import { type Identifier, schema, present, type JsonValue } from "@destack/schema";
 import { graph, Package } from "@destack/package";
-import { definePackage, PACKAGE_DECLARATION, PackageHandle } from "@destack/object";
+import { definePackage, OBJECT_KIND, PACKAGE_KIND, PackageHandle } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey, testServerContext } from "@destack/object/test";
@@ -31,7 +31,7 @@ import { testEvents } from "../src/test/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 
 /** A declaration of a build, as a sandbox receives it. */
-type Declared = Pick<graph.Declaration, "symbol" | "kind" | "description">;
+type Declared = Pick<graph.Declaration, "symbol" | "kind" | "kindPackageId" | "description">;
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -200,8 +200,12 @@ function declared(cards: PackageHandle): Declared[] {
     return [
         ...Object.values(cards.objects)
             .filter((routed): routed is ObjectType => routed instanceof ObjectType)
-            .map((type) => ({ symbol, kind: "object", description: ObjectDescription.of(type) })),
-        { symbol, kind: PACKAGE_DECLARATION, description: describePackage(cards) },
+            .map((type) => ({
+                symbol,
+                ...OBJECT_KIND.identity,
+                description: ObjectDescription.of(type),
+            })),
+        { symbol, ...PACKAGE_KIND.identity, description: describePackage(cards) },
     ];
 }
 
@@ -231,7 +235,7 @@ const sticker = defineObject(
 /** The bundled dependency's package declaration, at its symbol, which no sandbox serves. */
 const dependency: Declared = {
     symbol: graph.Moniker.of({ packageId: bundled.id, module: "src/index.ts", name: "default" }),
-    kind: PACKAGE_DECLARATION,
+    ...PACKAGE_KIND.identity,
     description: describePackage(PackageHandle.of(bundled, { objects: { sticker } })),
 };
 
