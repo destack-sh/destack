@@ -15,9 +15,9 @@ import {
     Session,
     type Stream,
     TUNNEL_PROTOCOL,
-} from "../session/index.ts";
+    TUNNEL_PATH,
+} from "@destack/tunnel";
 import type { TunnelToken } from "./token.ts";
-import { TUNNEL_PATH } from "../tunnel/client.ts";
 
 /** The path below the relay package's mount of the calls between the root and each tunnel. */
 export const TUNNELS_PATH = relayPackage.adapters.tunnels.path;

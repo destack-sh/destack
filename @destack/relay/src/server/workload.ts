@@ -1,4 +1,4 @@
-import { TUNNEL_PATH } from "../tunnel/client.ts";
+import { TUNNEL_PATH } from "@destack/tunnel";
 import { principal } from "@destack/access";
 import { copyRequest } from "@destack/environment";
 import { Snapshot } from "@destack/db";

@@ -7,10 +7,10 @@
     "description": "Relay HTTP requests for Destack names to the machines serving them.",
     "exports": {
         ".": "./src/index.ts",
+        "./client": "./src/client/index.ts",
         "./error": "./src/error/index.ts",
         "./declare": "./src/declare/index.ts",
         "./server": "./src/server/index.ts",
-        "./tunnel": "./src/tunnel/index.ts",
         "./test": "./src/test/index.ts",
         "./package": "./src/package.ts"
     },
@@ -28,7 +28,8 @@
         "@destack/setting": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/telemetry": "workspace:*"
+        "@destack/telemetry": "workspace:*",
+        "@destack/tunnel": "workspace:*"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

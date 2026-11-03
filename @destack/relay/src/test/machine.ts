@@ -14,8 +14,7 @@ import { TestTelemetry } from "@destack/telemetry/test";
 import { type TestMachine, TestUniverse } from "@destack/universe/test";
 import relayPackage from "../package.ts";
 import { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "../server/index.ts";
-import type { Renewal } from "../session/index.ts";
-import { TunnelClient, type TunnelClientOptions } from "../tunnel/index.ts";
+import { type Renewal, TunnelClient, type TunnelClientOptions } from "@destack/tunnel";
 import { TestRelay } from "./relay.ts";
 
 /** The residencies of the universe, each with its cloud machine. */

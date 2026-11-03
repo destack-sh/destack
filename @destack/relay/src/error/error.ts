@@ -7,7 +7,6 @@ export const RelayError = defineErrorFamily(import.meta.destack.package, {
     CLIENT_HEAD_MISSING: { code: "BAD_REQUEST" },
     FORWARDED_HOST_MISSING: { code: "BAD_REQUEST" },
     HANDSHAKE_MISSING: { code: "BAD_REQUEST" },
-    PROTOCOL_VIOLATION: { code: "BAD_REQUEST" },
 
     // unauthorized
     SUBPROTOCOL_INVALID: { code: "UNAUTHORIZED" },
@@ -33,9 +32,7 @@ export const RelayError = defineErrorFamily(import.meta.destack.package, {
     RENEWAL_REFUSED: { code: "BAD_GATEWAY" },
 
     // service unavailable
-    CLIENT_CLOSED: { code: "SERVICE_UNAVAILABLE" },
     MACHINE_DISCONNECTED: { code: "SERVICE_UNAVAILABLE" },
-    SESSION_CLOSED: { code: "SERVICE_UNAVAILABLE" },
     STREAMS_EXHAUSTED: { code: "SERVICE_UNAVAILABLE" },
 
     // gateway timeout

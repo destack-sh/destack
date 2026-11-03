@@ -4,7 +4,6 @@
 
 ```ts
 await fetch("https://pages--feature-x---personal--ada.destack.space/");
-const tunnel = TunnelClient.open({ url, machineId, token, fetch, renewed, environment });
 ```
 
 ## Server
@@ -37,25 +36,6 @@ A residency home's stack installs the relay from its package handle.
 import relayPackage from "@destack/relay/package";
 
 defineStack({ installations: { relay: install(relayPackage, {}, { alias: "relay" }) } });
-```
-
-## Tunnels
-
-`TunnelClient.open` opens a machine's tunnel, renews its token, and dials again after the tunnel ends; at each renewal the machine publishes its endpoint.
-
-```ts
-import { TunnelClient } from "@destack/relay/tunnel";
-
-const tunnel = TunnelClient.open({
-    url: "https://relay.destack.space/tunnel",
-    machineId: machine.id,
-    token: () => identity.token(relayPackage.id, issuer, fetch),
-    fetch: (request) => gateway.relay(request),
-    renewed: ({ name, lapsesAt }) =>
-        machine.publish({ url: `https://${name}`, relay: { url: relayOrigin, lapsesAt } }),
-    environment,
-});
-await tunnel.opened();
 ```
 
 ## Tests

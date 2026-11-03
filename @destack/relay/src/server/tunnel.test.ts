@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { expect, refusal, test } from "@destack/test";
 import { RelayError } from "../error/index.ts";
-import { MAX_STREAMS, Session } from "../session/index.ts";
+import { MAX_STREAMS, Session } from "@destack/tunnel";
 import type { TunnelToken } from "./token.ts";
 import {
     ANSWER_TIMEOUT_MILLISECONDS,

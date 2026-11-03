@@ -1,4 +1,4 @@
-import { TUNNEL_PATH } from "../tunnel/client.ts";
+import { TUNNEL_PATH, TunnelProtocol } from "@destack/tunnel";
 import {
     Directory,
     type Domains,
@@ -25,7 +25,6 @@ import { PackageMount, refusal, reportError } from "@destack/object";
 import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
 import { RelayError } from "../error/index.ts";
 import relayPackage from "../package.ts";
-import { TunnelProtocol } from "../session/index.ts";
 import {
     HANDSHAKE_HEADER,
     type Handshake,

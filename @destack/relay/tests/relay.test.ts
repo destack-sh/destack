@@ -6,8 +6,7 @@ import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import relayPackage from "../src/package.ts";
 import { TUNNEL_TOKEN_LIFETIME_MILLISECONDS, Relay, Tunnel } from "../src/server/index.ts";
-import { RelayError } from "../src/error/index.ts";
-import { type Renewal, TUNNEL_PROTOCOL, TunnelProtocol } from "../src/session/index.ts";
+import { type Renewal, TUNNEL_PROTOCOL, TunnelError, TunnelProtocol } from "@destack/tunnel";
 import { TestTunnelMachine } from "../src/test/index.ts";
 
 /** The origin of the Europe residency's cloud machine. */
@@ -84,7 +83,7 @@ test("end a forwarded request at its machine once the relay stops while the mach
     await relay[Symbol.asyncDispose]();
     expect([response.status, await aborted.promise]).toEqual([
         200,
-        RelayError.of("SESSION_CLOSED", "session is closed"),
+        TunnelError.of("SESSION_CLOSED", "session is closed"),
     ]);
 });
 
