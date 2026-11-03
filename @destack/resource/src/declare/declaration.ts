@@ -1,15 +1,12 @@
 import { Duration, type Identifier, schema } from "@destack/schema";
-import { DeclarationName, Package, PackageId } from "@destack/package";
+import { defineDeclarationKind, DeclarationName, Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { ResourceState } from "@destack/package/declare";
 import type { Connector } from "../provider/provider.ts";
 import { ResourceHandle } from "./handle.ts";
 
-/** The declaration kind every package declaring resources gives them in its destack.json. */
-export const RESOURCE_DECLARATION = "resource";
-
-/** The package defining the resource kind: this library itself. */
-export const RESOURCE_KIND_PACKAGE_ID = PackageId.parse(import.meta.destack.package.id);
+/** The resource declaration kind, which resource defines and every provider's constructors make. */
+export const RESOURCE_KIND = defineDeclarationKind("resource");
 
 /** A resource's identifier, whichever kind it is: the kind's name as prefix and a UUIDv7. */
 export const ResourceId = schema.anyIdentifier();

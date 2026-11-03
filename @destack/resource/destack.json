@@ -31,5 +31,11 @@
                 "reason": "ResourceContext.get reads a client under the handle that bound it, as React's typed context (ruling 2026-10-16)"
             }
         ]
-    }
+    },
+    "kinds": [
+        {
+            "kind": "resource",
+            "function": "./inspect#describeResource"
+        }
+    ]
 }
