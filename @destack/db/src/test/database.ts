@@ -19,7 +19,7 @@ import { channelHub } from "../channel/channel.ts";
 import { STATE, type TableState } from "../migration/state.ts";
 import { upsertPredefined } from "../migration/plan.ts";
 import { inject, onTestFinished, type TestProject, testTarget } from "@destack/test";
-import { type JsonValue, mapValues, present, Uuid } from "@destack/schema";
+import { type DigestCrypto, type JsonValue, mapValues, present, Uuid } from "@destack/schema";
 import type {
     ImageIndex,
     ImageSource,
@@ -203,7 +203,10 @@ export class TestDatabase<
         let end: number;
         try {
             for (const [name, tables] of Object.entries(template.databases)) {
-                const key = (await digestOf(`${template.name}/${name}`)).slice(0, 16);
+                const key = (await digestOf(`${template.name}/${name}`, environment.crypto)).slice(
+                    0,
+                    16,
+                );
                 opened.set(
                     name,
                     await TestDatabase.#openImage(tables, dialect, key, run, environment),
@@ -215,7 +218,13 @@ export class TestDatabase<
                 template.databases,
                 (_, name) => present(opened.get(name), `the image's database ${name}`).storage,
             );
-            value = await TestDatabase.#write(template, databases, run.directory, simulation);
+            value = await TestDatabase.#write(
+                template,
+                databases,
+                run.directory,
+                environment,
+                simulation,
+            );
             end = simulation.clock.now();
         } catch (error) {
             // close what a failed write opened
@@ -294,10 +303,10 @@ export class TestDatabase<
 
         // write a migrated file in the run's directory, and checkpoint its WAL into it once written
         const file = join(run.directory, `${key}.db`);
-        await HOST.files.copyFile(
-            await sqliteTemplate(declared, false, replicatedOf(tables), environment),
-            file,
+        const template = await environment.scheduler.waitUntil(
+            sqliteTemplate(declared, false, replicatedOf(tables), environment),
         );
+        await environment.scheduler.run(() => HOST.files.copyFile(template, file));
         const source = async (): Promise<ImageSource> => {
             // checkpoint the WAL into the file
             const database = await sqlite.connectBunSqlite(file, tables, { environment });
@@ -326,12 +335,13 @@ export class TestDatabase<
         environment: DatabaseEnvironment,
     ): Promise<TestDatabase<Models>> {
         // copy the migrated database into a new file
+        const { scheduler } = environment;
         const declared = "tables" in tables ? tables.tables : tables;
-        if (!(await HOST.files.exists(file))) {
-            await HOST.files.copyFile(
-                await sqliteTemplate(declared, false, replicatedOf(tables), environment),
-                file,
+        if (!(await scheduler.run(() => HOST.files.exists(file)))) {
+            const template = await scheduler.waitUntil(
+                sqliteTemplate(declared, false, replicatedOf(tables), environment),
             );
+            await scheduler.run(() => HOST.files.copyFile(template, file));
         }
 
         return TestDatabase.#sqliteAt(file, tables, async () => {}, environment, "renew");
@@ -352,10 +362,13 @@ export class TestDatabase<
         template: TestTemplate<Value, Databases>,
         databases: TemplateStorage<Databases>,
         directory: string,
+        environment: DatabaseEnvironment,
         simulation: Simulation,
     ): Promise<Value> {
-        const files = join(directory, `files-${Uuid.v4(HOST.random)}`);
-        await HOST.files.mkdir(files);
+        // make the template's files directory under its name's digest
+        const key = (await digestOf(template.name, environment.crypto)).slice(0, 16);
+        const files = join(directory, `files-${key}`);
+        await environment.scheduler.run(() => HOST.files.mkdir(files));
 
         return await template.write(databases, files, simulation);
     }
@@ -563,7 +576,7 @@ class TestSchema {
         const server = TestServer.of(address);
         const { session } = server;
         const layout = JSON.stringify([state, createLog("postgresql")]);
-        const prefix = `test_s${(await digestOf(layout)).slice(0, 16)}_`;
+        const prefix = `test_s${(await digestOf(layout, environment.crypto)).slice(0, 16)}_`;
 
         // claim a free schema of the same state whose shape still matches its stamp
         const listed = await session<{ name: string }[]>`
@@ -573,7 +586,10 @@ class TestSchema {
                 // read the shape of a schema whose migration finished, which its stamp marks last
                 const stamp = await readStamp(session, name);
                 const shape = stamp === undefined ? undefined : await readShape(session, name);
-                if (shape !== undefined && stamp === (await digestOf(shape.fingerprint))) {
+                if (
+                    shape !== undefined &&
+                    stamp === (await digestOf(shape.fingerprint, environment.crypto))
+                ) {
                     const schema = new TestSchema(server, name, shape);
                     await schema.#stamp();
                     await schema.#reset(state, environment, template);
@@ -634,7 +650,7 @@ class TestSchema {
 
     /** Stamp the schema with its claim time and its shape's digest. */
     async #stamp(): Promise<void> {
-        const digest = await digestOf(this.shape.fingerprint);
+        const digest = await digestOf(this.shape.fingerprint, HOST.crypto);
         await this.server.session.unsafe(
             `COMMENT ON SCHEMA "${this.name}" IS '${HOST.clock.now()} ${digest}'`,
         );
@@ -834,10 +850,10 @@ class TestServer {
 }
 
 /** Digest a text as hexadecimal SHA-256. */
-async function digestOf(text: string): Promise<string> {
+async function digestOf(text: string, crypto: DigestCrypto): Promise<string> {
     const bytes = new TextEncoder().encode(text);
 
-    return new Uint8Array(await HOST.crypto.digest("SHA-256", bytes)).toHex();
+    return new Uint8Array(await crypto.digest("SHA-256", bytes)).toHex();
 }
 
 /** Read a schema's shape digest once its migration finished, absent before. */
@@ -918,7 +934,7 @@ async function sqliteTemplate(
     const key = JSON.stringify(declareState(tables, "sqlite", { isReplica, replicated }));
     const layout = JSON.stringify([key, createLog("sqlite")]);
     const directory = join(await HOST.files.runtimeDirectory(), "destack-template");
-    const file = join(directory, `${await digestOf(layout)}.db`);
+    const file = join(directory, `${await digestOf(layout, environment.crypto)}.db`);
 
     // reuse the file another test migrated for the state and log
     if (await HOST.files.exists(file)) {
