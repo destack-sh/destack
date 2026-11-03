@@ -46,49 +46,49 @@ export class SimulatedFileSystem implements FileSystem {
         return isAbsolute(path) ? path : join(this.root, path);
     }
 
-    /** Start host file work and count it on the world's scheduler until it settles. */
-    #track<Value>(start: () => Promise<Value>): Promise<Value> {
-        return this.#scheduler.track(start, "host");
+    /** Run host file work as an operation of the world's scheduler. */
+    #run<Value>(start: () => Promise<Value>): Promise<Value> {
+        return this.#scheduler.run(start);
     }
 
     /** Read a file's bytes. */
     readFile(path: string): Promise<Uint8Array<ArrayBuffer>> {
-        return this.#track(() => this.#host.readFile(this.#resolve(path)));
+        return this.#run(() => this.#host.readFile(this.#resolve(path)));
     }
 
     /** Read a file's text as UTF-8. */
     readTextFile(path: string): Promise<string> {
-        return this.#track(() => this.#host.readTextFile(this.#resolve(path)));
+        return this.#run(() => this.#host.readTextFile(this.#resolve(path)));
     }
 
     /** Write bytes to a file. */
     writeFile(path: string, data: Uint8Array, options?: WriteFileOptions): Promise<void> {
-        return this.#track(() => this.#host.writeFile(this.#resolve(path), data, options));
+        return this.#run(() => this.#host.writeFile(this.#resolve(path), data, options));
     }
 
     /** Write text to a file as UTF-8. */
     writeTextFile(path: string, text: string, options?: WriteFileOptions): Promise<void> {
-        return this.#track(() => this.#host.writeTextFile(this.#resolve(path), text, options));
+        return this.#run(() => this.#host.writeTextFile(this.#resolve(path), text, options));
     }
 
     /** Read whether a path exists. */
     exists(path: string): Promise<boolean> {
-        return this.#track(() => this.#host.exists(this.#resolve(path)));
+        return this.#run(() => this.#host.exists(this.#resolve(path)));
     }
 
     /** Read a path's status, following links. */
     stat(path: string): Promise<FileStatus> {
-        return this.#track(() => this.#host.stat(this.#resolve(path)));
+        return this.#run(() => this.#host.stat(this.#resolve(path)));
     }
 
     /** Read a path's status without following a link. */
     lstat(path: string): Promise<FileStatus> {
-        return this.#track(() => this.#host.lstat(this.#resolve(path)));
+        return this.#run(() => this.#host.lstat(this.#resolve(path)));
     }
 
     /** Read the absolute path a path resolves to, its links followed. */
     realPath(path: string): Promise<string> {
-        return this.#track(() => this.#host.realPath(this.#resolve(path)));
+        return this.#run(() => this.#host.realPath(this.#resolve(path)));
     }
 
     /** Join a directory and the names below it into one path, as the host does. */
@@ -98,12 +98,12 @@ export class SimulatedFileSystem implements FileSystem {
 
     /** List a directory's entries. */
     readDirectory(path: string, options?: ReadDirectoryOptions): Promise<DirectoryEntry[]> {
-        return this.#track(() => this.#host.readDirectory(this.#resolve(path), options));
+        return this.#run(() => this.#host.readDirectory(this.#resolve(path), options));
     }
 
     /** Create a directory. */
     mkdir(path: string, options?: MkdirOptions): Promise<void> {
-        return this.#track(() => this.#host.mkdir(this.#resolve(path), options));
+        return this.#run(() => this.#host.mkdir(this.#resolve(path), options));
     }
 
     /** Create a new empty directory with a prefix, under the world's root by default. */
@@ -116,7 +116,7 @@ export class SimulatedFileSystem implements FileSystem {
         const directory = join(parent, TemporaryDirectory.draw(prefix, this.#random));
 
         // create the parent, then the directory
-        return this.#track(() =>
+        return this.#run(() =>
             mkdir(parent, { recursive: true })
                 .then(() => mkdir(directory))
                 .then(() => directory),
@@ -125,47 +125,47 @@ export class SimulatedFileSystem implements FileSystem {
 
     /** Remove a path. */
     remove(path: string, options?: RemoveOptions): Promise<void> {
-        return this.#track(() => this.#host.remove(this.#resolve(path), options));
+        return this.#run(() => this.#host.remove(this.#resolve(path), options));
     }
 
     /** Move a path to another, replacing a file there. */
     rename(from: string, to: string): Promise<void> {
-        return this.#track(() => this.#host.rename(this.#resolve(from), this.#resolve(to)));
+        return this.#run(() => this.#host.rename(this.#resolve(from), this.#resolve(to)));
     }
 
     /** Copy a file to another path. */
     copyFile(from: string, to: string): Promise<void> {
-        return this.#track(() => this.#host.copyFile(this.#resolve(from), this.#resolve(to)));
+        return this.#run(() => this.#host.copyFile(this.#resolve(from), this.#resolve(to)));
     }
 
     /** Copy a path to another, with everything inside a directory. */
     copy(from: string, to: string): Promise<void> {
-        return this.#track(() => this.#host.copy(this.#resolve(from), this.#resolve(to)));
+        return this.#run(() => this.#host.copy(this.#resolve(from), this.#resolve(to)));
     }
 
     /** Create a symbolic link at a path to a target. */
     symlink(target: string, path: string): Promise<void> {
-        return this.#track(() => this.#host.symlink(target, this.#resolve(path)));
+        return this.#run(() => this.#host.symlink(target, this.#resolve(path)));
     }
 
     /** Read a symbolic link's target. */
     readLink(path: string): Promise<string> {
-        return this.#track(() => this.#host.readLink(this.#resolve(path)));
+        return this.#run(() => this.#host.readLink(this.#resolve(path)));
     }
 
     /** Create a hard link at a path to a file. */
     link(target: string, path: string): Promise<void> {
-        return this.#track(() => this.#host.link(this.#resolve(target), this.#resolve(path)));
+        return this.#run(() => this.#host.link(this.#resolve(target), this.#resolve(path)));
     }
 
     /** Change a path's permission bits. */
     chmod(path: string, mode: number): Promise<void> {
-        return this.#track(() => this.#host.chmod(this.#resolve(path), mode));
+        return this.#run(() => this.#host.chmod(this.#resolve(path), mode));
     }
 
     /** Open a file, tracking each read, write and operation on it. */
     async open(path: string, options: OpenOptions): Promise<FileHandle> {
-        const file = await this.#track(() => this.#host.open(this.#resolve(path), options));
+        const file = await this.#run(() => this.#host.open(this.#resolve(path), options));
 
         return {
             readable: () => {
@@ -174,7 +174,7 @@ export class SimulatedFileSystem implements FileSystem {
 
                 return new ReadableStream<Uint8Array>({
                     pull: async (controller) => {
-                        const { done, value } = await this.#track(() => reader.read());
+                        const { done, value } = await this.#run(() => reader.read());
                         if (done) {
                             controller.close();
                         } else {
@@ -189,17 +189,17 @@ export class SimulatedFileSystem implements FileSystem {
                 const writer = file.writable().getWriter();
 
                 return new WritableStream<Uint8Array>({
-                    write: (chunk) => this.#track(() => writer.write(chunk)),
-                    close: () => this.#track(() => writer.close()),
+                    write: (chunk) => this.#run(() => writer.write(chunk)),
+                    close: () => this.#run(() => writer.close()),
                 });
             },
-            read: (buffer) => this.#track(() => file.read(buffer)),
+            read: (buffer) => this.#run(() => file.read(buffer)),
             seek: (offset) => file.seek(offset),
-            stat: () => this.#track(() => file.stat()),
-            sync: () => this.#track(() => file.sync()),
-            truncate: (length) => this.#track(() => file.truncate(length)),
-            close: () => this.#track(() => file.close()),
-            [Symbol.asyncDispose]: () => this.#track(() => file.close()),
+            stat: () => this.#run(() => file.stat()),
+            sync: () => this.#run(() => file.sync()),
+            truncate: (length) => this.#run(() => file.truncate(length)),
+            close: () => this.#run(() => file.close()),
+            [Symbol.asyncDispose]: () => this.#run(() => file.close()),
         };
     }
 
@@ -212,7 +212,7 @@ export class SimulatedFileSystem implements FileSystem {
     runtimeDirectory(): Promise<string> {
         const directory = join(this.root, "runtime");
 
-        return this.#track(() =>
+        return this.#run(() =>
             this.#host.mkdir(directory, { recursive: true, mode: 0o700 }).then(() => directory),
         );
     }
@@ -232,7 +232,7 @@ export class SimulatedFileSystem implements FileSystem {
 
     /** Lock a file in a mode now, absent while another holder has it. */
     async tryLock(path: string, mode: FileLockMode): Promise<FileLock | undefined> {
-        const lock = await this.#track(() => this.#host.tryLock(this.#resolve(path), mode));
+        const lock = await this.#run(() => this.#host.tryLock(this.#resolve(path), mode));
 
         return lock === undefined ? undefined : this.#adopt(lock);
     }
@@ -244,7 +244,7 @@ export class SimulatedFileSystem implements FileSystem {
         const close = () => {
             this.#locks.delete(lock);
 
-            return this.#track(() => lock.close());
+            return this.#run(() => lock.close());
         };
 
         return {
@@ -264,7 +264,7 @@ export class SimulatedFileSystem implements FileSystem {
         if (this.#locks.size > 0) {
             const locks = [...this.#locks];
             this.#locks.clear();
-            void this.#track(() => Promise.all(locks.map((lock) => lock.close())));
+            void this.#run(() => Promise.all(locks.map((lock) => lock.close())));
         }
     }
 }

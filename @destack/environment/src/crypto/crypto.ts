@@ -65,8 +65,8 @@ export const Crypto = {
         };
     },
 
-    /** Count each operation of a crypto as host work on a scheduler until it settles. */
-    track<Subtle extends object>(subtle: Subtle, scheduler: Scheduler): Subtle {
+    /** Run each operation of a crypto as an operation on a scheduler, answered in begin order. */
+    run<Subtle extends object>(subtle: Subtle, scheduler: Scheduler): Subtle {
         // count the listed operations, and read every other member as it is
         const operations: ReadonlySet<PropertyKey> = new Set(CRYPTO_OPERATIONS);
 
@@ -78,7 +78,7 @@ export const Crypto = {
                 }
 
                 return (...parameters: unknown[]) => {
-                    // run the operation as host work, and a streamed digest untracked, as it waits on its chunks
+                    // run the operation as an operation, and a streamed digest as it is, as it waits on its chunks
                     const run = (): unknown => Reflect.apply(member, target, parameters);
                     const data = parameters[1];
                     const isStream =
@@ -87,7 +87,7 @@ export const Crypto = {
                         data !== null &&
                         Symbol.asyncIterator in data;
 
-                    return isStream ? run() : scheduler.track(() => Promise.resolve(run()), "host");
+                    return isStream ? run() : scheduler.run(() => Promise.resolve(run()));
                 };
             },
         });

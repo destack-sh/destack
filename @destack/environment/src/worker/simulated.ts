@@ -103,19 +103,16 @@ export class SimulatedWorkerHost {
                 await body(scope, environment, signal);
             } catch (error) {
                 if (!signal.aborted) {
-                    await this.#scheduler.track(
-                        () =>
-                            Promise.resolve().then(() => {
-                                const message =
-                                    error instanceof Error ? error.message : String(error);
-                                if (toParent.error.size === 0) {
-                                    throw error;
-                                }
-                                for (const listener of toParent.error) {
-                                    listener({ message });
-                                }
-                            }),
-                        "world",
+                    await this.#scheduler.task(() =>
+                        Promise.resolve().then(() => {
+                            const message = error instanceof Error ? error.message : String(error);
+                            if (toParent.error.size === 0) {
+                                throw error;
+                            }
+                            for (const listener of toParent.error) {
+                                listener({ message });
+                            }
+                        }),
                     );
                 }
             }
@@ -145,21 +142,19 @@ export class SimulatedWorkerHost {
         isTerminated: () => boolean,
     ): void {
         const data: unknown = structuredClone(message);
-        void this.#scheduler.track(
-            () =>
-                Promise.resolve().then(() => {
-                    // drop it once the worker terminated, as a terminated worker's port does
-                    if (isTerminated()) {
-                        return;
-                    }
+        void this.#scheduler.task(() =>
+            Promise.resolve().then(() => {
+                // drop it once the worker terminated, as a terminated worker's port does
+                if (isTerminated()) {
+                    return;
+                }
 
-                    // call each listener with the copy
-                    const event = new MessageEvent("message", { data });
-                    for (const listener of listeners) {
-                        listener(event);
-                    }
-                }),
-            "world",
+                // call each listener with the copy
+                const event = new MessageEvent("message", { data });
+                for (const listener of listeners) {
+                    listener(event);
+                }
+            }),
         );
     }
 }

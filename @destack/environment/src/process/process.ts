@@ -61,8 +61,17 @@ export interface SpawnOptions {
     readonly signal?: AbortSignal;
     /** Run it in its own process group, unwaited, its streams ignored by default. */
     readonly isDetached?: boolean;
-    /** How a world tracks it: a peer whose life stops time, or none for a service. */
-    readonly tracking?: "peer" | "none";
+    /** Whether it serves while a world's time moves, its life not keeping the world's time. */
+    readonly isService?: boolean;
+}
+
+/** How a command runs to completion: its input, and where and with which variables it runs. */
+export interface CommandOptions extends Pick<
+    SpawnOptions,
+    "workingDirectory" | "variables" | "signal"
+> {
+    /** The text or bytes written to its standard input, none by default. */
+    readonly input?: string | Uint8Array;
 }
 
 /** The CPU time a process used, in seconds, by mode. */
@@ -173,6 +182,11 @@ export interface Process {
     readonly exit: (code?: number) => never;
     /** Start a child process from a command and its arguments. */
     readonly spawn: (command: readonly string[], options?: SpawnOptions) => Subprocess;
+    /** Run a command to completion and read its whole output, as Deno's `Command.output` does. */
+    readonly run: (
+        command: readonly string[],
+        options?: CommandOptions,
+    ) => Promise<SubprocessOutput>;
     /** Start a command connected to this process by a channel. */
     readonly fork: (
         command: readonly string[],

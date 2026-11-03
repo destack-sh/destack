@@ -292,7 +292,7 @@ export class SimulatedNetwork {
             fetch: async (request, options) => {
                 // send through a Unix socket on the host to a host process, which may call back in
                 if (options?.unix !== undefined) {
-                    return this.#scheduler.track(() => BunNetwork.fetch(request, options), "peer");
+                    return this.#scheduler.waitUntil(BunNetwork.fetch(request, options));
                 }
 
                 // refuse a private host by its name, the simulated network routing by name
@@ -344,7 +344,7 @@ export class SimulatedNetwork {
             ...options,
             port: 0,
             fetch: (request, peer) =>
-                this.#scheduler.track(() => Promise.resolve(options.fetch(request, peer)), "world"),
+                this.#scheduler.task(() => Promise.resolve(options.fetch(request, peer))),
         });
 
         return {
@@ -362,7 +362,7 @@ export class SimulatedNetwork {
         return BunServer.http<SimulatedWebSocket>({
             hostname: "127.0.0.1",
             port: options.port ?? 0,
-            fetch: (request) => this.#scheduler.track(() => this.#bridged(node, request), "world"),
+            fetch: (request) => this.#scheduler.task(() => this.#bridged(node, request)),
             websocket: {
                 // pass the world's messages and close to the host's socket
                 open: (socket) => {

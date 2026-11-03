@@ -20,7 +20,7 @@ const WORKERS = 8;
 const ROUNDS = 6;
 
 /** The sites a refused world work and its host work began at. */
-const Refusal = schema.object({ world: schema.string(), host: schema.string() });
+const Refusal = schema.object({ world: schema.string(), operation: schema.string() });
 
 /** The simulations' start: 2026-10-16 at midnight UTC. */
 const START = Date.UTC(2026, 9, 16);
@@ -96,27 +96,26 @@ function draw(seed: number) {
     return [[...random.bytes(6)], Random.int(random, 1000)];
 }
 
-test("trace tracked work as spans on the world's clock, marking failed work, while tracing", async () => {
-    // track host work, jump a second, then track world work that fails
+test("trace work as spans on the world's clock, marking failed work, while tracing", async () => {
+    // run an operation, jump a second, then run a world task that fails
     await using simulation = new Simulation({ seed: 1, start: START, isTracing: true });
     const { scheduler } = simulation;
-    await scheduler.track(
+    await scheduler.run(
         () =>
             new Promise<void>((resolve) => {
                 setTimeout(resolve, 1);
             }),
-        "host",
     );
     await simulation.jump(START + 1000);
     const failed = await scheduler
-        .track(() => Promise.reject(new Error("refused")), "world")
+        .task(() => Promise.reject(new Error("refused")))
         .catch((error: Error) => error.message);
     await simulation.idle();
 
-    // read each span's name, who finished it, its status and its times from the start
+    // read each span's name, what work it was, its status and its times from the start
     const spans = simulation.telemetry.spans.map((span) => ({
         name: span.name,
-        by: span.attributes["destack.simulation.by"],
+        kind: span.attributes["destack.simulation.kind"],
         status: span.status.code,
         from: span.startTime[0] * 1000 - START,
         to: span.endTime[0] * 1000 - START,
@@ -125,8 +124,8 @@ test("trace tracked work as spans on the world's clock, marking failed work, whi
     expect({ failed, spans }).toEqual({
         failed: "refused",
         spans: [
-            { name: "destack.simulation.track", by: "host", status: 0, from: 0, to: 0 },
-            { name: "destack.simulation.track", by: "world", status: 2, from: 1000, to: 1000 },
+            { name: "destack.simulation.work", kind: "operation", status: 0, from: 0, to: 0 },
+            { name: "destack.simulation.work", kind: "task", status: 2, from: 1000, to: 1000 },
         ],
     });
 });
@@ -336,7 +335,7 @@ test("hold time back while tracked work is in flight, move to the next timer onc
     let isFired = false;
     void simulation.clock.sleep(60_000).then(() => (isFired = true));
     const work = Promise.withResolvers<void>();
-    void simulation.scheduler.track(() => work.promise, "world");
+    void simulation.scheduler.task(() => work.promise);
     let held: [number, boolean] | undefined;
     setTimeout(() => {
         held = [simulation.clock.now() - START, isFired];
@@ -386,9 +385,9 @@ test("hold the clock for an in-process call until its response head, and not for
     void simulation.clock.sleep(1000).then(() => undefined);
 
     // call both in process, tracking each until its head
-    const polled = await simulation.scheduler.track(() => Promise.resolve(longPoll()), "world");
+    const polled = await simulation.scheduler.task(() => Promise.resolve(longPoll()));
     const answered = simulation.scheduler
-        .track(() => answerSlowly(), "world")
+        .task(() => answerSlowly())
         .then((response) => {
             isAnswered = true;
 
@@ -882,12 +881,11 @@ test("refuse work that keeps busy without letting time move, naming the call sit
     const stop = new AbortController();
     const spinning = (async () => {
         while (!stop.signal.aborted) {
-            await simulation.scheduler.track(
+            await simulation.scheduler.task(
                 () =>
                     new Promise<void>((resolve) => {
                         setImmediate(resolve);
                     }),
-                "world",
             );
         }
     })();
@@ -902,7 +900,7 @@ test("refuse work that keeps busy without letting time move, naming the call sit
     const [heading, site = ""] = refused.split("\n");
     expect([heading, site.split(" ").slice(0, 2), simulation.clock.now() - START]).toEqual([
         "the simulation kept busy for 1000 turns without moving time:",
-        ["100x", "world"],
+        ["100x", "task"],
         0,
     ]);
 });
@@ -922,9 +920,8 @@ test("settle a slow host round trip without counting its wait as busy", async ()
     // wait on the round trip as host work while a timer waits
     try {
         await using simulation = new Simulation({ seed: 1, start: START });
-        const reply = simulation.scheduler.track(
-            () => fetch(server.url).then((response) => response.text()),
-            "host",
+        const reply = simulation.scheduler.run(() =>
+            fetch(server.url).then((response) => response.text()),
         );
         expect([await reply, simulation.clock.now() - START]).toEqual(["late", 0]);
     } finally {
@@ -948,12 +945,11 @@ test("hold the clock while a child writes its whole output, so a timer beside it
 test("refuse tracked work that never settles beside a timer, as time cannot move while it is in flight", async () => {
     // track work that never settles while a timer waits
     await using simulation = new Simulation({ seed: 1, start: START });
-    void simulation.scheduler.track(
+    void simulation.scheduler.task(
         () =>
             new Promise<void>(() => {
                 // never settle
             }),
-        "world",
     );
     const refused = await simulation.clock.sleep(1000).then(
         () => "settled",
@@ -1180,12 +1176,10 @@ test("publish a node's listener at a world address for nodes and a host address 
     });
 
     // call it from the host at its host address, and from another node at its world address
-    const fromHost = await simulation.scheduler.track(
-        () =>
-            BunNetwork.fetch(new Request(new URL("/host", published.hostUrl))).then((response) =>
-                response.text(),
-            ),
-        "peer",
+    const fromHost = await simulation.scheduler.waitUntil(
+        BunNetwork.fetch(new Request(new URL("/host", published.hostUrl))).then((response) =>
+            response.text(),
+        ),
     );
     const { network } = simulation.environment("client");
     const fromNode = await network
@@ -1200,16 +1194,19 @@ test("publish a node's listener at a world address for nodes and a host address 
     });
 });
 
-test("refuse leaf host work stalled past the stall timeout, and peer work past the peer one, naming each", async () => {
+test("refuse a short operation stalled past the stall timeout, and a lifetime past the long one, naming each", async () => {
     // read a stall's message, its milliseconds and call sites left out
-    const stallOf = async (by: "host" | "peer") => {
+    const stallOf = async (kind: "operation" | "lifetime") => {
         await using simulation = new Simulation({
             seed: 1,
             start: START,
             stallTimeout: 50,
-            peerStallTimeout: 80,
+            longStallTimeout: 80,
         });
-        void simulation.scheduler.track(() => new Promise<void>(() => {}), by);
+        const never = new Promise<void>(() => {});
+        void (kind === "operation"
+            ? simulation.scheduler.run(() => never)
+            : simulation.scheduler.waitUntil(never));
         const message = await simulation.clock.sleep(1000).then(
             () => "settled",
             (error: Error) => error.message,
@@ -1222,41 +1219,35 @@ test("refuse leaf host work stalled past the stall timeout, and peer work past t
         ];
     };
 
-    expect([await stallOf("host"), await stallOf("peer")]).toEqual([
+    expect([await stallOf("operation"), await stallOf("lifetime")]).toEqual([
         [
-            "work stayed in flight for N ms without settling, 1 of 1 host and peer work running and 0 settled:",
-            [["host", "running"]],
+            "work stayed in flight for N ms without settling, 1 of 1 real work running (1 short):",
+            [["operation", "running"]],
         ],
         [
-            "work stayed in flight for N ms without settling, 0 of 1 host and peer work running and 0 settled:",
-            [["peer", "running"]],
+            "work stayed in flight for N ms without settling, 0 of 1 real work running (0 short):",
+            [["lifetime", "running"]],
         ],
     ]);
 });
 
-test("refuse world work begun inside host work with both sites, failing the world, and allow it inside peer work", async () => {
-    // begin world work inside host work after a host turn, and inside peer work
+test("refuse world work begun inside an operation with both sites, failing the world, and allow it inside a lifetime", async () => {
+    // begin world work inside a lifetime, and inside an operation after a host turn
     const simulation = new Simulation({ seed: 1, start: START });
     const { scheduler } = simulation;
-    const inside = (by: "host" | "peer") =>
-        scheduler
-            .track(
-                () =>
-                    Promise.resolve().then(() =>
-                        scheduler.track(() => Promise.resolve(by), "world"),
-                    ),
-                by,
-            )
-            .then(
-                (value) => value,
-                (error: Error) => {
-                    const { world, host } = Refusal.parse(error.cause);
+    const lifetime = await scheduler.waitUntil(
+        Promise.resolve().then(() => scheduler.task(() => Promise.resolve("lifetime"))),
+    );
+    const operation = await scheduler
+        .run(() => Promise.resolve().then(() => scheduler.task(() => Promise.resolve("operation"))))
+        .then(
+            (value) => value,
+            (error: Error) => {
+                const { world, operation: started } = Refusal.parse(error.cause);
 
-                    return [error.message, { world: typeof world, isHostSited: host !== "" }];
-                },
-            );
-    const peer = await inside("peer");
-    const host = await inside("host");
+                return [error.message, { world: typeof world, isOperationSited: started !== "" }];
+            },
+        );
 
     // read the refusal and the sites it began at, and the failed world refusing its disposal
     const disposed = await simulation[Symbol.asyncDispose]().then(
@@ -1264,49 +1255,46 @@ test("refuse world work begun inside host work with both sites, failing the worl
         (error: Error) => error.message,
     );
     const message =
-        "world work began inside host work, which stops the world's time until it settles: track the host work as peer";
-    expect({ peer, host, disposed }).toEqual({
-        peer: "peer",
-        host: [message, { world: "string", isHostSited: true }],
+        "world work began inside an operation, which keeps the world's time until it settles: wait for the real work with waitUntil";
+    expect({ lifetime, operation, disposed }).toEqual({
+        lifetime: "lifetime",
+        operation: [message, { world: "string", isOperationSited: true }],
         disposed: message,
     });
 });
 
 test("reject work whose start throws before it returns a promise, as its own failure", async () => {
-    // start work that throws at once, as world and as host work
+    // start a world task and an operation that throw at once
     await using simulation = new Simulation({ seed: 1, start: START });
     const { scheduler } = simulation;
-    const thrown = (by: "world" | "host") =>
-        scheduler
-            .track(() => {
-                throw new Error(`${by} refused`);
-            }, by)
-            .then(
-                () => "settled",
-                (error: Error) => error.message,
-            );
+    const thrown = (kind: "task" | "operation") =>
+        (kind === "task"
+            ? scheduler.task(() => throwRefused(kind))
+            : scheduler.run(() => throwRefused(kind))
+        ).then(
+            () => "settled",
+            (error: Error) => error.message,
+        );
 
-    expect([await thrown("world"), await thrown("host")]).toEqual([
-        "world refused",
-        "host refused",
+    expect([await thrown("task"), await thrown("operation")]).toEqual([
+        "task refused",
+        "operation refused",
     ]);
 });
 
-test("answer settled host work in the order it began, recording each release with its kind, and list what runs", async () => {
-    // track two host works settling in reverse, and a peer that stays running
+test("answer operations in the order they began and a lifetime at quiescence, recording each release with its kind", async () => {
+    // run two operations settling in reverse, beside a lifetime that stays running
     await using simulation = new Simulation({ seed: 1, start: START, isTracing: true });
     const { scheduler } = simulation;
     const order: string[] = [];
     const settle = (name: string, after: number) =>
-        scheduler.track(
-            () =>
-                new Promise<void>((resolve) => {
-                    setTimeout(resolve, after);
-                }).then(() => order.push(name)),
-            "host",
+        scheduler.run(() =>
+            new Promise<void>((resolve) => {
+                setTimeout(resolve, after);
+            }).then(() => order.push(name)),
         );
-    const peer = Promise.withResolvers<void>();
-    void scheduler.track(() => peer.promise, "peer");
+    const lifetime = Promise.withResolvers<void>();
+    void scheduler.waitUntil(lifetime.promise);
     const [first, second] = [settle("first", 20), settle("second", 1)];
     const answered: string[] = [];
     void first.then(() => answered.push("first"));
@@ -1317,24 +1305,24 @@ test("answer settled host work in the order it began, recording each release wit
         });
     }
     const pending = scheduler.pending().map((line) => line.split(" ").slice(0, 2));
-    peer.resolve();
+    lifetime.resolve();
     await simulation.idle();
 
-    // settle on the host in reverse, answer in start order, and record each release by kind
+    // settle on the host in reverse, answer in begin order unheld by the lifetime, then the lifetime
     const releases = simulation.telemetry.logs
         .filter((record) => record.eventName === "destack.simulation.release")
         .map((record) => [
             record.attributes["destack.simulation.order"],
-            record.attributes["destack.simulation.by"],
+            record.attributes["destack.simulation.work"],
         ]);
     expect({ order, answered, pending, releases }).toEqual({
         order: ["second", "first"],
         answered: ["first", "second"],
-        pending: [["peer", "running"]],
+        pending: [["lifetime", "running"]],
         releases: [
-            [1, "host"],
-            [2, "host"],
-            [0, "peer"],
+            [0, "operation"],
+            [1, "operation"],
+            [0, "lifetime"],
         ],
     });
 });
@@ -1343,7 +1331,7 @@ test("leave a service child untracked, so time moves while it runs", async () =>
     // spawn a sleeping child as a service, then sleep a simulated minute
     await using simulation = new Simulation({ seed: 1, start: START });
     const { process, clock } = simulation.environment("node");
-    const child = process.spawn(["/bin/sleep", "5"], { tracking: "none" });
+    const child = process.spawn(["/bin/sleep", "5"], { isService: true });
     const during = simulation.scheduler.inFlight;
     await clock.sleep(60_000);
     const moved = clock.now() - START;
@@ -1434,7 +1422,7 @@ test("release a crashed node's children, workers and file locks", async () => {
     await using simulation = new Simulation({ seed: 1, start: START, files: "memory" });
     simulation.workers.define(new URL("https://app.test/idle.worker.js"), () => {});
     const node = simulation.environment("node");
-    const child = node.process.spawn(["/bin/sleep", "5"], { tracking: "none" });
+    const child = node.process.spawn(["/bin/sleep", "5"], { isService: true });
     const idle = new URL("https://app.test/idle.worker.js");
     const worker = node.workers.start((Worker) => new Worker(idle, { type: "module" }));
     const answers: unknown[] = [];
@@ -1514,12 +1502,11 @@ test("answer idle once the work due now settled, and wait for a condition throug
     let done: number | undefined;
     void (async () => {
         await clock.sleep(0);
-        await simulation.scheduler.track(
+        await simulation.scheduler.run(
             () =>
                 new Promise<void>((resolve) => {
                     setTimeout(resolve, 5);
                 }),
-            "host",
         );
         await clock.sleep(0);
         done = clock.now() - START;
@@ -1578,7 +1565,7 @@ test("keep one fingerprint across plays whose host work differs, as a warm cache
         await using simulation = new Simulation({ seed: 3, start: START });
         const { clock, scheduler } = simulation.environment("node");
         if (!isCached) {
-            await scheduler.track(async () => "read", "host");
+            await scheduler.run(async () => "read");
         }
         await clock.sleep(wait);
 
@@ -1623,4 +1610,93 @@ test("jump a world at once, waking each due timer a single time", async () => {
 
     // expect one firing at the jump's time, and none in between
     expect(fired).toEqual([3_600_000]);
+});
+
+test("answer a command run to completion after an earlier operation that settles later, as one operation", async () => {
+    // begin a slow operation, then run a quick real command with its input
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { process } = simulation.environment("node");
+    const answered: string[] = [];
+    const slow = simulation.scheduler
+        .run(
+            () =>
+                new Promise<void>((resolve) => {
+                    setTimeout(resolve, 50);
+                }),
+        )
+        .then(() => answered.push("slow"));
+    const command = process
+        .run(["/bin/cat"], { input: "echoed" })
+        .then((output) => answered.push(new TextDecoder().decode(output.stdout)));
+    await Promise.all([slow, command]);
+
+    // answer the command after the operation begun before it, though it settled first
+    expect(answered).toEqual(["slow", "echoed"]);
+});
+
+/** Throw a work kind's refusal at once, before any promise. */
+function throwRefused(kind: string): never {
+    throw new Error(`${kind} refused`);
+}
+
+test("run real work an operation begins as part of it, unordered, and answer the operation whole", async () => {
+    // begin an operation whose own operation and lifetime settle inside it
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { scheduler } = simulation;
+    const whole = await scheduler.run(async () => {
+        const inner = await scheduler.run(() => Promise.resolve("inner"));
+        const lived = await scheduler.waitUntil(Promise.resolve("lived"));
+
+        return [inner, lived];
+    });
+
+    // answer it with its parts, nothing left in flight
+    expect({ whole, inFlight: scheduler.inFlight }).toEqual({
+        whole: ["inner", "lived"],
+        inFlight: 0,
+    });
+});
+
+test("observe the same timeline with and without jitter, as the world schedules all its real work", async () => {
+    // run operations settling in reverse, a lifetime and timers, recording what the world sees when
+    const timeline = async (jitter: boolean) => {
+        await using simulation = new Simulation({ seed: 3, start: START, jitter });
+        const { clock, scheduler } = simulation;
+        const seen: string[] = [];
+        const note = (name: string) => seen.push(`${name}@${clock.now() - START}`);
+        const real = (name: string, after: number) =>
+            scheduler
+                .run(
+                    () =>
+                        new Promise<void>((resolve) => {
+                            setTimeout(resolve, after);
+                        }),
+                )
+                .then(() => note(name));
+        await Promise.all([
+            real("slow", 6),
+            real("quick", 0),
+            scheduler.waitUntil(Promise.resolve()).then(() => note("lifetime")),
+            clock.sleep(5).then(() => note("timer")),
+        ]);
+
+        return seen;
+    };
+
+    // see each in the same order at the same simulated times either way
+    expect(await timeline(true)).toEqual(await timeline(false));
+});
+
+test("schedule work a settled operation's late callback begins as the world's own, not the operation's", async () => {
+    // register a timer inside an operation, firing after the operation settled
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { clock, scheduler } = simulation;
+    let late: Promise<string> | undefined;
+    await scheduler.run(async () => {
+        late = clock.sleep(10).then(() => scheduler.task(() => Promise.resolve("late")));
+    });
+    await simulation.idle();
+
+    // run the late world work, as the operation it began in has ended
+    expect(await late).toBe("late");
 });

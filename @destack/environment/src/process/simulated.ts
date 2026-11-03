@@ -9,7 +9,9 @@ import {
     type ProcessUsage,
     type Runtime,
     type Signal,
+    type CommandOptions,
     type SpawnOptions,
+    type SubprocessOutput,
     Subprocess,
 } from "./process.ts";
 
@@ -178,8 +180,15 @@ export class SimulatedProcess implements Process {
     spawn(command: readonly string[], options: SpawnOptions = {}): Subprocess {
         return this.#adopt(
             this.#host.spawn(command, this.#options(options)),
-            SimulatedProcess.#tracking(options),
+            SimulatedProcess.#isService(options),
         );
+    }
+
+    /** Run a real command to completion as one operation, with the node's variables. */
+    run(command: readonly string[], options: CommandOptions = {}): Promise<SubprocessOutput> {
+        return this.#scheduler.run(() => this.#host.run(command, this.#options(options)), {
+            isLong: true,
+        });
     }
 
     /** Start a command connected to this process by a channel. */
@@ -189,31 +198,29 @@ export class SimulatedProcess implements Process {
     ): Subprocess & { readonly channel: ProcessChannel } {
         return this.#adopt(
             this.#host.fork(command, this.#options(options)),
-            SimulatedProcess.#tracking(options),
+            SimulatedProcess.#isService(options),
         );
     }
 
-    /** Count a child as the node's until it exits, tracking its exit and streams as a peer's. */
-    #adopt<Child extends Subprocess>(child: Child, tracking: "peer" | "none"): Child {
+    /** Count a child as the node's until it exits, its exit and reads as lifetimes. */
+    #adopt<Child extends Subprocess>(child: Child, isService: boolean): Child {
         // know the child's id while it runs
         this.#children.add(child.id);
         void child.exited.finally(() => this.#children.delete(child.id));
 
-        // leave a service untracked, as time moves while it runs
-        if (tracking === "none") {
+        // leave a service as it is, as time moves while it runs
+        if (isService) {
             return child;
         }
 
-        // track its exit, each read of its output and each write to its input
-        const exited = this.#scheduler.track(() => child.exited, "peer");
+        // wait for its exit and each read of its output as lifetimes, writing its input as it is
+        const exited = this.#scheduler.waitUntil(child.exited);
         const stdout = this.#readable(child.stdout);
         const stderr = this.#readable(child.stderr);
-        const stdin = this.#writable(child.stdin);
 
-        // answer it with the tracked streams and exit, its output read through them
+        // answer it with the waited streams and exit, its output read through them
         const adopted: Child = {
             ...child,
-            stdin,
             stdout,
             stderr,
             exited,
@@ -226,12 +233,12 @@ export class SimulatedProcess implements Process {
         return adopted;
     }
 
-    /** Read how a child is tracked: as a peer by default, and none when detached. */
-    static #tracking(options: SpawnOptions): "peer" | "none" {
-        return options.tracking ?? (options.isDetached === true ? "none" : "peer");
+    /** Read whether a child serves while time moves: when said so, or when detached. */
+    static #isService(options: SpawnOptions): boolean {
+        return options.isService ?? options.isDetached === true;
     }
 
-    /** Read a child's stream on demand, each read tracked as a peer's. */
+    /** Read a child's stream on demand, each read a lifetime, as the child may wait. */
     #readable(stream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
         const reader = stream.getReader();
 
@@ -239,10 +246,7 @@ export class SimulatedProcess implements Process {
             {
                 pull: async (controller) => {
                     // pass each chunk on, closing at the end
-                    const { done, value } = await this.#scheduler.track(
-                        () => reader.read(),
-                        "peer",
-                    );
+                    const { done, value } = await this.#scheduler.waitUntil(reader.read());
                     if (done) {
                         controller.close();
                     } else {
@@ -253,17 +257,6 @@ export class SimulatedProcess implements Process {
             },
             { highWaterMark: 0 },
         );
-    }
-
-    /** Write a child's input, each write tracked as a peer's. */
-    #writable(stream: WritableStream<Uint8Array>): WritableStream<Uint8Array> {
-        const writer = stream.getWriter();
-
-        return new WritableStream<Uint8Array>({
-            write: (chunk) => this.#scheduler.track(() => writer.write(chunk), "peer"),
-            close: () => this.#scheduler.track(() => writer.close(), "peer"),
-            abort: (reason) => this.#scheduler.track(() => writer.abort(reason), "peer"),
-        });
     }
 
     /** Default a child's working directory and variables to the process's. */

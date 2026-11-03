@@ -15,7 +15,6 @@ import { type ProcessOptions, SimulatedProcess } from "../process/simulated.ts";
 import { SimulatedClock } from "../clock/simulated.ts";
 import { SeverityNumber } from "@opentelemetry/api";
 import { SIMULATION_SCOPE, SimulatedScheduler } from "../scheduler/simulated.ts";
-import type { Party } from "../scheduler/scheduler.ts";
 import { SimulatedNetwork } from "../network/simulated.ts";
 import { SimulatedRandom } from "../random/simulated.ts";
 import { Random } from "../random/random.ts";
@@ -26,11 +25,11 @@ import { yieldToEventLoop } from "../clock/wait.ts";
 /** The turns world work may spin between host answers: at about 1 µs a turn, 200 ms. */
 const LIVELOCK_TURNS = 200_000;
 
-/** The real time leaf host work may stall in flight before a run fails, ten seconds. */
+/** The real time a short operation may stall in flight before a run fails, ten seconds. */
 const STALL_TIMEOUT = 10_000;
 
-/** The real time peer work may run without progress before a run fails: past a build. */
-const PEER_STALL_TIMEOUT = 120_000;
+/** The real time long work may run without progress before a run fails: past a build. */
+const LONG_STALL_TIMEOUT = 120_000;
 
 /** The real time tracked work may wait beside a pending timer without progress: 100 ms. */
 const DEADLOCK_MILLISECONDS = 100;
@@ -149,14 +148,14 @@ export type SimulationEvent =
           readonly by: number;
       }
     | {
-          /** Settled host work answered to the simulation, in the order it began. */
+          /** Settled real work answered: operations in order, lifetimes at quiescence. */
           readonly kind: "release";
           /** When, in the simulation's UTC epoch milliseconds. */
           readonly at: number;
-          /** The order the host work began in. */
+          /** The order the work began in among its kind. */
           readonly order: number;
-          /** Who finished it: the host, or a peer. */
-          readonly by: Party;
+          /** What it is: an operation or a lifetime. */
+          readonly work: "operation" | "lifetime";
       };
 
 /** Start a node's work in its environment, stopping it once the signal aborts. */
@@ -250,12 +249,14 @@ export interface SimulationOptions {
     readonly locale?: string;
     /** The time zone each node formats in. */
     readonly timeZone?: string;
-    /** The real milliseconds leaf host work may stall in flight before a run fails. */
+    /** The real milliseconds a short operation may stall in flight before a run fails. */
     readonly stallTimeout?: number;
-    /** The real milliseconds peer work may run without progress before a run fails. */
-    readonly peerStallTimeout?: number;
-    /** The turns world work may spin between host answers before it fails as busy. */
+    /** The real milliseconds long work may run without progress before a run fails. */
+    readonly longStallTimeout?: number;
+    /** The turns world work may spin between real answers before it fails as busy. */
     readonly livelockTurns?: number;
+    /** Whether real work settles after a seeded random real delay, exposing untracked real work. */
+    readonly jitter?: boolean;
     /** Whether the world's telemetry records its events and tracked work, off by default. */
     readonly isTracing?: boolean;
     /** The most each node's clock is off the world's and drifts from it, none by default. */
@@ -344,6 +345,7 @@ export class Simulation {
         this.scheduler = new SimulatedScheduler({
             isOrdered: true,
             world: this,
+            ...(options.jitter === true ? { jitter: options.seed } : {}),
             ...(options.isTracing === true ? { telemetry: this.telemetry } : {}),
         });
         this.network = new SimulatedNetwork(this.clock, this.scheduler, this.random, (event) =>
@@ -421,7 +423,7 @@ export class Simulation {
         // count the event
         this.#events += 1;
 
-        // fold a world event's encoding into the fingerprint with FNV-1a, leaving out releases of host and peer work, whose count follows the host's caches
+        // fold a world event's encoding into the fingerprint with FNV-1a, leaving out releases of real work, whose count follows the host's caches
         if (event.kind !== "release") {
             const encoded = JSON.stringify(event);
             let hash = this.#fingerprint;
@@ -472,7 +474,7 @@ export class Simulation {
             clock: this.#clockOf(name),
             scheduler,
             random,
-            crypto: Crypto.track(BunCrypto, scheduler),
+            crypto: Crypto.run(BunCrypto, scheduler),
             network: this.network.of(name),
             compression: SimulatedCompression,
             telemetry: this.telemetry,
@@ -783,7 +785,7 @@ export class Simulation {
         };
     }
 
-    /** Run pending work until a macrotask turn passes without progress or tracked work. */
+    /** Run pending work until a macrotask turn passes without progress or real work in flight. */
     async #runUntilIdle(): Promise<void> {
         // start from the current progress, nothing counted as busy
         let progress = this.#progress();
@@ -791,28 +793,37 @@ export class Simulation {
         let isMoving = true;
         let movedAt = Clock.system.now();
         const stallTimeout = this.#options.stallTimeout ?? STALL_TIMEOUT;
-        const peerStallTimeout = this.#options.peerStallTimeout ?? PEER_STALL_TIMEOUT;
+        const longStallTimeout = this.#options.longStallTimeout ?? LONG_STALL_TIMEOUT;
         const livelockTurns = this.#options.livelockTurns ?? LIVELOCK_TURNS;
         for (;;) {
-            // yield one turn while work moves or no host work is in flight
+            // yield one turn while work moves or no real work is in flight
             const { clock, scheduler } = this;
-            if (isMoving || scheduler.hosts === 0) {
+            if (isMoving || scheduler.real === 0) {
                 await yieldToEventLoop();
             }
-            // answer the settled host work in the order it began, once no leaf of it is pending
-            else if (scheduler.hostPending === 0 && scheduler.hostReady > 0) {
+            // answer the operations settled in order from the next one, as they began
+            else if (scheduler.isAnswerable) {
                 const at = clock.now();
-                for (const { order, by } of scheduler.answer()) {
-                    this.record({ kind: "release", at, order, by });
+                for (const order of scheduler.answerOperations()) {
+                    this.record({ kind: "release", at, order, work: "operation" });
                 }
                 busy = 0;
                 await yieldToEventLoop();
             }
-            // wait for host work to begin or settle, checking for a stall at the host's stall limit
+            // answer the settled lifetimes once the world is quiescent, no operation running
+            else if (scheduler.lifetimes > 0 && scheduler.running.all === 0) {
+                const at = clock.now();
+                for (const order of scheduler.answerLifetimes()) {
+                    this.record({ kind: "release", at, order, work: "lifetime" });
+                }
+                busy = 0;
+                await yieldToEventLoop();
+            }
+            // wait for real work to begin or settle, checking for a stall at the shorter limit
             else {
                 const watchdog = new AbortController();
                 const stall = Clock.system
-                    .sleep(Math.min(stallTimeout, peerStallTimeout), watchdog.signal)
+                    .sleep(Math.min(stallTimeout, longStallTimeout), watchdog.signal)
                     .catch(() => undefined);
                 await Promise.race([scheduler.nextActivity(), stall]);
                 watchdog.abort();
@@ -828,28 +839,28 @@ export class Simulation {
             progress = next;
             movedAt = isMoving ? Clock.system.now() : movedAt;
 
-            // refuse leaf host work stalled past its limit, and peer work past the far longer one, listing the work in flight
+            // refuse a short operation stalled past its limit, and other real work past the far longer one, listing the work in flight
             const stalled = Clock.system.now() - movedAt;
-            const isLeafStalled = scheduler.hostPending > 0 && stalled >= stallTimeout;
-            const isPeerStalled = scheduler.hosts > 0 && stalled >= peerStallTimeout;
-            if (isLeafStalled || isPeerStalled) {
-                const { hosts, hostPending, hostReady } = scheduler;
+            const isShortStalled = scheduler.running.short > 0 && stalled >= stallTimeout;
+            const isLongStalled = scheduler.real > 0 && stalled >= longStallTimeout;
+            if (isShortStalled || isLongStalled) {
+                const { running, real } = scheduler;
                 throw new Error(
-                    `work stayed in flight for ${stalled} ms without settling, ${hostPending} of ${hosts} host and peer work running and ${hostReady} settled:\n${this.scheduler.pending().join("\n")}`,
+                    `work stayed in flight for ${stalled} ms without settling, ${running.all} of ${real} real work running (${running.short} short):\n${this.scheduler.pending().join("\n")}`,
                 );
             }
 
             // refuse world work waiting on a pending timer, which fires only after the work settles
             const isWaitingOnTime =
-                scheduler.inFlight > 0 && scheduler.hosts === 0 && clock.next !== undefined;
+                scheduler.inFlight > 0 && scheduler.real === 0 && clock.next !== undefined;
             if (isWaitingOnTime && stalled >= DEADLOCK_MILLISECONDS) {
                 throw new Error(
                     `the world's work waits on simulated time, which cannot move while it is in flight:\n${this.scheduler.pending().join("\n")}`,
                 );
             }
 
-            // refuse the world's own work spinning between host answers without moving time, listing its call sites
-            busy += scheduler.hosts === 0 ? 1 : 0;
+            // refuse the world's own work spinning between real answers without moving time, listing its call sites
+            busy += scheduler.real === 0 ? 1 : 0;
             if (busy >= livelockTurns) {
                 const sites = [...(await this.#busy()), ...this.scheduler.pending()];
                 throw new Error(

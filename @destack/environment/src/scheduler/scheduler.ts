@@ -1,21 +1,30 @@
 import { yieldToEventLoop } from "../clock/wait.ts";
 
-/** The party finishing tracked work: the world, the host, or a peer process the world waits on. */
-export type Party = "world" | "host" | "peer";
+/** How long real work may run without the world moving: short by default, long for slow work. */
+export interface RunOptions {
+    /** Whether the work may run as long as a compile or a remote request, not a file read. */
+    readonly isLong?: boolean;
+}
 
-/** The scheduler work runs under, which a world's loop reads to know when it is idle. */
+/** How a world schedules work leaving it: real operations, lifetimes, and its own tasks. */
 export interface Scheduler {
     /** Let the host's event loop run its waiting tasks once, as the web's `scheduler.yield()`. */
     readonly yield: () => Promise<void>;
-    /** Start work and count it in flight until it settles, by who finishes it. */
-    readonly track: <Value>(start: () => Promise<Value>, by: Party) => Promise<Value>;
+    /** Run real work as one operation, answered in the order operations began. */
+    readonly run: <Value>(start: () => Promise<Value>, options?: RunOptions) => Promise<Value>;
+    /** Keep the world's time until real work ends, answering it once the world is quiescent. */
+    readonly waitUntil: <Value>(settled: Promise<Value>) => Promise<Value>;
+    /** Run the world's own work, counted in flight until it settles. */
+    readonly task: <Value>(start: () => Promise<Value>) => Promise<Value>;
 }
 
 /** Schedulers. */
 export const Scheduler: { readonly system: Scheduler } = {
-    /** The system's scheduler, counting nothing. */
+    /** The system's scheduler, ordering and counting nothing. */
     system: {
         yield: yieldToEventLoop,
-        track: (start) => start(),
+        run: (start) => start(),
+        waitUntil: (settled) => settled,
+        task: (start) => start(),
     },
 };

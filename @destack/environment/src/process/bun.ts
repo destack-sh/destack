@@ -9,7 +9,9 @@ import {
     type ProcessUsage,
     type Runtime,
     type Signal,
+    type CommandOptions,
     type SpawnOptions,
+    type SubprocessOutput,
     type StandardStream,
     Subprocess,
 } from "./process.ts";
@@ -223,6 +225,25 @@ export class BunProcess implements Process {
     /** Start a child process from a command and its arguments. */
     spawn(command: readonly string[], options: SpawnOptions = {}): Subprocess {
         return BunProcess.#subprocess(BunProcess.#start(command, options, {}));
+    }
+
+    /** Run a command to completion and read its whole output, as Deno's `Command.output` does. */
+    async run(command: readonly string[], options: CommandOptions = {}): Promise<SubprocessOutput> {
+        // start it with its input piped in when given, writing and closing it
+        const { input, ...started } = options;
+        const child = this.spawn(command, {
+            ...started,
+            stdin: input === undefined ? "ignore" : "pipe",
+            stdout: "pipe",
+            stderr: "pipe",
+        });
+        if (input !== undefined) {
+            const writer = child.stdin.getWriter();
+            await writer.write(typeof input === "string" ? new TextEncoder().encode(input) : input);
+            await writer.close();
+        }
+
+        return child.output();
     }
 
     /** Start a command connected to this process by a channel. */

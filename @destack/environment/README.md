@@ -21,7 +21,9 @@ Every target has the clock, scheduler, randomness, WebCrypto, network, compressi
 ```ts
 await environment.clock.sleep(30_000, signal); // rejects with the signal's reason once it aborts
 await environment.scheduler.yield(); // the web's scheduler.yield()
-await environment.scheduler.track(statement, "peer"); // work a world counts until it settles: "world", "host" or "peer"
+await environment.scheduler.run(statement); // real work answered in the order it began, as a world does
+await environment.scheduler.waitUntil(child.exited); // real work that keeps the world's time, answered at quiescence
+await environment.process.run(["git", "status"]); // a command run to completion as one operation
 environment.random.bytes(16);
 await environment.crypto.digest("SHA-256", bytes); // crypto.subtle's operations
 await environment.network.fetch(new Request("https://notes.test/today"));
@@ -77,7 +79,7 @@ const tab = new BrowserSimulation(simulation).environment("tab");
 
 ## Simulation
 
-A `Simulation` runs nodes on one clock, scheduler, randomness and network, and moves time only once no tracked work runs.
+A `Simulation` runs nodes on one clock, scheduler, randomness and network, and moves time only once no real work runs: operations answered in the order they began, lifetimes once the world is quiescent.
 
 ```ts
 await using simulation = new Simulation({
@@ -85,7 +87,7 @@ await using simulation = new Simulation({
     start: Date.UTC(2026, 9, 24),
     files: "memory", // the nodes' files in memory, "host" by default
     skew: { offset: 500, drift: 100 }, // each node's clock off by up to 500 ms, drifting up to 100 ppm
-    isTracing: true, // each event a log record and each tracked work a span, on simulated time
+    isTracing: true, // each event a log record and each work a span, on simulated time
 });
 const host = simulation.node("host");
 await host.start((environment, signal) => Host.start(environment, signal));
@@ -100,7 +102,7 @@ await simulation.until(() => run.state === "completed", deadline); // moving tim
 await simulation.jump(simulation.clock.now() + 30 * DAY); // a 30-day sleep: each due wait wakes once
 simulation.scheduler.pending(); // the work in flight: who finishes it, running or settled, and where it began
 simulation.fingerprint; // equal across runs of one seed and the same work
-// a stalled host work fails the run after 10 s, a stalled peer after 2 min, busy work without time as a livelock
+// a stalled short operation fails the run after 10 s, long work after 2 min, busy work without time as a livelock
 ```
 
 ## Worlds

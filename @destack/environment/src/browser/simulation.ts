@@ -208,9 +208,8 @@ export class SimulatedBroadcast {
                 // deliver a copy after this turn to the other ports still open then
                 const copy: unknown = structuredClone(message);
                 const others = [...ports].filter((each) => each !== port);
-                void this.#scheduler.track(
-                    () => Promise.resolve().then(() => this.errors.push(...deliver(others, copy))),
-                    "world",
+                void this.#scheduler.task(() =>
+                    Promise.resolve().then(() => this.errors.push(...deliver(others, copy))),
                 );
             },
             on: (listener) => {
