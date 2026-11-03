@@ -371,9 +371,8 @@ export class WorkloadRunner implements AsyncDisposable {
         if (this.#isClosing) {
             return;
         }
-        void this.#scheduler.track(
-            () => this.#telemetry.flush(["traces", "logs"]).catch(this.#report),
-            "world",
+        void this.#scheduler.task(() =>
+            this.#telemetry.flush(["traces", "logs"]).catch(this.#report),
         );
     }
 
