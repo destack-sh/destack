@@ -10,9 +10,9 @@ author: "Florian"
 > Think GitHub + NPM + Convex + Vercel + Sentry with all the boring decisions already made: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry.
 > 
 > Basically, Destack lets you own your whole stack, step by step:
-> 1. Build great custom software easily.
-> 2. Cultivate _your_ personal agent-friendly stack.
-> 3. Own your data and context.
+> 1. **Build anything**, with your own AI, in a standardised pipeline.
+> 2. **Integrate everything**: one account, one database, no walls.
+> 3. **Control it all**: your data, your context, your machine.
 > 
 > The Destack comprises both the platform core for building malleable software _and_ standardised apps representing classic SaaS (think Notion, Linear, Miro).
 > Everything built on Destack is fully standardised and integrated by default, and thus fully hackable and programmable by your agents.
@@ -98,7 +98,7 @@ If software is going to run _everything_, faster than anyone can verify, how do 
 Fundamentally, there is not a single test, certificate, proof, or magic gate that you can run to convince me that some non-trivial general software program is correct.
 The correctness of any complex software system spans many granularities, and mathematical "proof", green tests, smoke tests, and passing gates all mean nothing if it's not what I actually _meant_.
 
-The only way to ensure correctness for general purpose software - that is: does it do what it should? - is to look, to see the software in motion, from many different angles and granularities.
+The only way to ensure "correctness" for general purpose software - that is: does it do what it should? - is to look, to see the software in motion, from many different angles and granularities.
 Notably, this is not an intelligence problem at all - it's a human problem, and a real world integration problem.
 I just don't know what I want until I see it.
 
