@@ -19,8 +19,7 @@ function idleTimer(
 
 /** Let time pass and commit the writes. */
 async function wait(milliseconds: number, simulation: Simulation): Promise<void> {
-    await simulation.clock.sleep(milliseconds);
-    await simulation.idle();
+    await simulation.sleep(milliseconds);
     flush();
 }
 

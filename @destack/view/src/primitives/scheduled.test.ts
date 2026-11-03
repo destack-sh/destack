@@ -21,12 +21,10 @@ test("debounce to the latest call's arguments after the wait, or nothing once cl
     }));
     trigger(5);
     trigger(1);
-    await simulation.clock.sleep(50);
-    await simulation.idle();
+    await simulation.sleep(50);
     trigger(7);
     trigger.clear();
-    await simulation.clock.sleep(50);
-    await simulation.idle();
+    await simulation.sleep(50);
     dispose();
 
     expect(values).toEqual([1]);
@@ -39,18 +37,15 @@ test("throttle to the latest call's arguments, cancelled when cleared or cleaned
     const trigger = throttle((value: number) => values.push(value), 20, tab.clock);
     trigger(5);
     trigger(1);
-    await simulation.clock.sleep(50);
-    await simulation.idle();
+    await simulation.sleep(50);
     trigger(7);
     trigger.clear();
-    await simulation.clock.sleep(50);
-    await simulation.idle();
+    await simulation.sleep(50);
     createRoot((disposeRoot) => {
         throttle((value: number) => values.push(value), 20, tab.clock)(9);
         disposeRoot();
     });
-    await simulation.clock.sleep(50);
-    await simulation.idle();
+    await simulation.sleep(50);
 
     expect(values).toEqual([1]);
 });
@@ -64,8 +59,7 @@ test("run the leading edge of a debounce or throttle, again once the wait passes
         const trigger = leading(schedule, (value: number) => values.push(value), 20, tab.clock);
         trigger(5);
         trigger(10);
-        await simulation.clock.sleep(50);
-        await simulation.idle();
+        await simulation.sleep(50);
         trigger(15);
         trigger.clear();
         trigger(20);
@@ -86,8 +80,7 @@ test("run the leading edge, and the trailing edge only when called again during 
         let calls = 0;
         const single = leadingAndTrailing(schedule, () => calls++, 10, tab.clock);
         single();
-        await simulation.clock.sleep(30);
-        await simulation.idle();
+        await simulation.sleep(30);
 
         // call several times within the wait, which runs both edges
         const values: number[] = [];
@@ -100,8 +93,7 @@ test("run the leading edge, and the trailing edge only when called again during 
         trigger(5);
         trigger(1);
         trigger(10);
-        await simulation.clock.sleep(25);
-        await simulation.idle();
+        await simulation.sleep(25);
         trigger(15);
         trigger.clear();
         trigger(20);
@@ -125,13 +117,11 @@ test("restart a leading and trailing debounce while calls keep coming", async ()
     );
     trigger(5);
     trigger(1);
-    await simulation.clock.sleep(15);
-    await simulation.idle();
+    await simulation.sleep(15);
     trigger(1);
     trigger(10);
     const during = [...values];
-    await simulation.clock.sleep(25);
-    await simulation.idle();
+    await simulation.sleep(25);
 
     expect([during, values]).toEqual([[5], [5, 10]]);
 });
@@ -164,12 +154,10 @@ test("run an idle schedule once per idle period with the latest call's arguments
     const trigger = scheduleIdle((value: number) => values.push(value), 100, tab.display);
     trigger(5);
     trigger(1);
-    await simulation.clock.sleep(1);
-    await simulation.idle();
+    await simulation.sleep(1);
     trigger(7);
     trigger.clear();
-    await simulation.clock.sleep(1);
-    await simulation.idle();
+    await simulation.sleep(1);
 
     expect(values).toEqual([1]);
 });
@@ -266,8 +254,7 @@ test("gate computations on a debounce, or on its leading edge", async () => {
     flush();
     trigger(undefined);
     flush();
-    await simulation.clock.sleep(50);
-    await simulation.idle();
+    await simulation.sleep(50);
     flush();
     dispose();
 
@@ -300,8 +287,7 @@ test("cancel a pending debounce of a scheduled gate when its root is disposed", 
     trigger(undefined);
     flush();
     dispose();
-    await simulation.clock.sleep(20_000);
-    await simulation.idle();
+    await simulation.sleep(20_000);
 
     expect(values).toEqual([false, false]);
 });

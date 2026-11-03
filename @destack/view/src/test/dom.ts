@@ -322,13 +322,12 @@ export async function changed(
 
 /** Move the test's clock to the tab's next frame, running what the frame starts. */
 export async function frame(): Promise<void> {
-    const { tab } = testWorld();
-    await tab.display.frame();
+    const { simulation, tab } = testWorld();
+    await simulation.wait(tab.display.frame());
 }
 
 /** Move the test's clock on, running the timers due meanwhile, such as a popover's open delay. */
 export async function wait(milliseconds: number): Promise<void> {
     const { simulation } = testWorld();
-    await simulation.clock.sleep(milliseconds);
-    await simulation.idle();
+    await simulation.sleep(milliseconds);
 }

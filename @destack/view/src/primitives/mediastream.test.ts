@@ -184,13 +184,11 @@ test("follow a stream's loudness each frame, capped at a hundred", async () => {
 
         return { amplitude: loudness, stop: stopReading };
     }, tab);
-    await simulation.clock.sleep(TEST_START + 17 - simulation.clock.now());
-    await simulation.idle();
+    await simulation.run(TEST_START + 17);
     flush();
     const quiet = amplitude();
     level = 200;
-    await simulation.clock.sleep(TEST_START + 34 - simulation.clock.now());
-    await simulation.idle();
+    await simulation.run(TEST_START + 34);
     flush();
     const loud = amplitude();
     stop();

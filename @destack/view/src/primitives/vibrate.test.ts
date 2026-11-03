@@ -41,11 +41,9 @@ test("vibrate once, or every interval until stopped", async () => {
     once();
     const [start, stop] = makeVibrate([100, 50], { interval: 500 }, simulation.clock);
     start();
-    await simulation.clock.sleep(TEST_START + 1000 - simulation.clock.now());
-    await simulation.idle();
+    await simulation.run(TEST_START + 1000);
     stop();
-    await simulation.clock.sleep(TEST_START + 2000 - simulation.clock.now());
-    await simulation.idle();
+    await simulation.run(TEST_START + 2000);
 
     expect(vibrations).toEqual([200, [100, 50], [100, 50], [100, 50], 0]);
 });

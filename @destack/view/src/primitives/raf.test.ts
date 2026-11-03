@@ -20,11 +20,9 @@ test("run a callback on each frame of the page's display once started, until sto
     start();
     flush();
     const during = running();
-    await simulation.clock.sleep(TEST_START + 60 - simulation.clock.now());
-    await simulation.idle();
+    await simulation.run(TEST_START + 60);
     stop();
-    await simulation.clock.sleep(TEST_START + 120 - simulation.clock.now());
-    await simulation.idle();
+    await simulation.run(TEST_START + 120);
     dispose();
 
     expect({ before, during, times }).toEqual({ before: false, during: true, times: [17, 34, 50] });
@@ -40,8 +38,7 @@ test("stop a frame loop from inside its own callback", async () => {
             stop();
         }
     }, tab.display);
-    await simulation.clock.sleep(TEST_START + 100 - simulation.clock.now());
-    await simulation.idle();
+    await simulation.run(TEST_START + 100);
 
     expect(times).toEqual([17, 34]);
 });
@@ -67,8 +64,7 @@ test("count frame milliseconds from the first frame, from zero again at the limi
     // read the count after each of four frames
     const counts: number[] = [];
     for (const frame of [17, 34, 50, 67]) {
-        await simulation.clock.sleep(TEST_START + frame - simulation.clock.now());
-        await simulation.idle();
+        await simulation.run(TEST_START + frame);
         flush();
         counts.push(untrack(counter));
     }
