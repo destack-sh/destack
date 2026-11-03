@@ -417,18 +417,10 @@ export class MethodContext<
         throw new TypeError(`${this.object.name}.${this.name} can only reveal rows in its store`);
     }
 
-    /** Read the events of an event kind of the call's package, refusing any other kind. */
+    /** Read an event kind's events in the call's store, as `read` reads a type's rows. */
     events<Fields extends EventKeyFields, Data extends JsonValue>(
         kind: EventKind<Fields, Data>,
     ): EventView<Fields, Data> {
-        // refuse another package's kind
-        if (kind.package.id !== this.object.package.id) {
-            throw ObjectError.of(
-                "EVENTS_REFUSED",
-                `${this.object.package.name} cannot read ${kind.name} events: only the declaring package can`,
-            );
-        }
-
         // read through the store's event log, else through the hook's session
         const location = this.#location;
         if (location.kind === "store") {
