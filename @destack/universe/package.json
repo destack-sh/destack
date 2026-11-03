@@ -25,6 +25,7 @@
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/identity": "workspace:*",
+        "@destack/mail": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",

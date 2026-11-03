@@ -6,6 +6,7 @@ import {
     BetterAuthAuthenticator,
     type BetterAuthAuthenticatorOptions,
 } from "@destack/account/better-auth";
+import type { MailTransport } from "@destack/mail/transport";
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
 import { claim, Residency } from "@destack/account/object";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
@@ -19,7 +20,6 @@ import {
 import type { Bucket } from "@destack/bucket";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { type Keyring } from "@destack/identity";
-import type { MailTransport } from "@destack/account/better-auth";
 import {
     call,
     type CallKey,
