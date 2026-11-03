@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import {
-    type DeclarationKind,
+    type DeclarationKindDefinition,
     type DeclarationKindValue,
     DependencyPackage,
     Package,
@@ -142,7 +142,7 @@ export class ConstructorCatalog {
     async #describeKind(
         location: PackageLocation,
         identity: Package,
-        entry: DeclarationKind | DeclarationKindValue,
+        entry: DeclarationKindDefinition | DeclarationKindValue,
     ): Promise<ConstructorKind> {
         // locate a kind of this package, inspected by the functions it names
         if (!("package" in entry)) {
@@ -153,9 +153,17 @@ export class ConstructorCatalog {
             };
         }
 
-        // locate a dependency's kind, inspected by its functions on the value read here
+        // locate a dependency's kind, described by this package's functions where it names them
         const declaring = await this.#locateKind(entry.package, entry.kind, location);
+        if (!("value" in entry)) {
+            return {
+                kind: entry.kind,
+                package: declaring.package,
+                inspector: await this.#locateInspector(location, entry),
+            };
+        }
 
+        // else inspect it by the kind's functions on the value read here
         return {
             kind: entry.kind,
             package: declaring.package,
@@ -167,7 +175,10 @@ export class ConstructorCatalog {
     }
 
     /** Locate the functions a package lists for a kind it declares. */
-    async #locateInspector(location: PackageLocation, kind: DeclarationKind): Promise<Inspector> {
+    async #locateInspector(
+        location: PackageLocation,
+        kind: DeclarationKindDefinition,
+    ): Promise<Inspector> {
         // locate the describing function and the optional ones
         const describe = await this.#locateFunction(location, kind.function);
         const compare = await this.#locateOptional(location, kind.compare);
@@ -190,16 +201,19 @@ export class ConstructorCatalog {
     ): Promise<{
         package: Package;
         location: PackageLocation;
-        entry: DeclarationKind;
+        entry: DeclarationKindDefinition;
     }> {
         // require a dependency whose constructors describe the kind as theirs
         const directory = await this.#packages.directory(name, location.directory);
-        const entry = Object.values(await this.#packages.constructors(name, location.directory))
+        const constructed = Object.values(
+            await this.#packages.constructors(name, location.directory),
+        )
             .flatMap((constructor) => constructor.describes)
-            .find(
-                (candidate): candidate is DeclarationKind =>
-                    candidate.kind === kind && !("package" in candidate),
+            .filter(
+                (candidate): candidate is DeclarationKindDefinition => !("package" in candidate),
             );
+        const defined = await this.#packages.kinds(name, location.directory);
+        const entry = [...constructed, ...defined].find((candidate) => candidate.kind === kind);
         if (directory === undefined || entry === undefined) {
             throw BuildError.of(
                 "INSPECTION_FAILED",

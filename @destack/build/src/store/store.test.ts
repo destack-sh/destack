@@ -115,7 +115,6 @@ function bunOutputs(
             {
                 entrypoint,
                 packages: [],
-                triggers: [],
                 resources: [],
                 secrets: [],
                 compute: {},
