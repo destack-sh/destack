@@ -1,3 +1,4 @@
+import type { Simulation } from "@destack/environment/simulation";
 import type { Environment } from "@destack/environment";
 import type { Example } from "@destack/package/declare";
 import { type Call, type ObjectTypeReference, RequestId, type Subject } from "@destack/sync";
@@ -18,6 +19,8 @@ export interface TestServed {
     readonly scope: string;
     /** The world the calls run in. */
     readonly environment: Environment;
+    /** The simulation of that world, which a caller waits on for each answer. */
+    readonly simulation: Simulation;
     /** Read the server of a served package, refusing another. */
     readonly server: (handle: PackageHandle) => Pick<Server, "fetch">;
     /** Read a served object type with its package, absent for a type served nowhere. */
@@ -76,7 +79,10 @@ export class TestCaller {
                     isSteppedUp: this.#isSteppedUp,
                 };
 
-                return server.fetch(await this.#served.sign(request, signer));
+                // wait on the world to sign and answer, moving its time as the call needs
+                const answer = async () => server.fetch(await this.#served.sign(request, signer));
+
+                return this.#served.simulation.wait(answer());
             },
         };
     }

@@ -240,13 +240,15 @@ test("retain shared resources until an overdue request observes cancellation", a
     );
 
     // observe failures while the request stays open
-    const response = instance.fetch(first, new Request("https://fixture.test/work"));
+    const response = simulation.wait(
+        instance.fetch(first, new Request("https://fixture.test/work")),
+    );
     const responseFailure = expect(response).rejects.toMatchObject({
         name: "TimeoutError",
         message: "server drain deadline exceeded with requests open: GET fixture.test/work",
     });
     await accepted.promise;
-    const closing = instance.close();
+    const closing = simulation.wait(instance.close());
     const closeFailure = expect(closing).rejects.toMatchObject({
         message: "workload shutdown failed",
         errors: [

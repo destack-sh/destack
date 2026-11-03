@@ -237,10 +237,10 @@ test("let go of a task once the grant relating it expires, with no change in the
         subject: principal.user.reference("universe", users.grace),
         expiresAt: world.clock.now() + GRANT_MILLISECONDS,
     });
-    expect(await next()).toEqual([[false, "insert", "First", undefined]]);
+    expect(await simulation.wait(next())).toEqual([[false, "insert", "First", undefined]]);
 
     // drop it once the grant expires
-    expect(await next()).toEqual([[false, "delete", undefined, undefined]]);
+    expect(await simulation.wait(next())).toEqual([[false, "delete", undefined, undefined]]);
 });
 
 /** Read the next page of a sync stream, refusing an ended stream. */

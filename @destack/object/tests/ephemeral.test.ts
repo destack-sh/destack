@@ -1,4 +1,5 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
+import type { Simulation } from "@destack/environment/simulation";
 import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import type { Page } from "@destack/sync";
@@ -158,10 +159,10 @@ test("share presence on a board across instances, guarded by access, gone after 
         const seen = bob.client.query.presence.findMany().subscribe();
         const shown = async () =>
             (await seen.read()).map((row) => [row["memberId"], row["activity"], row["cursor"]]);
-        await until(seen, (rows) => rows.length === 1);
+        await until(simulation, seen, (rows) => rows.length === 1);
         const first = await shown();
         await alice.client.mutate(presence).update({ id: mine.id, cursor: 12 }).confirmed;
-        await until(seen, (rows) => rows[0]?.["cursor"] === 12);
+        await until(simulation, seen, (rows) => rows[0]?.["cursor"] === 12);
         expect([first, await shown()]).toEqual([
             [[users.alice, "editing", 0]],
             [[users.alice, "editing", 12]],
@@ -181,7 +182,7 @@ test("share presence on a board across instances, guarded by access, gone after 
         // remove the owner's presence after its linger, which another caller's stream under her writer never extends
         west.stream(users.bob, alice.client.writerId);
         alice.stop();
-        await until(seen, (rows) => rows.length === 0);
+        await until(simulation, seen, (rows) => rows.length === 0);
 
         // retain a presence a call wrote on the other instance past its linger while its writer streams here
         const returning = await openClient(world, east, users.alice);
@@ -191,8 +192,8 @@ test("share presence on a board across instances, guarded by access, gone after 
             parent,
             activity: "viewing",
         });
-        await until(seen, (rows) => rows[0]?.["activity"] === "viewing");
-        await world.clock.sleep(150);
+        await until(simulation, seen, (rows) => rows[0]?.["activity"] === "viewing");
+        await simulation.sleep(150);
         const held = await present(west.store.ephemeral, "the west ephemeral storage")
             .database.select({ id: presence.table.id })
             .from(presence.table);
@@ -203,7 +204,7 @@ test("share presence on a board across instances, guarded by access, gone after 
             id: plans.id,
             relationshipId: shared.id,
         });
-        await until(seen, (rows) => rows.length === 0);
+        await until(simulation, seen, (rows) => rows.length === 0);
         expect(held).toEqual([{ id: viewing.id }]);
     })();
 });
@@ -284,7 +285,7 @@ test("write and follow presence through object clients of both instances", async
             activity: "editing",
             cursor: 3,
         }).confirmed;
-        await until(seen, (rows) => rows.length === 1);
+        await until(simulation, seen, (rows) => rows.length === 1);
         expect((await seen.read()).map((row) => [row["memberId"], row["cursor"]])).toEqual([
             [users.alice, 3],
         ]);
@@ -295,11 +296,11 @@ test("write and follow presence through object clients of both instances", async
         const reactions = bob.client.broadcasts(board, plans.id, listening.signal);
         const received = reactions.next();
         await alice.client.broadcast(board, plans.id, { reaction: "👍" });
-        expect((await received).value).toEqual({ reaction: "👍" });
+        expect((await simulation.wait(received)).value).toEqual({ reaction: "👍" });
 
         // let her presence go once her client stops following
         alice.stop();
-        await until(seen, (rows) => rows.length === 0);
+        await until(simulation, seen, (rows) => rows.length === 0);
     })();
 });
 
@@ -328,10 +329,10 @@ test("deliver an object's events to a reader granted it while already following"
             relation: "viewer",
             subject: principal.user.reference("universe", users.bob),
         });
-        await until(boards, (rows) => rows.length === 1);
+        await until(simulation, boards, (rows) => rows.length === 1);
         await bob.client.query.presence.findMany().subscribe().ready;
         await alice.client.broadcast(board, plans.id, { reaction: "👋" });
-        expect((await received).value).toEqual({ reaction: "👋" });
+        expect((await simulation.wait(received)).value).toEqual({ reaction: "👋" });
     })();
 });
 
@@ -386,7 +387,7 @@ test("include live presence with durable profiles, and count live viewers per bo
             (await boards.read()).map((row) =>
                 row.presences.map((entry) => [entry.activity, entry.profile?.name]),
             );
-        await until(boards, (rows) =>
+        await until(simulation, boards, (rows) =>
             rows.some((row) => row.presences.some((entry) => entry.profile?.name === "Alice")),
         );
         expect(await shown()).toEqual([[["editing", "Alice"]], []]);
@@ -415,8 +416,8 @@ test("include live presence with durable profiles, and count live viewers per bo
 
         // count none once the viewer's presence goes, and forget her profile
         alice.stop();
-        await until(counts, (rows) => rows[0]?.viewers === 0);
-        await until(boards, (rows) => rows.every((row) => row.presences.length === 0));
+        await until(simulation, counts, (rows) => rows[0]?.viewers === 0);
+        await until(simulation, boards, (rows) => rows.every((row) => row.presences.length === 0));
         expect(await shown()).toEqual([[], []]);
 
         // refuse conditions relating the other storage's objects
@@ -587,8 +588,17 @@ async function openClient(
     return { client, stop: () => controller.abort() };
 }
 
-/** Wait until a live query's value passes a check, reading it again after every local commit. */
+/** Wait on the world until a live query's value passes a check. */
 async function until<Value>(
+    simulation: Simulation,
+    query: LiveQuery<Value>,
+    check: (value: Value) => boolean,
+): Promise<void> {
+    await simulation.wait(passed(query, check));
+}
+
+/** Read a live query's values until one passes a check. */
+async function passed<Value>(
     query: LiveQuery<Value>,
     check: (value: Value) => boolean,
 ): Promise<void> {

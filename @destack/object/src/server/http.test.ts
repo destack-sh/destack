@@ -516,7 +516,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     );
 
     // record the drain timeout cause
-    const pending = authorized.get();
+    const pending = simulation.wait(authorized.get());
     const rejected = expect(pending).rejects.toMatchObject({
         message: "Cannot parse response body, please check the response body and content-type.",
         cause: {
@@ -528,7 +528,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     // retain resources until cancellation is acknowledged
     await entered.promise;
     try {
-        await expect(server.close()).rejects.toMatchObject({
+        await expect(simulation.wait(server.close())).rejects.toMatchObject({
             name: "TimeoutError",
         });
         expect(isStopped).toBe(false);
@@ -539,7 +539,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
 
     // finish cleanup
     await rejected;
-    await server.stopped;
+    await simulation.wait(server.stopped);
     expect(isStopped).toBe(true);
     expect(server.health.status).toBe("stopped");
 });
@@ -868,14 +868,12 @@ test("delay a request while starting and answer it once ready, and refuse it wit
 
     // refuse a request still starting once the window passes
     const refused = server.fetch(new Request("https://test.local/echo", { method: "POST" }));
-    await simulation.clock.sleep(1000);
-    await simulation.idle();
+    await simulation.sleep(1000);
     const starting = await refused;
 
     // delay a call within the window and answer it once the server opens
     const answered = client.echo({ text: "hello" });
-    await simulation.clock.sleep(100);
-    await simulation.idle();
+    await simulation.sleep(100);
     opened.resolve();
 
     expect([

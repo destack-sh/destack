@@ -515,9 +515,9 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         this.#disposables.defer(cleanup);
     }
 
-    /** Close the servers, then the databases the test store opened. */
+    /** Close the servers, then the databases the test store opened, waiting on the world. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await this.#disposables.disposeAsync();
+        await this.simulation.wait(this.#disposables.disposeAsync());
     }
 
     /** Authenticate a bearer's subject: a user in the scope with their groups, else by its kind. */
