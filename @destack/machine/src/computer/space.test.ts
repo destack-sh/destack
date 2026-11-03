@@ -1,3 +1,4 @@
+import { RESOURCE_KIND } from "@destack/resource";
 import { log, LogData } from "@destack/observability";
 import { BunWorkload } from "@destack/stack/bun";
 import { MemoryBuild } from "@destack/package/test";
@@ -110,8 +111,7 @@ async function workloadBuild(
     return MemoryBuild.of(
         built,
         declarations.map((declaration) => ({
-            kind: "resource" as const,
-            kindPackageId: built.id,
+            ...RESOURCE_KIND.identity,
             name: declaration.name,
             description: declaration.description,
         })),
@@ -126,7 +126,6 @@ async function workloadBuild(
                         main: {
                             entrypoint: ".",
                             packages: [],
-                            triggers: [],
                             resources: declarations.map((declaration) => ({
                                 packageId: built.id,
                                 name: declaration.name,

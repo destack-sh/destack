@@ -1,15 +1,14 @@
 import type { Crypto } from "@destack/environment";
 import { BuildStore } from "@destack/build/store";
 import {
-    OBJECT_DECLARATION,
+    OBJECT_KIND,
     ObjectDescription,
     type ObjectType,
-    PACKAGE_DECLARATION,
+    PACKAGE_KIND,
     PACKAGE_EXPORT,
     type PackageHandle,
 } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
-import objectPackage from "@destack/object/package";
 import { type DependencyRelease, graph, type Package, type PackageRelease } from "@destack/package";
 import {
     type BuildReader,
@@ -18,11 +17,7 @@ import {
     type ViewRender,
 } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import {
-    RESOURCE_DECLARATION,
-    RESOURCE_KIND_PACKAGE_ID,
-    ResourceDeclaration,
-} from "@destack/resource";
+import { RESOURCE_KIND, ResourceDeclaration } from "@destack/resource";
 import { Commit, type JsonObject } from "@destack/schema";
 import { SecretDeclaration } from "@destack/vault/declare";
 import { TestVault } from "@destack/vault/test";
@@ -72,23 +67,20 @@ export const TestViewBuild = {
                 ? []
                 : [
                       {
-                          kind: PACKAGE_DECLARATION,
-                          kindPackageId: objectPackage.id,
+                          ...PACKAGE_KIND.identity,
                           name: PACKAGE_EXPORT,
                           description: describePackage(options.package),
                       },
                   ]),
             ...objects.map((type) => ({
-                kind: OBJECT_DECLARATION,
-                kindPackageId: objectPackage.id,
+                ...OBJECT_KIND.identity,
                 name: type.name,
                 description: ObjectDescription.of(type),
             })),
             ...Object.values(options.package?.resources ?? {})
                 .filter((value) => ResourceDeclaration.is(value))
                 .map((resource) => ({
-                    kind: RESOURCE_DECLARATION,
-                    kindPackageId: RESOURCE_KIND_PACKAGE_ID,
+                    ...RESOURCE_KIND.identity,
                     name: resource.name,
                     description: {
                         name: resource.name,

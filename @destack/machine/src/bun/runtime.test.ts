@@ -102,7 +102,6 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
                         notes: {
                             entrypoint: "./workload/notes",
                             packages: [],
-                            triggers: [],
                             resources: [],
                             secrets: [],
                             compute: {},
@@ -354,7 +353,6 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
     const workload = {
         entrypoint: "./workload/fetch",
         packages: [],
-        triggers: [],
         resources: [],
         secrets: [],
         compute: {},
