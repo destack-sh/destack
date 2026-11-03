@@ -68,9 +68,8 @@ function openTunnel() {
         id,
         attachment: attachments.get(id) ?? null,
         send: (message) =>
-            void simulation.scheduler.track(
-                () => Promise.resolve().then(() => machines.get(id)?.receive(message)),
-                "world",
+            void simulation.scheduler.task(() =>
+                Promise.resolve().then(() => machines.get(id)?.receive(message)),
             ),
         close: () => machines.get(id)?.terminate(),
     });
@@ -133,10 +132,8 @@ function openTunnel() {
         const session = new Session(
             {
                 send: (message) =>
-                    void simulation.scheduler.track(
-                        () =>
-                            Promise.resolve().then(() => void running.message(socket(id), message)),
-                        "world",
+                    void simulation.scheduler.task(() =>
+                        Promise.resolve().then(() => void running.message(socket(id), message)),
                     ),
                 close: () => {},
             },
