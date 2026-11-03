@@ -3,7 +3,8 @@ import { expect, refusal, test } from "@destack/test";
 import { fileURLToPath } from "node:url";
 import { Workspace, CompilerPool } from "@destack/build";
 import { testStore, testSimulation } from "@destack/build/test";
-import { Command } from "@destack/object";
+import { COMMAND_KIND } from "@destack/object";
+import { VIEW_KIND } from "../declare/view.ts";
 import { Package, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
 import { destackTheme } from "@destack/theme/declare";
@@ -90,12 +91,12 @@ test("generate the module mounting a view with its package's theme and commands,
         version: "2026.9.0",
     });
     const kind = Package.parse({
-        id: "package-01996ab0-0000-7000-8000-00000000000d",
+        id: VIEW_KIND.packageId,
         name: "@destack/view",
         version: "2026.9.0",
     });
     const objects = Package.parse({
-        id: Command.kind.kindPackageId,
+        id: COMMAND_KIND.packageId,
         name: "@destack/object",
         version: "2026.9.0",
     });

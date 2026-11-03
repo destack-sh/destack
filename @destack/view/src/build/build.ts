@@ -10,9 +10,9 @@ import type {
 } from "@destack/package/build";
 import { BROWSER_SANDBOX, type DeclarationDescription, Sandbox } from "@destack/package";
 import { type OutputContent, ViewDescription, ViewRender } from "@destack/package/manifest";
-import { Command, CommandDescription } from "@destack/object";
+import { COMMAND_KIND, CommandDescription } from "@destack/object";
 import { present } from "@destack/schema";
-import { destackTheme } from "@destack/theme/declare";
+import { THEME_KIND } from "@destack/theme/declare";
 import { fontPlugin } from "./font.ts";
 import { imagePlugin } from "./image.ts";
 import { islandPlugin } from "./island.ts";
@@ -20,6 +20,7 @@ import { prerender } from "./prerender/index.ts";
 import { pagesPlugin } from "./pages.ts";
 import { VIEW_PACKAGE, viewPlugins } from "./plugin.ts";
 import { ViewError } from "../error/error.ts";
+import { VIEW_KIND } from "../declare/view.ts";
 
 /** The prefix of the generated modules rendering each view. */
 export const PREFIX = "virtual:@destack/view/view/";
@@ -233,7 +234,7 @@ function pageStylesheets(
 function requireOneTheme(compilation: Compilation, views: number): void {
     const themes = compilation.declarations.filter(
         (declaration) =>
-            declaration.kind === "theme" &&
+            THEME_KIND.is(declaration.kind, declaration.package.id) &&
             declaration.symbol.package.id === compilation.package.id,
     );
     if (views > 0 && themes.length > 1) {
@@ -299,7 +300,7 @@ export function locate(compilation: ViewPackage): LocatedView[] {
 
 /** Report whether a declaration is a view. */
 function isView(declaration: DeclarationDescription): boolean {
-    return declaration.kind === "view" && declaration.package.name === VIEW_PACKAGE;
+    return VIEW_KIND.is(declaration.kind, declaration.package.id);
 }
 
 /** Read a declaration's static render, absent for any other declaration. */
@@ -339,16 +340,11 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
     const own = compilation.declarations.filter(
         (declaration) => declaration.symbol.package.id === compilation.package.id,
     );
-    const theme = own.find(
-        (declaration) =>
-            declaration.kind === "theme" && declaration.package.id === destackTheme.package.id,
+    const theme = own.find((declaration) =>
+        THEME_KIND.is(declaration.kind, declaration.package.id),
     )?.description;
     const commands = own
-        .filter(
-            (declaration) =>
-                declaration.kind === Command.kind.kind &&
-                declaration.package.id === Command.kind.kindPackageId,
-        )
+        .filter((declaration) => COMMAND_KIND.is(declaration.kind, declaration.package.id))
         .map((declaration) => {
             const { keybinding } = CommandDescription.parse(declaration.description);
 
