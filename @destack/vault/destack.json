@@ -25,6 +25,7 @@
             "describes": [
                 {
                     "kind": "secret",
+                    "package": "@destack/stack",
                     "function": "./inspect#describeSecret"
                 }
             ]
@@ -33,6 +34,7 @@
             "describes": [
                 {
                     "kind": "resource",
+                    "package": "@destack/resource",
                     "function": "./inspect#describeVault"
                 }
             ]

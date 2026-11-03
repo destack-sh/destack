@@ -1,4 +1,4 @@
-import { SECRET_DECLARATION } from "@destack/stack/declare";
+import { SECRET_KIND } from "@destack/stack/declare";
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
 import { type Connector, ResourceDeclaration } from "@destack/resource";
 import { schema } from "@destack/schema";
@@ -36,7 +36,7 @@ export class SecretDeclaration extends ResourceDeclaration<
 
     /** Keep a validated secret declaration of a package. */
     constructor(owner: Package, declaration: SecretDescription) {
-        super(owner, { name: declaration.name, kind: SECRET_DECLARATION, spec: {} });
+        super(owner, { name: declaration.name, kind: SECRET_KIND.name, spec: {} });
         if (declaration.generated !== undefined) {
             this.generated = declaration.generated;
         }

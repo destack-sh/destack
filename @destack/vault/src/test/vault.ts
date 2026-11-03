@@ -1,4 +1,4 @@
-import { SECRET_DECLARATION } from "@destack/stack/declare";
+import { SECRET_KIND } from "@destack/stack/declare";
 import { TestPackage } from "@destack/stack/test";
 import { testHost } from "@destack/test/host";
 import type { Crypto, Environment } from "@destack/environment";
@@ -11,7 +11,7 @@ import type { TestCaller, TestObjectStore } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
 import { type BuildReader, Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
-import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
+import { RESOURCE_KIND } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import { binding } from "@destack/stack/object";
 import { fixtureOutputs, ids, TestSpace, workload } from "@destack/stack/test";
@@ -176,14 +176,12 @@ export class TestVault {
     ) {
         return [
             ...vaults.map((declared) => ({
-                kind: RESOURCE_DECLARATION,
-                kindPackageId: RESOURCE_KIND_PACKAGE_ID,
+                ...RESOURCE_KIND.identity,
                 name: declared.name,
                 description: describeVault(declared),
             })),
             ...secrets.map((declared) => ({
-                kind: SECRET_DECLARATION,
-                kindPackageId: vaultPackage.id,
+                ...SECRET_KIND.identity,
                 name: declared.name,
                 description: describeSecret(declared),
             })),

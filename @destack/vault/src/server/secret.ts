@@ -1,4 +1,4 @@
-import { SECRET_DECLARATION } from "@destack/stack/declare";
+import { SECRET_KIND } from "@destack/stack/declare";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import { Binding } from "@destack/stack/object";
@@ -143,7 +143,7 @@ export function implementSecretVersion(): typeof secretVersion {
 export const secretBindable: ObjectBindable<typeof secret, Secret> = {
     object: secret,
     used: [secret, secretVersion],
-    declaration: SECRET_DECLARATION,
+    declaration: SECRET_KIND,
     provider: VAULT_PROVIDER,
     reference: VAULT_REFERENCE,
     provision: async (call, declarer, _target, need, bindings) => {
