@@ -36,7 +36,7 @@ export class Sandbox implements AsyncDisposable {
     readonly #watched: WatchedLauncher;
     /** Shared completion of the first shutdown request. */
     #stopping: Promise<SandboxExit> | undefined;
-    /** The scheduler a stop's wait for the launcher's exit waits on, as a lifetime. */
+    /** The scheduler a stop's wait for the launcher's exit waits on, as a long operation. */
     readonly #scheduler: Scheduler;
 
     /** Retain one launcher and the workload's standard streams it passes through. */
@@ -98,9 +98,15 @@ export class Sandbox implements AsyncDisposable {
                 environment.scheduler,
             );
         } catch (error) {
+            // release the launcher, then fail with the errors it wrote
             await release(launcher, watched, environment);
             await closed;
-            throw error;
+            const errors = (await new Response(launcher.stderr).text()).trim();
+            throw errors === ""
+                ? error
+                : SandboxError.of("START_FAILED", `sandbox failed to start: ${errors}`, {
+                      cause: error,
+                  });
         } finally {
             deadline.abort();
         }

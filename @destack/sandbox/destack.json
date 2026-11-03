@@ -2,5 +2,14 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0cb67-2cbc-7427-8055-ca2616e6cce0",
     "language": "typescript",
-    "runtimes": ["bun"]
+    "runtimes": ["bun"],
+    "check": {
+        "expect": [
+            {
+                "files": ["src/bun/command.ts"],
+                "rules": ["destack/no-ambient-effect"],
+                "reason": "the launcher's preload resolves as Bun loads modules, which only Bun's resolver over the process's own files does"
+            }
+        ]
+    }
 }

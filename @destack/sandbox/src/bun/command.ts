@@ -1,4 +1,3 @@
-import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Process } from "@destack/environment";
@@ -20,7 +19,7 @@ export function launcherCommand(process: Process): LauncherCommand {
 
     // run the entry with Bun otherwise, preloading the module metadata the build would inject
     const entry = fileURLToPath(new URL("../main.ts", import.meta.url));
-    const preload = createRequire(import.meta.url).resolve("@destack/package/bun/preload");
+    const preload = Bun.resolveSync("@destack/package/bun/preload", import.meta.dirname);
 
     return {
         executable: process.executable,
