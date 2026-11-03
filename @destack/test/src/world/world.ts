@@ -1,8 +1,12 @@
 import { Simulation, type SimulationOptions } from "@destack/environment/simulation";
 import { afterAll, onTestFinished, TestRunner } from "vitest";
+import { testHost } from "../host/index.ts";
 
 /** The seed of a test's own simulated world. */
 const SEED = 1;
+
+/** The variable that runs every test's world with jitter, exposing real work no world schedules. */
+const JITTER_VARIABLE = "DESTACK_SIMULATION_JITTER";
 
 /** The moment a test's own world starts at unless it names another: 2026-10-01T00:00:00Z. */
 export const TEST_START = Date.UTC(2026, 9, 1);
@@ -13,7 +17,8 @@ export function testSimulation(
     options: Omit<SimulationOptions, "seed" | "start"> = {},
 ): Simulation {
     // stop the world once its test finishes, or once its file's tests did for a world they share
-    const simulation = new Simulation({ ...options, seed: SEED, start });
+    const jitter = options.jitter ?? testHost().process.variables[JITTER_VARIABLE] === "1";
+    const simulation = new Simulation({ ...options, jitter, seed: SEED, start });
     const dispose = () => simulation[Symbol.asyncDispose]();
     if (TestRunner.getCurrentTest() === undefined) {
         afterAll(dispose);
