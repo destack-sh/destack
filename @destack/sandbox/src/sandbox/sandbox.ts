@@ -36,7 +36,7 @@ export class Sandbox implements AsyncDisposable {
     readonly #watched: WatchedLauncher;
     /** Shared completion of the first shutdown request. */
     #stopping: Promise<SandboxExit> | undefined;
-    /** The scheduler a stop's wait for the launcher's exit counts on, as a peer. */
+    /** The scheduler a stop's wait for the launcher's exit waits on, as a lifetime. */
     readonly #scheduler: Scheduler;
 
     /** Retain one launcher and the workload's standard streams it passes through. */
@@ -88,7 +88,7 @@ export class Sandbox implements AsyncDisposable {
         );
         try {
             configure(launcher, options, watched.ready);
-            await environment.scheduler.track(() => watched.ready.promise, "host");
+            await environment.scheduler.run(() => watched.ready.promise);
 
             // expose failures after startup through the public completion promise
             return new Sandbox(
@@ -136,7 +136,7 @@ export class Sandbox implements AsyncDisposable {
             }
         }
 
-        return await this.#scheduler.track(() => this.exited, "peer");
+        return await this.#scheduler.waitUntil(this.exited);
     }
 
     /** Stop execution before releasing the sandbox. */
@@ -159,14 +159,9 @@ interface WatchedLauncher {
 
 /** Refuse platforms without runtime paths and hosts missing the enforcement tools. */
 async function requireSupport(environment: Environment<"host">): Promise<void> {
-    // load the upstream manager on first start as host work, since it costs hundreds of milliseconds to import
-    const [{ SandboxManager }, { RUNTIME_PATHS }] = await environment.scheduler.track(
-        () =>
-            Promise.all([
-                import("@anthropic-ai/sandbox-runtime"),
-                import("../launcher/launcher.ts"),
-            ]),
-        "host",
+    // load the upstream manager on first start as an operation, since it costs hundreds of milliseconds to import
+    const [{ SandboxManager }, { RUNTIME_PATHS }] = await environment.scheduler.run(() =>
+        Promise.all([import("@anthropic-ai/sandbox-runtime"), import("../launcher/launcher.ts")]),
     );
 
     // refuse an unsupported platform or missing tools
@@ -209,7 +204,7 @@ function spawnLauncher(
     const command = launcherCommand(environment.process);
 
     return environment.process.fork([command.executable, ...command.arguments], {
-        tracking: "none",
+        isService: true,
         workingDirectory: directory,
         variables: {
             PATH: LAUNCHER_PATH,
@@ -315,7 +310,7 @@ async function release(
         () => undefined,
     );
     try {
-        await environment.scheduler.track(() => watched.closed, "peer");
+        await environment.scheduler.waitUntil(watched.closed);
     } finally {
         cleanup.abort();
     }

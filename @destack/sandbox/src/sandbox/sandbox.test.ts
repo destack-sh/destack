@@ -356,7 +356,7 @@ test("stop the workload when its supervising client disconnects", async () => {
     const temporary = await files.realPath(await files.makeTemporaryDirectory("launcher-"));
     const command = launcherCommand(process);
     const launcher = process.fork([command.executable, ...command.arguments], {
-        tracking: "none",
+        isService: true,
         workingDirectory: directory,
         variables: {
             PATH: LAUNCHER_PATH,
