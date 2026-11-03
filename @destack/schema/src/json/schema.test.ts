@@ -105,6 +105,18 @@ test("describe random compositions of declarable builders alike once built from 
     expect(mismatched).toEqual([]);
 });
 
+test("describe an object's required properties as a set, alike in declared and canonical key order", () => {
+    // declare one object in its authored order, and in the key order canonical JSON stores it in
+    const authored = schema.object({ introduced: schema.string(), digest: schema.string() });
+    const canonical = schema.object({ digest: schema.string(), introduced: schema.string() });
+
+    // list the required properties in one order for both
+    expect([toJsonSchema(authored).required, toJsonSchema(canonical).required]).toEqual([
+        ["digest", "introduced"],
+        ["digest", "introduced"],
+    ]);
+});
+
 test("validate as the declared schema does: formats, bounds, recursion and unions", () => {
     // parse values the declared schema accepts and refuses with the built schema
     const declaredSchema = schema.object({

@@ -152,11 +152,37 @@ function freeze<Value>(value: Value): Value {
 
 /** Describe a schema as Draft 2020-12, refusing what JSON Schema cannot represent. */
 function describe(schema: z.ZodType): JsonSchema {
-    return z.toJSONSchema(schema, {
+    // describe the schema, then order its sets so equal schemas describe alike
+    const description = z.toJSONSchema(schema, {
         target: "draft-2020-12",
         unrepresentable: "throw",
         io: "input",
     });
+    sortRequiredInPlace(description);
+
+    return description;
+}
+
+/** Sort every object's required list in place, the one array zod derives from key order. */
+function sortRequiredInPlace(node: unknown): void {
+    // sort the nodes inside an array
+    if (Array.isArray(node)) {
+        for (const entry of node) {
+            sortRequiredInPlace(entry);
+        }
+    }
+    // sort an object's required list by UTF-16 code units, then the nodes inside it
+    else if (typeof node === "object" && node !== null) {
+        const required: unknown = Reflect.get(node, "required");
+        if (Array.isArray(required)) {
+            required.sort((left: unknown, right: unknown) =>
+                String(left) < String(right) ? -1 : 1,
+            );
+        }
+        for (const entry of Object.values(node)) {
+            sortRequiredInPlace(entry);
+        }
+    }
 }
 
 /** Build a validator from JSON Schema as `toJsonSchema` describes declarable schemas. */
