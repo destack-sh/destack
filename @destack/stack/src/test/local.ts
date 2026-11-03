@@ -1,3 +1,4 @@
+import type { Scheduler } from "@destack/environment";
 import { startSilentTelemetry } from "@destack/telemetry/test";
 import type { Authentication } from "@destack/access";
 import type { Identifier, JsonValue } from "@destack/schema";
@@ -33,6 +34,8 @@ export class LocalRuntime implements Runtime {
     readonly #identity: (scope: Identifier<"space">) => Promise<Pick<Deriver, "derive">>;
     /** Select the runner options of an instance's workload. */
     readonly #runner: (spec: InstanceSpec) => RunnerOptions;
+    /** The scheduler a call's module import runs on. */
+    readonly #scheduler: Scheduler;
     /** The workloads starting and running. */
     readonly #registry = new InstanceRegistry<Running>();
 
@@ -46,12 +49,15 @@ export class LocalRuntime implements Runtime {
         readonly identity: (scope: Identifier<"space">) => Promise<Pick<Deriver, "derive">>;
         /** Select the runner options of an instance's workload. */
         readonly runner: (spec: InstanceSpec) => RunnerOptions;
+        /** The scheduler a call's module import runs on. */
+        readonly scheduler: Scheduler;
     }) {
         // set the egress, the space identities and the workloads
         this.#egress = options.egress;
         this.#identity = options.identity;
         this.#runner = options.runner;
         this.#report = options.report;
+        this.#scheduler = options.scheduler;
     }
 
     /** Start an instance's workload in this process. */
@@ -81,7 +87,7 @@ export class LocalRuntime implements Runtime {
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
-        return callInProcess(build, path, name, input);
+        return callInProcess(build, path, name, input, this.#scheduler);
     }
 
     /** Stop every instance. */

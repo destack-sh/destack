@@ -1143,7 +1143,10 @@ export class TestSpace implements AsyncDisposable {
             registry: this.registry,
             buckets: await this.buckets(),
             builds: await this.builds(),
-            runtimes: [new TestRuntime(), new ProcessRuntime()],
+            runtimes: [
+                new TestRuntime({ scheduler: this.simulation.scheduler }),
+                new ProcessRuntime(),
+            ],
             events: overrides.events ?? (await this.#events()),
             sockets: overrides.sockets ?? (await this.sockets()),
             isEnforcingEntitlements: false,
@@ -1728,6 +1731,7 @@ export class TestSpace implements AsyncDisposable {
         const signing: TestServed = {
             scope: served.scope,
             environment: served.environment,
+            simulation: served.simulation,
             server: (handle) => served.server(handle),
             type: (reference) => served.type(reference),
             named: (name) => served.named(name),
@@ -1974,11 +1978,14 @@ export class TestSpace implements AsyncDisposable {
 
     /** Stop the fixture's own follow, then close the machine's database once. */
     async [Symbol.asyncDispose](): Promise<void> {
-        // stop the fixture's own follow, then close the database once
-        await this.#following?.();
+        // stop the fixture's own follow, then close the database once, waiting on the world
+        const following = this.#following;
         this.#following = undefined;
+        if (following !== undefined) {
+            await this.simulation.wait(following());
+        }
         this.#closed ??= this.#test.close();
-        await this.#closed;
+        await this.simulation.wait(this.#closed);
 
         // fail on reports the test never took as refusals
         const reported = this.#reported.splice(0);

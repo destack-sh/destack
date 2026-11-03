@@ -42,8 +42,7 @@ test("expire a dropped build as builds change, and collect it with its graph onc
         if (minor === 0) {
             await (await fixture.index()).open(id);
         }
-        await simulation.clock.sleep(clock.now() + 1 - simulation.clock.now());
-        await simulation.idle();
+        await simulation.run(clock.now() + 1);
     }
 
     // read the expiry the last recorded build caused, then wake past the leases and a week on

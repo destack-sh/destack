@@ -639,7 +639,10 @@ test("stop the instances of a moving space running on its machine once its fence
         space.owner.subject,
         space.machine.environment,
     );
-    const runtime = new TestRuntime("bun", [running]);
+    const runtime = new TestRuntime({
+        scheduler: space.machine.environment.scheduler,
+        earlier: [running],
+    });
 
     // fence the moving space on the machine running it
     const moving = { id: ids.space, scope: ids.account, machine: space.machine.id, epoch: 1 };

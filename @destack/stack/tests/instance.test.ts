@@ -329,7 +329,8 @@ async function serveControllers(
     const { database } = fixture;
     const directory = await fixture.environment.files.makeTemporaryDirectory("destack-instance-");
     const root = pathToFileURL(`${directory}/`);
-    const runtime = options.runtime ?? new TestRuntime();
+    const runtime =
+        options.runtime ?? new TestRuntime({ scheduler: fixture.environment.scheduler });
     const runtimes = options.runtimes ?? ["bun"];
 
     // run the chosen runtimes on the machine serving the space and record instances on the one test runtime
@@ -350,7 +351,9 @@ async function serveControllers(
                 ? { isEnforcingEntitlements: true, publisherAt: () => TestEntitlement.publisher }
                 : {}),
             runtimes: runtimes.map((name) =>
-                name === runtime.name ? runtime : new TestRuntime(name),
+                name === runtime.name
+                    ? runtime
+                    : new TestRuntime({ scheduler: fixture.environment.scheduler, name }),
             ),
         }),
     );
@@ -619,7 +622,7 @@ test("restart a failing instance in place after a doubling backoff, with one rec
     const { simulation } = fixture;
     const { clock } = simulation;
     const { database } = fixture;
-    const failing = new FailingRuntime();
+    const failing = new FailingRuntime({ scheduler: simulation.scheduler });
     const { first, early, second, recorded } = await (async () => {
         const notes = await installNotes(fixture);
         const { deployments, instances, resources } = await serveControllers(fixture, {
@@ -671,7 +674,7 @@ test("start a running instance again once its machine restarted and no longer ru
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const notes = await installNotes(fixture);
-    const before = new TestRuntime();
+    const before = new TestRuntime({ scheduler: fixture.environment.scheduler });
     const first = await serveControllers(fixture, { runtime: before });
     await first.deployments.reconcile(notes.id);
     await first.resources.reconcile(ids.space);
@@ -679,7 +682,7 @@ test("start a running instance again once its machine restarted and no longer ru
     await first.instances.reconcile(deployed.id);
 
     // restart the machine with an idle runtime and reconcile again
-    const after = new TestRuntime();
+    const after = new TestRuntime({ scheduler: fixture.environment.scheduler });
     const second = await serveControllers(fixture, { runtime: after });
     await second.instances.reconcile(deployed.id);
     const recorded = await database.select().from(object.instance.table);
@@ -706,10 +709,9 @@ test("deploy a submitted revision next to the previous one, serve the previous o
     await instances.reconcile(first.id);
 
     // submit a second revision a millisecond later that deploys next to the first and drains it
-    await fixture.simulation.clock.sleep(
+    await fixture.simulation.sleep(
         fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
     );
-    await fixture.simulation.idle();
     const second = await submitRevision(fixture, notes.id, "f");
     await deployments.reconcile(notes.id);
     const replacement = nth(
@@ -776,10 +778,9 @@ test("redeploy the revision an application follows once the outputs its machine 
     await workerd.reconcile(notes.id);
 
     // serve it on a bun machine a millisecond later to replace the workerd deployment
-    await fixture.simulation.clock.sleep(
+    await fixture.simulation.sleep(
         fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
     );
-    await fixture.simulation.idle();
     const { deployments: bun } = await serveControllers(fixture, { runtimes: ["bun"] });
     await bun.reconcile(notes.id);
     await bun.reconcile(notes.id);
@@ -814,10 +815,9 @@ test("redeploy an application once a binding its deployment captured targets ano
     const owned = nth(await database.select().from(object.bucket.table), 0);
 
     // rebind the files a millisecond later to a second bucket of the same declaration
-    await fixture.simulation.clock.sleep(
+    await fixture.simulation.sleep(
         fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
     );
-    await fixture.simulation.idle();
     const now = fixture.machine.clock.now();
     const second = nth(
         await database.transaction(
@@ -1155,10 +1155,9 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
     const unallowed = await deployed();
 
     // allow the issues, indexing and scanning a millisecond later, and redeploy the workload with their host abilities and the directory
-    await fixture.simulation.clock.sleep(
+    await fixture.simulation.sleep(
         fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
     );
-    await fixture.simulation.idle();
     await grant(["issues", "index", "scanning"], [notesDirectory]);
     const allowed = await deployed();
     expect({
@@ -1208,7 +1207,7 @@ test("fail an instance granted files on a runtime without a filesystem to grant"
     );
     const { deployments, instances, resources } = await serveControllers(fixture, {
         runtimes: ["workerd"],
-        runtime: new TestRuntime("workerd"),
+        runtime: new TestRuntime({ scheduler: fixture.environment.scheduler, name: "workerd" }),
     });
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
@@ -1467,10 +1466,9 @@ test("recreate over a draining release whose values a conversion narrows: stop i
     await instances.reconcile(original.id);
 
     // follow the narrowing revision a millisecond later, and plan a recreation that waits for approval
-    await fixture.simulation.clock.sleep(
+    await fixture.simulation.sleep(
         fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
     );
-    await fixture.simulation.idle();
     declared = [narrowed];
     const second = await submitRevision(
         fixture,

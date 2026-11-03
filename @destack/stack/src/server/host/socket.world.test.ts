@@ -96,10 +96,9 @@ test("show a socket's client and session to its principal and the space's manage
         client: browser,
         session: "client:5f1d",
     });
-    await fixture.simulation.clock.sleep(
+    await fixture.simulation.sleep(
         fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
     );
-    await fixture.simulation.idle();
     await sockets.connect(ids.space, {
         kind: "tab",
         principal: viewer,
