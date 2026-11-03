@@ -292,7 +292,7 @@ test("leave a refused key quiet until its next change, reporting it once, and re
     await database.transaction((transaction) =>
         transaction.update(job).set({ runs: 2 }).where(eq(job.id, "denied")).execute(),
     );
-    await expect.poll(() => attempts.filter((key) => key === "denied").length).toBe(2);
+    await waitEqual(simulation, () => attempts.filter((key) => key === "denied").length, 2);
     await loop.idle();
 
     // try "denied" once and "down" every minute, reporting each once
@@ -371,8 +371,7 @@ test("end a run whose loop fails, only after its running reconciliations ended",
     // close the database under the watching loop while the key reconciles, then release it
     await started.promise;
     await storage.database.close();
-    await simulation.clock.sleep(1000);
-    await simulation.idle();
+    await simulation.sleep(1000);
     gate.resolve();
     await running;
 
@@ -690,7 +689,8 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
 
 test("lock each key to one instance of several sharing a database, handing it over once its holder stops", async () => {
     // run two instances of the loop over two connections to one database
-    const world = testSimulation().environment("test");
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
     const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
@@ -731,7 +731,7 @@ test("lock each key to one instance of several sharing a database, handing it ov
     });
 
     // reconcile the key on one instance alone, then hand it to the other once the holder stops
-    await expect.poll(() => reconciled.length).toBe(1);
+    await waitEqual(simulation, () => reconciled.length, 1);
     const holder = nth(reconciled, 0);
     (holder === "first" ? first : second).abort();
     await nth(running, holder === "first" ? 0 : 1);
@@ -742,7 +742,8 @@ test("lock each key to one instance of several sharing a database, handing it ov
 
 test("take over a key whose lock a crashed instance left once this instance's join timeout passes", async () => {
     // keep the lock of an instance that crashed without a word, over a database two connections share
-    const world = testSimulation().environment("test");
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
     const storage = await TestDatabase.create([job, lock], {
         environment: world,
         isMigrated: true,
@@ -780,8 +781,9 @@ test("take over a key whose lock a crashed instance left once this instance's jo
     });
 
     // reconcile the key once no live instance replied for the crashed holder
-    await storage.database.tracker.waitSynced();
-    await expect.poll(() => reconciled, { timeout: 2000 }).toEqual(["shared"]);
+    await simulation.wait(storage.database.tracker.waitSynced());
+    await simulation.waitUntil(() => reconciled.length > 0);
+    expect(reconciled).toEqual(["shared"]);
 });
 
 test("follow each listed key until its list drops it or the loop stops", async () => {
@@ -855,7 +857,8 @@ test("follow each listed key until its list drops it or the loop stops", async (
 
 test("settle idle once each follow synced while reporting a follow failing before it syncs", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create([job, lock], {
         environment: world,
@@ -897,7 +900,7 @@ test("settle idle once each follow synced while reporting a follow failing befor
     const running = loop.run(stopping.signal);
 
     // stay unsettled while the follow waits at its gate and the failed one waits out its retry, then settle once it syncs
-    await expect.poll(() => started.includes("syncing") && reported.length === 1).toBe(true);
+    await waitEqual(simulation, () => started.includes("syncing") && reported.length === 1, true);
     const depthAtGate = loop.depth;
     gate.resolve();
     await loop.idle();
@@ -1031,7 +1034,8 @@ test("fail the loop once a follow ends unasked", async () => {
 
 test("retry a failing follow at once when its revision changes, else only after its backoff", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create([job, lock], {
         environment: world,
@@ -1073,14 +1077,14 @@ test("retry a failing follow at once when its revision changes, else only after 
         report: ignore,
     });
     const running = loop.run(stopping.signal);
-    await expect.poll(() => started).toEqual(["job@1"]);
+    await waitEqual(simulation, () => started, ["job@1"]);
 
     // change the job without its revision, which lists it again without a retry
     const before = listings;
     await database.transaction((transaction) =>
         transaction.update(job).set({ scope: "elsewhere" }).where(eq(job.id, "job")).execute(),
     );
-    await expect.poll(() => listings).toBe(before + 1);
+    await waitEqual(simulation, () => listings, before + 1);
     await yieldToEventLoop();
     const unrevised = [...started];
 
@@ -1088,7 +1092,7 @@ test("retry a failing follow at once when its revision changes, else only after 
     await database.transaction((transaction) =>
         transaction.update(job).set({ runs: 2 }).where(eq(job.id, "job")).execute(),
     );
-    await expect.poll(() => started).toEqual(["job@1", "job@2"]);
+    await waitEqual(simulation, () => started, ["job@1", "job@2"]);
     expect(unrevised).toEqual(["job@1"]);
     stopping.abort();
     await running;
@@ -1096,7 +1100,8 @@ test("retry a failing follow at once when its revision changes, else only after 
 
 test("start a failing follow at once once its list drops it and lists it again, forgetting its failures", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create([job, lock], {
         environment: world,
@@ -1130,18 +1135,18 @@ test("start a failing follow at once once its list drops it and lists it again, 
         report: ignore,
     });
     const running = loop.run(stopping.signal);
-    await expect.poll(() => started).toEqual(["job"]);
+    await waitEqual(simulation, () => started, ["job"]);
 
     // drop the job from the list, then list it again
     const before = listings;
     await database.transaction((transaction) =>
         transaction.delete(job).where(eq(job.id, "job")).execute(),
     );
-    await expect.poll(() => listings).toBe(before + 1);
+    await waitEqual(simulation, () => listings, before + 1);
     await database.transaction((transaction) =>
         transaction.insert(job).values({ id: "job", scope: "space", runs: 1 }).execute(),
     );
-    await expect.poll(() => started).toEqual(["job", "job"]);
+    await waitEqual(simulation, () => started, ["job", "job"]);
     stopping.abort();
     await running;
 });
@@ -1280,7 +1285,7 @@ test("set the host's alarm at the earliest due or skipped key, clear it once not
 
     // clear the alarm once the clock passed "later" again and nothing is due
     await simulation.jump(clock.now() + 50);
-    await expect.poll(() => alarms.at(-1), { interval: 5 }).toBeNull();
+    await waitEqual(simulation, () => alarms.at(-1), null);
     stopping.abort();
     await running;
     expect([settled, reconciled.length, alarms.length]).toEqual([[["later", "soon"], 2], 3, 3]);
@@ -1664,20 +1669,20 @@ test("settle an alarm at its deadline while a follow runs, leave the alarm due, 
 
     // settle the alarm at its deadline once the follow runs
     await waitEqual(simulation, () => follows, 1);
-    await evicted.loop.idle(world.clock.now() + 20);
+    await simulation.wait(evicted.loop.idle(world.clock.now() + 20));
     const settled = world.clock.now();
     const isDue = alarms.length === 1 && nth(alarms, 0) <= settled;
 
     // evict the object
     evicted.stopping.abort();
-    await evicted.running;
+    await simulation.wait(evicted.running);
 
     // receive another event and resume in a new loop from the recorded position
     source.push("third");
     const resumed = start();
     await waitEqual(simulation, () => applied.length, 3);
     resumed.stopping.abort();
-    await resumed.running;
+    await simulation.wait(resumed.running);
     expect({ isDue, applied, follows }).toEqual({
         isDue: true,
         applied: ["first", "second", "third"],
