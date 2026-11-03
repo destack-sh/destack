@@ -1,20 +1,12 @@
 import { space, user } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
 import { argument, type Catalog, Message, plural } from "@destack/locale";
-import {
-    defineObject,
-    field,
-    PACKAGE_DECLARATION,
-    PACKAGE_EXPORT,
-    PackageHandle,
-} from "@destack/object";
-import { describePackage } from "@destack/object/inspect";
-import objectPackage from "@destack/object/package";
+import { defineObject, field, PackageHandle } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
+import { testBuild } from "@destack/object/test";
 import type { Crypto } from "@destack/environment";
 import { Package } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import { MemoryBuild } from "@destack/package/test";
 import { present, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { defineNotification } from "../declare/index.ts";
@@ -302,31 +294,20 @@ export const notesPackage = PackageHandle.of(NOTES, { objects: { document } });
 /** The documents package's server. */
 export const notesServer = implementPackage(notesPackage, { objects: [documentHandlers] });
 
-/** Write the documents' build: its package, its notifications and its German catalog. */
-export function openNotesBuild(crypto: Crypto): Promise<BuildReader> {
-    return MemoryBuild.of(
-        NOTES,
-        [
-            {
-                kind: PACKAGE_DECLARATION,
-                kindPackageId: objectPackage.id,
-                name: PACKAGE_EXPORT,
-                description: describePackage(notesPackage),
-            },
-            ...notifications.map((declared) => ({
-                kind: "notification",
-                kindPackageId: notificationPackage.id,
-                name: declared.name,
-                description: declared.describe(),
-            })),
-        ],
-        crypto,
-        {
-            files: new Map([
-                ["locale/de.json", new TextEncoder().encode(JSON.stringify(NOTES_CATALOG))],
-            ]),
-        },
-    );
+/** Write the documents' build: its package, notifications and German catalog, on notification. */
+export function openNotesBuild(crypto: Crypto, notification: BuildReader): Promise<BuildReader> {
+    return testBuild(notesPackage, crypto, {
+        dependencies: [notification],
+        declared: notifications.map((declared) => ({
+            kind: "notification",
+            kindPackageId: notificationPackage.id,
+            name: declared.name,
+            description: declared.describe(),
+        })),
+        files: new Map([
+            ["locale/de.json", new TextEncoder().encode(JSON.stringify(NOTES_CATALOG))],
+        ]),
+    });
 }
 
 /** Refer to a document as its attachments' parent. */

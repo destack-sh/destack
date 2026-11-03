@@ -7,6 +7,7 @@
     "description": "Declare notifications, notify recipients, watch objects and deliver them as messages.",
     "exports": {
         ".": "./src/index.ts",
+        "./client": "./src/client/index.ts",
         "./declare": "./src/declare/index.ts",
         "./error": "./src/error/index.ts",
         "./destack.json": "./destack.json",
@@ -30,6 +31,7 @@
         "@destack/error": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
+        "@destack/mail": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",

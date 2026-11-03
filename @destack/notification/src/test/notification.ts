@@ -5,24 +5,15 @@ import type { TestPerson } from "@destack/account/test";
 import { asc, eq } from "@destack/db";
 import type { Simulation, SimulatedClock } from "@destack/environment/simulation";
 import type { LocaleTag } from "@destack/locale";
-import {
-    MAIL_PROVIDER,
-    subscribeBrowser,
-    TestMailTransport,
-    TestMessage,
-    type Browser,
-} from "@destack/message/test";
-import { mailConnector } from "@destack/message/email";
+import { type TestMailAnswer, TestMailTransport } from "@destack/mail/test";
+import { mailConnector } from "@destack/mail/transport";
+import { MAIL_PROVIDER, subscribeBrowser, TestMessage, type Browser } from "@destack/message/test";
 import { message } from "@destack/message/object";
-import type { Outcome } from "@destack/message/provider";
-import { MethodContext, PACKAGE_DECLARATION, PACKAGE_EXPORT } from "@destack/object";
-import { describePackage } from "@destack/object/inspect";
+import { MethodContext } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
-import { type TestCaller, TestObjectStore } from "@destack/object/test";
-import { Package } from "@destack/package";
+import { testBuild, type TestCaller, TestObjectStore } from "@destack/object/test";
 import type { BuildReader } from "@destack/package/manifest";
-import { MemoryBuild } from "@destack/package/test";
 import { type Identifier, present, schema } from "@destack/schema";
 import type { Setting } from "@destack/setting";
 import { describeSetting } from "@destack/setting/inspect";
@@ -192,8 +183,8 @@ export class TestNotification implements AsyncDisposable {
         options: {
             /** The recipients of one announcement batch, the server's default when absent. */
             readonly batch?: number;
-            /** The outcomes the mail transport answers in turn, every email sent when absent. */
-            readonly mails?: readonly Outcome[];
+            /** The answers the mail transport gives in turn, every email sent when absent. */
+            readonly mails?: readonly TestMailAnswer[];
         } = {},
     ): Promise<TestNotification> {
         // copy the template's world with the mail bound to the transport and the notifications batched as asked
@@ -249,7 +240,6 @@ export class TestNotification implements AsyncDisposable {
                     new NotificationServer({}).definition(),
                 ),
                 connectors: [],
-                servers: [],
                 providers: [],
             },
         ];
@@ -257,29 +247,17 @@ export class TestNotification implements AsyncDisposable {
 
     /** Write the notification build: its package, its settings and German catalog. */
     static build(crypto: Crypto): Promise<BuildReader> {
-        return MemoryBuild.of(
-            Package.of(notificationPackage),
-            [
-                {
-                    kind: PACKAGE_DECLARATION,
-                    kindPackageId: objectPackage.id,
-                    name: PACKAGE_EXPORT,
-                    description: describePackage(notificationPackage),
-                },
-                ...[focus, preferences, summarySchedule].map((declared) => ({
-                    kind: "setting",
-                    kindPackageId: settingPackage.id,
-                    name: declared.name,
-                    description: describeSetting(declared),
-                })),
-            ],
-            crypto,
-            {
-                files: new Map([
-                    ["locale/de.json", new TextEncoder().encode(JSON.stringify(germanCatalog))],
-                ]),
-            },
-        );
+        return testBuild(notificationPackage, crypto, {
+            declared: [focus, preferences, summarySchedule].map((declared) => ({
+                kind: "setting",
+                kindPackageId: settingPackage.id,
+                name: declared.name,
+                description: describeSetting(declared),
+            })),
+            files: new Map([
+                ["locale/de.json", new TextEncoder().encode(JSON.stringify(germanCatalog))],
+            ]),
+        });
     }
 
     /** Define the template of the fixture's world, which every test copies. */
@@ -602,10 +580,12 @@ export const PACKAGES: readonly TestPackage[] = [
     ...(await TestNotification.packages(testHost().crypto)),
     {
         handle: notesPackage,
-        build: await openNotesBuild(testHost().crypto),
+        build: await openNotesBuild(
+            testHost().crypto,
+            await TestNotification.build(testHost().crypto),
+        ),
         server: notesServer,
         connectors: [],
-        servers: [],
         providers: [],
     },
 ];
