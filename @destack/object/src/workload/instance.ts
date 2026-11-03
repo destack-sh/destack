@@ -238,6 +238,8 @@ class WorkloadStart {
     };
     /** The controller aborting the start's background work at its retirement. */
     readonly #controller = new AbortController();
+    /** The servers a serve replaced, draining beside the start. */
+    readonly #draining = new Set<Promise<void>>();
     /** The resources released after draining. */
     readonly #cleanup = new AsyncDisposableStack();
     /** What the start does with its hibernated sockets' events, absent for a start without them. */
@@ -289,9 +291,9 @@ class WorkloadStart {
                 defer: (dispose) => start.#cleanup.defer(dispose),
             });
 
-            // start a server per package and take the handlers
+            // start a server per package and take the handlers, replacing none in this start
             for (const served of implementation.packages) {
-                start.#serve(served);
+                start.#serve(served, Promise.resolve());
             }
             start.#sockets = implementation.sockets;
             start.#hooks = implementation.hooks;
@@ -314,8 +316,8 @@ class WorkloadStart {
         return start;
     }
 
-    /** Start the server of one served package, refusing a duplicate. */
-    #serve(served: PackageHandler): void {
+    /** Start a served package's server once the servers it replaces stopped their controllers. */
+    #serve(served: PackageHandler, handover: Promise<unknown>): void {
         // refuse a cancelled start and a package served twice
         this.#controller.signal.throwIfAborted();
         const { options, clock, activation } = this.#serving;
@@ -334,8 +336,8 @@ class WorkloadStart {
             report: (error) => options.report(error),
             ...(clock === undefined ? {} : { alarm: clock.alarm() }),
             activation: async (signal) => {
-                // wait for this start's turn, then the package's own activation
-                await Promise.race([activation, waitAborted(signal)]);
+                // wait for this start's turn and the replaced controllers' stop, then the package's own activation
+                await Promise.race([Promise.all([activation, handover]), waitAborted(signal)]);
                 if (!signal.aborted) {
                     await served.activation?.(signal);
                 }
@@ -354,8 +356,8 @@ class WorkloadStart {
         this.#packages.set(handle.id, { handle, handler: served, server, protocols });
     }
 
-    /** Serve another set of packages, keeping each unchanged handler's server. */
-    async serve(handlers: readonly PackageHandler[]): Promise<void> {
+    /** Serve another set of packages, keeping unchanged servers, the replaced ones draining. */
+    serve(handlers: readonly PackageHandler[]): void {
         // take out the servers of packages no longer served or served by another handler
         const replaced = [...this.#packages].filter(
             ([, served]) => !handlers.includes(served.handler),
@@ -364,11 +366,20 @@ class WorkloadStart {
             this.#packages.delete(packageId);
         }
 
-        // serve the added and changed packages, then drain the replaced servers
+        // serve the added and changed packages once the replaced controllers stopped, as one key has one writer
+        const handover = Promise.all(replaced.map(([, served]) => served.server.stopControllers()));
         for (const handler of handlers.filter((each) => !this.#packages.has(each.package.id))) {
-            this.#serve(handler);
+            this.#serve(handler, handover);
         }
-        await Promise.all(replaced.map(([, served]) => served.server.close()));
+
+        // drain the replaced servers beside the start, which may run the caller's own controller
+        for (const [, served] of replaced) {
+            const draining = served.server
+                .close()
+                .catch((error: unknown) => this.#serving.options.report(error));
+            this.#draining.add(draining);
+            void draining.then(() => this.#draining.delete(draining));
+        }
     }
 
     /** Report whether a package implements a request's route of another package's types. */
@@ -465,9 +476,10 @@ class WorkloadStart {
 
     /** Close every server and resource, reporting all failures. */
     async #close(): Promise<void> {
-        // drain each server
+        // drain each server, and the replaced ones still draining
         const servers = [...this.#packages.values()].map((served) => served.server);
         const results = await Promise.allSettled(servers.map((server) => server.close()));
+        await Promise.all(this.#draining);
         const errors = results.flatMap((result): unknown[] =>
             result.status === "rejected" ? [result.reason] : [],
         );
