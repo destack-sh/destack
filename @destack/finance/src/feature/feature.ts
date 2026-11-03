@@ -1,3 +1,4 @@
+import { defineDeclarationKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { FinanceError } from "../error/error.ts";
 import {
@@ -9,6 +10,9 @@ import { Package, PackageId, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, schema, type JsonValue } from "@destack/schema";
+
+/** The feature declaration kind, which finance defines. */
+export const FEATURE_KIND = defineDeclarationKind("feature");
 
 /** What a feature grants. */
 export const FeatureKind = schema.enum(FEATURE_KINDS);
@@ -114,11 +118,7 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
 
     /** Read the features a build declares, each value schema rebuilt from its JSON Schema. */
     static async list(build: Pick<BuildReader, "declared">): Promise<Feature[]> {
-        const declared = await build.declared(
-            import.meta.destack.package.id,
-            "feature",
-            FeatureDescription,
-        );
+        const declared = await build.declared(FEATURE_KIND, FeatureDescription);
 
         return declared.map(({ description: { package: declaring, ...definition } }) =>
             definition.kind === "static"

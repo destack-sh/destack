@@ -1,3 +1,4 @@
+import { defineDeclarationKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { ProviderCode, Tenancy } from "@destack/account/object";
 import { Package, DeclarationName } from "@destack/package";
@@ -5,6 +6,9 @@ import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { Currency, DecimalAmount } from "../rate/amount.ts";
+
+/** The SKU declaration kind, which finance defines. */
+export const SKU_KIND = defineDeclarationKind("sku");
 
 /** The FOCUS ServiceCategories of the services SKUs price. */
 export const SERVICE_CATEGORIES = ["Compute", "Databases", "Storage", "Networking"] as const;
@@ -73,11 +77,7 @@ export class Sku {
 
     /** Read the SKUs a build declares. */
     static async list(build: Pick<BuildReader, "declared">): Promise<Sku[]> {
-        const declared = await build.declared(
-            import.meta.destack.package.id,
-            "sku",
-            SkuDescription,
-        );
+        const declared = await build.declared(SKU_KIND, SkuDescription);
 
         return declared.map(
             ({ description: { package: declaring, ...definition } }) =>

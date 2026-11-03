@@ -15,13 +15,13 @@ import { notification } from "@destack/notification";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import { TestNotification } from "@destack/notification/test";
-import { EventView, PACKAGE_DECLARATION, PACKAGE_EXPORT } from "@destack/object";
+import { EventView, PACKAGE_KIND, PACKAGE_EXPORT } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { implementPackage, type ObjectStore } from "@destack/object/server";
 import type { InstalledServerContext } from "@destack/object/workload";
 import { serversOf, type TestObjectStore } from "@destack/object/test";
 import { describeMeter } from "@destack/telemetry/inspect";
-import { Meter } from "@destack/telemetry/meter";
+import { Meter, METER_KIND } from "@destack/telemetry/meter";
 import { Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { type BuildReader } from "@destack/package/manifest";
@@ -41,6 +41,8 @@ import { describeFeature, describeSku } from "../inspect/index.ts";
 import { usage } from "@destack/stack/object";
 import { type Resolution, Usage, usageLimit } from "../object/index.ts";
 import financePackage, { FINANCE_INSTALLATION } from "../package.ts";
+import { FEATURE_KIND } from "../feature/feature.ts";
+import { SKU_KIND } from "../sku/sku.ts";
 import type { PaymentProvider } from "../provider/index.ts";
 import type { Period } from "../rate/index.ts";
 import { EntitlementController } from "../server/entitlement-controller.ts";
@@ -115,8 +117,7 @@ const FINANCE: TestPackage = {
         usageLimit.package,
         [
             {
-                kind: PACKAGE_DECLARATION,
-                kindPackageId: objectPackage.id,
+                ...PACKAGE_KIND.identity,
                 name: PACKAGE_EXPORT,
                 description: describePackage(financePackage),
             },
@@ -592,21 +593,18 @@ export class TestFinance {
         // describe a feature or a SKU as finance's
         if (entry instanceof Feature) {
             return {
-                kindPackageId: financePackage.id,
-                kind: "feature",
+                ...FEATURE_KIND.identity,
                 description: describeFeature(entry),
             };
         } else if (entry instanceof Sku) {
             return {
-                kindPackageId: financePackage.id,
-                kind: "sku",
+                ...SKU_KIND.identity,
                 description: describeSku(entry),
             };
         }
 
         return {
-            kindPackageId: Meter.kindPackageId,
-            kind: "meter",
+            ...METER_KIND.identity,
             description: describeMeter(entry),
         };
     }
