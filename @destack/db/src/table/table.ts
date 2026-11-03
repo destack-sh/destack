@@ -307,6 +307,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     #logged: Readonly<Record<string, Column>> | undefined;
     /** The columns whose schemas mark personal values, read on first use. */
     #personal: ReadonlySet<string> | undefined;
+    /** The constraints by dialect, collected on first use. */
+    readonly #constraints = new Map<Dialect, readonly TableConstraint[]>();
     /** The built statements by name. */
     readonly #statements = new Map<string, Statement>();
     /** The table's descriptions by dialect, described on first use. */
@@ -485,8 +487,13 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return column;
     }
 
-    /** Collect a dialect's constraints: declared ones, SQLite key checks and column references. */
+    /** Collect a dialect's constraints once: declared ones, SQLite key checks and references. */
     constraints(dialect: Dialect): readonly TableConstraint[] {
+        // collect them on first use, as a declared table never changes
+        const collected = this.#constraints.get(dialect);
+        if (collected !== undefined) {
+            return collected;
+        }
         const constraints = [...this.#declared()];
         for (const [property, column] of Object.entries(this.columns)) {
             // retain primary key checks
@@ -514,6 +521,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
                 );
             }
         }
+        this.#constraints.set(dialect, constraints);
 
         return constraints;
     }

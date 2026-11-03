@@ -53,7 +53,7 @@ test("keep a world's time while it waits behind another world's connection, rese
     const reserved = await waiting;
     const afterwards = kinds(waiter.scheduler.pending());
     pool.release(reserved.sql);
-    expect([whileWaiting, afterwards]).toEqual([["lifetime"], []]);
+    expect([whileWaiting, afterwards]).toEqual([["operation"], []]);
 });
 
 test("end a timed-out wait behind another world's connection as peer work, leaving the queue", async () => {

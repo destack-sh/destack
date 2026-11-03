@@ -16,8 +16,11 @@ const HOST = testHost();
 /** The file the writer leaves the index of the run's template images in. */
 const INDEX = "images.json";
 
-/** The directory of written templates below a checkout's root, as find-cache-dir places it. */
-const CACHE = join("node_modules", ".cache", "destack", "templates");
+/** The directory of written templates below the person's cache directory. */
+const CACHE = join("destack", "templates");
+
+/** The hex digits of a checkout root's digest naming its templates' directory: 64 bits. */
+const CHECKOUT_DIGITS = 16;
 
 /** The file every workspace root has, which the checkout's root is found by. */
 const LOCKFILE = "bun.lock";
@@ -103,20 +106,20 @@ class TemplateCache {
     /** The variables the images are written with, beside the process's own. */
     readonly variables: Readonly<Record<string, string>>;
 
-    /** Describe a module's cache below its checkout's root, keyed by its inputs. */
+    /** Describe a module's cache in its entries' directory, keyed by its inputs. */
     private constructor(
         module: string,
         dialect: Dialect,
-        root: string,
+        entries: string,
         key: Digest,
         variables: Readonly<Record<string, string>>,
     ) {
-        // place the module's entries below the root, one directory per database
+        // keep the module, its database, its key, its variables and its entries' directory
         this.module = module;
         this.dialect = dialect;
         this.key = key;
         this.variables = variables;
-        this.entries = join(root, CACHE, relative(root, module).replaceAll("/", "_"), dialect);
+        this.entries = entries;
     }
 
     /** Open a module's cache, reading its checkout's root and the key of its inputs. */
@@ -144,7 +147,13 @@ class TemplateCache {
             HOST.crypto,
         );
 
-        return new TemplateCache(module, dialect, root, key, variables);
+        // place the module's entries in the person's cache, apart per checkout and database
+        const checkout = (await Digest.json(root, HOST.crypto)).slice(0, CHECKOUT_DIGITS);
+        const name = relative(root, module).replaceAll("/", "_");
+        const cache = join(await HOST.files.cacheDirectory(), CACHE);
+        const entries = join(cache, checkout, name, dialect);
+
+        return new TemplateCache(module, dialect, entries, key, variables);
     }
 
     /** The directory of the images for the current key. */
