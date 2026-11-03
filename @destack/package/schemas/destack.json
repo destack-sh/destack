@@ -271,8 +271,8 @@
                                                 }
                                             },
                                             "required": [
-                                                "kind",
-                                                "function"
+                                                "function",
+                                                "kind"
                                             ],
                                             "additionalProperties": false
                                         },
@@ -376,8 +376,8 @@
                                 },
                                 "required": [
                                     "files",
-                                    "rules",
-                                    "reason"
+                                    "reason",
+                                    "rules"
                                 ],
                                 "additionalProperties": false
                             }
@@ -423,8 +423,8 @@
                                         },
                                         "required": [
                                             "files",
-                                            "rules",
-                                            "reason"
+                                            "reason",
+                                            "rules"
                                         ],
                                         "additionalProperties": false
                                     }
@@ -515,8 +515,8 @@
                                         },
                                         "required": [
                                             "files",
-                                            "rules",
-                                            "reason"
+                                            "reason",
+                                            "rules"
                                         ],
                                         "additionalProperties": false
                                     }
