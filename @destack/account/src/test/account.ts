@@ -84,7 +84,7 @@ import type { DnsResolver } from "../server/dns-resolver.ts";
 import { freshHandle, TestPerson, type TestSignIn } from "./person.ts";
 import { authenticatorCode, Enrollment } from "./authenticator.ts";
 import { sudo } from "../authentication/sudo.ts";
-import type { Mail, MailOutcome, MailTransport } from "../better-auth/index.ts";
+import type { Mail, MailTransport } from "@destack/mail/transport";
 import { Simulation, type SimulatedClock } from "@destack/environment/simulation";
 import { Pkce } from "@destack/access/token";
 
@@ -1531,10 +1531,8 @@ export class TestMail implements MailTransport {
     readonly #mail: { readonly email: string; readonly text: string }[] = [];
 
     /** Store an email sign-in mails to an address. */
-    async send(mail: Mail): Promise<MailOutcome> {
+    async send(mail: Mail): Promise<void> {
         this.#mail.push({ email: mail.to, text: mail.text });
-
-        return { kind: "sent" };
     }
 
     /** Read the sign-in links mailed so far, oldest first. */

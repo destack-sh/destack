@@ -16,7 +16,9 @@ import { betterAuthSecondFactor } from "./second-factor.ts";
 import { APIError, isAPIError } from "better-auth/api";
 import { BetterAuthAudit } from "./audit.ts";
 import { SignInPage } from "./sign-in-page.ts";
-import { AccountMail, type MailContent, type MailTransport } from "./account-mail.ts";
+import { AccountMail, type MailContent } from "./account-mail.ts";
+import { MailError } from "@destack/mail/error";
+import type { MailTransport } from "@destack/mail/transport";
 import { JWKS_PATH } from "../authentication/path.ts";
 import { Identity } from "../object/identity.ts";
 import type { CodeCheck } from "../oauth/email.ts";
@@ -563,19 +565,21 @@ async function mail(
     address: string,
     content: MailContent,
 ): Promise<void> {
-    // send the content to the address under a fresh key
-    const outcome = await options.mail.send({
+    // send the content to the address under a fresh key, refusing a mail the transport refused
+    const sent = {
         ...content,
         to: address,
         key: Uuid.v4(options.objects.environment.random),
         date: options.objects.environment.clock.now(),
+    };
+    await options.mail.send(sent).catch((error: unknown) => {
+        if (MailError.is(error)) {
+            throw AccountError.of(
+                "MAIL_UNSENT",
+                `sign-in mail to ${address} was not sent: ${error.message}`,
+                { cause: error },
+            );
+        }
+        throw error;
     });
-
-    // refuse a message the transport retried or failed
-    if (outcome.kind !== "sent") {
-        throw AccountError.of(
-            "MAIL_UNSENT",
-            `sign-in mail to ${address} was not sent: ${outcome.refusal.message}`,
-        );
-    }
 }

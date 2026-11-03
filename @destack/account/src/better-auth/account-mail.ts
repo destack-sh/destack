@@ -10,27 +10,6 @@ export type MailContent = {
     readonly html: string;
 };
 
-/** One email to one address, under the key a provider deduplicates by. */
-export type Mail = MailContent & {
-    /** The address. */
-    readonly to: string;
-    /** The key the provider deduplicates by. */
-    readonly key: string;
-    /** The origination time, in milliseconds since the epoch. */
-    readonly date: number;
-};
-
-/** What a transport made of one email: sent, or refused for now or for good. */
-export type MailOutcome =
-    | { readonly kind: "sent" }
-    | { readonly kind: "deferred" | "failed"; readonly refusal: { readonly message: string } };
-
-/** A way to send account email, as message's mail transports do. */
-export interface MailTransport {
-    /** Send one email, reading what the transport made of it. */
-    readonly send: (mail: Mail) => Promise<MailOutcome>;
-}
-
 /** What each kind of one-use code is for, as its mail states it. */
 export const CODE_PURPOSES = {
     "sign-in": "sign-in",

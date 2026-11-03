@@ -33,6 +33,7 @@
         "@destack/event": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
+        "@destack/mail": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
