@@ -413,8 +413,7 @@ test("keep an alert pending for its rule's pending period, then fire, announce a
     const statuses = async () => (await outcome(fixture)).statuses.join();
     await fixture.simulation.waitUntil(async () => (await statuses()) === "pending");
     const pending = (await outcome(fixture)).statuses;
-    await fixture.simulation.clock.sleep(now + 2 * 60_000 - fixture.simulation.clock.now());
-    await fixture.simulation.idle();
+    await fixture.simulation.run(now + 2 * 60_000);
     const fired = await outcome(fixture);
     await client.alertRule.update({
         ...alertRule.target(created),
@@ -474,8 +473,7 @@ test("fire an issue rule once per opened issue and once per regression, and not 
 
     // let the resolved alerts expire, evaluating the rules again after
     await fixture.space.simulation.jump(now + 121 * 3_600_000);
-    await fixture.simulation.clock.sleep(2 * 60_000);
-    await fixture.simulation.idle();
+    await fixture.simulation.sleep(2 * 60_000);
     const expired = [await fired("Opened"), await fired("Regressed")];
 
     // expect each change answered by one alert, settled at once, and nothing raised again

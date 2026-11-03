@@ -313,10 +313,9 @@ export class TestObservability implements AsyncDisposable {
 
     /** Run past the issues reader's minute, counting the posted exceptions into issues. */
     async count(): Promise<void> {
-        await this.simulation.clock.sleep(
+        await this.simulation.sleep(
             this.clock.now() + ISSUE_COUNT_MILLISECONDS - this.simulation.clock.now(),
         );
-        await this.simulation.idle();
     }
 
     /** The clock the space's servers read. */

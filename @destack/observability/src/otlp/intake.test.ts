@@ -384,8 +384,7 @@ test("keep a page's visits and actions apart from its logs, its visitor a hash o
             },
         ]),
     );
-    await fixture.simulation.clock.sleep(midnight + 1 - fixture.simulation.clock.now());
-    await fixture.simulation.idle();
+    await fixture.simulation.run(midnight + 1);
     await fixture.post("logs", visited(midnight + 1));
 
     // read the visits once both arrived, the action, the logs and the salts kept
