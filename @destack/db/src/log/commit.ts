@@ -168,8 +168,14 @@ export class ChangeSet {
         this.#writes.set(sqlName, (this.#writes.get(sqlName) ?? 0) + 1);
     }
 
-    /** Count the writes of some tables so far, rewrites included. */
-    writes(tables: readonly Table[]): number {
+    /** Count the writes of some tables or every table so far, rewrites included. */
+    writes(tables: readonly Table[] | "every"): number {
+        // count every table's writes
+        if (tables === "every") {
+            return [...this.#writes.values()].reduce((count, writes) => count + writes, 0);
+        }
+
+        // count the tables' writes
         return tables.reduce(
             (count, table) => count + (this.#writes.get(table[TABLE].sqlName) ?? 0),
             0,
@@ -515,6 +521,8 @@ export class Transaction {
     readonly changes = new ChangeSet();
     /** The records the transaction writes once at commit, such as its journal entry. */
     readonly #records: ((transaction: DatabaseConnection) => Promise<void>)[] = [];
+    /** The items the transaction writes in one batch per writer at commit, in order. */
+    readonly #batched: { readonly writer: BatchWriter<unknown>; readonly item: unknown }[] = [];
     /** The identifiers the transaction derived so far, counted from zero in every attempt. */
     #derived = 0;
     /** The committed rows the transaction read by key, each read once and checked at commit. */
@@ -854,12 +862,16 @@ export class Transaction {
 
     /** Mark the writes and records so far, answering how to drop every one made since. */
     #mark(): () => void {
+        // note the changes, records and batched items so far
         const changes = this.changes.copy();
         const records = this.#records.length;
+        const batched = this.#batched.length;
 
+        // drop every one made since
         return () => {
             this.changes.restore(changes);
             this.#records.splice(records);
+            this.#batched.splice(batched);
         };
     }
 
@@ -876,13 +888,46 @@ export class Transaction {
         this.#records.push(write);
     }
 
-    /** Commit the records and changes if no read changed since the base. */
-    commit(): Promise<void> {
-        return this.changes.commit(this.database, this.base, this.reads, async (transaction) => {
-            await Promise.all(this.#records.map((write) => write(transaction)));
+    /** Write an item at commit in one batch with the other items of its writer. */
+    batch<Item>(writer: BatchWriter<Item>, item: Item): void {
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- each writer receives only the items batched with it
+        this.#batched.push({ writer: writer as BatchWriter<unknown>, item });
+    }
+
+    /** Commit the records, batches and changes if no read changed since the base. */
+    async commit(): Promise<void> {
+        // commit nothing for a transaction that wrote nothing
+        if (
+            this.changes.writes("every") === 0 &&
+            this.#records.length === 0 &&
+            this.#batched.length === 0
+        ) {
+            return;
+        }
+
+        // group the batched items by writer, in order
+        const batches = new Map<BatchWriter<unknown>, unknown[]>();
+        for (const { writer, item } of this.#batched) {
+            const items = batches.get(writer) ?? [];
+            items.push(item);
+            batches.set(writer, items);
+        }
+
+        // write every record and batch with the changes
+        await this.changes.commit(this.database, this.base, this.reads, async (transaction) => {
+            await Promise.all([
+                ...this.#records.map((write) => write(transaction)),
+                ...[...batches].map(([writer, items]) => writer(items, transaction)),
+            ]);
         });
     }
 }
+
+/** Write a transaction's batched items at its commit. */
+export type BatchWriter<Item> = (
+    items: readonly Item[],
+    transaction: DatabaseConnection,
+) => Promise<void>;
 
 /** What a read took: a whole row, or the logged image change readers see. */
 type ReadKind = "row" | "image";

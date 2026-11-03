@@ -28,6 +28,8 @@ export class TransactionIdentity {
     #isMarking = false;
     /** The PostgreSQL transaction's stamped time, absent before its first logged write. */
     #timed: Promise<unknown> | undefined;
+    /** PostgreSQL's transaction identifier, read once per transaction. */
+    #id: Promise<string> | undefined;
     /** The token PostgreSQL's commit notification sends back, while the connection listens. */
     #token: CommitToken | undefined;
 
@@ -41,7 +43,9 @@ export class TransactionIdentity {
     async id(): Promise<string | undefined> {
         // assign PostgreSQL's id, else stamp the SQLite marker, absent without a log
         if (this.#session.dialect === "postgresql") {
-            return this.#assigned();
+            this.#id ??= this.#assigned();
+
+            return await this.#id;
         }
         await this.stamp();
 
