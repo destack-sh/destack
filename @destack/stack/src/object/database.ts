@@ -1,6 +1,6 @@
 import { DatabaseKind, type Select, type Snapshot } from "@destack/db";
 import { MAIN_DATABASE } from "../declare/index.ts";
-import { defineObject, OBJECT_DECLARATION, Observation } from "@destack/object";
+import { defineObject, ObjectDescription, Observation } from "@destack/object";
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
 import { Digest, type Identifier, present } from "@destack/schema";
@@ -61,7 +61,7 @@ export const Database = {
         open: (
             packageId: PackageId,
             manifest: Digest,
-        ) => Promise<Pick<BuildReader, "declarations">>,
+        ) => Promise<Pick<BuildReader, "declarations" | "declared">>,
     ): Promise<
         {
             readonly rollout: InstallationRollout;
@@ -116,7 +116,11 @@ export const Database = {
 
                     return [
                         revision.id,
-                        { manifest, declarations: await reader.declarations() },
+                        {
+                            manifest,
+                            declarations: await reader.declarations(),
+                            objects: await ObjectDescription.read(reader),
+                        },
                     ] as const;
                 }),
             ),
@@ -128,9 +132,7 @@ export const Database = {
             installations.map(async (entry) => {
                 // serve a bound revision declaring no object types at once, and one declaring some once main applied them
                 const latest =
-                    entry.revisionId === null
-                        ? undefined
-                        : declared.get(entry.revisionId)?.declarations;
+                    entry.revisionId === null ? undefined : declared.get(entry.revisionId);
                 const tables =
                     entry.revisionId === null
                         ? undefined
@@ -143,8 +145,7 @@ export const Database = {
                 const isApplied =
                     latest !== undefined &&
                     isBound &&
-                    (!latest.some((each) => each.kind === OBJECT_DECLARATION) ||
-                        (tables !== undefined && applied.has(tables)));
+                    (latest.objects.length === 0 || (tables !== undefined && applied.has(tables)));
                 const revisionId = isApplied ? entry.revisionId : entry.appliedRevisionId;
 
                 return revisionId === null ? [] : [{ rollout: entry, revisionId }];

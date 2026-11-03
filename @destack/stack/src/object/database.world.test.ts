@@ -8,6 +8,9 @@ import { ids, insertRelease, insertRollout, readStack, TestSpace } from "../test
 import { STACKS } from "@destack/account/test";
 import { Database, database, installationRevision, rollout } from "./index.ts";
 import { installation } from "@destack/object";
+import objectDefinition from "@destack/object/destack.json" with { type: "json" };
+import { describeObject } from "@destack/object/inspect";
+import { note } from "../test/schema.ts";
 import { RESOURCE_DECLARATION, RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
 
 /** The tables the notes installation asks main for. */
@@ -68,7 +71,14 @@ test("serve an installation once its targets are bound and the space's main data
     );
     const notes = await MemoryBuild.of(
         Package.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
-        [{ kind: "object", kindPackageId: ids.package, name: "note", description: {} }],
+        [
+            {
+                kind: "object",
+                kindPackageId: objectDefinition.id,
+                name: "note",
+                description: describeObject(note),
+            },
+        ],
         fixture.environment.crypto,
     );
     const builds = await fixture.builds();
@@ -78,7 +88,7 @@ test("serve an installation once its targets are bound and the space's main data
         opening: (
             packageId: PackageId,
             manifest: Digest,
-        ) => Promise<Pick<BuildReader, "declarations">> = open,
+        ) => Promise<Pick<BuildReader, "declarations" | "declared">> = open,
     ) =>
         (await Database.installed(Snapshot.live(connection), ids.space, opening))
             .map((entry) => [entry.rollout.id, entry.declarations.map((each) => each.name)])
@@ -100,6 +110,7 @@ test("serve an installation once its targets are bound and the space's main data
 
         return {
             declarations: async () => [...declarations, { ...nth(declarations, 0), ...vault }],
+            declared: built.declared.bind(built),
         };
     };
 
