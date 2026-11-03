@@ -119,11 +119,9 @@ export class NpmConversion {
             const imported = new Set<string>();
             const converted = new Map(installed);
             if (modules.length > 0) {
-                // bundle as peer work, as its plugin reads the world's files
-                const bundled = scheduler.track(
-                    () =>
-                        lexer.init().then(() => this.#rolldown(root, modules, installed, imported)),
-                    "peer",
+                // bundle as a lifetime, as its plugin reads the world's files
+                const bundled = scheduler.waitUntil(
+                    lexer.init().then(() => this.#rolldown(root, modules, installed, imported)),
                 );
                 for (const { path, code } of await bundled) {
                     converted.set(path, new TextEncoder().encode(code));

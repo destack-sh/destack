@@ -690,7 +690,7 @@ export class Compiler implements AsyncDisposable {
         try {
             const { scheduler } = this.store.environment;
 
-            return resultOf(await scheduler.track(() => this.#send(request), "peer"));
+            return resultOf(await scheduler.run(() => this.#send(request), { isLong: true }));
         } finally {
             deadline.abort();
             signal?.removeEventListener("abort", abort);

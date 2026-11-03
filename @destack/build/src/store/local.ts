@@ -161,12 +161,12 @@ export class LocalBuildStore
         environment: Environment<"files" | "process" | "host">,
         scheduler?: Environment["scheduler"],
     ): Promise<LocalBuildStore> {
-        // open the view, then release this store after it, as one piece of host work in a world it runs outside
+        // open the view, then release this store after it, as one operation in a world it runs outside
         const disposables = new AsyncDisposableStack();
         disposables.defer(() =>
             scheduler === undefined
                 ? this.#release(view)
-                : scheduler.track(() => this.#release(view), "host"),
+                : scheduler.run(() => this.#release(view)),
         );
         const view = await LocalBuildStore.#openDirectory(
             this.directory,

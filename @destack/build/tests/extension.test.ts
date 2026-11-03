@@ -206,7 +206,7 @@ test("apply the extensions of a package's runtime dependency closure, its depend
         await DependencyTree.read({}, files),
         files,
     );
-    const store = await LocalBuildStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store });
     const transformed = await compiler.build({ directory, dependencies: {}, outputs });
     expect([
@@ -251,7 +251,7 @@ test("compile a package through a listed extension and leave a development depen
         ).map((entry) => entry.directory);
     // build without the development dependency's extension
     const developed = await extensions();
-    const store = await LocalBuildStore.temporary(environment);
+    await using store = await LocalBuildStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store });
     const untouched = await compiler.build({ directory, dependencies: {}, outputs });
 
@@ -397,7 +397,7 @@ test("refuse what a module an extension generates imports until the package decl
         dependencies: {},
         outputs: { bun: { kind: "module", runtime: "bun" } },
     } as const;
-    const refusing = await LocalBuildStore.temporary(environment);
+    await using refusing = await LocalBuildStore.temporary(environment);
     await using compiler = await Compiler.start(directory, { store: refusing });
     expect(await refusal(compiler.build(request))).toEqual([
         "UNPROCESSABLE_CONTENT",
