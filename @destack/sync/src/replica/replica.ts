@@ -1482,7 +1482,17 @@ export class Replica {
 
     /** Record the replica before its first snapshot, with the subscription it follows, if any. */
     async register(database: DatabaseConnection, options: RegisterOptions = {}): Promise<void> {
+        // leave a replica recorded already with a subscription, or without one to record
         const { subscription, audience } = options;
+        const record = await this.#record(database);
+        if (
+            record !== undefined &&
+            (subscription === undefined || record.subscription !== undefined)
+        ) {
+            return;
+        }
+
+        // record it, its subscription and its unset position in one transaction
         await database.transaction(async (transaction) => {
             // record the replica, and the subscription it follows if any
             const key = { name: this.name, scope: this.scope };
