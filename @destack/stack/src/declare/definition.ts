@@ -181,7 +181,7 @@ export async function installableReleases(
             // take a dependency serving its own package with a type stored in a space, leaving a contract another package implements
             const dependency = await read(release.package.id, release.manifest);
             const declared = await PackageDescription.of(dependency);
-            const types = ObjectDescription.installed(await dependency.declarations());
+            const types = await ObjectDescription.read(dependency);
             const isServing = Object.values(dependency.manifest.outputs).some((output) =>
                 Object.hasOwn(output.exports, SERVER_EXPORT),
             );

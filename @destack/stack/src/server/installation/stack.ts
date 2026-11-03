@@ -362,7 +362,7 @@ async function installedTypes(
         following.map(async (entry) => {
             const reader = await release(snapshot, entry.installation.packageId, entry.id);
 
-            return ObjectDescription.installed(await reader.declarations());
+            return await ObjectDescription.read(reader);
         }),
     );
 

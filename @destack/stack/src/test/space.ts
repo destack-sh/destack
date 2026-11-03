@@ -343,6 +343,10 @@ export class TestSpace implements AsyncDisposable {
     readonly releases: StackReleases;
     /** The index of the builds, opened once. */
     #index: Promise<BunGraphStorage> | undefined;
+    /** The space's socket registry, opened once for every serve. */
+    #sockets: Promise<SocketRegistry> | undefined;
+    /** The space's event log, opened once for every serve. */
+    #eventLog: Promise<EventStore> | undefined;
     /** The registry the space's releases come from. */
     readonly registry: TestRegistry;
     /** The world's machines answering at their origins, this space's machine among them. */
@@ -1494,17 +1498,17 @@ export class TestSpace implements AsyncDisposable {
 
     /** Record the space's calls and its packages' events, under its retention. */
     #events(): Promise<EventStore> {
-        // list the event types of the served packages in addition to the calls
-        const kinds = this.#objects().flatMap((type) =>
-            type.storage === "events" ? [type.eventKind()] : [],
-        );
-
-        return testEvents(
+        // open the log once for every serve, with the served packages' event types beside the calls
+        this.#eventLog ??= testEvents(
             this.database,
             this.machine.environment,
-            kinds,
+            this.#objects().flatMap((type) =>
+                type.storage === "events" ? [type.eventKind()] : [],
+            ),
             SettingValue.retention(this.database),
         );
+
+        return this.#eventLog;
     }
 
     /** List the object types of the packages the space serves in addition to the stack's. */
@@ -1514,8 +1518,15 @@ export class TestSpace implements AsyncDisposable {
             .filter((type): type is ObjectType => type instanceof ObjectType);
     }
 
-    /** Open the machine's live sockets in memory until the test ends. */
-    async sockets(): Promise<SocketRegistry> {
+    /** Read the space's live sockets in memory, opened once until the test ends. */
+    sockets(): Promise<SocketRegistry> {
+        this.#sockets ??= this.#openSockets();
+
+        return this.#sockets;
+    }
+
+    /** Open the space's socket registry, closed and checked for failures once the test ends. */
+    async #openSockets(): Promise<SocketRegistry> {
         // collect the store's failures
         const reported: unknown[] = [];
         const sockets = await SocketRegistry.open({

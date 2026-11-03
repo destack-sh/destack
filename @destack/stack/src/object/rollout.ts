@@ -1492,7 +1492,7 @@ async function mainTables(
 ): Promise<DatabaseState | undefined> {
     // declare no tables for a package declaring no object types
     const packageId = PackageManifest.package(reader.manifest).id;
-    const owned = ObjectDescription.installed(await reader.declarations());
+    const owned = await ObjectDescription.read(reader);
     if (owned.length === 0) {
         return undefined;
     }
@@ -1518,7 +1518,7 @@ async function mainTables(
                 const { id } = dependency.package;
                 const read = await options.builds.read(options.registry, id, dependency.manifest);
 
-                return ObjectDescription.installed(await read.declarations());
+                return await ObjectDescription.read(read);
             }),
     );
     const unserved = depended.flat().filter((each) => !known.has(ObjectDescription.key(each)));
