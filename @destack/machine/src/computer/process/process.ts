@@ -250,7 +250,7 @@ export class MachineProcess {
     ): Promise<void> {
         // watch for the endpoint before asking a machine that may have published it already
         const stopping = AbortSignal.any([this.environment.clock.timeout(timeout), exited]);
-        const changes = this.environment.files.watch(this.directory, { signal: stopping });
+        const changes = await this.environment.files.watch(this.directory, { signal: stopping });
         try {
             if (await this.#answers()) {
                 return;

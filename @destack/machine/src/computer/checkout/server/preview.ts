@@ -96,7 +96,8 @@ export class PreviewController implements FollowController {
         // watch each directory until the preview leaves the list or a watch or the refresh fails
         const { files } = this.#server.host;
         const watch = async (directory: string) => {
-            for await (const change of files.watch(directory, { recursive: true, signal: ended })) {
+            const changes = await files.watch(directory, { recursive: true, signal: ended });
+            for await (const change of changes) {
                 changed(change.path);
             }
         };
