@@ -178,10 +178,7 @@ export class UpdateRepository {
         const downloader = this.#updater(
             new Fetcher({ kind: "archive", total: artifact.length, options }, this.environment),
         );
-        const cached = await scheduler.track(
-            () => downloader.findCachedTarget(artifact, candidate),
-            "host",
-        );
+        const cached = await scheduler.run(() => downloader.findCachedTarget(artifact, candidate));
         if (candidate !== undefined && candidate !== "" && cached === undefined) {
             throw UpdateError.of("VERIFICATION_FAILED", "installer archive failed verification");
         }

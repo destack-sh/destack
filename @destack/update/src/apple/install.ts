@@ -11,10 +11,9 @@ export async function installApplication(
     identifier: string,
     environment: Environment<"files" | "process">,
 ): Promise<void> {
-    // run the system tools' file and process effects as host work
-    await environment.scheduler.track(
-        () => replaceApplication(source, destination, identifier, environment),
-        "host",
+    // run the system tools' file and process effects as one operation
+    await environment.scheduler.run(() =>
+        replaceApplication(source, destination, identifier, environment),
     );
 }
 

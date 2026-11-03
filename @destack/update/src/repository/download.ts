@@ -55,7 +55,7 @@ export class Fetcher extends BaseFetcher {
             await writer.close();
 
             // verify it as TUF does, its own file reads tracked as a library boundary
-            return await scheduler.track(() => handler(file), "host");
+            return await scheduler.run(() => handler(file));
         } finally {
             await files.remove(directory, { recursive: true });
         }
