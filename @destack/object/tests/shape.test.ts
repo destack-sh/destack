@@ -144,7 +144,7 @@ test("subscribe to a fixed key and to one key per row the follower has as one re
     expect({
         first,
         second,
-        isWatched: (subscriber.watches ?? []).includes(page.table),
+        isWatched: store.watched.includes(page.table),
     }).toEqual({
         first: [...chained, plan, icon("📌")],
         second: [...chained, plan, icon("📌", "💡")],

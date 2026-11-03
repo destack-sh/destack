@@ -32,7 +32,7 @@ export class ObjectSink {
         return {
             name: "replica",
             mode: "follow",
-            watches: this.#replicaWatches(subscriber),
+            watches: this.#replicaWatches(),
             concurrency: Infinity,
             list: (view, delta) => this.#listInOrder(subscriber, view, delta),
             revision: (key) => this.#listed.get(key)?.digest,
@@ -93,7 +93,7 @@ export class ObjectSink {
     }
 
     /** List the tables whose changes list the replicas again. */
-    #replicaWatches(subscriber: Subscriber): Table[] {
+    #replicaWatches(): Table[] {
         // watch the replicated scope types, the stored replicas and their keys
         const scopes = this.store.replicated
             .filter((object) => object.policy.definition.scope === true)
@@ -106,7 +106,7 @@ export class ObjectSink {
                 sync.replicaSubscription,
                 sync.replicaKey,
                 ...scopes,
-                ...(subscriber.watches ?? []),
+                ...this.store.watched,
             ]),
         ];
     }

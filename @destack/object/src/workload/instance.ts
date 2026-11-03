@@ -225,10 +225,17 @@ class WorkloadStart {
         string,
         {
             readonly handle: PackageHandle;
+            readonly handler: PackageHandler;
             readonly server: Server;
             readonly protocols: ReadonlyMap<string, readonly RegExp[]>;
         }
     >();
+    /** How the start serves its packages: the instance's options, alarm clock and activation. */
+    readonly #serving: {
+        readonly options: WorkloadInstanceOptions;
+        readonly clock: AlarmClock | undefined;
+        readonly activation: Promise<void>;
+    };
     /** The controller aborting the start's background work at its retirement. */
     readonly #controller = new AbortController();
     /** The resources released after draining. */
@@ -242,6 +249,15 @@ class WorkloadStart {
     /** The shutdown. */
     #closing?: Promise<void>;
 
+    /** Prepare a start serving packages with its instance's options, alarm clock and activation. */
+    private constructor(serving: {
+        readonly options: WorkloadInstanceOptions;
+        readonly clock: AlarmClock | undefined;
+        readonly activation: Promise<void>;
+    }) {
+        this.#serving = serving;
+    }
+
     /** Start a workload once, closing what it opened when the start fails. */
     static async start(
         workload: Workload,
@@ -251,7 +267,7 @@ class WorkloadStart {
         activation: Promise<void>,
     ): Promise<WorkloadStart> {
         // abort the start with its instance
-        const start = new WorkloadStart();
+        const start = new WorkloadStart({ options, clock, activation });
         host.signal.addEventListener("abort", () => start.shutdown(), { once: true });
         if (host.signal.aborted) {
             start.shutdown();
@@ -268,13 +284,14 @@ class WorkloadStart {
                 signal: start.#controller.signal,
                 shutdown: () => host.shutdown(),
                 reload: () => host.reload(),
+                serve: (packages) => start.serve(packages),
                 report: (error) => options.report(error),
                 defer: (dispose) => start.#cleanup.defer(dispose),
             });
 
             // start a server per package and take the handlers
             for (const served of implementation.packages) {
-                start.#serve(served, options, clock, activation);
+                start.#serve(served);
             }
             start.#sockets = implementation.sockets;
             start.#hooks = implementation.hooks;
@@ -298,14 +315,10 @@ class WorkloadStart {
     }
 
     /** Start the server of one served package, refusing a duplicate. */
-    #serve(
-        served: PackageHandler,
-        options: WorkloadInstanceOptions,
-        clock: AlarmClock | undefined,
-        activation: Promise<void>,
-    ): void {
+    #serve(served: PackageHandler): void {
         // refuse a cancelled start and a package served twice
         this.#controller.signal.throwIfAborted();
+        const { options, clock, activation } = this.#serving;
         const handle = served.package;
         if (this.#packages.has(handle.id)) {
             throw new TypeError(`duplicate workload package: ${handle.name}`);
@@ -338,7 +351,24 @@ class WorkloadStart {
                 ),
             ]),
         );
-        this.#packages.set(handle.id, { handle, server, protocols });
+        this.#packages.set(handle.id, { handle, handler: served, server, protocols });
+    }
+
+    /** Serve another set of packages, keeping each unchanged handler's server. */
+    async serve(handlers: readonly PackageHandler[]): Promise<void> {
+        // take out the servers of packages no longer served or served by another handler
+        const replaced = [...this.#packages].filter(
+            ([, served]) => !handlers.includes(served.handler),
+        );
+        for (const [packageId] of replaced) {
+            this.#packages.delete(packageId);
+        }
+
+        // serve the added and changed packages, then drain the replaced servers
+        for (const handler of handlers.filter((each) => !this.#packages.has(each.package.id))) {
+            this.#serve(handler);
+        }
+        await Promise.all(replaced.map(([, served]) => served.server.close()));
     }
 
     /** Report whether a package implements a request's route of another package's types. */

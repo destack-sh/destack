@@ -71,6 +71,8 @@ export interface WorkloadContext {
     readonly shutdown: () => void;
     /** Start the workload again, serving the new start once it runs and draining this one. */
     readonly reload: () => Promise<void>;
+    /** Serve another set of packages in this start, draining the servers of the replaced ones. */
+    readonly serve: (packages: readonly PackageHandler[]) => Promise<void>;
     /** Report a failure of the workload's background work to its host. */
     readonly report: (error: unknown) => void;
     /** Register cleanup, run in reverse order after draining. */

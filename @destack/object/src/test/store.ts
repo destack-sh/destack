@@ -114,16 +114,17 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     /** The scope it serves. */
     readonly scope: string;
     /** The server of each package. */
-    readonly #servers: ReadonlyMap<PackageId, Server>;
+    readonly #servers = new Map<PackageId, Server>();
+    /** The handler each server serves. */
+    readonly #handlers = new WeakMap<Server, PackageHandler>();
     /** How its callers prove who they are. */
     readonly #credential: TestCredential;
     /** What disposal closes: the servers, and the databases the test store opened. */
     readonly #disposables: AsyncDisposableStack;
-    /** The object types the store serves by their reference's key, each with its package. */
-    readonly #types: ReadonlyMap<
-        string,
-        { readonly type: ObjectType; readonly handle: PackageHandle }
-    >;
+    /** The scopes the servers serve, every scope when absent, as the universe's store does. */
+    readonly #scopes: readonly string[] | undefined;
+    /** Take what the servers report. */
+    readonly #report: (error: unknown) => void;
 
     /** The world it runs in, its store's environment. */
     get environment(): Environment {
@@ -138,25 +139,78 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     /** Create a test store over its database and servers. */
     private constructor(
         store: ObjectStore,
-        servers: ReadonlyMap<PackageId, Server>,
         credential: TestCredential,
-        disposables: AsyncDisposableStack,
+        run: {
+            readonly disposables: AsyncDisposableStack;
+            readonly scopes: readonly string[] | undefined;
+            readonly report: (error: unknown) => void;
+        },
     ) {
-        // store the store, its scope, its world, its servers, its callers' credential and what disposal closes
+        // store the store, its scope, its callers' credential, how its servers serve and what disposal closes
         this.store = store;
         this.scope = store.scope;
-        this.#servers = servers;
         this.#credential = credential;
-        this.#disposables = disposables;
+        this.#disposables = run.disposables;
+        this.#scopes = run.scopes;
+        this.#report = run.report;
 
-        // index the served object types by their reference, each with its package
-        const served = store.packages.flatMap((handler) =>
-            Object.values(handler.package.objects)
-                .filter((declared): declared is ObjectType => declared instanceof ObjectType)
-                .map((type) => ({ type, handle: handler.package })),
+        // close the servers first on disposal
+        this.#disposables.defer(async () => {
+            await Promise.all([...this.#servers.values()].map((server) => server.close()));
+        });
+    }
+
+    /** Serve installed package servers as a host applies them, closing the dropped ones. */
+    async apply(servers: readonly PackageImplementation[]): Promise<void> {
+        // apply the servers to the store, keeping the servers of the handlers it keeps
+        const handlers = this.store.apply(servers, this.store.sandboxes);
+        const dropped = [...this.#servers].filter(
+            ([, server]) => !handlers.some((handler) => this.#handlers.get(server) === handler),
         );
-        this.#types = new Map(
-            served.map((each) => [ObjectTypeReference.key(each.type.typeReference), each]),
+        for (const [packageId] of dropped) {
+            this.#servers.delete(packageId);
+        }
+
+        // serve the added packages, then close the dropped ones
+        for (const handler of handlers.filter((each) => !this.#servers.has(each.package.id))) {
+            this.#start(handler);
+        }
+        await Promise.all(dropped.map(([, server]) => server.close()));
+    }
+
+    /** Start the server of a package's handler. */
+    #start(handler: PackageHandler): void {
+        const server = Server.start({
+            environment: this.store.environment,
+            ...handler,
+            // serve the store's scopes, or every scope as the universe's store does
+            ...(this.#scopes === undefined ? {} : { scopes: this.#scopes }),
+            resources: new ResourceContext(),
+            health: new Health(handler.package.name),
+            drainTimeout: DRAIN_MILLISECONDS,
+            report: this.#report,
+            // add no host requirement, as a host serving no machines or installations
+            authorizeMachine: async () => {},
+            authenticate: (request) => this.#credential.authenticate(request, handler.package.id),
+        });
+        this.#servers.set(handler.package.id, server);
+        this.#handlers.set(server, handler);
+    }
+
+    /** The object types the store serves by their reference's key, each with its package. */
+    get #types(): ReadonlyMap<
+        string,
+        { readonly type: ObjectType; readonly handle: PackageHandle }
+    > {
+        return new Map(
+            this.store.packages.flatMap((handler) =>
+                Object.values(handler.package.objects)
+                    .filter((declared): declared is ObjectType => declared instanceof ObjectType)
+                    .map((type) => [
+                        ObjectTypeReference.key(type.typeReference),
+                        { type, handle: handler.package },
+                    ]),
+            ),
         );
     }
 
@@ -367,34 +421,16 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         },
     ): TestObjectStore {
         // start one server per package, closed first on disposal, failing the world on what they report
-        const { disposables } = run;
-        const report =
-            run.report ?? ((error) => SimulatedScheduler.of(store.environment).fail(error));
-        const scopes =
-            run.scopes ?? (store.scope === Scope.universe.id ? undefined : [store.scope]);
-        const servers = new Map(
-            packages.map((handler) => [
-                handler.package.id,
-                Server.start({
-                    environment: store.environment,
-                    ...handler,
-                    // serve the store's scopes, or every scope as the universe's store does
-                    ...(scopes === undefined ? {} : { scopes }),
-                    resources: new ResourceContext(),
-                    health: new Health(handler.package.name),
-                    drainTimeout: DRAIN_MILLISECONDS,
-                    report,
-                    // add no host requirement, as a host serving no machines or installations
-                    authorizeMachine: async () => {},
-                    authenticate: (request) => credential.authenticate(request, handler.package.id),
-                }),
-            ]),
-        );
-        for (const server of servers.values()) {
-            disposables.defer(() => server.close());
+        const served = new TestObjectStore(store, credential, {
+            disposables: run.disposables,
+            scopes: run.scopes ?? (store.scope === Scope.universe.id ? undefined : [store.scope]),
+            report: run.report ?? ((error) => SimulatedScheduler.of(store.environment).fail(error)),
+        });
+        for (const handler of packages) {
+            served.#start(handler);
         }
 
-        return new TestObjectStore(store, servers, credential, disposables);
+        return served;
     }
 
     /** Sign callers with test bearers, authenticated toward a store's packages in their groups. */
