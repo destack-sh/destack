@@ -15,11 +15,35 @@ import {
     type FileSystem,
     FileSystemError,
 } from "@destack/environment";
+import { BunFileSystem } from "@destack/environment/bun";
 import { Digest, present, schema } from "@destack/schema";
 import type { TestMatrix } from "../project/index.ts";
 
 /** The shared test options: one module graph per worker, cached modules, and quick polls. */
 const TEST = { isolate: false, fsModuleCache: true } as const;
+
+/** The test server options, whose dependencies the runner leaves to Bun or inlines. */
+type TestServer = NonNullable<ViteUserConfig["test"]>["server"];
+
+/** Add the person's caches to the modules a test server leaves to Bun to load. */
+function withCaches(
+    server: TestServer,
+    environment: Environment<"process">,
+): NonNullable<TestServer> {
+    // match the person's cache directory and the one the environment names
+    const { variables } = environment.process;
+    const named = variables["DESTACK_CACHE_DIRECTORY"];
+    const caches = [
+        BunFileSystem.cacheDirectoryOf(variables),
+        ...(named === undefined ? [] : [named]),
+    ];
+    const external = caches.map((cache) => new RegExp(`${RegExp.escape(cache)}/`, "u"));
+
+    return {
+        ...server,
+        deps: { ...server?.deps, external: [...external, ...(server?.deps?.external ?? [])] },
+    };
+}
 
 /** How often `expect.poll` rechecks in milliseconds, a local sync round trip taking a few. */
 const POLL = { poll: { interval: 5 } };
@@ -59,7 +83,10 @@ export function defineConfiguration(
     const { targets, test, ...rest } = configuration;
     const { projects: declared, globalSetup, ...options } = test ?? {};
     const setup = globalSetup === undefined ? {} : { globalSetup };
-    const projects = configuredProjects(declared, targets, setup);
+    const projects = configuredProjects(declared, targets, setup)?.map((project) => ({
+        ...project,
+        test: { ...project.test, server: withCaches(project.test?.server, environment) },
+    }));
 
     return vitest.defineConfig({
         ...rest,
@@ -67,6 +94,7 @@ export function defineConfiguration(
             ...TEST,
             expect: POLL,
             ...(projects === undefined ? { ...options, ...setup } : { ...options, projects }),
+            server: withCaches(options.server, environment),
         },
         plugins: [
             modulePlugin(new ModuleTransformer(environment.files)),
@@ -83,7 +111,12 @@ export function defineProject(
 ): UserWorkspaceConfig {
     return vitest.defineProject({
         ...configuration,
-        test: { ...TEST, expect: POLL, ...configuration.test },
+        test: {
+            ...TEST,
+            expect: POLL,
+            ...configuration.test,
+            server: withCaches(configuration.test?.server, environment),
+        },
         plugins: [
             modulePlugin(new ModuleTransformer(environment.files)),
             cachePlugin(environment),

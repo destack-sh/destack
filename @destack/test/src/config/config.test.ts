@@ -1,9 +1,30 @@
-import { testSimulation } from "../world/world.ts";
+import { testHost } from "../host/host.ts";
+import { TEST_START, testSimulation } from "../world/world.ts";
 import { expect, test } from "vitest";
 import { defineConfiguration } from "./config.ts";
 
+/** The modules every project leaves to Bun: those in the pinned cache directory. */
+const SERVER = { deps: { external: [/\/cache\//u] } };
+
+/** Run a world whose person's cache directory is pinned, as the configuration reads it. */
+function cachedSimulation() {
+    const host = testHost();
+
+    return testSimulation(TEST_START, {
+        process: {
+            arguments: [],
+            variables: { XDG_CACHE_HOME: "/cache" },
+            workingDirectory: "/",
+            id: 1,
+            userId: host.process.userId,
+            executable: host.process.executable,
+            runtime: host.process.runtime,
+        },
+    });
+}
+
 test("run each project once per combination of its targets, named after them, with the root's setup in each extending project", async () => {
-    await using simulation = testSimulation();
+    await using simulation = cachedSimulation();
 
     // declare a root matrix, a project with targets and a colored label, and one extending the root
     const configuration = defineConfiguration(
@@ -32,6 +53,7 @@ test("run each project once per combination of its targets, named after them, wi
                 name: { label: "unit:sqlite,bun", color: "green" },
                 include: ["src/**"],
                 provide: { targets: { database: "sqlite", runtime: "bun" } },
+                server: SERVER,
             },
         },
         {
@@ -40,6 +62,7 @@ test("run each project once per combination of its targets, named after them, wi
                 name: { label: "unit:sqlite,node", color: "green" },
                 include: ["src/**"],
                 provide: { targets: { database: "sqlite", runtime: "node" } },
+                server: SERVER,
             },
         },
         {
@@ -48,6 +71,7 @@ test("run each project once per combination of its targets, named after them, wi
                 globalSetup: ["setup.ts"],
                 name: "simulation:sqlite",
                 provide: { targets: { database: "sqlite" } },
+                server: SERVER,
             },
         },
         {
@@ -56,13 +80,14 @@ test("run each project once per combination of its targets, named after them, wi
                 globalSetup: ["setup.ts"],
                 name: "simulation:postgresql",
                 provide: { targets: { database: "postgresql" } },
+                server: SERVER,
             },
         },
     ]);
 });
 
 test("run the whole configuration once per combination of its targets without declared projects", async () => {
-    await using simulation = testSimulation();
+    await using simulation = cachedSimulation();
 
     // declare a matrix and a setup on the root alone
     const configuration = defineConfiguration(
@@ -88,6 +113,7 @@ test("run the whole configuration once per combination of its targets without de
                     globalSetup: ["setup.ts"],
                     name: "sqlite",
                     provide: { targets: { database: "sqlite" } },
+                    server: SERVER,
                 },
             },
             {
@@ -96,6 +122,7 @@ test("run the whole configuration once per combination of its targets without de
                     globalSetup: ["setup.ts"],
                     name: "postgresql",
                     provide: { targets: { database: "postgresql" } },
+                    server: SERVER,
                 },
             },
         ],
