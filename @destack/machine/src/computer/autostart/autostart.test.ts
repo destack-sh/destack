@@ -21,7 +21,7 @@ async function autostart(os: OperatingSystem) {
         hostname: "host",
         home: "/home/ada",
     } as const;
-    const simulation = new Simulation({ seed: 1, start: 0, host });
+    await using simulation = new Simulation({ seed: 1, start: 0, host });
     const environment = simulation.environment("host");
     const variables = { APPDATA: "C:/Users/ada/AppData/Roaming" };
 
