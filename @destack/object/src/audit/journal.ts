@@ -3,6 +3,7 @@ import {
     asc,
     eq,
     isNull,
+    sql,
     lte,
     min,
     inArray,
@@ -53,6 +54,14 @@ export interface CallRecording {
     readonly caller?: string;
     /** The call's place in its request, the first when absent. */
     readonly position?: number;
+}
+
+/** A call the journal writes, with how it records it. */
+export interface JournalRecord<Entry extends JournalEntry = JournalEntry> {
+    /** The call, running or ended. */
+    readonly entry: Entry;
+    /** How the journal records it. */
+    readonly recording: CallRecording;
 }
 
 /** The caller and scope of a request. */
@@ -115,89 +124,97 @@ export class Journal {
         );
     }
 
-    /** Record a call, or its outcome once it ends, an ended audited one as a call event. */
-    async record(
-        entry: JournalEntry,
-        options: CallRecording,
+    /** Write calls or their outcomes, the ended audited ones as call events, in one round trip. */
+    async write(
+        records: readonly JournalRecord[],
         transaction?: DatabaseConnection,
     ): Promise<void> {
-        // bound what the call event records
-        if (
-            new TextEncoder().encode(canonicalize(Journal.recorded(entry))).byteLength >
-            MAX_EXECUTION_BYTES
-        ) {
-            throw ObjectError.of("CALL_INVALID", `call exceeds ${MAX_EXECUTION_BYTES} bytes`);
+        // bound what each call event records
+        for (const { entry } of records) {
+            const recorded = canonicalize(Journal.recorded(entry));
+            if (new TextEncoder().encode(recorded).byteLength > MAX_EXECUTION_BYTES) {
+                throw ObjectError.of("CALL_INVALID", `call exceeds ${MAX_EXECUTION_BYTES} bytes`);
+            }
         }
 
-        // record in the caller's transaction, or in a separate one of the journal
-        if (transaction === undefined) {
-            await this.database.transaction((opened) => this.#record(entry, options, opened));
+        // write in the caller's transaction, or in a separate one of the journal
+        if (records.length === 0) {
+            return;
+        } else if (transaction === undefined) {
+            await this.database.transaction((opened) => this.#write(records, opened));
         } else {
-            await this.#record(entry, options, transaction);
+            await this.#write(records, transaction);
         }
     }
 
-    /** Insert a call or its outcome, appending an ended audited one to the call events. */
-    async #record(
-        entry: JournalEntry,
-        options: CallRecording,
+    /** Insert calls or their outcomes, appending the ended audited ones to the call events. */
+    async #write(
+        records: readonly JournalRecord[],
         transaction: DatabaseConnection,
     ): Promise<void> {
-        // key the call for replay when a retry should see its outcome again
-        const execution = entry.execution;
-        const request = Journal.#replayKey(execution, options.caller);
-        const startedAt = execution.startedAt;
-        const row = {
-            id: execution.id,
-            scope: execution.context.scope,
-            method: entry.method,
-            caller: options.caller ?? null,
-            request,
-            position: options.position ?? 0,
-            call: entry,
-            startedAt,
-            finishedAt: execution.finishedAt ?? null,
-            expiresAt: startedAt + this.lifetime,
-        };
+        // key each call for replay when a retry should see its outcome again
+        const rows = records.map(({ entry, recording }) => {
+            const { execution } = entry;
+            const { startedAt } = execution;
 
-        // insert or finish the call, and append an ended audited call, in one round trip
-        const isAppended = options.isAudited && execution.outcome !== undefined;
-        const [written, appended] = await Promise.all([
+            return {
+                id: execution.id,
+                scope: execution.context.scope,
+                method: entry.method,
+                caller: recording.caller ?? null,
+                request: Journal.#replayKey(execution, recording.caller),
+                position: recording.position ?? 0,
+                call: entry,
+                startedAt,
+                finishedAt: execution.finishedAt ?? null,
+                expiresAt: startedAt + this.lifetime,
+            };
+        });
+        const ended = records
+            .filter(
+                ({ entry, recording }) =>
+                    recording.isAudited && entry.execution.outcome !== undefined,
+            )
+            .map(({ entry }) => Journal.event(CallEvent.parse(Journal.recorded(entry))));
+
+        // insert or finish the calls, and append the ended audited ones, in one round trip
+        const [written, refusal] = await Promise.all([
             transaction
                 .insert(journal)
-                .values(row)
+                .values(rows)
                 .onConflictDoUpdate({
                     target: journal.id,
-                    set: { request, call: entry, finishedAt: execution.finishedAt ?? null },
+                    set: {
+                        request: sql`excluded.${sql.identifier("request")}`,
+                        call: sql`excluded.${sql.identifier("call")}`,
+                        finishedAt: sql`excluded.${sql.identifier("finished_at")}`,
+                    },
                     setWhere: isNull(journal.finishedAt),
                 })
                 .returning({ id: journal.id }),
-            isAppended
-                ? this.events
-                      .append(
-                          Journal.kind,
-                          [Journal.event(CallEvent.parse(Journal.recorded(entry)))],
-                          transaction,
-                      )
-                      .then(
-                          () => undefined,
-                          (error: unknown) => {
-                              // raise the event's refusal of other contents for the journal to name first
-                              if (error instanceof Error && CallError.of(error) !== undefined) {
-                                  return error;
-                              }
-                              throw error;
-                          },
-                      )
-                : undefined,
+            ended.length === 0
+                ? undefined
+                : this.events.append(Journal.kind, ended, transaction).then(
+                      () => undefined,
+                      (error: unknown) => {
+                          // raise the events' refusal of other contents for the journal to name first
+                          if (error instanceof Error && CallError.of(error) !== undefined) {
+                              return error;
+                          }
+                          throw error;
+                      },
+                  ),
         ]);
 
-        // accept a repeat of a finished call, refusing other contents, then the event's refusal
-        if (written.length === 0) {
-            await Journal.#requireRepeat(transaction, entry);
+        // accept a repeat of a finished call, refusing other contents, then the events' refusal
+        const inserted = new Set(written.map((row) => row.id));
+        for (const { entry } of records) {
+            if (!inserted.has(entry.execution.id)) {
+                await Journal.#requireRepeat(transaction, entry);
+            }
         }
-        if (appended !== undefined) {
-            throw appended;
+        if (refusal !== undefined) {
+            throw refusal;
         }
     }
 

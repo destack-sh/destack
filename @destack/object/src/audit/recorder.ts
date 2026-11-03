@@ -20,7 +20,7 @@ import { type AuditAction, defineAuditAction } from "./action.ts";
 import type { Package } from "@destack/package";
 import { ObjectError } from "../error/index.ts";
 import type { DatabaseConnection } from "@destack/db";
-import type { Journal } from "./journal.ts";
+import type { Journal, JournalRecord } from "./journal.ts";
 
 /** Invoke a procedure. */
 export const procedureInvoke = defineAuditAction({
@@ -226,7 +226,10 @@ export class AuditRecorder {
         category: AuditExecution["category"] = "activity",
         request?: CallRequest,
     ): Promise<CallEvent> {
-        return this.#ended(transaction, action, values, category, true, request);
+        const record = this.ended(action, values, category, true, request);
+        await this.#journal.write([record], transaction);
+
+        return record.entry;
     }
 
     /** Record an executed call that only retries read, such as an ephemeral write. */
@@ -239,7 +242,10 @@ export class AuditRecorder {
         values: Ended<Target, Details>,
         request: CallRequest,
     ): Promise<CallEvent> {
-        return this.#ended(transaction, action, values, "activity", false, request);
+        const record = this.ended(action, values, "activity", false, request);
+        await this.#journal.write([record], transaction);
+
+        return record.entry;
     }
 
     /** Prepare a running call, recorded before its external effect runs. */
@@ -285,7 +291,7 @@ export class AuditRecorder {
             throw ObjectError.of("CALL_INVALID", "call belongs to another context");
         }
 
-        await this.#journal.record(call, { isAudited: true });
+        await this.#journal.write([{ entry: call, recording: { isAudited: true } }]);
     }
 
     /** Record a running call, run an external effect, and record how it ended. */
@@ -386,18 +392,14 @@ export class AuditRecorder {
         }
     }
 
-    /** Build and write an ended call. */
-    async #ended<
-        Target extends schema.Schema<AuditTarget>,
-        Details extends schema.Schema<JsonValue>,
-    >(
-        transaction: DatabaseConnection | undefined,
+    /** Build an ended call's journal record, audited as a call event or kept only for retries. */
+    ended<Target extends schema.Schema<AuditTarget>, Details extends schema.Schema<JsonValue>>(
         action: AuditAction<Target, Details>,
         values: Ended<Target, Details>,
         category: AuditExecution["category"],
         isAudited: boolean,
         request?: CallRequest,
-    ): Promise<CallEvent> {
+    ): JournalRecord<CallEvent> {
         // build the call, ended now
         const now = this.#journal.clock.now();
         const entry = this.#call(
@@ -411,24 +413,20 @@ export class AuditRecorder {
             },
             request,
         );
-        const call: CallEvent = {
-            ...entry,
-            execution: { ...entry.execution, outcome: values.outcome, finishedAt: now },
-        };
 
-        // write it, keyed for retries within a request
-        await this.#journal.record(
-            call,
-            {
+        // key it for retries within a request
+        return {
+            entry: {
+                ...entry,
+                execution: { ...entry.execution, outcome: values.outcome, finishedAt: now },
+            },
+            recording: {
                 isAudited,
                 ...(request === undefined
                     ? {}
                     : { caller: request.caller, position: request.position }),
             },
-            transaction,
-        );
-
-        return call;
+        };
     }
 
     /** Record an outcome, and the call's failure beside a failed recording. */

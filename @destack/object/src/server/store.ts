@@ -47,6 +47,7 @@ import {
     Row,
     Snapshot,
     TABLE,
+    type BatchWriter,
     type Table,
     Transaction,
 } from "@destack/db";
@@ -77,7 +78,7 @@ import { type InstalledServerContext, ServerContext } from "../workload/workload
 import type { Watermark } from "@destack/sync";
 import { refuseInput } from "../error/error.ts";
 import { copyRequest } from "@destack/environment";
-import type { RequestIdentity } from "../audit/journal.ts";
+import type { JournalRecord, RequestIdentity } from "../audit/journal.ts";
 import { implement, type Router } from "./handler.ts";
 import { type ServerAccess, type RequestContext } from "./context.ts";
 import { type PackageHandler } from "./http.ts";
@@ -507,6 +508,17 @@ export class ObjectStore {
     #readiness: Promise<boolean> | undefined;
     /** The health of each server waiting on the replicas gating readiness. */
     readonly #waiting = new Set<Health>();
+    /** Write a transaction's recorded calls at its commit, stamped with its log identity once. */
+    readonly #calls: BatchWriter<(stamp: string | undefined) => JournalRecord> = async (
+        items,
+        committing,
+    ) => {
+        const stamp = await committing.log.transaction();
+        await this.journal.write(
+            items.map((item) => item(stamp)),
+            committing,
+        );
+    };
 
     /** Serve object types over one database. */
     constructor(given: ObjectStoreOptions) {
@@ -3057,6 +3069,7 @@ export class ObjectStore {
     ): Promise<unknown> {
         // build the call on the served type, a creation identified, hiding a refused target the caller cannot see
         const { prepared, from, writerId, requestId } = options;
+        const writes = transaction.changes.writes("every");
         const { context, execution, method, scope, targetId } = await this.#context(
             transaction,
             authorization,
@@ -3125,6 +3138,7 @@ export class ObjectStore {
             caller,
             options.request,
             options.component,
+            transaction.changes.writes("every") > writes || prepared !== undefined,
         );
 
         return presented;
@@ -3314,10 +3328,15 @@ export class ObjectStore {
         caller: AccessContext,
         request: CallRequest | undefined,
         component: string | undefined,
+        isEffective: boolean,
     ): void {
-        // describe the call's target and outcome
+        // audit durable changes, a component's only once they take effect, and journal client requests
         const { method, scope, name } = context;
-        const isAudited = method.mutates && object.storage === "durable";
+        const isAudited =
+            method.mutates &&
+            object.storage === "durable" &&
+            (component === undefined || isEffective);
+        const journaled = component === undefined ? request : undefined;
         const target = id === undefined ? { type: "scope", id: scope } : { type: object.name, id };
         const recorded: {
             target: typeof target;
@@ -3334,29 +3353,22 @@ export class ObjectStore {
             },
         };
 
-        // audit a durable change, or journal a request's other call for retries, once the mutation commits under its transaction
+        // add the call to the transaction's batch of recorded calls
+        if (!isAudited && journaled === undefined) {
+            return;
+        }
         const recorder = this.audit(scope, caller, {
             package: this.#implementing(object),
             ...(component === undefined ? {} : { component }),
             ...(execution.parentId === undefined ? {} : { parentId: execution.parentId }),
         });
-        transaction.record(async (committing) => {
-            const stamp = await committing.log.transaction();
+        transaction.batch(this.#calls, (stamp: string | undefined) => {
             const stamped =
-                request === undefined || stamp === undefined
-                    ? request
-                    : { ...request, transaction: stamp };
-            if (isAudited) {
-                await recorder.record(
-                    committing,
-                    object.audit(name),
-                    recorded,
-                    "activity",
-                    stamped,
-                );
-            } else if (stamped !== undefined) {
-                await recorder.recordRead(committing, object.audit(name), recorded, stamped);
-            }
+                journaled === undefined || stamp === undefined
+                    ? journaled
+                    : { ...journaled, transaction: stamp };
+
+            return recorder.ended(object.audit(name), recorded, "activity", isAudited, stamped);
         });
     }
 
