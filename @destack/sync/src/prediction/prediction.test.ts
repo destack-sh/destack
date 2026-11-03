@@ -94,7 +94,7 @@ async function pushed(
 }
 
 test("rebase predicted mutations onto source pages until the source executes or rejects them", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const client = await open({
         simulation,
         tables: [note, ...replicaTables, ...predictionTables],
@@ -168,7 +168,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
 });
 
 test("drop a group every predicted row left, without a count measuring it", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // store one group of notes by title
     const client = await open({
         simulation,
@@ -209,7 +209,7 @@ test("drop a group every predicted row left, without a count measuring it", asyn
 });
 
 test("push again on a snapshot the mutations of a log and epoch no replica follows, retaining the rest", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // predict three notes
     const client = await open({
         simulation,
@@ -253,7 +253,7 @@ test("push again on a snapshot the mutations of a log and epoch no replica follo
 });
 
 test("read pending mutations up to a limit, and count each state with branch edits pending", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // predict three notes and a fourth on a branch
     const client = await open({
         simulation,
@@ -299,7 +299,7 @@ test("read pending mutations up to a limit, and count each state with branch edi
 });
 
 test("predict a checked-out branch's rows under its edits, and push the edits to their branch", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // store a branch's rows in a list a page of tags announces
     const client = await open({
         simulation,

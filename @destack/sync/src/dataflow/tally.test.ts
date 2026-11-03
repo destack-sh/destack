@@ -10,7 +10,7 @@ import { open, task, until, START } from "../test/fixture.ts";
 const RANKS = 40;
 
 test("measure a group of many distinct values as its extreme, and read its values once at its first lost extreme", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // store one group of tasks with distinct ranks, the highest measured
     const database = await open({ simulation });
     await database.transaction(

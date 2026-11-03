@@ -141,7 +141,7 @@ class ProjectAudience extends ConditionAudience {
 }
 
 test("send a row a transaction changes beside a change of access, deciding every row again", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note, project]);
     await database.transaction(
@@ -176,7 +176,7 @@ test("send a row a transaction changes beside a change of access, deciding every
 });
 
 test("send the rows an audience shows after deciding again at the same position", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     await database.transaction(
@@ -209,7 +209,7 @@ test("send the rows an audience shows after deciding again at the same position"
 });
 
 test("read shared windows again once their decisions expire, under one key", async () => {
-    const simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({ seed: 1, start: 1000 });
     const { clock } = simulation;
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
@@ -240,7 +240,7 @@ test("read shared windows again once their decisions expire, under one key", asy
 });
 
 test("wake every stream sharing an evaluation at its expiry, after another stream stopped waiting", async () => {
-    const simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({ seed: 1, start: 1000 });
     const { clock } = simulation;
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);

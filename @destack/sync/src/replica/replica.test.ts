@@ -77,7 +77,7 @@ const ALICE = {
 const BOB = { ...ALICE, id: "bob" };
 
 test("follow a scope of another database into a local replica, then promote its rows to local rows", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation });
     const local = await openReplica({ simulation });
     const feed = new Feed(source, [note, replicaPosition]);
@@ -137,7 +137,7 @@ test("follow a scope of another database into a local replica, then promote its 
 });
 
 test("delete the rows of a table a reshaped replica stopped replicating, retaining its other tables' rows", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // store a note and a task in the inbox
     const source = await open({ simulation });
     const local = await openReplica({ simulation });
@@ -184,7 +184,7 @@ test("delete the rows of a table a reshaped replica stopped replicating, retaini
 
 test("follow two databases each replicating the other's table, receiving each write as one page and any other commit in the scope as a bare page", async () => {
     // store the notes on one database and the projects on the other, on a clock that stands still
-    const simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ seed: 1, start: 0 });
     const home = await open({ simulation });
     const other = await open({ simulation });
     await home.transaction(async (transaction) => await transaction.insert(note).values(first));
@@ -253,7 +253,7 @@ test("follow two databases each replicating the other's table, receiving each wr
 });
 
 test("refuse publishing a replicated table back to the database it replicates from, with rows or without, and publish it on to any other", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // replicate the inbox's notes from one database into another
     const home = await open({ simulation });
     const other = await open({ simulation });
@@ -292,7 +292,7 @@ test("refuse publishing a replicated table back to the database it replicates fr
 });
 
 test("replicate several scopes in one replica recorded elsewhere, storing each scope with its row in the replica", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // store the inbox's and the archive's rows with their scope rows, and a note of the drafts
     const tables = [Scope.table, ...TABLES];
     const source = await open({ simulation, tables: tables });
@@ -372,7 +372,7 @@ test("replicate several scopes in one replica recorded elsewhere, storing each s
 });
 
 test("promote a replica of scope rows so the transaction promoting it finds them copied by no replica", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // follow the inbox's scope row and notes into a local replica
     const tables = [Scope.table, ...TABLES];
     const source = await open({ simulation, tables: tables });
@@ -426,7 +426,7 @@ test("promote a replica of scope rows so the transaction promoting it finds them
 test("replicate a whole database: follow its logged rows, then capture every column once its source stops writing", async () => {
     // store entries of several scopes with sensitive and binary columns, an unlogged cache and a machine-bound key
     const tables = [entry, cache, machineKey, ...replicaTables];
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const environment = simulation.environment("database");
     const source = (await TestDatabase.create(tables, { environment, isMigrated: true })).database;
     const target = (
@@ -511,7 +511,7 @@ test("replicate a whole database: follow its logged rows, then capture every col
 });
 
 test("follow and wait for each commit of one row in a fixed count of statements, registering the replica once", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation });
     const local = await openReplica({ simulation });
     // stand the feed's clock still, so no heartbeat lands between two commits
@@ -548,7 +548,7 @@ test("follow and wait for each commit of one row in a fixed count of statements,
 test("capture a space's few dozen rows across many tables as one page applied in one transaction, and a larger one in pages of rows staged before the last", async () => {
     // store a space's rows in many tables, most of them empty
     const tables = SPACE_TABLES;
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const environment = simulation.environment("database");
     const source = (
         await TestDatabase.create([...tables, ...replicaTables], { environment, isMigrated: true })
@@ -620,7 +620,7 @@ test("capture a space's few dozen rows across many tables as one page applied in
 });
 
 test("snapshot again once the replicated tables change shape", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation });
     const local = await openReplica({ simulation });
     const feed = new Feed(source, [project, task, replicaPosition]);
@@ -652,7 +652,7 @@ test("snapshot again once the replicated tables change shape", async () => {
 });
 
 test("snapshot a row the source replaced under a new key with the same unique name", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const tables = [label, project, ...replicaTables];
     const source = await open({ simulation, tables: tables });
     const local = await openReplica({
@@ -697,7 +697,7 @@ test("snapshot a row the source replaced under a new key with the same unique na
 });
 
 test("replicate rows that swapped their unique names across several commits of one page", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const tables = [label, ...replicaTables];
     const source = await open({ simulation, tables: tables });
     const local = await openReplica({
@@ -740,7 +740,7 @@ test("replicate rows that swapped their unique names across several commits of o
 });
 
 test("arrive at a position only through a replica that has it", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
@@ -786,7 +786,7 @@ test("arrive at a position only through a replica that has it", async () => {
 });
 
 test("arrive at a position through the replicas of its log, skipping a required one following another log", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // replicate the inbox from its home's log, and another scope from another log
     const local = await openReplica({ simulation });
     const inbox = new Replica({ name: "notes", scope: "inbox", tables: [note] });
@@ -812,7 +812,7 @@ test("arrive at a position through the replicas of its log, skipping a required 
 });
 
 test("arrive at a position of a restored log only once every replica of the log follows its new epoch", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // replicate two scopes of one log, the other one still at the epoch before a restore
     const local = await openReplica({ simulation });
     const inbox = new Replica({ name: "notes", scope: "inbox", tables: [note] });
@@ -844,7 +844,7 @@ test("arrive at a position of a restored log only once every replica of the log 
 });
 
 test("stage a run's pages and apply them at once when the run completes", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
@@ -897,7 +897,7 @@ test("stage a run's pages and apply them at once when the run completes", async 
 });
 
 test("nest each retained row's measures, whole or per group, in the rows a replica reads", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation });
     const local = await openReplica({ simulation });
     const feed = new Feed(source, [project, task, replicaPosition]);
@@ -975,7 +975,7 @@ test("nest each retained row's measures, whole or per group, in the rows a repli
 });
 
 test("replicate a table's binary column and store nothing for a required column the log leaves out", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // follow an asset with binary content and a secret outside the log
     const source = await open({ simulation, tables: [asset, ...replicaTables] });
     const local = await openReplica({ simulation, tables: [asset, ...replicaTables] });
@@ -1006,7 +1006,7 @@ test("replicate a table's binary column and store nothing for a required column 
 });
 
 test("resume a stream the source ends from the replica's position at once, reporting the follow synced once", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation });
     const local = await openReplica({ simulation });
     const feed = new Feed(source, [note, replicaPosition]);
@@ -1062,7 +1062,7 @@ test("resume a stream the source ends from the replica's position at once, repor
 });
 
 test("fail following once the source fails or ends a stream without a page", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const signal = new AbortController().signal;
@@ -1103,7 +1103,7 @@ test("fail following once the source fails or ends a stream without a page", asy
 });
 
 test("resume a follow after a backoff once its source refuses a fresh credential as lapsed before any page", async () => {
-    const simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({ seed: 1, start: 1000 });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const controller = new AbortController();
@@ -1135,7 +1135,7 @@ test("resume a follow after a backoff once its source refuses a fresh credential
 });
 
 test("fail a follow whose source lapses five fresh credentials in a row before any page", async () => {
-    const simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({ seed: 1, start: 1000 });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
 
@@ -1177,7 +1177,7 @@ test("fail a follow whose source lapses five fresh credentials in a row before a
 });
 
 test("finish a snapshot of several pages past a drain, then resume from its completed position", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation });
     const local = await openReplica({ simulation });
     const feed = new Feed(source, [note, replicaPosition], {
@@ -1241,7 +1241,7 @@ test("finish a snapshot of several pages past a drain, then resume from its comp
 });
 
 test("match the rows of the replicas each reader sees by audience, and retain a row two replicas include until neither does", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const local = await openReplica({ simulation });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
     const snapshot = (sequence: number, ids: readonly string[]): Page[] => [
@@ -1303,7 +1303,7 @@ test("match the rows of the replicas each reader sees by audience, and retain a 
 });
 
 test("apply two replicas delivering one row at once one after the other, losing no race and recording both copies", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // include one row in two replicas of the inbox, both applying their snapshots at once
     const local = await openReplica({ simulation, tables: TABLES });
     const page: Page = {
@@ -1336,7 +1336,7 @@ test("apply two replicas delivering one row at once one after the other, losing 
 });
 
 test("drop a replica: delete the rows no other replica includes and forget its record", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const local = await openReplica({ simulation, tables: TABLES });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
     const snapshot = (ids: readonly string[]): Page[] => [
@@ -1370,7 +1370,7 @@ test("drop a replica: delete the rows no other replica includes and forget its r
 });
 
 test("replicate the rows in the scopes of replicated rows, and take them out with the row they are in", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation });
     const local = await openReplica({ simulation });
     const feed = new Feed(source, [project, task, tag, replicaPosition]);
@@ -1480,7 +1480,7 @@ test("replicate the rows in the scopes of replicated rows, and take them out wit
 });
 
 test("retain a column one replica hides while another shows it, and clear it once none does", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const local = await openReplica({ simulation });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
     const snapshot = (sequence: number, subtitle: string | null, concealed: string[]): Page[] => [
@@ -1625,7 +1625,7 @@ function byGroup(groups: readonly AggregateGroup[]): AggregateGroup[] {
 }
 
 test("resume a subscription from the replica's position, reshape one of other parameters from those the replica reflects, and snapshot another", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const subscription = {
@@ -1664,7 +1664,7 @@ test("resume a subscription from the replica's position, reshape one of other pa
 });
 
 test("keep a replica live while its pages arrive within the lag, and end a stream silent for two lags to resume", async () => {
-    const simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({ seed: 1, start: 1000 });
     const { clock } = simulation;
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
@@ -1722,7 +1722,7 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
     });
 });
 test("keep a replica live across its follows while its pages arrive within the lag, past a follow's stop", async () => {
-    const simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({ seed: 1, start: 1000 });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
@@ -1768,7 +1768,7 @@ test("keep a replica live across its follows while its pages arrive within the l
 });
 
 test("move past bare pages in memory without a statement, leaving the snapshot's recorded position", async () => {
-    const simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({ seed: 1, start: 1000 });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const subscription = {
@@ -1815,7 +1815,7 @@ test("move past bare pages in memory without a statement, leaving the snapshot's
 });
 
 test("report a replica current for the request it completed a run of, and for a reshaped request only once a run of it completes", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const subscription = {
@@ -1897,7 +1897,7 @@ const unit = defineTable(
 );
 
 test("leave a predefined row out of a replica, which retains it after dropping the replica", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation, tables: [unit, ...replicaTables] });
     const local = await openReplica({
         simulation,
@@ -1932,7 +1932,7 @@ test("leave a predefined row out of a replica, which retains it after dropping t
 });
 
 test("drop a replica without its tables, with the rows of every table its record lists", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation, tables: [unit, ...replicaTables] });
     const local = await openReplica({
         simulation,
@@ -2031,7 +2031,7 @@ const TARGETS: Relation = {
 };
 
 test("include the links two steps from the links a replica stores in its scope, and follow a relinked one to its new targets", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // chain a scope's links, beside one more step and a spare
     const tables = [link, ...replicaTables];
     const source = await open({ simulation, tables: tables });

@@ -10,7 +10,7 @@ import { Scope } from "./scope.ts";
 const PACKAGE_ID = PackageId.parse("package-01996ab0-0000-7000-8000-000000000009");
 
 test("read chains up to the universe, refuse unknown scopes, and fence a scope for a transfer", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation, tables: [Scope.table] });
     await database.transaction(
         async (transaction) =>
@@ -55,7 +55,7 @@ test("read chains up to the universe, refuse unknown scopes, and fence a scope f
 });
 
 test("read a scope and every scope below it, nearest first, leaving its siblings and parent out", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation, tables: [Scope.table] });
     await database.transaction(
         async (transaction) =>
@@ -91,7 +91,7 @@ test("lie within itself, a scope above it and the universe, apart from a sibling
 });
 
 test("read several scopes' chains at once, each as it reads alone", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation, tables: [Scope.table] });
     await database.transaction(
         async (transaction) =>
@@ -123,7 +123,7 @@ test("read several scopes' chains at once, each as it reads alone", async () => 
 });
 
 test("fail the commit of a transaction that read a chain before a fence, and show it the fence when it runs again", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const storage = await TestDatabase.create([Scope.table], {
         environment: simulation.environment("sync"),
         isMigrated: true,

@@ -103,7 +103,7 @@ test(
     "snapshot and replicate thousands of rows within an operation budget",
     { timeout: 30_000 },
     async ({ annotate }) => {
-        const simulation = new Simulation({ seed: 1, start: START });
+        await using simulation = new Simulation({ seed: 1, start: START });
         const source = await open({ simulation });
         const feed = new Feed(source, TABLES);
         await new Workload(new Random(3)).seed(source, 4000);
@@ -163,7 +163,7 @@ test(
     "decide writes for a hundred subscribers within an operation budget",
     { timeout: 30_000 },
     async ({ annotate }) => {
-        const simulation = new Simulation({ seed: 1, start: START });
+        await using simulation = new Simulation({ seed: 1, start: START });
         const source = await open({ simulation });
         const feed = new Feed(source, TABLES);
         const workload = new Workload(new Random(9));
@@ -211,7 +211,7 @@ test(
 );
 
 test("resume a stateful subscriber without sending selected rows again", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation });
     const feed = new Feed(source, TABLES);
     await new Workload(new Random(13)).seed(source, 1500);
@@ -238,7 +238,7 @@ test(
     "send to a thousand subscribers of one row within an operation budget",
     { timeout: 30_000 },
     async ({ annotate }) => {
-        const simulation = new Simulation({ seed: 1, start: START });
+        await using simulation = new Simulation({ seed: 1, start: START });
         const source = await open({ simulation });
         const feed = new Feed(source, TABLES, { subscribers: 1000 });
         await new Workload(new Random(21)).seed(source, 200);
@@ -294,7 +294,7 @@ test(
     "flip fifteen hundred rows through a lookup within an operation budget",
     { timeout: 60_000 },
     async ({ annotate }) => {
-        const simulation = new Simulation({ seed: 1, start: START });
+        await using simulation = new Simulation({ seed: 1, start: START });
         const source = await open({ simulation });
         const feed = new Feed(source, TABLES);
 
@@ -349,7 +349,7 @@ test(
     "follow every query set at scale within an operation budget",
     { timeout: 60_000 },
     async ({ annotate }) => {
-        const simulation = new Simulation({ seed: 1, start: START });
+        await using simulation = new Simulation({ seed: 1, start: START });
         const source = await open({ simulation });
         const feed = new Feed(source, TABLES);
         const workload = new Workload(new Random(31));
@@ -379,7 +379,7 @@ test(
     "send to the subscribers of a space with distinct access within an operation budget",
     { timeout: 60_000 },
     async ({ annotate }) => {
-        const simulation = new Simulation({ seed: 1, start: START });
+        await using simulation = new Simulation({ seed: 1, start: START });
         const source = await open({ simulation });
         const feed = new Feed(source, TABLES, {
             subscribers: SPACE_SUBSCRIBERS,
@@ -429,7 +429,7 @@ test(
     "reorder ten thousand tasks by a rollup within an operation budget",
     { timeout: 60_000 },
     async ({ annotate }) => {
-        const simulation = new Simulation({ seed: 1, start: START });
+        await using simulation = new Simulation({ seed: 1, start: START });
         const source = await open({ simulation });
         const feed = new Feed(source, TABLES);
 

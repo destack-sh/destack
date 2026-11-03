@@ -27,7 +27,7 @@ const STRESS_STREAMS = 50;
 
 test("repeat a caught-up stream's position at each heartbeat as the clock advances", async () => {
     // follow the notes of a scope to their snapshot on a stopped clock
-    const simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({ seed: 1, start: 1000 });
     const { clock } = simulation;
     const database = await open({ simulation });
     const feed = new Feed(database, [note], { heartbeat: 60_000 });
@@ -51,7 +51,7 @@ test("repeat a caught-up stream's position at each heartbeat as the clock advanc
 });
 
 test("report a stream that ends by draining as closed, the same stream it opened", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // follow the inbox's notes, draining the stream before it starts
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
@@ -83,7 +83,7 @@ test("report a stream that ends by draining as closed, the same stream it opened
 
 test("publish nothing past a commit outside a caught-up stream's queries until the next heartbeat", async () => {
     // follow the inbox's notes to their snapshot
-    const simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({ seed: 1, start: 1000 });
     const { clock } = simulation;
     const database = await open({ simulation });
     const feed = new Feed(database, [note], { heartbeat: 60_000 });
@@ -123,7 +123,7 @@ test("publish nothing past a commit outside a caught-up stream's queries until t
 });
 
 test("maintain a query of one scope's matching rows", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     const query = { table: note, scopes: ["inbox"], where: { title: "Open" } };
@@ -193,7 +193,7 @@ test("maintain a query of one scope's matching rows", async () => {
 
 test("feed a table declared while reading, its changes reaching a stream from then on", async () => {
     // read notes for a caught-up stream, then feed tasks as well
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     const signal = AbortSignal.timeout(5000);
@@ -231,7 +231,7 @@ test("feed a table declared while reading, its changes reaching a stream from th
 });
 
 test("page a snapshot of more rows than a page and continue after its first page", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note], { pageSize: 4 });
     const ids = Array.from({ length: 10 }, (_, index) => `n${String(index).padStart(2, "0")}`);
@@ -256,7 +256,7 @@ test("page a snapshot of more rows than a page and continue after its first page
 });
 
 test("serve subscribers behind the feed from the log and current ones from memory", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     const query = { notes: { table: note, scopes: ["inbox"] } };
@@ -281,7 +281,7 @@ test("serve subscribers behind the feed from the log and current ones from memor
 });
 
 test("snapshot again when the source starts a new epoch", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     const query = { notes: { table: note, scopes: ["inbox"] } };
@@ -312,7 +312,7 @@ test("snapshot again when the source starts a new epoch", async () => {
 });
 
 test("follow the head through pages merged within an interval", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     await database.transaction(
@@ -365,7 +365,7 @@ test("follow the head through pages merged within an interval", async () => {
 });
 
 test("continue serving a subscriber while another stops reading", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     const query = { table: note, scopes: ["inbox"] };
@@ -386,7 +386,7 @@ test("continue serving a subscriber while another stops reading", async () => {
 });
 
 test("end every subscriber with the failure once the database closes", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     const query = { table: note, scopes: ["inbox"] };
@@ -417,7 +417,7 @@ test("end every subscriber with the failure once the database closes", async () 
 });
 
 test("watch an ordered query reusing unchanged rows and placing a changed row by its order", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     const query = {
@@ -463,7 +463,7 @@ test("watch an ordered query reusing unchanged rows and placing a changed row by
 });
 
 test("watch projects with their tasks, reordering one project's tasks and leaving the other project as it was", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [project, task]);
     const query = {
@@ -511,7 +511,7 @@ test("watch projects with their tasks, reordering one project's tasks and leavin
 });
 
 test("watch a board whose JSON columns store an object and a list of objects apart from its included cards", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation, tables: [board, card] });
     const feed = new Feed(database, [board, card]);
     const query = {
@@ -560,7 +560,7 @@ test("watch a board whose JSON columns store an object and a list of objects apa
 });
 
 test("resume at once past commits of tables the feed leaves out", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     const query = { table: note, scopes: ["inbox"] };
@@ -593,7 +593,7 @@ test("resume at once past commits of tables the feed leaves out", async () => {
 });
 
 test("serve many streams of one query from the one read of the log each commit takes", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // count a sole writer's statements, which knows each commit's head without reading it
     const database = await open({ simulation, dialect: "sqlite" });
     const query = { table: note, scopes: ["inbox"] };
@@ -738,7 +738,7 @@ function failureOf(read: Promise<unknown>): Promise<unknown> {
 }
 
 test("end a stream drained while it waits at a completed page of its position", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     // follow the inbox's notes to their snapshot, then resume from its position with a drain
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
@@ -778,7 +778,7 @@ test("end a stream drained while it waits at a completed page of its position", 
 
 test("place a stream resumed at the log's head at once, with a completed page of its position", async () => {
     // commit a note, then resume the inbox's notes at the head with a heartbeat a minute away
-    const simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({ seed: 1, start: 1000 });
     const database = await open({ simulation });
     const feed = new Feed(database, [note], { heartbeat: 60_000 });
     await database.transaction(async (transaction) => await transaction.insert(note).values(first));

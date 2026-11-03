@@ -57,7 +57,7 @@ async function first(
 }
 
 test("refuse queries reading what the audience or the feed hides", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const feed = new Feed(await open({ simulation }), TABLES);
     const reason = async (query: Query, audience: Audience = EVERYONE) => {
         const pages = feed.subscribe({ query }, undefined, AbortSignal.timeout(5000), {
@@ -104,7 +104,7 @@ test("refuse queries reading what the audience or the feed hides", async () => {
 });
 
 test("conceal the columns an audience hides and list them", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     await database.transaction(
         async (transaction) =>
@@ -126,7 +126,7 @@ test("conceal the columns an audience hides and list them", async () => {
 });
 
 test("follow rows whose visibility the audience changes", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, [...TABLES, note]);
     await database.transaction(
@@ -195,7 +195,7 @@ test("follow rows whose visibility the audience changes", async () => {
 });
 
 test("send the rows each query selects under the query's permission, and a row once its permission comes", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, TABLES);
     await database.transaction(
@@ -257,7 +257,7 @@ test("send the rows each query selects under the query's permission, and a row o
 });
 
 test("refuse queries whose windows outgrow the feed's capacity", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, TABLES, { capacity: 3 });
     await database.transaction(
@@ -309,7 +309,7 @@ test("refuse queries whose windows outgrow the feed's capacity", async () => {
 });
 
 test("refuse subscribers beyond a feed's limit", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const feed = new Feed(await open({ simulation }), TABLES, { subscribers: 1 });
     const query = { tasks: { table: task, scopes: ["inbox"] } };
     const signal = AbortSignal.timeout(5000);
@@ -323,7 +323,7 @@ test("refuse subscribers beyond a feed's limit", async () => {
 });
 
 test("page catch-up changes between transactions", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const database = await open({ simulation });
     const feed = new Feed(database, TABLES, { pageSize: 4 });
     await database.transaction(

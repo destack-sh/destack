@@ -91,7 +91,7 @@ export function seededRuns(
 /** Follow a run's queries through random writes and match exactly what an oracle selects. */
 async function matchExactly(run: Run): Promise<void> {
     // open the source and seed its rows on the run's one clock
-    const simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation });
     const feed = new Feed(
         source,
