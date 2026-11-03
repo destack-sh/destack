@@ -1,3 +1,4 @@
+import { defineDeclarationKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { Package, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
@@ -12,6 +13,9 @@ import type { DeviceValue, SettingResolution, SettingSource } from "./resolution
 import { SettingPlacement, type SettingSelection } from "./placement.ts";
 import type { SettingMode } from "./mode.ts";
 import { SettingError } from "../error/error.ts";
+
+/** The setting declaration kind, which setting defines. */
+export const SETTING_KIND = defineDeclarationKind("setting");
 
 /** The declaration default ranks below every placed value. */
 const DEFAULT_TIER = 0;
@@ -149,11 +153,7 @@ export class Setting<
 
     /** Read the settings a build declares, in declaration order. */
     static async list(reader: BuildReader): Promise<Setting[]> {
-        const declared = await reader.declared(
-            import.meta.destack.package.id,
-            "setting",
-            SettingDescription,
-        );
+        const declared = await reader.declared(SETTING_KIND, SettingDescription);
 
         return declared.map((entry) => Setting.of(entry.description));
     }
