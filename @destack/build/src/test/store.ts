@@ -1,5 +1,4 @@
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { LocalBlobStorage } from "@destack/bucket/bun";
 import { BlobStore } from "@destack/db";
 import { type BlobStorage, MemoryBlobStorage } from "@destack/resource";
@@ -15,14 +14,14 @@ export async function testStore(
     world?: Environment<"files" | "process" | "host">,
 ): Promise<LocalBuildStore> {
     // open and maintain the shared store on the host, as one operation in a world
-    const here = fileURLToPath(new URL(".", import.meta.url));
-    const open = () => LocalBuildStore.checkout(here, "test", testHost());
     if (world === undefined) {
-        return await open();
+        return await LocalBuildStore.user("test", testHost());
     }
 
     // give the world a view of it through its own effects
-    return await (await world.scheduler.run(open)).view(world, world.scheduler);
+    const store = await world.scheduler.run(() => LocalBuildStore.user("test", testHost()));
+
+    return store.view(world, world.scheduler);
 }
 
 /** A build store over a test's blobs and index, in memory or below a directory. */

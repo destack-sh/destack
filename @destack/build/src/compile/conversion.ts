@@ -119,7 +119,7 @@ export class NpmConversion {
             const imported = new Set<string>();
             const converted = new Map(installed);
             if (modules.length > 0) {
-                // bundle as a lifetime, as its plugin reads the world's files
+                // bundle as a long operation, as its plugin reads the world's files
                 const bundled = scheduler.waitUntil(
                     lexer.init().then(() => this.#rolldown(root, modules, installed, imported)),
                 );

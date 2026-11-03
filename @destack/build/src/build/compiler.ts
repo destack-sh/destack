@@ -192,7 +192,12 @@ export class Compiler implements AsyncDisposable {
         const { files } = environment;
         const started = options.command ?? (await CompilerCommand.current(environment));
         const workspace = await files.realPath(await locateWorkspace(resolve(directory), files));
-        const paths = [workspace, ...started.read, store.trees];
+        const paths = [
+            workspace,
+            ...started.read,
+            store.trees,
+            ...(await store.layerDirectories()),
+        ];
         const read = [...new Set(await Promise.all(paths.map((path) => files.realPath(path))))];
 
         // start the compiler with a temporary directory

@@ -461,8 +461,10 @@ export class BuildStore<
 
     /** Open a stored build for selective reads, one reader per build, as its files never change. */
     async contents(digest: Digest): Promise<BuildReader> {
-        // read a layered build in place
-        const layered = this.#layer.build(digest);
+        // read a layered build in place, the files it leaves out from the store's blobs
+        const layered = this.#layer.build(digest, async (path, signal) =>
+            (await this.#open(digest)).stream(path, signal),
+        );
         if (layered !== undefined) {
             return await layered;
         }
@@ -947,6 +949,16 @@ export class BuildStore<
         }
 
         return { map, builds };
+    }
+
+    /** Find a layered build's directory, which runtimes run in place, absent for another build. */
+    layered(digest: Digest): string | undefined {
+        return this.#layer.directory(digest);
+    }
+
+    /** List the real directories the store's layer keeps files in, which its readers read. */
+    layerDirectories(): Promise<readonly string[]> {
+        return this.#layer.directories();
     }
 
     /** Find the dependency tree the layer ships for a tree root's name. */

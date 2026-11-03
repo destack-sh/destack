@@ -2,4 +2,4 @@ export * from "./build/index.ts";
 export * from "./dependency/index.ts";
 export * from "./error/index.ts";
 export { readDependencies } from "./source/dependency.ts";
-export { LocalBuildStore, type LocalStoreUse } from "./store/local.ts";
+export { type LayerLayout, LocalBuildStore, type LocalStoreUse } from "./store/local.ts";

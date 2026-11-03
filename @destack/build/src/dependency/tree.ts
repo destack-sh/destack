@@ -656,14 +656,30 @@ export class DependencyTree {
     /** List the real roots a tree's packages link to, each once. */
     async roots(files: FileSystem): Promise<readonly string[]> {
         // start at each package's root
-        const roots = new Set<string>();
         const pending = await Promise.all(
             Object.values(this.directories).map((directory) =>
                 files.realPath(DependencyTree.#rootOf(directory)),
             ),
         );
 
-        // follow each root's linked packages to their roots, visiting each root once
+        return await DependencyTree.#follow(pending, files);
+    }
+
+    /** List the real roots a directory's node_modules links to, each once. */
+    static async linkedRoots(directory: string, files: FileSystem): Promise<readonly string[]> {
+        const linked = await DependencyTree.#linkedPackages(join(directory, "node_modules"), files);
+        const pending = await Promise.all(
+            linked.map(async (path) =>
+                files.realPath(DependencyTree.#rootOf(await files.realPath(path))),
+            ),
+        );
+
+        return await DependencyTree.#follow(pending, files);
+    }
+
+    /** Follow roots' linked packages to their roots, visiting each root once. */
+    static async #follow(pending: string[], files: FileSystem): Promise<readonly string[]> {
+        const roots = new Set<string>();
         for (let root = pending.pop(); root !== undefined; root = pending.pop()) {
             if (!roots.has(root)) {
                 roots.add(root);

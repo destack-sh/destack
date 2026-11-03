@@ -93,7 +93,7 @@ export class BuildLayer {
         for (const [digest, reader] of builds) {
             const manifest = await files.stat(files.join(directory, digest, MANIFEST_PATH));
             index.builds[digest] = manifest.size;
-            for (const file of await reader.distributed()) {
+            for (const file of await BuildLayer.shipped(reader)) {
                 index.files[file.digest] ??= `${digest}/${file.path}`;
             }
         }
@@ -103,6 +103,36 @@ export class BuildLayer {
     /** List the releases the layer ships, each with what it runs. */
     get releases(): readonly Digest[] {
         return this.#index.releases;
+    }
+
+    /** List the files a layer ships of a build: all but its outputs' source maps. */
+    static async shipped(reader: BuildReader): Promise<PackageFile[]> {
+        // leave out each output's maps, which the store reads on demand
+        const outputs = Object.keys(reader.manifest.outputs);
+        const maps = await Promise.all(outputs.map((name) => reader.maps(name)));
+        const left = new Set(maps.flat().map((file) => file.path));
+
+        return (await reader.distributed()).filter((file) => !left.has(file.path));
+    }
+
+    /** List the real directories the layer's files lie in: its own, its trees' and its builds'. */
+    async directories(): Promise<readonly string[]> {
+        // read none for an empty layer
+        if (this.#environment === undefined) {
+            return [];
+        }
+
+        // follow the layer, its trees and each build to where they lie, each directory once
+        const { files } = this.#environment;
+        const linked = [
+            this.#directory,
+            files.join(this.#directory, LAYER_TREES),
+            ...this.builds().map((digest) => files.join(this.#directory, digest)),
+        ];
+        const real = await Promise.all(linked.map((path) => files.realPath(path)));
+        const parents = real.slice(2).map((path) => path.slice(0, path.lastIndexOf("/")));
+
+        return [...new Set([...real.slice(0, 2), ...parents])];
     }
 
     /** Find the dependency tree the layer ships for a tree root's name. */
@@ -121,7 +151,7 @@ export class BuildLayer {
     }
 
     /** Open a layered build once by its manifest's digest, absent for a build outside the layer. */
-    build(digest: Digest): Promise<BuildReader> | undefined {
+    build(digest: Digest, missing?: BuildReader["stream"]): Promise<BuildReader> | undefined {
         // answer nothing outside the layer, and each build's one reader
         if (!this.hasBuild(digest)) {
             return undefined;
@@ -129,11 +159,19 @@ export class BuildLayer {
         let opened = this.#readers.get(digest);
         if (opened === undefined) {
             const { files, crypto } = this.#reading;
-            opened = BuildReader.openDirectory(files.join(this.#directory, digest), files, crypto);
+            const directory = files.join(this.#directory, digest);
+            opened = BuildReader.openDirectory(directory, files, crypto, missing);
             this.#readers.set(digest, opened);
         }
 
         return opened;
+    }
+
+    /** Find a layered build's directory by its manifest's digest, absent outside the layer. */
+    directory(digest: Digest): string | undefined {
+        return this.hasBuild(digest)
+            ? this.#reading.files.join(this.#directory, digest)
+            : undefined;
     }
 
     /** Find where a layered file lies on disk by its digest, absent for one outside the layer. */

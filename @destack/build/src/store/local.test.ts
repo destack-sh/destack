@@ -1,7 +1,6 @@
 import { TEST_START } from "@destack/test/world";
 import type { Crypto } from "@destack/environment";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Simulation } from "@destack/environment/simulation";
 import { type DependencyRelease, Package } from "@destack/package";
 import { BuildReader, BuildWriter, PackageManifest } from "@destack/package/manifest";
@@ -32,8 +31,9 @@ async function written(
     crypto: Crypto,
     built: { readonly id: string; readonly name: string } = ANSWER,
     dependencies: Readonly<Record<string, DependencyRelease>> = {},
+    extra: Readonly<Record<string, string>> = {},
 ): Promise<BuildReader> {
-    // write the module importing every dependency and its package file, then the format listing them
+    // write the module importing every dependency, the extra files and its package file, then the format listing them
     const bytes = new Map<string, Uint8Array<ArrayBuffer>>();
     const writer = new BuildWriter(
         {
@@ -44,6 +44,9 @@ async function written(
         crypto,
     );
     await writer.write("src/answer.ts", new TextEncoder().encode(text));
+    for (const [path, contents] of Object.entries(extra)) {
+        await writer.write(path, new TextEncoder().encode(contents));
+    }
     await writer.write(
         "package.json",
         new TextEncoder().encode(JSON.stringify({ name: built.name, exports: {} })),
@@ -186,6 +189,42 @@ test("lay out a distribution's release trees once, linking a root to its tree in
         link: join(distribution, "trees", release),
         module: "export const answer = 42;",
     });
+});
+
+test("ship a build in a layer without its output's maps, reading a map through the store's blobs", async () => {
+    // store a release whose output has a map, and write a layer of it
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files, crypto } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    await using store = await LocalBuildStore.open(join(directory, "store"), environment);
+    const map = '{"version":3,"sources":["answer.ts"],"mappings":""}';
+    const build = await written(
+        "export const answer = 42;",
+        crypto,
+        ANSWER,
+        {},
+        {
+            "src/answer.ts.map": map,
+        },
+    );
+    const release = await store.put(build);
+    const distribution = join(directory, "distribution");
+    await store.writeLayer([release], [], distribution);
+    await using layered = await LocalBuildStore.of({
+        blobs: store.blobs,
+        directory: join(directory, "layered"),
+        environment,
+        layer: await BuildLayer.open(distribution, environment),
+    });
+
+    // ship the module without the map, and read the map from the blobs
+    const read = await layered.contents(release);
+    expect({
+        module: await files.exists(join(distribution, release, "src/answer.ts")),
+        map: await files.exists(join(distribution, release, "src/answer.ts.map")),
+        read: new TextDecoder().decode(await read.load("src/answer.ts.map")),
+    }).toEqual({ module: true, map: false, read: map });
 });
 
 test("link a running tree's build to the dependencies its closure places alone, never reading a build outside it", async () => {
@@ -350,6 +389,47 @@ test("collect an unrooted build and its tree on the first idle open a week after
     });
 });
 
+test("collect an unrooted build's layered copy and the linked layers shipping it with the build", async () => {
+    // store a rooted build and an unrooted one, each in a linked layer of its own
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    const { clock } = simulation;
+    let rooted: { readonly build: Digest; readonly layer: string };
+    let dropped: { readonly build: Digest; readonly layer: string };
+    {
+        await using store = await LocalBuildStore.open(directory, environment);
+        const put = async (source: string) => {
+            const build = await store.put(await written(source, environment.crypto));
+
+            return { build, layer: await store.writeLinkedLayer([build], []) };
+        };
+        rooted = await put("export const answer = 42;\n");
+        dropped = await put("export const answer = 43;\n");
+        await store.root("answer", new Set([rooted.build]));
+    }
+
+    // read which builds and layers the store keeps on an idle open
+    const contents = async () => {
+        await using store = await LocalBuildStore.open(directory, environment);
+        const layered = (build: Digest) => files.exists(join(directory, "layered", build));
+
+        return {
+            rooted: [await layered(rooted.build), await files.exists(rooted.layer)],
+            dropped: [await layered(dropped.build), await files.exists(dropped.layer)],
+        };
+    };
+    const kept = await contents();
+
+    // collect the unrooted build's copy and layer on the first idle open past the week
+    await simulation.jump(clock.now() + WEEK_MILLISECONDS);
+    expect({ kept, collected: await contents() }).toEqual({
+        kept: { rooted: [true, true], dropped: [true, true] },
+        collected: { rooted: [true, true], dropped: [false, false] },
+    });
+});
+
 test("retain an unrooted build a week past its last use, and collect it on the first idle open after", async () => {
     // store an unrooted build, and use it six days later
     await using simulation = testSimulation();
@@ -420,7 +500,7 @@ test("renew a build a world's view used once the view closes, retaining it a wee
     expect({ kept, dropped }).toEqual({ kept: true, dropped: false });
 });
 
-test("refuse an empty cache directory the environment sets for a checkout's store", async () => {
+test("refuse an empty cache directory the environment sets for the person's store", async () => {
     // run in a world whose cache directory variable is empty
     const host = testHost();
     await using simulation = new Simulation({
@@ -440,8 +520,7 @@ test("refuse an empty cache directory the environment sets for a checkout's stor
     const environment = simulation.environment("test");
 
     // refuse to open the store
-    const directory = fileURLToPath(new URL(".", import.meta.url));
-    expect(await refusal(LocalBuildStore.checkout(directory, "test", environment))).toEqual([
+    expect(await refusal(LocalBuildStore.user("test", environment))).toEqual([
         "BAD_REQUEST",
         "CACHE_DIRECTORY_INVALID",
         "DESTACK_CACHE_DIRECTORY is empty",
