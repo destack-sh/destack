@@ -17,7 +17,7 @@ import { describePackage } from "@destack/object/inspect";
 import { RequestId } from "@destack/sync";
 import { testServerContext } from "@destack/object/test";
 import { expect, test } from "@destack/test";
-import { serveSpace } from "../src/server/index.ts";
+import { SpaceStore } from "../src/server/index.ts";
 import { ids, TestSpace } from "../src/test/index.ts";
 
 /** A build declaration, as a sandbox receives it. */
@@ -114,7 +114,7 @@ test("serve two installed packages from one store, writing both in one mutation 
             fixture.machine.environment,
         ),
     ];
-    const { store } = serveSpace(await fixture.options({ sandboxes }));
+    const { store } = new SpaceStore(await fixture.options({ sandboxes }));
     const types = store.objects.filter((type) =>
         [notebooks.id, tasks.id].some((id) => id === type.package.id),
     );

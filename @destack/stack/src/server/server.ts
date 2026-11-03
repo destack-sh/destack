@@ -6,7 +6,7 @@ import { hostname, machine } from "@destack/account/object";
 import type { PackageId, PackageRelease } from "@destack/package";
 import { type Identifier, present, schema } from "@destack/schema";
 import { type Publisher, RequestId, type Subject, Scope, type Uplink } from "@destack/sync";
-import { type CallKey, installation } from "@destack/object";
+import { type CallKey, installation, Provisioned } from "@destack/object";
 import type { ObjectPackage } from "@destack/object/server";
 import type accountPackage from "@destack/account/package";
 import type { ClientOf } from "@destack/object/client";
@@ -203,7 +203,7 @@ function stackServer(
         adapters: {
             handoff: handoffAdapter({ ...options, providers }),
             push: options.builds.adapter(),
-            hook: hookAdapter(options.sandboxes),
+            hook: hookAdapter,
         },
         // move the space in either role, run the primary's consumers and retention, and the host's own
         controllers: [
@@ -246,15 +246,146 @@ function primaryControllers(
     ];
 }
 
-/** Serve a space's stack and other packages over its one database, the stack first. */
-export function serveSpace(options: SpaceOptions): {
+/** A space's store: its stack, access and settings over its installed packages, as they change. */
+export class SpaceStore {
+    /** The store, the stack's package first. */
     readonly store: ObjectStore;
-    readonly packages: readonly PackageHandler[];
-} {
-    // serve each other package once, with its resources provisioned next to the stack's
-    const others = options.servers.map((server) => {
+    /** The options the space serves with. */
+    readonly #options: SpaceOptions;
+    /** Each installed server read once, by the server: its types, its providers and its server. */
+    #installed = new Map<
+        PackageImplementation,
+        {
+            readonly served: {
+                readonly objects: readonly ObjectType[];
+                readonly providers: ImplementationInput["providers"];
+            };
+            readonly server: PackageImplementation;
+            readonly isProviding: boolean;
+        }
+    >();
+    /** The stack's, access's and settings' servers, with the providing servers they read. */
+    #own:
+        | {
+              readonly over: readonly PackageImplementation[];
+              readonly servers: readonly PackageImplementation[];
+          }
+        | undefined;
+
+    /** Serve a space's stack and installed packages over its one database, the stack first. */
+    constructor(options: SpaceOptions) {
+        // read the installed servers, then serve them beside the stack, access and settings
+        this.#options = options;
+        const servers = this.#servers(options.servers);
+        this.store = new ObjectStore({
+            report: options.report,
+            servers,
+            principal: options.principal,
+            partitions: options.partitions,
+            database: options.database,
+            blobs: options.blobs.storage,
+            // know the account's hostnames, which its spaces' routes are declared on, as replicated rows
+            policies: [hostname],
+            claims: options.claims,
+            callKey: options.callKey,
+            environment: options.environment,
+            events: options.events,
+            ephemeral: options.sockets.storage,
+            // keep a socket of each principal's stream, recording a machine leaving with its last one
+            connect: (subject) =>
+                linkSocket(
+                    options.sockets,
+                    schema.identifier("space").parse(options.principal.id),
+                    subject,
+                    () => this.store,
+                ),
+            origin: { package: stackPackage, machineId: options.machine },
+            uplink: options.publisher,
+            // root the chain above the space by its placement, as primary or move target
+            chain: async (view) => {
+                // read where the space is placed, and whether it moves here
+                const served = schema.identifier("space").parse(options.principal.id);
+                const row = await view.read(placement.table).findFirst({ where: { id: served } });
+                const isFollowing = options.role === "primary" || row?.targetId === options.machine;
+
+                // root the chain at the placement, wait for a primary's, and follow none elsewhere
+                if (row !== undefined && isFollowing) {
+                    return { kind: "home", parent: row.scope };
+                } else if (row === undefined && options.role === "primary") {
+                    return { kind: "pending" };
+                }
+
+                return undefined;
+            },
+            // send to the universe by the uplink, and to other scopes at their homes by the machine's route
+            publisher: (scope) => homePublisher(options, scope),
+            machine: options.machine,
+            sandboxes: options.sandboxes,
+        });
+    }
+
+    /** The packages the space serves, each verifying the installation assertions it receives. */
+    get packages(): readonly PackageHandler[] {
+        const { store } = this;
+
+        return store.packages.map((served) => {
+            const verifier = InstallationAssertion.verifier(store, served.package.id);
+
+            return {
+                ...served,
+                verify: (request: Request) =>
+                    InstallationAssertion.verify(
+                        verifier,
+                        request,
+                        this.#options.environment.clock.now(),
+                    ),
+            };
+        });
+    }
+
+    /** Serve a changed set of installed servers and sandboxes, the unchanged ones kept. */
+    apply(
+        servers: readonly PackageImplementation[],
+        sandboxes: readonly HookSandbox[],
+    ): readonly PackageHandler[] {
+        this.store.apply(this.#servers(servers), sandboxes);
+
+        return this.packages;
+    }
+
+    /** List the space's servers: the stack's, access's and settings', then the installed ones. */
+    #servers(installed: readonly PackageImplementation[]): readonly PackageImplementation[] {
+        // read each installed server once, serving its definition as a static one
+        const options = this.#options;
+        const reads = installed.map(
+            (server) => [server, this.#installed.get(server) ?? this.#read(server)] as const,
+        );
+        this.#installed = new Map(reads);
+
+        // build the own servers again once the servers providing, binding or provisioning change
+        const over = reads.filter(([, read]) => read.isProviding).map(([server]) => server);
+        const earlier = this.#own;
+        const own =
+            earlier !== undefined &&
+            earlier.over.length === over.length &&
+            earlier.over.every((server, index) => server === over[index])
+                ? earlier.servers
+                : this.#build(
+                      installed,
+                      reads.map(([, read]) => read.served),
+                  );
+        this.#own = { over, servers: own };
+
+        // serve a primary's installed packages beside its own, a standby its own alone
+        return options.role === "primary" ? [...own, ...reads.map(([, read]) => read.server)] : own;
+    }
+
+    /** Read an installed server: its types, the handled ones in place, and its resolved server. */
+    #read(server: PackageImplementation) {
         // read the package's definition once, serving it as a static one
-        const definition = server.definition(PackageContext.of(server.installation, options.blobs));
+        const definition = server.definition(
+            PackageContext.of(server.installation, this.#options.blobs),
+        );
         const resolved = implementPackage(server.package, definition);
 
         // list the package's types, the handled ones in place, whose resources the stack provisions
@@ -266,103 +397,44 @@ export function serveSpace(options: SpaceOptions): {
         return {
             served: { objects, providers: server.providers },
             server: server.installation === undefined ? resolved : resolved.at(server.installation),
+            isProviding:
+                server.providers.length > 0 ||
+                server.bindables.length > 0 ||
+                objects.some((type) => Provisioned.is(type)),
         };
-    });
+    }
 
-    // index the machine's providers and bindable kinds, which the stack and the installations bind with
-    const bindables = ObjectBindable.of(options.servers);
-    const providers = new ProviderIndex(
-        options.machine,
-        spaceProviders(options),
-        others.map((each) => each.served),
-    );
-    const binder = new Binder(
-        providers.objects().map((type) => ResourceBindable.of(providers.kind(type), type)),
-        bindables,
-    );
+    /** Build the stack's, access's and settings' servers over the installed providers and kinds. */
+    #build(
+        installed: readonly PackageImplementation[],
+        served: ConstructorParameters<typeof ProviderIndex>[2],
+    ): readonly PackageImplementation[] {
+        // index the machine's providers and bindable kinds, which the stack and the installations bind with
+        const options = this.#options;
+        const bindables = ObjectBindable.of(installed);
+        const providers = new ProviderIndex(options.machine, spaceProviders(options), served);
+        const binder = new Binder(
+            providers.objects().map((type) => ResourceBindable.of(providers.kind(type), type)),
+            bindables,
+        );
 
-    // serve the stack with its access objects, then settings and packages, a standby the stack and access only
-    const stack = stackServer(options, providers, binder);
-    const access = implementPackage(objectPackage, {
-        objects: [
-            implementRole(),
-            implementRelationship(),
-            implementInstallations(installationOptions(options, providers, binder)),
-        ],
-    });
-    const base = (handle: Pick<ObjectPackage, "id" | "name">) =>
-        present(options.bases.get(handle.id), `the base installation of ${handle.name}`);
-    const born = [stack.at(base(stackPackage)), access.at(base(objectPackage))];
-    const store = new ObjectStore({
-        report: options.report,
-        servers:
-            options.role === "primary"
-                ? [
-                      ...born,
-                      installedSettingsServer(options).at(base(settingPackage)),
-                      ...others.map((each) => each.server),
-                  ]
-                : born,
-        principal: options.principal,
-        partitions: options.partitions,
-        database: options.database,
-        blobs: options.blobs.storage,
-        // know the account's hostnames, which its spaces' routes are declared on, as replicated rows
-        policies: [hostname],
-        claims: options.claims,
-        callKey: options.callKey,
-        environment: options.environment,
-        events: options.events,
-        ephemeral: options.sockets.storage,
-        // keep a socket of each principal's stream, recording a machine leaving with its last one
-        connect: (subject) =>
-            linkSocket(
-                options.sockets,
-                schema.identifier("space").parse(options.principal.id),
-                subject,
-                () => store,
-            ),
-        origin: { package: stackPackage, machineId: options.machine },
-        uplink: options.publisher,
-        // root the chain above the space by its placement, as primary or move target
-        chain: async (view) => {
-            // read where the space is placed, and whether it moves here
-            const served = schema.identifier("space").parse(options.principal.id);
-            const row = await view.read(placement.table).findFirst({ where: { id: served } });
-            const isFollowing = options.role === "primary" || row?.targetId === options.machine;
+        // serve the stack with its access objects, then a primary's settings
+        const stack = stackServer(options, providers, binder);
+        const access = implementPackage(objectPackage, {
+            objects: [
+                implementRole(),
+                implementRelationship(),
+                implementInstallations(installationOptions(options, providers, binder)),
+            ],
+        });
+        const base = (handle: Pick<ObjectPackage, "id" | "name">) =>
+            present(options.bases.get(handle.id), `the base installation of ${handle.name}`);
+        const born = [stack.at(base(stackPackage)), access.at(base(objectPackage))];
 
-            // root the chain at the placement, wait for a primary's, and follow none elsewhere
-            if (row !== undefined && isFollowing) {
-                return { kind: "home", parent: row.scope };
-            } else if (row === undefined && options.role === "primary") {
-                return { kind: "pending" };
-            }
-
-            return undefined;
-        },
-        // send to the universe by the uplink, and to other scopes at their homes by the machine's route
-        publisher: (scope) => homePublisher(options, scope),
-        machine: options.machine,
-        sandboxes: options.sandboxes,
-    });
-
-    // verify the installations' assertions to each package with the proofs they spend
-    return {
-        store,
-        packages: store.packages.map((served) => {
-            const verifier = InstallationAssertion.verifier(store, served.package.id);
-
-            return {
-                ...served,
-                verify: (request: Request) =>
-                    InstallationAssertion.verify(
-                        verifier,
-                        request,
-                        options.environment.clock.now(),
-                    ),
-            };
-        }),
-    };
+        return options.role === "primary"
+            ? [...born, installedSettingsServer(options).at(base(settingPackage))]
+            : born;
+    }
 }
 
 /** Serve the space's own objects. */

@@ -92,7 +92,7 @@ import * as object from "../object/index.ts";
 import {
     SocketRegistry,
     ConsumerController,
-    serveSpace,
+    SpaceStore,
     SpaceHost,
     type SpaceMachine,
     type SpaceOptions,
@@ -1396,7 +1396,7 @@ export class TestSpace implements AsyncDisposable {
         target: Pick<Installation, "name" | "capabilities" | "allowed">,
         reader: BuildReader,
     ): Promise<Pick<object.InstallationRevision, "dependencies" | "states">> {
-        const { store } = serveSpace(await this.options());
+        const { store } = new SpaceStore(await this.options());
         const options = {
             builds: await this.builds(),
             registry: this.registry,
@@ -1614,7 +1614,7 @@ export class TestSpace implements AsyncDisposable {
         const own = await this.#placed([...this.#beside.companions, ...(given.servers ?? [])]);
 
         // serve as the machine's start does, once the space's replicas are ready and its birth settled
-        const { store, packages } = serveSpace(
+        const { store, packages } = new SpaceStore(
             await this.options({
                 ...given,
                 servers: [...hosted.servers, ...own],
@@ -1698,7 +1698,7 @@ export class TestSpace implements AsyncDisposable {
         }
 
         // run only the replica follow of a store over the space's database
-        const { store } = serveSpace(await this.options());
+        const { store } = new SpaceStore(await this.options());
         const loop = new ControlLoop(
             this.database,
             store.controllers().filter((controller) => controller.name === "replica"),

@@ -6,14 +6,14 @@ import { present } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import stackPackage from "../package.ts";
-import { serveSpace } from "./server.ts";
+import { SpaceStore } from "./server.ts";
 import { ids, readStack, TestSpace } from "../test/index.ts";
 
 test("follow the served space's own rows as its machine serves them", async () => {
     // serve a space its universe placed on the machine
     const fixture = await TestSpace.open();
     const options = await fixture.options();
-    const { store } = serveSpace(options);
+    const { store } = new SpaceStore(options);
 
     // list the replicas of the space's own shape in its database
     const expected = Shape.subscription(

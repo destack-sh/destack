@@ -4,7 +4,7 @@ import objectPackage from "@destack/object/package";
 import { BindingTarget, role } from "@destack/object";
 import { STACKS } from "@destack/account/test";
 import { space } from "@destack/account/object";
-import { type SpaceOptions, serveSpace } from "../index.ts";
+import { type SpaceOptions, SpaceStore } from "../index.ts";
 import { pathToFileURL } from "node:url";
 import { PACKAGE_DECLARATION, PackageHandle, SERVER_EXPORT } from "@destack/object";
 import { expect, refusal, test } from "@destack/test";
@@ -110,7 +110,7 @@ async function serve(fixture: TestSpace, options: Partial<SpaceOptions> = {}) {
         object.database,
     );
 
-    return serveSpace(await fixture.options({ providers: [databases], ...options })).store;
+    return new SpaceStore(await fixture.options({ providers: [databases], ...options })).store;
 }
 
 /** The server of gauges in the space. */

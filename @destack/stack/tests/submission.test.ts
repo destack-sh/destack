@@ -7,7 +7,7 @@ import { schema, present, Digest } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { CallError } from "@destack/object";
 import { eq, Snapshot } from "@destack/db";
-import { serveSpace } from "../src/server/index.ts";
+import { SpaceStore } from "../src/server/index.ts";
 import { build, installationRevision, Rollout, rollout } from "../src/object/index.ts";
 import { Package, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -44,7 +44,7 @@ test("apply a submitted stack build and open its installations' views", async ()
     const fixture = await TestSpace.open();
     const serving = await fixture.serve({ isControlled: false });
     const owner = serving.as(fixture.owner.subject).client(stackPackage);
-    const store = serveSpace(await fixture.options()).store;
+    const store = new SpaceStore(await fixture.options()).store;
 
     // follow a checkout with the stack installation the space's birth gave it
     const stack = await readStack(fixture.database);
@@ -148,7 +148,7 @@ test("apply an earlier build submitted again after a later one, approving each p
     const fixture = await TestSpace.open();
     const serving = await fixture.serve({ isControlled: false });
     const owner = serving.as(fixture.owner.subject).client(stackPackage);
-    const store = serveSpace(await fixture.options()).store;
+    const store = new SpaceStore(await fixture.options()).store;
     const stack = await readStack(fixture.database);
 
     // submit a build declaring one role and one declaring both
@@ -211,7 +211,7 @@ test("install an application from a checkout by submitting its build, following 
     const serving = await fixture.serve({ isControlled: false });
     const owner = serving.as(fixture.owner.subject).client(stackPackage);
     const installer = serving.as(fixture.owner.subject).client(objectPackage);
-    const store = serveSpace(await fixture.options()).store;
+    const store = new SpaceStore(await fixture.options()).store;
     const notes = await installer.installation.create({
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
@@ -327,7 +327,7 @@ test("wait for an approval of an application's upgrade planned from the release 
     const serving = await fixture.serve({ isControlled: false });
     const owner = serving.as(fixture.owner.subject).client(stackPackage);
     const installer = serving.as(fixture.owner.subject).client(objectPackage);
-    const store = serveSpace(await fixture.options()).store;
+    const store = new SpaceStore(await fixture.options()).store;
     const notes = await installer.installation.create({
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
@@ -413,7 +413,7 @@ test("refuse a build of another package, and deploy a release that is not later 
     const serving = await fixture.serve({ isControlled: false });
     const owner = serving.as(fixture.owner.subject).client(stackPackage);
     const installer = serving.as(fixture.owner.subject).client(objectPackage);
-    const store = serveSpace(await fixture.options()).store;
+    const store = new SpaceStore(await fixture.options()).store;
     const notes = await installer.installation.create({
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),

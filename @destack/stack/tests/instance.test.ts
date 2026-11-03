@@ -53,7 +53,7 @@ import type { ServerRuntime } from "@destack/package/runtime";
 import type { BuildReader } from "@destack/package/manifest";
 import * as object from "../src/object/index.ts";
 import * as accountObject from "@destack/account/object";
-import { Approval, serveSpace, type SpaceOptions } from "../src/server/index.ts";
+import { Approval, SpaceStore, type SpaceOptions } from "../src/server/index.ts";
 import { Rollout } from "../src/object/index.ts";
 import {
     readInstalled,
@@ -334,7 +334,7 @@ async function serveControllers(
     const runtimes = options.runtimes ?? ["bun"];
 
     // run the chosen runtimes on the machine serving the space and record instances on the one test runtime
-    const served = serveSpace(
+    const served = new SpaceStore(
         await fixture.options({
             providers: [
                 databaseProvider(
@@ -425,7 +425,7 @@ async function readiness(database: DatabaseConnection, id: Identifier<"installat
 /** Approve the plan an installation waits on as it stands. */
 async function approvePlan(
     database: DatabaseConnection,
-    store: ReturnType<typeof serveSpace>["store"],
+    store: SpaceStore["store"],
     id: Identifier<"installation">,
 ) {
     // read the plan the installation waits on

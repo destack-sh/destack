@@ -16,7 +16,7 @@ import {
 } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
 import { nth, schema, present, Digest, Identifier } from "@destack/schema";
-import { appliedDigests, ConsumerController, ProviderIndex, serveSpace } from "../index.ts";
+import { appliedDigests, ConsumerController, ProviderIndex, SpaceStore } from "../index.ts";
 import { testHost } from "@destack/test/host";
 import {
     ids,
@@ -83,7 +83,7 @@ test("provision a space's database under the space's approval threshold, and lea
                 retention: "forever",
             }),
     );
-    const store = serveSpace(
+    const store = new SpaceStore(
         await fixture.options({
             providers: providers(directory, fixture.environment),
         }),
@@ -132,7 +132,7 @@ test("provision a resource as soon as its declaration changes", async () => {
 
     // serve the database controller on an empty space
     const now = fixture.machine.clock.now();
-    const store = serveSpace(
+    const store = new SpaceStore(
         await fixture.options({
             providers: providers(directory, fixture.environment),
         }),
@@ -256,7 +256,7 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
 
         return digest;
     };
-    const store = serveSpace(
+    const store = new SpaceStore(
         await fixture.options({
             providers: providers(directory, fixture.environment),
         }),
@@ -362,7 +362,7 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
                 updatedAt: now,
             }),
     );
-    const store = serveSpace(await fixture.options({ providers: [flaky, main] })).store;
+    const store = new SpaceStore(await fixture.options({ providers: [flaky, main] })).store;
     const read = async () =>
         (
             await database

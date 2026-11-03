@@ -156,6 +156,20 @@ export interface SpaceServers {
     readonly sandboxes: readonly HookSandbox[];
 }
 
+/** An installation's server as one start serves it: its load, and its server or sandbox. */
+interface ServedEntry {
+    /** Its build's load: a trusted server, absent for a build without one, a sandbox, or none. */
+    readonly load:
+        | { readonly kind: "process"; readonly server: PackageImplementation | undefined }
+        | { readonly kind: "sandbox" }
+        | { readonly kind: "unserved" };
+    /** The server or sandbox serving it, absent for one that failed to load. */
+    readonly served:
+        | { readonly kind: "server"; readonly server: PackageImplementation }
+        | { readonly kind: "sandbox"; readonly sandbox: HookSandbox }
+        | undefined;
+}
+
 /** A space a machine hosts: its identity, its link to the universe and its placement. */
 export class SpaceHost {
     /** The space. */
@@ -168,6 +182,10 @@ export class SpaceHost {
     readonly keystore: IdentityKeystore;
     /** The token sources of the space and its installations, reusing their tokens, by subject. */
     readonly #sources = new Map<string, TokenSource>();
+    /** The current start's servers, by installation and revision, kept while they stay served. */
+    #served:
+        | { readonly signal: AbortSignal; readonly entries: ReadonlyMap<string, ServedEntry> }
+        | undefined;
 
     /** Host a space over its database on a machine. */
     constructor(machine: SpaceMachine, id: Identifier<"space">, database: DatabaseConnection) {
@@ -399,13 +417,21 @@ export class SpaceHost {
         start: SpaceStart,
         signal: AbortSignal,
     ): Promise<SpaceServers> {
-        // load the server of each installation the store runs from its build
+        // keep this start's servers of installations at the revision served before, by installation and revision
+        const earlier: ReadonlyMap<string, ServedEntry> =
+            this.#served?.signal === signal ? this.#served.entries : new Map();
+        const keys = installed.map(({ rollout: row, revisionId }) => `${row.id}@${revisionId}`);
+
+        // load the server of each other installation the store runs from its build
         const loaded = await Promise.all(
-            installed.map(async ({ rollout: row, manifest }) => {
-                // report a server that fails to load, leaving its installation unserved
+            installed.map(async ({ rollout: row, manifest }, index) => {
+                // take the earlier load, else load a trusted one, reporting a server that fails to load
+                const kept = earlier.get(present(keys[index], "the installation's key"));
                 const isLinked =
                     this.machine.linked.get(row.installation.packageId)?.manifest === manifest;
-                if (row.installation.isolation !== "process" && !isLinked) {
+                if (kept !== undefined) {
+                    return kept.load;
+                } else if (row.installation.isolation !== "process" && !isLinked) {
                     return { kind: "sandbox" } as const;
                 }
                 try {
@@ -429,48 +455,73 @@ export class SpaceHost {
             each.kind === "process" && each.server !== undefined ? [each.server] : [],
         );
 
-        // serve each installation in the store or in its sandbox
+        // serve each installation in the store or in its sandbox, keeping the earlier ones
+        const entries = new Map<string, ServedEntry>();
         const servers: PackageImplementation[] = [];
         const sandboxes: HookSandbox[] = [];
-        for (const [index, { rollout: row, revisionId, declarations }] of installed.entries()) {
-            // serve a loaded server in the store, activated once its revision and any lent grant exist
-            const load = present(loaded[index], `the load of installation ${row.id}`);
-            const stored = load.kind === "process" ? load.server : undefined;
-            if (load.kind === "unserved") {
-                continue;
-            } else if (stored !== undefined) {
-                const caller = this.#callerOnce(row, stored.package, start);
-                const resources = await this.#resources(
-                    row,
-                    stored.package,
-                    start,
-                    caller,
-                    trusted,
-                );
-                const context = await this.#context(row, revisionId, resources, start, caller);
-                const requested = Rollout.permissions(row.installation, stored.package, "space");
-                const isLent = Object.entries(requested).some(
-                    ([scope, each]) => scope !== "space" && each.length > 0,
-                );
-                const activation = (stopped: AbortSignal) =>
-                    this.#activate(row, revisionId, isLent, AbortSignal.any([signal, stopped]));
-                servers.push(stored.at({ ...context, activation }));
-            }
-            // run another package's hooks in its sandbox, which binds its resources itself
-            else {
-                const caller = this.#callerOnce(row, { resources: {} }, start);
-                const context = await this.#context(
-                    row,
-                    revisionId,
-                    new ResourceContext(),
-                    start,
-                    caller,
-                );
-                sandboxes.push(start.sandbox(row, context, declarations));
+        for (const [index, entry] of installed.entries()) {
+            const key = present(keys[index], "the installation's key");
+            const load = present(loaded[index], `the load of installation ${entry.rollout.id}`);
+            const served =
+                earlier.get(key)?.served ??
+                (await this.#serve(entry, load, { start, signal, trusted }));
+            entries.set(key, { load, served });
+            if (served?.kind === "server") {
+                servers.push(served.server);
+            } else if (served?.kind === "sandbox") {
+                sandboxes.push(served.sandbox);
             }
         }
+        this.#served = { signal, entries };
 
         return { servers, sandboxes };
+    }
+
+    /** Serve one installation: a loaded server in the store, else its hooks in a sandbox. */
+    async #serve(
+        {
+            rollout: row,
+            revisionId,
+            declarations,
+        }: Awaited<ReturnType<typeof Database.installed>>[number],
+        load: ServedEntry["load"],
+        run: {
+            readonly start: SpaceStart;
+            readonly signal: AbortSignal;
+            readonly trusted: readonly PackageImplementation[];
+        },
+    ): Promise<ServedEntry["served"]> {
+        // serve a loaded server in the store, activated once its revision and any lent grant exist
+        const { start, signal, trusted } = run;
+        const stored = load.kind === "process" ? load.server : undefined;
+        if (load.kind === "unserved") {
+            return undefined;
+        } else if (stored !== undefined) {
+            const caller = this.#callerOnce(row, stored.package, start);
+            const resources = await this.#resources(row, stored.package, start, caller, trusted);
+            const context = await this.#context(row, revisionId, resources, start, caller);
+            const requested = Rollout.permissions(row.installation, stored.package, "space");
+            const isLent = Object.entries(requested).some(
+                ([scope, each]) => scope !== "space" && each.length > 0,
+            );
+            const activation = (stopped: AbortSignal) =>
+                this.#activate(row, revisionId, isLent, AbortSignal.any([signal, stopped]));
+
+            return { kind: "server", server: stored.at({ ...context, activation }) };
+        }
+        // run another package's hooks in its sandbox, which binds its resources itself
+        else {
+            const caller = this.#callerOnce(row, { resources: {} }, start);
+            const context = await this.#context(
+                row,
+                revisionId,
+                new ResourceContext(),
+                start,
+                caller,
+            );
+
+            return { kind: "sandbox", sandbox: start.sandbox(row, context, declarations) };
+        }
     }
 
     /** Activate an installation once it applied its revision and has any grant it borrows by. */
