@@ -6,6 +6,7 @@ import { schema } from "@destack/schema";
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import { emailProvider } from "../email/index.ts";
+import { MailError } from "@destack/mail/error";
 import { message, messageAttempt, task } from "../object/index.ts";
 import messagePackage, { outboundMail } from "../package.ts";
 import { TestMessage } from "../test/index.ts";
@@ -26,17 +27,15 @@ const COMPACT_JWE = /eyJ[\w-]+\.[\w-]*\.[\w-]+\.[\w-]+\.[\w-]+/u;
 /** The desktop client showing a message. */
 const CLIENT = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000c1");
 
-/** A throttled send, which SES answers with its AWS code. */
-const THROTTLED = {
-    kind: "deferred",
-    refusal: { reason: "PROVIDER_THROTTLED", code: "Throttling", message: "slow down" },
-} as const;
+/** A throttled send, which SES refuses with its AWS code. */
+const THROTTLED = MailError.of("PROVIDER_THROTTLED", "slow down", {
+    data: { awsCode: "Throttling" },
+});
 
 /** A refusal for good of an unverified address. */
-const REJECTED = {
-    kind: "failed",
-    refusal: { reason: "MESSAGE_REJECTED", code: "MessageRejected", message: "unverified" },
-} as const;
+const REJECTED = MailError.of("MESSAGE_REJECTED", "unverified", {
+    data: { awsCode: "MessageRejected" },
+});
 
 /** A server sending email alone, as a machine without push or webhook providers serves messages. */
 const EMAIL_ONLY = implementPackage(messagePackage, (context) =>
@@ -78,7 +77,7 @@ async function listLeaks(fixture: TestMessage): Promise<string[]> {
 }
 
 test("send a message through its channel's provider, retrying a temporary refusal, by its message controller", async () => {
-    const fixture = await TestMessage.open({ mails: [THROTTLED, { kind: "sent" }] });
+    const fixture = await TestMessage.open({ mails: [THROTTLED, "sent"] });
     const id = await fixture.send(EMAIL, CONTENT);
 
     // refuse it once, then send it on its next attempt
@@ -184,7 +183,7 @@ test("forget a browser its push service forgot, as the space, once its push fail
 
 test("open a message's content only for its provider, and drop it from every message row as it settles", async () => {
     // send one email and fail another for good
-    const fixture = await TestMessage.open({ mails: [{ kind: "sent" }, REJECTED] });
+    const fixture = await TestMessage.open({ mails: ["sent", REJECTED] });
     const sent = await fixture.send(EMAIL, CONTENT);
     const failed = await fixture.send(EMAIL, CONTENT);
     await fixture.simulation.idle();

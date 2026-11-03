@@ -6,7 +6,7 @@ import { schema } from "@destack/schema";
 import { EmailContent, EmailDestination } from "../email/message.ts";
 import { PushContent, PushDestination } from "../push/message.ts";
 import { WebhookContent, WebhookDestination } from "../webhook/message.ts";
-import { MessageError, MessageReason } from "../error/error.ts";
+import { MessageError, RefusalReason } from "../error/error.ts";
 
 /** The label the message key pair derives under from an identity's root secret. */
 const MESSAGE_LABEL = { label: "@destack/message/key", context: "" } as const;
@@ -116,7 +116,7 @@ export class MessageKey {
 /** Why a provider refused a message: the reason, with the provider's own code apart. */
 export const Refusal = schema.object({
     /** The reason, such as RECIPIENT_GONE. */
-    reason: MessageReason,
+    reason: RefusalReason,
     /** The provider's own code, such as an HTTP status or an AWS error code, absent without one. */
     code: schema.string().min(1).exactOptional(),
     /** The provider's message. */
@@ -141,7 +141,7 @@ export const message = defineObject(
             /** Whether it is sending, went out, reached its client, or failed. */
             status: field.enum(MESSAGE_STATES).default("pending"),
             /** Why it failed, absent unless it failed. */
-            reason: field.string(MessageReason).optional(),
+            reason: field.string(RefusalReason).optional(),
             /** The content sealed to the installation's message key, absent for a desktop. */
             ciphertext: field.string(identity.Ciphertext).sensitive().optional(),
             /** When it settled, absent while it sends. */

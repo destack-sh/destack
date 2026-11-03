@@ -1,8 +1,8 @@
 import { client, user } from "@destack/account/object";
 import { definePackage } from "@destack/object";
-import { defineMail } from "./email/kind.ts";
+import { defineMail } from "@destack/mail/declare";
 import { MessageError } from "./error/error.ts";
-import { endpoint, mail, message, messageAttempt, task } from "./object/index.ts";
+import { endpoint, message, messageAttempt, task } from "./object/index.ts";
 
 /** The capability through which the package reaches the hosts messages go to. */
 export const DELIVER_CAPABILITY = "deliver";
@@ -12,7 +12,7 @@ export const outboundMail = defineMail("outbound");
 
 /** The handle stores serve messages, their attempts and webhook endpoints through. */
 export default definePackage({
-    objects: { message, attempt: messageAttempt, endpoint, mail, ...task.objects },
+    objects: { message, attempt: messageAttempt, endpoint, ...task.objects },
     resources: { outbound: outboundMail },
     permissions: {
         space: {

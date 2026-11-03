@@ -5,13 +5,9 @@ import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
 import { eq } from "@destack/db";
 import type { Simulation, SimulatedClock } from "@destack/environment/simulation";
-import { PACKAGE_DECLARATION, PACKAGE_EXPORT, type PackageHandle } from "@destack/object";
-import { describePackage } from "@destack/object/inspect";
-import objectPackage from "@destack/object/package";
 import type { ObjectStore, PackageImplementation } from "@destack/object/server";
 import type { TestCaller, TestObjectStore } from "@destack/object/test";
-import { Package } from "@destack/package";
-import { MemoryBuild } from "@destack/package/test";
+import { testBuild } from "@destack/object/test";
 import { RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
 import { fixtureOutputs, OWNER_EMAIL, TestPackage, TestSpace, workload } from "@destack/stack/test";
@@ -21,25 +17,24 @@ import { ObjectReference, RequestId } from "@destack/sync";
 import { defineVault } from "@destack/vault/declare";
 import { secret, vault } from "@destack/vault/object";
 import vaultPackage from "@destack/vault/package";
-import vaultServer from "@destack/vault/server";
-import { mailConnector, mailProvider } from "../email/index.ts";
-import { describeMail } from "../inspect/index.ts";
+import { VAULT } from "@destack/vault/test";
+import { mailConnector, mailProvider } from "@destack/mail/transport";
+import { describeMail } from "@destack/mail/inspect";
+import { type TestMailAnswer, TestMailTransport } from "@destack/mail/test";
+import { mail } from "@destack/stack/object";
 import {
     type Content,
     type Destination,
     type Endpoint,
-    mail,
     message,
     messageAttempt,
     messageConditions,
     MessageKey,
 } from "../object/index.ts";
 import messagePackage, { DELIVER_CAPABILITY, outboundMail } from "../package.ts";
-import type { Outcome } from "../provider/index.ts";
 import messageServer from "../server.ts";
 import { documentsPackage, documentsServer } from "./document.ts";
 import { type Browser, subscribeBrowser } from "./browser.ts";
-import { TestMailTransport } from "./mail.ts";
 
 /** The time every fixture's simulation starts at. */
 const START = Date.UTC(2026, 9, 5);
@@ -65,31 +60,24 @@ const MESSAGE: TestPackage = {
     build: await messageBuild(testHost().crypto),
     server: messageServer,
     connectors: [mailConnector(MAIL_PROVIDER, new TestMailTransport())],
-    servers: [vaultServer],
     providers: [mailProvider(MAIL_PROVIDER, mail)],
 };
 
 /** The documents application, whose calls send messages. */
 const DOCUMENTS: TestPackage = {
     handle: documentsPackage,
-    build: await MemoryBuild.of(
-        Package.of(documentsPackage),
-        [packageDeclaration(documentsPackage)],
-        testHost().crypto,
-    ),
+    build: await testBuild(documentsPackage, testHost().crypto),
     server: documentsServer,
     connectors: [],
-    servers: [],
     providers: [],
 };
 
-/** The shipped servers and builds of the packages the space installs, messages before documents. */
-const INSTALLED = TestPackage.options([MESSAGE, DOCUMENTS]);
+/** The packages the space installs: the vault, messages, then documents. */
+const INSTALLED = TestPackage.options([VAULT, MESSAGE, DOCUMENTS]);
 
-/** The space the fixture's tests copy: its packages beside the vault's tables, and start. */
+/** The space the fixture's tests copy: its packages and start. */
 const SPACE_OPTIONS = {
     ...INSTALLED,
-    packages: [...INSTALLED.packages, vaultPackage],
     start: START,
 };
 
@@ -225,8 +213,8 @@ export class TestMessage {
     /** Serve a space with message and documents installed, outside systems answering in turn. */
     static async open(
         options: {
-            /** The outcomes the mail transport answers in turn, every email sent when absent. */
-            readonly mails?: readonly Outcome[];
+            /** The answers the mail transport gives in turn, every email sent when absent. */
+            readonly mails?: readonly TestMailAnswer[];
             /** The statuses the webhook endpoint answers in turn, 204 when absent. */
             readonly hooks?: readonly number[];
             /** The statuses the push service answers in turn, 204 when absent. */
@@ -239,7 +227,7 @@ export class TestMessage {
         const mails = new TestMailTransport(options.mails);
         const { space: hosted, world } = await TestSpace.copy(TestMessage.template(), {
             ...SPACE_OPTIONS,
-            servers: [options.server ?? messageServer, documentsServer],
+            servers: [VAULT.server, options.server ?? messageServer, documentsServer],
             connectors: [mailConnector(MAIL_PROVIDER, mails)],
         });
 
@@ -276,10 +264,11 @@ export class TestMessage {
         });
     }
 
-    /** Install message and documents in the space, served beside the vault. */
+    /** Install the vault, message and documents in the space. */
     static async #write(hosted: TestSpace): Promise<MessageWorld> {
-        // install message and documents, then stop serving, as the machine does once installations change
+        // install the vault, message and documents, then stop serving, as the machine does once installations change
         const installing = await hosted.serve();
+        await hosted.install(installing, VAULT.build, { isolation: "process" });
         const installation = await hosted.install(installing, MESSAGE.build, {
             capabilities: [DELIVER_CAPABILITY],
         });
@@ -467,10 +456,8 @@ function messageBuild(crypto: Crypto) {
         },
     });
 
-    return MemoryBuild.of(
-        Package.of(messagePackage),
-        [
-            packageDeclaration(messagePackage),
+    return testBuild(messagePackage, crypto, {
+        declared: [
             {
                 kind: "resource",
                 kindPackageId: RESOURCE_KIND_PACKAGE_ID,
@@ -478,17 +465,6 @@ function messageBuild(crypto: Crypto) {
                 description: describeMail(outboundMail),
             },
         ],
-        crypto,
-        { outputs },
-    );
-}
-
-/** Describe a package as its build's package declaration. */
-function packageDeclaration(handle: PackageHandle) {
-    return {
-        kind: PACKAGE_DECLARATION,
-        kindPackageId: objectPackage.id,
-        name: PACKAGE_EXPORT,
-        description: describePackage(handle),
-    };
+        outputs,
+    });
 }

@@ -3,7 +3,7 @@ import type { Fetch } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Duration, schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
-import type { MessageReason } from "../error/error.ts";
+import type { MessageReason, RefusalReason } from "../error/error.ts";
 import type { PushSubscription } from "@destack/account/object";
 import { type Content, type Destination, type Message, Refusal } from "../object/message.ts";
 
@@ -11,7 +11,7 @@ import { type Content, type Destination, type Message, Refusal } from "../object
 const GONE_STATUSES: ReadonlySet<number> = new Set([404, 410]);
 
 /** The reasons a later try of the same message may get past. */
-const RETRIED_REASONS: ReadonlySet<MessageReason> = new Set([
+const RETRIED_REASONS: ReadonlySet<RefusalReason> = new Set([
     "COMMAND_DEFERRED",
     "CREDENTIALS_EXPIRED",
     "PROVIDER_THROTTLED",

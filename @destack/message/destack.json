@@ -13,9 +13,6 @@
         "./server": {
             "runtimes": ["bun", "workerd"]
         },
-        "./smtp": {
-            "runtimes": ["bun"]
-        },
         "./stack": {
             "runtimes": ["bun", "workerd"]
         },
@@ -24,24 +21,6 @@
         },
         "./webhook": {
             "runtimes": ["bun", "workerd"]
-        },
-        "./inspect": {
-            "runtimes": ["bun"]
-        }
-    },
-    "declarations": {
-        "defineMail": {
-            "describes": [
-                {
-                    "kind": "resource",
-                    "function": "./inspect#describeMail"
-                }
-            ]
-        }
-    },
-    "stamps": {
-        "defineMail": {
-            "module": 1
         }
     }
 }

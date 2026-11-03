@@ -3,9 +3,8 @@
 `@destack/message` sends messages to one recipient on one channel, email, push, webhook or a desktop, and delivers webhook endpoints.
 
 ```ts
-const email = emailProvider(new SmtpTransport(client, { from: "Destack <notices@destack.app>" }));
+const email = emailProvider(new SmtpTransport(client, { from: "Destack <notices@destack.app>" })); // from @destack/mail
 const push = pushProvider(() => Vapid.derive(keys, "https://destack.app", crypto), fetch);
-await MimeMessage.compose({ from, to, subject, date: new Date(clock.now()), key, text, html });
 await StandardWebhook.sign(secret, { id, timestamp, body }); // from @destack/object
 ```
 
@@ -60,7 +59,7 @@ const extension = server.definition(context); // mail through the bound outbound
 
 ## Providers
 
-A `MessageProvider` sends the messages of one channel; a refusal carries a `MessageReason`, with the provider's own code apart.
+A `MessageProvider` sends the messages of one channel; a refusal carries a `RefusalReason`, a `MessageReason` or a `MailReason`, with the provider's own code apart.
 
 ```ts
 Outcome.read(new Response(null, { status: 410 }), now);
@@ -82,12 +81,11 @@ const database = defineDatabase({ name: "main", tables: messageTables });
 
 ## Tests
 
-`TestMessage` serves a space with message installed in a simulation, its mail bound to a `TestMailTransport` and its webhook endpoint and push service served as `TestReceiver`s; `TestMailServer` is a scripted SMTP server listening on a simulated network's loopback.
+`TestMessage` serves a space with message installed in a simulation, its mail bound to a `TestMailTransport` and its webhook endpoint and push service served as `TestReceiver`s.
 
 ```ts
-await using server = await TestMailServer.listen(simulation.network.of("mail"), {
-    secureTransport: "starttls",
-    answers: { "RCPT TO:<eve@example.com>": "550 5.1.1 no such user" },
+const throttled = MailError.of("PROVIDER_THROTTLED", "slow down", {
+    data: { awsCode: "Throttling" },
 });
-const kit = await TestMessage.open({ mails: [{ kind: "sent" }], hooks: [500] });
+const kit = await TestMessage.open({ mails: [throttled, "sent"], hooks: [500] });
 ```
