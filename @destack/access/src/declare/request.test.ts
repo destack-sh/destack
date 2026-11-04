@@ -39,20 +39,18 @@ test("grant a permission set in its scopes, the home's in each home scope and th
 });
 
 test("accept a package's request of each delegator's scopes, refusing a scope that delegator cannot lend", () => {
-    // request the scopes a space grants at install and a user's on use
+    // request the scopes a space grants at install and a user's on use, their profile in the universe among them
     const packageId = NOTES;
     const read = (type: string) => [{ packageId, type, name: "read" }];
     const accepted = GrantRequest.safeParse({
         space: { space: read("note"), universe: read("user") },
-        user: { home: read("notification") },
+        user: { home: read("notification"), universe: read("user") },
     });
 
-    // refuse a home the space cannot lend, and the universe a user does not lend
+    // refuse a home the space cannot lend
     const home = GrantRequest.safeParse({ space: { home: read("notification") } });
-    const universe = GrantRequest.safeParse({ user: { universe: read("user") } });
     expect([
         accepted.success,
         home.error?.issues.map((issue) => [issue.code, issue.path.join(".")]),
-        universe.error?.issues.map((issue) => [issue.code, issue.path.join(".")]),
-    ]).toEqual([true, [["unrecognized_keys", "space"]], [["unrecognized_keys", "user"]]]);
+    ]).toEqual([true, [["unrecognized_keys", "space"]]]);
 });

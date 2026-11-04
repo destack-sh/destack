@@ -54,16 +54,13 @@ export type PermissionSet = schema.Infer<typeof PermissionSet>;
 /** What a space grants an installation at install: in the space, account and universe. */
 const SpaceSet = permissionSetSchema.pick({ space: true, account: true, universe: true });
 
-/** What a user grants an installation on use: in the space, the account and their home. */
-const UserSet = permissionSetSchema.pick({ space: true, account: true, home: true });
-
 /** What a package or its capability may be granted by each delegator, at install or on use. */
 export const GrantRequest = schema
     .object({
         /** What the installation's space grants it at install. */
         space: SpaceSet.exactOptional(),
         /** What each user grants it on use, as when they open its view or start its agent. */
-        user: UserSet.exactOptional(),
+        user: permissionSetSchema.exactOptional(),
     })
     .strict();
 /** What a package may be granted, by delegator. */
