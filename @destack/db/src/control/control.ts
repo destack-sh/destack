@@ -2,7 +2,7 @@ import type { DatabaseConnection } from "../database/index.ts";
 import { DatabaseError } from "../error/index.ts";
 import { Lock, lock } from "../limit/index.ts";
 import type { Tracker } from "../tracker/index.ts";
-import { Change, LogColumn } from "../log/index.ts";
+import { Change, LogColumn, type LogCursor } from "../log/index.ts";
 import { LOG, LOG_CHECKPOINT } from "../log/schema.ts";
 import { and, gt, gte, min, Placeholder, type SQL, sql } from "../sql/index.ts";
 import { Condition, type Match, Namespace, Predicate, Scalar } from "../query/index.ts";
@@ -32,7 +32,7 @@ const KEY_ROWS = 1000;
 /** The fields of a key, as its canonical JSON text has them. */
 const KEY_FIELDS = schema.record(schema.string(), Scalar);
 
-/** The key of a consumer's one checkpoint. */
+/** The key of a cursor's one checkpoint. */
 const ONE_CHECKPOINT = "";
 
 /** Microseconds per millisecond. */
@@ -130,32 +130,24 @@ export type Controller<Definition extends Table = Table> = {
     readonly concurrency?: number;
 } & Work<Definition>;
 
-/** A consumer of tables' changes in the log after its position. */
-export interface Consumer {
-    /** The consumer's name in reports and locks, and its checkpoints' name or prefix `<name>:`. */
-    readonly name: string;
-    /** The tables whose changes the consumer takes. */
-    readonly reads: readonly Table[];
-    /** Where its position lives: a checkpoint per scope for appends, one, or its memory. */
-    readonly checkpoint: "scope" | "one" | "none";
-    /** How long a checkpoint's first unconsumed change waits before it is taken, in ms. */
+/** A position in the log: some tables' changes past one checkpoint, each taken once. */
+export interface Cursor extends LogCursor {
+    /** How long its first untaken change waits before it is taken, in ms. */
     readonly batch?: number;
-    /** The most checkpoints it consumes at once, one by default. */
-    readonly concurrency?: number;
-    /** Take the changes past a scope's checkpoint, or the one checkpoint's under an empty key. */
-    readonly consume: (key: string, reconciliation: Reconciliation) => Promise<void>;
+    /** Take the changes past its checkpoint, moving the checkpoint past them. */
+    readonly take: (reconciliation: Reconciliation) => Promise<void>;
 }
 
-/** What a loop runs: controllers over rows, and consumers of changes. */
+/** What a loop runs: controllers over rows, and cursors over the log. */
 export interface Control {
     /** The controllers converging or following rows. */
     readonly controllers: readonly Controller[];
-    /** The consumers taking changes past their positions. */
-    readonly consumers: readonly Consumer[];
+    /** The cursors taking changes past their checkpoints. */
+    readonly cursors: readonly Cursor[];
 }
 
-/** One job of a loop: a controller or a consumer, each locked and retried alike. */
-type Job = Controller | Consumer;
+/** One job of a loop: a controller or a cursor, each locked and retried alike. */
+type Job = Controller | Cursor;
 
 /** One running reconciliation of a key. */
 export interface Reconciliation {
@@ -248,9 +240,9 @@ export class ControlLoop {
 
     /** The database with the controllers' rows and the log that selects keys. */
     readonly database: DatabaseConnection;
-    /** The controllers and consumers run. */
+    /** The controllers and cursors run. */
     readonly control: Control;
-    /** The controllers and consumers as one list of jobs. */
+    /** The controllers and cursors as one list of jobs. */
     readonly #jobs: readonly Job[];
     /** Each row controller compiled, by controller. */
     readonly #compiled: Map<Job, Compiled>;
@@ -325,11 +317,7 @@ export class ControlLoop {
         control: Control,
         options: {
             /** Report a failed reconciliation, beside the loop recording it. */
-            readonly report: (
-                controller: Controller | Consumer,
-                key: string,
-                error: unknown,
-            ) => void;
+            readonly report: (controller: Controller | Cursor, key: string, error: unknown) => void;
             /** How a transiently failed key retries. */
             readonly retry?: Partial<RetryPolicy>;
             /** Set a wake-up for the earliest due key, so an evicted instance runs it. */
@@ -341,7 +329,7 @@ export class ControlLoop {
         // start with no key due and no failure
         this.database = database;
         this.control = control;
-        const jobs: readonly Job[] = [...control.controllers, ...control.consumers];
+        const jobs: readonly Job[] = [...control.controllers, ...control.cursors];
         this.#jobs = jobs;
         const instruments = TelemetryScope.of(
             import.meta.destack.package,
@@ -517,15 +505,15 @@ export class ControlLoop {
         };
     }
 
-    /** Report whether a job consumes changes. */
-    static #isConsumer(controller: Job): controller is Consumer {
-        return "reads" in controller;
+    /** Report whether a job is a cursor over the log. */
+    static #isCursor(controller: Job): controller is Cursor {
+        return "take" in controller;
     }
 
-    /** List the tables a job reads: a controller's own and watched tables, or a consumer's. */
+    /** List the tables a job reads: a controller's own and watched tables, or a cursor's. */
     static #tables(controller: Job): readonly Table[] {
-        return ControlLoop.#isConsumer(controller)
-            ? controller.reads
+        return ControlLoop.#isCursor(controller)
+            ? controller.tables
             : [controller.table, ...(controller.watches ?? []).map((watch) => watch.table)];
     }
 
@@ -640,14 +628,10 @@ export class ControlLoop {
         const name = change.table[TABLE].sqlName;
         const at = this.#clock.now();
 
-        // take a scope's append, due once its batch passed
-        for (const consumer of this.control.consumers) {
-            const isRead = consumer.reads.some((table) => table[TABLE].sqlName === name);
-            if (isRead && consumer.checkpoint !== "scope") {
-                this.enqueue(consumer, ONE_CHECKPOINT, at + (consumer.batch ?? 0));
-            } else if (isRead && change.operation === "insert") {
-                const scope = schema.string().parse(change.after["scope"]);
-                this.enqueue(consumer, scope, at + (consumer.batch ?? 0));
+        // take a read table's change, due once the cursor's batch passed
+        for (const cursor of this.control.cursors) {
+            if (cursor.tables.some((table) => table[TABLE].sqlName === name)) {
+                this.enqueue(cursor, ONE_CHECKPOINT, at + (cursor.batch ?? 0));
             }
         }
         for (const compiled of this.#compiled.values()) {
@@ -760,9 +744,9 @@ export class ControlLoop {
 
     /** Read a controller's pending keys, enqueueing those not failing, and its next due row. */
     async #read(controller: Job): Promise<void> {
-        // read a consumer's scopes with unconsumed appends
-        if (ControlLoop.#isConsumer(controller)) {
-            await this.#readUnconsumed(controller);
+        // take a listed cursor once its batch passes, as what it reads may have changed meanwhile
+        if (ControlLoop.#isCursor(controller)) {
+            this.enqueue(controller, ONE_CHECKPOINT, this.#clock.now() + (controller.batch ?? 0));
 
             return;
         }
@@ -811,58 +795,39 @@ export class ControlLoop {
         }
     }
 
-    /** Enqueue a consumer's checkpoints with changes past them, each after its batch. */
-    async #readUnconsumed(consumer: Consumer, scope?: string): Promise<void> {
-        // take a consumer without a checkpoint at the start, its changes following as they commit
-        if (consumer.checkpoint === "none") {
-            if (scope === undefined) {
-                this.enqueue(consumer, ONE_CHECKPOINT);
-            }
-
+    /** Enqueue a cursor with changes past its checkpoint after its batch, unplaced at once. */
+    async #readUntaken(cursor: Cursor): Promise<void> {
+        // leave a cursor reading no table, which only a start takes
+        if (cursor.tables.length === 0) {
             return;
         }
 
-        // read each scope's first append past its checkpoint, or the first change past the one, in one statement
+        // read the first change past the checkpoint and whether it is placed, in one statement
         const log = sql.relation(LOG);
         const checkpoint = sql.relation(LOG_CHECKPOINT);
         const tables = sql.join(
-            consumer.reads.map((table) => sql`${table[TABLE].sqlName}`),
+            cursor.tables.map((table) => sql`${table[TABLE].sqlName}`),
             sql.raw(", "),
         );
-        const rows =
-            consumer.checkpoint === "one"
-                ? await this.database.all(sql`
-                    SELECT ${ONE_CHECKPOINT} AS scope, (
-                        SELECT min(entry.changed_at) FROM ${log} AS entry
-                        WHERE entry."table" IN (${tables})
-                            AND entry.sequence > coalesce(
-                                (SELECT place.sequence FROM ${checkpoint} AS place WHERE place.name = ${consumer.name}),
-                                -1
-                            )
-                    ) AS first,
-                    (SELECT count(*) FROM ${checkpoint} AS place WHERE place.name = ${consumer.name}) AS placed
-                `)
-                : await this.database.all(sql`
-                    SELECT entry.scope AS scope, min(entry.changed_at) AS first, 1 AS placed
-                    FROM ${log} AS entry
-                    JOIN ${checkpoint} AS place ON place.name = ${`${consumer.name}:`} || entry.scope
-                    WHERE entry."table" IN (${tables})
-                        AND entry.operation = 'insert'
-                        AND entry.sequence > place.sequence
-                        ${scope === undefined ? sql`` : sql`AND entry.scope = ${scope}`}
-                    GROUP BY entry.scope
-                `);
+        const [row] = await this.database.all(sql`
+            SELECT (
+                SELECT min(entry.changed_at) FROM ${log} AS entry
+                WHERE entry."table" IN (${tables})
+                    AND entry.sequence > coalesce(
+                        (SELECT place.sequence FROM ${checkpoint} AS place WHERE place.name = ${cursor.name}),
+                        -1
+                    )
+            ) AS first,
+            (SELECT count(*) FROM ${checkpoint} AS place WHERE place.name = ${cursor.name}) AS placed
+        `);
 
-        // take an unplaced one checkpoint at once, and one with changes once its first change's batch passed
-        for (const row of rows) {
-            const key = schema.string().parse(row["scope"]);
-            const isPlaced = LogColumn.integer(row["placed"]) > 0;
-            const first = row["first"] === null ? undefined : LogColumn.integer(row["first"]);
-            if (!isPlaced) {
-                this.enqueue(consumer, key);
-            } else if (first !== undefined) {
-                this.enqueue(consumer, key, first + (consumer.batch ?? 0));
-            }
+        // take an unplaced cursor at once, and one with changes once its first change's batch passed
+        const isPlaced = LogColumn.integer(row?.["placed"]) > 0;
+        const first = LogColumn.nullableInteger(row?.["first"]);
+        if (!isPlaced) {
+            this.enqueue(cursor, ONE_CHECKPOINT);
+        } else if (first !== null) {
+            this.enqueue(cursor, ONE_CHECKPOINT, first + (cursor.batch ?? 0));
         }
     }
 
@@ -893,7 +858,7 @@ export class ControlLoop {
     }
 
     /** Mark a key due. */
-    enqueue(controller: Controller | Consumer, key: string, at = this.#clock.now()): void {
+    enqueue(controller: Controller | Cursor, key: string, at = this.#clock.now()): void {
         // record the earliest due time
         const due = found(this.#due, controller);
         const current = due.get(key);
@@ -1020,7 +985,10 @@ export class ControlLoop {
             {};
         for (let next = this.#next(); next !== undefined; next = this.#next()) {
             const running = found(this.#running, next.controller);
-            const isFull = running.size >= (next.controller.concurrency ?? 1);
+            const limit = ControlLoop.#isCursor(next.controller)
+                ? 1
+                : (next.controller.concurrency ?? 1);
+            const isFull = running.size >= limit;
             if (next.at > at) {
                 taken = { due: next.at };
                 break;
@@ -1107,10 +1075,10 @@ export class ControlLoop {
         const stopped = stop.signal;
         try {
             await this.#locked(work, stopped, async (reconciliation) => {
-                // take a consumer's page, then the key again while changes remain past its checkpoint
-                if (ControlLoop.#isConsumer(controller)) {
-                    await controller.consume(key, reconciliation);
-                    await this.#readUnconsumed(controller, key);
+                // take a cursor's changes, then again while changes remain past its checkpoint
+                if (ControlLoop.#isCursor(controller)) {
+                    await controller.take(reconciliation);
+                    await this.#readUntaken(controller);
 
                     return;
                 }
@@ -1379,7 +1347,7 @@ function earliest(times: readonly (number | undefined)[]): number | undefined {
 
 /** One key due at a time. */
 interface Due {
-    /** The controller or consumer working on the key. */
+    /** The controller or cursor working on the key. */
     readonly controller: Job;
     /** The key. */
     readonly key: string;

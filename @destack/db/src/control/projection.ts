@@ -2,7 +2,7 @@ import type { DatabaseConnection } from "../database/index.ts";
 import { DatabaseError } from "../error/index.ts";
 import type { Change } from "../log/index.ts";
 import type { Table } from "../table/index.ts";
-import type { Consumer, Reconciliation } from "./control.ts";
+import type { Cursor, Reconciliation } from "./control.ts";
 
 /** How long the log keeps changes past a stopped projection's checkpoint: a week. */
 const HOLD_MILLISECONDS = 7 * 24 * 60 * 60_000;
@@ -12,7 +12,7 @@ export interface ProjectionOptions {
     /** The projection's name in reports and locks, and its checkpoint's. */
     readonly name: string;
     /** The input tables whose changes touch keys. */
-    readonly reads: readonly Table[];
+    readonly tables: readonly Table[];
     /** List the keys a changed input row touches. */
     readonly keys: (change: Change, database: DatabaseConnection) => Promise<readonly string[]>;
     /** List every key, projected first or once the log dropped the checkpoint's changes. */
@@ -22,13 +22,11 @@ export interface ProjectionOptions {
 }
 
 /** Rows projected from input tables, kept current by the input changes past one checkpoint. */
-export class Projection implements Consumer {
+export class Projection implements Cursor {
     /** The projection's name and its checkpoint's. */
     readonly name: string;
     /** The input tables. */
-    readonly reads: readonly Table[];
-    /** The one checkpoint every input change moves. */
-    readonly checkpoint = "one";
+    readonly tables: readonly Table[];
     /** The database with the inputs and the checkpoint. */
     readonly #database: DatabaseConnection;
     /** The projection's keys and work. */
@@ -38,13 +36,13 @@ export class Projection implements Consumer {
     constructor(database: DatabaseConnection, options: ProjectionOptions) {
         // store the inputs, the database and the work
         this.name = options.name;
-        this.reads = options.reads;
+        this.tables = options.tables;
         this.#database = database;
         this.#options = options;
     }
 
     /** Project the keys the changes past the checkpoint touch, then move past them. */
-    readonly consume = async (_key: string, reconciliation: Reconciliation): Promise<void> => {
+    readonly take = async (reconciliation: Reconciliation): Promise<void> => {
         // read the touched keys and the position they reach, leaving a checkpoint without changes
         const touched = await this.#touched();
         if (touched === undefined) {
@@ -56,7 +54,7 @@ export class Projection implements Consumer {
             await this.project(key, reconciliation);
         }
         const now = this.#database.state.environment.clock.now();
-        const reader = { name: this.name, tables: this.reads };
+        const reader = { name: this.name, tables: this.tables };
         await this.#database.log.advance(reader, touched.through, now + HOLD_MILLISECONDS);
     };
 
@@ -74,7 +72,7 @@ export class Projection implements Consumer {
         const after = await database.log.checkpoint(this.name);
         if (after !== undefined) {
             try {
-                const page = await database.log.read({ tables: this.reads, after });
+                const page = await database.log.read({ tables: this.tables, after });
                 if (page.changes.length === 0) {
                     return undefined;
                 }

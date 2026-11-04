@@ -21,23 +21,23 @@ import type { Row } from "../table/row.ts";
 import { Key } from "../query/key.ts";
 import { Digest, type DigestCrypto, mapValues, toJsonSchema, Uuid } from "@destack/schema";
 
-/** A named reader of some tables' changes, whose checkpoint only their changes hold back. */
-export type LogReader = {
-    /** The reader's name, unique per consumer, which names its checkpoint. */
+/** A named position in some tables' changes, whose checkpoint only their changes hold back. */
+export type LogCursor = {
+    /** The cursor's name, unique per cursor, which names its checkpoint. */
     readonly name: string;
-    /** The tables whose changes the consumer reads. */
+    /** The tables whose changes the cursor reads. */
     readonly tables: readonly Table[];
 };
 
-/** Readers as the checkpoint table stores them. */
-export const LogReader = {
-    /** Write a reader's tables as the JSON array of their SQL names. */
-    tables(reader: LogReader): string {
-        return JSON.stringify(reader.tables.map((table) => table[TABLE].sqlName));
+/** Cursors as the checkpoint table stores them. */
+export const LogCursor = {
+    /** Write a cursor's tables as the JSON array of their SQL names. */
+    tables(cursor: LogCursor): string {
+        return JSON.stringify(cursor.tables.map((table) => table[TABLE].sqlName));
     },
 };
 
-/** A consumer's claimed page: where it ends, and when it was claimed. */
+/** A cursor's claimed page: where it ends, and when it was claimed. */
 export interface LogClaim {
     /** The log sequence the page ends at. */
     readonly through: number;
@@ -693,25 +693,25 @@ export class Log {
         );
     }
 
-    /** Place a reader's checkpoint at a sequence, ending its claim, retaining changes a while. */
-    async advance(reader: LogReader, sequence: number, expiresAt: number): Promise<void> {
+    /** Place a cursor's checkpoint at a sequence, ending its claim, retaining changes a while. */
+    async advance(cursor: LogCursor, sequence: number, expiresAt: number): Promise<void> {
         const table = sql.relation(LOG_CHECKPOINT);
         await this.database.run(sql`
             INSERT INTO ${table} (name, sequence, expires_at, tables)
-            VALUES (${reader.name}, ${sequence}, ${expiresAt}, ${LogReader.tables(reader)})
+            VALUES (${cursor.name}, ${sequence}, ${expiresAt}, ${LogCursor.tables(cursor)})
             ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, tables = excluded.tables, claim = NULL, claimed_at = NULL
         `);
     }
 
-    /** Place a reader's checkpoint at the log's oldest retained change unless placed. */
-    async place(reader: LogReader, expiresAt: number): Promise<void> {
+    /** Place a cursor's checkpoint at the log's oldest retained change unless placed. */
+    async place(cursor: LogCursor, expiresAt: number): Promise<void> {
         await this.database.run(sql`
             INSERT INTO ${sql.relation(LOG_CHECKPOINT)} (name, sequence, expires_at, tables)
             VALUES (
-                ${reader.name},
+                ${cursor.name},
                 COALESCE((SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1), 0),
                 ${expiresAt},
-                ${LogReader.tables(reader)}
+                ${LogCursor.tables(cursor)}
             )
             ON CONFLICT (name) DO NOTHING
         `);
@@ -728,39 +728,39 @@ export class Log {
         return rows.map((row) => LogColumn.text(row["name"]));
     }
 
-    /** Move a reader's checkpoint from the position it read to another. */
-    async move(reader: LogReader, from: number, to: number, expiresAt: number): Promise<void> {
-        // move a checkpoint at the read position, placing a new one for a consumer from the start
+    /** Move a cursor's checkpoint from the position it read to another. */
+    async move(cursor: LogCursor, from: number, to: number, expiresAt: number): Promise<void> {
+        // move a checkpoint at the read position, placing a new one for a cursor from the start
         const table = sql.relation(LOG_CHECKPOINT);
-        const tables = LogReader.tables(reader);
+        const tables = LogCursor.tables(cursor);
         const moved = await this.database.all(
             from === 0
                 ? sql`
                     INSERT INTO ${table} (name, sequence, expires_at, tables)
-                    VALUES (${reader.name}, ${to}, ${expiresAt}, ${tables})
+                    VALUES (${cursor.name}, ${to}, ${expiresAt}, ${tables})
                     ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, tables = excluded.tables, claim = NULL, claimed_at = NULL
                     WHERE ${table}.sequence = ${from}
                     RETURNING name
                 `
                 : sql`
                     UPDATE ${table} SET sequence = ${to}, expires_at = ${expiresAt}, tables = ${tables}, claim = NULL, claimed_at = NULL
-                    WHERE name = ${reader.name} AND sequence = ${from}
+                    WHERE name = ${cursor.name} AND sequence = ${from}
                     RETURNING name
                 `,
         );
 
-        // refuse a checkpoint another consumer moved since the read
+        // refuse a checkpoint another cursor moved since the read
         if (moved.length === 0) {
             throw DatabaseError.of(
                 "CONCURRENT_UPDATE",
-                `checkpoint ${reader.name} moved past ${from}`,
+                `checkpoint ${cursor.name} moved past ${from}`,
             );
         }
     }
 
-    /** Claim a reader's page through a sequence unless claimed, absent once it moved on. */
+    /** Claim a cursor's page through a sequence unless claimed, absent once it moved on. */
     async claim(
-        reader: LogReader,
+        cursor: LogCursor,
         after: number,
         through: number,
         now: number,
@@ -772,7 +772,7 @@ export class Log {
             after === 0
                 ? sql`
                     INSERT INTO ${table} (name, sequence, expires_at, tables, claim, claimed_at)
-                    VALUES (${reader.name}, 0, ${expiresAt}, ${LogReader.tables(reader)}, ${through}, ${now})
+                    VALUES (${cursor.name}, 0, ${expiresAt}, ${LogCursor.tables(cursor)}, ${through}, ${now})
                     ON CONFLICT (name) DO UPDATE SET
                         claim = COALESCE(${table}.claim, excluded.claim),
                         claimed_at = COALESCE(${table}.claimed_at, excluded.claimed_at)
@@ -782,7 +782,7 @@ export class Log {
                 : sql`
                     UPDATE ${table}
                     SET claim = COALESCE(claim, ${through}), claimed_at = COALESCE(claimed_at, ${now})
-                    WHERE name = ${reader.name} AND sequence = ${after}
+                    WHERE name = ${cursor.name} AND sequence = ${after}
                     RETURNING claim, claimed_at
                 `,
         );
@@ -790,7 +790,7 @@ export class Log {
         return row === undefined ? undefined : LogClaim.read(row);
     }
 
-    /** Read a consumer's claimed page, absent while it claims none. */
+    /** Read a cursor's claimed page, absent while it claims none. */
     async claimed(name: string): Promise<LogClaim | undefined> {
         const [row] = await this.database.all(
             sql`SELECT claim, claimed_at FROM ${sql.relation(LOG_CHECKPOINT)} WHERE name = ${name} AND claim IS NOT NULL`,

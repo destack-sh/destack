@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test, type TestContext } from "@destack/test";
 import { defineTable, eq, lock, text } from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
-import { ControlLoop, type Controller, type Consumer } from "./control.ts";
+import { ControlLoop, type Controller, type Cursor } from "./control.ts";
 import { testHost } from "@destack/test/host";
 
 /** The host the benchmark times real work on. */
@@ -94,7 +94,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
     const stopping = new AbortController();
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         { report: fail },
     );
     const start = clock.now();
@@ -119,7 +119,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
 });
 
 /** Fail on a reported reconciliation failure. */
-function fail(_controller: Controller | Consumer, key: string, error: unknown): void {
+function fail(_controller: Controller | Cursor, key: string, error: unknown): void {
     throw new Error(`reconciling ${key} failed`, { cause: error });
 }
 

@@ -3,7 +3,7 @@ import { Change, defineTable, eq, inArray, integer, lock, type Table, text } fro
 import { TestDatabase } from "../test/index.ts";
 import { testSimulation } from "@destack/test/world";
 import { canonicalize, nth, found, schema } from "@destack/schema";
-import { ControlLoop, type Controller, now, type Consumer } from "./control.ts";
+import { ControlLoop, type Controller, now, type Cursor } from "./control.ts";
 import { Projection } from "./projection.ts";
 import { waitAborted, yieldToEventLoop } from "@destack/environment";
 import { SimulatedTelemetry, Simulation } from "@destack/environment/simulation";
@@ -154,7 +154,7 @@ test("reconcile the pending rows listed at the start and those a change makes pe
     running(
         new ControlLoop(
             database,
-            { controllers: [controller], consumers: [] },
+            { controllers: [controller], cursors: [] },
             {
                 report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
             },
@@ -221,7 +221,7 @@ test("reconcile a waiting row once its time comes due, waking at the earliest on
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         {
             report: (_controller, _key, error) => {
                 throw error;
@@ -291,7 +291,7 @@ test("reconcile every pending row under one key when a controller groups by no f
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         { report: ignore },
     );
     running(loop);
@@ -334,7 +334,7 @@ test("compare a microsecond field to the loop's time a window earlier, waking as
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         { report: ignore },
     );
     running(loop);
@@ -357,7 +357,7 @@ test("refuse a pending condition comparing now anywhere but a field's upper boun
             database,
             {
                 controllers: [{ name: "job", table: job, pending, reconcile: async () => {} }],
-                consumers: [],
+                cursors: [],
             },
             { report: ignore },
         );
@@ -411,7 +411,7 @@ test("select the jobs a watched table's change names, reporting a failing watch 
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         {
             report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
         },
@@ -475,7 +475,7 @@ test("report a key failing transiently only once its retries last past the windo
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         {
             report: (_controller, key) => reported.push([key, clock.now() - started]),
             retry: { initialInterval: 5, maximumInterval: 5 },
@@ -519,7 +519,7 @@ test("fail the loop, its run and its idle waiters, once a controller throws a fa
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         { report: ignore },
     );
     const run = loop.run(new AbortController().signal);
@@ -562,7 +562,7 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
     const stopping = new AbortController();
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         { report: ignore },
     );
     const looping = loop.run(stopping.signal);
@@ -616,12 +616,12 @@ test("lock each key to one instance of several sharing a database, handing it ov
     const runs = [
         new ControlLoop(
             database,
-            { controllers: [controllerOf("first")], consumers: [] },
+            { controllers: [controllerOf("first")], cursors: [] },
             { report: ignore },
         ).run(first.signal),
         new ControlLoop(
             other,
-            { controllers: [controllerOf("second")], consumers: [] },
+            { controllers: [controllerOf("second")], cursors: [] },
             { report: ignore },
         ).run(second.signal),
     ];
@@ -668,7 +668,7 @@ test("follow a key while its rows stay pending, stopping it once they leave or t
     const stopping = new AbortController();
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         { report: ignore },
     );
     const run = loop.run(stopping.signal);
@@ -708,7 +708,7 @@ test("report a follow that fails while its key stays pending", async () => {
     running(
         new ControlLoop(
             database,
-            { controllers: [controller], consumers: [] },
+            { controllers: [controller], cursors: [] },
             { report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`) },
         ),
     );
@@ -717,11 +717,10 @@ test("report a follow that fails while its key stays pending", async () => {
     await waitEqual(simulation, () => reported, ['{"id":"refused"}: refused']);
 });
 
-test("take each placed scope's appends past its checkpoint, those at the start and those appended later, leaving scopes without a checkpoint alone", async () => {
-    // place a reader's checkpoint in space a, and append a note in a and one in b
+test("take a cursor's changes past its checkpoint, those before the start and those committed later, each once", async () => {
+    // append a note in space a and one in b before the start
     await using simulation = testSimulation();
     const { database } = await openJobs(simulation, [note, lock]);
-    await database.log.place({ name: "note-consumer:a", tables: [note] }, Number.MAX_SAFE_INTEGER);
     const append = (id: string, scope: string) =>
         database.transaction((transaction) =>
             transaction.insert(note).values({ id, scope }).execute(),
@@ -729,22 +728,17 @@ test("take each placed scope's appends past its checkpoint, those at the start a
     await append("first", "a");
     await append("other", "b");
 
-    // take a scope's notes past its checkpoint and move the checkpoint past them
+    // take the notes past the checkpoint and move it past them
     const taken: string[] = [];
-    const consumer: Consumer = {
-        name: "note-consumer",
-        reads: [note],
-        checkpoint: "scope",
-        consume: async (scope) => {
-            const checkpoint = `note-consumer:${scope}`;
-            const after = await database.log.checkpoint(checkpoint);
-            if (after === undefined) {
-                return;
-            }
-            const page = await database.log.read({ tables: [note], scopes: [scope], after });
-            taken.push(...page.changes.map((change) => `${scope}/${change.key["id"]}`));
+    const cursor: Cursor = {
+        name: "note-cursor",
+        tables: [note],
+        take: async () => {
+            const after = (await database.log.checkpoint("note-cursor")) ?? 0;
+            const page = await database.log.read({ tables: [note], after });
+            taken.push(...page.changes.map((change) => `${change.scope}/${change.key["id"]}`));
             await database.log.move(
-                { name: checkpoint, tables: [note] },
+                { name: "note-cursor", tables: [note] },
                 after,
                 page.sequence,
                 Number.MAX_SAFE_INTEGER,
@@ -754,28 +748,28 @@ test("take each placed scope's appends past its checkpoint, those at the start a
     const reported: string[] = [];
     const loop = new ControlLoop(
         database,
-        { controllers: [], consumers: [consumer] },
+        { controllers: [], cursors: [cursor] },
         {
             report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
         },
     );
     running(loop);
 
-    // take the note appended before the start, then one appended later, never b's
-    await waitEqual(simulation, () => taken, ["a/first"]);
+    // take the notes appended before the start, then those appended later
+    await waitEqual(simulation, () => taken, ["a/first", "b/other"]);
     await append("second", "a");
     await append("again", "b");
-    await waitEqual(simulation, () => taken, ["a/first", "a/second"]);
+    await waitEqual(simulation, () => taken, ["a/first", "b/other", "a/second", "b/again"]);
     await loop.idle();
-    expect([taken, reported]).toEqual([["a/first", "a/second"], []]);
+    expect([taken, reported]).toEqual([["a/first", "b/other", "a/second", "b/again"], []]);
 });
 
-test("take a scope's appends once its first unconsumed one is a batch old, at the start and as they commit", async () => {
-    // place a checkpoint in space a and append a note before the start
+test("take a cursor's changes once its first untaken one is a batch old, at the start and as they commit", async () => {
+    // place the cursor and append a note before the start
     const simulation = testSimulation();
     const { database } = await openJobs(simulation, [note, lock]);
     const started = simulation.clock.now();
-    await database.log.place({ name: "note-batch:a", tables: [note] }, Number.MAX_SAFE_INTEGER);
+    await database.log.place({ name: "note-batch", tables: [note] }, Number.MAX_SAFE_INTEGER);
     const append = (id: string) =>
         database.transaction((transaction) =>
             transaction.insert(note).values({ id, scope: "a" }).execute(),
@@ -784,21 +778,16 @@ test("take a scope's appends once its first unconsumed one is a batch old, at th
 
     // record when each page is taken, moving the checkpoint past it
     const taken: number[] = [];
-    const consumer: Consumer = {
+    const cursor: Cursor = {
         name: "note-batch",
-        reads: [note],
-        checkpoint: "scope",
+        tables: [note],
         batch: 50,
-        consume: async (scope) => {
-            const checkpoint = `note-batch:${scope}`;
-            const after = await database.log.checkpoint(checkpoint);
-            if (after === undefined) {
-                return;
-            }
-            const page = await database.log.read({ tables: [note], scopes: [scope], after });
+        take: async () => {
+            const after = (await database.log.checkpoint("note-batch")) ?? 0;
+            const page = await database.log.read({ tables: [note], after });
             taken.push(simulation.clock.now() - started);
             await database.log.move(
-                { name: checkpoint, tables: [note] },
+                { name: "note-batch", tables: [note] },
                 after,
                 page.sequence,
                 Number.MAX_SAFE_INTEGER,
@@ -807,7 +796,7 @@ test("take a scope's appends once its first unconsumed one is a batch old, at th
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [], consumers: [consumer] },
+        { controllers: [], cursors: [cursor] },
         { report: ignore },
     );
     const stopping = new AbortController();
@@ -843,7 +832,7 @@ test("project every key at the first start, then only the keys the changes past 
     const projection = () =>
         new Projection(database, {
             name: "note-spaces",
-            reads: [note],
+            tables: [note],
             keys: async (change) => [schema.string().parse(Change.image(change)["scope"])],
             all: async (connection) =>
                 (await connection.selectDistinct({ scope: note.scope }).from(note)).map(
@@ -857,7 +846,7 @@ test("project every key at the first start, then only the keys the changes past 
         const stopping = new AbortController();
         const loop = new ControlLoop(
             database,
-            { controllers: [], consumers: [projection()] },
+            { controllers: [], cursors: [projection()] },
             { report: ignore },
         );
         const run = loop.run(stopping.signal);
@@ -910,7 +899,7 @@ test("list a controller of an unlogged table again after a commit to its table",
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         { report: ignore },
     );
     running(loop);
@@ -949,7 +938,7 @@ test("list again after the follow's changes were compacted, reconciling the rows
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         { report: ignore },
     );
     running(loop);
@@ -986,7 +975,7 @@ test("select a reloaded table's changes by its name, reading pending rows throug
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         { report: ignore },
     );
     running(loop);
@@ -1009,7 +998,7 @@ test("spend no statement on commits to tables no controller reads", async () => 
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], consumers: [] },
+        { controllers: [controller], cursors: [] },
         { report: ignore },
     );
     running(loop);

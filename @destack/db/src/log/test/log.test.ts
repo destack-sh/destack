@@ -4,13 +4,13 @@ import { schema } from "@destack/schema";
 import { sql } from "../../sql/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "../../test/database.ts";
-import { Change, DatabaseError, eq, LogPosition, type LogReader, TABLE } from "../../index.ts";
+import { Change, DatabaseError, eq, LogPosition, type LogCursor, TABLE } from "../../index.ts";
 import { changeTables, first, lease, note, reading, revision } from "./fixture.ts";
 import { setting } from "../../bun/test/setting.ts";
 import { testSimulation } from "@destack/test/world";
 
 /** A reader of the notes. */
-function reader(name: string): LogReader {
+function reader(name: string): LogCursor {
     return { name, tables: [note] };
 }
 
