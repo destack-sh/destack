@@ -526,7 +526,8 @@ export class TestUniverse implements AsyncDisposable {
         const relating = (async () => {
             // derive the installation the residency's space declares for billing
             const snapshot = Snapshot.live(this.storage.database);
-            const home = await Scope.object(snapshot, await Residency.space(snapshot, residencyId));
+            const served = await Residency.require(snapshot, residencyId);
+            const home = await Scope.object(snapshot, Residency.requireSpace(served));
             const crypto = this.universe.store.environment.crypto;
             const id = await InstallationId.of(home, BILLING_INSTALLATION, crypto);
             const installed = principal.installation.reference(home.id, id);
@@ -536,7 +537,7 @@ export class TestUniverse implements AsyncDisposable {
             await operator.client(objectPackage).relationship.create({
                 scope: Scope.universe.id,
                 requestId: RequestId.create(this.universe.store.environment),
-                object: residency.reference(Scope.universe.id, residencyId),
+                object: residency.reference(Scope.universe.id, served.id),
                 relation: "installation",
                 subject: installed,
             });

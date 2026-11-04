@@ -41,7 +41,7 @@ test("place a person's home on their residency's cloud machine, as the machine's
     // read the placement of her home in the replica
     const home = Account.home(ada.account);
     const [placed] = await Placement.find(machine.directory.snapshot, [home]);
-    expect(placed).toEqual({ id: home, scope: ada.account, machine: machine.id, epoch: 1 });
+    expect(placed).toEqual({ space: home, scope: ada.account, machine: machine.id, epoch: 1 });
 });
 
 test("enroll a person's machine of their account, published at its name through its residency's relay, as the directory reads it", async () => {
