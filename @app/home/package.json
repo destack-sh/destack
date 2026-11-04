@@ -1,0 +1,37 @@
+{
+    "name": "@app/home",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
+    "type": "module",
+    "description": "The Destack start app.",
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json"
+    },
+    "exports": {
+        "./view": "./src/view/index.ts",
+        "./setting": "./src/setting/index.ts",
+        "./package": "./src/package.ts",
+        "./command": "./src/command/index.ts"
+    },
+    "devDependencies": {
+        "@destack/build": "workspace:*"
+    },
+    "dependencies": {
+        "@destack/account": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/icon": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/style": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/theme": "workspace:*",
+        "@destack/ui": "workspace:*",
+        "@destack/view": "workspace:*"
+    }
+}

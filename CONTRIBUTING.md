@@ -10,7 +10,7 @@ If you find a security issue, please follow [SECURITY.md](SECURITY.md).
 
 ## Licensing
 
-The monorepo is MIT licensed unless otherwise noted; vendored components may retain their own licenses.
+The monorepo is Apache 2.0 licensed unless otherwise noted; vendored components may retain their own licenses.
 See [LICENSE.txt](LICENSE.txt).
 
 ## Setup

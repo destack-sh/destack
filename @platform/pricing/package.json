@@ -1,7 +1,7 @@
 {
     "name": "@platform/pricing",
-    "version": "2026.9.0",
-    "license": "MIT",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
     "description": "Destack's plans and units, the features its plans grant, and the list prices of the providers it runs on.",

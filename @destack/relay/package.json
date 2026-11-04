@@ -1,7 +1,7 @@
 {
     "name": "@destack/relay",
-    "version": "2026.9.0",
-    "license": "MIT",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
     "description": "Relay HTTP requests for Destack names to the machines serving them.",

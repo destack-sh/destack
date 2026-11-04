@@ -1,7 +1,7 @@
 {
     "name": "@destack/db",
-    "version": "2026.9.0",
-    "license": "MIT",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
     "type": "module",
     "description": "Interact with SQL databases in Destack.",
     "sideEffects": false,

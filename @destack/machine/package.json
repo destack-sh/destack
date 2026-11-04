@@ -1,7 +1,7 @@
 {
     "name": "@destack/machine",
-    "version": "2026.9.0",
-    "license": "MIT",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
     "description": "Run a machine: serve the spaces placed on it with their modules (buckets, vaults, connections, messages, observability, audit), route their installations' calls and keep their builds.",

@@ -1,7 +1,7 @@
 {
     "name": "@destack/event",
-    "version": "2026.9.0",
-    "license": "MIT",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
     "description": "Keep the append-only events of scopes, hot in their database and sealed into their bucket, and query, fold and follow them.",

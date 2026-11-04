@@ -1,8 +1,8 @@
 {
     "name": "@destack/setting",
-    "version": "2026.9.0",
+    "version": "2026.11.0",
     "type": "module",
-    "license": "MIT",
+    "license": "Apache-2.0",
     "sideEffects": false,
     "description": "Declare, place and resolve scoped settings.",
     "exports": {

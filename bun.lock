@@ -14,7 +14,7 @@
     },
     "@app/home": {
       "name": "@app/home",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
@@ -39,7 +39,7 @@
     },
     "@destack/access": {
       "name": "@destack/access",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/db": "workspace:*",
         "@destack/error": "workspace:*",
@@ -56,7 +56,7 @@
     },
     "@destack/account": {
       "name": "@destack/account",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@better-auth/core": "1.7.6",
         "@better-auth/passkey": "1.7.6",
@@ -91,7 +91,7 @@
     },
     "@destack/bucket": {
       "name": "@destack/bucket",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
@@ -119,7 +119,7 @@
     },
     "@destack/build": {
       "name": "@destack/build",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "bin": {
         "destack-build": "./src/main.ts",
       },
@@ -164,7 +164,7 @@
     },
     "@destack/check": {
       "name": "@destack/check",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "bin": {
         "destack-check": "./src/main.ts",
       },
@@ -186,7 +186,7 @@
     },
     "@destack/cli": {
       "name": "@destack/cli",
-      "version": "2026.9.2",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -224,7 +224,7 @@
     },
     "@destack/connection": {
       "name": "@destack/connection",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -260,7 +260,7 @@
     },
     "@destack/db": {
       "name": "@destack/db",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -287,7 +287,7 @@
     },
     "@destack/desktop": {
       "name": "@destack/desktop",
-      "version": "2026.9.2",
+      "version": "2026.11.0",
       "bin": {
         "destack-desktop-host": "./src/main.ts",
         "destack-machine": "./src/machine.ts",
@@ -327,7 +327,7 @@
     },
     "@destack/environment": {
       "name": "@destack/environment",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/error": "workspace:*",
         "@destack/schema": "workspace:*",
@@ -345,7 +345,7 @@
     },
     "@destack/error": {
       "name": "@destack/error",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/schema": "workspace:*",
       },
@@ -356,7 +356,7 @@
     },
     "@destack/event": {
       "name": "@destack/event",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
@@ -377,7 +377,7 @@
     },
     "@destack/finance": {
       "name": "@destack/finance",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -415,7 +415,7 @@
     },
     "@destack/forge": {
       "name": "@destack/forge",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -448,7 +448,7 @@
     },
     "@destack/git": {
       "name": "@destack/git",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -464,7 +464,7 @@
     },
     "@destack/icon": {
       "name": "@destack/icon",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/package": "workspace:*",
@@ -492,7 +492,7 @@
     },
     "@destack/identity": {
       "name": "@destack/identity",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -506,7 +506,7 @@
     },
     "@destack/locale": {
       "name": "@destack/locale",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
@@ -521,7 +521,7 @@
     },
     "@destack/machine": {
       "name": "@destack/machine",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@app/home": "workspace:*",
         "@destack/access": "workspace:*",
@@ -630,7 +630,7 @@
     },
     "@destack/mail": {
       "name": "@destack/mail",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -646,7 +646,7 @@
     },
     "@destack/message": {
       "name": "@destack/message",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -671,7 +671,7 @@
     },
     "@destack/notification": {
       "name": "@destack/notification",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -710,7 +710,7 @@
     },
     "@destack/object": {
       "name": "@destack/object",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
@@ -742,7 +742,7 @@
     },
     "@destack/observability": {
       "name": "@destack/observability",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -773,7 +773,7 @@
     },
     "@destack/package": {
       "name": "@destack/package",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -797,7 +797,7 @@
     },
     "@destack/registry": {
       "name": "@destack/registry",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -821,7 +821,7 @@
     },
     "@destack/relay": {
       "name": "@destack/relay",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -847,7 +847,7 @@
     },
     "@destack/resource": {
       "name": "@destack/resource",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -862,7 +862,7 @@
     },
     "@destack/sandbox": {
       "name": "@destack/sandbox",
-      "version": "2026.9.2",
+      "version": "2026.11.0",
       "bin": {
         "destack-sandbox": "./src/main.ts",
       },
@@ -880,7 +880,7 @@
     },
     "@destack/schema": {
       "name": "@destack/schema",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "re2js": "2.8.6",
         "zod": "4.6.5",
@@ -892,7 +892,7 @@
     },
     "@destack/setting": {
       "name": "@destack/setting",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
@@ -910,7 +910,7 @@
     },
     "@destack/shader": {
       "name": "@destack/shader",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
@@ -927,7 +927,7 @@
     },
     "@destack/social": {
       "name": "@destack/social",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -951,7 +951,7 @@
     },
     "@destack/stack": {
       "name": "@destack/stack",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -996,7 +996,7 @@
     },
     "@destack/style": {
       "name": "@destack/style",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/package": "workspace:*",
@@ -1018,7 +1018,7 @@
     },
     "@destack/sync": {
       "name": "@destack/sync",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
@@ -1039,7 +1039,7 @@
     },
     "@destack/telemetry": {
       "name": "@destack/telemetry",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -1062,7 +1062,7 @@
     },
     "@destack/test": {
       "name": "@destack/test",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -1079,7 +1079,7 @@
     },
     "@destack/theme": {
       "name": "@destack/theme",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
@@ -1092,7 +1092,7 @@
     },
     "@destack/tunnel": {
       "name": "@destack/tunnel",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -1107,7 +1107,7 @@
     },
     "@destack/ui": {
       "name": "@destack/ui",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
@@ -1131,7 +1131,7 @@
     },
     "@destack/universe": {
       "name": "@destack/universe",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -1157,7 +1157,7 @@
     },
     "@destack/update": {
       "name": "@destack/update",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
@@ -1180,7 +1180,7 @@
     },
     "@destack/vault": {
       "name": "@destack/vault",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -1211,7 +1211,7 @@
     },
     "@destack/view": {
       "name": "@destack/view",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@capsizecss/core": "4.1.3",
         "@capsizecss/unpack": "4.0.1",
@@ -1272,7 +1272,7 @@
     },
     "@destack/workflow": {
       "name": "@destack/workflow",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -1295,11 +1295,11 @@
     },
     "@platform/brand": {
       "name": "@platform/brand",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
     },
     "@platform/pricing": {
       "name": "@platform/pricing",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/account": "workspace:*",
         "@destack/finance": "workspace:*",
@@ -1316,7 +1316,7 @@
     },
     "@platform/release": {
       "name": "@platform/release",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@app/home": "workspace:*",
         "@destack/account": "workspace:*",
@@ -1369,7 +1369,7 @@
     },
     "@platform/site": {
       "name": "@platform/site",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
@@ -1410,7 +1410,7 @@
     },
     "@platform/stack": {
       "name": "@platform/stack",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@app/home": "workspace:*",
         "@destack/account": "workspace:*",
@@ -1435,7 +1435,7 @@
     },
     "@template/blank": {
       "name": "@template/blank",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/object": "2026.9.0",
         "@destack/package": "2026.9.0",
@@ -1449,7 +1449,7 @@
     },
     "@template/stack": {
       "name": "@template/stack",
-      "version": "2026.9.0",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "2026.9.0",
         "@destack/account": "2026.9.0",

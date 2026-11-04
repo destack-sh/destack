@@ -1,7 +1,7 @@
 {
     "name": "@destack/social",
-    "version": "2026.9.0",
-    "license": "MIT",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
     "description": "Attach comments, reactions, receipts, favourites and presence to any object, notifying mentioned and participating principals.",

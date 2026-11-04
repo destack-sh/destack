@@ -1,7 +1,7 @@
 {
     "name": "@destack/sandbox",
-    "version": "2026.9.2",
-    "license": "MIT",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
     "type": "module",
     "description": "Launch processes with operating system filesystem and network restrictions.",
     "bin": {

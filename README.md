@@ -67,4 +67,5 @@ Destack is not currently open for public *source* contributions, but we welcome 
 
 ## License
 
-Destack is fully open source under the MIT license across the full stack (see [LICENSE.txt](LICENSE.txt)).
+Destack is fully open source under the Apache License 2.0 across the full stack (see [LICENSE.txt](LICENSE.txt)).
+Destack™ is a trademark of Symbol Industries (see [TRADEMARKS.md](TRADEMARKS.md)).

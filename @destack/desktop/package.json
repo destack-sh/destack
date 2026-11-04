@@ -1,0 +1,58 @@
+{
+    "name": "@destack/desktop",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
+    "type": "module",
+    "bin": {
+        "destack-desktop-host": "./src/main.ts",
+        "destack-machine": "./src/machine.ts"
+    },
+    "exports": {
+        ".": "./src/index.ts",
+        "./link": "./src/link/index.ts",
+        "./server": "./src/server/index.ts",
+        "./setting": "./src/setting/index.ts",
+        "./shell": "./src/shell/index.ts",
+        "./workload": "./src/workload/index.ts",
+        "./object": "./src/object/index.ts"
+    },
+    "description": "Open Destack apps in desktop windows.",
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/connection": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/finance": "workspace:*",
+        "@destack/forge": "workspace:*",
+        "@destack/machine": "workspace:*",
+        "@destack/message": "workspace:*",
+        "@destack/notification": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/observability": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/social": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "@destack/update": "workspace:*",
+        "@destack/vault": "workspace:*",
+        "@destack/view": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@tauri-apps/cli": "2.12.0",
+        "@types/bun": "1.4.2"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts",
+        "build": "bun run ../../@platform/release/src/distribution/build.ts",
+        "dev": "bun run ../../@platform/release/src/distribution/develop.ts"
+    }
+}

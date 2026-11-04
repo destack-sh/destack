@@ -1,8 +1,8 @@
 {
     "name": "@destack/check",
-    "version": "2026.9.0",
+    "version": "2026.11.0",
     "description": "Check and format Destack packages.",
-    "license": "MIT",
+    "license": "Apache-2.0",
     "bin": {
         "destack-check": "./src/main.ts"
     },

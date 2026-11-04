@@ -1,33 +1,63 @@
 {
     "name": "@platform/release",
-    "version": "2026.9.0",
+    "version": "2026.11.0",
     "type": "module",
     "exports": {
-        "./catalog": "./src/catalog/index.ts"
+        "./catalog": "./src/catalog/index.ts",
+        "./cloudflare/universe": "./src/cloudflare/universe.ts",
+        "./cloudflare/feed": "./src/cloudflare/feed.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
+        "test": "bun run src/main.ts format-check && bun run src/main.ts validate && bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
-        "miniflare": "4.20260730.0",
+        "@destack/sandbox": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/sandbox": "workspace:*"
+        "@types/bun": "1.4.2",
+        "miniflare": "4.20260730.0"
     },
     "dependencies": {
-        "@destack/service": "workspace:*",
-        "@platform/brand": "workspace:*",
-        "@destack/schema": "workspace:*",
-        "@destack/package": "workspace:*",
-        "rolldown": "1.2.9",
-        "magic-string": "1.4.1",
-        "@opentui/solid": "0.5.12",
-        "@tufjs/models": "5.0.0",
-        "tuf-js": "6.0.0",
+        "@app/home": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/bucket": "workspace:*",
         "@destack/build": "workspace:*",
+        "@destack/check": "workspace:*",
+        "@destack/connection": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/desktop": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/finance": "workspace:*",
+        "@destack/forge": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/mail": "workspace:*",
+        "@destack/machine": "workspace:*",
+        "@destack/message": "workspace:*",
+        "@destack/notification": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/observability": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/relay": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/social": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "@destack/universe": "workspace:*",
         "@destack/update": "workspace:*",
+        "@destack/vault": "workspace:*",
+        "@platform/brand": "workspace:*",
+        "@platform/pricing": "workspace:*",
+        "@platform/stack": "workspace:*",
+        "@tufjs/canonical-json": "2.0.0",
+        "@tufjs/models": "5.0.0",
+        "magic-string": "1.4.1",
+        "rolldown": "1.2.16",
+        "tuf-js": "6.0.0",
         "wrangler": "4.134.0",
-        "@destack/daemon": "workspace:*"
+        "@destack/registry": "workspace:*"
     }
 }

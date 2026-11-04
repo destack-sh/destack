@@ -1,6 +1,6 @@
 {
     "name": "@template/blank",
-    "version": "2026.9.0",
+    "version": "2026.11.0",
     "license": "MIT",
     "type": "module",
     "exports": {
@@ -12,13 +12,13 @@
         "typecheck": "tsc --project tsconfig.json"
     },
     "devDependencies": {
-        "@destack/check": "2026.9.0"
+        "@destack/check": "2026.11.0"
     },
     "dependencies": {
-        "@destack/object": "2026.9.0",
-        "@destack/package": "2026.9.0",
-        "@destack/schema": "2026.9.0",
-        "@destack/setting": "2026.9.0",
-        "@template/stack": "2026.9.0"
+        "@destack/object": "2026.11.0",
+        "@destack/package": "2026.11.0",
+        "@destack/schema": "2026.11.0",
+        "@destack/setting": "2026.11.0",
+        "@template/stack": "2026.11.0"
     }
 }

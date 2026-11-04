@@ -1,6 +1,6 @@
 {
     "name": "@template/stack",
-    "version": "2026.9.0",
+    "version": "2026.11.0",
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
@@ -15,17 +15,17 @@
         "typecheck": "tsc --project tsconfig.json"
     },
     "devDependencies": {
-        "@destack/check": "2026.9.0"
+        "@destack/check": "2026.11.0"
     },
     "dependencies": {
-        "@destack/setting": "2026.9.0",
-        "@destack/view": "2026.9.0",
-        "@destack/access": "2026.9.0",
-        "@destack/stack": "2026.9.0",
-        "@destack/db": "2026.9.0",
-        "@destack/bucket": "2026.9.0",
-        "@destack/vault": "2026.9.0",
-        "@destack/account": "2026.9.0",
-        "@destack/observability": "2026.9.0"
+        "@destack/setting": "2026.11.0",
+        "@destack/view": "2026.11.0",
+        "@destack/access": "2026.11.0",
+        "@destack/stack": "2026.11.0",
+        "@destack/db": "2026.11.0",
+        "@destack/bucket": "2026.11.0",
+        "@destack/vault": "2026.11.0",
+        "@destack/account": "2026.11.0",
+        "@destack/observability": "2026.11.0"
     }
 }

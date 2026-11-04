@@ -1,7 +1,7 @@
 {
     "name": "@destack/registry",
-    "version": "2026.9.0",
-    "license": "MIT",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
     "description": "Publish and resolve packages, releases and tags, and push builds and Git, through the registry a space installs.",
