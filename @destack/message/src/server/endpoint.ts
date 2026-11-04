@@ -71,48 +71,58 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
                 return deleted;
             },
         },
-        controller: {
-            pending: { status: "enabled", deletedAt: { isNull: true } },
-            watches: [
-                ObjectWatch.of(message.table, (row) => {
-                    // wake the endpoint a sent message of it names
-                    const source = ObjectReference.at("source", row);
+        controllers: [
+            {
+                pending: { status: "enabled", deletedAt: { isNull: true } },
+                watches: [
+                    ObjectWatch.of(message.table, (row) => {
+                        // wake the endpoint a sent message of it names
+                        const source = ObjectReference.at("source", row);
 
-                    return endpoint.is(source) && row.status !== "pending"
-                        ? [{ id: source.id }]
-                        : [];
-                }),
-                ObjectWatch.of(call.table, async (row, database) => {
-                    // wake the live enabled endpoints of the scope with a succeeded call
-                    if (call.eventKind().event(row).keys.outcome !== "success") {
-                        return [];
+                        return endpoint.is(source) && row.status !== "pending"
+                            ? [{ id: source.id }]
+                            : [];
+                    }),
+                    ObjectWatch.of(call.table, async (row, database) => {
+                        // wake the live enabled endpoints of the scope with a succeeded call
+                        if (call.eventKind().event(row).keys.outcome !== "success") {
+                            return [];
+                        }
+                        const enabled = await database
+                            .select({ id: endpoint.table.id })
+                            .from(endpoint.table)
+                            .where(
+                                and(
+                                    eq(endpoint.table.scope, row.scope),
+                                    eq(endpoint.table.status, "enabled"),
+                                    isNull(endpoint.table.deletedAt),
+                                ),
+                            );
+
+                        return enabled.map((entry) => ({ id: entry.id }));
+                    }),
+                ],
+                reconcile: async (reconciliation) => {
+                    // deliver the endpoint's calls page by page until a page comes back short
+                    const row = nth(reconciliation.rows, 0);
+                    while (await deliver(reconciliation, row, keys)) {
+                        reconciliation.signal.throwIfAborted();
                     }
-                    const enabled = await database
-                        .select({ id: endpoint.table.id })
-                        .from(endpoint.table)
-                        .where(
-                            and(
-                                eq(endpoint.table.scope, row.scope),
-                                eq(endpoint.table.status, "enabled"),
-                                isNull(endpoint.table.deletedAt),
-                            ),
-                        );
 
-                    return enabled.map((entry) => ({ id: entry.id }));
-                }),
-            ],
-            reconcile: (reconciliation) =>
-                deliver(reconciliation, nth(reconciliation.rows, 0), keys),
-        },
+                    // mark the endpoint by its last settled message
+                    await mark(reconciliation, row);
+                },
+            },
+        ],
     });
 }
 
-/** Deliver an endpoint's next page of calls as messages, then advance its cursor and condition. */
+/** Deliver an endpoint's next page of calls as messages, reporting whether it was full. */
 async function deliver(
     reconciliation: ObjectReconciliation<typeof endpoint>,
     row: Endpoint,
     keys: Pick<Deriver, "derivePrivateKey">,
-): Promise<number | undefined> {
+): Promise<boolean> {
     // read the succeeded calls of the endpoint's scope committed past its place, from its first read on
     const reader = endpoint.reader("endpoint").at(row.id);
     const after = await reader.after(reconciliation.database);
@@ -165,10 +175,7 @@ async function deliver(
         await reader.move(after, page.sequence, reconciliation.now, reconciliation.database);
     }
 
-    // mark the endpoint by its last settled message
-    await mark(reconciliation, row);
-
-    return items.length < PAGE_CALLS ? undefined : 0;
+    return items.length === PAGE_CALLS;
 }
 
 /** Mark an endpoint's Delivered condition by its last settled message, once that changes it. */

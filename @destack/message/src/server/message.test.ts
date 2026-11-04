@@ -80,7 +80,7 @@ test("send a message through its channel's provider, retrying a temporary refusa
     const fixture = await TestMessage.open({ mails: [THROTTLED, "sent"] });
     const id = await fixture.send(EMAIL, CONTENT);
 
-    // refuse it once, then send it on its next attempt
+    // refuse it once, then send it on its next attempt, observing each try and its Synced condition once
     await fixture.simulation.idle();
     const retrying = await fixture.sending(id);
     await fixture.retry(id);
@@ -109,6 +109,7 @@ test("send a message through its channel's provider, retrying a temporary refusa
             ["attempt.create", "message"],
             ["attempt.create", "message"],
             ["message.create", undefined],
+            ["message.observe", "message"],
             ["message.observe", "message"],
             ["message.observe", "message"],
         ],

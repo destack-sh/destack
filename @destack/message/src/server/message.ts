@@ -1,7 +1,7 @@
 import { AccessContext, Caller, Grant, principal } from "@destack/access";
 import { client, type Recipient, user } from "@destack/account/object";
 import { ObjectReference, Scope } from "@destack/sync";
-import { count, eq, Snapshot } from "@destack/db";
+import { count, eq, now, Snapshot } from "@destack/db";
 import type { Deriver } from "@destack/identity";
 import type { ObjectReconciliation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -110,12 +110,20 @@ export function implementMessage(options: MessageOptions) {
                 key: (await MessageKey.derive(options.keys, context.environment)).key,
             }),
         },
-        controller: {
-            // send pending messages
-            pending: { status: "pending" },
-            concurrency: CONCURRENCY,
-            reconcile: (reconciliation) => reconcile(reconciliation, sending),
-        },
+        controllers: [
+            // send pending messages, then each refused one again once its next try is due
+            {
+                pending: { status: "pending", retryAt: { isNull: true } },
+                concurrency: CONCURRENCY,
+                reconcile: (reconciliation) => reconcile(reconciliation, sending),
+            },
+            {
+                name: "retry",
+                pending: { status: "pending", retryAt: { lte: now } },
+                concurrency: CONCURRENCY,
+                reconcile: (reconciliation) => reconcile(reconciliation, sending),
+            },
+        ],
     });
 }
 
@@ -123,9 +131,8 @@ export function implementMessage(options: MessageOptions) {
 async function reconcile(
     reconciliation: ObjectReconciliation<typeof message>,
     options: Required<MessageOptions>,
-): Promise<number | undefined> {
+): Promise<void> {
     // read the key's one message whole at its current revision
-    const { now } = reconciliation;
     const row = nth(reconciliation.rows, 0);
     const whole = nth(
         await reconciliation.database
@@ -135,21 +142,12 @@ async function reconcile(
         0,
     );
 
-    // wait for a refused message's next attempt
-    if (whole.retryAt !== null && whole.retryAt > now) {
-        return whole.retryAt - now;
-    }
-    // send it and record the try, then look again once a later try is due
-    else {
-        const attempts = (await countAttempts(reconciliation, whole)) + 1;
-        const outcome = await attempt(options, whole, reconciliation.store);
-        const drawn = RetryPolicy.draw(`${whole.id} ${attempts}`);
-        const settled = settle(outcome, options.retry, attempts, now, drawn);
-        await observe(reconciliation, whole, outcome, settled);
-        const { retryAt } = settled.fields;
-
-        return retryAt === null ? undefined : retryAt - now;
-    }
+    // send it and record the try with its next try's time, if any
+    const attempts = (await countAttempts(reconciliation, whole)) + 1;
+    const outcome = await attempt(options, whole, reconciliation.store);
+    const drawn = RetryPolicy.draw(`${whole.id} ${attempts}`);
+    const settled = settle(outcome, options.retry, attempts, reconciliation.now, drawn);
+    await observe(reconciliation, whole, outcome, settled);
 }
 
 /** Record a try of a message with the controller's observation: its fields and Sent condition. */
@@ -210,12 +208,12 @@ async function deliver(whole: Message, store: ObjectStore): Promise<Delivery | u
     }
 
     // read the browser's subscription for the person's home, the message's space
-    const now = store.clock.now();
+    const time = store.clock.now();
     const delegator = principal.space.reference(Scope.universe.id, whole.scope);
-    const delegate = Caller.principal(store.as(message, now));
-    const caller = await Grant.act(Snapshot.live(store.database), { delegator, delegate }, now);
+    const delegate = Caller.principal(store.as(message, time));
+    const caller = await Grant.act(Snapshot.live(store.database), { delegator, delegate }, time);
     const call = user.call("recipient", { id: to.user });
-    const recipient = await store.query(AccessContext.of(caller, now), call);
+    const recipient = await store.query(AccessContext.of(caller, time), call);
     const browser = findBrowser(recipient, to.client);
 
     return browser === undefined ? undefined : { ...to, url: browser.url, keys: browser.keys };
@@ -278,13 +276,13 @@ function settle(
     outcome: Outcome,
     retry: RetryPolicy,
     attempts: number,
-    now: number,
+    time: number,
     drawn: number,
 ) {
     // settle a sent message
     if (outcome.kind === "sent") {
         return {
-            fields: { status: "sent" as const, settledAt: now, retryAt: null, ciphertext: null },
+            fields: { status: "sent" as const, settledAt: time, retryAt: null, ciphertext: null },
             sent: { status: "true" as const, reason: "Sent", message: "" },
         };
     }
@@ -294,7 +292,7 @@ function settle(
             outcome.after === undefined
                 ? RetryPolicy.interval(retry, attempts, () => drawn)
                 : Math.min(outcome.after, retry.maximumInterval);
-        const retryAt = now + Math.ceil(wait);
+        const retryAt = time + Math.ceil(wait);
 
         return {
             fields: { retryAt },
@@ -311,7 +309,7 @@ function settle(
             fields: {
                 status: "failed" as const,
                 reason: outcome.refusal.reason,
-                settledAt: now,
+                settledAt: time,
                 retryAt: null,
                 ciphertext: null,
             },
