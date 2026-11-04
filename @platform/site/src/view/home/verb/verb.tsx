@@ -59,8 +59,8 @@ const verb: Form = {
     sense: {
         definition: "to make software yours",
         highlight: ["yours"],
-        sentence: "Own your whole stack, build great custom software, and bring all your agents.",
-        gloss: "to build anything, integrate everything, and control it all",
+        sentence: "Build custom software, integrate every app and agent, and control your whole stack.",
+        gloss: "to reclaim your stack",
     },
 };
 
