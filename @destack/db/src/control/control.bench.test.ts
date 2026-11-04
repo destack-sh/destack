@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test, type TestContext } from "@destack/test";
-import { defineTable, eq, integer, lock, text } from "../index.ts";
+import { defineTable, eq, lock, text } from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
-import { ControlLoop, type Controller, type FollowController } from "./control.ts";
+import { ControlLoop, type Controller, type Consumer } from "./control.ts";
 import { testHost } from "@destack/test/host";
 
 /** The host the benchmark times real work on. */
@@ -23,8 +23,8 @@ const PROBE_MILLISECONDS = 1;
 const job = defineTable("controller_bench_job", {
     /** The job's name. */
     id: text("id").primaryKey(),
-    /** The desired number of runs. */
-    runs: integer("runs").notNull(),
+    /** Whether the job is open. */
+    status: text("status").notNull(),
 });
 
 test("run timers between the reconciliations of a synchronous database, one key per turn", async ({
@@ -40,18 +40,25 @@ test("run timers between the reconciliations of a synchronous database, one key 
     const database = storage.database;
     await database
         .insert(job)
-        .values(Array.from({ length: KEYS }, (_, index) => ({ id: `job-${index}`, runs: 1 })));
+        .values(
+            Array.from({ length: KEYS }, (_, index) => ({ id: `job-${index}`, status: "open" })),
+        );
 
     // record the reconciliations and the probe's ticks in the order they run
     const events: ("reconcile" | "tick")[] = [];
     const done = Promise.withResolvers<void>();
-    const controller: Controller = {
+    const controller: Controller<typeof job> = {
         name: "job",
-        list: async () => Array.from({ length: KEYS }, (_, index) => `job-${index}`),
-        reconcile: async (key) => {
+        table: job,
+        pending: { status: "open" },
+        reconcile: async (rows) => {
             // read the job a few times and work on it without yielding
+            const [row] = rows;
             for (let read = 0; read < READS; read++) {
-                await database.select().from(job).where(eq(job.id, key));
+                await database
+                    .select()
+                    .from(job)
+                    .where(eq(job.id, row?.id ?? ""));
             }
             const end = clock.now() + WORK_MILLISECONDS;
             while (clock.now() < end) {
@@ -63,8 +70,6 @@ test("run timers between the reconciliations of a synchronous database, one key 
             if (events.filter((event) => event === "reconcile").length === KEYS) {
                 done.resolve();
             }
-
-            return undefined;
         },
     };
 
@@ -87,7 +92,11 @@ test("run timers between the reconciliations of a synchronous database, one key 
         }
     })();
     const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], { report: fail });
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        { report: fail },
+    );
     const start = clock.now();
     const running = loop.run(stopping.signal);
     await done.promise;
@@ -110,7 +119,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
 });
 
 /** Fail on a reported reconciliation failure. */
-function fail(_controller: Controller | FollowController, key: string, error: unknown): void {
+function fail(_controller: Controller | Consumer, key: string, error: unknown): void {
     throw new Error(`reconciling ${key} failed`, { cause: error });
 }
 

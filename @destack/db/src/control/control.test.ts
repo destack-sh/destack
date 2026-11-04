@@ -1,21 +1,16 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Change, defineTable, eq, integer, lock, text } from "../index.ts";
-import { reconciliation, TestDatabase } from "../test/index.ts";
+import { Change, defineTable, eq, inArray, integer, lock, type Table, text } from "../index.ts";
+import { TestDatabase } from "../test/index.ts";
 import { testSimulation } from "@destack/test/world";
-import { canonicalize, nth, found } from "@destack/schema";
-import { ControlLoop, type Controller, type FollowController, Reconciliation } from "./control.ts";
+import { canonicalize, nth, found, schema } from "@destack/schema";
+import { ControlLoop, type Controller, now, type Consumer } from "./control.ts";
+import { Projection } from "./projection.ts";
 import { waitAborted, yieldToEventLoop } from "@destack/environment";
 import { SimulatedTelemetry, Simulation } from "@destack/environment/simulation";
 import { Failure } from "@destack/error";
 import { TestTelemetry } from "@destack/telemetry/test";
 
-/** The commits of rows a follower's list never reads, about 30 ms of SQLite commits. */
-const STRESS_COMMITS = 300;
-
-/** How many notes a test commits one at a time. */
-const NOTE_COMMITS = 20;
-
-/** The jobs a controller reconciles. */
+/** The jobs a controller reconciles: open ones, each due at a time. */
 const job = defineTable(
     "controller_job",
     {
@@ -23,8 +18,10 @@ const job = defineTable(
         id: text("id").primaryKey(),
         /** The space with the job. */
         scope: text("scope").notNull(),
-        /** The desired number of runs. */
-        runs: integer("runs").notNull(),
+        /** Whether the job is open or done. */
+        status: text("status").notNull(),
+        /** When the job is due, in UTC epoch milliseconds. */
+        dueAt: integer("due_at").notNull(),
     },
     { log: {} },
 );
@@ -37,13 +34,15 @@ const reloadedJob = defineTable(
         id: text("id").primaryKey(),
         /** The space with the job. */
         scope: text("scope").notNull(),
-        /** The desired number of runs. */
-        runs: integer("runs").notNull(),
+        /** Whether the job is open or done. */
+        status: text("status").notNull(),
+        /** When the job is due, in UTC epoch milliseconds. */
+        dueAt: integer("due_at").notNull(),
     },
     { log: {} },
 );
 
-/** Logged notes no controller watches. */
+/** Logged notes whose changes select the jobs of their space. */
 const note = defineTable(
     "controller_note",
     {
@@ -55,17 +54,16 @@ const note = defineTable(
     { log: {} },
 );
 
-/** Unlogged claims one controller lists. */
-const claim = defineTable("controller_claim", {
-    /** The claim's name. */
-    id: text("id").primaryKey(),
-});
-
-/** Unlogged tickets another controller lists. */
+/** Unlogged tickets a controller reads. */
 const ticket = defineTable("controller_ticket", {
     /** The ticket's name. */
     id: text("id").primaryKey(),
+    /** Whether the ticket is open. */
+    status: text("status").notNull(),
 });
+
+/** How many notes a test commits one at a time. */
+const NOTE_COMMITS = 20;
 
 /** Read a reported failure's message, refusing a failure that is not an error. */
 function message(error: unknown): string {
@@ -85,97 +83,366 @@ async function waitEqual<Value>(simulation: Simulation, read: () => Value, expec
 /** Ignore a failed reconciliation. */
 function ignore(): void {}
 
-test("reconcile listed keys, the keys of changes, keys due again, and refused keys on their next change", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
+/** Open a world's database with jobs and locks, and a helper writing jobs. */
+async function openJobs(
+    simulation: Simulation,
+    tables: readonly Table[] = [job, note, lock],
+    telemetry?: SimulatedTelemetry,
+) {
     const world = simulation.environment("test");
-
-    const recorded = new SimulatedTelemetry(world);
-    using telemetry = new TestTelemetry(recorded);
-    const storage = await TestDatabase.create([job, lock], {
-        environment: { ...world, telemetry: recorded },
-        isMigrated: true,
-    });
+    const environment = telemetry === undefined ? world : { ...world, telemetry };
+    const storage = await TestDatabase.create(tables, { environment, isMigrated: true });
     onTestFinished(() => storage.close());
-    const database = storage.database;
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "listed", scope: "space", runs: 1 }).execute(),
-    );
+    const { database } = storage;
+    const write = (rows: readonly { id: string; status: string; dueAt: number }[]) =>
+        database.transaction((transaction) =>
+            transaction
+                .insert(job)
+                .values(rows.map((row) => ({ ...row, scope: "space" })))
+                .execute(),
+        );
 
-    // fail "flaky" once and look at "timed" again once
-    const reconciled: string[] = [];
-    const reported: string[] = [];
-    let isFlaky = true;
-    const controller: Controller = {
-        name: "job",
-        watches: [job],
-        keys: (change) => (Change.of(change, job) ? [Change.image(change).id] : []),
-        list: async () => ["listed"],
-        reconcile: async (key) => {
-            reconciled.push(key);
-            if (key === "flaky" && isFlaky) {
-                isFlaky = false;
-                throw Failure.error(Failure.http("CONFLICT", "unavailable"));
-            }
+    return { storage, database, write, world };
+}
 
-            return key === "timed" && reconciled.filter((entry) => entry === "timed").length === 1
-                ? 10
-                : undefined;
-        },
-    };
+/** Run a loop until the test ends. */
+function running(loop: ControlLoop): void {
     const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], {
-        report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
-        retry: { initialInterval: 5 },
-    });
-    const running = loop.run(stopping.signal);
+    const run = loop.run(stopping.signal);
     onTestFinished(async () => {
         stopping.abort();
-        await running;
+        await run;
     });
+}
 
-    // reconcile listed and written keys
-    await waitEqual(simulation, () => reconciled.includes("listed"), true);
+test("reconcile the pending rows listed at the start and those a change makes pending, leaving the rest alone, and a refused key until its next change", async () => {
+    // record an open job, a done one and a refused one
+    await using simulation = testSimulation();
+    const recorded = new SimulatedTelemetry(simulation.environment("test"));
+    using telemetry = new TestTelemetry(recorded);
+    const { database, write } = await openJobs(simulation, [job, note, lock], recorded);
     await database.transaction((transaction) =>
         transaction
             .insert(job)
             .values([
-                { id: "timed", scope: "space", runs: 1 },
-                { id: "flaky", scope: "space", runs: 1 },
+                { id: "open", scope: "space", status: "open", dueAt: 0 },
+                { id: "done", scope: "space", status: "done", dueAt: 0 },
             ])
             .execute(),
     );
-    await waitEqual(simulation, () => reconciled.toSorted(), ["flaky", "listed", "timed", "timed"]);
 
-    // reconcile the refused key again on its next change
+    // close each reconciled job, refusing "refused" once
+    const reconciled: string[] = [];
+    const reported: string[] = [];
+    let isRefusing = true;
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        reconcile: async (rows) => {
+            const row = nth(rows, 0);
+            reconciled.push(row.id);
+            if (row.id === "refused" && isRefusing) {
+                isRefusing = false;
+                throw Failure.error(Failure.http("CONFLICT", "refused"));
+            }
+            await database.transaction((transaction) =>
+                transaction.update(job).set({ status: "done" }).where(eq(job.id, row.id)).execute(),
+            );
+        },
+    };
+    running(
+        new ControlLoop(
+            database,
+            { controllers: [controller], consumers: [] },
+            {
+                report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
+            },
+        ),
+    );
+
+    // reconcile the listed job, then the written ones entering pending
+    await waitEqual(simulation, () => reconciled, ["open"]);
+    await write([
+        { id: "later", status: "open", dueAt: 0 },
+        { id: "refused", status: "open", dueAt: 0 },
+    ]);
+    await waitEqual(simulation, () => reconciled.toSorted(), ["later", "open", "refused"]);
+
+    // reconcile the refused job again on its next change
     await database.transaction((transaction) =>
-        transaction.update(job).set({ runs: 2 }).where(eq(job.id, "flaky")).execute(),
+        transaction.update(job).set({ dueAt: 1 }).where(eq(job.id, "refused")).execute(),
     );
     await waitEqual(simulation, () => reconciled.toSorted(), [
-        "flaky",
-        "flaky",
-        "listed",
-        "timed",
-        "timed",
+        "later",
+        "open",
+        "refused",
+        "refused",
     ]);
 
-    // report the failure to the creator and record it in db's scope
+    // report the refusal once, recorded in db's scope
     expect([reported, telemetry.take()]).toEqual([
-        ["flaky: unavailable"],
-        [{ scope: "@destack/db", name: "Failure", message: "unavailable" }],
+        ['{"id":"refused"}: refused'],
+        [{ scope: "@destack/db", name: "Failure", message: "refused" }],
     ]);
 });
 
-test("report a key failing transiently only once its retries last past the window, and any other failure at once", async () => {
-    // run in a world of its own
+test("reconcile a waiting row once its time comes due, waking at the earliest one and setting the host's alarm there", async () => {
+    // record jobs due later, one already due, and a done one never due
     const simulation = testSimulation();
-    const world = simulation.environment("test");
+    const { database, write } = await openJobs(simulation);
+    const clock = simulation.clock;
+    const started = clock.now();
+    await write([
+        { id: "due", status: "open", dueAt: started },
+        { id: "soon", status: "open", dueAt: started + 50 },
+        { id: "later", status: "open", dueAt: started + 80 },
+    ]);
 
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
+    // reconcile the open jobs due now, closing each
+    const reconciled: [string, number][] = [];
+    const alarms: (number | null)[] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open", dueAt: { lte: now } },
+        reconcile: async (rows) => {
+            for (const row of rows) {
+                reconciled.push([row.id, clock.now() - started]);
+                await database.transaction((transaction) =>
+                    transaction
+                        .update(job)
+                        .set({ status: "done" })
+                        .where(eq(job.id, row.id))
+                        .execute(),
+                );
+            }
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        {
+            report: (_controller, _key, error) => {
+                throw error;
+            },
+            alarm: {
+                setAlarm: async (at) => {
+                    alarms.push(at - started);
+                },
+                deleteAlarm: async () => {
+                    alarms.push(null);
+                },
+            },
+        },
+    );
+    const stopping = new AbortController();
+    const run = loop.run(stopping.signal);
+
+    // run the due job, then each later one at its time, and clear the alarm once none waits
+    await loop.idle();
+    await simulation.jump(started + 50);
+    await loop.idle();
+    await simulation.jump(started + 80);
+    await loop.idle();
+    stopping.abort();
+    await run;
+    expect({ reconciled, alarms }).toEqual({
+        reconciled: [
+            ["due", 0],
+            ["soon", 50],
+            ["later", 80],
+        ],
+        alarms: [0, 50, 80, null],
     });
-    onTestFinished(() => storage.close());
+});
+
+test("reconcile every pending row under one key when a controller groups by no field, listed at the start and on a change", async () => {
+    // record two open jobs before the start
+    await using simulation = testSimulation();
+    const { database, write } = await openJobs(simulation);
+    await write([
+        { id: "first", status: "open", dueAt: 0 },
+        { id: "second", status: "open", dueAt: 0 },
+    ]);
+
+    // close every open job in one reconciliation
+    const batches: string[][] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        key: [],
+        reconcile: async (rows) => {
+            batches.push(rows.map((row) => row.id).toSorted());
+            await database.transaction((transaction) =>
+                transaction
+                    .update(job)
+                    .set({ status: "done" })
+                    .where(
+                        inArray(
+                            job.id,
+                            rows.map((row) => row.id),
+                        ),
+                    )
+                    .execute(),
+            );
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        { report: ignore },
+    );
+    running(loop);
+
+    // take both at the start, then a later one alone
+    await loop.idle();
+    await write([{ id: "third", status: "open", dueAt: 0 }]);
+    await waitEqual(simulation, () => batches, [["first", "second"], ["third"]]);
+});
+
+test("compare a microsecond field to the loop's time a window earlier, waking as each row leaves the window", async () => {
+    // record jobs due in microseconds, one past the window and one inside it
+    const simulation = testSimulation();
+    const { database, write } = await openJobs(simulation);
+    const clock = simulation.clock;
+    const started = clock.now();
+    await write([
+        { id: "old", status: "open", dueAt: (started - 100) * 1000 },
+        { id: "young", status: "open", dueAt: (started - 40) * 1000 + 1 },
+    ]);
+
+    // close each job once it is 60 milliseconds old
+    const reconciled: [string, number][] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open", dueAt: { lte: now.microseconds().minus({ milliseconds: 60 }) } },
+        reconcile: async (rows) => {
+            for (const row of rows) {
+                reconciled.push([row.id, clock.now() - started]);
+                await database.transaction((transaction) =>
+                    transaction
+                        .update(job)
+                        .set({ status: "done" })
+                        .where(eq(job.id, row.id))
+                        .execute(),
+                );
+            }
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        { report: ignore },
+    );
+    running(loop);
+
+    // close the old job at once, and the young one at the first millisecond past its window
+    await loop.idle();
+    await simulation.jump(started + 21);
+    await loop.idle();
+    expect(reconciled).toEqual([
+        ["old", 0],
+        ["young", 21],
+    ]);
+});
+
+test("refuse a pending condition comparing now anywhere but a field's upper bound at its top", async () => {
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation);
+    const declare = (pending: Controller<typeof job>["pending"]) => () =>
+        new ControlLoop(
+            database,
+            {
+                controllers: [{ name: "job", table: job, pending, reconcile: async () => {} }],
+                consumers: [],
+            },
+            { report: ignore },
+        );
+
+    expect(declare({ dueAt: { gte: now } })).toThrow(
+        "controller job compares now outside a field's lt or lte at the top of its pending condition",
+    );
+    expect(declare({ OR: [{ dueAt: { lte: now } }] })).toThrow(
+        "controller job compares now outside a field's lt or lte at the top of its pending condition",
+    );
+});
+
+test("select the jobs a watched table's change names, reporting a failing watch and listing in its place", async () => {
+    // record an open job in each of two spaces
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(job)
+            .values([
+                { id: "first", scope: "space", status: "open", dueAt: 0 },
+                { id: "second", scope: "other", status: "open", dueAt: 0 },
+            ])
+            .execute(),
+    );
+
+    // reconcile each space's jobs together, selected by a note in the space
+    const reconciled: string[] = [];
+    const reported: string[] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        key: ["scope"],
+        watches: [
+            {
+                table: note,
+                keys: (change) => {
+                    const scope = schema.string().parse(Change.image(change)["scope"]);
+                    if (scope === "broken") {
+                        throw new Error("unreadable note");
+                    }
+
+                    return [{ scope }];
+                },
+            },
+        ],
+        reconcile: async (rows) => {
+            reconciled.push(rows.map((row) => row.id).join(","));
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        {
+            report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
+        },
+    );
+    running(loop);
+    await loop.idle();
+
+    // reconcile a space's jobs again on a note, and list every space in place of a failing watch
+    await database.transaction((transaction) =>
+        transaction.insert(note).values({ id: "note", scope: "space" }).execute(),
+    );
+    await loop.idle();
+    await database.transaction((transaction) =>
+        transaction.insert(note).values({ id: "broken", scope: "broken" }).execute(),
+    );
+    await loop.idle();
+    expect({ reconciled: reconciled.toSorted(), reported }).toEqual({
+        reconciled: ["first", "first", "first", "second", "second"],
+        reported: ["controller_note: unreadable note"],
+    });
+});
+
+test("report a key failing transiently only once its retries last past the window, and any other failure at once", async () => {
+    // record three open jobs
+    const simulation = testSimulation();
+    const { database, write } = await openJobs(simulation);
+    await write([
+        { id: "peer", status: "open", dueAt: 0 },
+        { id: "broken", status: "open", dueAt: 0 },
+        { id: "misrouted", status: "open", dueAt: 0 },
+    ]);
 
     // leave "peer" unavailable until told otherwise, fail "broken" once, and misroute "misrouted" once
     const clock = simulation.clock;
@@ -184,18 +451,18 @@ test("report a key failing transiently only once its retries last past the windo
     let isDown = true;
     let isBroken = true;
     let isMisrouted = true;
-    const controller: Controller = {
+    const controller: Controller<typeof job> = {
         name: "job",
-        watches: [],
-        keys: () => [],
-        list: async () => ["peer", "broken", "misrouted"],
-        reconcile: async (key) => {
-            if (key === "peer" && isDown) {
+        table: job,
+        pending: { status: "open" },
+        reconcile: async (rows) => {
+            const { id } = nth(rows, 0);
+            if (id === "peer" && isDown) {
                 throw Failure.error(Failure.http("SERVICE_UNAVAILABLE", "service unavailable"));
-            } else if (key === "broken" && isBroken) {
+            } else if (id === "broken" && isBroken) {
                 isBroken = false;
                 throw Failure.error(Failure.http("CONFLICT", "broken"));
-            } else if (key === "misrouted" && isMisrouted) {
+            } else if (id === "misrouted" && isMisrouted) {
                 isMisrouted = false;
                 throw Failure.error({
                     code: "MISDIRECTED_REQUEST",
@@ -204,21 +471,18 @@ test("report a key failing transiently only once its retries last past the windo
                     message: "space lives in another partition",
                 });
             }
-
-            return undefined;
         },
     };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(storage.database, [controller], {
-        report: (_controller, key) => reported.push([key, clock.now() - started]),
-        retry: { initialInterval: 5, maximumInterval: 5 },
-        transientFor: 40,
-    });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        {
+            report: (_controller, key) => reported.push([key, clock.now() - started]),
+            retry: { initialInterval: 5, maximumInterval: 5 },
+            transientFor: 40,
+        },
+    );
+    running(loop);
 
     // report "broken" at once and retry the others, then report "peer" once its retries fail past the window
     await loop.idle();
@@ -231,451 +495,76 @@ test("report a key failing transiently only once its retries last past the windo
     await simulation.jump(clock.now() + 5);
     await loop.idle();
     expect({ atOnce, reported }).toEqual({
-        atOnce: [["broken", 0]],
+        atOnce: [['{"id":"broken"}', 0]],
         reported: [
-            ["broken", 0],
-            ["peer", 40],
+            ['{"id":"broken"}', 0],
+            ['{"id":"peer"}', 40],
         ],
     });
 });
 
-test("leave a refused key quiet until its next change, reporting it once, and retry an unavailable key on backoff", async () => {
-    // run in a world of its own
-    const simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    await database.transaction((transaction) =>
-        transaction
-            .insert(job)
-            .values([
-                { id: "denied", scope: "space", runs: 1 },
-                { id: "down", scope: "space", runs: 1 },
-            ])
-            .execute(),
-    );
-
-    // refuse "denied" and leave "down" unavailable
-    const clock = simulation.clock;
-    const attempts: string[] = [];
-    const reported: string[] = [];
-    const controller: Controller = {
-        name: "job",
-        watches: [job],
-        keys: (change) => (Change.of(change, job) ? [Change.image(change).id] : []),
-        list: async () => ["denied", "down"],
-        reconcile: async (key) => {
-            attempts.push(key);
-            if (key === "denied") {
-                throw Failure.error({
-                    code: "FORBIDDEN",
-                    reason: "PERMISSION_DENIED",
-                    domain: "@example/access",
-                    message: "permission denied: bind",
-                });
-            }
-            throw Failure.error(Failure.http("SERVICE_UNAVAILABLE", "service unavailable"));
-        },
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], {
-        report: (_controller, key) => reported.push(key),
-        retry: { initialInterval: 60_000, maximumInterval: 60_000 },
-        transientFor: 60 * 60_000,
-    });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-
-    // wait out three simulated hours a minute at a time
-    await loop.idle();
-    for (let minute = 0; minute < 180; minute += 1) {
-        await simulation.jump(clock.now() + 60_000);
-        await loop.idle();
-    }
-    const waited = Map.groupBy(attempts, (key) => key);
-
-    // change "denied", which runs it again without a second report
-    await database.transaction((transaction) =>
-        transaction.update(job).set({ runs: 2 }).where(eq(job.id, "denied")).execute(),
-    );
-    await waitEqual(simulation, () => attempts.filter((key) => key === "denied").length, 2);
-    await loop.idle();
-
-    // try "denied" once and "down" every minute, reporting each once
-    expect({
-        denied: waited.get("denied")?.length,
-        down: waited.get("down")?.length,
-        reported,
-    }).toEqual({ denied: 1, down: 181, reported: ["denied", "down"] });
-});
-
 test("fail the loop, its run and its idle waiters, once a controller throws a failure it declares no outcome for", async () => {
-    // reconcile one key in a world, its controller throwing a TypeError
+    // reconcile one open job, its controller throwing a TypeError
     await using simulation = testSimulation();
-    const environment = simulation.environment("controller");
-    const storage = await TestDatabase.create([job, lock], { environment, isMigrated: true });
-    onTestFinished(() => storage.close());
+    const { database, write } = await openJobs(simulation);
+    await write([{ id: "job", status: "open", dueAt: 0 }]);
     const defect = new TypeError("undefined is not an object");
-    const controller: Controller = {
+    const controller: Controller<typeof job> = {
         name: "job",
-        watches: [],
-        keys: () => [],
-        list: async () => ["broken"],
+        table: job,
+        pending: { status: "open" },
         reconcile: async () => {
             throw defect;
         },
     };
-    const reported: string[] = [];
-    const loop = new ControlLoop(storage.database, [controller], {
-        report: (_controller, key) => reported.push(key),
-    });
-    const running = loop.run(new AbortController().signal);
-
-    // reject the driven idle wait and the run with the failure, naming the controller and the key
-    const idled = await refusal(loop.idle());
-    const ran = await running.catch((error: unknown) => error);
-
-    expect({
-        idled,
-        ran: [ran instanceof Error ? ran.message : "", ran instanceof Error ? ran.cause : ""],
-        reported,
-    }).toEqual({
-        idled: ["INTERNAL_SERVER_ERROR", "CONTROLLER_FAILED", "job failed to reconcile broken"],
-        ran: ["job failed to reconcile broken", defect],
-        reported: [],
-    });
-});
-
-test("end a run whose loop fails, only after its running reconciliations ended", async () => {
-    // reconcile a key held at a gate, its controller watching the log
-    await using simulation = testSimulation();
-    const environment = simulation.environment("controller");
-    const storage = await TestDatabase.create([job, lock], { environment, isMigrated: true });
-    onTestFinished(() => storage.close());
-    const events: string[] = [];
-    const started = Promise.withResolvers<void>();
-    const gate = Promise.withResolvers<void>();
-    const held: Controller = {
-        name: "held",
-        watches: [job],
-        keys: () => [],
-        list: async () => ["held"],
-        reconcile: async () => {
-            events.push("held started");
-            started.resolve();
-            await gate.promise;
-            events.push("held ended");
-
-            return undefined;
-        },
-    };
-    const loop = new ControlLoop(storage.database, [held], {
-        report: () => {},
-    });
-    const running = loop.run(new AbortController().signal).catch(() => events.push("run ended"));
-
-    // close the database under the watching loop while the key reconciles, then release it
-    await started.promise;
-    await storage.database.close();
-    await simulation.sleep(1000);
-    gate.resolve();
-    await running;
-
-    expect(events).toEqual(["held started", "held ended", "run ended"]);
-});
-
-test("retry a stale or moving key until it succeeds, reporting nothing", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-
-    // refuse "stale" once as a stale replica and once as a scope moving to another machine
-    const attempts: string[] = [];
-    const reported: string[] = [];
-    const controller: Controller = {
-        name: "job",
-        watches: [],
-        keys: () => [],
-        list: async () => ["stale"],
-        reconcile: async (key) => {
-            attempts.push(key);
-            if (attempts.length === 1) {
-                throw Failure.error({
-                    code: "SERVICE_UNAVAILABLE",
-                    reason: "STALE",
-                    domain: "@example/access",
-                    message: "access was last confirmed by its home 600000 ms ago",
-                });
-            } else if (attempts.length === 2) {
-                throw Failure.error({
-                    code: "MISDIRECTED_REQUEST",
-                    reason: "SCOPE_MOVED",
-                    domain: "@example/object",
-                    message: "space moved to machine-b",
-                    data: { scope: "space", machine: "machine-b" },
-                });
-            }
-
-            return undefined;
-        },
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(storage.database, [controller], {
-        report: (_controller, key) => reported.push(key),
-        retry: { initialInterval: 5, maximumInterval: 5 },
-        transientFor: 60_000,
-    });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-
-    // succeed on the third attempt without a report
-    await waitEqual(simulation, () => attempts.length, 3);
-    expect({ attempts, reported }).toEqual({ attempts: ["stale", "stale", "stale"], reported: [] });
-});
-
-test("report a key function that fails on a change and reconcile every listed key in its place, following later changes", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-
-    // key each changed job
-    const reconciled: string[] = [];
-    const reported: string[] = [];
-    const controller: Controller = {
-        name: "job",
-        watches: [job],
-        keys: (change) => {
-            const id = Change.of(change, job) ? Change.image(change).id : "";
-            if (id === "broken") {
-                throw new Error("unreadable change");
-            }
-
-            return [id];
-        },
-        list: async () => (await database.select().from(job)).map((row) => row.id),
-        reconcile: async (key) => {
-            reconciled.push(key);
-
-            return undefined;
-        },
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], {
-        report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
-    });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-    await loop.idle();
-
-    // report the failing change and reconcile the listed keys
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "broken", scope: "space", runs: 1 }).execute(),
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        { report: ignore },
     );
-    await waitEqual(simulation, () => reconciled, ["broken"]);
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "later", scope: "space", runs: 1 }).execute(),
-    );
-    await waitEqual(simulation, () => reconciled.toSorted(), ["broken", "later"]);
-    expect(reported).toEqual(["controller_job: unreadable change"]);
-});
+    const run = loop.run(new AbortController().signal);
 
-test("list a controller of an unlogged table again after a commit to its table alone", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([claim, ticket, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-
-    // count each controller's listings
-    const listings = { claims: 0, tickets: 0 };
-    const claims: Controller = {
-        name: "claims",
-        watches: [claim],
-        list: async () => {
-            listings.claims += 1;
-
-            return [];
-        },
-        reconcile: async () => undefined,
-    };
-    const tickets: Controller = {
-        name: "tickets",
-        watches: [ticket],
-        list: async () => {
-            listings.tickets += 1;
-
-            return [];
-        },
-        reconcile: async () => undefined,
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [claims, tickets], {
-        report: ignore,
-    });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-
-    // list each controller at the start and once more before any commit
-    await waitEqual(simulation, () => ({ ...listings }), { claims: 2, tickets: 2 });
-
-    // list the tickets again after a ticket commit, in the same pass leaving the claims alone
-    await database.insert(ticket).values({ id: "first" });
-    await waitEqual(simulation, () => ({ ...listings }), { claims: 2, tickets: 3 });
-
-    // list the claims again after a claim commit, leaving the tickets alone
-    await database.insert(claim).values({ id: "first" });
-    await waitEqual(simulation, () => ({ ...listings }), { claims: 3, tickets: 3 });
-});
-
-test("list again after compaction only the controllers following the compacted tables, leaving a periodic one to its delay, and settle idle once relisted", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-
-    // stop the follower at its first change until the changes after it are compacted
-    const listed: string[] = [];
-    const swept: string[] = [];
-    const stopped = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<void>();
-    const jobs: Controller = {
-        name: "jobs",
-        watches: [job],
-        keys: async () => {
-            stopped.resolve();
-            await release.promise;
-
-            return [];
-        },
-        list: async () => {
-            listed.push("jobs");
-
-            return [];
-        },
-        reconcile: async () => undefined,
-    };
-    const sweep: Controller = {
-        name: "sweep",
-        list: async () => {
-            listed.push("sweep");
-
-            return ["stores"];
-        },
-        reconcile: async (key) => {
-            swept.push(key);
-
-            return 60_000;
-        },
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [jobs, sweep], { report: ignore });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-    await waitEqual(simulation, () => swept, ["stores"]);
-
-    // commit a change the follower stops at, then another, and compact both
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "first", scope: "space", runs: 1 }).execute(),
-    );
-    await stopped.promise;
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "second", scope: "space", runs: 1 }).execute(),
-    );
-    const now = world.clock.now();
-    await database.log.compact(now + 1, now);
-
-    // wait idle across the compaction, which settles once the follower lists again
-    const idling = loop.idle();
-    await yieldToEventLoop();
-    release.resolve();
-    await idling;
-
-    // list the jobs again, and leave the sweep to the delay it returned
-    expect({ listed, swept }).toEqual({ listed: ["jobs", "sweep", "jobs"], swept: ["stores"] });
+    // fail the run and the idle waiter with the controller's failure
+    const [ran, idled] = await Promise.all([refusal(run), refusal(loop.idle())]);
+    expect([ran, idled]).toEqual([
+        ["INTERNAL_SERVER_ERROR", "CONTROLLER_FAILED", 'job failed to reconcile {"id":"job"}'],
+        ["INTERNAL_SERVER_ERROR", "CONTROLLER_FAILED", 'job failed to reconcile {"id":"job"}'],
+    ]);
 });
 
 test("reconcile keys up to a controller's concurrency, never one key twice at once", async () => {
-    // run in a world of its own
+    // record three open jobs
     await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
+    const { database, write } = await openJobs(simulation);
+    await write(["a", "b", "c"].map((id) => ({ id, status: "open", dueAt: 0 })));
 
     // block each reconciliation until released
     const releases = new Map<string, () => void>();
-    let running = 0;
+    let active = 0;
     let most = 0;
     const started: string[] = [];
-    const controller: Controller = {
+    const controller: Controller<typeof job> = {
         name: "job",
-        watches: [job],
-        keys: () => [],
-        list: async () => ["a", "b", "c"],
+        table: job,
+        pending: { status: "open" },
         concurrency: 2,
-        reconcile: async (key) => {
-            started.push(key);
-            running += 1;
-            most = Math.max(most, running);
+        reconcile: async (rows) => {
+            const { id } = nth(rows, 0);
+            started.push(id);
+            active += 1;
+            most = Math.max(most, active);
             await new Promise<void>((release) => {
-                releases.set(key, release);
+                releases.set(id, release);
             });
-            running -= 1;
-
-            return undefined;
+            active -= 1;
         },
     };
     const stopping = new AbortController();
-    const loop = new ControlLoop(storage.database, [controller], {
-        report: () => {},
-    });
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        { report: ignore },
+    );
     const looping = loop.run(stopping.signal);
     onTestFinished(async () => {
         stopping.abort();
@@ -683,15 +572,17 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
         await looping;
     });
 
-    // enqueue the first key again while it runs and finish the second
+    // change the first while it runs and finish the second
     await waitEqual(simulation, () => started.length, 2);
     const first = nth(started, 0);
     const second = nth(started, 1);
     const third = nth(
-        ["a", "b", "c"].filter((key) => !started.includes(key)),
+        ["a", "b", "c"].filter((id) => !started.includes(id)),
         0,
     );
-    loop.enqueue(controller, first);
+    await database.transaction((transaction) =>
+        transaction.update(job).set({ dueAt: 1 }).where(eq(job.id, first)).execute(),
+    );
     found(releases, second)();
     await waitEqual(simulation, () => started, [first, second, third]);
 
@@ -704,791 +595,431 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
 test("lock each key to one instance of several sharing a database, handing it over once its holder stops", async () => {
     // run two instances of the loop over two connections to one database
     await using simulation = testSimulation();
-    const world = simulation.environment("test");
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const other = await storage.connect([job, lock]);
+    const { storage, database, write } = await openJobs(simulation);
+    const other = await storage.connect([job, note, lock]);
     onTestFinished(() => other.close());
-    await storage.database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "shared", scope: "space", runs: 1 }).execute(),
-    );
+    await write([{ id: "shared", status: "open", dueAt: 0 }]);
 
-    // record which instance reconciles the shared key
+    // record which instance reconciles the shared job, holding it until stopped
     const reconciled: string[] = [];
-    const controllerOf = (instance: string): Controller => ({
+    const controllerOf = (instance: string): Controller<typeof job> => ({
         name: "job",
-        watches: [job],
-        keys: () => [],
-        list: async () => ["shared"],
-        reconcile: async (_key, { signal }) => {
+        table: job,
+        pending: { status: "open" },
+        reconcile: async (_rows, { signal }) => {
             reconciled.push(instance);
             await waitAborted(signal);
-
-            return undefined;
         },
     });
     const first = new AbortController();
     const second = new AbortController();
-    const running = [
-        new ControlLoop(storage.database, [controllerOf("first")], {
-            report: ignore,
-        }).run(first.signal),
-        new ControlLoop(other, [controllerOf("second")], { report: ignore }).run(second.signal),
+    const runs = [
+        new ControlLoop(
+            database,
+            { controllers: [controllerOf("first")], consumers: [] },
+            { report: ignore },
+        ).run(first.signal),
+        new ControlLoop(
+            other,
+            { controllers: [controllerOf("second")], consumers: [] },
+            { report: ignore },
+        ).run(second.signal),
     ];
     onTestFinished(async () => {
         first.abort();
         second.abort();
-        await Promise.all(running);
+        await Promise.all(runs);
     });
 
-    // reconcile the key on one instance alone, then hand it to the other once the holder stops
+    // reconcile the job on one instance alone, then hand it to the other once the holder stops
     await waitEqual(simulation, () => reconciled.length, 1);
     const holder = nth(reconciled, 0);
     (holder === "first" ? first : second).abort();
-    await nth(running, holder === "first" ? 0 : 1);
+    await nth(runs, holder === "first" ? 0 : 1);
     await expect
         .poll(() => reconciled, { timeout: 2000 })
         .toEqual([holder, holder === "first" ? "second" : "first"]);
 });
 
-test("take over a key whose lock a crashed instance left once this instance's join timeout passes", async () => {
-    // keep the lock of an instance that crashed without a word, over a database two connections share
+test("follow a key while its rows stay pending, stopping it once they leave or the loop stops", async () => {
+    // record two open jobs
     await using simulation = testSimulation();
-    const world = simulation.environment("test");
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const other = await storage.connect([job, lock]);
-    onTestFinished(() => other.close());
-    await storage.database.transaction((transaction) =>
-        transaction
-            .insert(lock)
-            .values({ name: "controller:job", instance: "crashed", holder: "gone" })
-            .execute(),
-    );
-
-    // run a loop whose controller lists one key
-    const reconciled: string[] = [];
-    const controller: Controller = {
-        name: "job",
-        watches: [job],
-        keys: () => [],
-        list: async () => ["shared"],
-        reconcile: async (key) => {
-            reconciled.push(key);
-
-            return undefined;
-        },
-    };
-    const stopping = new AbortController();
-    const running = new ControlLoop(storage.database, [controller], { report: ignore }).run(
-        stopping.signal,
-    );
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-
-    // reconcile the key once no live instance replied for the crashed holder
-    await simulation.wait(storage.database.tracker.waitSynced());
-    await simulation.waitUntil(() => reconciled.length > 0);
-    expect(reconciled).toEqual(["shared"]);
-});
-
-test("follow the keys a list reads through a table defined anew, watched by its name", async () => {
-    // run in a world of its own, with one job
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "first", scope: "space", runs: 1 }).execute(),
-    );
-
-    // watch the jobs table while the list reads its definition from a module loaded again
-    const started: string[] = [];
-    const controller: FollowController = {
-        name: "follow",
-        mode: "follow",
-        watches: [job],
-        list: async (view) => (await view.read(reloadedJob).findMany()).map((row) => row.id),
-        concurrency: 8,
-        reconcile: async (key, { signal, synced }) => {
-            started.push(key);
-            synced();
-            await new Promise<void>((resolve) => {
-                signal.addEventListener("abort", () => resolve(), { once: true });
-            });
-        },
-    };
-    const stopping = new AbortController();
-    const running = new ControlLoop(database, [controller], { report: () => {} }).run(
-        stopping.signal,
-    );
-
-    // follow the first job, then one added through the watched table
-    await waitEqual(simulation, () => started, ["first"]);
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "second", scope: "space", runs: 1 }).execute(),
-    );
-    await waitEqual(simulation, () => started, ["first", "second"]);
-    stopping.abort();
-    await running;
-});
-
-test("follow each listed key until its list drops it or the loop stops", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    await database.transaction((transaction) =>
-        transaction
-            .insert(job)
-            .values([
-                { id: "stayed", scope: "space", runs: 1 },
-                { id: "dropped", scope: "space", runs: 1 },
-            ])
-            .execute(),
-    );
-
-    // follow each job until its signal aborts
-    const started: string[] = [];
-    const stopped: string[] = [];
-    const reported: string[] = [];
-    const controller: FollowController = {
-        name: "follow",
-        mode: "follow",
-        watches: [job],
-        list: async (view) => (await view.read(job).findMany()).map((row) => row.id),
-        concurrency: 8,
-        reconcile: async (key, { signal, synced }) => {
-            started.push(key);
-            synced();
-            await new Promise<void>((resolve) => {
-                signal.addEventListener("abort", () => resolve(), { once: true });
-            });
-            stopped.push(key);
-            throw signal.reason;
-        },
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], {
-        report: (_controller, key) => reported.push(key),
-    });
-    const running = loop.run(stopping.signal);
-
-    // stop the key the list drops and start the one it adds
-    await waitEqual(simulation, () => started.toSorted(), ["dropped", "stayed"]);
-    await database.transaction((transaction) =>
-        transaction.delete(job).where(eq(job.id, "dropped")).execute(),
-    );
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "added", scope: "space", runs: 1 }).execute(),
-    );
-    await waitEqual(simulation, () => stopped, ["dropped"]);
-    await waitEqual(simulation, () => started.toSorted(), ["added", "dropped", "stayed"]);
-
-    // settle idle while the follows run
-    await loop.idle();
-    expect(stopped).toEqual(["dropped"]);
-
-    // stop the rest with the loop
-    stopping.abort();
-    await running;
-    expect(stopped.toSorted()).toEqual(["added", "dropped", "stayed"]);
-    expect(reported).toEqual([]);
-});
-
-test("settle idle once each follow synced while reporting a follow failing before it syncs", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-
-    // sync one follow once its gate opens, and fail the other before it syncs
-    const gate = Promise.withResolvers<void>();
-    const started: string[] = [];
-    const controller: FollowController = {
-        name: "follow",
-        mode: "follow",
-        concurrency: 2,
-        list: async () => ["syncing", "failing"],
-        reconcile: async (key, { signal, synced }) => {
-            started.push(key);
-            if (key === "failing") {
-                throw Failure.error(Failure.http("CONFLICT", "the source refused the follow"));
-            }
-            await gate.promise;
-            synced();
-            await new Promise<void>((resolve) => {
-                signal.addEventListener("abort", () => resolve(), { once: true });
-            });
-            throw signal.reason;
-        },
-    };
-    const stopping = new AbortController();
-    const reported: string[] = [];
-    const loop = new ControlLoop(storage.database, [controller], {
-        report: (failed, key, error) => {
-            reported.push(
-                `${failed.name} ${key}: ${error instanceof Error ? error.message : "not an error"}`,
-            );
-        },
-        retry: { initialInterval: 1000, maximumInterval: 1000 },
-    });
-    const running = loop.run(stopping.signal);
-
-    // stay unsettled while the follow waits at its gate and the failed one waits out its retry, then settle once it syncs
-    await waitEqual(simulation, () => started.includes("syncing") && reported.length === 1, true);
-    const depthAtGate = loop.depth;
-    gate.resolve();
-    await loop.idle();
-    expect([depthAtGate, loop.depth, [...reported]]).toEqual([
-        1,
-        0,
-        ["follow failing: the source refused the follow"],
+    const { database, write } = await openJobs(simulation);
+    await write([
+        { id: "kept", status: "open", dueAt: 0 },
+        { id: "closed", status: "open", dueAt: 0 },
     ]);
 
-    // stop the follow with the loop
+    // follow each open job until stopped
+    const events: string[] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        concurrency: Infinity,
+        follow: async (rows, { signal, synced }) => {
+            const { id } = nth(rows, 0);
+            events.push(`${id} started`);
+            synced();
+            await waitAborted(signal);
+            events.push(`${id} stopped`);
+        },
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        { report: ignore },
+    );
+    const run = loop.run(stopping.signal);
+    await loop.idle();
+
+    // stop the closed job's follow, then every follow with the loop
+    await database.transaction((transaction) =>
+        transaction.update(job).set({ status: "done" }).where(eq(job.id, "closed")).execute(),
+    );
+    await waitEqual(simulation, () => events.includes("closed stopped"), true);
     stopping.abort();
-    await running;
+    await run;
+    expect(events.toSorted()).toEqual([
+        "closed started",
+        "closed stopped",
+        "kept started",
+        "kept stopped",
+    ]);
 });
 
-test("list a following controller again only for a commit of a row its list read, past many it never read", async () => {
-    // run in a world of its own
+test("report a follow that fails while its key stays pending", async () => {
+    // record an open job
     await using simulation = testSimulation();
-    const world = simulation.environment("test");
+    const { database, write } = await openJobs(simulation);
+    await write([{ id: "refused", status: "open", dueAt: 0 }]);
 
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
+    // fail the follow at once with a refusal
+    const reported: string[] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        follow: async () => {
+            throw Failure.error(Failure.http("FORBIDDEN", "refused"));
+        },
+    };
+    running(
+        new ControlLoop(
+            database,
+            { controllers: [controller], consumers: [] },
+            { report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`) },
+        ),
+    );
 
-    // follow the space's jobs, counting the listings
-    let listings = 0;
-    const controller: FollowController = {
-        name: "follow",
-        mode: "follow",
-        watches: [job],
-        list: async (view) => {
-            listings += 1;
+    // report the refusal for the key
+    await waitEqual(simulation, () => reported, ['{"id":"refused"}: refused']);
+});
 
-            return (await view.read(job).findMany({ where: { scope: "space" } })).map(
-                (row) => row.id,
+test("take each placed scope's appends past its checkpoint, those at the start and those appended later, leaving scopes without a checkpoint alone", async () => {
+    // place a reader's checkpoint in space a, and append a note in a and one in b
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [note, lock]);
+    await database.log.place({ name: "note-consumer:a", tables: [note] }, Number.MAX_SAFE_INTEGER);
+    const append = (id: string, scope: string) =>
+        database.transaction((transaction) =>
+            transaction.insert(note).values({ id, scope }).execute(),
+        );
+    await append("first", "a");
+    await append("other", "b");
+
+    // take a scope's notes past its checkpoint and move the checkpoint past them
+    const taken: string[] = [];
+    const consumer: Consumer = {
+        name: "note-consumer",
+        reads: [note],
+        checkpoint: "scope",
+        consume: async (scope) => {
+            const checkpoint = `note-consumer:${scope}`;
+            const after = await database.log.checkpoint(checkpoint);
+            if (after === undefined) {
+                return;
+            }
+            const page = await database.log.read({ tables: [note], scopes: [scope], after });
+            taken.push(...page.changes.map((change) => `${scope}/${change.key["id"]}`));
+            await database.log.move(
+                { name: checkpoint, tables: [note] },
+                after,
+                page.sequence,
+                Number.MAX_SAFE_INTEGER,
             );
         },
-        reconcile: async (_key, { signal }) => {
-            await waitAborted(signal);
-            throw signal.reason;
-        },
     };
-    // see each change the loop reads, through a reconciler listed after the follower it waits on
-    const seen: unknown[] = [];
-    const watcher: Controller = {
-        name: "watcher",
-        watches: [job],
-        keys: (change) => {
-            seen.push(Change.after(change)?.["id"]);
-
-            return [];
-        },
-        list: async () => [],
-        reconcile: async () => undefined,
-    };
-    const stopping = new AbortController();
-    const reported: unknown[] = [];
-    const loop = new ControlLoop(database, [controller, watcher], {
-        report: (_controller, _key, error) => reported.push(error),
-    });
-    const running = loop.run(stopping.signal);
-    await waitEqual(simulation, () => listings, 1);
-
-    // commit jobs of another scope one at a time, listing nothing again once the loop read them all
-    for (let index = 0; index < STRESS_COMMITS; index++) {
-        await database.transaction(
-            async (transaction) =>
-                await transaction
-                    .insert(job)
-                    .values({ id: `other-${index}`, scope: "other", runs: 1 }),
-        );
-    }
-    await waitEqual(simulation, () => seen.includes(`other-${STRESS_COMMITS - 1}`), true);
-    const unrelated = listings;
-
-    // add a job of the space
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "space-job", scope: "space", runs: 1 }).execute(),
-    );
-    await waitEqual(simulation, () => listings, 2);
-    stopping.abort();
-    await running;
-
-    // list again for the space's job alone, reporting nothing
-    expect({ unrelated, listings, reported }).toEqual({ unrelated: 1, listings: 2, reported: [] });
-});
-
-test("fail the loop once a follow ends unasked", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "brief", scope: "space", runs: 1 }).execute(),
-    );
-
-    // end each follow at once
     const reported: string[] = [];
-    const controller: FollowController = {
-        name: "brief",
-        mode: "follow",
-        watches: [job],
-        list: async (view) => (await view.read(job).findMany()).map((row) => row.id),
-        reconcile: async () => undefined,
-    };
-    const loop = new ControlLoop(database, [controller], {
-        report: (_controller, key) => reported.push(key),
-    });
-
-    // reject the run with the ended follow as its cause, reporting nothing
-    const ran = await loop.run(new AbortController().signal).catch((error: unknown) => error);
-    const cause = ran instanceof Error ? ran.cause : undefined;
-    expect({
-        ran: ran instanceof Error ? ran.message : "",
-        cause: cause instanceof Error ? cause.message : "",
-        reported,
-    }).toEqual({
-        ran: "brief failed to reconcile brief",
-        cause: "brief stopped following brief without an abort",
-        reported: [],
-    });
-});
-
-test("retry a failing follow at once when its revision changes, else only after its backoff", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "job", scope: "space", runs: 1 }).execute(),
-    );
-
-    // fail each follow at once, the job's runs its revision
-    const revisions = new Map<string, string>();
-    const started: string[] = [];
-    let listings = 0;
-    const controller: FollowController = {
-        name: "failing",
-        mode: "follow",
-        watches: [job],
-        list: async (view) => {
-            const rows = await view.read(job).findMany();
-            for (const row of rows) {
-                revisions.set(row.id, String(row.runs));
-            }
-            listings += 1;
-
-            return rows.map((row) => row.id);
-        },
-        revision: (key) => revisions.get(key),
-        reconcile: async (key) => {
-            started.push(`${key}@${found(revisions, key)}`);
-            throw Failure.error(Failure.http("CONFLICT", "refused"));
-        },
-    };
-
-    // run the loop at a frozen clock, so no backoff ever ends
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], {
-        report: ignore,
-    });
-    const running = loop.run(stopping.signal);
-    await waitEqual(simulation, () => started, ["job@1"]);
-
-    // change the job without its revision, which lists it again without a retry
-    const before = listings;
-    await database.transaction((transaction) =>
-        transaction.update(job).set({ scope: "elsewhere" }).where(eq(job.id, "job")).execute(),
-    );
-    await waitEqual(simulation, () => listings, before + 1);
-    await yieldToEventLoop();
-    const unrevised = [...started];
-
-    // change its revision, which retries it at once
-    await database.transaction((transaction) =>
-        transaction.update(job).set({ runs: 2 }).where(eq(job.id, "job")).execute(),
-    );
-    await waitEqual(simulation, () => started, ["job@1", "job@2"]);
-    expect(unrevised).toEqual(["job@1"]);
-    stopping.abort();
-    await running;
-});
-
-test("start a failing follow at once once its list drops it and lists it again, forgetting its failures", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "job", scope: "space", runs: 1 }).execute(),
-    );
-
-    // fail each follow at once, on a frozen clock so no backoff ends
-    const started: string[] = [];
-    let listings = 0;
-    const controller: FollowController = {
-        name: "failing",
-        mode: "follow",
-        watches: [job],
-        list: async (view) => {
-            listings += 1;
-
-            return (await view.read(job).findMany()).map((row) => row.id);
-        },
-        reconcile: async (key) => {
-            started.push(key);
-            throw Failure.error(Failure.http("CONFLICT", "refused"));
-        },
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], {
-        report: ignore,
-    });
-    const running = loop.run(stopping.signal);
-    await waitEqual(simulation, () => started, ["job"]);
-
-    // drop the job from the list, then list it again
-    const before = listings;
-    await database.transaction((transaction) =>
-        transaction.delete(job).where(eq(job.id, "job")).execute(),
-    );
-    await waitEqual(simulation, () => listings, before + 1);
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "job", scope: "space", runs: 1 }).execute(),
-    );
-    await waitEqual(simulation, () => started, ["job", "job"]);
-    stopping.abort();
-    await running;
-});
-
-test("refuse a follower whose list never reads its watched tables through its view", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-
-    // list a fixed key while watching jobs
-    const controller: FollowController = {
-        name: "blind",
-        mode: "follow",
-        watches: [job],
-        list: async () => ["blind"],
-        reconcile: async () => undefined,
-    };
-    const loop = new ControlLoop(storage.database, [controller], {
-        report: () => {},
-    });
-
-    // fail the loop instead of never listing again
-    await expect(loop.run(new AbortController().signal)).rejects.toEqual(
-        new TypeError("blind watches tables, but its list reads no table"),
-    );
-});
-
-test("follow a key again once its list names it after it failed and was dropped", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "flaky", scope: "space", runs: 1 }).execute(),
-    );
-
-    // fail the first follow and follow until stopped
-    const started: string[] = [];
-    const controller: FollowController = {
-        name: "flaky",
-        mode: "follow",
-        watches: [job],
-        concurrency: 8,
-        list: async (view) => (await view.read(job).findMany()).map((row) => row.id),
-        reconcile: async (key, { signal }) => {
-            started.push(key);
-            if (started.length === 1) {
-                throw Failure.error(Failure.http("CONFLICT", "the first follow fails"));
-            }
-            await new Promise<void>((resolve) => {
-                signal.addEventListener("abort", () => resolve(), { once: true });
-            });
-            throw signal.reason;
-        },
-    };
-    const stopping = new AbortController();
-    const running = new ControlLoop(database, [controller], {
-        report: () => {},
-    }).run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-
-    // leave the refused follow failed, and follow the key again once listed
-    await waitEqual(simulation, () => started, ["flaky"]);
-    await database.transaction((transaction) => transaction.delete(job).execute());
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "other", scope: "space", runs: 1 }).execute(),
-    );
-    await waitEqual(simulation, () => started, ["flaky", "other"]);
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "flaky", scope: "space", runs: 1 }).execute(),
-    );
-    await waitEqual(simulation, () => started, ["flaky", "other", "flaky"]);
-});
-
-test("set the host's alarm at the earliest due or skipped key, clear it once nothing is due, and settle idle waiters, also after the loop stopped", async () => {
-    // run in a world of its own
-    const simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-
-    // look at "later" again after a moment and at "soon" never again
-    const alarms: (number | null)[] = [];
-    const reconciled: string[] = [];
-    const controller: Controller = {
-        name: "job",
-        list: async () => ["later", "soon"],
-        reconcile: async (key) => {
-            reconciled.push(key);
-
-            return key === "later" && reconciled.filter((entry) => entry === "later").length === 1
-                ? 50
-                : undefined;
-        },
-    };
-    const clock = simulation.clock;
-    const started = clock.now();
-    const loop = new ControlLoop(storage.database, [controller], {
-        report: (_controller, _key, error) => {
-            throw error;
-        },
-        alarm: {
-            setAlarm: async (at) => {
-                alarms.push(at);
-            },
-            deleteAlarm: async () => {
-                alarms.push(null);
-            },
-        },
-    });
-    const stopping = new AbortController();
-    const running = loop.run(stopping.signal);
-
-    // settle once both keys ran, "later" not due again while the clock stands
-    await loop.idle();
-    const settled = [reconciled.toSorted(), alarms.length];
-
-    // clear the alarm once the clock passed "later" again and nothing is due
-    await simulation.jump(clock.now() + 50);
-    await waitEqual(simulation, () => alarms.at(-1), null);
-    stopping.abort();
-    await running;
-    expect([settled, reconciled.length, alarms.length]).toEqual([[["later", "soon"], 2], 3, 3]);
-    expect(alarms).toEqual([started, started + 50, null]);
-
-    // settle a waiter at once after the loop stopped
-    await expect(loop.idle()).resolves.toBeUndefined();
-});
-
-test("settle idle only after reconciling the keys of every watched change committed before the call", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    const reconciled: string[] = [];
-    const controller: Controller = {
-        name: "job",
-        watches: [job],
-        keys: (change) => (Change.of(change, job) ? [Change.image(change).id] : []),
-        list: async () => [],
-        reconcile: async (key) => {
-            reconciled.push(key);
-
-            return undefined;
-        },
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], { report: ignore });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-    await loop.idle();
-
-    // commit changes one after another, each followed by an idle wait seeing its key reconciled
-    const seen: string[][] = [];
-    for (const id of ["first", "second", "third"]) {
-        await database.transaction((transaction) =>
-            transaction.insert(job).values({ id, scope: "space", runs: 1 }).execute(),
-        );
-        await loop.idle();
-        seen.push([...reconciled]);
-    }
-    expect(seen).toEqual([["first"], ["first", "second"], ["first", "second", "third"]]);
-});
-
-test("keep the follow cursor before a change the follow is still keying, and move it to the head once the key ran", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-
-    // block the follow inside the keys of a change until released
-    const reconciled: string[] = [];
-    const keying = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<void>();
-    const controller: Controller = {
-        name: "job",
-        watches: [job],
-        keys: async (change) => {
-            keying.resolve();
-            await release.promise;
-
-            return Change.of(change, job) ? [Change.image(change).id] : [];
-        },
-        list: async () => [],
-        reconcile: async (key) => {
-            reconciled.push(key);
-
-            return undefined;
-        },
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], { report: ignore });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-    await loop.idle();
-
-    // commit a change and read the cursor while the follow keys it
-    const { sequence: before } = await database.log.position();
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "changed", scope: "space", runs: 1 }).execute(),
-    );
-    await keying.promise;
-    const { sequence: head } = await database.log.position();
-    const followedWhileKeying = loop.followed;
-
-    // release the follow and settle once the key ran, the follow at the head
-    release.resolve();
-    await loop.idle();
-    expect({ followedWhileKeying, followed: loop.followed, depth: loop.depth, reconciled }).toEqual(
+    const loop = new ControlLoop(
+        database,
+        { controllers: [], consumers: [consumer] },
         {
-            followedWhileKeying: before,
-            followed: head,
-            depth: 0,
-            reconciled: ["changed"],
+            report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
         },
     );
+    running(loop);
+
+    // take the note appended before the start, then one appended later, never b's
+    await waitEqual(simulation, () => taken, ["a/first"]);
+    await append("second", "a");
+    await append("again", "b");
+    await waitEqual(simulation, () => taken, ["a/first", "a/second"]);
+    await loop.idle();
+    expect([taken, reported]).toEqual([["a/first", "a/second"], []]);
 });
 
-test("spend no statement on commits to tables no controller watches", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
+test("take a scope's appends once its first unconsumed one is a batch old, at the start and as they commit", async () => {
+    // place a checkpoint in space a and append a note before the start
+    const simulation = testSimulation();
+    const { database } = await openJobs(simulation, [note, lock]);
+    const started = simulation.clock.now();
+    await database.log.place({ name: "note-batch:a", tables: [note] }, Number.MAX_SAFE_INTEGER);
+    const append = (id: string) =>
+        database.transaction((transaction) =>
+            transaction.insert(note).values({ id, scope: "a" }).execute(),
+        );
+    await append("first");
 
-    const storage = await TestDatabase.create([job, note, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    const controller: Controller = {
-        name: "job",
-        watches: [job],
-        keys: (change) => (Change.of(change, job) ? [Change.image(change).id] : []),
-        list: async () => [],
-        reconcile: async () => undefined,
+    // record when each page is taken, moving the checkpoint past it
+    const taken: number[] = [];
+    const consumer: Consumer = {
+        name: "note-batch",
+        reads: [note],
+        checkpoint: "scope",
+        batch: 50,
+        consume: async (scope) => {
+            const checkpoint = `note-batch:${scope}`;
+            const after = await database.log.checkpoint(checkpoint);
+            if (after === undefined) {
+                return;
+            }
+            const page = await database.log.read({ tables: [note], scopes: [scope], after });
+            taken.push(simulation.clock.now() - started);
+            await database.log.move(
+                { name: checkpoint, tables: [note] },
+                after,
+                page.sequence,
+                Number.MAX_SAFE_INTEGER,
+            );
+        },
     };
+    const loop = new ControlLoop(
+        database,
+        { controllers: [], consumers: [consumer] },
+        { report: ignore },
+    );
     const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], { report: ignore });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
+    const run = loop.run(stopping.signal);
+
+    // take the first a batch after it, then a later append a batch after it
+    await loop.idle();
+    await simulation.jump(started + 50);
+    await loop.idle();
+    await simulation.jump(started + 60);
+    await append("second");
+    await loop.idle();
+    await simulation.jump(started + 110);
+    await loop.idle();
+    stopping.abort();
+    await run;
+    expect(taken).toEqual([50, 110]);
+});
+
+test("project every key at the first start, then only the keys the changes past its checkpoint touch, across restarts", async () => {
+    // record notes in two spaces before the first start
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [note, lock]);
+    const append = (id: string, scope: string) =>
+        database.transaction((transaction) =>
+            transaction.insert(note).values({ id, scope }).execute(),
+        );
+    await append("first", "a");
+    await append("second", "b");
+
+    // project a space from its notes, listing every space with notes
+    const projected: string[] = [];
+    const projection = () =>
+        new Projection(database, {
+            name: "note-spaces",
+            reads: [note],
+            keys: async (change) => [schema.string().parse(Change.image(change)["scope"])],
+            all: async (connection) =>
+                (await connection.selectDistinct({ scope: note.scope }).from(note)).map(
+                    (row) => row.scope,
+                ),
+            project: async (key) => {
+                projected.push(key);
+            },
+        });
+    const start = async () => {
+        const stopping = new AbortController();
+        const loop = new ControlLoop(
+            database,
+            { controllers: [], consumers: [projection()] },
+            { report: ignore },
+        );
+        const run = loop.run(stopping.signal);
+        await loop.idle();
+
+        return async () => {
+            stopping.abort();
+            await run;
+        };
+    };
+
+    // project both at the first start, then the one a note touches
+    const stop = await start();
+    const initial = projected.splice(0);
+    await append("third", "b");
+    await simulation.waitUntil(() => projected.length > 0);
+    const changed = projected.splice(0);
+    await stop();
+
+    // project nothing at an unchanged restart, and the space a note touched while stopped at the next
+    const unchanged = await start();
+    const restarted = projected.splice(0);
+    await unchanged();
+    await append("fourth", "a");
+    const caught = await start();
+    const resumed = projected.splice(0);
+    await caught();
+    expect({ initial: initial.toSorted(), changed, restarted, resumed }).toEqual({
+        initial: ["a", "b"],
+        changed: ["b"],
+        restarted: [],
+        resumed: ["a"],
     });
+});
+
+test("list a controller of an unlogged table again after a commit to its table", async () => {
+    // reconcile open tickets of an unlogged table
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [ticket, lock]);
+    const reconciled: string[] = [];
+    const controller: Controller<typeof ticket> = {
+        name: "ticket",
+        table: ticket,
+        pending: { status: "open" },
+        reconcile: async (rows) => {
+            const { id } = nth(rows, 0);
+            reconciled.push(id);
+            await database.update(ticket).set({ status: "done" }).where(eq(ticket.id, id));
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        { report: ignore },
+    );
+    running(loop);
     await loop.idle();
 
-    // commit notes one at a time for the loop to see, and count every statement
+    // reconcile a ticket written after the start
+    await database.insert(ticket).values({ id: "first", status: "open" });
+    await waitEqual(simulation, () => reconciled, ["first"]);
+});
+
+test("list again after the follow's changes were compacted, reconciling the rows pending meanwhile", async () => {
+    // reconcile open jobs, holding the first until its follow's later changes are compacted
+    await using simulation = testSimulation();
+    const { database, write, world } = await openJobs(simulation);
+    const reconciled: string[] = [];
+    const held = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        watches: [
+            {
+                table: note,
+                keys: async () => {
+                    held.resolve();
+                    await release.promise;
+
+                    return [];
+                },
+            },
+        ],
+        reconcile: async (rows) => {
+            reconciled.push(nth(rows, 0).id);
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        { report: ignore },
+    );
+    running(loop);
+    await loop.idle();
+
+    // stop the follow at a note, write a job, and compact both
+    await database.transaction((transaction) =>
+        transaction.insert(note).values({ id: "note", scope: "space" }).execute(),
+    );
+    await held.promise;
+    await write([{ id: "meanwhile", status: "open", dueAt: 0 }]);
+    const at = world.clock.now();
+    await database.log.compact(at + 1, at);
+
+    // list again across the compaction, reconciling the job pending meanwhile
+    const idling = loop.idle();
+    release.resolve();
+    await idling;
+    expect(reconciled).toEqual(["meanwhile"]);
+});
+
+test("select a reloaded table's changes by its name, reading pending rows through a table defined anew", async () => {
+    // reconcile open jobs read through a table a module loaded again defined
+    await using simulation = testSimulation();
+    const { database, write } = await openJobs(simulation);
+    const reconciled: string[] = [];
+    const controller: Controller<typeof reloadedJob> = {
+        name: "job",
+        table: reloadedJob,
+        pending: { status: "open" },
+        reconcile: async (rows) => {
+            reconciled.push(nth(rows, 0).id);
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        { report: ignore },
+    );
+    running(loop);
+    await loop.idle();
+
+    // reconcile a job written through the first definition
+    await write([{ id: "first", status: "open", dueAt: 0 }]);
+    await waitEqual(simulation, () => reconciled, ["first"]);
+});
+
+test("spend no statement on commits to tables no controller reads", async () => {
+    // reconcile open jobs, and commit notes no controller reads
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation);
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        reconcile: async () => {},
+    };
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], consumers: [] },
+        { report: ignore },
+    );
+    running(loop);
+    await loop.idle();
+
+    // count each note commit's transaction and its insert alone, past the log's first compaction
+    await database.transaction((transaction) =>
+        transaction.insert(note).values({ id: "first", scope: "space" }).execute(),
+    );
+    await loop.idle();
     const before = database.driver.state.statements;
     for (let index = 0; index < NOTE_COMMITS; index++) {
         await database.transaction((transaction) =>
@@ -1499,288 +1030,5 @@ test("spend no statement on commits to tables no controller watches", async () =
         );
         await yieldToEventLoop();
     }
-    // count each commit's transaction and its insert alone
     expect(database.driver.state.statements - before).toBe(2 * NOTE_COMMITS);
-});
-
-test("settle idle once the log moved past a quiet watched table, also after compacting its last change", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, note, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    const controller: Controller = {
-        name: "job",
-        watches: [job],
-        keys: (change) => (Change.of(change, job) ? [Change.image(change).id] : []),
-        list: async () => [],
-        reconcile: async () => undefined,
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], { report: ignore });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-
-    // change the watched table once, then only another one, compacting past the watched change
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "first", scope: "space", runs: 1 }).execute(),
-    );
-    await loop.idle();
-    for (const id of ["one", "two", "three"]) {
-        await database.transaction((transaction) =>
-            transaction.insert(note).values({ id, scope: "space" }).execute(),
-        );
-    }
-    const now = world.clock.now();
-    await database.log.compact(now + 1, now);
-
-    // settle with the follow at the head
-    await expect(loop.idle()).resolves.toBeUndefined();
-});
-
-test("settle idle only after the key of a watched change committed while the alarm was being set", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-
-    // look at "later" again in a minute, which sets the alarm
-    const reconciled: string[] = [];
-    const keyed = Promise.withResolvers<void>();
-    const controller: Controller = {
-        name: "job",
-        watches: [job],
-        keys: (change) => {
-            keyed.resolve();
-
-            return Change.of(change, job) ? [Change.image(change).id] : [];
-        },
-        list: async () => ["later"],
-        reconcile: async (key) => {
-            reconciled.push(key);
-
-            return key === "later" ? 60_000 : undefined;
-        },
-    };
-
-    // commit a watched change while the alarm for "later" is set, blocked until the follow keyed it
-    let isChanged = false;
-    const alarm = {
-        setAlarm: async () => {
-            if (!isChanged && reconciled.length === 1) {
-                isChanged = true;
-                await database.transaction(
-                    async (transaction) =>
-                        await transaction
-                            .insert(job)
-                            .values({ id: "changed", scope: "space", runs: 1 }),
-                );
-                await keyed.promise;
-                await yieldToEventLoop();
-            }
-        },
-        deleteAlarm: async () => {},
-    };
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], {
-        report: ignore,
-        alarm,
-    });
-    const idling = loop.idle();
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-
-    // settle once the changed key ran too
-    await idling;
-    expect(reconciled).toEqual(["later", "changed"]);
-});
-
-test("reconcile a key named due while the worker's alarm is set, before it sleeps", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-
-    // mark "late" due while the worker's alarm is set at "first"
-    const reconciled: string[] = [];
-    const { promise: ran, resolve: run } = Promise.withResolvers<void>();
-    const controller: Controller = {
-        name: "job",
-        list: async () => ["first"],
-        reconcile: async (key) => {
-            reconciled.push(key);
-            run();
-
-            return undefined;
-        },
-    };
-    const loop: ControlLoop = new ControlLoop(storage.database, [controller], {
-        report: (_controller, _key, error) => {
-            throw error;
-        },
-        alarm: {
-            setAlarm: async () => {
-                // enqueue it once
-                await ran;
-                await yieldToEventLoop();
-                if (!reconciled.includes("late")) {
-                    loop.enqueue(controller, "late");
-                }
-            },
-            deleteAlarm: async () => {},
-        },
-    });
-    const stopping = new AbortController();
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-
-    // reconcile "late" without another change waking the worker
-    await waitEqual(simulation, () => reconciled, ["first", "late"]);
-});
-
-test("settle an alarm at its deadline while a follow runs, leave the alarm due, and resume the follow from its recorded position after eviction", async () => {
-    // run in a world of its own
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const storage = await TestDatabase.create([job, lock], {
-        environment: world,
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    await database.transaction((transaction) =>
-        transaction.insert(job).values({ id: "copy", scope: "space", runs: 0 }).execute(),
-    );
-
-    // follow a growing source
-    const source = ["first", "second"];
-    const applied: string[] = [];
-    let follows = 0;
-    const controller: FollowController = {
-        name: "copy",
-        mode: "follow",
-        list: async () => ["copy"],
-        reconcile: async (key, { signal }) => {
-            follows++;
-            // apply the events after the recorded position, then follow until stopped
-            const row = await database.select().from(job).where(eq(job.id, key)).get();
-            applied.push(...source.slice(row?.runs ?? 0));
-            await database.transaction(
-                async (transaction) =>
-                    await transaction
-                        .update(job)
-                        .set({ runs: source.length })
-                        .where(eq(job.id, key)),
-            );
-            await new Promise<void>((resolve) => {
-                signal.addEventListener("abort", () => resolve(), { once: true });
-            });
-            throw signal.reason;
-        },
-    };
-
-    // run the follow in a loop on the object's alarm
-    const alarms: number[] = [];
-    const alarm = {
-        setAlarm: async (at: number) => {
-            alarms.push(at);
-        },
-        deleteAlarm: async () => {
-            throw new Error("a running follow leaves the alarm due");
-        },
-    };
-    const start = () => {
-        const stopping = new AbortController();
-        const loop = new ControlLoop(database, [controller], {
-            report: ignore,
-            alarm,
-        });
-
-        return { loop, stopping, running: loop.run(stopping.signal) };
-    };
-    const evicted = start();
-
-    // settle the alarm at its deadline once the follow runs
-    await waitEqual(simulation, () => follows, 1);
-    await simulation.wait(evicted.loop.idle(world.clock.now() + 20));
-    const settled = world.clock.now();
-    const isDue = alarms.length === 1 && nth(alarms, 0) <= settled;
-
-    // evict the object
-    evicted.stopping.abort();
-    await simulation.wait(evicted.running);
-
-    // receive another event and resume in a new loop from the recorded position
-    source.push("third");
-    const resumed = start();
-    await waitEqual(simulation, () => applied.length, 3);
-    resumed.stopping.abort();
-    await simulation.wait(resumed.running);
-    expect({ isDue, applied, follows }).toEqual({
-        isDue: true,
-        applied: ["first", "second", "third"],
-        follows: 2,
-    });
-});
-
-test("run work until a change shows it ended elsewhere, and settle unchanged work as it finishes", async () => {
-    // run a reconciliation whose key changes when told to
-    const changes: (() => void)[] = [];
-    const changing = {
-        ...reconciliation(),
-        changed: () =>
-            new Promise<void>((resolve) => {
-                changes.push(resolve);
-            }),
-    };
-    const change = () => changes.splice(0).forEach((resolve) => resolve());
-
-    // abort work once a change shows it was cancelled
-    let isCancelled = false;
-    const cancelled = Reconciliation.runUntil(
-        changing,
-        async () => (isCancelled ? new Error("cancelled") : undefined),
-        (signal) =>
-            new Promise<unknown>((resolve) => {
-                signal.addEventListener("abort", () => resolve(signal.reason), { once: true });
-            }),
-    );
-    change();
-    await yieldToEventLoop();
-    isCancelled = true;
-    change();
-
-    // settle work no change ended with its result
-    const finished = Reconciliation.runUntil(
-        changing,
-        async () => undefined,
-        async () => "built",
-    );
-    expect([await cancelled, await finished]).toEqual([new Error("cancelled"), "built"]);
 });

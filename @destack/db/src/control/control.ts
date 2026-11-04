@@ -2,9 +2,12 @@ import type { DatabaseConnection } from "../database/index.ts";
 import { DatabaseError } from "../error/index.ts";
 import { Lock, lock } from "../limit/index.ts";
 import type { Tracker } from "../tracker/index.ts";
-import { type Change, ReadSet, Snapshot } from "../log/index.ts";
-import { TABLE, type Table } from "../table/index.ts";
-import { found, nth, Uuid } from "@destack/schema";
+import { Change, LogColumn } from "../log/index.ts";
+import { LOG, LOG_CHECKPOINT } from "../log/schema.ts";
+import { and, gt, gte, min, Placeholder, type SQL, sql } from "../sql/index.ts";
+import { Condition, type Match, Namespace, Predicate, Scalar } from "../query/index.ts";
+import { TABLE, type Row, type RowImage, type Select, type Table } from "../table/index.ts";
+import { canonicalize, Duration, found, nth, schema, Uuid } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { Failure } from "@destack/error";
@@ -23,65 +26,142 @@ const TRANSIENT_REPORT_MILLISECONDS = 60_000;
 /** The transient failures a key reaches before a report, its retries 1, 2 and 4 s apart. */
 const TRANSIENT_REPORT_ATTEMPTS = 4;
 
-/** A loop converging the actual state of each listed key to its rows. */
-export interface ReconcileController {
-    /** The controller's name in reports. */
+/** The most pending rows one reconciliation takes: 1,000 rows of about 0.5 KB, half a megabyte. */
+const KEY_ROWS = 1000;
+
+/** The fields of a key, as its canonical JSON text has them. */
+const KEY_FIELDS = schema.record(schema.string(), Scalar);
+
+/** The key of a consumer's one checkpoint. */
+const ONE_CHECKPOINT = "";
+
+/** Microseconds per millisecond. */
+const MICROSECONDS_PER_MILLISECOND = 1000;
+
+/** The prefix of the placeholders that read the loop's time, followed by their scale and offset. */
+const NOW = "now";
+
+/** The time a pending condition compares a field to, at an offset in milliseconds. */
+export class Now extends Placeholder {
+    /** The offset from the loop's time, in milliseconds. */
+    readonly offset: number;
+    /** The compared field's units per millisecond: 1 for milliseconds, 1,000 for microseconds. */
+    readonly scale: number;
+
+    /** Read the loop's time at an offset, in a field's units. */
+    constructor(offset = 0, scale = 1) {
+        super(`${NOW}${String(scale)}_${String(offset)}`);
+        this.offset = offset;
+        this.scale = scale;
+    }
+
+    /** Read the loop's time a duration earlier. */
+    minus(duration: Duration): Now {
+        return new Now(this.offset - Duration.milliseconds(duration), this.scale);
+    }
+
+    /** Read the loop's time a duration later. */
+    plus(duration: Duration): Now {
+        return new Now(this.offset + Duration.milliseconds(duration), this.scale);
+    }
+
+    /** Read the loop's time in microseconds, for fields such as event times. */
+    microseconds(): Now {
+        return new Now(this.offset, MICROSECONDS_PER_MILLISECOND);
+    }
+
+    /** Bind the time at a loop's time in the field's units. */
+    at(time: number): number {
+        return (time + this.offset) * this.scale;
+    }
+
+    /** Read the loop's time at which a field's value comes due, inclusive or after it. */
+    due(value: number, isInclusive: boolean): number {
+        return isInclusive
+            ? Math.ceil(value / this.scale) - this.offset
+            : Math.floor(value / this.scale) - this.offset + 1;
+    }
+}
+
+/** The loop's time, which pending conditions compare time fields to. */
+export const now = new Now();
+
+/** The fields that group a controller's rows into one key, in JSON form. */
+export type KeyFields = Readonly<Record<string, Scalar>>;
+
+/** Another table whose changed rows select a controller's keys. */
+export interface Watch<Watched extends Table = Table> {
+    /** The watched table. */
+    readonly table: Watched;
+    /** Read the keys a changed row selects. */
+    keys(
+        change: Change<Watched>,
+        database: DatabaseConnection,
+    ): readonly KeyFields[] | Promise<readonly KeyFields[]>;
+}
+
+/** What a controller does with its pending rows: converge them, or hold work while they stay. */
+type Work<Definition extends Table> =
+    | {
+          /** Converge one key's pending rows and return, writing them out of pending. */
+          reconcile(
+              rows: readonly Select<Definition>[],
+              reconciliation: Reconciliation,
+          ): Promise<void>;
+      }
+    | {
+          /** Hold one key's work in the process while its rows stay pending, until stopped. */
+          follow(rows: readonly Select<Definition>[], following: Following): Promise<void>;
+      };
+
+/** A table's reactive behavior: the rows with work, and what to do with them. */
+export type Controller<Definition extends Table = Table> = {
+    /** The controller's name in reports and locks. */
     readonly name: string;
-    /** The tables with changes or commits that select keys or list them again. */
-    readonly watches?: readonly Table[];
-    /** List the keys a watched change affects, when reconciling. */
-    readonly keys?: (change: Change) => readonly string[] | Promise<readonly string[]>;
-    /** List every key through the view; a follower gets the changes that list it again. */
-    readonly list: (view: Snapshot, delta?: Delta) => Promise<readonly string[]>;
+    /** The rows with the work. */
+    readonly table: Definition;
+    /** The rows with work now, which may compare time fields to `now`. */
+    readonly pending: Condition<RowImage<Definition>>;
+    /** The fields grouping rows into one key, the primary key's by default. */
+    readonly key?: readonly (keyof RowImage<Definition> & string)[];
+    /** Other tables whose changed rows select keys. */
+    readonly watches?: readonly Watch[];
     /** The most keys it works on at once, one by default. */
     readonly concurrency?: number;
-    /** Converge each key and return, the default mode. */
-    readonly mode?: "reconcile";
-    /** Read a listed key's desired revision, whose change retries a failing key at once. */
-    readonly revision?: (key: string) => string | undefined;
-    /** Converge one key and return the delay before looking again, or follow it until stopped. */
-    readonly reconcile: (
-        key: string,
-        reconciliation: Reconciliation,
-    ) => Promise<number | undefined>;
+} & Work<Definition>;
+
+/** A consumer of tables' changes in the log after its position. */
+export interface Consumer {
+    /** The consumer's name in reports and locks, and its checkpoints' name or prefix `<name>:`. */
+    readonly name: string;
+    /** The tables whose changes the consumer takes. */
+    readonly reads: readonly Table[];
+    /** Where its position lives: a checkpoint per scope for appends, one, or its memory. */
+    readonly checkpoint: "scope" | "one" | "none";
+    /** How long a checkpoint's first unconsumed change waits before it is taken, in ms. */
+    readonly batch?: number;
+    /** The most checkpoints it consumes at once, one by default. */
+    readonly concurrency?: number;
+    /** Take the changes past a scope's checkpoint, or the one checkpoint's under an empty key. */
+    readonly consume: (key: string, reconciliation: Reconciliation) => Promise<void>;
 }
 
-/** A controller following each key until stopped, as an informer follows its source. */
-export interface FollowController extends Omit<ReconcileController, "mode" | "keys" | "reconcile"> {
-    /** Follow each key until stopped. */
-    readonly mode: "follow";
-    /** Follow one key until stopped, reporting once it caught up with its source. */
-    readonly reconcile: (key: string, following: Following) => Promise<number | undefined>;
+/** What a loop runs: controllers over rows, and consumers of changes. */
+export interface Control {
+    /** The controllers converging or following rows. */
+    readonly controllers: readonly Controller[];
+    /** The consumers taking changes past their positions. */
+    readonly consumers: readonly Consumer[];
 }
 
-/** A controller a loop runs: converging keys, or following them. */
-export type Controller = ReconcileController | FollowController;
-
-/** The writes that make a follower list again: logged changes and written unlogged tables. */
-export interface Delta {
-    /** The logged changes of its watched tables. */
-    readonly changes: readonly Change[];
-    /** The unlogged watched tables commits wrote, by SQL name. */
-    readonly unlogged: ReadonlySet<string>;
-}
-
-/** A key's backoff: its failures in a row, the last failure and the revision it failed at. */
-interface Backoff {
-    /** The failures in a row. */
-    readonly count: number;
-    /** The last failure. */
-    readonly failure: Failure;
-    /** Whether the loop reported the last failure, or an earlier one of the same reason. */
-    readonly isReported: boolean;
-    /** The revision the controller read for the key as it failed, absent without revisions. */
-    readonly revision: string | undefined;
-}
+/** One job of a loop: a controller or a consumer, each locked and retried alike. */
+type Job = Controller | Consumer;
 
 /** One running reconciliation of a key. */
 export interface Reconciliation {
-    /** Abort once the loop stops or the key leaves the list. */
+    /** Abort once the loop stops or the key leaves pending. */
     readonly signal: AbortSignal;
-    /** Wait for the key to change again while it reconciles, as its controller's keys select it. */
+    /** Wait for the key's rows to change again while it reconciles. */
     readonly changed: () => Promise<void>;
 }
 
@@ -127,12 +207,38 @@ export const Reconciliation = {
     },
 };
 
-/** One key a controller reconciles, due at a time. */
-interface Work {
-    /** The controller reconciling the key. */
+/** A key's backoff: its failures in a row, the last failure and whether it was reported. */
+interface Backoff {
+    /** The failures in a row. */
+    readonly count: number;
+    /** The last failure. */
+    readonly failure: Failure;
+    /** Whether the loop reported the last failure, or an earlier one of the same reason. */
+    readonly isReported: boolean;
+}
+
+/** A comparison of a field to the loop's time, which turns true as time passes. */
+interface TimeTerm {
+    /** The compared field. */
+    readonly field: string;
+    /** Whether the field may equal the time. */
+    readonly isInclusive: boolean;
+    /** The compared time. */
+    readonly now: Now;
+}
+
+/** A controller compiled for the loop: its conditions, time terms and key fields. */
+interface Compiled {
+    /** The declared controller. */
     readonly controller: Controller;
-    /** The key. */
-    readonly key: string;
+    /** The pending rows, matched in memory with the loop's time bound. */
+    readonly pending: Match;
+    /** The comparisons to the loop's time. */
+    readonly terms: readonly TimeTerm[];
+    /** The placeholders of the loop's time the condition reads, by name with their offsets. */
+    readonly times: ReadonlyMap<string, Now>;
+    /** The fields grouping rows into one key. */
+    readonly key: readonly string[];
 }
 
 /** Run controllers over one database. */
@@ -140,30 +246,34 @@ export class ControlLoop {
     /** The tables a loop keeps beside its controllers' on a shared database: their locks. */
     static readonly tables: readonly Table[] = [lock];
 
-    /** The database with the log that selects keys. */
+    /** The database with the controllers' rows and the log that selects keys. */
     readonly database: DatabaseConnection;
-    /** The controllers run. */
-    readonly controllers: readonly Controller[];
+    /** The controllers and consumers run. */
+    readonly control: Control;
+    /** The controllers and consumers as one list of jobs. */
+    readonly #jobs: readonly Job[];
+    /** Each row controller compiled, by controller. */
+    readonly #compiled: Map<Job, Compiled>;
     /** Report a failed reconciliation. */
-    readonly #report: (controller: Controller, key: string, error: unknown) => void;
+    readonly #report: (controller: Job, key: string, error: unknown) => void;
     /** The loop's spans and captures, on the database's telemetry. */
     readonly #instruments: TelemetryScope;
     /** How a transiently failed key retries. */
     readonly #retry: RetryPolicy;
     /** The keys due, by controller and key, with the time each is due at. */
-    readonly #due = new Map<Controller, Map<string, number>>();
+    readonly #due = new Map<Job, Map<string, number>>();
     /** The due keys, earliest first. */
     readonly #queue = new DueQueue();
+    /** When each controller lists its rows again as the earliest waiting one comes due. */
+    readonly #wakes = new Map<Job, number>();
     /** The consecutive failures by controller and key. */
-    readonly #failures = new Map<Controller, Map<string, Backoff>>();
+    readonly #failures = new Map<Job, Map<string, Backoff>>();
     /** When each key first failed transiently in its current run of failures. */
-    readonly #transient = new Map<Controller, Map<string, number>>();
+    readonly #transient = new Map<Job, Map<string, number>>();
     /** The keys reconciling now by controller with their abort controllers. */
-    readonly #running = new Map<Controller, Map<string, AbortController>>();
-    /** What each following controller's last list read. */
-    readonly #reads = new Map<Controller, ReadSet>();
+    readonly #running = new Map<Job, Map<string, AbortController>>();
     /** Each controller's latest listing, which the next one waits for. */
-    readonly #refreshing = new Map<Controller, Promise<void>>();
+    readonly #listing = new Map<Job, Promise<void>>();
     /** The running reconciliations and follows. */
     readonly #reconciling = new Set<Promise<void>>();
     /** The running keys not settled yet, a follow settling once synced. */
@@ -171,11 +281,11 @@ export class ControlLoop {
     /** The tracker whose instance locks each key, when other connections share the database. */
     readonly #tracker?: Tracker;
     /** The lock of each controller, when other connections share the database. */
-    readonly #locks = new Map<Controller, Lock>();
+    readonly #locks = new Map<Job, Lock>();
     /** Whether the loop leads each controller, settled once its lock is taken or refused. */
-    readonly #leading = new Map<Controller, Promise<boolean>>();
+    readonly #leading = new Map<Job, Promise<boolean>>();
     /** The keys waiting for another holder's lock, run again once it releases or stops. */
-    readonly #waiting = new Map<Controller, Set<string>>();
+    readonly #waiting = new Map<Job, Set<string>>();
     /** The count of other holders' releases and stops, which a refused take compares. */
     #releases = 0;
     /** The host's wake-up for the earliest due key. */
@@ -200,24 +310,26 @@ export class ControlLoop {
     #followed = 0;
     /** Aborts once an idle check found the follow behind a compaction, making it list again. */
     #relisting = new AbortController();
-    /** The logged tables the controllers watch, which the follow reads, one per name. */
+    /** The logged tables the controllers read and watch, which the follow reads, one per name. */
     readonly #watched: readonly Table[];
-    /** The names of the tables each controller watches, which a reloaded module defines anew. */
-    readonly #watchedNames = new Map<Controller, ReadonlySet<string>>();
     /** Whether the loop stopped, after which nothing more runs. */
     #isStopped = false;
-    /** The waiters for a change of each reconciling key, by controller. */
-    readonly #changes = new Map<Controller, Map<string, (() => void)[]>>();
+    /** The waiters for a change of each running key, by controller. */
+    readonly #changes = new Map<Job, Map<string, (() => void)[]>>();
     /** Aborts once work arrives after the worker last looked for it. */
     #woken = new AbortController();
 
     /** Create the loop. */
     constructor(
         database: DatabaseConnection,
-        controllers: readonly Controller[],
+        control: Control,
         options: {
             /** Report a failed reconciliation, beside the loop recording it. */
-            readonly report: (controller: Controller, key: string, error: unknown) => void;
+            readonly report: (
+                controller: Controller | Consumer,
+                key: string,
+                error: unknown,
+            ) => void;
             /** How a transiently failed key retries. */
             readonly retry?: Partial<RetryPolicy>;
             /** Set a wake-up for the earliest due key, so an evicted instance runs it. */
@@ -228,7 +340,9 @@ export class ControlLoop {
     ) {
         // start with no key due and no failure
         this.database = database;
-        this.controllers = controllers;
+        this.control = control;
+        const jobs: readonly Job[] = [...control.controllers, ...control.consumers];
+        this.#jobs = jobs;
         const instruments = TelemetryScope.of(
             import.meta.destack.package,
             database.state.environment.telemetry,
@@ -255,19 +369,21 @@ export class ControlLoop {
             const { tracker } = database;
             const holder = Uuid.v4(database.state.environment.random);
             this.#tracker = tracker;
-            for (const controller of controllers) {
+            for (const controller of jobs) {
                 const name = ControlLoop.#lockName(controller);
                 this.#locks.set(controller, new Lock(database, name, tracker.instance, holder));
             }
         }
-        // read the logged tables the controllers watch once per name, and each controller's names
-        const watched = controllers.flatMap((controller) => controller.watches ?? []);
+
+        // compile each controller, and read the logged tables they read once per name
+        this.#compiled = new Map(
+            control.controllers.map((controller) => [controller, ControlLoop.#compile(controller)]),
+        );
+        const read = jobs.flatMap((each) => ControlLoop.#tables(each));
         this.#watched = [
-            ...new Map(watched.map((table) => [table[TABLE].sqlName, table])).values(),
+            ...new Map(read.map((table) => [table[TABLE].sqlName, table])).values(),
         ].filter((table) => table[TABLE].retention !== "none");
-        for (const controller of controllers) {
-            const names = (controller.watches ?? []).map((table) => table[TABLE].sqlName);
-            this.#watchedNames.set(controller, new Set(names));
+        for (const controller of jobs) {
             this.#due.set(controller, new Map());
             this.#failures.set(controller, new Map());
             this.#running.set(controller, new Map());
@@ -334,21 +450,16 @@ export class ControlLoop {
     /** The keys waiting or settling: due now and not running, or running and not yet settled. */
     get depth(): number {
         // count each due key once, leaving the running keys their settling counts
-        const now = this.#clock.now();
+        const at = this.#clock.now();
         let due = 0;
         for (const [controller, keys] of this.#due) {
             const running = found(this.#running, controller);
-            for (const [key, at] of keys) {
-                due += at <= now && !running.has(key) ? 1 : 0;
+            for (const [key, time] of keys) {
+                due += time <= at && !running.has(key) ? 1 : 0;
             }
         }
 
         return due + this.#unsettled.size;
-    }
-
-    /** The log sequence the loop consumed, behind the log's head while changes wait to be keyed. */
-    get followed(): number {
-        return this.#followed;
     }
 
     /** Settle once no key is due or reconciling, every follow synced and every change received. */
@@ -376,13 +487,413 @@ export class ControlLoop {
         return promise.finally(() => settled.abort());
     }
 
-    /** Mark a key due. */
-    enqueue(controller: Controller, key: string, at = this.#clock.now()): void {
-        // tell a reconciliation of the key that it changed
-        for (const resolve of this.#changes.get(controller)?.get(key)?.splice(0) ?? []) {
-            resolve();
+    /** Compile a controller: its condition, the comparisons to the loop's time and its key. */
+    static #compile(controller: Controller): Compiled {
+        // find the comparisons to the loop's time at the top of the condition
+        const terms: TimeTerm[] = [];
+        for (const [field, entry] of Object.entries<unknown>(controller.pending)) {
+            if (Condition.is(entry)) {
+                for (const [operator, value] of Object.entries<unknown>(entry)) {
+                    if ((operator === "lte" || operator === "lt") && value instanceof Now) {
+                        terms.push({ field, isInclusive: operator === "lte", now: value });
+                    }
+                }
+            }
         }
 
+        // refuse the loop's time anywhere but a field's upper bound at the top of the condition
+        if (ControlLoop.#countNows(controller.pending) !== terms.length) {
+            throw new TypeError(
+                `controller ${controller.name} compares now outside a field's lt or lte at the top of its pending condition`,
+            );
+        }
+
+        return {
+            controller,
+            pending: ControlLoop.#match(controller.table, controller.pending),
+            terms,
+            times: new Map(terms.map((term) => [term.now.placeholder, term.now])),
+            key: controller.key ?? controller.table[TABLE].key,
+        };
+    }
+
+    /** Report whether a job consumes changes. */
+    static #isConsumer(controller: Job): controller is Consumer {
+        return "reads" in controller;
+    }
+
+    /** List the tables a job reads: a controller's own and watched tables, or a consumer's. */
+    static #tables(controller: Job): readonly Table[] {
+        return ControlLoop.#isConsumer(controller)
+            ? controller.reads
+            : [controller.table, ...(controller.watches ?? []).map((watch) => watch.table)];
+    }
+
+    /** Count the comparisons to the loop's time anywhere in a condition. */
+    static #countNows(condition: unknown): number {
+        if (condition instanceof Now) {
+            return 1;
+        } else if (typeof condition !== "object" || condition === null) {
+            return 0;
+        }
+
+        return Object.values(condition).reduce<number>(
+            (count, value) => count + ControlLoop.#countNows(value),
+            0,
+        );
+    }
+
+    /** Compile a condition on a table for matching rows in memory. */
+    static #match(table: Table, condition: Condition): Match {
+        return Predicate.compile(Condition.resolve(condition, Namespace.fields(table)), table);
+    }
+
+    /** Bind the loop's time at its offsets, by placeholder name, or past every time with none. */
+    #bound(compiled: Compiled, at: number | undefined): Readonly<Record<string, Scalar>> {
+        if (at === undefined) {
+            return Object.fromEntries(
+                [...compiled.times.keys()].map((name) => [name, Number.MAX_SAFE_INTEGER]),
+            );
+        }
+
+        return Object.fromEntries([...compiled.times].map(([name, time]) => [name, time.at(at)]));
+    }
+
+    /** Report whether a row matches a compiled condition with the loop's time bound. */
+    #matches(compiled: Compiled, match: Match, row: Row, at: number | undefined): boolean {
+        const placeholders = this.#bound(compiled, at);
+
+        return (
+            match({
+                field: (name) => row[name],
+                placeholder: (name) => placeholders[name] ?? Predicate.unbound(name),
+                exists: () => undefined,
+                search: () => undefined,
+            }) === true
+        );
+    }
+
+    /** Read a row's key: its key fields in JSON form, canonically. */
+    static #keyOf(compiled: Compiled, row: Row): string {
+        const definition = compiled.controller.table[TABLE];
+        const fields = Object.fromEntries(
+            compiled.key.map((field) => [
+                field,
+                definition.column(field).definition.toJson(row[field] ?? null),
+            ]),
+        );
+
+        return canonicalize(fields);
+    }
+
+    /** Wait until the log listens to other writers' commits, failing as listening fails. */
+    async #listen(signal: AbortSignal): Promise<void> {
+        await Promise.race([this.database.log.listening(), waitAborted(signal)]);
+        this.#isListening = !signal.aborted;
+        this.#wake();
+    }
+
+    /** List every controller's pending rows, then follow the logged tables they read. */
+    async #follow(signal: AbortSignal): Promise<void> {
+        let listed = this.#jobs;
+        while (!signal.aborted) {
+            // read the position before listing
+            const after = (await this.database.log.position()).sequence;
+            for (const controller of listed) {
+                await this.#list(controller);
+            }
+            this.#followed = after;
+            this.#isListed = true;
+            this.#wake();
+            const tables = this.#watched;
+            if (tables.length === 0) {
+                return;
+            }
+
+            // follow the changes after the listing until stopped or asked to list again
+            this.#relisting = new AbortController();
+            const following = AbortSignal.any([signal, this.#relisting.signal]);
+            try {
+                for await (const page of this.database.log.follow({ tables, after }, following)) {
+                    for (const change of page.changes) {
+                        await this.#changed(change);
+                    }
+
+                    // record the consumed sequence for idle waiters, and let other tasks run
+                    this.#followed = Math.max(this.#followed, page.sequence);
+                    this.#wake();
+                    await this.database.state.environment.scheduler.yield();
+                }
+            } catch (error) {
+                // list again after compaction
+                if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
+                    throw error;
+                }
+            }
+            listed = this.#jobs;
+        }
+    }
+
+    /** Select the keys a committed change makes pending, wakes or changes. */
+    async #changed(change: Change): Promise<void> {
+        // read the change's table and time
+        const name = change.table[TABLE].sqlName;
+        const at = this.#clock.now();
+
+        // take a scope's append, due once its batch passed
+        for (const consumer of this.control.consumers) {
+            const isRead = consumer.reads.some((table) => table[TABLE].sqlName === name);
+            if (isRead && consumer.checkpoint !== "scope") {
+                this.enqueue(consumer, ONE_CHECKPOINT, at + (consumer.batch ?? 0));
+            } else if (isRead && change.operation === "insert") {
+                const scope = schema.string().parse(change.after["scope"]);
+                this.enqueue(consumer, scope, at + (consumer.batch ?? 0));
+            }
+        }
+        for (const compiled of this.#compiled.values()) {
+            // take a change of the controller's own rows
+            const { controller } = compiled;
+            if (controller.table[TABLE].sqlName === name) {
+                // tell the running key of the row before its change, then select the row after it
+                const before = Change.before(change);
+                const after = Change.after(change);
+                if (before !== null) {
+                    this.#notify(controller, ControlLoop.#keyOf(compiled, before));
+                }
+                if (after !== null) {
+                    this.#select(compiled, after, at);
+                }
+            }
+
+            // take the keys a watched table's change selects
+            const watches = (controller.watches ?? []).filter(
+                (watch) => watch.table[TABLE].sqlName === name,
+            );
+            for (const watch of watches) {
+                const keys = await (async () => watch.keys(change, this.database))().catch(
+                    (error: unknown) => {
+                        this.#report(controller, watch.table[TABLE].name, error);
+
+                        return undefined;
+                    },
+                );
+
+                // list a controller whose watch failed again in its place, else take the keys
+                if (keys === undefined) {
+                    await this.#list(controller);
+                } else {
+                    for (const fields of keys) {
+                        const key = canonicalize(fields);
+                        this.#notify(controller, key);
+                        this.enqueue(controller, key);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Make a row's key pending, or wake the controller once its waiting row comes due. */
+    #select(compiled: Compiled, row: Row, at: number): void {
+        // tell the running key its rows changed
+        const { controller } = compiled;
+        const key = ControlLoop.#keyOf(compiled, row);
+        this.#notify(controller, key);
+
+        // take a pending row's key, or wake at a waiting row's due time
+        if (this.#matches(compiled, compiled.pending, row, at)) {
+            this.enqueue(controller, key);
+        } else if (
+            compiled.terms.length > 0 &&
+            this.#matches(compiled, compiled.pending, row, undefined)
+        ) {
+            const due = ControlLoop.#dueOf(compiled, row);
+            if (due !== undefined) {
+                this.#wakeAt(controller, due);
+            }
+        }
+    }
+
+    /** Read when a waiting row's time comparisons all turn true, absent for one never due. */
+    static #dueOf(compiled: Compiled, row: Row): number | undefined {
+        const times = compiled.terms.map((term) => {
+            const value = row[term.field];
+            if (typeof value !== "number") {
+                return undefined;
+            }
+
+            return term.now.due(value, term.isInclusive);
+        });
+
+        return times.some((time) => time === undefined)
+            ? undefined
+            : Math.max(...times.filter((time) => time !== undefined));
+    }
+
+    /** Wake a controller to list its rows again at a time, keeping an earlier wake. */
+    #wakeAt(controller: Job, at: number): void {
+        const current = this.#wakes.get(controller);
+        if (current === undefined || at < current) {
+            this.#wakes.set(controller, at);
+            this.#wake();
+        }
+    }
+
+    /** List a controller's pending keys and its next wake, one listing at a time. */
+    #list(controller: Job): Promise<void> {
+        const listing = (this.#listing.get(controller) ?? Promise.resolve()).then(() =>
+            this.#read(controller),
+        );
+        this.#listing.set(
+            controller,
+            listing.catch(() => {}),
+        );
+
+        return listing;
+    }
+
+    /** List a keyless controller's one key while any of its rows is pending. */
+    async #isPending(table: Table, where: SQL | undefined): Promise<readonly Row[]> {
+        const [pending] = await this.database.select().from(table).where(where).limit(1);
+
+        return pending === undefined ? [] : [{}];
+    }
+
+    /** Read a controller's pending keys, enqueueing those not failing, and its next due row. */
+    async #read(controller: Job): Promise<void> {
+        // read a consumer's scopes with unconsumed appends
+        if (ControlLoop.#isConsumer(controller)) {
+            await this.#readUnconsumed(controller);
+
+            return;
+        }
+
+        // read the pending keys at the loop's time
+        const compiled = found(this.#compiled, controller);
+        const { table } = controller;
+        const at = this.#clock.now();
+        const placeholders = this.#bound(compiled, at);
+        const columns = Object.fromEntries(
+            compiled.key.map((field) => [field, table[TABLE].column(field)]),
+        );
+        const where = Predicate.render(
+            Condition.resolve(controller.pending, Namespace.fields(table)),
+            Predicate.bind(table, placeholders),
+        );
+        const rows =
+            compiled.key.length === 0
+                ? await this.#isPending(table, where)
+                : await this.database.selectDistinct(columns).from(table).where(where);
+        const failures = found(this.#failures, controller);
+        for (const row of rows) {
+            const key = ControlLoop.#keyOf(compiled, row);
+            if (!failures.has(key)) {
+                this.enqueue(controller, key);
+            }
+        }
+
+        // wake at the earliest row not yet due, one aggregate per time comparison
+        this.#wakes.delete(controller);
+        for (const term of compiled.terms) {
+            const column = table[TABLE].column(term.field);
+            const bound = term.now.at(at);
+            const rest = Predicate.render(
+                Condition.resolve(controller.pending, Namespace.fields(table)),
+                Predicate.bind(table, this.#bound(compiled, undefined)),
+            );
+            const [oldest] = await this.database
+                .select({ value: min(column) })
+                .from(table)
+                .where(and(rest, term.isInclusive ? gt(column, bound) : gte(column, bound)));
+            const value: unknown = oldest?.value;
+            if (typeof value === "number") {
+                this.#wakeAt(controller, term.now.due(value, term.isInclusive));
+            }
+        }
+    }
+
+    /** Enqueue a consumer's checkpoints with changes past them, each after its batch. */
+    async #readUnconsumed(consumer: Consumer, scope?: string): Promise<void> {
+        // take a consumer without a checkpoint at the start, its changes following as they commit
+        if (consumer.checkpoint === "none") {
+            if (scope === undefined) {
+                this.enqueue(consumer, ONE_CHECKPOINT);
+            }
+
+            return;
+        }
+
+        // read each scope's first append past its checkpoint, or the first change past the one, in one statement
+        const log = sql.relation(LOG);
+        const checkpoint = sql.relation(LOG_CHECKPOINT);
+        const tables = sql.join(
+            consumer.reads.map((table) => sql`${table[TABLE].sqlName}`),
+            sql.raw(", "),
+        );
+        const rows =
+            consumer.checkpoint === "one"
+                ? await this.database.all(sql`
+                    SELECT ${ONE_CHECKPOINT} AS scope, (
+                        SELECT min(entry.changed_at) FROM ${log} AS entry
+                        WHERE entry."table" IN (${tables})
+                            AND entry.sequence > coalesce(
+                                (SELECT place.sequence FROM ${checkpoint} AS place WHERE place.name = ${consumer.name}),
+                                -1
+                            )
+                    ) AS first,
+                    (SELECT count(*) FROM ${checkpoint} AS place WHERE place.name = ${consumer.name}) AS placed
+                `)
+                : await this.database.all(sql`
+                    SELECT entry.scope AS scope, min(entry.changed_at) AS first, 1 AS placed
+                    FROM ${log} AS entry
+                    JOIN ${checkpoint} AS place ON place.name = ${`${consumer.name}:`} || entry.scope
+                    WHERE entry."table" IN (${tables})
+                        AND entry.operation = 'insert'
+                        AND entry.sequence > place.sequence
+                        ${scope === undefined ? sql`` : sql`AND entry.scope = ${scope}`}
+                    GROUP BY entry.scope
+                `);
+
+        // take an unplaced one checkpoint at once, and one with changes once its first change's batch passed
+        for (const row of rows) {
+            const key = schema.string().parse(row["scope"]);
+            const isPlaced = LogColumn.integer(row["placed"]) > 0;
+            const first = row["first"] === null ? undefined : LogColumn.integer(row["first"]);
+            if (!isPlaced) {
+                this.enqueue(consumer, key);
+            } else if (first !== undefined) {
+                this.enqueue(consumer, key, first + (consumer.batch ?? 0));
+            }
+        }
+    }
+
+    /** List the controllers of unlogged tables again after each commit to one of those tables. */
+    async #listUnlogged(signal: AbortSignal): Promise<void> {
+        // find the controllers reading or watching unlogged tables
+        const unlogged = new Map(
+            this.#jobs.map((controller) => [
+                controller,
+                ControlLoop.#tables(controller)
+                    .filter((table) => table[TABLE].retention === "none")
+                    .map((table) => table[TABLE].sqlName),
+            ]),
+        );
+        if (![...unlogged.values()].some((tables) => tables.length > 0)) {
+            return;
+        }
+        await this.database.log.waitUntil(async (committed) => {
+            // list the controllers whose unlogged tables the commits wrote
+            for (const controller of this.#jobs) {
+                if (found(unlogged, controller).some((table) => committed.has(table))) {
+                    await this.#list(controller);
+                }
+            }
+
+            return false;
+        }, signal);
+    }
+
+    /** Mark a key due. */
+    enqueue(controller: Controller | Consumer, key: string, at = this.#clock.now()): void {
         // record the earliest due time
         const due = found(this.#due, controller);
         const current = due.get(key);
@@ -393,206 +904,10 @@ export class ControlLoop {
         this.#wake();
     }
 
-    /** Wait until the log listens to other writers' commits, failing as listening fails. */
-    async #listen(signal: AbortSignal): Promise<void> {
-        await Promise.race([this.database.log.listening(), waitAborted(signal)]);
-        this.#isListening = !signal.aborted;
-        this.#wake();
-    }
-
-    /** List every controller and follow the watched logged tables. */
-    async #follow(signal: AbortSignal): Promise<void> {
-        // find the controllers watching a followed table, which list again after a compaction
-        const tables = this.#watched;
-        const watching = this.controllers.filter((controller) =>
-            tables.some((table) => found(this.#watchedNames, controller).has(table[TABLE].sqlName)),
-        );
-        let listed = this.controllers;
-        while (!signal.aborted) {
-            // read the position before listing
-            const after = (await this.database.log.position()).sequence;
-            for (const controller of listed) {
-                await this.#refresh(controller);
-            }
-            this.#followed = after;
-            this.#isListed = true;
-            this.#wake();
-            if (tables.length === 0) {
-                return;
-            }
-
-            // follow the changes after the listing until stopped or asked to list again
-            this.#relisting = new AbortController();
-            const following = AbortSignal.any([signal, this.#relisting.signal]);
-            try {
-                for await (const page of this.database.log.follow({ tables, after }, following)) {
-                    for (const controller of this.controllers) {
-                        // find the changes the controller watches, by table name
-                        const watched = found(this.#watchedNames, controller);
-                        const changes = page.changes.filter((change) =>
-                            watched.has(change.table[TABLE].sqlName),
-                        );
-
-                        // list a following controller again once a change touches its list's reads
-                        if (controller.mode === "follow") {
-                            const reads = found(this.#reads, controller);
-                            if (changes.some((change) => reads.touches(change))) {
-                                await this.#refresh(controller, { changes, unlogged: new Set() });
-                            }
-                        }
-                        // enqueue the keys each change touches
-                        else {
-                            for (const change of changes) {
-                                for (const key of await this.#keys(controller, change)) {
-                                    this.enqueue(controller, key);
-                                }
-                            }
-                        }
-                    }
-
-                    // record the consumed sequence for idle waiters, and let other tasks run
-                    this.#followed = Math.max(this.#followed, page.sequence);
-                    this.#wake();
-                    await this.database.state.environment.scheduler.yield();
-                }
-
-                // list the watching controllers again once an idle check asked
-                listed = watching;
-            } catch (error) {
-                // list again after compaction the controllers following the tables
-                if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
-                    throw error;
-                }
-                listed = watching;
-            }
-        }
-    }
-
-    /** List a controller's keys again: relist a follower, enqueue a reconciler's keys. */
-    #refresh(controller: Controller, delta?: Delta): Promise<void> {
-        // run one listing of a controller at a time, in the order asked
-        const refreshing = (this.#refreshing.get(controller) ?? Promise.resolve()).then(() =>
-            controller.mode === "follow"
-                ? this.#relist(controller, delta)
-                : this.#enqueueListed(controller),
-        );
-        this.#refreshing.set(
-            controller,
-            refreshing.catch(() => {}),
-        );
-
-        return refreshing;
-    }
-
-    /** Enqueue each key a reconciling controller lists, leaving failing ones to their backoff. */
-    async #enqueueListed(controller: Controller): Promise<void> {
-        const failures = found(this.#failures, controller);
-        for (const key of await this.#list(controller)) {
-            if (!failures.has(key)) {
-                this.enqueue(controller, key);
-            }
-        }
-    }
-
-    /** List a controller's keys, recording what a follower's list read, which it must watch. */
-    async #list(controller: Controller, delta?: Delta): Promise<readonly string[]> {
-        // list a reconciling controller through a plain live view
-        if (controller.mode !== "follow") {
-            return controller.list(Snapshot.live(this.database));
-        }
-
-        // record a follower's reads, refusing a read of a table it does not watch
-        const reads = new ReadSet();
-        const keys = await controller.list(Snapshot.live(this.database).recording(reads), delta);
-        const watched = found(this.#watchedNames, controller);
-        const unwatched = reads.tables.find((table) => !watched.has(table[TABLE].sqlName));
-        if (unwatched !== undefined) {
-            throw new TypeError(
-                `${controller.name} lists through ${unwatched[TABLE].name} but does not watch it`,
-            );
-        }
-        // refuse a follower watching tables its list never reads, which would never list again
-        else if (watched.size > 0 && reads.tables.length === 0) {
-            throw new TypeError(`${controller.name} watches tables, but its list reads no table`);
-        }
-        this.#reads.set(controller, reads);
-
-        return keys;
-    }
-
-    /** List the keys a change touches. */
-    async #keys(controller: ReconcileController, change: Change): Promise<readonly string[]> {
-        try {
-            return (await controller.keys?.(change)) ?? [];
-        } catch (error) {
-            this.#report(controller, change.table[TABLE].name, error);
-
-            return this.#list(controller);
-        }
-    }
-
-    /** List the controllers of unlogged tables again after each commit to one of those tables. */
-    async #listUnlogged(signal: AbortSignal): Promise<void> {
-        // find each controller's unlogged tables
-        const unlogged = new Map(
-            this.controllers.map((controller) => [
-                controller,
-                (controller.watches ?? [])
-                    .filter((table) => table[TABLE].retention === "none")
-                    .map((table) => table[TABLE].sqlName),
-            ]),
-        );
-        if (![...unlogged.values()].some((tables) => tables.length > 0)) {
-            return;
-        }
-        await this.database.log.waitUntil(async (committed) => {
-            // pick the controllers whose unlogged tables the commits wrote
-            const listed = this.controllers.filter((controller) =>
-                found(unlogged, controller).some((table) => committed.has(table)),
-            );
-            for (const controller of listed) {
-                const tables = found(unlogged, controller).filter((table) => committed.has(table));
-                await this.#refresh(controller, { changes: [], unlogged: new Set(tables) });
-            }
-
-            return false;
-        }, signal);
-    }
-
-    /** Stop the keys a controller's list dropped, and enqueue the listed ones not running. */
-    async #relist(controller: Controller, delta?: Delta): Promise<void> {
-        // stop the running keys the list dropped
-        const listed = new Set(await this.#list(controller, delta));
-        const running = found(this.#running, controller);
-        for (const [key, stop] of running) {
-            if (!listed.has(key)) {
-                stop.abort(new Error(`${controller.name} no longer lists ${key}`));
-            }
-        }
-
-        // unqueue the due keys the list dropped, and forget their failures
-        const due = found(this.#due, controller);
-        const failures = found(this.#failures, controller);
-        const transient = this.#transient.get(controller);
-        for (const key of [...due.keys(), ...failures.keys()]) {
-            if (!listed.has(key)) {
-                due.delete(key);
-                failures.delete(key);
-                transient?.delete(key);
-            }
-        }
-
-        // start the listed keys not running, a failing one only once its desired state changed
-        for (const key of listed) {
-            const failure = failures.get(key);
-            const isRevised =
-                failure !== undefined && failure.revision !== controller.revision?.(key);
-            if (isRevised) {
-                failures.delete(key);
-            }
-            if (!running.has(key) && (failure === undefined || isRevised)) {
-                this.enqueue(controller, key);
-            }
+    /** Tell a running key that its rows changed. */
+    #notify(controller: Job, key: string): void {
+        for (const resolve of this.#changes.get(controller)?.get(key)?.splice(0) ?? []) {
+            resolve();
         }
     }
 
@@ -628,15 +943,24 @@ export class ControlLoop {
         }
     }
 
-    /** Start due keys and sleep until more are due. */
+    /** Start due keys and wakes, and sleep until more are due. */
     async #work(signal: AbortSignal): Promise<void> {
         while (!signal.aborted) {
-            // take the earliest runnable key
+            // list the controllers whose earliest waiting row came due
             this.#woken = new AbortController();
-            const now = this.#clock.now();
-            const { runnable, due, skipped } = this.#take(now);
+            const at = this.#clock.now();
+            const woken = [...this.#wakes].filter(([, wake]) => wake <= at);
+            if (woken.length > 0) {
+                await Promise.all(woken.map(([controller]) => this.#list(controller)));
+                continue;
+            }
 
-            // start it, holding no lock or slot meanwhile
+            // take the earliest runnable key
+            const { runnable, due, skipped } = this.#take(at);
+            const wake = this.#nextWake();
+            const next = earliest([due, wake]);
+
+            // start it, holding no lock meanwhile
             if (runnable !== undefined) {
                 this.#start(runnable);
 
@@ -646,11 +970,11 @@ export class ControlLoop {
                 // let other tasks run before the next key
                 await this.database.state.environment.scheduler.yield();
             }
-            // set the wake-up due while keys run, or at the next key
+            // set the wake-up due while keys run, or at the next key or wake
             else {
-                await this.#schedule(this.#busy ?? due ?? skipped);
+                await this.#schedule(this.#busy ?? earliest([next, skipped]));
 
-                // settle idle waiters once every key settled, none waits for a slot, and every change is followed
+                // settle idle waiters once every key settled, none waits for its controller's concurrency, and every change is followed
                 if (
                     this.#idle.length > 0 &&
                     this.#isListed &&
@@ -665,8 +989,8 @@ export class ControlLoop {
                     }
                 }
 
-                // sleep until the next key is due
-                await this.#sleep(due === undefined ? undefined : Math.max(0, due - now), signal);
+                // sleep until the next key or wake is due
+                await this.#sleep(next === undefined ? undefined : Math.max(0, next - at), signal);
             }
         }
 
@@ -679,8 +1003,13 @@ export class ControlLoop {
         await Promise.all(this.#reconciling);
     }
 
+    /** Read the earliest wake of any controller, absent for none. */
+    #nextWake(): number | undefined {
+        return earliest([...this.#wakes.values()]);
+    }
+
     /** Take the earliest runnable key, or the next due time. */
-    #take(now: number): {
+    #take(at: number): {
         readonly runnable?: Due;
         readonly due?: number;
         readonly skipped?: number;
@@ -692,7 +1021,7 @@ export class ControlLoop {
         for (let next = this.#next(); next !== undefined; next = this.#next()) {
             const running = found(this.#running, next.controller);
             const isFull = running.size >= (next.controller.concurrency ?? 1);
-            if (next.at > now) {
+            if (next.at > at) {
                 taken = { due: next.at };
                 break;
             } else if (isFull || running.has(next.key)) {
@@ -712,14 +1041,14 @@ export class ControlLoop {
         }
 
         // find the earliest skipped key
-        const [earliest] = skipped;
+        const [first] = skipped;
 
-        return earliest === undefined || taken.runnable !== undefined
+        return first === undefined || taken.runnable !== undefined
             ? taken
-            : { ...taken, skipped: earliest.at };
+            : { ...taken, skipped: first.at };
     }
 
-    /** Start a reconciliation. */
+    /** Start a reconciliation or follow of a key. */
     #start(work: Due): void {
         // mark the key running with the controller aborting it
         const running = found(this.#running, work.controller);
@@ -735,7 +1064,7 @@ export class ControlLoop {
                 this.#wake();
             }
         };
-        const reconciling = this.#reconcile(work, stop.signal, settle).finally(() => {
+        const reconciling = this.#reconcile(work, stop, settle).finally(() => {
             // free the key and its change waiters, settling it
             running.delete(work.key);
             this.#changes.get(work.controller)?.delete(work.key);
@@ -753,17 +1082,60 @@ export class ControlLoop {
         this.#reconciling.add(reconciling);
     }
 
-    /** Reconcile one key until settled, or follow it until stopped, retrying failures. */
-    async #reconcile(work: Work, stopped: AbortSignal, synced: () => void): Promise<void> {
-        // reconcile under the lock and requeue when asked
+    /** Read a key's pending rows at the loop's time. */
+    async #rows(compiled: Compiled, key: string): Promise<Select<Table>[]> {
+        // match the pending rows of the key's fields at the loop's time
+        const { table } = compiled.controller;
+        const fields = KEY_FIELDS.parse(JSON.parse(key));
+        const placeholders = this.#bound(compiled, this.#clock.now());
+        const condition: Condition = {
+            AND: [compiled.controller.pending, Condition.equal(fields)],
+        };
+        const where = Predicate.render(
+            Condition.resolve(condition, Namespace.fields(table)),
+            Predicate.bind(table, placeholders),
+        );
+
+        return this.database.select().from(table).where(where).limit(KEY_ROWS);
+    }
+
+    /** Reconcile one key's pending rows, or follow them until they leave, retrying failures. */
+    async #reconcile(work: Due, stop: AbortController, synced: () => void): Promise<void> {
+        // reconcile under the lock
         const { controller, key } = work;
         const failures = found(this.#failures, controller);
-
+        const stopped = stop.signal;
         try {
-            const delay = await this.#locked(work, stopped, async (reconciliation) => {
-                // follow until stopped, reporting once caught up
-                if (controller.mode === "follow") {
-                    await controller.reconcile(key, { ...reconciliation, synced });
+            await this.#locked(work, stopped, async (reconciliation) => {
+                // take a consumer's page, then the key again while changes remain past its checkpoint
+                if (ControlLoop.#isConsumer(controller)) {
+                    await controller.consume(key, reconciliation);
+                    await this.#readUnconsumed(controller, key);
+
+                    return;
+                }
+
+                // leave a key without pending rows
+                const compiled = found(this.#compiled, controller);
+                const rows = await this.#rows(compiled, key);
+                if (rows.length === 0) {
+                    return;
+                }
+
+                // follow until stopped or the key leaves pending, reporting once caught up
+                if ("follow" in controller) {
+                    const ended = new AbortController();
+                    const watched = {
+                        ...reconciliation,
+                        signal: AbortSignal.any([reconciliation.signal, ended.signal]),
+                    };
+                    const watching = this.#stopWhenSettled(compiled, key, watched, stop);
+                    try {
+                        await controller.follow(rows, { ...reconciliation, synced });
+                    } finally {
+                        ended.abort();
+                        await watching.catch(() => undefined);
+                    }
                     if (!reconciliation.signal.aborted) {
                         throw DatabaseError.of(
                             "FOLLOW_ENDED",
@@ -771,26 +1143,27 @@ export class ControlLoop {
                         );
                     }
 
-                    return stopped.aborted ? undefined : 0;
+                    return;
                 }
 
                 // trace each reconciliation as a separate root span
                 const attributes = { "destack.controller": controller.name, "destack.key": key };
-
-                return this.#instruments.span("controller.reconcile", attributes, () =>
-                    controller.reconcile(key, reconciliation),
+                await this.#instruments.span("controller.reconcile", attributes, () =>
+                    controller.reconcile(rows, reconciliation),
                 );
+
+                // take the key's next page of pending rows after a full one
+                if (rows.length === KEY_ROWS) {
+                    this.enqueue(controller, key);
+                }
             });
-            failures.delete(work.key);
-            this.#transient.get(work.controller)?.delete(work.key);
-            if (delay !== undefined) {
-                this.enqueue(work.controller, work.key, this.#clock.now() + delay);
-            }
+            failures.delete(key);
+            this.#transient.get(controller)?.delete(key);
         }
         // end a reconciliation the loop stopped without a failure
         catch (error) {
             if (stopped.aborted) {
-                failures.delete(work.key);
+                failures.delete(key);
 
                 return;
             }
@@ -800,7 +1173,7 @@ export class ControlLoop {
                 this.#failing.abort(
                     DatabaseError.of(
                         "CONTROLLER_FAILED",
-                        `${work.controller.name} failed to reconcile ${work.key}`,
+                        `${controller.name} failed to reconcile ${key}`,
                         { cause: error },
                     ),
                 );
@@ -809,7 +1182,7 @@ export class ControlLoop {
             }
 
             // report a failure once, a transient one once it persists
-            const previous = failures.get(work.key);
+            const previous = failures.get(key);
             const failure = Failure.of(error);
             const failed = (previous?.count ?? 0) + 1;
             const isRepeated =
@@ -818,23 +1191,39 @@ export class ControlLoop {
                 previous.failure.reason === failure.reason;
             const isReported = !isRepeated && this.#recordFailure(work, failure, failed);
             if (isReported) {
-                this.#report(work.controller, work.key, error);
+                this.#report(controller, key, error);
             }
-            failures.set(work.key, {
-                count: failed,
-                failure,
-                isReported: isRepeated || isReported,
-                revision: work.controller.revision?.(work.key),
-            });
+            failures.set(key, { count: failed, failure, isReported: isRepeated || isReported });
 
             // retry a transient failure on backoff, leaving any other to the key's next change
             if (Failure.isTransient(failure)) {
-                const drawn = RetryPolicy.draw(`${work.controller.name} ${work.key} ${failed}`);
+                const drawn = RetryPolicy.draw(`${controller.name} ${key} ${failed}`);
                 this.enqueue(
-                    work.controller,
-                    work.key,
+                    controller,
+                    key,
                     this.#clock.now() + RetryPolicy.interval(this.#retry, failed, () => drawn),
                 );
+            }
+        }
+    }
+
+    /** Stop a follow once a change leaves its key without pending rows. */
+    async #stopWhenSettled(
+        compiled: Compiled,
+        key: string,
+        reconciliation: Reconciliation,
+        stop: AbortController,
+    ): Promise<void> {
+        while (!reconciliation.signal.aborted) {
+            await Promise.race([reconciliation.changed(), waitAborted(reconciliation.signal)]);
+            if (reconciliation.signal.aborted) {
+                return;
+            }
+            const rows = await this.#rows(compiled, key);
+            if (rows.length === 0) {
+                stop.abort(new Error(`${compiled.controller.name} no longer has ${key} pending`));
+
+                return;
             }
         }
     }
@@ -849,9 +1238,9 @@ export class ControlLoop {
     }
 
     /** Record when a key's transient failures began, answering whether one is due a report. */
-    #recordFailure(work: Work, failure: Failure, attempts: number): boolean {
+    #recordFailure(work: Due, failure: Failure, attempts: number): boolean {
         // report a lasting failure at once
-        const now = this.#clock.now();
+        const at = this.#clock.now();
         const since = this.#transient.get(work.controller) ?? new Map<string, number>();
         this.#transient.set(work.controller, since);
         if (!Failure.isTransient(failure)) {
@@ -861,18 +1250,18 @@ export class ControlLoop {
         }
 
         // report a transient failure once it lasted past the window over several attempts
-        const first = since.get(work.key) ?? now;
+        const first = since.get(work.key) ?? at;
         since.set(work.key, first);
 
-        return now - first >= this.#transientFor && attempts >= TRANSIENT_REPORT_ATTEMPTS;
+        return at - first >= this.#transientFor && attempts >= TRANSIENT_REPORT_ATTEMPTS;
     }
 
     /** Reconcile a key while the loop leads its controller. */
     async #locked(
-        work: Work,
+        work: Due,
         stopped: AbortSignal,
-        reconcile: (reconciliation: Reconciliation) => Promise<number | undefined>,
-    ): Promise<number | undefined> {
+        reconcile: (reconciliation: Reconciliation) => Promise<void>,
+    ): Promise<void> {
         // wait for the key's changes while it reconciles
         const changed = () => {
             // add a waiter the key's next change resolves
@@ -976,13 +1365,24 @@ export class ControlLoop {
     }
 
     /** Read the lock name of a controller. */
-    static #lockName(controller: Controller): string {
+    static #lockName(controller: Job): string {
         return `controller:${controller.name}`;
     }
 }
 
+/** Take the earliest of some times, absent for none. */
+function earliest(times: readonly (number | undefined)[]): number | undefined {
+    const present = times.filter((time) => time !== undefined);
+
+    return present.length === 0 ? undefined : Math.min(...present);
+}
+
 /** One key due at a time. */
-interface Due extends Work {
+interface Due {
+    /** The controller or consumer working on the key. */
+    readonly controller: Job;
+    /** The key. */
+    readonly key: string;
     /** The time the key is due at, in UTC epoch milliseconds. */
     readonly at: number;
 }
@@ -1019,10 +1419,10 @@ class DueQueue {
     pop(): Due | undefined {
         // move the last entry to the root
         const heap = this.#heap;
-        const earliest = heap[0];
+        const first = heap[0];
         const last = heap.pop();
         if (heap.length === 0 || last === undefined) {
-            return earliest;
+            return first;
         }
         heap[0] = last;
 
@@ -1039,7 +1439,7 @@ class DueQueue {
                 smallest = right;
             }
             if (smallest === index) {
-                return earliest;
+                return first;
             }
             [heap[smallest], heap[index]] = [nth(heap, index), nth(heap, smallest)];
             index = smallest;

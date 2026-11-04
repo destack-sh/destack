@@ -11,6 +11,7 @@ import { index } from "../table/constraint.ts";
 import { boolean, integer, text } from "../table/column.ts";
 import type { BlobEntry, BlobPlacement, BlobStorage, ContentStore } from "@destack/resource";
 import { canonicalize, Digest, type JsonValue, present, schema } from "@destack/schema";
+import { type Controller, Now } from "../control/control.ts";
 
 /** How long a store leases what it writes for a row to reference, by default: half an hour. */
 const LEASE_MILLISECONDS = 30 * 60_000;
@@ -302,6 +303,59 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             .where(eq(BlobStore.table.leasedUntil, first.until));
 
         return rows.map(({ digest }) => digest);
+    }
+
+    /** Declare the controllers collecting blobs: ended leases, then retired and freed ones. */
+    controllers(): readonly Controller<typeof BlobStore.table>[] {
+        const table = BlobStore.table;
+        const collect = async (rows: readonly { readonly digest: Digest }[]) => {
+            // free or delete each retired blob, a batch at a time
+            const at = this.environment.clock.now();
+            const cascading = this.#blobColumns("cascade");
+            const digests = rows.map((row) => row.digest);
+            for (let start = 0; start < digests.length; start += BATCH_DIGESTS) {
+                const batch = digests.slice(start, start + BATCH_DIGESTS);
+                await this.#delete(batch, cascading, at, GRACE_MILLISECONDS);
+            }
+        };
+
+        return [
+            {
+                name: "blob-leases",
+                table,
+                pending: { leasedUntil: { gt: 0, lte: new Now() } },
+                key: [],
+                reconcile: async (rows) => {
+                    // retire the blobs whose leases ended
+                    await this.database
+                        .update(table)
+                        .set({ leasedUntil: 0, isRetired: true })
+                        .where(
+                            inArray(
+                                table.digest,
+                                rows.map((row) => row.digest),
+                            ),
+                        );
+                },
+            },
+            {
+                name: "blob-retired",
+                table,
+                pending: { isRetired: true, freedAt: { isNull: true } },
+                key: [],
+                reconcile: collect,
+            },
+            {
+                name: "blob-freed",
+                table,
+                pending: {
+                    isRetired: true,
+                    freedAt: { lte: new Now().minus({ milliseconds: GRACE_MILLISECONDS }) },
+                },
+                key: [],
+                reconcile: collect,
+            },
+        ];
     }
 
     /** Delete retired blobs a grace after no row or lease referenced them. */
