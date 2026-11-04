@@ -4,6 +4,7 @@ import { Account, account, type ResidencyCode } from "@destack/account/object";
 import { principal } from "@destack/access";
 import { integration, Issuer } from "@destack/connection/object";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
+import { connectionVault } from "@destack/connection/stack";
 import connectionServer, { connectionShape } from "@destack/connection/server";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
@@ -28,8 +29,7 @@ import { binding } from "@destack/stack/object";
 import { TestPackage, TestSpace } from "@destack/stack/test";
 import { RequestId, type Subject } from "@destack/sync";
 import { defineVault } from "@destack/vault/declare";
-import { RESOURCE_KIND } from "@destack/resource";
-import { secret, vault } from "@destack/vault/object";
+import { secret } from "@destack/vault/object";
 import vaultPackage from "@destack/vault/package";
 import { TestVault } from "@destack/vault/test";
 import { onTestFinished } from "@destack/test";
@@ -97,16 +97,6 @@ export const FORGE: TestPackage = {
                 name: github.name,
                 description: describeSetting(github),
             },
-            ...Object.values(forgePackage.resources).map((resource) => ({
-                ...RESOURCE_KIND.identity,
-                name: resource.name,
-                description: {
-                    name: resource.name,
-                    kind: resource.kind,
-                    spec: resource.spec,
-                    ...resource.state(),
-                },
-            })),
             ...TestVault.declarations([], Object.values(forgePackage.secrets)),
         ],
     }),
@@ -124,15 +114,16 @@ export const CONNECTION: TestPackage = {
     providers: [],
 };
 
-/** The vault of an account's home that its connections keep their credentials in. */
-const CONNECTION_VAULT = defineVault({ name: "credentials", spec: {} });
-
 /** An account's home stack as the platform declares it: its connections and their vault. */
 const ACCOUNT_STACK = {
-    vaults: { credentials: { ...CONNECTION_VAULT.declare(), scope: "enclosing" as const } },
+    vaults: { credentials: connectionVault.declare() },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
-        connection: install(connectionPackage, {}, { name: CONNECTION_INSTALLATION }),
+        connection: install(
+            connectionPackage,
+            { credentials: "credentials" },
+            { name: CONNECTION_INSTALLATION },
+        ),
     },
 };
 
@@ -607,13 +598,6 @@ export class TestForge {
 
         // serve it again with the connections installed, as the machine's restart does
         const served = await home.serve();
-        const row = await Snapshot.live(served.database)
-            .read(vault.table)
-            .findFirst({ where: { scope: tenant.accountId } });
-        const credentials = vault.reference(
-            tenant.accountId,
-            present(row, "the account's vault").id,
-        );
 
         // register the forge's App and create the installation's connection as the owner
         const scope = tenant.accountId;
@@ -641,7 +625,6 @@ export class TestForge {
             requestId: RequestId.create(this.environment),
             protocol: { kind: "installation" },
             integration: integration.reference(scope, app.id),
-            vault: credentials,
         });
 
         // authorize it, complete GitHub's setup redirect, and bind it to the forge
