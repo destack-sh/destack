@@ -10,6 +10,7 @@ import type { schema } from "@destack/schema";
 import type { Column, ColumnBuilder, Table, TableConstraint, TableOptions } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import type { Method } from "../method/method.ts";
+import type { ObjectController } from "../object/controller.ts";
 import type {
     ObjectDefinition,
     ObjectStorage,
@@ -106,6 +107,8 @@ export interface Trait<Options> {
     ): Record<string, Method>;
     /** Refuse an assembled object type the trait cannot serve. */
     validate?(options: Options, object: ObjectType, definition: ObjectDefinition): void;
+    /** Declare the controllers the trait gives the object beside its own. */
+    controllers?(options: Options, object: ObjectType): readonly ObjectController[];
 }
 
 /** Derive the undeclared permissions a trait's methods require, granted by roles and to selves. */

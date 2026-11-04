@@ -5,7 +5,7 @@ import { Digest, schema } from "@destack/schema";
 
 import { MethodBuilder } from "./record.ts";
 
-import { Observation, StatusCondition } from "../object/condition.ts";
+import { Observation, StatusCondition, SYNCED } from "../object/condition.ts";
 
 import type { TraitTable } from "../object/table.ts";
 
@@ -44,10 +44,16 @@ export const observe = controlledMethod
             ]),
         );
 
-        // write the observed state
+        // write the observed state, advancing the synced generation on a synced observation
+        const isSynced = conditions[SYNCED]?.status === "true";
+        const { syncedGeneration } = context.target;
+
         return context.updateStatus({
             ...Table.decode(context.object.table, fields ?? {}),
             conditions: { ...current, ...merged },
+            syncedGeneration: isSynced
+                ? Math.max(syncedGeneration, observedGeneration)
+                : syncedGeneration,
         });
     });
 

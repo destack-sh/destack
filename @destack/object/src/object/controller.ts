@@ -1,25 +1,31 @@
 import type { Call } from "@destack/sync";
 import {
     Change,
-    Condition,
+    type Condition,
+    type Consumer,
+    type Controller,
     type DatabaseConnection,
+    Projection,
+    eq,
+    type KeyFields,
+    type Reconciliation,
     type RowImage,
     type Row,
-    Namespace,
-    Predicate,
     Scalar,
     Snapshot,
     type Table,
-    type ReconcileController,
+    TABLE,
+    type Watch,
 } from "@destack/db";
-import type { Reconciliation } from "@destack/db";
 import { AccessContext } from "@destack/access";
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { Failure } from "@destack/error";
-import { canonicalize, schema, type JsonValue } from "@destack/schema";
+import { found, schema } from "@destack/schema";
+import { waitAborted } from "@destack/environment";
 import type { ObjectType } from "./object.ts";
 import {
     ConditionMap,
+    SYNCED,
     Observation,
     type ObservationReport,
     type ObservedRecord,
@@ -27,9 +33,6 @@ import {
 import { type ResultsOf } from "../method/context.ts";
 import type { MutateOptions, ObjectStore } from "../server/store.ts";
 import { CallSite } from "../method/site.ts";
-
-/** The condition of a controlled object's last reconcile succeeding, as Crossplane's Synced. */
-const SYNCED = "Synced";
 
 /** The synced condition of a controlled object whose last reconcile succeeded. */
 const SYNCED_CONDITION = { status: "true", reason: "ReconcileSuccess", message: "" } as const;
@@ -48,28 +51,45 @@ const ObservedFields = schema
     })
     .strip();
 
-/** The fields of a pending object's key, as its key name has them. */
-const KeyFields = schema.record(schema.string(), Scalar);
+/** The scalar fields of a key, as watches select them. */
+const KEY_FIELDS = schema.record(schema.string(), Scalar);
 
 /** The fields grouping objects a controller reconciles together, in JSON form. */
-export type KeyFields = Readonly<Record<string, JsonValue>>;
+export type { KeyFields };
 
-/** A controller declared on an object type: objects with pending work, and their reconciling. */
-export interface ObjectController<Object extends ObjectType = ObjectType> {
-    /** The objects with work waiting. */
-    readonly pending: Condition;
+/** What a type's controller does with its pending objects: converge them, or hold work. */
+type ObjectWork<Object extends ObjectType> =
+    | {
+          /** Converge one key's pending objects, or report them waiting for a change. */
+          reconcile(reconciliation: ObjectReconciliation<Object>): Promise<void | "waiting">;
+      }
+    | {
+          /** Hold one key's work in the process while its objects stay pending, until stopped. */
+          follow(following: ObjectFollowing<Object>): Promise<void>;
+      };
+
+/** A type's reactive behavior beside its methods: the objects with work, and the work. */
+export type ObjectController<Object extends ObjectType = ObjectType> = {
+    /** The controller's name within its type, absent for the type's own controller. */
+    readonly name?: string;
+    /** The objects with work now, which may compare time fields to `now`. */
+    readonly pending: Condition<RowImage<Object["table"]>>;
     /** The fields grouping objects reconciled together, the identifier by default. */
-    key?(row: RowImage<Object["table"]>): KeyFields;
-    /** The tables whose changed rows select keys beside a changed pending object's key. */
+    readonly key?: readonly (keyof RowImage<Object["table"]> & string)[];
+    /** The tables whose changed rows select keys beside the type's own pending objects. */
     readonly watches?: readonly ObjectWatch[];
-    /** Report whether an object's own change asks for a reconcile, every change by default. */
-    readonly wakes?: (change: Change<Object["table"]>) => boolean;
-    /** The keys reconciled at once, one by default. */
+    /** The keys worked on at once, one by default. */
     readonly concurrency?: number;
-    /** List the keys a start reconciles with a separate query; changes still match `pending`. */
-    readonly list?: (view: Snapshot) => Promise<readonly KeyFields[]>;
-    /** Reconcile the pending objects of one key, returning the wait until the next look. */
-    reconcile(reconciliation: ObjectReconciliation<Object>): Promise<number | undefined>;
+} & ObjectWork<Object>;
+
+/** Objects a type projects from input tables, projected again as the inputs' changes touch them. */
+export interface ObjectProjection<Object extends ObjectType = ObjectType> {
+    /** The projection's name within its type, absent for the type's own projection. */
+    readonly name?: string;
+    /** The input tables beside the type's own, and the objects their changed rows touch. */
+    readonly watches: readonly ObjectWatch[];
+    /** Project one object again from its inputs as they are now. */
+    project(reconciliation: ObjectReconciliation<Object>): Promise<void>;
 }
 
 /** Another table whose changed rows select a controller's keys. */
@@ -122,65 +142,173 @@ export interface ObjectReconciliation<
     ) => Promise<unknown>;
 }
 
+/** One key's follow: its pending objects, held while pending, reporting once caught up. */
+export interface ObjectFollowing<
+    Object extends ObjectType = ObjectType,
+> extends ObjectReconciliation<Object> {
+    /** Report the follow caught up with its source, once per follow, which settling waits for. */
+    readonly synced: () => void;
+}
+
 /** Build the controllers object types declare. */
 export const ObjectController = {
-    /** Build a type's declared controller, reconciling pending objects by key. */
-    control(
+    /** Build a type's declared controller over its table, as the store's principal. */
+    control(store: ObjectStore, object: ObjectType, declared: ObjectController): Controller {
+        // select a watched table's keys from each changed row's latest image
+        const key = declared.key ?? ["id"];
+        const watches = (declared.watches ?? []).map((watch): Watch => ({
+            table: watch.table,
+            keys: (change, database) => watch.keys(Change.image(change), database, change),
+        }));
+
+        // select a scope's keys again once its transfer fence lifts
+        const unfenced: Watch = {
+            table: Scope.table,
+            keys: async (change, database) => {
+                // pass every change but a lifted fence, read in memory
+                const before = Change.before(change);
+                const after = Change.after(change);
+                if (
+                    before === null ||
+                    after === null ||
+                    before["movedTo"] === null ||
+                    after["movedTo"] !== null
+                ) {
+                    return [];
+                }
+
+                // select the scope's keys
+                const scope = schema.string().parse(after["scope"]);
+                const columns = Object.fromEntries(
+                    key.map((field) => [field, object.table[TABLE].column(field)]),
+                );
+                const rows = await database
+                    .selectDistinct(columns)
+                    .from(object.table)
+                    .where(object.inScope(scope));
+
+                return rows.map((row) => KEY_FIELDS.parse(row));
+            },
+        };
+        const shape = {
+            name: declared.name === undefined ? object.name : `${object.name}:${declared.name}`,
+            table: object.table,
+            pending: declared.pending,
+            key,
+            watches: [...watches, unfenced],
+            ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
+        };
+
+        // hold a follow's work while its objects stay pending, else converge them
+        return "follow" in declared
+            ? {
+                  ...shape,
+                  follow: async (rows, following) => {
+                      // hold no work for the rows of replicated or fenced scopes, which their home follows
+                      const originated = await ObjectController.originated(store, object, rows);
+                      if (originated.length === 0) {
+                          following.synced();
+                          await waitAborted(following.signal);
+
+                          return;
+                      }
+
+                      // follow the store's own rows
+                      const context = ObjectController.context(
+                          store,
+                          object,
+                          originated,
+                          following,
+                      );
+                      await declared.follow({ ...context, synced: following.synced });
+                  },
+              }
+            : {
+                  ...shape,
+                  reconcile: async (rows, reconciliation) => {
+                      // leave the rows of replicated scopes to their home, which writes them
+                      const originated = await ObjectController.originated(store, object, rows);
+                      if (originated.length > 0) {
+                          await ObjectController.reconcileRows(
+                              store,
+                              object,
+                              declared,
+                              originated,
+                              reconciliation,
+                          );
+                      }
+                  },
+              };
+    },
+
+    /** Build a type's projection as a consumer of its inputs' changes past one checkpoint. */
+    project(store: ObjectStore, object: ObjectType, declared: ObjectProjection): Consumer {
+        // read the touched objects' identifiers: the type's own changed row, else the watches'
+        const watches = new Map(declared.watches.map((watch) => [watch.table, watch]));
+        const keys = async (change: Change, database: DatabaseConnection) => {
+            const watch = watches.get(change.table);
+            const touched =
+                change.table === object.table
+                    ? [{ id: schema.string().parse(change.key["id"]) }]
+                    : watch === undefined
+                      ? []
+                      : await watch.keys(Change.image(change), database, change);
+
+            return touched.map((fields) => schema.string().parse(fields["id"]));
+        };
+        const name = declared.name === undefined ? object.name : `${object.name}:${declared.name}`;
+        const idColumn = object.table[TABLE].column("id");
+
+        return new Projection(store.database, {
+            name: `project:${name}`,
+            reads: [object.table, ...watches.keys()],
+            keys,
+            all: async (database) =>
+                (await database.select({ id: idColumn }).from(object.table)).map((row) =>
+                    schema.string().parse(row.id),
+                ),
+            project: async (id, reconciliation) => {
+                // project an object of the store's scopes, left to its home where it is a replica
+                const rows = await store.database
+                    .select()
+                    .from(object.table)
+                    .where(eq(idColumn, id));
+                const originated = await ObjectController.originated(store, object, rows);
+                if (originated.length > 0) {
+                    await declared.project(
+                        ObjectController.context(store, object, originated, reconciliation),
+                    );
+                }
+            },
+        });
+    },
+
+    /** Select the rows of scopes the store writes now: no replicas, none fenced by a transfer. */
+    async originated(
         store: ObjectStore,
         object: ObjectType,
-        declared: ObjectController,
-    ): ReconcileController {
-        // key each pending object by its declared fields
-        const table = object.table;
-        const match = Predicate.compile(
-            Condition.resolve(declared.pending, Namespace.fields(table)),
-            table,
-        );
-        const watches = Map.groupBy(declared.watches ?? [], (watch) => watch.table);
-        const readKey = (row: Row): KeyFields =>
-            declared.key?.(row) ?? { id: ObjectController.readIdentifier(row) };
-        const keys = async (change: Change) => {
-            // select the keys each watch of the changed table reads
-            const watched = (
+        rows: readonly Row[],
+    ): Promise<readonly Row[]> {
+        // read each scope's chain once, and decide whether its rows are replicas
+        const snapshot = Snapshot.live(store.database);
+        const scopes = [...new Set(rows.map((row) => schema.string().parse(row["scope"])))];
+        const chains = await Scope.chains(snapshot, scopes);
+        const owned = new Set(
+            (
                 await Promise.all(
-                    (watches.get(change.table) ?? []).map(async (watch) =>
-                        watch.keys(Change.image(change), store.database, change),
-                    ),
+                    scopes.map(async (scope) => {
+                        // own a scope that is placed here, unfenced, and no replica
+                        const [link] = found(chains, scope);
+                        const isFenced = link === undefined || link.movedTo !== undefined;
+                        const isReplica = await store.isReplica(object, snapshot, scope);
+
+                        return isFenced || isReplica ? [] : [scope];
+                    }),
                 )
-            ).flat();
+            ).flat(),
+        );
 
-            // add the key of a changed object left pending, past a controlled object's status change
-            const row = Change.image(change);
-            const isPending =
-                Change.of(change, table) &&
-                change.operation !== "delete" &&
-                !ObjectController.isObserved(object, change) &&
-                (declared.wakes?.(change) ?? true) &&
-                Predicate.matches(match, row);
-            const selected = isPending ? [...watched, readKey(row)] : watched;
-
-            return [...new Set(selected.map((fields) => canonicalize(fields)))];
-        };
-
-        return {
-            name: object.name,
-            watches: [...new Set([table, ...watches.keys()])],
-            ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
-            keys,
-            list: async (view) => {
-                // list the declared query's keys, or those of every pending object
-                const listed =
-                    declared.list === undefined
-                        ? (await view.read(table).findMany({ where: declared.pending })).map(
-                              readKey,
-                          )
-                        : await declared.list(view);
-
-                return [...new Set(listed.map((fields) => canonicalize(fields)))];
-            },
-            reconcile: (key, reconciliation) =>
-                ObjectController.reconcilePending(store, object, declared, key, reconciliation),
-        };
+        return rows.filter((row) => owned.has(schema.string().parse(row["scope"])));
     },
 
     /** Read an object row's identifier, which every object table has. */
@@ -188,26 +316,14 @@ export const ObjectController = {
         return schema.string().parse(row["id"]);
     },
 
-    /** Reconcile one key's pending objects, if any are left. */
-    async reconcilePending(
+    /** Build the context a key's reconciliation acts in, as the type's serving principal. */
+    context(
         store: ObjectStore,
         object: ObjectType,
-        declared: ObjectController,
-        key: string,
+        rows: readonly Row[],
         reconciliation: Reconciliation,
-    ): Promise<number | undefined> {
-        // read the key's pending objects
-        const pending: Condition = {
-            AND: [declared.pending, Condition.equal(KeyFields.parse(JSON.parse(key)))],
-        };
-        const rows = await Snapshot.live(store.database)
-            .read(object.table)
-            .findMany({ where: pending });
-        if (rows.length === 0) {
-            return undefined;
-        }
-
-        // reconcile them as the type's serving principal and implementing package, at one time
+    ): ObjectReconciliation {
+        // reconcile as the type's serving principal and implementing package, at one time
         const now = store.clock.now();
         const caller = store.as(object, now);
         const site = CallSite.package(store.implementer(object), (type) => store.implementer(type));
@@ -228,6 +344,31 @@ export const ObjectController = {
 
             return written;
         };
+
+        return {
+            rows,
+            now,
+            database: store.database,
+            store,
+            caller,
+            signal: reconciliation.signal,
+            changed: () => reconciliation.changed(),
+            mutate,
+            observe,
+        };
+    },
+
+    /** Reconcile one key's pending objects as the type's serving principal. */
+    async reconcileRows(
+        store: ObjectStore,
+        object: ObjectType,
+        declared: Extract<ObjectController, { readonly reconcile: unknown }>,
+        rows: readonly Row[],
+        reconciliation: Reconciliation,
+    ): Promise<void> {
+        // build the context, and observe a report on every row lacking it in one mutation
+        const context = ObjectController.context(store, object, rows, reconciliation);
+        const { mutate } = context;
         const observeAll = async (
             observed: readonly (ObservedRecord & Readonly<Record<string, unknown>>)[],
             observation: ObservationReport,
@@ -243,26 +384,15 @@ export const ObjectController = {
 
         // reconcile, recording a lasting failure on each controlled object until its next change
         try {
-            const delay = await declared.reconcile({
-                rows,
-                now,
-                database: store.database,
+            const outcome = await declared.reconcile(context);
+
+            // record each converged controlled object synced at the generation it has now
+            const reread = await ObjectController.reread(
                 store,
-                caller,
-                signal: reconciliation.signal,
-                changed: () => reconciliation.changed(),
-                mutate,
-                observe,
-            });
-
-            // clear the failures the objects recorded before
-            const failed = object.isControlled
-                ? rows.filter((row) => !ObjectController.isSynced(row))
-                : [];
-            const reread = await ObjectController.reread(store, object, failed);
+                object,
+                object.isControlled && outcome !== "waiting" ? rows : [],
+            );
             await observeAll(reread, { conditions: { [SYNCED]: SYNCED_CONDITION } });
-
-            return delay;
         } catch (error) {
             // record a declared failure no retry may resolve
             const failure = Failure.of(error);
@@ -273,20 +403,6 @@ export const ObjectController = {
             }
             throw error;
         }
-    },
-
-    /** Report whether a change only observed a controlled object, its generation unchanged. */
-    isObserved(object: ObjectType, change: Change): boolean {
-        return (
-            object.isControlled &&
-            change.operation === "update" &&
-            change.before["generation"] === change.after["generation"]
-        );
-    },
-
-    /** Report whether a controlled object's last reconcile succeeded or never failed. */
-    isSynced(row: Row): boolean {
-        return ObservedFields.parse(row).conditions[SYNCED]?.status !== "false";
     },
 
     /** Describe a failed reconcile as Crossplane's ReconcileError, findable by its reason. */

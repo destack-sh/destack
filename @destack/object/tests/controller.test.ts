@@ -2,26 +2,19 @@ import { TestObjectStore } from "../src/test/index.ts";
 import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
-import { reconciliation, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { AccessContext, Caller, InstallationId, none, principal, relation } from "@destack/access";
 
 import { Scope, RequestId } from "@destack/sync";
-import {
-    asc,
-    eq,
-    defineDatabase,
-    type Change,
-    Snapshot,
-    type ReconcileController,
-} from "@destack/db";
+import { asc, ControlLoop, eq, defineDatabase, now } from "@destack/db";
 import { Failure } from "@destack/error";
 import { schema, present, type Identifier } from "@destack/schema";
 
 import { defineObject, field, ObjectWatch } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { auditedCalls } from "../src/test/index.ts";
+import { auditedCalls, settleControl } from "../src/test/index.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 
@@ -48,23 +41,16 @@ const reminder = defineObject(
     }),
 ).implement({
     methods: { send: (call) => call.update({ sentAt: call.now }) },
-    controller: {
-        pending: { sentAt: { isNull: true } },
-        key: (row) => ({ topic: row.topic }),
-        async reconcile(reconciling) {
-            // send the due reminders of the topic together, and wait for the next one
-            const { rows, now } = reconciling;
-            const due = rows.filter((row) => row.dueAt <= now);
-            if (due.length > 0) {
-                await reconciling.mutate(
-                    due.map((row) => reminder.call("send", reminder.target(row))),
-                );
-            }
-            const next = rows.filter((row) => row.dueAt > now).map((row) => row.dueAt - now);
-
-            return next.length === 0 ? undefined : Math.min(...next);
+    controllers: [
+        {
+            pending: { sentAt: { isNull: true }, dueAt: { lte: now } },
+            key: ["topic"],
+            // send the due reminders of a topic together
+            reconcile: async ({ rows, mutate }) => {
+                await mutate(rows.map((row) => reminder.call("send", reminder.target(row))));
+            },
         },
-    },
+    ],
 });
 
 /** Gates whose controller fails as their outcome field says, until it opens them. */
@@ -85,26 +71,28 @@ const gate = defineObject(
         update: method.update("write", { fields: ["outcome"] }),
     }),
 ).implement({
-    controller: {
-        pending: {},
-        async reconcile(reconciling) {
+    controllers: [
+        {
+            pending: { generation: { gt: { field: "syncedGeneration" } } },
             // refuse or fail each gate as its outcome says
-            for (const row of reconciling.rows) {
-                if (row.outcome === "refused") {
-                    throw Failure.error({
-                        code: "FORBIDDEN",
-                        reason: "PERMISSION_DENIED",
-                        domain: "@destack/access",
-                        message: "permission denied: bind",
-                    });
-                } else if (row.outcome === "unavailable") {
-                    throw Failure.error(Failure.http("SERVICE_UNAVAILABLE", "service unavailable"));
+            reconcile: async ({ rows }) => {
+                for (const row of rows) {
+                    if (row.outcome === "refused") {
+                        throw Failure.error({
+                            code: "FORBIDDEN",
+                            reason: "PERMISSION_DENIED",
+                            domain: "@destack/access",
+                            message: "permission denied: bind",
+                        });
+                    } else if (row.outcome === "unavailable") {
+                        throw Failure.error(
+                            Failure.http("SERVICE_UNAVAILABLE", "service unavailable"),
+                        );
+                    }
                 }
-            }
-
-            return undefined;
+            },
         },
-    },
+    ],
 });
 
 /** The database with the reminders, their access and the journal. */
@@ -117,10 +105,10 @@ const reminderDatabase = defineDatabase({
     }),
 });
 
-test("reconcile a type's pending objects by the key its controller declares, as the store's principal", async () => {
+test("reconcile a type's due objects together by the key its controller declares, waking when the next one is due", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
-
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
     const storage = await TestDatabase.create(reminderDatabase, {
         environment: world,
         isMigrated: true,
@@ -136,23 +124,12 @@ test("reconcile a type's pending objects by the key its controller declares, as 
         database,
         callKey: testCallKey,
         events: await testEvents(database, world),
-        origin: {
-            package: reminder.package,
-        },
+        origin: { package: reminder.package },
     });
-    const controller = present(
-        store
-            .controllers()
-            .find(
-                (each): each is ReconcileController =>
-                    each.name === "reminder" && each.mode !== "follow",
-            ),
-        "the reminder controller",
-    );
 
-    // insert two due reminders about tea, one later about tea, and one sent about lunch
+    // insert two due reminders about tea, one later about tea, and one due about lunch
     const context = userContext(users.frank, spaceId, { environment: world });
-    const now = world.clock.now();
+    const start = world.clock.now();
     const create = async (topic: string, dueAt: number) =>
         store
             .mutate(context.access(), {
@@ -160,131 +137,111 @@ test("reconcile a type's pending objects by the key its controller declares, as 
                 calls: [reminder.call("create", { spaceId, topic, dueAt })],
             })
             .then(([written]) => written);
-    await create("tea", now - 1000);
-    await create("tea", now - 500);
-    await create("tea", now + 60_000);
-    const lunch = await create("lunch", now - 1000);
-    await database.transaction(
-        async (transaction) =>
-            await transaction
-                .update(reminder.table)
-                .set({ sentAt: now - 900 })
-                .where(eq(reminder.table.id, lunch.id)),
-    );
-    const inserted = (topic: string, sentAt: number | null): Change<typeof reminder.table> => ({
-        transaction: null,
-        table: reminder.table,
-        key: { id: lunch.id },
-        scope: spaceId,
-        changedAt: now,
-        operation: "insert",
-        after: { ...lunch, topic, sentAt },
-        sequence: 1,
-    });
+    await create("tea", start - 1000);
+    await create("tea", start - 500);
+    await create("tea", start + 60_000);
+    await create("lunch", start - 1000);
 
-    // list one key per topic with work waiting, and key a changed pending object by its topic
-    const keys = await controller.list(Snapshot.live(database));
-    if (controller.keys === undefined) {
-        throw new TypeError("the reminder controller keys no changes");
-    }
-    expect([
-        keys,
-        await controller.keys(inserted("cake", null)),
-        await controller.keys(inserted("cake", now)),
-    ]).toEqual([['{"topic":"tea"}'], ['{"topic":"cake"}'], []]);
-
-    // send the due tea reminders together and look again when the last one is due
-    const wait = present(
-        await controller.reconcile(
-            present(keys[0], "the tea key"),
-            reconciliation(new AbortController().signal),
-        ),
-        "the wait until the next reminder",
-    );
-    const sent = await database
-        .select({ id: reminder.table.id, sentAt: reminder.table.sentAt })
-        .from(reminder.table)
-        .where(eq(reminder.table.topic, "tea"))
-        .orderBy(asc(reminder.table.dueAt));
-    expect([sent.map((each) => each.sentAt !== null), wait > 50_000 && wait <= 60_000]).toEqual([
-        [true, true, false],
-        true,
+    // send the due ones by topic, then the later one at its time
+    const sent = async () =>
+        (
+            await database
+                .select({ topic: reminder.table.topic, sentAt: reminder.table.sentAt })
+                .from(reminder.table)
+                .orderBy(asc(reminder.table.dueAt), asc(reminder.table.topic))
+        ).map((row) => [row.topic, row.sentAt === null ? null : row.sentAt - start]);
+    const sends = async () =>
+        (await auditedCalls(database)).filter((call) => call.method === "reminder.send").length;
+    await settleControl(store);
+    const first = [await sent(), await sends()];
+    await simulation.jump(start + 60_000);
+    await settleControl(store);
+    expect([first, await sent()]).toEqual([
+        [
+            [
+                ["lunch", 0],
+                ["tea", 0],
+                ["tea", 0],
+                ["tea", null],
+            ],
+            3,
+        ],
+        [
+            ["lunch", 0],
+            ["tea", 0],
+            ["tea", 0],
+            ["tea", 60_000],
+        ],
     ]);
 });
 
-test("select a changed pending object's key beside the keys every watch of its table declares", async () => {
+test("reconcile a pending object again as a watched table's change selects it", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // wake the first and the last unsent reminder through two watches once another reminder changes
-    const queued = reminder.implement({
-        controller: {
-            pending: { sentAt: { isNull: true } },
-            watches: [
-                ObjectWatch.of(reminder.table, () => [{ id: "head" }]),
-                ObjectWatch.of(reminder.table, () => [{ id: "tail" }]),
-            ],
-            reconcile: async () => undefined,
-        },
+    // keep every reminder pending, and select the first one again once any reminder changes
+    const reconciled: string[] = [];
+    let firstId = "";
+    const watched = reminder.implement({
+        controllers: [
+            {
+                pending: { sentAt: { isNull: true } },
+                watches: [ObjectWatch.of(reminder.table, () => [{ id: firstId }])],
+                reconcile: async ({ rows }) => {
+                    reconciled.push(...rows.map((row) => row.topic));
+                },
+            },
+        ],
     });
     const storage = await TestDatabase.create(reminderDatabase, {
         environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, world, spaceId);
+    const database = storage.database;
+    await openSpace(database, world, spaceId);
     const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
-        servers: serversOf([queued]),
-        database: storage.database,
+        servers: serversOf([watched]),
+        database,
         callKey: testCallKey,
-        events: await testEvents(storage.database, world),
+        events: await testEvents(database, world),
         origin: { package: reminder.package },
     });
-    const controller = present(
-        store
-            .controllers()
-            .find(
-                (each): each is ReconcileController =>
-                    each.name === "reminder" && each.mode !== "follow",
-            ),
-        "the reminder controller",
-    );
-    const created = await store
-        .mutate(userContext(users.frank, spaceId, { environment: world }).access(), {
-            id: RequestId.create(world),
-            calls: [reminder.call("create", { spaceId, topic: "tea", dueAt: 1 })],
-        })
-        .then(([written]) => written);
-    const changed = (sentAt: number | null): Change<typeof reminder.table> => ({
-        transaction: null,
-        table: reminder.table,
-        key: { id: created.id },
-        scope: spaceId,
-        changedAt: 1,
-        operation: "insert",
-        after: { ...created, sentAt },
-        sequence: 1,
+    const loop = new ControlLoop(database, store.control(), { report: () => {} });
+    const stopping = new AbortController();
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
     });
 
-    // key a pending reminder by itself and both watches, and a sent one only by the watches
-    expect([
-        await controller.keys?.(changed(null)),
-        await controller.keys?.(changed(1)),
-        controller.watches,
-    ]).toEqual([
-        ['{"id":"head"}', '{"id":"tail"}', `{"id":"${created.id}"}`],
-        ['{"id":"head"}', '{"id":"tail"}'],
-        [reminder.table],
+    // reconcile the first at its creation, then again beside the second as the second is created
+    const create = async (topic: string) =>
+        store
+            .mutate(userContext(users.frank, spaceId, { environment: world }).access(), {
+                id: RequestId.create(world),
+                calls: [reminder.call("create", { spaceId, topic, dueAt: 1 })],
+            })
+            .then(([written]) => written);
+    firstId = (await create("first")).id;
+    await loop.idle();
+    const created = new Set(reconciled.splice(0));
+    await create("second");
+    await loop.idle();
+
+    // reconcile each object at least once per phase, a race of the start and the commit running one twice
+    expect([[...created], [...new Set(reconciled)].toSorted()]).toEqual([
+        ["first"],
+        ["first", "second"],
     ]);
 });
 
 test("run a controller's calls as its package's base installation, audited with the controller's name, and refuse principals lacking the method's permission", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
-
     const storage = await TestDatabase.create(reminderDatabase, {
         environment: world,
         isMigrated: true,
@@ -302,15 +259,6 @@ test("run a controller's calls as its package's base installation, audited with 
         events: await testEvents(database, world),
         origin: { package: reminder.package },
     });
-    const controller = present(
-        store
-            .controllers()
-            .find(
-                (each): each is ReconcileController =>
-                    each.name === "reminder" && each.mode !== "follow",
-            ),
-        "the reminder controller",
-    );
 
     // send a due reminder of frank through the controller
     const due = await store
@@ -321,9 +269,8 @@ test("run a controller's calls as its package's base installation, audited with 
             ],
         })
         .then(([written]) => written);
-    await controller.reconcile('{"topic":"tea"}', reconciliation(new AbortController().signal));
+    await settleControl(store);
     const sends = (await auditedCalls(database)).filter((call) => call.method === "reminder.send");
-
     // refuse the send to its owner, who reads it, and conceal it from another user
     const [row] = await database.select().from(reminder.table);
     const send = (as: Identifier<"user">) =>
@@ -357,10 +304,9 @@ test("run a controller's calls as its package's base installation, audited with 
     ]);
 });
 
-test("record a lasting reconcile failure on a controlled object as its synced condition, and clear it once reconciled", async () => {
+test("record a lasting reconcile failure on a controlled object as its synced condition, sync it once reconciled, and keep a failing one pending", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
-
     const storage = await TestDatabase.create(reminderDatabase, {
         environment: world,
         isMigrated: true,
@@ -378,17 +324,18 @@ test("record a lasting reconcile failure on a controlled object as its synced co
         events: await testEvents(database, world),
         origin: { package: gate.package },
     });
-    const controller = present(
-        store
-            .controllers()
-            .find(
-                (each): each is ReconcileController =>
-                    each.name === "gate" && each.mode !== "follow",
-            ),
-        "the gate controller",
-    );
+    const reported: unknown[] = [];
+    const loop = new ControlLoop(database, store.control(), {
+        report: (_controller, _key, error) => reported.push(error),
+    });
+    const stopping = new AbortController();
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
 
-    // create a refused gate and an unavailable one
+    // create a refused gate and an unavailable one, each failing its reconcile
     const access = userContext(users.frank, spaceId, { environment: world }).access();
     const create = async (outcome: string) =>
         store
@@ -398,91 +345,124 @@ test("record a lasting reconcile failure on a controlled object as its synced co
             })
             .then(([written]) => written);
     const refused = await create("refused");
-    const unavailable = await create("unavailable");
-
-    // reconcile each, then open the refused gate and reconcile it again
-    const reconcile = async (id: string) =>
-        refusal(
-            controller.reconcile(
-                JSON.stringify({ id }),
-                reconciliation(new AbortController().signal),
-            ),
-        );
-    const failed = [await reconcile(refused.id), await reconcile(unavailable.id)];
-    const conditions = async () =>
+    await create("unavailable");
+    await loop.idle();
+    const state = async () =>
         Object.fromEntries(
             (await database.select().from(gate.table).orderBy(asc(gate.table.outcome))).map(
-                (row) => [row.outcome, row.conditions],
+                (row) => [row.outcome, [row.syncedGeneration, row.conditions]],
             ),
         );
-    const recorded = await conditions();
-    const read = async () =>
-        present(
-            (await database.select().from(gate.table)).find((row) => row.id === refused.id),
-            "the refused gate",
-        );
-    const observed = await read();
+    const recorded = await state();
+
+    // open the refused gate, which its next reconcile syncs
     await store.mutate(access, {
         id: RequestId.create(world),
         calls: [gate.call("update", { ...gate.target(refused), outcome: "open" })],
     });
-    const opened = await read();
+    await loop.idle();
 
-    // key the opening, and skip the failure's own write, which left the generation as it was
-    const updated = (
-        before: typeof observed,
-        after: typeof observed,
-    ): Change<typeof gate.table> => ({
-        transaction: null,
-        table: gate.table,
-        key: { id: refused.id },
-        scope: spaceId,
-        changedAt: world.clock.now(),
-        operation: "update",
-        before,
-        after,
-        sequence: 1,
-    });
-    const keyed = [
-        await controller.keys?.(updated(refused, observed)),
-        await controller.keys?.(updated(observed, opened)),
-    ];
-    await controller.reconcile(
-        JSON.stringify({ id: refused.id }),
-        reconciliation(new AbortController().signal),
-    );
-
-    // record the refusal with its domain and reason, leave the outage unrecorded, and clear the refusal once open
-    const now = world.clock.now();
-    expect({ failed, recorded, keyed, cleared: await conditions() }).toEqual({
-        keyed: [[], [JSON.stringify({ id: refused.id })]],
-        failed: [
-            ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: bind"],
-            ["SERVICE_UNAVAILABLE", "SERVICE_UNAVAILABLE", "service unavailable"],
-        ],
+    // record the refusal with its domain and reason, leave the outage unrecorded, and sync the opened gate
+    const at = world.clock.now();
+    expect({ recorded, synced: await state() }).toEqual({
         recorded: {
-            refused: {
-                Synced: {
-                    status: "false",
-                    observedGeneration: 1,
-                    reason: "ReconcileError",
-                    message: "@destack/access PERMISSION_DENIED: permission denied: bind",
-                    lastTransitionAt: now,
+            refused: [
+                0,
+                {
+                    Synced: {
+                        status: "false",
+                        observedGeneration: 1,
+                        reason: "ReconcileError",
+                        message: "@destack/access PERMISSION_DENIED: permission denied: bind",
+                        lastTransitionAt: at,
+                    },
+                },
+            ],
+            unavailable: [0, {}],
+        },
+        synced: {
+            open: [
+                2,
+                {
+                    Synced: {
+                        status: "true",
+                        observedGeneration: 2,
+                        reason: "ReconcileSuccess",
+                        message: "",
+                        lastTransitionAt: at,
+                    },
+                },
+            ],
+            unavailable: [0, {}],
+        },
+    });
+});
+
+test("project a type's objects at the first start, then each one its own or a watched input's change touches, and none at an unchanged restart", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // project each reminder again as it changes, or as a gate naming its topic changes
+    const projected: string[] = [];
+    const projectedReminder = reminder.implement({
+        projections: [
+            {
+                watches: [
+                    ObjectWatch.of(gate.table, async (row, database) =>
+                        (
+                            await database
+                                .select({ id: reminder.table.id })
+                                .from(reminder.table)
+                                .where(eq(reminder.table.topic, row.outcome))
+                        ).map((each) => ({ id: each.id })),
+                    ),
+                ],
+                project: async ({ rows }) => {
+                    projected.push(...rows.map((row) => row.topic));
                 },
             },
-            unavailable: {},
-        },
-        cleared: {
-            open: {
-                Synced: {
-                    status: "true",
-                    observedGeneration: 2,
-                    reason: "ReconcileSuccess",
-                    message: "",
-                    lastTransitionAt: now,
-                },
-            },
-            unavailable: {},
-        },
+        ],
+    });
+    const storage = await TestDatabase.create(reminderDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([projectedReminder, gate]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        origin: { package: reminder.package },
+    });
+    const access = userContext(users.frank, spaceId, { environment: world }).access();
+    const later = world.clock.now() + 86_400_000;
+    const mutate = (calls: Parameters<typeof store.mutate>[1]["calls"]) =>
+        store.mutate(access, { id: RequestId.create(world), calls });
+
+    // project the existing reminder at the first start, due a day later so the type's controller leaves it
+    await mutate([reminder.call("create", { spaceId, topic: "tea", dueAt: later })]);
+    await settleControl(store);
+    const first = projected.splice(0);
+
+    // project a created reminder, then the reminder a gate's topic names, across restarts
+    await mutate([reminder.call("create", { spaceId, topic: "cake", dueAt: later })]);
+    await settleControl(store);
+    const created = projected.splice(0);
+    await mutate([gate.call("create", { spaceId, outcome: "tea" })]);
+    await settleControl(store);
+    const watched = projected.splice(0);
+    await settleControl(store);
+    // project tea once per change of the gate naming it: its creation, then its controller's sync
+    expect({ first, created, watched, unchanged: projected }).toEqual({
+        first: ["tea"],
+        created: ["cake"],
+        watched: ["tea", "tea"],
+        unchanged: [],
     });
 });

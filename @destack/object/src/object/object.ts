@@ -36,7 +36,7 @@ import {
     type Table,
     type Transaction,
     type Tree,
-    type ReconcileController,
+    type Consumer,
 } from "@destack/db";
 import {
     nth,
@@ -156,8 +156,8 @@ import { chunk, chunkRun } from "../text/table.ts";
 import type { GateOf, Gated, Trait } from "../trait/trait.ts";
 import { SYSTEM_TABLES } from "../stack/db.ts";
 import { eventTables } from "@destack/event/stack";
-import type { ObjectController } from "./controller.ts";
-import { Consumer, type ReaderHandler } from "./consumer.ts";
+import type { ObjectController, ObjectProjection } from "./controller.ts";
+import { EventConsumer, type ReaderHandler } from "./consumer.ts";
 import type { ObjectStore } from "../server/store.ts";
 
 import type { DeclarationHandler } from "../server/stack.ts";
@@ -443,8 +443,8 @@ export interface ObjectDefinition<
     readonly indexes?: Readonly<Record<string, ObjectIndex>>;
     /** Where the objects live: a kind, or the event log with its settings. */
     readonly storage?: Exclude<ObjectStorage, "events"> | EventStorage;
-    /** The event log readers the store has a slot of per row value, by slot name. */
-    readonly readers?: Readonly<Record<string, ReaderDefinition>>;
+    /** The event log readers the store has a checkpoint of per row value, by checkpoint name. */
+    readonly readers?: Readonly<Record<string, EventReaderDefinition>>;
     /** The previous names of renamed fields, by current field. */
     readonly moved?: { readonly fields?: Readonly<Record<string, string>> };
     /** The fields each release computes from stored rows and earlier inputs, by release. */
@@ -453,13 +453,13 @@ export interface ObjectDefinition<
     readonly predefined?: readonly Row[];
 }
 
-/** An event log reader with one slot per distinct value of a row column. */
-export interface ReaderDefinition {
-    /** The column whose distinct values each have a separate slot. */
+/** An event log reader with one checkpoint per distinct value of a row column. */
+export interface EventReaderDefinition {
+    /** The column whose distinct values each have a separate checkpoint. */
     readonly by: "id" | "scope";
-    /** Where a new slot starts: the creating commit's log position, or the log's start. */
+    /** Where a new checkpoint starts: the creating commit's log position, or the log's start. */
     readonly start: "latest" | "earliest";
-    /** How long the log retains events past a slot's place once it advances. */
+    /** How long the log retains events past a checkpoint's place once it advances. */
     readonly hold: Duration;
     /** How long a page's first event waits before a reader takes the page, none when absent. */
     readonly batch?: Duration;
@@ -548,7 +548,7 @@ export type ObjectAssembly<Configuration extends ObjectConfiguration = ObjectCon
         readonly indexes: Readonly<Record<string, ObjectIndex>>;
     };
 
-/** An object type's code: method handlers by name, its controller and its stack handler. */
+/** An object type's code: method handlers by name, its controllers and its stack handler. */
 export interface ObjectImplementation<Self extends ObjectType = ObjectType> {
     /** The handler of each method, by method name. */
     readonly methods?: {
@@ -557,7 +557,9 @@ export interface ObjectImplementation<Self extends ObjectType = ObjectType> {
         >;
     };
     /** Reconcile or follow the objects with work waiting as the store's principal. */
-    readonly controller?: ObjectController<Self>;
+    readonly controllers?: readonly ObjectController<Self>[];
+    /** Project the objects from input tables again as their changes touch them. */
+    readonly projections?: readonly ObjectProjection<Self>[];
     /** How a stack's declarations of the objects become their managed records. */
     readonly declaration?: DeclarationHandler<Self>;
 }
@@ -668,8 +670,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly policy: Policy;
     /** The permission names callers may have on the object. */
     readonly permissions: readonly string[];
-    /** The controller reconciling pending objects, absent until implemented with one. */
-    readonly controller?: ObjectController;
+    /** The controllers the type's code implements, none until implemented with some. */
+    readonly controllers: readonly ObjectController[];
+    /** The projections the type's code implements, none until implemented with some. */
+    readonly projections: readonly ObjectProjection[];
     /** How stack declarations become managed records, absent for types they cannot declare. */
     readonly declaration: DeclarationHandler | undefined;
 
@@ -725,6 +729,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.methods = definition.methods;
         ObjectType.#requireConversions(definition, owner);
         this.declaration = ObjectType.#declarationOf(definition);
+        this.controllers = [];
+        this.projections = [];
 
         // compute the scopes, nesting, sharing, presentation, ordering, search and the event kind once
         this.scopes = ObjectType.#scopeTypes(this.definition.scope);
@@ -925,6 +931,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return traits;
     }
 
+    /** List the controllers the type's traits add beside its own. */
+    traitControllers(): readonly ObjectController[] {
+        return this.traits.flatMap(
+            ({ trait, options }) => trait.controllers?.(options, this) ?? [],
+        );
+    }
+
     /** How the objects are declared, deleted, expired, versioned, tracked and converted. */
     get lifecycle(): ObjectLifecycle<Configuration["permissions"]> {
         const { definition } = this;
@@ -955,42 +968,46 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.policy.reference(scope, id);
     }
 
-    /** Read one of the type's declared event log readers by its slot name. */
+    /** Read one of the type's declared event readers, its checkpoints named by the type's table. */
     reader(name: string): EventReader {
+        // refuse an undeclared reader
         const declared = this.definition.readers?.[name];
         if (declared === undefined) {
             throw new TypeError(`object ${this.name} has no reader ${name}`);
         }
 
-        return new EventReader(name, Duration.milliseconds(declared.hold));
+        // name its checkpoints by the events table, unique per type, and the reader
+        const checkpoint = `${this.table[TABLE].sqlName}/${name}`;
+
+        return new EventReader(checkpoint, [this.table], Duration.milliseconds(declared.hold));
     }
 
     /** Consume one of the type's readers by scope, handing each claimed page to a handler. */
-    consume(reader: string, handler: ReaderHandler): (store: ObjectStore) => ReconcileController {
-        return (store) => new Consumer(store, this, reader, handler);
+    consume(reader: string, handler: ReaderHandler): (store: ObjectStore) => Consumer {
+        return (store) => new EventConsumer(store, this, reader, handler);
     }
 
-    /** Update the type's reader slots with a row the transaction inserts or removes. */
+    /** Update the type's reader checkpoints with a row the transaction inserts or removes. */
     updateReaders(
         transaction: Transaction,
         change: { readonly before: Row | null; readonly after: Row | null },
         now: number,
     ): void {
         for (const [name, declared] of Object.entries(this.definition.readers ?? {})) {
-            // start or place an inserted row's slot as the transaction commits
+            // start or place an inserted row's checkpoint as the transaction commits
             const { before, after } = change;
             if (before === null && after !== null) {
-                const slot = this.reader(name).at(schema.string().parse(after[declared.by]));
+                const checkpoint = this.reader(name).at(schema.string().parse(after[declared.by]));
                 transaction.record((database) =>
                     declared.start === "latest"
-                        ? slot.start(now, database)
-                        : slot.place(now, database),
+                        ? checkpoint.start(now, database)
+                        : checkpoint.place(now, database),
                 );
             }
-            // release a removed row's slot
+            // release a removed row's checkpoint
             else if (before !== null && after === null && declared.by === "id") {
-                const slot = this.reader(name).at(schema.string().parse(before[declared.by]));
-                transaction.record((database) => slot.release(database));
+                const checkpoint = this.reader(name).at(schema.string().parse(before[declared.by]));
+                transaction.record((database) => checkpoint.release(database));
             }
         }
     }
@@ -1820,7 +1837,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
     }
 
-    /** Implement the type: attach method handlers, its controller and its stack handler. */
+    /** Implement the type: attach method handlers, its controllers and its stack handler. */
     implement<Self extends ObjectType>(
         this: Self,
         implementation: ObjectImplementation<Self> &
@@ -1844,9 +1861,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
 
         // leave ephemeral and external objects off the controllers
-        const { controller, declaration } = implementation;
-        if (controller !== undefined && this.storage !== "durable") {
-            throw new TypeError(`${this.storage} object ${this.name} cannot have a controller`);
+        const { controllers, projections, declaration } = implementation;
+        const isReactive = controllers !== undefined || projections !== undefined;
+        if (isReactive && this.storage !== "durable") {
+            throw new TypeError(
+                `${this.storage} object ${this.name} cannot have controllers or projections`,
+            );
         }
 
         // replicate the type with its handlers, sharing its procedures
@@ -1854,7 +1874,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             this,
             {
                 methods,
-                ...(controller === undefined ? {} : { controller }),
+                ...(controllers === undefined ? {} : { controllers }),
+                ...(projections === undefined ? {} : { projections }),
                 ...(declaration === undefined ? {} : { declaration }),
             },
             this.derived,
@@ -1883,7 +1904,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Replicate the object type with some members changed, sharing its table. */
     with<Self extends ObjectType>(
         this: Self,
-        changes: Partial<Pick<Self, "methods" | "controller" | "declaration" | "definition">>,
+        changes: Partial<
+            Pick<Self, "methods" | "controllers" | "projections" | "declaration" | "definition">
+        >,
     ): Self {
         // replicate the members, building the changed type's schemas and procedures afresh
         return ObjectType.#copy(this, changes, ObjectType.#underived());
@@ -1892,7 +1915,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Copy an object type with some members changed and the given derived values. */
     static #copy<Type extends ObjectType>(
         type: Type,
-        changes: Partial<Pick<Type, "methods" | "controller" | "declaration" | "definition">>,
+        changes: Partial<
+            Pick<Type, "methods" | "controllers" | "projections" | "declaration" | "definition">
+        >,
         derived: Derived,
     ): Type {
         // validate the authored type before a copy changes its definition

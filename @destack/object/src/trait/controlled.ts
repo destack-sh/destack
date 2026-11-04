@@ -31,6 +31,8 @@ export function controlledColumns() {
         generation: integer("generation").notNull().default(1),
         /** The conditions the controllers report, each at the generation it observed. */
         conditions: json("conditions", ConditionMap).notNull().default({}),
+        /** The latest desired generation a controller synced, zero before its first sync. */
+        syncedGeneration: integer("synced_generation").notNull().default(0),
     };
 }
 

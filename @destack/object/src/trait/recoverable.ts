@@ -1,5 +1,5 @@
-import { Duration, type schema } from "@destack/schema";
-import { type ColumnBuilder, identifier, integer, text } from "@destack/db";
+import { Duration, present, type schema } from "@destack/schema";
+import { type ColumnBuilder, identifier, integer, Now, text } from "@destack/db";
 import type { FieldColumn } from "../field/field.ts";
 import type { Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
@@ -10,7 +10,7 @@ import {
     type RowSchema,
     type TargetFields,
 } from "../method/procedure.ts";
-import type { ObjectType } from "../object/object.ts";
+import { ObjectKey, type ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
 import { RecoverableMethod } from "../method/recoverable.ts";
@@ -91,6 +91,9 @@ export function deletionColumns() {
     };
 }
 
+/** The most deletions one purge mutation removes: about a millisecond of deletes. */
+const PURGE_ROWS = 100;
+
 /** Objects deleted to a trash, restorable within a window and purged after it. */
 export const recoverable: Trait<RecoverableDefinition> = {
     key: "recoverable",
@@ -114,6 +117,36 @@ export const recoverable: Trait<RecoverableDefinition> = {
             ? { discard: RecoverableMethod.discard(options.purge ?? options.by) }
             : {}),
     }),
+    // purge each scope's deletions as their windows end, a batch per mutation
+    controllers: (options, object) => [
+        {
+            name: "purge",
+            pending: {
+                deletedAt: { lte: new Now().minus(options.within) },
+                ...(options.retain === "record" ? { purgedAt: { isNull: true } } : {}),
+            },
+            key: ["scope"],
+            reconcile: async ({ rows, mutate }) => {
+                // find the method purging the type's objects, whatever its name
+                const [purge] = present(
+                    Object.entries(object.methods).find(
+                        ([, declared]) => declared.kind === "purge",
+                    ),
+                    `the purge method of ${object.name}`,
+                );
+
+                // purge the scope's released objects a batch per mutation
+                const keys = rows.map((row) => ObjectKey.parse(row));
+                for (let start = 0; start < keys.length; start += PURGE_ROWS) {
+                    await mutate(
+                        keys
+                            .slice(start, start + PURGE_ROWS)
+                            .map((key) => object.call(purge, object.target(key))),
+                    );
+                }
+            },
+        },
+    ],
     validate: (options, object, definition) => {
         // refuse controlled objects
         if (definition.controlled !== undefined) {

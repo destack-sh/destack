@@ -1,9 +1,12 @@
 import { none } from "@destack/access";
 import { Duration } from "@destack/schema";
-import { TABLE, Condition } from "@destack/db";
-import type { ObjectType } from "../object/object.ts";
+import { TABLE, Condition, Now } from "@destack/db";
+import { ObjectKey, type ObjectType } from "../object/object.ts";
 import { expiry } from "../method/expiring.ts";
 import { type Trait } from "./trait.ts";
+
+/** The most objects one expiry mutation removes: about a millisecond of deletes. */
+const EXPIRE_ROWS = 100;
 
 /** A rule expiring matching objects a window after a time field. */
 export interface ExpiryRule {
@@ -32,6 +35,25 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
         permissions.includes("expire") ? {} : { permissions: { expire: none() } },
     methods: () => ({ expire: expiry }),
     validate: (rules, object) => expiring.requireRules(object, rules),
+    // expire each scope's objects once a rule's window passed
+    controllers: (rules, object) =>
+        rules.map((rule, index) => ({
+            name: `expiry-${String(index)}`,
+            pending: { ...rule.where, [rule.from]: { lte: new Now().minus(rule.after) } },
+            key: ["scope"],
+            reconcile: async ({ rows, mutate }) => {
+                const keys = rows.map((row) => ObjectKey.parse(row));
+
+                // expire them a batch per mutation
+                for (let start = 0; start < keys.length; start += EXPIRE_ROWS) {
+                    await mutate(
+                        keys
+                            .slice(start, start + EXPIRE_ROWS)
+                            .map((key) => object.call("expire", object.target(key))),
+                    );
+                }
+            },
+        })),
     after(object, rules) {
         // require an expiring type
         if (object.lifecycle.expiring === undefined) {
@@ -62,6 +84,10 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
             if (!Object.hasOwn(columns, rule.from)) {
                 throw new TypeError(
                     `object ${object.name} expires from unknown field ${rule.from}`,
+                );
+            } else if (rule.where !== undefined && Object.hasOwn(rule.where, rule.from)) {
+                throw new TypeError(
+                    `an expiry rule of ${object.name} compares its time field ${rule.from} in its condition`,
                 );
             }
         }

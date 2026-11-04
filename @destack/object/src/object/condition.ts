@@ -2,6 +2,9 @@ import { canonicalize, Instant, schema } from "@destack/schema";
 import type { Call } from "@destack/sync";
 import type { ObjectType } from "./object.ts";
 
+/** The condition of a controlled object's last reconcile succeeding, as Crossplane's Synced. */
+export const SYNCED = "Synced";
+
 /** A controller's observation of a record. */
 export const StatusCondition = Object.assign(
     schema.object({

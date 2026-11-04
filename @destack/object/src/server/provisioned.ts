@@ -1,5 +1,5 @@
 import { accessRelationship } from "@destack/access";
-import { and, type BlobStore, type DatabaseConnection, eq, Snapshot, Table } from "@destack/db";
+import { and, type BlobStore, type DatabaseConnection, eq, now, Table } from "@destack/db";
 import {
     Address,
     type KindState,
@@ -11,7 +11,6 @@ import {
 } from "@destack/resource";
 import { ResourceError } from "@destack/resource/error";
 import { nth, Digest, Duration, type Identifier, present, zip } from "@destack/schema";
-import { Replica, Scope } from "@destack/sync";
 import {
     ObjectWatch,
     type ObjectController,
@@ -49,11 +48,9 @@ interface ReconcileOptions extends ResourceControllerOptions {
 }
 
 /** The control loop of one kind's provisioned objects through a process's providers. */
-export class ResourceController implements ObjectController<ResourceType<"space">> {
-    /** The rows the loop takes: every resource of the kind. */
-    readonly pending = {};
+export class ResourceController {
     /** The consumer relationships, whose changes select the resource they relate. */
-    readonly watches: readonly ObjectWatch[];
+    readonly #watches: readonly ObjectWatch[];
     /** The provisioned object type. */
     readonly #object: ResourceType<"space">;
     /** The process's providers of the kind and its machine. */
@@ -66,7 +63,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Reconcile a kind's provisioned objects via its providers, refusing self-controlled ones. */
     constructor(object: ResourceType<"space">, options: ResourceControllerOptions) {
         // refuse resources another controller reconciles
-        if (object.controller !== undefined) {
+        if (object.controllers.length > 0) {
             throw new TypeError(
                 `resources ${object.name} cannot have a controller: their kind provides it`,
             );
@@ -81,9 +78,9 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         this.#kind = present(object.provisioned, `the kind of ${object.name}`).kind;
         this.#options = { ...options, providers };
 
-        // wake a resource once its consumers change, and a scope's resources once the scope comes or goes
+        // wake a resource once its consumers change
         const { packageId } = object.policy.definition;
-        this.watches = [
+        this.#watches = [
             ObjectWatch.of(accessRelationship, (row) =>
                 row.objectPackageId === packageId &&
                 row.objectType === object.name &&
@@ -91,24 +88,29 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                     ? [{ id: row.objectId }]
                     : [],
             ),
-            ObjectWatch.of(Scope.table, async (row, database) =>
-                object.scopes.some(
-                    (scope) =>
-                        scope.typeReference.packageId === row.packageId &&
-                        scope.typeReference.type === row.type,
-                )
-                    ? database
-                          .select({ id: object.table.id })
-                          .from(object.table)
-                          .where(object.inScope(row.scope))
-                    : [],
-            ),
         ];
     }
 
-    /** Reconcile one resource, returning when to look again. */
-    reconcile(reconciliation: ObjectReconciliation<ResourceType<"space">>) {
-        return ResourceController.#reconcile(
+    /** Declare the kind's controllers: one converging resources, one ending retention windows. */
+    controllers(): ObjectController<ResourceType<"space">>[] {
+        const reconcile = (reconciliation: ObjectReconciliation<ResourceType<"space">>) =>
+            this.#reconcile(reconciliation);
+
+        return [
+            {
+                pending: { generation: { gt: { field: "syncedGeneration" } } },
+                watches: this.#watches,
+                reconcile,
+            },
+            { name: "retention", pending: { retainedUntil: { lte: now } }, reconcile },
+        ];
+    }
+
+    /** Reconcile one resource. */
+    #reconcile(
+        reconciliation: ObjectReconciliation<ResourceType<"space">>,
+    ): Promise<void | "waiting"> {
+        return ResourceController.#reconcileRow(
             this.#object,
             this.#kind,
             nth(reconciliation.rows, 0),
@@ -158,26 +160,20 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             : providers.find((provider) => provider.code === requested);
     }
 
-    /** Reconcile one resource: provision, retire or apply, returning when to look again. */
-    static async #reconcile(
+    /** Retire, provision or apply one resource, or wait for its owner's approval threshold. */
+    static async #reconcileRow(
         object: ResourceType<"space">,
         kind: ResourceKind,
         row: Resource,
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
-    ): Promise<number | undefined> {
-        // act only on a resource with a local scope and an approval threshold set by its owner
+    ): Promise<void | "waiting"> {
+        // retire a deleted resource, and wait for the owner to set an approval threshold
         const { approval } = row;
-        if (
-            approval === null ||
-            !(await ResourceController.#isHeld(reconciliation.database, row.scope))
-        ) {
-            return undefined;
-        }
-
-        // retire a deleted resource
         if (row.deletedAt !== null) {
             return ResourceController.#retire(object, row, row.deletedAt, reconciliation, options);
+        } else if (approval === null) {
+            return "waiting";
         }
         // observe an external resource at its identifier below the machine's egress
         else if (kind.management === "external") {
@@ -220,19 +216,6 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         else {
             await ResourceController.#apply(object, row, approval, reconciliation, options);
         }
-
-        return undefined;
-    }
-
-    /** Decide whether a database has a scope that no transfer fences or replicates here. */
-    static async #isHeld(database: DatabaseConnection, scope: string): Promise<boolean> {
-        const [link] = await Scope.chain(Snapshot.live(database), scope);
-
-        return (
-            link !== undefined &&
-            link.movedTo === undefined &&
-            !(await Replica.isReplicated(Snapshot.live(database), scope))
-        );
     }
 
     /** Provision a resource through its provider, recording the outcome and returning the row. */
@@ -509,14 +492,14 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         }
     }
 
-    /** Remove an unused resource, destroying its content and returning when its retention ends. */
+    /** Remove an unused resource and its content, or wait out its retention and consumers. */
     static async #retire(
         object: ResourceType<"space">,
         row: Resource,
         requestedAt: number,
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ResourceControllerOptions,
-    ): Promise<number | undefined> {
+    ): Promise<void | "waiting"> {
         // retain the record and content of retained resources until claimed again or expired
         const retention = row.retention;
         const ends =
@@ -524,20 +507,16 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 ? requestedAt + Duration.milliseconds(retention.within)
                 : undefined;
         if (retention === "forever" || (ends !== undefined && ends > reconciliation.now)) {
-            if (row.conditions["Ready"]?.reason !== "Retained") {
-                const message = "content retained after removal";
-                await ResourceController.#observe(
-                    object,
-                    row,
-                    reconciliation,
-                    {},
-                    {
-                        Ready: ResourceController.#unready("Retained", message),
-                    },
-                );
-            }
+            const message = "content retained after removal";
+            await ResourceController.#observe(
+                object,
+                row,
+                reconciliation,
+                { retainedUntil: ends ?? null },
+                { Ready: ResourceController.#unready("Retained", message) },
+            );
 
-            return ends === undefined ? undefined : ends - reconciliation.now;
+            return "waiting";
         }
 
         // wait until no consumer uses the resource
@@ -552,7 +531,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 { Ready: ResourceController.#unready("InUse", message) },
             );
 
-            return undefined;
+            return "waiting";
         }
 
         // destroy provisioned content and record a failure before retrying it
@@ -577,8 +556,6 @@ export class ResourceController implements ObjectController<ResourceType<"space"
 
         // finish the record's deletion
         await reconciliation.mutate([object.call("finalize", object.target(row))]);
-
-        return undefined;
     }
 
     /** Read one consumer of a resource from its consumer relationships, if any. */

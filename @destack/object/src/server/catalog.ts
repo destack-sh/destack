@@ -375,7 +375,7 @@ export class Catalog {
                   )
                   .map((object) =>
                       object.implement({
-                          controller: new ResourceController(object, provisioned),
+                          controllers: new ResourceController(object, provisioned).controllers(),
                       }),
                   );
     }

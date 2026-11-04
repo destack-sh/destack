@@ -160,25 +160,25 @@ export const changeRequest = defineObject(
             return await context.at(applied).update({ output });
         },
     },
-    controller: {
-        pending: { state: "open" },
-        // decide a change again as each of its approvals changes
-        watches: [
-            ObjectWatch.of(approval.table, (row): { readonly id: string }[] =>
-                row.parentPackageId === changeRequest.package.id &&
-                row.parentType === changeRequest.name
-                    ? [{ id: row.parentId }]
-                    : [],
-            ),
-        ],
-        reconcile: async (reconciliation): Promise<undefined> => {
-            for (const row of reconciliation.rows) {
-                await new ChangeRequest(row).decide(reconciliation);
-            }
-
-            return undefined;
+    controllers: [
+        {
+            pending: { state: "open" },
+            // decide a change again as each of its approvals changes
+            watches: [
+                ObjectWatch.of(approval.table, (row): { readonly id: string }[] =>
+                    row.parentPackageId === changeRequest.package.id &&
+                    row.parentType === changeRequest.name
+                        ? [{ id: row.parentId }]
+                        : [],
+                ),
+            ],
+            reconcile: async (reconciliation) => {
+                for (const row of reconciliation.rows) {
+                    await new ChangeRequest(row).decide(reconciliation);
+                }
+            },
         },
-    },
+    ],
 });
 
 /** A change request as its table stores it. */

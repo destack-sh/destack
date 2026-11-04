@@ -11,9 +11,8 @@ import { principal, relation, through } from "@destack/access";
 import { schema, present } from "@destack/schema";
 
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
-import { RecoverableController } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { auditedActions } from "../src/test/index.ts";
+import { auditedActions, settleControl } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { tablesOf } from "../src/index.ts";
@@ -175,10 +174,8 @@ test("purge a retained record through its handler under its permission or as the
     const store = await serve(handled);
     const later = clock.now() + 120_000;
     await simulation.jump(later);
-    expect([
-        await RecoverableController.purge(store, later),
-        await RecoverableController.purge(store, later),
-    ]).toEqual([1, 0]);
+    await settleControl(store);
+    await settleControl(store);
     expect(await auditedActions(database, "component")).toEqual(["credential.purge"]);
     const [record] = await database
         .select({ value: credential.table.value, purgedAt: credential.table.purgedAt })
@@ -186,57 +183,22 @@ test("purge a retained record through its handler under its permission or as the
         .where(eq(credential.table.id, lapsed.id));
     expect(record).toEqual({ value: null, purgedAt: later });
 
-    // look again and purge after the next window ends
-    const controller = new RecoverableController(store);
+    // purge the next deletion once its window ends, and not a millisecond before
     const pending = await execute(handled, "create", {
         custodianId: users.grace,
         value: "later",
     });
     await execute(handled, "delete", { id: pending.id, revision: pending.revision });
+    const deleted = clock.now();
     const window = 60_000;
-    const delay = present(
-        await controller.reconcile("trash", reconciliation(world.clock.timeout(5000))),
-        "the wait until the next window ends",
-    );
-    const updated = (
-        before: Partial<typeof pending>,
-        after: Partial<typeof pending>,
-    ): Change<typeof credential.table> => ({
-        transaction: null,
-        table: credential.table,
-        key: { id: pending.id },
-        scope: spaceId,
-        changedAt: 1,
-        operation: "update",
-        before: { ...pending, ...before },
-        after: { ...pending, ...after },
-        sequence: 1,
-    });
-    if (controller.keys === undefined) {
-        throw new TypeError("the trash controller keys no changes");
-    }
-    expect([
-        controller.watches,
-        controller.keys(updated({ deletedAt: null }, { deletedAt: 1 })),
-        controller.keys(
-            updated({ value: "old", deletedAt: null }, { value: "new", deletedAt: null }),
-        ),
-        await controller.list(),
-        delay > 0 && delay <= window,
-    ]).toEqual([[handled.table], ["trash"], [], ["trash"], true]);
-    await database.transaction(
-        async (transaction) =>
-            await transaction
-                .update(credential.table)
-                .set({ deletedAt: clock.now() - window - 1 })
-                .where(eq(credential.table.id, pending.id)),
-    );
-    expect(
-        await controller.reconcile("trash", reconciliation(world.clock.timeout(5000))),
-    ).toBeUndefined();
-    expect(await auditedActions(database, "component")).toEqual([
-        "credential.purge",
-        "credential.purge",
+    await simulation.jump(deleted + window - 1);
+    await settleControl(store);
+    const early = await auditedActions(database, "component");
+    await simulation.jump(deleted + window);
+    await settleControl(store);
+    expect([early, await auditedActions(database, "component")]).toEqual([
+        ["credential.purge"],
+        ["credential.purge", "credential.purge"],
     ]);
 });
 

@@ -3,7 +3,7 @@ import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
+import { settleControl, testEvents, serversOf } from "../src/test/index.ts";
 import { none, principal, relation, universe } from "@destack/access";
 
 import { eq, defineDatabase } from "@destack/db";
@@ -11,7 +11,6 @@ import { schema, Uuid } from "@destack/schema";
 import { Replica, Scope, RequestId } from "@destack/sync";
 
 import { defineObject, definePackage, defineShape, field } from "../src/index.ts";
-import { ExpiringController } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -64,7 +63,8 @@ const alertDatabase = defineDatabase({
 
 test("remove objects for good once a rule's window passes, as the system, and look again when the next one passes", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create(alertDatabase, {
         environment: world,
@@ -113,8 +113,7 @@ test("remove objects for good once a rule's window passes, as the system, and lo
         readAt: now - DAY,
     });
 
-    // remove the two expired alerts and schedule the third
-    const controller = new ExpiringController(store);
+    // remove the two expired alerts, then the third once its window passes
     expect(Object.keys(alert.procedures).toSorted()).toEqual([
         "attach",
         "create",
@@ -124,16 +123,22 @@ test("remove objects for good once a rule's window passes, as the system, and lo
         "list",
         "update",
     ]);
-    const delay = await controller.reconcile(
-        "expiry",
-        reconciliation(new AbortController().signal),
-    );
-    const left = await database.select({ id: alert.table.id }).from(alert.table);
-    expect([
-        left.map((row) => row.id),
-        await auditedActions(database, "component"),
-        delay !== undefined && delay > 28 * DAY && delay <= 29 * DAY,
-    ]).toEqual([[recent], ["alert.expire", "alert.expire"], true]);
+    const left = async () =>
+        (await database.select({ id: alert.table.id }).from(alert.table)).map((row) => row.id);
+    await settleControl(store);
+    const first = await left();
+    const expired = await auditedActions(database, "component");
+    await simulation.jump(now + 28 * DAY);
+    await settleControl(store);
+    const early = await left();
+    await simulation.jump(now + 29 * DAY);
+    await settleControl(store);
+    expect([first, expired, early, await left()]).toEqual([
+        [recent],
+        ["alert.expire", "alert.expire"],
+        [recent],
+        [],
+    ]);
 });
 
 test("leave the expired rows a database replicates to the deletes their home sends", async () => {
@@ -193,17 +198,9 @@ test("leave the expired rows a database replicates to the deletes their home sen
     );
 
     // expire the owned alert alone, leaving the replicated one to its home
-    const controller = new ExpiringController(store);
-    const delay = await controller.reconcile(
-        "expiry",
-        reconciliation(new AbortController().signal),
-    );
+    await settleControl(store);
     const left = await database.select({ title: alert.table.title }).from(alert.table);
-    expect([left, delay, controller.watches]).toEqual([
-        [{ title: "Replicated" }],
-        undefined,
-        [alert.table],
-    ]);
+    expect(left).toEqual([{ title: "Replicated" }]);
 });
 
 test("grant expiry of a space type and a universe type to no one, leaving it to the installations implementing them", () => {

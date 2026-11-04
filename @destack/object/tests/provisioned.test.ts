@@ -216,17 +216,26 @@ async function serve(world: Environment, boxes: Boxes) {
         origin: { package: box.package },
     });
 
-    // reconcile one resource as its kind's control loop does
+    // reconcile one resource as its kind's control loop does, whether or not it is pending
     const reconcile = async (name: "box" | "link", id: string) => {
         const controller = present(
-            store.controllers().find((each) => each.name === name),
+            store.control().controllers.find((each) => each.name === name),
             `the ${name} controller`,
         );
-
-        return controller.reconcile(
-            canonicalize({ id }),
-            reconciliation(world.clock.timeout(5000)),
-        );
+        if (!("reconcile" in controller)) {
+            throw new TypeError(`the ${name} controller follows its resources`);
+        }
+        const rows =
+            name === "box"
+                ? await database
+                      .select()
+                      .from(box.table)
+                      .where(eq(box.table.id, box.identifier(id)))
+                : await database
+                      .select()
+                      .from(link.table)
+                      .where(eq(link.table.id, link.identifier(id)));
+        await controller.reconcile(rows, reconciliation(world.clock.timeout(5000)));
     };
     const read = async (id: typeof ids.first) =>
         (await database.select().from(box.table).where(eq(box.table.id, id)))[0];
@@ -465,8 +474,9 @@ test("retain a deleted box for its window, retain it while an installation consu
                 .set({ deletedAt: now })
                 .where(eq(box.table.id, ids.first)),
     );
-    const wait = present(await reconcile("box", ids.first), "the wait until the window ends");
-    const retained = present(await read(ids.first), "the retained box").conditions["Ready"];
+    await reconcile("box", ids.first);
+    const retainedBox = present(await read(ids.first), "the retained box");
+    const retained = retainedBox.conditions["Ready"];
 
     // retain it past its day while an installation consumes it
     await database.transaction(
@@ -501,11 +511,11 @@ test("retain a deleted box for its window, retain it while an installation consu
     );
     await reconcile("box", ids.first);
     expect({
-        retained: [retained?.reason, wait > 86_000_000 && wait <= 86_400_000],
+        retained: [retained?.reason, retainedBox.retainedUntil],
         used: [used?.reason, used?.message],
         removed: [await read(ids.first), [...boxes.sizes]],
     }).toEqual({
-        retained: ["Retained", true],
+        retained: ["Retained", now + 86_400_000],
         used: ["InUse", `consumed by ${installationId}`],
         removed: [undefined, []],
     });
