@@ -97,8 +97,14 @@ const taskTwo = defineTable(
     },
 );
 
+/** This package's release as the tests run, which the workspace's version sets. */
+const CURRENT_VERSION = taskOne[TABLE].package.version;
+
+/** This package's next release, a year past the current one, declaring the converted tasks. */
+const NEXT_VERSION = `${Number(CURRENT_VERSION.split(".")[0]) + 1}.1.0`;
+
 /** This package's next release, declaring the converted tasks. */
-const NEXT_RELEASE = { package: { ...taskOne[TABLE].package, version: "2026.10.0" } };
+const NEXT_RELEASE = { package: { ...taskOne[TABLE].package, version: NEXT_VERSION } };
 
 /** Tasks after converting the urgent flag into a priority, in the next release. */
 const taskThree = defineTable(
@@ -114,7 +120,7 @@ const taskThree = defineTable(
     {
         log: {},
         convert: {
-            "2026.10.0": {
+            [NEXT_VERSION]: {
                 priority: Expression.case(
                     Expression.column("urgent"),
                     [{ when: 1, then: Expression.literal("high") }],
@@ -297,7 +303,7 @@ test("convert rows to a new release and log the converted values", async () => {
     const plan = await database.migrate([taskThree]);
     expect(review(plan)).toEqual([
         `safe create table/${table(taskThree)}/column/priority: add column priority`,
-        `fallible convert table/${table(taskThree)}: convert rows to 2026.10.0`,
+        `fallible convert table/${table(taskThree)}: convert rows to ${NEXT_VERSION}`,
     ]);
     expect(await database.select().from(taskThree).orderBy(taskThree.id)).toEqual([
         { id: "a", scope: "inbox", title: "Plan", urgent: 1, priority: "high", dueAt: null },
@@ -375,7 +381,7 @@ const preferenceConverted = defineTable(
     { id: text("id").primaryKey(), mode: json("mode", schema.enum(["standard", "vim"])) },
     {
         convert: {
-            "2026.10.0": {
+            [NEXT_VERSION]: {
                 mode: Expression.case(
                     Expression.scalar(Expression.column("mode"), "text"),
                     [{ when: "emacs", then: Expression.json("standard") }],
@@ -408,11 +414,11 @@ test("widen column values freely and narrow them only by a conversion", async ()
     ).toEqual([
         "CONFLICT",
         "PLAN_UNREACHABLE",
-        "table/destack__db__preference/column/mode: declare a conversion for 2026.10.0",
+        `table/destack__db__preference/column/mode: declare a conversion for ${NEXT_VERSION}`,
     ]);
     const converted = await database.migrate([preferenceConverted]);
     expect(review(converted)).toEqual([
-        `fallible convert table/${table(preferenceConverted)}: convert rows to 2026.10.0`,
+        `fallible convert table/${table(preferenceConverted)}: convert rows to ${NEXT_VERSION}`,
     ]);
     expect(
         await database.select().from(preferenceConverted).orderBy(preferenceConverted.id),
@@ -457,7 +463,7 @@ test("refuse requiring a key stored values lack without a conversion, reading ro
     ).toEqual([
         "CONFLICT",
         "PLAN_UNREACHABLE",
-        `table/${table(layoutSized)}/column/settings: declare a conversion for 2026.10.0`,
+        `table/${table(layoutSized)}/column/settings: declare a conversion for ${NEXT_VERSION}`,
     ]);
     expect(await database.select().from(layoutOne)).toEqual([
         { id: "a", settings: { theme: "dark" } },
@@ -470,7 +476,7 @@ const preferenceMisconverted = defineTable(
     { id: text("id").primaryKey(), mode: json("mode", schema.enum(["standard", "vim"])) },
     {
         convert: {
-            "2026.10.0": {
+            [NEXT_VERSION]: {
                 mode: Expression.case(
                     Expression.scalar(Expression.column("mode"), "text"),
                     [{ when: "emacs", then: Expression.json("nano") }],
@@ -584,7 +590,7 @@ test("narrow values and require a new column without a default only over a table
             },
             {
                 target: `table/${table(preferenceStrict)}/column/mode`,
-                detail: "declare a conversion for 2026.10.0",
+                detail: `declare a conversion for ${NEXT_VERSION}`,
             },
         ],
     });
@@ -643,13 +649,13 @@ test("roll back without contracting what a newer release added, and refuse table
         refused: [
             {
                 target: `table/${table(preferenceOne)}`,
-                detail: `rollback to 2026.9.0 cannot read the table as ${NEXT_RELEASE.package.version} applied it`,
+                detail: `rollback to ${CURRENT_VERSION} cannot read the table as ${NEXT_RELEASE.package.version} applied it`,
             },
         ],
         renamed: [
             {
                 target: `table/${table(folderOne)}`,
-                detail: `rollback to 2026.9.0 cannot read the table ${NEXT_RELEASE.package.version} renamed to ${table(directoryTable)}`,
+                detail: `rollback to ${CURRENT_VERSION} cannot read the table ${NEXT_RELEASE.package.version} renamed to ${table(directoryTable)}`,
             },
         ],
     });
