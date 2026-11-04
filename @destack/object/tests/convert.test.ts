@@ -91,14 +91,16 @@ test("execute calls made against an earlier release with the fields they renamed
         ],
     });
 
-    // refuse a call made against a release the server does not serve yet
+    // refuse a call made against a release the server does not serve yet, a year past the served one
+    const [year = 0] = objectPackage.version.split(".").map(Number);
+    const next = `${year + 1}.1.0`;
     const later = store.mutate(context.access(), {
         id: RequestId.create(world),
         calls: [
             {
                 type: card.typeReference,
                 method: "update",
-                release: "2026.10.0",
+                release: next,
                 input: { spaceId, id: created.id, name: "Next" },
             },
         ],
@@ -106,7 +108,7 @@ test("execute calls made against an earlier release with the fields they renamed
     expect(await refusal(later)).toEqual([
         "BAD_REQUEST",
         "RELEASE_MISMATCH",
-        "card.update targets release 2026.10.0 of card, but card is at release 2026.9.0",
+        `card.update targets release ${next} of card, but card is at release ${objectPackage.version}`,
     ]);
     const stored = await store.query(
         context.access(),

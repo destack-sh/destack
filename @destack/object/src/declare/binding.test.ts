@@ -5,6 +5,7 @@ import { Exchange } from "@destack/access/token";
 import { Package } from "@destack/package";
 import { ResourceId } from "@destack/resource";
 import { health } from "../health/index.ts";
+import objectPackage from "../package.ts";
 import { type ProcedureRouter, VERSION_HEADER } from "../procedure/index.ts";
 import { defineInstallationBinding } from "./binding.ts";
 import { definePackage, type ObjectDeclaration } from "./package.ts";
@@ -42,7 +43,7 @@ const note = <Router extends ProcedureRouter>(owner: Package, procedures: Router
 /** The notes package, whose note type routes the health procedures. */
 const notes = definePackage({ objects: { note: note(NOTES, health) } }, { package: NOTES });
 
-test("call a bound installation at its reference with the credential the host lends, speaking the package's release, for the served caller a call passes", async () => {
+test("call a bound installation at its reference with the credential the host lends, speaking its procedures' release, for the served caller a call passes", async () => {
     // answer health checks
     const calls: (string | null)[][] = [];
     const world = testSimulation().environment("test");
@@ -82,8 +83,12 @@ test("call a bound installation at its reference with the credential the host le
     expect([answer, calls, binding.kind, binding.spec]).toEqual([
         { name: "notes", status: "ready" },
         [
-            ["Bearer secret", notes.version, null],
-            ["Bearer secret", notes.version, JSON.stringify({ subject: person, grants: [] })],
+            ["Bearer secret", objectPackage.version, null],
+            [
+                "Bearer secret",
+                objectPackage.version,
+                JSON.stringify({ subject: person, grants: [] }),
+            ],
         ],
         "installation",
         { package: notes.id },
