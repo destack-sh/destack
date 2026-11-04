@@ -44,16 +44,18 @@ async function claimRepository(
         objectId: id,
         owner: accountId,
     };
-    const refused = await Claim.replace(
-        universe,
-        {
-            indexes: [claim.index],
-            objectId: id,
-            owner: accountId,
-            claims: [claim],
-            state: "active",
-        },
-        environment,
+    const refused = await universe.transaction((transaction) =>
+        Claim.replace(
+            transaction,
+            {
+                indexes: [claim.index],
+                objectId: id,
+                owner: accountId,
+                claims: [claim],
+                state: "active",
+            },
+            environment,
+        ),
     );
     if (refused.length > 0) {
         throw new TypeError(`another object claims repository ${id}`);
