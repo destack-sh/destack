@@ -162,8 +162,10 @@ export interface SpaceOptions {
     readonly forge: Forge | null;
     /** The shapes the machine follows with the space's own, such as its repository references. */
     readonly follows: readonly Follow[];
-    /** The host's own controllers of the served space: its serving lifecycle and its meters. */
+    /** The host's own controllers of the served space: what it serves, and its meters. */
     readonly controllers: NonNullable<ImplementationInput["controllers"]>;
+    /** The host's own consumers of the served space, such as its readings. */
+    readonly consumers: NonNullable<ImplementationInput["consumers"]>;
     /** The storage of the machine's external object types: its builds' graphs. */
     readonly external: ExternalStorage;
     /** The live sockets of the machine's spaces. */
@@ -224,6 +226,7 @@ function stackServer(
                       (store: ObjectStore) => options.builds.retention(store),
                   ]
                 : []),
+            ...options.consumers,
         ],
         responseHeaders: { "Cache-Control": "no-store" },
     });

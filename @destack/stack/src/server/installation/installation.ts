@@ -3,7 +3,7 @@ import { setting, SettingValue } from "@destack/setting/object";
 import { ObjectReference, Subject } from "@destack/sync";
 import { canonicalize, type Digest, type Identifier, present, schema } from "@destack/schema";
 import { InstallationId, principal } from "@destack/access";
-import { and, eq, inArray, isNotNull, isNull, Snapshot } from "@destack/db";
+import { and, Change, eq, inArray, isNotNull, ne, Snapshot } from "@destack/db";
 import {
     installation,
     type MethodContext,
@@ -542,9 +542,9 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                     return [];
                 }
 
-                // find the waiting stack
+                // find the space's stack, which reads its resources however it last stood
                 const [stack] = await database
-                    .select({ id: rollout.table.id, conditions: installation.table.conditions })
+                    .select({ id: rollout.table.id })
                     .from(rollout.table)
                     .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
                     .where(
@@ -553,7 +553,6 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                             isNotNull(installation.table.export),
                         ),
                     );
-                const isWaiting = stack?.conditions["Ready"]?.reason === "WaitingForResources";
 
                 // find the applications binding it
                 const bound = await database
@@ -564,7 +563,7 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                     );
 
                 return [
-                    ...(stack !== undefined && isWaiting ? [{ id: stack.id }] : []),
+                    ...(stack === undefined ? [] : [{ id: stack.id }]),
                     ...bound.map((entry) => ({ id: entry.id })),
                 ];
             }),
@@ -581,23 +580,21 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                           : [{ id: row.managerInstallationId }]),
                   ],
         ),
-        // wake the applications waiting for their space to serve an installation's revision
-        ObjectWatch.of(rollout.table, async (row, database) => {
-            // leave a rollout whose revision the space does not serve yet
-            if (row.revisionId === null || row.servedRevisionId !== row.revisionId) {
+        // wake every other rollout of the space once it serves another revision, as what they wait for may be served now
+        ObjectWatch.of(rollout.table, async (row, database, change) => {
+            // leave a change that serves no other revision
+            const before = Change.before(change);
+            if (before !== null && before.servedRevisionId === row.servedRevisionId) {
                 return [];
             }
 
-            // find the space's applications waiting for it to serve them or what they need
+            // find the space's other rollouts
             const rollouts = await database
-                .select({ id: rollout.table.id, conditions: installation.table.conditions })
+                .select({ id: rollout.table.id })
                 .from(rollout.table)
-                .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
-                .where(and(eq(rollout.table.scope, row.scope), isNull(installation.table.export)));
+                .where(and(eq(rollout.table.scope, row.scope), ne(rollout.table.id, row.id)));
 
-            return rollouts
-                .filter((entry) => entry.conditions["Ready"]?.reason === "WaitingForSpace")
-                .map((entry) => ({ id: entry.id }));
+            return rollouts.map((entry) => ({ id: entry.id }));
         }),
         // wake a space's rollouts once its row arrives or changes, as the space serves its applications only then
         ObjectWatch.of(space.table, async (row, database) => {
