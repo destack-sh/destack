@@ -24,6 +24,7 @@ export * from "./residency.ts";
 export * from "./claim.ts";
 export * from "./placement.ts";
 export * from "./platform.ts";
+export * from "./allowance.ts";
 export * from "./entitlement.ts";
 export * from "./space.ts";
 export * from "./stack-release.ts";

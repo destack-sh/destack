@@ -1,4 +1,4 @@
-import { through, union } from "@destack/access";
+import { none, through, union } from "@destack/access";
 import { type DatabaseConnection, type Select, Snapshot, Transaction } from "@destack/db";
 import {
     type MethodContext,
@@ -9,37 +9,22 @@ import {
     ObjectWatch,
 } from "@destack/object";
 import { type Package, PackageId } from "@destack/package";
+import { DeclarationReference } from "@destack/package/declare";
 import type { FeatureReference } from "@destack/object";
-import { type Identifier, present, schema } from "@destack/schema";
+import { canonicalize, type Identifier, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { Account, account } from "./account.ts";
 import { space, Space, type SpaceResource } from "./space.ts";
 import { Tenancy } from "./placement.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-
-/** The platform resources a feature allows, which machines and spaces enforce. */
-export const ENTITLEMENT_RESOURCES = [
-    "database",
-    "storage",
-    "compute",
-    "network",
-    "tenancy",
-    "domain",
-    "retention",
-] as const;
-
-/** A platform resource a feature allows. */
-export type EntitlementResource = (typeof ENTITLEMENT_RESOURCES)[number];
-
-/** What a feature grants: access alone, a fixed value, or usage of meters up to a limit. */
-export const FEATURE_KINDS = ["boolean", "static", "metered"] as const;
-
-/** Where a metered usage stands against its limit and its subscription's budget. */
-export const USAGE_STATES = ["within", "near", "over", "blocked"] as const;
-
-/** Where a metered usage stands. */
-export type UsageState = (typeof USAGE_STATES)[number];
+import {
+    ENTITLEMENT_RESOURCES,
+    type Allowance,
+    type EntitlementResource,
+    FEATURE_KINDS,
+    USAGE_STATES,
+} from "./allowance.ts";
 
 /** A retention setting's definition, read for the days it keeps events by default. */
 const RetentionSetting = schema.looseObject({ default: schema.number().int().positive() });
@@ -77,10 +62,9 @@ export const entitlement = defineObject(
         permissions: {
             // let the account's readers and its residency's servers read
             read: union(through("scope", "read"), through("scope", "serve")),
-            // let its residency's installations set it
-            provide: through("scope", "entitle"),
+            // let the account's home set it alone, as account.entitle does
+            provide: none(),
         },
-        reserved: ["provide"],
         constraints: {
             feature: { kind: "index", on: ["scope", "packageId", "feature"], unique: true },
             resource: {
@@ -111,14 +95,14 @@ export const entitlement = defineObject(
             },
         },
     },
-    // let installations push the entitlements they provide, as finance does from a residency's space
+    // let the account's home write them as its entitlements change, through account.entitle
     (method) => ({
-        create: method.create("provide", { visibility: "installation" }),
+        create: method.create("provide", { visibility: "package" }),
         update: method.update("provide", {
-            visibility: "installation",
-            fields: ["value", "limit", "resetAt", "state", "resource"],
+            visibility: "package",
+            fields: ["kind", "value", "limit", "resetAt", "state", "resource"],
         }),
-        delete: method.delete("provide", { visibility: "installation" }),
+        delete: method.delete("provide", { visibility: "package" }),
     }),
 );
 /** An account's entitlement to a feature, as its table stores it. */
@@ -147,12 +131,6 @@ const PENDING: Condition = {
     message: "waiting for the account's plan",
 };
 
-/** The fields of an entitlement that decide a use. */
-export type EntitlementTerms = Pick<
-    Entitlement,
-    "packageId" | "feature" | "resource" | "value" | "limit" | "state"
->;
-
 /** A use a machine checks against an account's entitlements. */
 export type EntitlementUse =
     | SpaceResource
@@ -161,6 +139,33 @@ export type EntitlementUse =
 
 /** Account entitlements as their followers replicate and enforce them. */
 export const Entitlement = {
+    /** Key an entitlement or allowance by its feature. */
+    key(allowance: Pick<Allowance, "packageId" | "feature">): string {
+        return DeclarationReference.key({
+            packageId: allowance.packageId,
+            name: allowance.feature,
+        });
+    },
+
+    /** Read what an entitlement allows as an allowance, without its account and row. */
+    allowance(row: Entitlement): Allowance {
+        const { packageId, feature, kind, value, limit, resetAt, state, resource } = row;
+
+        return { packageId, feature, kind, value, limit, resetAt, state, resource };
+    },
+
+    /** Check whether an entitlement allows what an allowance of its feature does. */
+    isSame(row: Entitlement, wanted: Allowance): boolean {
+        return (
+            row.kind === wanted.kind &&
+            canonicalize(row.value) === canonicalize(wanted.value) &&
+            row.limit === wanted.limit &&
+            row.resetAt === wanted.resetAt &&
+            row.state === wanted.state &&
+            row.resource === wanted.resource
+        );
+    },
+
     /** Read an account's replicated entitlement to a resource or feature, absent without a plan. */
     async read(
         reader: Pick<Snapshot, "read">,
@@ -174,7 +179,7 @@ export const Entitlement = {
 
     /** Report whether an entitlement grants a use: its resource, its tenancy or its feature. */
     matches(
-        entry: Pick<EntitlementTerms, "resource" | "packageId" | "feature">,
+        entry: Pick<Allowance, "resource" | "packageId" | "feature">,
         use: EntitlementResource | EntitlementUse,
     ): boolean {
         // match a resource by name
@@ -207,17 +212,17 @@ export const Entitlement = {
             .findMany({ where: { scope: accountId } });
     },
 
-    /** Cap a space's event retention at each setting's default, unless its payer may keep more. */
+    /** Cap a space's event retention at each setting's default unless its account keeps more. */
     capRetention(database: DatabaseConnection, retention: RetentionReader): RetentionReader {
         return async (setting, owner, scope) => {
-            // read the days the space chose and the entitlements of the account paying for it
+            // read the days the space chose and the entitlements of its account, which the follow replicates
             const days = await retention(setting, owner, scope);
-            const payer = await Account.payer(Snapshot.live(database), scope);
-            const rows = await Entitlement.replicated(database, payer);
+            const { id } = await Account.of(Snapshot.live(database), scope);
+            const rows = await Entitlement.replicated(database, id);
             if (rows === undefined) {
                 throw AccountError.of(
                     "ENTITLEMENTS_PENDING",
-                    `the entitlements of account ${payer} have not replicated yet`,
+                    `the entitlements of account ${id} have not replicated yet`,
                 );
             }
 
@@ -226,14 +231,14 @@ export const Entitlement = {
     },
 
     /** Keep a space's chosen days, capped at its setting's default without custom retention. */
-    retention(rows: readonly EntitlementTerms[], days: number, setting: object): number {
+    retention(rows: readonly Allowance[], days: number, setting: object): number {
         const isCustom = rows.some((row) => Entitlement.matches(row, "retention"));
 
         return isCustom ? days : Math.min(days, RetentionSetting.parse(setting).default);
     },
 
     /** Decide the condition of a use from an account's replicated entitlements. */
-    decide(rows: readonly EntitlementTerms[] | undefined, use: EntitlementUse): Condition {
+    decide(rows: readonly Allowance[] | undefined, use: EntitlementUse): Condition {
         // wait while the entitlements replicate
         if (rows === undefined) {
             return PENDING;

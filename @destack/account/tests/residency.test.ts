@@ -18,7 +18,6 @@ import {
     account,
     machine,
     organization,
-    entitlement,
     Placement,
     Residency,
     residency,
@@ -487,8 +486,8 @@ test("relate an installation its residency's space declares once its release ask
         version: "2026.9.0",
     });
     const universal = [
+        account.permission("entitle"),
         account.permission("serve"),
-        entitlement.permission("provide"),
         residency.permission("locate"),
     ];
     const asking = new Map([
@@ -574,7 +573,7 @@ test("relate an installation its residency's space declares once its release ask
             [
                 "FORBIDDEN",
                 "UNIVERSE_PERMISSIONS_MISMATCH",
-                `${greedy.id}@2026.9.0 asks for account.serve, entitlement.provide, residency.locate, user.suspend in the universe, not what a residency's installation holds`,
+                `${greedy.id}@2026.9.0 asks for account.entitle, account.serve, residency.locate, user.suspend in the universe, not what a residency's installation holds`,
             ],
             [
                 "FORBIDDEN",
@@ -587,7 +586,7 @@ test("relate an installation its residency's space declares once its release ask
     ]);
 });
 
-test("let an installation its residency's home declares provide entitlements in the residency's accounts once related, and not before", async () => {
+test("let an installation its residency's home declares entitle the residency's accounts once related, and not before", async () => {
     // store an eu account, and derive the installation the eu home declares as billing
     const billing = Package.parse({
         id: "package-019f5530-8000-7000-8000-0000000000b1",
@@ -607,8 +606,8 @@ test("let an installation its residency's home declares provide entitlements in 
                                 permissions: {
                                     space: {
                                         universe: [
+                                            account.permission("entitle"),
                                             account.permission("serve"),
-                                            entitlement.permission("provide"),
                                             residency.permission("locate"),
                                         ],
                                     },
@@ -628,29 +627,35 @@ test("let an installation its residency's home declares provide entitlements in 
     const installation = await InstallationId.of(homeSpace, "billing", fixture.environment.crypto);
     const installed = principal.installation.reference(homeId, installation);
 
-    // provide an entitlement in the account as the installation, before and after its home relates it
-    const provide = () =>
+    // entitle the account as the installation, before and after its home relates it
+    const owned = await Account.of(Snapshot.live(fixture.storage.database), accountId);
+    const entitle = () =>
         refusal(
             fixture.store.mutate(
                 AccessContext.of(Caller.of(installed), fixture.store.clock.now()),
                 {
                     id: RequestId.create(fixture.store.environment),
                     calls: [
-                        entitlement.call("create", {
-                            ...entitlement.in(accountId),
-                            packageId: billing.id,
-                            feature: "seats",
-                            resource: null,
-                            kind: "boolean",
-                            value: null,
-                            limit: null,
-                            state: null,
+                        account.call("entitle", {
+                            ...account.target(owned),
+                            allowances: [
+                                {
+                                    packageId: billing.id,
+                                    feature: "seats",
+                                    kind: "boolean",
+                                    value: null,
+                                    limit: null,
+                                    resetAt: null,
+                                    state: null,
+                                    resource: null,
+                                },
+                            ],
                         }),
                     ],
                 },
             ),
         );
-    const before = await provide();
+    const before = await entitle();
     await home.client(accountPackage).residency.touch({
         id: "eu",
         requestId: RequestId.create(fixture.store.environment),
@@ -659,8 +664,11 @@ test("let an installation its residency's home declares provide entitlements in 
         packageId: billing.id,
         release: billing.version,
     });
-    const after = await provide();
+    const after = await entitle();
 
-    // conceal the account's entitlements from the installation until it serves the account
-    expect([before, after]).toEqual([["NOT_FOUND", "NOT_FOUND", "entitlement not found"], "done"]);
+    // conceal the account from the installation until it serves the account
+    expect([before, after]).toEqual([
+        ["NOT_FOUND", "NOT_FOUND", `account ${accountId} not found`],
+        "done",
+    ]);
 });

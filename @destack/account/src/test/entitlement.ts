@@ -12,12 +12,8 @@ import {
     type Subscription,
 } from "@destack/sync";
 import { type Environment, waitAborted } from "@destack/environment";
-import {
-    entitlement,
-    type Entitlement,
-    type EntitlementResource,
-    entitlementShape,
-} from "../object/entitlement.ts";
+import { entitlement, type Entitlement, entitlementShape } from "../object/entitlement.ts";
+import type { EntitlementResource } from "../object/allowance.ts";
 
 /** The package declaring the features a test entitles accounts to, by resource too. */
 export const ENTITLED_PACKAGE = PackageId.parse("package-019f5530-8000-7000-8000-0000000000f9");

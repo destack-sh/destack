@@ -10,6 +10,8 @@ import { relationship } from "@destack/object";
 import { Residency } from "../object/residency.ts";
 import { StoreRelationship } from "./relationship.ts";
 import { space } from "../object/space.ts";
+import { Entitlement, entitlement } from "../object/entitlement.ts";
+import { AccountError } from "../error/error.ts";
 import type { PlatformDefinition } from "./universe.ts";
 
 /** Implement accounts. */
@@ -21,8 +23,70 @@ export function implementAccount(stacks: PlatformDefinition["stacks"]): typeof a
                 handle: (context, next) => create(context, next, stacks),
             },
             purge: { handle: (context, next) => purge(context, next) },
+            entitle,
         },
     });
+}
+
+/** Set an account's entitlements to its allowances, writing only the features that changed. */
+async function entitle(
+    context: MethodContextOf<typeof account, "entitle">,
+): Promise<ResultOf<typeof account, "entitle">> {
+    // read the stored entitlements beside the allowances keyed by feature, refusing a repeated feature
+    const accountId = context.target.id;
+    const stored = await context.read(entitlement).findMany({ where: { scope: accountId } });
+    const { allowances } = context.input;
+    const allowed = new Map(allowances.map((each) => [Entitlement.key(each), each]));
+    if (allowed.size !== allowances.length) {
+        throw AccountError.of(
+            "FEATURE_REPEATED",
+            `the allowances of account ${accountId} repeat a feature`,
+        );
+    }
+
+    // compare each stored entitlement with its allowance
+    const calls: Call[] = stored.flatMap((row): Call[] => {
+        const wanted = allowed.get(Entitlement.key(row));
+        // delete one no allowance keeps
+        if (wanted === undefined) {
+            return [entitlement.call("delete", entitlement.target(row))];
+        }
+        // update a changed one
+        else if (!Entitlement.isSame(row, wanted)) {
+            const { kind, value, limit, resetAt, state, resource } = wanted;
+
+            return [
+                entitlement.call("update", {
+                    ...entitlement.target(row),
+                    kind,
+                    value,
+                    limit,
+                    resetAt,
+                    state,
+                    resource,
+                }),
+            ];
+        }
+        // keep an unchanged one
+        else {
+            return [];
+        }
+    });
+
+    // create the ones not stored yet
+    const kept = new Set(stored.map((row) => Entitlement.key(row)));
+    for (const [key, wanted] of allowed) {
+        if (!kept.has(key)) {
+            calls.push(entitlement.call("create", { ...wanted, ...entitlement.in(accountId) }));
+        }
+    }
+
+    // write the changes as the account's home
+    if (calls.length > 0) {
+        await context.mutate(context.self, calls);
+    }
+
+    return context.target;
 }
 
 /** Create an account with its home space running its stack. */

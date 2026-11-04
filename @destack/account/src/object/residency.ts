@@ -189,7 +189,7 @@ export const Residency = {
 
         return [
             { packageId, type: "account", name: "serve" },
-            { packageId, type: "entitlement", name: "provide" },
+            { packageId, type: "account", name: "entitle" },
             { packageId, type: "residency", name: "locate" },
         ];
     },

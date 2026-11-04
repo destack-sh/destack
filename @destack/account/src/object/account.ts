@@ -22,6 +22,7 @@ import { StackRelease } from "./stack-release.ts";
 import { user } from "./user.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
+import { Allowance } from "./allowance.ts";
 import { AccountError } from "../error/error.ts";
 
 /** The name of every account's home space. */
@@ -122,6 +123,16 @@ export const account = defineObject(
             isPredicted: false,
         }),
         update: method.update("update", { fields: ["handle", "name"] }),
+
+        /** Set the account's entitlements to its allowances, one per feature, at its home. */
+        entitle: method.mutation({
+            permission: "entitle",
+            visibility: "installation",
+            input: schema.object({
+                /** The allowances the account has, replacing every other entitlement. */
+                allowances: schema.array(Allowance),
+            }),
+        }),
     }),
 );
 /** A persisted account record. */

@@ -16,6 +16,7 @@ export const AccountError = defineErrorFamily(import.meta.destack.package, {
     SIGNER_REQUIRED: { code: "BAD_REQUEST" },
     KEYS_MISSING: { code: "BAD_REQUEST" },
     PACKAGE_UNDECLARED: { code: "BAD_REQUEST" },
+    FEATURE_REPEATED: { code: "BAD_REQUEST" },
     PERMISSION_SCOPE_MISSING: { code: "BAD_REQUEST" },
     PROOF_MISMATCH: { code: "BAD_REQUEST" },
     PUSH_BROWSER_REQUIRED: { code: "BAD_REQUEST" },

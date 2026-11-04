@@ -59,6 +59,7 @@ import { IdentityKeystore, IdentityRegistry, type TokenSource } from "../identit
 import {
     account,
     Account,
+    Allowance,
     entitlement,
     Entitlement,
     type EntitlementResource,
@@ -869,31 +870,34 @@ export class TestAccountStore implements AsyncDisposable {
                 ? { packageId: ENTITLED_PACKAGE, name: granted, resource: granted }
                 : { ...granted.feature, resource: null };
 
-        // act as the billing installation of the account's residency space, as finance does
-        const snapshot = Snapshot.live(this.database);
-        const { residencyId } = await Account.of(snapshot, accountId);
-        const provider = await this.#entitler(residencyId);
-        const now = this.store.clock.now();
-
-        // replace the one the account has with one of the terms
-        const existing = await Entitlement.read(snapshot, accountId, granted);
-        const created = entitlement.call("create", {
-            ...entitlement.in(accountId),
+        // replace the one the account has for the feature with one of the terms, keeping the others
+        const stored = await Snapshot.live(this.database)
+            .read(entitlement.table)
+            .findMany({ where: { scope: accountId } });
+        const allowance: Allowance = {
             packageId: feature.packageId,
             feature: feature.name,
             resource: feature.resource,
             value: null,
             limit: null,
+            resetAt: null,
             state: null,
             ...terms,
-        });
+        };
+        const kept = stored.filter((row) => Entitlement.key(row) !== Entitlement.key(allowance));
+        await this.allow(accountId, [...kept.map((row) => Entitlement.allowance(row)), allowance]);
+    }
+
+    /** Set an account's allowances through account.entitle, as finance does. */
+    async allow(accountId: Identifier<"account">, allowances: readonly Allowance[]): Promise<void> {
+        // act as the billing installation of the account's residency space
+        const owner = await Account.of(Snapshot.live(this.database), accountId);
+        const provider = await this.#entitler(owner.residencyId);
+        const now = this.store.clock.now();
         await this.store.mutate(AccessContext.of(Caller.of(provider), now), {
             id: RequestId.create(this.environment),
             calls: [
-                ...(existing === undefined
-                    ? []
-                    : [entitlement.call("delete", entitlement.target(existing))]),
-                created,
+                account.call("entitle", { ...account.target(owner), allowances: [...allowances] }),
             ],
         });
     }
