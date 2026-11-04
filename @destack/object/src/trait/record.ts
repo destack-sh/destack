@@ -11,9 +11,9 @@ import {
     text,
 } from "@destack/db";
 import { eventColumns } from "@destack/event";
-import { Field, type FieldColumn } from "../field/field.ts";
+import type { FieldColumn } from "../field/field.ts";
 import { TagMap } from "@destack/resource";
-import { present, schema } from "@destack/schema";
+import { present } from "@destack/schema";
 import { ObjectType, type ObjectStorage } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
@@ -73,30 +73,20 @@ type ManagedColumns = TableColumnMap<
 /** A table of declared records, a derived object's or another package's. */
 export type ManagedTable = Table<string, ManagedColumns> & ManagedColumns;
 
-/** Declare the identifier column of objects identified by their natural key. */
-export function naturalKeyColumn<Key extends schema.Schema<string>>(key: Key) {
-    return Field.validated("id", key).primaryKey();
-}
+/** Declare the columns every event has beside its scope and data: its identifier and time. */
+export function eventRecordColumns<const Prefix extends string>(prefix: Prefix) {
+    const { time } = eventColumns();
 
-/** Declare the columns every event has beside its scope and data: identity and time. */
-export function eventRecordColumns() {
-    const { id, time } = eventColumns();
-
-    return { id, time };
+    return { id: identifier("id", prefix).primaryKey(), time };
 }
 
 /** The columns every record has, an event's in the event log. */
 export type RecordBuilderMap<
     Prefix extends string = string,
-    Key = undefined,
     Storage = "durable",
 > = Storage extends "events"
-    ? ReturnType<typeof eventRecordColumns>
-    : Key extends schema.Schema<string>
-      ? Omit<ReturnType<typeof recordColumns<Prefix>>, "id"> & {
-            readonly id: ReturnType<typeof naturalKeyColumn<Key>>;
-        } & ManagedBuilderMap<Storage>
-      : ReturnType<typeof recordColumns<Prefix>> & ManagedBuilderMap<Storage>;
+    ? ReturnType<typeof eventRecordColumns<Prefix>>
+    : ReturnType<typeof recordColumns<Prefix>> & ManagedBuilderMap<Storage>;
 
 /** The columns of a durable record's manager. */
 type ManagedBuilderMap<Storage> = Storage extends "durable"
@@ -124,10 +114,9 @@ export const record: Trait<ObjectStorage> & {
     options: (definition) => ObjectType.storageKind(definition.storage),
     columns: (_options, object) =>
         object.storage === "events"
-            ? eventRecordColumns()
+            ? eventRecordColumns(object.identity)
             : {
                   ...recordColumns(object.identity),
-                  ...(object.key === undefined ? {} : { id: naturalKeyColumn(object.key) }),
                   ...(object.storage === "ephemeral" ? writerColumns() : {}),
                   ...(object.storage === "durable" ? managedColumns() : {}),
               },

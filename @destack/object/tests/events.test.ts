@@ -136,9 +136,19 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
                 visit.call("record", {
                     spaceId,
                     items: [
-                        visited("visit-1", users.alice, "home", 0),
-                        visited("visit-2", users.alice, "about", 1),
-                        visited("visit-3", users.bob, "home", 0),
+                        visited(
+                            "visit-01996ab0-0000-7000-8000-000000000001",
+                            users.alice,
+                            "home",
+                            0,
+                        ),
+                        visited(
+                            "visit-01996ab0-0000-7000-8000-000000000002",
+                            users.alice,
+                            "about",
+                            1,
+                        ),
+                        visited("visit-01996ab0-0000-7000-8000-000000000003", users.bob, "home", 0),
                     ],
                 }),
             ],
@@ -168,16 +178,31 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
         listed: (
             await store.query(alice, visit.call("list", { spaceId, orderBy: { time: "asc" } }))
         ).items.map((item) => item.id),
-        visited: await get("visit-2"),
-        other: await refusal(get("visit-3")),
+        visited: await get("visit-01996ab0-0000-7000-8000-000000000002"),
+        other: await refusal(get("visit-01996ab0-0000-7000-8000-000000000003")),
         folded: await fold({ visitorId: users.alice }),
         unfiltered: await refusal(fold({})),
         foreign: await refusal(fold({ visitorId: users.bob })),
     }).toEqual({
-        recorded: [{ ids: ["visit-1", "visit-2", "visit-3"] }],
-        listed: ["visit-1", "visit-2"],
+        recorded: [
+            {
+                ids: [
+                    "visit-01996ab0-0000-7000-8000-000000000001",
+                    "visit-01996ab0-0000-7000-8000-000000000002",
+                    "visit-01996ab0-0000-7000-8000-000000000003",
+                ],
+            },
+        ],
+        listed: [
+            "visit-01996ab0-0000-7000-8000-000000000001",
+            "visit-01996ab0-0000-7000-8000-000000000002",
+        ],
         visited: "about",
-        other: ["NOT_FOUND", "NOT_FOUND", "visit visit-3 not found"],
+        other: [
+            "NOT_FOUND",
+            "NOT_FOUND",
+            "visit visit-01996ab0-0000-7000-8000-000000000003 not found",
+        ],
         folded: {
             series: [
                 {
@@ -239,12 +264,12 @@ test("append a visitor's visit publicly, refusing another's, and read visits fro
         });
     await store.mutate(alice, {
         id: RequestId.create(world),
-        calls: [visited(users.alice, "visit-1")],
+        calls: [visited(users.alice, "visit-01996ab0-0000-7000-8000-000000000001")],
     });
     const refused = await refusal(
         store.mutate(bob, {
             id: RequestId.create(world),
-            calls: [visited(users.alice, "visit-2")],
+            calls: [visited(users.alice, "visit-01996ab0-0000-7000-8000-000000000002")],
         }),
     );
 
@@ -303,9 +328,12 @@ test("read the events a space appended after a log sequence, in commit order", a
                 }),
             ],
         });
-    await record(["visit-1"]);
+    await record(["visit-01996ab0-0000-7000-8000-000000000001"]);
     const { sequence: before } = await storage.database.log.position();
-    await record(["visit-2", "visit-3"]);
+    await record([
+        "visit-01996ab0-0000-7000-8000-000000000002",
+        "visit-01996ab0-0000-7000-8000-000000000003",
+    ]);
 
     // read only the later visits, and nothing past the sequence the read arrived at
     const view = new EventView(visit.eventKind(), events);
@@ -314,5 +342,11 @@ test("read the events a space appended after a log sequence, in commit order", a
     expect({
         later: later.events.map((event) => event.id),
         drained: drained.events.length,
-    }).toEqual({ later: ["visit-2", "visit-3"], drained: 0 });
+    }).toEqual({
+        later: [
+            "visit-01996ab0-0000-7000-8000-000000000002",
+            "visit-01996ab0-0000-7000-8000-000000000003",
+        ],
+        drained: 0,
+    });
 });

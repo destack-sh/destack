@@ -56,6 +56,11 @@ const tick = defineObject(
     }),
 );
 
+/** Read the identifier of the nth tick a test records. */
+function tickId(position: number): string {
+    return `tick-01996ab0-0000-7000-8000-${String(position).padStart(12, "0")}`;
+}
+
 test("hand a claimed page of ticks to the read one scope at a time, the same page after a failed attempt and to two hosts at once", async () => {
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation(START);
@@ -148,22 +153,22 @@ test("hand a claimed page of ticks to the read one scope at a time, the same pag
         )(store);
 
         // tick, fail a batch in, tick again, then retry
-        const first = await record("1");
+        const first = await record(tickId(1));
         await simulation.jump(START + BATCH);
         const failed = await take(one).catch((error: unknown) => String(error));
-        await record("2");
+        await record(tickId(2));
         await take(one);
 
         // tick a batch later, then take the page on host one while host two takes it too
         await simulation.jump(START + 2 * BATCH);
-        const third = await record("3");
+        const third = await record(tickId(3));
         await simulation.jump(START + 3 * BATCH);
         await take(one);
         await take(two);
 
         // tick in another space, then hand its tick over as that space's page
         await openSpace(database, world, OTHER_SPACE_ID);
-        const elsewhere = await record("4", OTHER_SPACE_ID);
+        const elsewhere = await record(tickId(4), OTHER_SPACE_ID);
         await take(two);
 
         // take the failed page twice unchanged, the next one on both hosts, then the other space's, host two moving past it
@@ -175,25 +180,37 @@ test("hand a claimed page of ticks to the read one scope at a time, the same pag
         }).toEqual({
             failed: "Error: the counter is unreachable",
             pages: [
-                { host: "one", ids: ["1"], after: 0, through: first, claimedAt: START + BATCH },
-                { host: "one", ids: ["1"], after: 0, through: first, claimedAt: START + BATCH },
                 {
                     host: "one",
-                    ids: ["2", "3"],
+                    ids: [tickId(1)],
+                    after: 0,
+                    through: first,
+                    claimedAt: START + BATCH,
+                },
+                {
+                    host: "one",
+                    ids: [tickId(1)],
+                    after: 0,
+                    through: first,
+                    claimedAt: START + BATCH,
+                },
+                {
+                    host: "one",
+                    ids: [tickId(2), tickId(3)],
                     after: first,
                     through: third,
                     claimedAt: START + 3 * BATCH,
                 },
                 {
                     host: "two",
-                    ids: ["2", "3"],
+                    ids: [tickId(2), tickId(3)],
                     after: first,
                     through: third,
                     claimedAt: START + 3 * BATCH,
                 },
                 {
                     host: "two",
-                    ids: ["4"],
+                    ids: [tickId(4)],
                     after: third,
                     through: elsewhere,
                     claimedAt: START + 3 * BATCH,

@@ -6,7 +6,6 @@ import {
     type RelationInput,
     type TableMapping,
 } from "@destack/access";
-import type { schema } from "@destack/schema";
 import type { Column, ColumnBuilder, Table, TableConstraint, TableOptions } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import type { Method } from "../method/method.ts";
@@ -30,8 +29,6 @@ export interface TraitObject {
     readonly table: () => Table;
     /** Where the objects live. */
     readonly storage: ObjectStorage;
-    /** The objects' natural key, absent for generated identifiers. */
-    readonly key: schema.Schema<string> | undefined;
     /** Whether each object represents a principal, which acts on its row. */
     readonly isPrincipal: boolean;
     /** Whether the objects live only in the universe, where no code is contained. */

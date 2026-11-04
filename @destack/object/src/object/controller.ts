@@ -86,10 +86,10 @@ export type ObjectController<Object extends ObjectType = ObjectType> = {
 export interface ObjectProjection<Object extends ObjectType = ObjectType> {
     /** The projection's name within its type, absent for the type's own projection. */
     readonly name?: string;
-    /** The input tables, the type's own among them, and the objects their changed rows touch. */
+    /** The input tables, the type's own among them, and the keys their changed rows touch. */
     readonly watches: readonly ObjectWatch[];
-    /** Project one object again from its inputs as they are now, absent or not. */
-    project(id: string, reconciliation: ObjectReconciliation<Object>): Promise<void>;
+    /** Project the object of one key again from its inputs as they are now, absent or not. */
+    project(key: string, reconciliation: ObjectReconciliation<Object>): Promise<void>;
 }
 
 /** Another table whose changed rows select a controller's keys. */
@@ -243,7 +243,8 @@ export const ObjectController = {
 
     /** Build a type's projection as a consumer of its inputs' changes past one checkpoint. */
     project(store: ObjectStore, object: ObjectType, declared: ObjectProjection): Cursor {
-        // read the touched objects' identifiers: the watches' of the changed table, else the type's own changed row
+        // read the touched keys: the watches' of the changed table, else the type's own changed row's
+        const field = object.keyed ?? "id";
         const watches = Map.groupBy(declared.watches, (watch) => watch.table);
         const keys = async (change: Change, database: DatabaseConnection) => {
             const watching = watches.get(change.table);
@@ -257,32 +258,32 @@ export const ObjectController = {
                           )
                       ).flat()
                     : change.table === object.table
-                      ? [{ id: schema.string().parse(change.key["id"]) }]
+                      ? [Change.image(change)]
                       : [];
 
-            return [...new Set(touched.map((fields) => schema.string().parse(fields["id"])))];
+            return [...new Set(touched.map((fields) => schema.string().parse(fields[field])))];
         };
         const name = declared.name === undefined ? object.name : `${object.name}:${declared.name}`;
-        const idColumn = object.table[TABLE].column("id");
+        const keyColumn = object.table[TABLE].column(field);
 
         return new Projection(store.database, {
             name: `project:${name}`,
             tables: [...new Set([object.table, ...watches.keys()])],
             keys,
             all: async (database) =>
-                (await database.select({ id: idColumn }).from(object.table)).map((row) =>
-                    schema.string().parse(row.id),
+                (await database.select({ key: keyColumn }).from(object.table)).map((row) =>
+                    schema.string().parse(row.key),
                 ),
-            project: async (id, reconciliation) => {
+            project: async (key, reconciliation) => {
                 // project an absent object or one of the store's scopes, left to its home where it is a replica
                 const rows = await store.database
                     .select()
                     .from(object.table)
-                    .where(eq(idColumn, id));
+                    .where(eq(keyColumn, key));
                 const originated = await ObjectController.originated(store, object, rows);
                 if (rows.length === 0 || originated.length > 0) {
                     await declared.project(
-                        id,
+                        key,
                         ObjectController.context(store, object, originated, reconciliation),
                     );
                 }

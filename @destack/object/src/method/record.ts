@@ -27,7 +27,6 @@ import {
     nth,
     present,
     schema,
-    Uuid,
     type Version,
     zip,
 } from "@destack/schema";
@@ -1281,11 +1280,8 @@ export const RecordMethod = {
             );
         const parent = context.parentColumns();
 
-        // check the permission on a new object with those columns, under an unused key for a keyed type
-        const id =
-            context.object.keyed === undefined
-                ? context.object.generateId(execution.store.environment)
-                : Uuid.v4(execution.store.environment.random);
+        // check the permission on a new object with those columns, under an unused identifier
+        const id = context.object.generateId(execution.store.environment);
         const row = definition.defaults({ ...named, id, scope: context.scope, ...parent });
         await RecordMethod.requirePermitted(
             context,

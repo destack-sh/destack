@@ -5,23 +5,27 @@ import { field } from "../field/field.ts";
 import type { MethodBuilder } from "../method/record.ts";
 import { defineObject } from "../object/object.ts";
 
-/** The spent key proofs of a scope, each stored by its digest until it expires. */
+/** The spent key proofs of a scope, each stored once by its digest until it expires. */
 export const proof = defineObject(
     {
         name: "proof",
         plural: "proofs",
-        key: Digest,
+        key: "digest",
         expiring: [{ after: { milliseconds: 0 }, from: "expiresAt" }],
         fields: {
+            /** The digest of the proof's key thumbprint and identifier, which a reuse repeats. */
+            digest: field.string(Digest).immutable(),
             /** When the proof expires, in UTC epoch milliseconds. */
             expiresAt: field.time(),
         },
         // let the scope's principal alone spend proofs, as its owner
         permissions: { spend: none(), expire: none() },
     },
-    <Definition extends Table>(method: MethodBuilder<Definition, "expiresAt", "spend">) => ({
+    <Definition extends Table>(
+        method: MethodBuilder<Definition, "digest" | "expiresAt", "spend">,
+    ) => ({
         create: method.create("spend", {
-            fields: ["expiresAt"],
+            fields: ["digest", "expiresAt"],
             visibility: "installation",
             isPredicted: false,
         }),

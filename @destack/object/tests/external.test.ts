@@ -29,9 +29,9 @@ const entry = defineObject(
         plural: "entries",
         scope: space,
         storage: "external",
-        key: Term,
+        key: "term",
         nested: { in: notebook, receive: "read" },
-        fields: { term: field.string() },
+        fields: { term: field.string(Term) },
         permissions: { read: through("parent", "read") },
     },
     undefined,
@@ -129,23 +129,24 @@ test("read external objects named by their key from the database their files ope
             calls: [notebook.call("create", { spaceId, name: "Travel" })],
         })
         .then(([written]) => written);
-    const id = "term:Vienna";
+    const id = entry.generateId(world);
+    const term = Term.parse("term:Vienna");
     await files.database.transaction(
         async (transaction) =>
             await transaction.insert(entry.table).values({
                 id,
                 scope: spaceId,
                 parentId: travel.id,
-                term: "Vienna",
+                term,
                 createdAt: 1,
                 updatedAt: 1,
             }),
     );
 
-    // read the entry through its notebook's read permission
+    // read the entry by its term through its notebook's read permission
     const read = await store.query(
         context(users.alice).access(),
-        entry.call("get", { spaceId, id }),
+        entry.call("get", { spaceId, id: term }),
     );
     const listed = await store.query(
         context(users.alice).access(),
@@ -154,12 +155,13 @@ test("read external objects named by their key from the database their files ope
     // read it from inside a mutation, outside its transaction as its rows never change
     const [looked] = await store.mutate(context(users.alice).access(), {
         id: RequestId.create(world),
-        calls: [lookup.call("look", { spaceId, term: id })],
+        calls: [lookup.call("look", { spaceId, term })],
     });
-    expect([read.term, listed.items.map((row) => row.term), looked, opened]).toEqual([
-        "Vienna",
-        ["Vienna"],
-        { term: "Vienna" },
+    expect([read.id, read.term, listed.items.map((row) => row.term), looked, opened]).toEqual([
+        id,
+        term,
+        [term],
+        { term },
         [spaceId, spaceId, spaceId],
     ]);
 
@@ -209,16 +211,8 @@ test("read external objects named by their key from the database their files ope
     });
     const entries = client.query.entry.findMany().subscribe();
     await entries.ready;
-    await expect
-        .poll(async () => (await entries.read()).map((row) => row.term))
-        .toEqual(["Vienna"]);
+    await expect.poll(async () => (await entries.read()).map((row) => row.term)).toEqual([term]);
     expect(failures).toEqual([]);
-
-    // refuse an identifier outside the key
-    expect([entry.identifies(id), entry.identifies(`entry-${Uuid.v7(world)}`)]).toEqual([
-        true,
-        false,
-    ]);
 });
 
 /** Declare an external type whose one write its package's code or clients call. */

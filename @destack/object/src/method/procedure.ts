@@ -201,7 +201,7 @@ export function objectSchema(object: ObjectType): ObjectSchema {
             ),
         callers: written(callers, false),
         scope: selection,
-        target: selection.extend({ id }),
+        target: selection.extend({ id: object.addressSchema }),
         created:
             object.storage === "events"
                 ? { id, time: object.table[TABLE].column("time").definition.json }
@@ -651,7 +651,7 @@ const ObjectProcedure = {
 
     /** Build the schema identifying an object's parent. */
     parentSchema(parent: ObjectType | "any"): InputObject["shape"] {
-        return parent === "any" ? { parent: ParentReference } : { parentId: parent.idSchema };
+        return parent === "any" ? { parent: ParentReference } : { parentId: parent.addressSchema };
     },
 
     /** Declare one derived procedure with its access, route, input and output. */

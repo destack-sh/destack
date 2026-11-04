@@ -528,20 +528,40 @@ const channel = defineObject(
         name: "channel",
         plural: "channels",
         scope: space,
-        key: schema.string().regex(/^[a-z]+$/u),
-        fields: { holder: field.reference(principal.user), name: field.string() },
+        key: "slug",
+        fields: {
+            slug: field.string(schema.string().regex(/^[a-z]+$/u)).immutable(),
+            holder: field.reference(principal.user),
+            name: field.string(),
+        },
+        permissions: { read: relation("holder"), create: relation("holder") },
+    },
+    (method) => ({ create: method.create("create"), get: method.get("read") }),
+);
+
+/** Posts in a channel, which their author names by the channel's slug. */
+const post = defineObject(
+    {
+        name: "post",
+        plural: "posts",
+        scope: space,
+        fields: {
+            channel: field.reference(channel),
+            holder: field.reference(principal.user),
+            text: field.string(),
+        },
         permissions: { read: relation("holder"), create: relation("holder") },
     },
     (method) => ({ create: method.create("create") }),
 );
 
-test("create an object under a natural key the creator chooses, refusing a taken one", async () => {
+test("create an object under a natural key the creator chooses, read it by that key, and refuse a taken one", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
     const storage = await TestDatabase.create(
         tablesOf({
-            packages: [objectPackage, { objects: { channel }, tables: [] }],
+            packages: [objectPackage, { objects: { channel, post }, tables: [] }],
             follows: [],
             tables: [],
         }).tables,
@@ -553,7 +573,7 @@ test("create an object under a natural key the creator chooses, refusing a taken
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
-        servers: serversOf([channel]),
+        servers: serversOf([channel, post]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database, world),
@@ -565,15 +585,40 @@ test("create an object under a natural key the creator chooses, refusing a taken
             .mutate(context.access(), {
                 id: RequestId.create(world),
                 calls: [
-                    channel.call("create", { spaceId, id: "core", holderId: users.alice, name }),
+                    channel.call("create", { spaceId, slug: "core", holderId: users.alice, name }),
                 ],
             })
-            .then(([written]) => written.id);
+            .then(([written]) => written);
 
-    // take the chosen key, and refuse it once taken
-    expect([await create("Core"), await refusal(create("Again"))]).toEqual([
-        "core",
-        ["CONFLICT", "ID_TAKEN", "channel identifier is taken"],
+    // take the chosen key, read the channel by it, and refuse the key once taken
+    const created = await create("Core");
+    const read = await store.query(context.access(), channel.call("get", { spaceId, id: "core" }));
+    // post into the channel by its slug, storing its identifier, and refuse a slug nobody holds
+    const write = (slug: string) =>
+        store.mutate(context.access(), {
+            id: RequestId.create(world),
+            calls: [
+                post.call("create", {
+                    spaceId,
+                    channelId: slug,
+                    holderId: users.alice,
+                    text: "Hi",
+                }),
+            ],
+        });
+    const [posted] = await write("core");
+    expect([
+        [read.id, read.slug, read.name],
+        channel.identifies(created.id),
+        await refusal(create("Again")),
+        posted.channelId,
+        await refusal(write("missing")),
+    ]).toEqual([
+        [created.id, "core", "Core"],
+        true,
+        ["CONFLICT", "DUPLICATE", "another channel has the same slug"],
+        created.id,
+        ["BAD_REQUEST", "REFERENCE_MISSING", "no channel has the key missing"],
     ]);
 });
 

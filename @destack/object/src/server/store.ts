@@ -3,6 +3,7 @@ import { Casing } from "../object/name.ts";
 import { CLIENT_HEAD_HEADER, ROUTE_PATH } from "../workload/start.ts";
 import type { BlobStorage } from "@destack/resource";
 import { ObjectError } from "../error/error.ts";
+import { CallError } from "../error/call.ts";
 import { Package, type PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import type { EventStore } from "@destack/event";
@@ -2720,8 +2721,13 @@ export class ObjectStore {
         const { database } = transaction;
         const { fields, id, revision, at, branch } = ObjectStore.#fields(object, name, input);
         authorization.requireScopeOf(object);
-        const targetId = id === undefined ? undefined : schema.string().parse(id);
         const snapshot = await this.#view(database, authorization, scope, at, branch);
+        const view = snapshot ?? transaction.view();
+        const resolved = await object.resolve(fields, view);
+        const targetId =
+            id === undefined
+                ? undefined
+                : await ObjectStore.#identifier(object, schema.string().parse(id), view);
         const execution: StoreExecution = {
             kind: "store",
             store: this,
@@ -2742,7 +2748,7 @@ export class ObjectStore {
             method,
             scope,
             chain: authorization.chain,
-            input: fields,
+            input: resolved,
             id: targetId,
             target: undefined,
             prepared: undefined,
@@ -2758,7 +2764,11 @@ export class ObjectStore {
         if (method.mutates && targetId !== undefined) {
             object.refusePredefined(targetId);
         }
-        const target = await ObjectStore.#target(context, execution, targetId, snapshot);
+        const target = await ObjectStore.#target(context, execution, targetId, snapshot).catch(
+            (error: unknown) => {
+                throw ObjectStore.#addressed(object, id, targetId, error);
+            },
+        );
         if (revision !== undefined && target?.["revision"] !== revision) {
             throw ObjectError.of("REVISION_STALE", `${object.name} revision has changed`);
         }
@@ -2810,6 +2820,46 @@ export class ObjectStore {
         );
 
         return isViewed ? { fields, id, revision, at, branch } : { fields, id, revision };
+    }
+
+    /** Name a hidden or missing target as the caller addressed it. */
+    static #addressed(
+        object: ObjectType,
+        addressed: unknown,
+        targetId: string | undefined,
+        error: unknown,
+    ): unknown {
+        // keep the concealed denial as the cause, which callers read refusals from
+        const isKeyed = typeof addressed === "string" && addressed !== targetId;
+        const missing = CallError.of(error);
+
+        return isKeyed && missing?.code === "NOT_FOUND"
+            ? CallError.http("NOT_FOUND", {
+                  message: `${object.name} ${addressed} not found`,
+                  cause: missing.cause,
+              })
+            : error;
+    }
+
+    /** Read the identifier of the object a call names by its identifier or its key. */
+    static async #identifier(
+        object: ObjectType,
+        value: string,
+        view: Pick<Snapshot, "read">,
+    ): Promise<string> {
+        // take an identifier as it is
+        const column = object.identify(value);
+        if (column === "id") {
+            return value;
+        }
+
+        // read the identifier of the object holding the key, refusing a key nobody holds
+        const row = await view.read(object.table).findFirst({ where: { [column]: value } });
+        if (row === undefined) {
+            throw CallError.http("NOT_FOUND", { message: `${object.name} ${value} not found` });
+        }
+
+        return schema.string().parse(row["id"]);
     }
 
     /** Load a call's permitted target through its requested view, absent without a target. */

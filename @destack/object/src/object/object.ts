@@ -35,11 +35,14 @@ import {
     TABLE,
     type Table,
     type Tree,
+    type Snapshot,
 } from "@destack/db";
 import {
     nth,
     Duration,
+    type DigestCrypto,
     Identifier,
+    type Uuid,
     type UuidEnvironment,
     type JsonObject,
     present,
@@ -201,6 +204,9 @@ const FOREIGN_REFUSED = [
     "predefined",
 ] as const;
 
+/** The namespace of the identifiers objects derive from their keys. */
+const DERIVED_NAMESPACE: Uuid = "9b6e4f12-7a3c-8d51-b2e8-4c0f6a9d3e57";
+
 /** The kinds of the methods that write only an object's access rows. */
 export const ACCESS_KINDS: ReadonlySet<MethodKind> = new Set([
     "grant",
@@ -346,8 +352,8 @@ export interface ObjectTraits<Permissions extends string = string> {
     readonly recoverable?: RecoverableDefinition<Permissions>;
     /** The rules after which their store removes the objects. */
     readonly expiring?: readonly ExpiryRule[];
-    /** The objects' natural key, by which callers and sources identify them in place of ids. */
-    readonly key?: schema.Schema<string>;
+    /** The unique column callers and sources also address the objects by. */
+    readonly key?: string;
     /** The scopes inside each object's scope that replica the objects, matching any condition. */
     readonly inherited?: { readonly where?: Condition };
     /** The objects are immutable, numbered versions of their parent. */
@@ -703,7 +709,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         };
 
         // retain the identifier schema and the methods, requiring the release's conversions
-        this.idSchema = definition.key ?? schema.identifier(definition.identity);
+        this.idSchema = schema.identifier(definition.identity);
         this.methods = definition.methods;
         ObjectType.#requireConversions(definition, owner);
         this.declaration = ObjectType.#declarationOf(definition);
@@ -881,9 +887,44 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
-    /** The objects' natural key, absent for objects with generated identifiers. */
-    get keyed(): schema.Schema<string> | undefined {
+    /** The unique column the objects are also addressed by, absent for none. */
+    get keyed(): string | undefined {
         return this.definition.key;
+    }
+
+    /** The schema of the objects' key: a string field's, or a referenced type's identifier. */
+    get keySchema(): schema.Schema<string> | undefined {
+        // take no schema without a key
+        const field = this.keyed === undefined ? undefined : this.fields[this.keyed];
+        if (field === undefined) {
+            return undefined;
+        }
+
+        // take a string field's schema, else the referenced principal's or type's identifier
+        const { source } = field;
+        if (source.builder === "string") {
+            return source.arguments[0];
+        } else if (source.builder === "reference") {
+            const [given] = source.arguments;
+            const target = typeof given === "function" ? given() : given;
+
+            return target instanceof Policy ? schema.identifier(target.name) : target.idSchema;
+        }
+
+        // refuse a key of another kind
+        throw new TypeError(`key ${this.keyed} of ${this.name} is neither text nor a reference`);
+    }
+
+    /** The schema of a value addressing one object: its identifier, or its key. */
+    get addressSchema(): schema.Schema<string> {
+        const { keySchema } = this;
+
+        return keySchema === undefined ? this.idSchema : schema.union([this.idSchema, keySchema]);
+    }
+
+    /** Read the column selecting an object by a value: its identifier, else its key. */
+    identify(value: string): string {
+        return this.keyed === undefined || this.identifies(value) ? "id" : this.keyed;
     }
 
     /** The rows the scopes inside each object's scope replica, for inherited objects. */
@@ -970,31 +1011,34 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.idSchema.safeParse(id).success;
     }
 
-    /** Generate an object's identifier from an environment, refusing a naturally keyed type. */
+    /** Generate an object's identifier from an environment. */
     generateId(environment: UuidEnvironment): Identifier<Configuration["identity"]> {
-        this.requireGenerated();
-
         return Identifier.create(this.identity, environment);
     }
 
-    /** Refuse an identifier for a type with a natural key. */
-    private requireGenerated(): void {
-        if (this.keyed !== undefined) {
-            throw ObjectError.of("KEY_MISSING", `creating ${this.name} requires a key`);
-        }
+    /** Derive an object's identifier from its key within a namespace, the same everywhere. */
+    derive(
+        within: string,
+        key: string,
+        crypto: DigestCrypto,
+    ): Promise<Identifier<Configuration["identity"]>> {
+        const { packageId } = this.typeReference;
+
+        return Identifier.hash(
+            this.identity,
+            DERIVED_NAMESPACE,
+            `${packageId}/${this.name}/${within}/${key}`,
+            crypto,
+        );
     }
 
     /** Derive a request object's identifier at a position, stable on repeat. */
     deriveId(requestId: string, position: number): Identifier<string> {
-        this.requireGenerated();
-
         return Identifier.derive(this.identity, requestId, position);
     }
 
-    /** Read an identifier of the type's identity, refusing a type with a natural key. */
+    /** Read an identifier of the type's identity. */
     identifier(id: string): Identifier<Configuration["identity"]> {
-        this.requireGenerated();
-
         return schema.identifier(this.identity).parse(id);
     }
 
@@ -1397,6 +1441,43 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
             return isRelation && field.type === "reference" && field.target ? [field.target()] : [];
         });
+    }
+
+    /** Replace the keys an input's references give with their targets' identifiers. */
+    async resolve(input: JsonObject, view: Pick<Snapshot, "read">): Promise<JsonObject> {
+        // list the references and the parent an input may name by key
+        const resolved: Record<string, string> = {};
+        const parent = this.parent?.object;
+        const references: [string, ObjectType | undefined][] = [
+            ...Object.entries(this.fields).map(
+                ([column, field]): [string, ObjectType | undefined] => [
+                    column,
+                    field.type === "reference" ? field.target?.() : undefined,
+                ],
+            ),
+            ["parentId", parent === "any" ? undefined : parent],
+        ];
+        for (const [column, target] of references) {
+            // leave a missing value, an identifier, and a reference to a type without a key
+            const value = input[column];
+            if (
+                typeof value !== "string" ||
+                target === undefined ||
+                target.identify(value) === "id"
+            ) {
+                continue;
+            }
+
+            // read the identifier of the target holding the key, refusing a key nobody holds
+            const where = { [target.identify(value)]: value };
+            const row = await view.read(target.table).findFirst({ where });
+            if (row === undefined) {
+                throw ObjectError.of("REFERENCE_MISSING", `no ${target.name} has the key ${value}`);
+            }
+            resolved[column] = schema.string().parse(row["id"]);
+        }
+
+        return { ...input, ...resolved };
     }
 
     /** The object types the type refers to: reference targets and relation subject types. */

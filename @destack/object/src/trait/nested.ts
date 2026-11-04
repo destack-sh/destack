@@ -1,5 +1,4 @@
 import { ObjectReference } from "@destack/sync";
-import { Field } from "../field/field.ts";
 import { Duration, type Identifier, present, schema } from "@destack/schema";
 import { boolean, type ColumnBuilder, identifier, index, TABLE, text } from "@destack/db";
 import type { PackageId } from "@destack/package";
@@ -102,15 +101,13 @@ export const nested: Trait<NestedDefinition> = {
 
         // reference the owner object, or the table itself for trees
         const owner = options.in === "self" ? undefined : options.in;
-        const keyed = owner?.keyed ?? (owner === undefined ? object.key : undefined);
-        const column = (
-            keyed === undefined
-                ? identifier("parent_id", owner?.identity ?? object.identity)
-                : Field.validated("parent_id", keyed)
-        ).references(() => idColumn(owner?.table ?? object.table()), {
-            // cascade a purge of the parent to its children, trashed with it or not, and restrict otherwise
-            onDelete: options.delete === "restrict" ? "no action" : "cascade",
-        });
+        const column = identifier("parent_id", owner?.identity ?? object.identity).references(
+            () => idColumn(owner?.table ?? object.table()),
+            {
+                // cascade a purge of the parent to its children, trashed with it or not, and restrict otherwise
+                onDelete: options.delete === "restrict" ? "no action" : "cascade",
+            },
+        );
 
         // mark the children their parent's deletion moved to the trash, which its restore brings back
         const trashed =

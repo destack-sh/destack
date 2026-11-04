@@ -27,6 +27,7 @@ import {
     OrderBy,
     Row,
     type Scalar,
+    type SQL,
     Expression,
     DatabaseError,
     declareState,
@@ -83,7 +84,7 @@ import { related } from "../query/query.ts";
 import { TextPresenter } from "../text/chunk.ts";
 import {
     RelationalQuery,
-    RelationalQueryBuilder,
+    ObjectQueryBuilder,
     type LiveItems,
     type Subscriber,
     type SubscribeOptions,
@@ -226,7 +227,7 @@ export interface ClientInspection {
 
 /** The relational queries of a client's object types, by key. */
 export type ObjectQueries<Objects extends Readonly<Record<string, ObjectType>>> = {
-    readonly [Key in keyof Objects]: RelationalQueryBuilder<Objects[Key], Objects[keyof Objects]>;
+    readonly [Key in keyof Objects]: ObjectQueryBuilder<Objects[Key], Objects[keyof Objects]>;
 };
 
 /** How a union orders and limits its members' rows, and how long it stays followed once closed. */
@@ -437,7 +438,7 @@ export class ObjectClient<
 
         // replicate the scope's objects for the caller, and the principals storing local objects
         this.objects = ObjectType.served(Object.values(options.objects));
-        this.query = ObjectClient.#queries(this, options.objects);
+        this.query = ObjectQueryBuilder.of(this.#subscriber, options.objects);
         this.scope = options.scope;
         this.caller = options.caller;
         this.#owners = [options.caller, ...(options.device === undefined ? [] : [options.device])];
@@ -572,17 +573,6 @@ export class ObjectClient<
             ...options,
             origin: options.origin ?? RequestId.create(options.environment),
         });
-    }
-
-    /** Build the relational queries of object types, by key. */
-    static #queries<Objects extends Readonly<Record<string, ObjectType>>>(
-        client: ObjectClient,
-        objects: Objects,
-    ): ObjectQueries<Objects> {
-        return mapValues<Objects, ObjectQueries<Objects>>(
-            objects,
-            (object) => new RelationalQueryBuilder(client.#subscriber, object),
-        );
     }
 
     /** Build the mutators of object types, by key. */
@@ -721,7 +711,7 @@ export class ObjectClient<
         }
 
         return {
-            query: ObjectClient.#queries(this, objects),
+            query: ObjectQueryBuilder.of(this.#subscriber, objects),
             mutate: ObjectClient.#mutators(this, objects),
             mutation: (run) => this.mutation(run),
             undo: () => this.undo(),
@@ -1275,8 +1265,8 @@ export class ObjectClient<
     /** Query one of the client's object types, as its keyed queries do. */
     queryType<Object extends ObjectType>(
         object: Object,
-    ): RelationalQueryBuilder<Object, Objects[keyof Objects]> {
-        return new RelationalQueryBuilder(this.#subscriber, object);
+    ): ObjectQueryBuilder<Object, Objects[keyof Objects]> {
+        return new ObjectQueryBuilder(this.#subscriber, object);
     }
 
     /** Follow a query's items live over the local replica with predictions until closed. */
@@ -1895,6 +1885,11 @@ export class ObjectClient<
         }
     }
 
+    /** Match the row a call names by its identifier or its key. */
+    static #identified(object: ObjectType, value: string): SQL {
+        return eq(object.table[TABLE].column(object.identify(value)), value);
+    }
+
     /** Widen a durable query to every scope of its type the replica last read. */
     async #read(query: sync.Query): Promise<sync.Query> {
         // run a query of no durable type, whose replica reads no chain
@@ -2268,16 +2263,37 @@ export class ObjectClient<
         const { id, revision, ...rest } = input;
         const field = object.route.field;
         const fields = field === undefined ? rest : ObjectClient.#omitField(rest, field);
-        const targetId = id === undefined ? undefined : schema.string().parse(id);
         const named = field === undefined ? undefined : rest[field];
         const scope = typeof named === "string" ? named : this.#readScope(object);
+
+        // load the target by its identifier or its key, at the given revision
+        const requested = id === undefined ? undefined : schema.string().parse(id);
+        const table = object.table;
+        const [target] =
+            Method.loads(method) && requested !== undefined
+                ? await database
+                      .select()
+                      .from(table)
+                      .where(ObjectClient.#identified(object, requested))
+                : [];
+        if (Method.loads(method) && target === undefined) {
+            throw CallError.http("NOT_FOUND", {
+                message: `${object.name} ${requested} not found`,
+            });
+        }
+        if (revision !== undefined && target?.["revision"] !== revision) {
+            throw ObjectError.of("REVISION_STALE", `${object.name} revision has changed`);
+        }
+
+        // predict the call on the target's identifier
+        const targetId = target === undefined ? requested : schema.string().parse(target["id"]);
         const context: MethodContext = new MethodContext({
             object,
             name,
             method,
             scope,
             chain: object.storage === "local" ? [scope] : await this.replica.chain(database),
-            input: fields,
+            input: await object.resolve(fields, Snapshot.live(database)),
             id: targetId,
             target: undefined,
             prepared: undefined,
@@ -2291,24 +2307,6 @@ export class ObjectClient<
                 return this.#predict(database, nested.object, nested.name, nested.input);
             },
         });
-
-        // load the target at the given revision
-        const table = object.table;
-        const [target] =
-            Method.loads(method) && targetId !== undefined
-                ? await database
-                      .select()
-                      .from(table)
-                      .where(eq(table[TABLE].column("id"), targetId))
-                : [];
-        if (Method.loads(method) && target === undefined) {
-            throw CallError.http("NOT_FOUND", {
-                message: `${object.name} ${targetId} not found`,
-            });
-        }
-        if (revision !== undefined && target?.["revision"] !== revision) {
-            throw ObjectError.of("REVISION_STALE", `${object.name} revision has changed`);
-        }
 
         return method.execute(target === undefined ? context : context.with({ target: target }), {
             kind: "client",

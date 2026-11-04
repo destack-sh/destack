@@ -506,7 +506,6 @@ export const ObjectPolicy = {
             identity: type.identity,
             packageId,
             table: () => type.table,
-            key: type.keyed,
             storage: type.storage,
             isPrincipal: type.represents !== undefined,
             isUniverseOnly: type.isUniverseOnly,

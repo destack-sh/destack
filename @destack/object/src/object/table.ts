@@ -112,7 +112,7 @@ export type ObjectBuilderMap<
     Traits = {},
     Identity extends string = Name,
     Storage = "durable",
-> = RecordBuilderMap<Identity, TraitOf<Traits, "key">, Storage> &
+> = RecordBuilderMap<Identity, Storage> &
     WriterBuilderMap<Storage> &
     ScopeBuilderMap<Scope> &
     ParentBuilderMap<Identity, TraitOf<Traits, "nested">> &
@@ -164,7 +164,6 @@ export const ObjectTable = {
             packageId,
             table,
             storage: ObjectType.storageKind(definition.storage),
-            key: definition.key,
             isPrincipal: definition.represents !== undefined,
             isUniverseOnly: ObjectType.isUniverseOnly(definition),
         };
@@ -190,6 +189,16 @@ export const ObjectTable = {
                     ...Object.entries(definition.constraints ?? {}).map(([constraint, declared]) =>
                         ObjectConstraint.build(constraint, declared, table()),
                     ),
+                    // address each object by its key once
+                    ...(definition.key === undefined
+                        ? []
+                        : [
+                              ObjectConstraint.build(
+                                  "unique_key",
+                                  { kind: "unique", on: [definition.key] },
+                                  table(),
+                              ),
+                          ]),
                 ],
                 // maintain the aggregates of these objects and of their attachments
                 aggregates: [

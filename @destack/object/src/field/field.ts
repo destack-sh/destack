@@ -829,8 +829,8 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         storage: ObjectStorage,
         options: ReferenceOptions,
     ): ColumnBuilder<Definition> {
-        // leave references in memory and in the event log without a foreign key
-        if (storage === "ephemeral" || storage === "events") {
+        // leave references in memory, in the event log and to replicas that come and go without a foreign key
+        if (storage === "ephemeral" || storage === "events" || options.delete === "keep") {
             return column;
         }
 
@@ -880,8 +880,8 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
 
 /** The options of a reference field. */
 interface ReferenceOptions {
-    /** What deleting the referenced object does to this one. */
-    readonly delete?: "restrict" | "cascade" | "null";
+    /** What deleting the referenced object does to this one, or nothing for a replicated target. */
+    readonly delete?: "restrict" | "cascade" | "null" | "keep";
 }
 
 /** The identifier of an object type's objects. */
@@ -929,10 +929,11 @@ function reference<const Target extends ObjectType | Policy>(
             }
             const resolve = ReferenceTarget.object(given);
 
+            // accept the target's identifier, or its key, which its store resolves to the identifier
             return Field.keyed(
                 Field.validated(
                     name,
-                    schema.lazy(() => resolve().keyed ?? resolve().idSchema),
+                    schema.lazy(() => resolve().addressSchema),
                 ),
                 resolve,
                 storage,
