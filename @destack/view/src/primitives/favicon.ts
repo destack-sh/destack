@@ -524,7 +524,7 @@ async function drawBase(
             image.src = href;
         });
     } catch (error) {
-        reportError(error);
+        globalThis.reportError(error);
 
         return undefined;
     }
@@ -536,7 +536,7 @@ async function drawBase(
     canvas.height = size;
     const context = canvas.getContext("2d");
     if (context === null) {
-        reportError(new TypeError("favicon canvas has no 2d context"));
+        globalThis.reportError(new TypeError("favicon canvas has no 2d context"));
 
         return undefined;
     }
@@ -643,11 +643,14 @@ async function renderProgress(
 /** Apply a drawing once it settles, unless the favicon was disposed first. */
 function guardRender(favicon: FaviconController, render: Promise<string>): FaviconController {
     let isDisposed = false;
-    render.then((drawn) => {
-        if (!isDisposed) {
-            favicon.setHref(drawn);
-        }
-    }, reportError);
+    render.then(
+        (drawn) => {
+            if (!isDisposed) {
+                favicon.setHref(drawn);
+            }
+        },
+        (error: unknown) => globalThis.reportError(error),
+    );
 
     return {
         get href() {
@@ -682,12 +685,15 @@ function createCanvasFavicon<Value, Options extends FaviconOptions>(
     let request = 0;
     const redraw = (address: string, next: Value): void => {
         const id = ++request;
-        render(address, next, options).then((drawn) => {
-            if (id === request) {
-                favicon.setHref(drawn);
-                setCurrent(favicon.href);
-            }
-        }, reportError);
+        render(address, next, options).then(
+            (drawn) => {
+                if (id === request) {
+                    favicon.setHref(drawn);
+                    setCurrent(favicon.href);
+                }
+            },
+            (error: unknown) => globalThis.reportError(error),
+        );
     };
 
     // redraw whenever a reactive address or value changes, or once for fixed ones

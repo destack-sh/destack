@@ -96,7 +96,7 @@ export function createClipboard(
 
                     return;
                 }
-                writeClipboard(value).catch(reportError);
+                writeClipboard(value).catch((error: unknown) => globalThis.reportError(error));
             },
             TRANSPARENT,
         );
@@ -122,7 +122,9 @@ export function copyToClipboard(
                 ? target.value
                 : (target.textContent ?? ""));
         current.highlight?.(target);
-        (current.setter ?? writeClipboard)(value).catch(reportError);
+        (current.setter ?? writeClipboard)(value).catch((error: unknown) =>
+            globalThis.reportError(error),
+        );
     };
     onCleanup(() => target?.removeEventListener("click", copy));
 

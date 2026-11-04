@@ -111,7 +111,7 @@ export function createAmplitudeFromStream(
         () => access(stream),
         (current) => {
             if (current !== undefined) {
-                context.resume().catch(reportError);
+                context.resume().catch((error: unknown) => globalThis.reportError(error));
                 source?.disconnect();
                 source = context.createMediaStreamSource(current);
                 source.connect(analyser);
@@ -137,7 +137,7 @@ export function createAmplitudeFromStream(
         stopFrames();
         source?.disconnect();
         if (context.state !== "closed") {
-            context.close().catch(reportError);
+            context.close().catch((error: unknown) => globalThis.reportError(error));
         }
     };
     onCleanup(stop);
@@ -198,13 +198,16 @@ function followStream<Source>(
                 return undefined;
             }
             let isActive = true;
-            open(current).then((opened) => {
-                if (isActive) {
-                    setStream(opened);
-                } else {
-                    stopStream(opened);
-                }
-            }, reportError);
+            open(current).then(
+                (opened) => {
+                    if (isActive) {
+                        setStream(opened);
+                    } else {
+                        stopStream(opened);
+                    }
+                },
+                (error: unknown) => globalThis.reportError(error),
+            );
 
             return () => {
                 isActive = false;

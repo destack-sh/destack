@@ -167,7 +167,7 @@ export function createAudio(source: AudioSource | Accessor<AudioSource>): AudioR
         playing,
         setPlaying: (isPlaying) => {
             if (isPlaying) {
-                controls.play().catch(reportError);
+                controls.play().catch((error: unknown) => globalThis.reportError(error));
             } else {
                 controls.pause();
             }

@@ -11,7 +11,10 @@ export function createDevices(): Accessor<MediaDeviceInfo[]> {
     // list the devices now and on each change, reporting a refused listing
     const [devices, setDevices] = createSignal<MediaDeviceInfo[]>([], { ownedWrite: true });
     const enumerate = (): void => {
-        navigator.mediaDevices.enumerateDevices().then((listed) => setDevices(listed), reportError);
+        navigator.mediaDevices.enumerateDevices().then(
+            (listed) => setDevices(listed),
+            (error: unknown) => globalThis.reportError(error),
+        );
     };
     enumerate();
     navigator.mediaDevices.addEventListener("devicechange", enumerate);

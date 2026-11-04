@@ -65,7 +65,7 @@ export function createFullscreen(
             document.fullscreenElement !== null &&
             document.fullscreenElement === access(target)
         ) {
-            document.exitFullscreen().catch(reportError);
+            document.exitFullscreen().catch((error: unknown) => globalThis.reportError(error));
         }
     });
 
@@ -102,7 +102,9 @@ export function fullscreen(options?: FullscreenOptions): (element: HTMLElement) 
         stop?.();
         const [enter, exit] = makeFullscreen(element, options);
         const toggle = (): void => {
-            (document.fullscreenElement === element ? exit() : enter()).catch(reportError);
+            (document.fullscreenElement === element ? exit() : enter()).catch((error: unknown) =>
+                globalThis.reportError(error),
+            );
         };
         element.addEventListener("click", toggle);
         stop = () => element.removeEventListener("click", toggle);

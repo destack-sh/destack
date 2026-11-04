@@ -96,7 +96,9 @@ export class PaletteOverlay {
             // run a registered command taking no input in the page
             if (registered !== undefined && registered.input === undefined) {
                 event.preventDefault();
-                void this.#commands.run(registered.name, {}).catch(reportError);
+                void this.#commands
+                    .run(registered.name, {})
+                    .catch((error: unknown) => globalThis.reportError(error));
             }
             // open the palette at a registered command, which asks for its input
             else if (registered !== undefined) {
@@ -153,7 +155,9 @@ export class PaletteOverlay {
             "message",
             (event) => {
                 if (event.source === frame.contentWindow) {
-                    void this.#answer(event.data, frame, dialog).catch(reportError);
+                    void this.#answer(event.data, frame, dialog).catch((error: unknown) =>
+                        globalThis.reportError(error),
+                    );
                 }
             },
             { signal: closing.signal },

@@ -279,7 +279,7 @@ export function createVideo(
         playing,
         setPlaying: (isPlaying) => {
             if (isPlaying) {
-                player.play().catch(reportError);
+                player.play().catch((failure: unknown) => globalThis.reportError(failure));
             } else {
                 player.pause();
             }

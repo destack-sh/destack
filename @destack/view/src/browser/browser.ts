@@ -142,7 +142,7 @@ export async function mount(
         }
     })().catch((error: unknown) => {
         if (!stopping.signal.aborted) {
-            reportError(error);
+            globalThis.reportError(error);
         }
     });
 
@@ -270,7 +270,7 @@ class LocalizedRendering {
                     this.#draw();
                 }
             },
-            (error: unknown) => reportError(error),
+            (error: unknown) => globalThis.reportError(error),
         );
     }
 
@@ -453,7 +453,7 @@ async function openTabs(
                     reconnect: () => ({ url }),
                     homes: (home: string) => origin(`${HOME_PATH}/${home}`),
                     environment,
-                    report: reportError,
+                    report: (error: unknown) => globalThis.reportError(error),
                 });
                 await tab.ready;
 

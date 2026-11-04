@@ -275,7 +275,7 @@ export function makeBattery(onChange: (reading: BatteryReading) => void): () => 
                 }
             };
         })
-        .catch(reportError);
+        .catch((error: unknown) => globalThis.reportError(error));
 
     return () => {
         isStopped = true;
@@ -330,5 +330,5 @@ function isBatteryManager(value: unknown): value is BatteryManager {
 
 /** Report a sensor's error event. */
 function fail(event: Event): void {
-    reportError(event instanceof ErrorEvent ? event.error : event);
+    globalThis.reportError(event instanceof ErrorEvent ? event.error : event);
 }

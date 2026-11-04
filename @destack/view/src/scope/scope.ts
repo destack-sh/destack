@@ -69,7 +69,7 @@ export function useSetting<Value extends schema.Schema>(
         }
     })().catch((error: unknown) => {
         if (!stopping.signal.aborted) {
-            reportError(error);
+            globalThis.reportError(error);
         }
     });
 

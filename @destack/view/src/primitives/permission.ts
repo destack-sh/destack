@@ -23,7 +23,7 @@ export function createPermission(
         (answered) => setStatus(() => answered),
         (error: unknown) => {
             if (!(error instanceof TypeError)) {
-                reportError(error);
+                globalThis.reportError(error);
             }
         },
     );
