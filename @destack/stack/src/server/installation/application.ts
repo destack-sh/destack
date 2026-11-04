@@ -884,12 +884,8 @@ export class ApplicationInstallation {
         const kept = new Map(
             declarations.map((each) => [Address.join(each.kind, each.name), each] as const),
         );
-        // find each kind's package among the Destack builds the next build's outputs import
-        const releases = Object.values(next.manifest.outputs).flatMap((output) =>
-            Object.values(output.dependencies).flatMap((dependency) =>
-                dependency.kind === "destack" ? [dependency] : [],
-            ),
-        );
+        // find each kind's package among the releases the next build resolved
+        const releases = await next.releases();
         const owner = PackageManifest.package(next.manifest);
         const [runtime] = this.#options.runtimes;
         const compared = new Map<string, Plan>();
