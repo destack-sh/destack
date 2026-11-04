@@ -1,4 +1,4 @@
-import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { type DatabaseConnection, eq, Snapshot, Transaction } from "@destack/db";
 import { type Environment, Random } from "@destack/environment";
 import type { ObjectStore } from "@destack/object/server";
 import { Digest, schema } from "@destack/schema";
@@ -81,7 +81,7 @@ export class DeviceAuthorizationEndpoint {
     }
 
     /** Answer a device authorization request with its codes and the page to enter them on. */
-    async answer(request: Request): Promise<Response> {
+    async fetch(request: Request): Promise<Response> {
         // authenticate the client and read the request
         const { database, objects, environment, verification } = this.#options;
         const body = await TokenEndpoint.form(request);
@@ -183,18 +183,27 @@ export class DeviceAuthorizationEndpoint {
             return;
         }
 
-        // register a device's client for the person, grant the client the scopes, and approve
-        if (party.registration === undefined) {
-            await Client.register(objects, party.clientId, session.userId, now);
-        }
-        await OAuthConsent.grant(
-            objects,
-            { clientId: party.clientId, userId: session.userId, scopes: row.scopes },
-            now,
-        );
-        await objects.mutate(objects.as(deviceAuthorization), {
-            id: RequestId.create(environment),
-            calls: [deviceAuthorization.call("approve", { ...target, userId: session.userId })],
+        // register a device's client for the person, grant the client the scopes, and approve, in one commit
+        await Transaction.run(database, async (transaction) => {
+            if (party.registration === undefined) {
+                await Client.register(objects, party.clientId, session.userId, now, transaction);
+            }
+            await OAuthConsent.grant(
+                objects,
+                { clientId: party.clientId, userId: session.userId, scopes: row.scopes },
+                now,
+                transaction,
+            );
+            await objects.mutate(
+                objects.as(deviceAuthorization),
+                {
+                    id: RequestId.create(environment),
+                    calls: [
+                        deviceAuthorization.call("approve", { ...target, userId: session.userId }),
+                    ],
+                },
+                { transaction },
+            );
         });
     }
 }
@@ -227,28 +236,26 @@ export function deviceGrant(options: Omit<DeviceOptions, "verification" | "sessi
             throw OAuthError.of("EXPIRED_TOKEN", "the device code expired");
         }
 
-        // record the poll, slowing a device that polls too soon
+        // record a pending sign-in's poll, slowing a device that polls too soon
         const target = deviceAuthorization.target(row);
         const isEarly = row.polledAt !== null && now - row.polledAt < row.interval;
         const interval = isEarly ? row.interval + INTERVAL_MILLISECONDS : row.interval;
         const decision = DeviceAuthorization.decision(row);
-        await objects.mutate(objects.as(deviceAuthorization), {
-            id: RequestId.create(environment),
-            calls: [
-                decision.status === "pending"
-                    ? deviceAuthorization.call("poll", { ...target, polledAt: now, interval })
-                    : deviceAuthorization.call("delete", target),
-            ],
-        });
-
-        // answer a sign-in still pending
         if (decision.status === "pending") {
+            await objects.mutate(objects.as(deviceAuthorization), {
+                id: RequestId.create(environment),
+                calls: [deviceAuthorization.call("poll", { ...target, polledAt: now, interval })],
+            });
             throw isEarly
                 ? OAuthError.of("SLOW_DOWN", "the device polls too often")
                 : OAuthError.of("AUTHORIZATION_PENDING", "the person has yet to decide");
         }
-        // refuse a denied sign-in
+        // spend and refuse a denied sign-in
         else if (decision.status === "denied") {
+            await objects.mutate(objects.as(deviceAuthorization), {
+                id: RequestId.create(environment),
+                calls: [deviceAuthorization.call("delete", target)],
+            });
             throw OAuthError.of("ACCESS_DENIED", "the person denied the device");
         }
 
@@ -267,12 +274,24 @@ export function deviceGrant(options: Omit<DeviceOptions, "verification" | "sessi
             now,
         );
 
-        return {
-            authentication,
-            clientId: party.clientId,
-            scopes: row.scopes,
-            ...(resource === undefined ? {} : { resource }),
-            consent: { row: consent, family: row.id },
+        // spend the approved code with the tokens it issues
+        return async (transaction) => {
+            await objects.mutate(
+                objects.as(deviceAuthorization),
+                {
+                    id: RequestId.create(environment),
+                    calls: [deviceAuthorization.call("delete", target)],
+                },
+                { transaction },
+            );
+
+            return {
+                authentication,
+                clientId: party.clientId,
+                scopes: row.scopes,
+                ...(resource === undefined ? {} : { resource }),
+                consent: { row: consent, family: row.id },
+            };
         };
     };
 }

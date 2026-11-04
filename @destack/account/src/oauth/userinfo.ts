@@ -32,7 +32,7 @@ export class UserInfoEndpoint {
     }
 
     /** Answer the claims of the person a request's access token is for, as its scopes allow. */
-    async answer(request: Request): Promise<Response> {
+    async fetch(request: Request): Promise<Response> {
         // verify the bearer token for the userinfo endpoint
         const { database, issuer } = this.#options;
         const token = /^bearer (?<token>\S+)$/iu.exec(request.headers.get("authorization") ?? "")

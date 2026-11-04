@@ -77,7 +77,7 @@ export function refreshGrant(options: RefreshOptions): TokenGrant {
             environment.clock.now(),
         );
 
-        return {
+        return async () => ({
             authentication,
             clientId: party.clientId,
             scopes,
@@ -87,6 +87,6 @@ export function refreshGrant(options: RefreshOptions): TokenGrant {
                 family: row.family,
                 rotating: row,
             },
-        };
+        });
     };
 }

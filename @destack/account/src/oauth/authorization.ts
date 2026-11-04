@@ -1,5 +1,5 @@
 import { Pkce } from "@destack/access/token";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import { type DatabaseConnection, Snapshot, Transaction } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { CALL_ERROR_STATUSES, Failure } from "@destack/error";
 import type { ObjectStore } from "@destack/object/server";
@@ -123,7 +123,7 @@ export class AuthorizationEndpoint {
     }
 
     /** Answer an authorization request: a sign-in, a consent, or the code at the client. */
-    async answer(request: Request): Promise<Response> {
+    async fetch(request: Request): Promise<Response> {
         // find the client and the request, answering a refusal before the redirect as a page
         const query = new URL(request.url).searchParams;
         const asked = await this.#read(query).catch(refusalPage);
@@ -172,19 +172,24 @@ export class AuthorizationEndpoint {
             });
         }
 
-        // register a device's client for the person, grant the client the scopes and return the code
-        const { objects, environment } = this.#options;
+        // register a device's client for the person, grant the client the scopes and return the code, in one commit
+        const { objects, environment, database } = this.#options;
         const now = environment.clock.now();
-        if (party.registration === undefined) {
-            await Client.register(objects, party.clientId, session.userId, now);
-        }
-        const consent = await OAuthConsent.grant(
-            objects,
-            { clientId: party.clientId, userId: session.userId, scopes: request.scopes },
-            now,
-        );
+        const code = await Credential.create("authorization-code", environment);
 
-        return this.#issue(request, consent, session);
+        return Transaction.run(database, async (transaction) => {
+            if (party.registration === undefined) {
+                await Client.register(objects, party.clientId, session.userId, now, transaction);
+            }
+            const consent = await OAuthConsent.grant(
+                objects,
+                { clientId: party.clientId, userId: session.userId, scopes: request.scopes },
+                now,
+                transaction,
+            );
+
+            return this.#issue(request, consent, session, code, transaction);
+        });
     }
 
     /** Read a request's enabled client, and its stored or newly stored request. */
@@ -263,7 +268,13 @@ export class AuthorizationEndpoint {
         }
         // return the code of the standing consent
         else {
-            return found(await this.#issue(stored, consent, session));
+            const { database, environment } = this.#options;
+            const code = await Credential.create("authorization-code", environment);
+            const location = await Transaction.run(database, (transaction) =>
+                this.#issue(stored, consent, session, code, transaction),
+            );
+
+            return found(location);
         }
     }
 
@@ -357,12 +368,16 @@ export class AuthorizationEndpoint {
     }
 
     /** Remove a decided request. */
-    async #spend(stored: AuthorizationRequest): Promise<void> {
+    async #spend(stored: AuthorizationRequest, transaction?: Transaction): Promise<void> {
         const { objects, environment } = this.#options;
-        await objects.mutate(objects.as(authorizationRequest), {
-            id: RequestId.create(environment),
-            calls: [authorizationRequest.call("delete", authorizationRequest.target(stored))],
-        });
+        await objects.mutate(
+            objects.as(authorizationRequest),
+            {
+                id: RequestId.create(environment),
+                calls: [authorizationRequest.call("delete", authorizationRequest.target(stored))],
+            },
+            transaction === undefined ? {} : { transaction },
+        );
     }
 
     /** Read the live session a browser's request signs in. */
@@ -394,36 +409,39 @@ export class AuthorizationEndpoint {
         }
     }
 
-    /** Spend a request on a code of its consent, answering the client's redirect with the code. */
+    /** Spend a request on a drawn code of its consent, returning the client's redirect. */
     async #issue(
         stored: AuthorizationRequest,
         consent: OAuthConsent,
         session: ActiveSession,
+        code: Awaited<ReturnType<typeof Credential.create>>,
+        transaction: Transaction,
     ): Promise<string> {
-        // draw the code
+        // store the code's digest in the person's scope, then spend the request
         const { objects, environment } = this.#options;
-        const code = await Credential.create("authorization-code", environment);
-
-        // store its digest in the person's scope, then spend the request
-        await objects.mutate(objects.as(authorizationCode), {
-            id: RequestId.create(environment),
-            calls: [
-                authorizationCode.call("create", {
-                    ...authorizationCode.in(consent.scope),
-                    digest: code.digest,
-                    consentId: consent.id,
-                    sessionId: session.id,
-                    redirectUri: stored.redirectUri,
-                    scopes: stored.scopes,
-                    nonce: stored.nonce,
-                    codeChallenge: stored.codeChallenge,
-                    resource: stored.resource,
-                    status: "issued",
-                    expiresAt: environment.clock.now() + CODE_MILLISECONDS,
-                }),
-            ],
-        });
-        await this.#spend(stored);
+        await objects.mutate(
+            objects.as(authorizationCode),
+            {
+                id: RequestId.create(environment),
+                calls: [
+                    authorizationCode.call("create", {
+                        ...authorizationCode.in(consent.scope),
+                        digest: code.digest,
+                        consentId: consent.id,
+                        sessionId: session.id,
+                        redirectUri: stored.redirectUri,
+                        scopes: stored.scopes,
+                        nonce: stored.nonce,
+                        codeChallenge: stored.codeChallenge,
+                        resource: stored.resource,
+                        status: "issued",
+                        expiresAt: environment.clock.now() + CODE_MILLISECONDS,
+                    }),
+                ],
+            },
+            { transaction },
+        );
+        await this.#spend(stored, transaction);
 
         return this.#location(stored, { code: code.secret });
     }
@@ -506,7 +524,7 @@ export function codeGrant(
             environment.clock.now(),
         );
 
-        return {
+        return async () => ({
             authentication,
             clientId: party.clientId,
             scopes: row.scopes,
@@ -517,7 +535,7 @@ export function codeGrant(
                 sessionId,
                 ...(row.nonce === null ? {} : { nonce: row.nonce }),
             },
-        };
+        });
     };
 }
 

@@ -99,19 +99,13 @@ export function emailGrant(options: EmailOptions): TokenGrant {
             );
         }
 
-        // prove the email, register the device's client and grant it the code's scopes
+        // prove the email
         const now = environment.clock.now();
         const userId = person.id;
         const { internalAdapter } = context;
         if (person.emailVerified !== true) {
             await internalAdapter.updateUser(userId, { emailVerified: true });
         }
-        await Client.register(options.objects, party.clientId, userId, now);
-        const consent = await OAuthConsent.grant(
-            options.objects,
-            { clientId: party.clientId, userId, scopes: CODE_SCOPES },
-            now,
-        );
 
         // sign the person in on the client with a session the code proved, timed on the store's clock
         const lifetime = context.sessionConfig.expiresIn * SECOND_MILLISECONDS;
@@ -127,16 +121,6 @@ export function emailGrant(options: EmailOptions): TokenGrant {
             },
             true,
         );
-        await options.objects.mutate(options.objects.as(session), {
-            id: RequestId.create(options.objects.environment),
-            calls: [
-                session.call("link", {
-                    ...session.target({ scope: userId, id: signedIn.id }),
-                    clientId: party.clientId,
-                }),
-            ],
-        });
-
         // describe the person through the session the code proved
         const authentication = await AccountAuthentication.person(
             database,
@@ -145,12 +129,40 @@ export function emailGrant(options: EmailOptions): TokenGrant {
             now,
         );
 
-        return {
-            authentication,
-            clientId: party.clientId,
-            scopes: CODE_SCOPES,
-            resource,
-            consent: { row: consent, family: signedIn.id, sessionId: signedIn.id },
+        // register the device's client, grant it the code's scopes and link the session in the request's transaction
+        return async (transaction) => {
+            // register the client and grant it the scopes
+            const { objects } = options;
+            await Client.register(objects, party.clientId, userId, now, transaction);
+            const consent = await OAuthConsent.grant(
+                objects,
+                { clientId: party.clientId, userId, scopes: CODE_SCOPES },
+                now,
+                transaction,
+            );
+
+            // link the session to the client
+            await objects.mutate(
+                objects.as(session),
+                {
+                    id: RequestId.create(objects.environment),
+                    calls: [
+                        session.call("link", {
+                            ...session.target({ scope: userId, id: signedIn.id }),
+                            clientId: party.clientId,
+                        }),
+                    ],
+                },
+                { transaction },
+            );
+
+            return {
+                authentication,
+                clientId: party.clientId,
+                scopes: CODE_SCOPES,
+                resource,
+                consent: { row: consent, family: signedIn.id, sessionId: signedIn.id },
+            };
         };
     };
 }

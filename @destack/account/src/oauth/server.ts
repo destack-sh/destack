@@ -84,7 +84,7 @@ export interface AuthorizationServerOptions {
 /** An endpoint of the server. */
 interface Endpoint {
     /** Answer a request. */
-    readonly answer: (request: Request) => Promise<Response>;
+    readonly fetch: (request: Request) => Promise<Response>;
 }
 
 /** The universe's OAuth 2.1 and OpenID Connect authorization server, below the issuer's URL. */
@@ -124,7 +124,7 @@ export class AuthorizationServer {
 
         // describe the server in one document at both metadata paths
         const metadata = this.#metadata(issuer);
-        const document: Endpoint = { answer: () => Promise.resolve(Response.json(metadata)) };
+        const document: Endpoint = { fetch: () => Promise.resolve(Response.json(metadata)) };
         this.#endpoints = new Map<string, Endpoint>([
             ...METADATA_PATHS.map((path) => [path, document] as const),
             [AUTHORIZATION_PATH, this.authorization],
@@ -146,26 +146,26 @@ export class AuthorizationServer {
         return this.#endpoints.has(path);
     }
 
-    /** Answer a request at an endpoint below the issuer, refusing as RFC 6749 5.2 does. */
-    async answer(request: Request): Promise<Response> {
-        // answer at the endpoint of the request's path below the issuer
+    /** Take a request at an endpoint below the issuer, refusing as RFC 6749 5.2 does. */
+    async fetch(request: Request): Promise<Response> {
+        // find the endpoint of the request's path below the issuer
         const path = new URL(request.url).pathname.slice(this.#base.length);
         const endpoint = this.#endpoints.get(path);
         if (endpoint === undefined) {
-            throw new TypeError(`no endpoint answers ${path}`);
+            throw new TypeError(`no endpoint takes ${path}`);
         }
 
-        // answer at the endpoint, refusing as RFC 6749 5.2 does
+        // take the request at the endpoint, refusing as RFC 6749 5.2 does
         const response = await endpoint
-            .answer(request)
+            .fetch(request)
             .catch((error: unknown) => AuthorizationServer.refusal(error));
 
-        // mark every answer but the discovery document uncacheable (RFC 6749 5.1)
+        // mark every response but the discovery document uncacheable (RFC 6749 5.1)
         if (!METADATA_PATHS.some((each) => each === path)) {
             response.headers.set("cache-control", "no-store");
         }
 
-        // answer the universe's position, so the caller's later calls read the sign-in's writes
+        // add the universe's position, so the caller's later calls read the sign-in's writes
         const bookmark = new Bookmark();
         const position = await this.#database.log.position();
         bookmark.observe({ scope: Scope.universe.id, ...position });

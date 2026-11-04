@@ -1,5 +1,5 @@
 import { AuthenticationAssurance, none } from "@destack/access";
-import { type DatabaseConnection, eq, type Select, Snapshot } from "@destack/db";
+import { type DatabaseConnection, eq, type Select, Snapshot, type Transaction } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { defineObject, field } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -104,29 +104,34 @@ export const RefreshToken = {
             readonly rotating?: RefreshToken | undefined;
         },
         environment: Pick<Environment, "clock" | "crypto" | "random">,
+        transaction: Transaction,
     ): Promise<string> {
         // draw the token and store its digest, spending its predecessor with it
         const drawn = await Credential.create("refresh-token", environment);
         const { rotating } = terms;
-        await objects.mutate(objects.as(refreshToken), {
-            id: RequestId.create(environment),
-            calls: [
-                ...(rotating === undefined
-                    ? []
-                    : [refreshToken.call("rotate", refreshToken.target(rotating))]),
-                refreshToken.call("create", {
-                    ...refreshToken.in(terms.row.scope),
-                    digest: drawn.digest,
-                    family: terms.family,
-                    consentId: terms.row.id,
-                    scopes: [...terms.scopes],
-                    resource: terms.resource ?? null,
-                    assurance: terms.assurance ?? null,
-                    status: "live",
-                    expiresAt: environment.clock.now() + REFRESH_TOKEN_MILLISECONDS,
-                }),
-            ],
-        });
+        await objects.mutate(
+            objects.as(refreshToken),
+            {
+                id: RequestId.create(environment),
+                calls: [
+                    ...(rotating === undefined
+                        ? []
+                        : [refreshToken.call("rotate", refreshToken.target(rotating))]),
+                    refreshToken.call("create", {
+                        ...refreshToken.in(terms.row.scope),
+                        digest: drawn.digest,
+                        family: terms.family,
+                        consentId: terms.row.id,
+                        scopes: [...terms.scopes],
+                        resource: terms.resource ?? null,
+                        assurance: terms.assurance ?? null,
+                        status: "live",
+                        expiresAt: environment.clock.now() + REFRESH_TOKEN_MILLISECONDS,
+                    }),
+                ],
+            },
+            { transaction },
+        );
 
         return drawn.secret;
     },
@@ -136,12 +141,17 @@ export const RefreshToken = {
         objects: Pick<ObjectStore, "mutate" | "as">,
         rotating: RefreshToken | undefined,
         environment: Pick<Environment, "clock" | "random">,
+        transaction: Transaction,
     ): Promise<undefined> {
         if (rotating !== undefined) {
-            await objects.mutate(objects.as(refreshToken), {
-                id: RequestId.create(environment),
-                calls: [refreshToken.call("rotate", refreshToken.target(rotating))],
-            });
+            await objects.mutate(
+                objects.as(refreshToken),
+                {
+                    id: RequestId.create(environment),
+                    calls: [refreshToken.call("rotate", refreshToken.target(rotating))],
+                },
+                { transaction },
+            );
         }
 
         return undefined;

@@ -1,4 +1,4 @@
-import { type Select, Snapshot } from "@destack/db";
+import { type Select, type Transaction } from "@destack/db";
 import { type MethodContext, defineObject, field } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { present, schema } from "@destack/schema";
@@ -49,7 +49,7 @@ export type OAuthConsent = Select<typeof oauthConsent.table>;
 export const OAuthConsent = {
     /** Grant a client a person's scopes, widening a narrower consent, answering the consent. */
     async grant(
-        objects: Pick<ObjectStore, "mutate" | "as" | "database" | "environment">,
+        objects: Pick<ObjectStore, "mutate" | "as" | "environment">,
         terms: {
             /** The client. */
             readonly clientId: string;
@@ -59,12 +59,14 @@ export const OAuthConsent = {
             readonly scopes: readonly string[];
         },
         now: number,
+        transaction: Transaction,
     ): Promise<OAuthConsent> {
-        // read the person's consent to the client
+        // read the person's consent to the client, as the transaction sees it
         const { clientId } = terms;
         const userId = user.identifier(terms.userId);
         const read = () =>
-            Snapshot.live(objects.database)
+            transaction
+                .view()
                 .read(oauthConsent.table)
                 .findFirst({ where: { clientId, scope: userId } });
         const standing = await read();
@@ -85,10 +87,11 @@ export const OAuthConsent = {
                       grantedAt: now,
                   })
                 : oauthConsent.call("widen", { ...oauthConsent.target(standing), scopes });
-        await objects.mutate(objects.as(oauthConsent, now), {
-            id: RequestId.create(objects.environment),
-            calls: [call],
-        });
+        await objects.mutate(
+            objects.as(oauthConsent, now),
+            { id: RequestId.create(objects.environment), calls: [call] },
+            { transaction },
+        );
 
         return present(await read(), `the consent of ${userId} to ${clientId}`);
     },

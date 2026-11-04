@@ -35,7 +35,7 @@ export class RevocationEndpoint {
     }
 
     /** Revoke a client's refresh token, answering success for an unknown one (RFC 7009 2.2). */
-    async answer(request: Request): Promise<Response> {
+    async fetch(request: Request): Promise<Response> {
         // authenticate the client and read the token
         const { database, objects, environment } = this.#options;
         const body = await TokenEndpoint.form(request);
@@ -76,7 +76,7 @@ export class IntrospectionEndpoint {
     }
 
     /** Describe a token: a refresh token of the client, or an access token the issuer signed. */
-    async answer(request: Request): Promise<Response> {
+    async fetch(request: Request): Promise<Response> {
         // authenticate the client and read the token
         const { database, environment, issuer } = this.#options;
         const body = await TokenEndpoint.form(request);

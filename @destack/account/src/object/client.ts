@@ -1,5 +1,5 @@
 import { AccessContext, Caller, GrantPermission, none, principal, through } from "@destack/access";
-import { type DatabaseConnection, type Select, Snapshot } from "@destack/db";
+import { type DatabaseConnection, type Select, Snapshot, type Transaction } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId, Scope } from "@destack/sync";
 import { defineObject, field } from "@destack/object";
@@ -183,16 +183,15 @@ export const Client = {
 
     /** Register a device's client for a person once, refusing another person's client. */
     async register(
-        objects: Pick<ObjectStore, "mutate" | "database" | "environment">,
+        objects: Pick<ObjectStore, "mutate" | "environment">,
         clientId: string,
         userId: string,
         now: number,
+        transaction: Transaction,
     ): Promise<void> {
         // reuse a client the person registered before, refusing another person's
         const id = client.identifier(clientId);
-        const row = await Snapshot.live(objects.database)
-            .read(client.table)
-            .findFirst({ where: { id } });
+        const row = await transaction.view().read(client.table).findFirst({ where: { id } });
         if (row !== undefined && row.scope !== userId) {
             throw AccountError.of("CLIENT_FOREIGN", `client ${id} belongs to another person`);
         } else if (row !== undefined) {
@@ -201,15 +200,19 @@ export const Client = {
 
         // register it as the person
         const person = principal.user.reference(Scope.universe.id, userId);
-        await objects.mutate(AccessContext.of(Caller.of(person), now), {
-            id: RequestId.create(objects.environment),
-            calls: [
-                client.call("create", {
-                    ...client.target({ scope: user.identifier(userId), id }),
-                    name: DEVICE_CLIENT_NAME,
-                    kind: "native",
-                }),
-            ],
-        });
+        await objects.mutate(
+            AccessContext.of(Caller.of(person), now),
+            {
+                id: RequestId.create(objects.environment),
+                calls: [
+                    client.call("create", {
+                        ...client.target({ scope: user.identifier(userId), id }),
+                        name: DEVICE_CLIENT_NAME,
+                        kind: "native",
+                    }),
+                ],
+            },
+            { transaction },
+        );
     },
 };

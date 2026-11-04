@@ -1,6 +1,6 @@
 import { type Authentication, Caller, principal } from "@destack/access";
 import { ACCESS_TOKEN_TYPE, TokenIdentity, TokenIssuerAuthority } from "@destack/access/token";
-import type { DatabaseConnection } from "@destack/db";
+import { type DatabaseConnection, Transaction } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { Jwks, Jwt, type JwtClaims, type KeySet } from "@destack/identity";
 import { CallError } from "@destack/object";
@@ -37,8 +37,10 @@ export interface TokenRequest {
     readonly headers: Headers;
 }
 
-/** A grant the token endpoint issues tokens by, deciding what to issue for a request. */
-export type TokenGrant = (request: TokenRequest) => Promise<Issue>;
+/** A grant: checks and spent codes once, then its issue, or a step writing it in a transaction. */
+export type TokenGrant = (
+    request: TokenRequest,
+) => Promise<Issue | ((transaction: Transaction) => Promise<Issue>)>;
 
 /** What a grant issues: an access token, and a consenting person's ID and refresh tokens. */
 export interface Issue {
@@ -112,23 +114,36 @@ export class TokenEndpoint {
         return Object.fromEntries(form);
     }
 
-    /** Answer a posted token request with the tokens its grant issues. */
-    async answer(request: Request): Promise<Response> {
+    /** Take a posted token request, issuing its grant's tokens in one commit with its writes. */
+    async fetch(request: Request): Promise<Response> {
         // decide by the request's grant, refusing a grant check as an invalid grant
         const body = await TokenEndpoint.form(request);
         const grant = this.grants.get(body["grant_type"] ?? "");
         if (grant === undefined) {
             throw OAuthError.of("UNSUPPORTED_GRANT_TYPE", "unsupported grant_type");
         }
-        const issue = await grant({ body, headers: request.headers }).catch((error: unknown) => {
+        const decided = await grant({ body, headers: request.headers }).catch((error: unknown) => {
             throw TokenEndpoint.refusal(error);
         });
 
-        return Response.json(await this.issue(issue));
+        // issue a write-free grant's tokens as they are, else write the grant's records and the tokens in one transaction
+        const { database } = this.#options;
+        const tokens =
+            typeof decided === "function"
+                ? await Transaction.run(database, async (transaction) => {
+                      const issue = await decided(transaction).catch((error: unknown) => {
+                          throw TokenEndpoint.refusal(error);
+                      });
+
+                      return this.issue(issue, transaction);
+                  }).catch(async (error: unknown) => this.#reused(error))
+                : await this.issue(decided);
+
+        return Response.json(tokens);
     }
 
     /** Issue a grant's tokens, ending the access token no later than its session or grant. */
-    async issue(issue: Issue) {
+    async issue(issue: Issue, transaction?: Transaction) {
         // time the access token by its package, else as a person's claims alone, refusing a lapsed session or grant
         const { issuer, environment, lifetime } = this.#options;
         const now = environment.clock.now();
@@ -170,7 +185,7 @@ export class TokenEndpoint {
         const idToken = isOpenId
             ? await IdToken.sign({ ...issue, consent, issuedAt, expiresAt }, this.#options)
             : undefined;
-        const refreshToken = await this.#refresh(issue);
+        const refreshToken = await this.#refresh(issue, transaction);
 
         return {
             access_token: accessToken,
@@ -183,28 +198,42 @@ export class TokenEndpoint {
     }
 
     /** Issue the refresh token the scopes grant, spending the one the grant rotates. */
-    async #refresh(issue: Issue): Promise<string | undefined> {
-        // issue a successor with the offline scope, and spend the rotated token alone without it
-        const { objects, database, environment } = this.#options;
+    async #refresh(issue: Issue, transaction?: Transaction): Promise<string | undefined> {
+        // issue a successor with the offline scope, and spend the rotated token alone without it, in the grant's transaction
+        const { objects, environment } = this.#options;
         const { consent, scopes } = issue;
         if (consent === undefined) {
             return undefined;
+        } else if (transaction === undefined) {
+            throw new TypeError("a grant with a consent issues its tokens in a transaction");
         }
         const isOffline = scopes.includes(OFFLINE_ACCESS);
         const { assurance } = issue.authentication.credential;
         const terms = { ...consent, scopes, resource: issue.resource, assurance };
         try {
             return isOffline
-                ? await RefreshToken.issue(objects, terms, environment)
-                : await RefreshToken.spend(objects, consent.rotating, environment);
+                ? await RefreshToken.issue(objects, terms, environment, transaction)
+                : await RefreshToken.spend(objects, consent.rotating, environment, transaction);
         } catch (error) {
-            // revoke the family of a token spent before, as its replay reveals a theft (RFC 9700 4.14.2)
-            if (!AccountError.is(error, "TOKEN_REUSED") || consent.rotating === undefined) {
-                throw error;
+            // mark a token spent before for its family's revocation once the transaction ends
+            if (AccountError.is(error, "TOKEN_REUSED") && consent.rotating !== undefined) {
+                throw new ReusedToken(consent.rotating, error);
             }
-            await RefreshToken.revoke(objects, database, consent.rotating, environment);
-            throw OAuthError.of("INVALID_GRANT", "the refresh token was used before");
+            throw error;
         }
+    }
+
+    /** Revoke the family of a replayed refresh token, a sign of theft (RFC 9700 4.14.2). */
+    async #reused(error: unknown): Promise<never> {
+        // pass on any other failure
+        if (!(error instanceof ReusedToken)) {
+            throw error;
+        }
+
+        // revoke outside the rolled back transaction, then refuse
+        const { objects, database, environment } = this.#options;
+        await RefreshToken.revoke(objects, database, error.token, environment);
+        throw OAuthError.of("INVALID_GRANT", "the refresh token was used before");
     }
 
     /** Read a grant check's refusal as an invalid grant, passing on other failures. */
@@ -350,4 +379,16 @@ export const IdToken = {
 /** Split a space-separated parameter into its values, such as scopes (RFC 6749 3.3). */
 export function spaceSeparated(value: string | undefined): string[] {
     return (value ?? "").split(" ").filter((word) => word !== "");
+}
+
+/** The replay of a refresh token spent before, whose family the endpoint revokes. */
+class ReusedToken extends Error {
+    /** The replayed token. */
+    readonly token: RefreshToken;
+
+    /** Mark a replayed token. */
+    constructor(token: RefreshToken, cause: unknown) {
+        super(`refresh token ${token.id} was used before`, { cause });
+        this.token = token;
+    }
 }
