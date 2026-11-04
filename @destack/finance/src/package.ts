@@ -1,4 +1,4 @@
-import { account, entitlement, residency } from "@destack/account/object";
+import { account, residency } from "@destack/account/object";
 import { defineAdapter, definePackage } from "@destack/object";
 import { FinanceError } from "./error/error.ts";
 import {
@@ -47,7 +47,7 @@ export default definePackage({
                 charge.permission("provide"),
             ],
             universe: [
-                entitlement.permission("provide"),
+                account.permission("entitle"),
                 account.permission("serve"),
                 residency.permission("locate"),
             ],

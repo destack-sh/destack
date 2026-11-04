@@ -1,4 +1,3 @@
-import { DeclarationReference } from "@destack/package/declare";
 import { FinanceError } from "../error/error.ts";
 import { through, union } from "@destack/access";
 import { BILLING_PERMISSIONS } from "./billing.ts";
@@ -6,16 +5,17 @@ import { Country } from "@destack/locale";
 import {
     account,
     entitlement,
-    type Entitlement,
+    Account,
+    type Allowance,
+    Entitlement,
     space,
     type UsageState,
     USAGE_STATES,
 } from "@destack/account/object";
 import { type Select, type Snapshot, Table } from "@destack/db";
 import { type IdentifierOf, type MethodContext, defineObject, field } from "@destack/object";
-import type { PackageId } from "@destack/package";
 import type { Call } from "@destack/sync";
-import { canonicalize, present, schema, type Identifier } from "@destack/schema";
+import { present, schema, type Identifier } from "@destack/schema";
 import { announcement } from "@destack/notification";
 import type { ReleaseReader } from "../release/reader.ts";
 import { Allotment, type Resolution } from "./allotment.ts";
@@ -25,12 +25,6 @@ import type {} from "@destack/package/import-meta";
 
 /** The usage states the account's readers of billing hear of. */
 const NOTIFIED: ReadonlySet<UsageState> = new Set(["near", "over", "blocked"]);
-
-/** The input of an entitlement's creation: what it grants on a feature, without its account. */
-type EntitlementInput = Pick<
-    Entitlement,
-    "packageId" | "feature" | "kind" | "value" | "limit" | "resetAt" | "state" | "resource"
->;
 
 /** A usage state of an entitlement that its account's readers of billing hear of, per period. */
 const UsageAlert = Object.assign(
@@ -49,7 +43,7 @@ const UsageAlert = Object.assign(
         thread(
             alert: Pick<Entitlement, "packageId" | "feature"> & { readonly periodStart: number },
         ): string {
-            return `${featureKey(alert)}:${alert.periodStart}`;
+            return `${Entitlement.key(alert)}:${alert.periodStart}`;
         },
 
         /** Read the key announcing an alert's state once in its thread. */
@@ -59,7 +53,7 @@ const UsageAlert = Object.assign(
                 readonly periodStart: number;
             },
         ): string {
-            return `${featureKey(alert)}:${alert.state}:${alert.periodStart}`;
+            return `${Entitlement.key(alert)}:${alert.state}:${alert.periodStart}`;
         },
     },
 );
@@ -218,7 +212,7 @@ export const Customer = {
         }
 
         // resolve each feature across its sources
-        const grouped = Map.groupBy(allotments, (allotment) => featureKey(allotment));
+        const grouped = Map.groupBy(allotments, (allotment) => Entitlement.key(allotment));
 
         return [...grouped.values()].map((granted) => Allotment.resolve(granted));
     },
@@ -229,68 +223,35 @@ export const Customer = {
         resolutions: readonly Resolution[],
         reader: Pick<Snapshot, "read">,
     ): Promise<{ readonly calls: Call[]; readonly alerts: UsageAlert[] }> {
-        // lay out each resolution as an entitlement's columns
-        const derived = new Map(
-            resolutions.map((resolved): [string, EntitlementInput] => {
-                const { packageId, feature, resource } = resolved;
+        // lay out each resolution as an allowance
+        const allowances = resolutions.map((resolved): Allowance => {
+            const { packageId, feature, resource } = resolved;
 
-                return [
-                    featureKey(resolved),
-                    { packageId, feature, ...columns(resolved), resource },
-                ];
-            }),
-        );
+            return { packageId, feature, ...columns(resolved), resource };
+        });
 
-        // compare each stored entitlement with the derived ones
+        // entitle the account at its home once its replicated entitlements differ, which the home compares again
         const stored = await reader
             .read(entitlement.table)
             .findMany({ where: { scope: accountId } });
-        const changed = stored.flatMap((row): Call[] => {
-            const wanted = derived.get(featureKey(row));
+        const replicated = new Map(stored.map((row) => [Entitlement.key(row), row]));
+        const isOutdated =
+            stored.length !== allowances.length ||
+            allowances.some((wanted) => {
+                const row = replicated.get(Entitlement.key(wanted));
 
-            // delete one no grant derives
-            if (wanted === undefined) {
-                return [
-                    entitlement.call(
-                        "delete",
-                        entitlement.target({ scope: accountId, id: row.id }),
-                    ),
-                ];
-            }
-            // update a changed one
-            else if (!isSame(row, wanted)) {
-                const { value, limit, resetAt, state, resource } = wanted;
-
-                return [
-                    entitlement.call("update", {
-                        ...entitlement.target({ scope: accountId, id: row.id }),
-                        value,
-                        limit,
-                        resetAt,
-                        state,
-                        resource,
-                    }),
-                ];
-            }
-            // keep an unchanged one
-            else {
-                return [];
-            }
-        });
-
-        // create each derived entitlement not stored yet
-        const storedKeys = new Set(stored.map((row) => featureKey(row)));
-        const created = [...derived]
-            .filter(([key]) => !storedKeys.has(key))
-            .map(([, wanted]) =>
-                entitlement.call("create", { ...wanted, ...entitlement.in(accountId) }),
-            );
+                return row === undefined || !Entitlement.isSame(row, wanted);
+            });
+        const owner = await Account.of(reader, accountId);
+        const calls = isOutdated
+            ? [account.call("entitle", { ...account.target(owner), allowances })]
+            : [];
 
         // alert each metered usage state the readers hear of, once it differs from the stored one
-        const states = new Map(stored.map((row) => [featureKey(row), row.state]));
         const alerts = resolutions.flatMap((resolved): UsageAlert[] => {
             // keep a changed metered state the readers hear of
-            const isChanged = states.get(featureKey(resolved)) !== columns(resolved).state;
+            const isChanged =
+                replicated.get(Entitlement.key(resolved))?.state !== columns(resolved).state;
             if (resolved.kind !== "metered" || !isChanged || !NOTIFIED.has(resolved.state)) {
                 return [];
             }
@@ -299,7 +260,7 @@ export const Customer = {
             return [{ packageId, feature, usage, limit, state, periodStart }];
         });
 
-        return { calls: [...changed, ...created], alerts };
+        return { calls, alerts };
     },
 
     /** Read an account's customer, opening one under the account's name for an account without. */
@@ -355,21 +316,4 @@ function columns(
     else {
         return { ...unmetered, kind: "boolean", value: null };
     }
-}
-
-/** Key an entitlement or allotment by its feature. */
-function featureKey(row: { readonly packageId: PackageId; readonly feature: string }): string {
-    return DeclarationReference.key({ packageId: row.packageId, name: row.feature });
-}
-
-/** Compare a stored entitlement with a derived input. */
-function isSame(row: EntitlementInput, wanted: EntitlementInput): boolean {
-    return (
-        row.kind === wanted.kind &&
-        canonicalize(row.value) === canonicalize(wanted.value) &&
-        row.limit === wanted.limit &&
-        row.resetAt === wanted.resetAt &&
-        row.state === wanted.state &&
-        row.resource === wanted.resource
-    );
 }
