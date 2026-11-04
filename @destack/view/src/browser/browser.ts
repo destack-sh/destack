@@ -440,6 +440,7 @@ async function openTabs(
     return new Map(
         await Promise.all(
             [...byScope].map(async ([scope, objects]) => {
+                // open the scope's tab, ready once its access replica holds the scope's chain
                 const tab = await BrowserTab.open({
                     name: scope,
                     worker: BrowserTab.worker(scope, environment),
@@ -455,6 +456,18 @@ async function openTabs(
                     report: reportError,
                 });
                 await tab.ready;
+
+                // keep the person's own settings and profile synced for the page, once their first rows arrive
+                if (scope === context.user.id) {
+                    const { query } = tab.client;
+                    const profile = present(query[user.name], "the person's profile type");
+                    const settings = present(query[setting.name], "the person's setting type");
+                    await Promise.all([
+                        profile.findMany({ scopes: "every", where: { id: scope } }).subscribe()
+                            .ready,
+                        settings.findMany({ where: { scope } }).subscribe().ready,
+                    ]);
+                }
 
                 return [scope, tab] as const;
             }),
