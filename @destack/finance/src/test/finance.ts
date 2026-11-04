@@ -84,8 +84,8 @@ export const spaces = {
 
 /** A use of a resource in a space an account pays for, as its machine measured it. */
 export interface FinanceUse {
-    /** The use's identity, unique across spaces. */
-    readonly id: string;
+    /** The use's name in its scenario, which its identifier derives from. */
+    readonly name: string;
     /** The space the use ran in, absent for a dedicated machine's own hours. */
     readonly space?: Identifier<"space">;
     /** The dedicated machine whose hours were used, absent for a space's use. */
@@ -466,14 +466,14 @@ export class TestFinance {
         for (const [machineId, sent] of Map.groupBy(uses, (use) => use.machine ?? null)) {
             const sender =
                 machineId === null
-                    ? this.#serving()
+                    ? await this.#serving()
                     : Caller.of(principal.machine.reference(Scope.universe.id, machineId));
             await this.store.mutate(AccessContext.of(sender, now), {
                 id: RequestId.create(this.environment),
                 calls: [
                     usage.call("append", {
                         ...usage.in(payerId),
-                        items: sent.map((use) => TestFinance.#item(use)),
+                        items: await Promise.all(sent.map((use) => this.#item(payerId, use))),
                     }),
                 ],
             });
@@ -481,16 +481,19 @@ export class TestFinance {
     }
 
     /** Call as the residency's cloud machine serving its accounts' spaces. */
-    #serving(): Caller {
+    async #serving(): Promise<Caller> {
+        // act as the machine in its residency's servers
         const subject = principal.machine.reference(Scope.universe.id, this.space.machine.id);
+        const universe = Snapshot.live(this.space.universe.storage.database);
+        const served = await Residency.require(universe, RESIDENCY);
 
-        return { ...Caller.of(subject), groups: [Residency.servers(RESIDENCY)] };
+        return { ...Caller.of(subject), groups: [Residency.servers(served.id)] };
     }
 
-    /** Write a use as the usage append method takes it. */
-    static #item(use: FinanceUse) {
+    /** Write a use as the usage append method takes it, identified by its name. */
+    async #item(payer: Identifier<"account">, use: FinanceUse) {
         return {
-            id: use.id,
+            id: await usage.derive(payer, use.name, this.environment.crypto),
             time: EventTime.of(use.time),
             meter: DeclarationReference.key(use.meter),
             sku: use.sku === undefined ? null : DeclarationReference.key(use.sku),

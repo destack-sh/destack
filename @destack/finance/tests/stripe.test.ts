@@ -433,7 +433,7 @@ test("rate a seller's metered price into one line a repeated use counts once, ne
 
     // route 72 requests as a cloud machine would, twice
     const requested = {
-        id: "1",
+        name: "1",
         space: spaces.notes,
         meter: { packageId: storage.id, name: requests.name },
         quantity: 72,
@@ -599,7 +599,7 @@ test("move from the default product to Go through Checkout, and back by closing 
     // route 72 requests, then change back to the default product
     await finance.fixture.use(ids.buyer, [
         {
-            id: "1",
+            name: "1",
             space: spaces.notes,
             meter: { packageId: storage.id, name: requests.name },
             quantity: 72,
@@ -757,7 +757,7 @@ test.each([
         const now = stripe.now * 1000;
         await finance.fixture.use(ids.buyer, [
             {
-                id: "1",
+                name: "1",
                 space: spaces.notes,
                 meter: { packageId: storage.id, name: disk.name },
                 quantity: 500 * GB,

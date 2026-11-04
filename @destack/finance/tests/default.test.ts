@@ -1,7 +1,7 @@
 import { t } from "@destack/locale";
-import { asc, eq } from "@destack/db";
+import { asc, eq, Snapshot } from "@destack/db";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { account, entitlement } from "@destack/account/object";
+import { account, entitlement, Residency } from "@destack/account/object";
 import { price, product, productFeature, subscription } from "../src/object/index.ts";
 import { Finance, ids } from "./fixture/finance.ts";
 import { storage, support } from "./fixture/storage.ts";
@@ -67,10 +67,12 @@ test("grant every account without a subscription to the shop its default product
     await finance.entitle();
 
     // grant the default to every account of the residency the universe stores, and the paid plan's items alone to the buyer once it subscribes
-    const residents = await finance.fixture.space.universe.storage.database
+    const { database } = finance.fixture.space.universe.storage;
+    const served = await Residency.require(Snapshot.live(database), "eu");
+    const residents = await database
         .select({ id: account.table.id })
         .from(account.table)
-        .where(eq(account.table.residencyId, "eu"))
+        .where(eq(account.table.residencyId, served.id))
         .orderBy(asc(account.table.id));
     const accounts = residents.map((row) => row.id);
     expect({ priced, before, after: await read() }).toEqual({

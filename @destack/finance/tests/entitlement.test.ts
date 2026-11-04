@@ -59,8 +59,8 @@ async function append(
 ) {
     await finance.fixture.use(
         ids.buyer,
-        Object.entries(events).map(([id, use]) => ({
-            id,
+        Object.entries(events).map(([name, use]) => ({
+            name,
             space: spaces.notes,
             meter: { packageId: storage.id, name: use.meter },
             quantity: use.value,

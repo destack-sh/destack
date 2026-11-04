@@ -189,7 +189,7 @@ async function subscribe(
 async function append(
     finance: Finance,
     event: {
-        readonly id: string;
+        readonly name: string;
         readonly space?: Identifier<"space">;
         readonly machine?: Identifier<"machine">;
         readonly meter: string;
@@ -223,28 +223,28 @@ test("add up each space's latest bytes across both meters a feature counts, near
     // store 400 bytes in one space after 300, 200 in another, and archive 300 in the first: near
     const at = START + DAY;
     await append(finance, {
-        id: "1",
+        name: "1",
         space: spaces.notes,
         meter: stored.name,
         value: 300,
         time: at,
     });
     await append(finance, {
-        id: "2",
+        name: "2",
         space: spaces.notes,
         meter: stored.name,
         value: 400,
         time: at + 1,
     });
     await append(finance, {
-        id: "3",
+        name: "3",
         space: spaces.docs,
         meter: stored.name,
         value: 200,
         time: at,
     });
     await append(finance, {
-        id: "4",
+        name: "4",
         space: spaces.notes,
         meter: archived.name,
         value: 300,
@@ -255,7 +255,7 @@ test("add up each space's latest bytes across both meters a feature counts, near
     // an hour later, archive 500 in the first space: past the limit, blocked
     await finance.fixture.simulation.jump(finance.fixture.clock.now() + HOUR);
     await append(finance, {
-        id: "5",
+        name: "5",
         space: spaces.notes,
         meter: archived.name,
         value: 500,
@@ -265,7 +265,7 @@ test("add up each space's latest bytes across both meters a feature counts, near
 
     // archive more while blocked, which announces nothing again
     await append(finance, {
-        id: "6",
+        name: "6",
         space: spaces.notes,
         meter: archived.name,
         value: 600,
@@ -309,7 +309,7 @@ test("announce a usage state once, though its entitlement write is lost and deri
     await subscribe(finance, offer, [free], { start: START, end: END });
     await finance.entitle();
     await append(finance, {
-        id: "1",
+        name: "1",
         space: spaces.notes,
         meter: stored.name,
         value: 900,
@@ -361,11 +361,11 @@ test("bill an averaged meter by the shares its events carry, 2 GB stored for hal
     // store 2 GB for the first half of the month, its share of the average half of 2 GB: blocked at the level
     const half = (END - START) / 2;
     const event = { space: spaces.notes, meter: disk.name };
-    await append(finance, { ...event, id: "1", value: GB, level: 2 * GB, time: START + half });
+    await append(finance, { ...event, name: "1", value: GB, level: 2 * GB, time: START + half });
     const averaged = await read();
 
     // store nothing for the rest of the month: within the cap, the bill still 1 GB-month
-    await append(finance, { ...event, id: "2", value: 0, level: 0, time: END - 1 });
+    await append(finance, { ...event, name: "2", value: 0, level: 0, time: END - 1 });
     const emptied = await read();
 
     const capped = (used: number, state: string) => ({
@@ -408,7 +408,7 @@ test("charge a seller's metered usage against the included usage, billing on pas
     // spend near the included usage, then past it with billing on
     const states = [];
     await append(finance, {
-        id: "1",
+        name: "1",
         space: spaces.notes,
         meter: requests.name,
         value: 72,
@@ -416,7 +416,7 @@ test("charge a seller's metered usage against the included usage, billing on pas
     });
     states.push(await read());
     await append(finance, {
-        id: "2",
+        name: "2",
         space: spaces.notes,
         meter: requests.name,
         value: 18,
@@ -435,7 +435,7 @@ test("charge a seller's metered usage against the included usage, billing on pas
     await finance.entitle();
     states.push(await read());
     await append(finance, {
-        id: "3",
+        name: "3",
         space: spaces.notes,
         meter: requests.name,
         value: 10,
@@ -463,12 +463,12 @@ test("rate each space's SKU usage at list cost, billing nothing without a subscr
     // store 100 GB-months in one space and 50 in another, at 2 cents a GB-month, without a subscription
     const { finance, offer } = await open();
     const now = finance.fixture.clock.now();
-    for (const [id, space, gigabytes] of [
+    for (const [name, space, gigabytes] of [
         ["1", spaces.notes, 100],
         ["2", spaces.docs, 50],
     ] as const) {
         await append(finance, {
-            id,
+            name,
             space,
             meter: disk.name,
             value: gigabytes * GB,
@@ -498,7 +498,7 @@ test("rate each space's SKU usage at list cost, billing nothing without a subscr
     });
     const late = await refusal(
         append(finance, {
-            id: "3",
+            name: "3",
             space: spaces.notes,
             meter: disk.name,
             value: GB,
@@ -527,14 +527,14 @@ test("charge each machine's awake hours up to the SKU's 10 hour cap per period, 
     const { finance } = await open();
     const machines = await finance.fixture.declareMachines(ids.buyer, 2);
     const [alpha, beta] = [nth(machines, 0), nth(machines, 1)];
-    for (const [id, machine, hours, time] of [
+    for (const [name, machine, hours, time] of [
         ["1", alpha, 8, START + DAY],
         ["2", alpha, 6, START + 2 * DAY],
         ["3", beta, 3, START + DAY],
         ["4", alpha, 4, END + DAY],
     ] as const) {
         await append(finance, {
-            id,
+            name,
             machine,
             meter: uptime.name,
             value: hours,
@@ -570,7 +570,7 @@ test("rate an account's usage after its hot rows flush, as a restarted loop take
     const now = finance.fixture.clock.now();
     await finance.fixture.append(ids.buyer, [
         {
-            id: "1",
+            name: "1",
             space: spaces.notes,
             meter: { packageId: storage.id, name: disk.name },
             quantity: 100 * GB,
@@ -595,8 +595,8 @@ test("rate an account's usage once when two ratings of it overlap", async () => 
         [
             ["1", spaces.notes, 100],
             ["2", spaces.docs, 50],
-        ].map(([id, space, gigabytes]) => ({
-            id: String(id),
+        ].map(([name, space, gigabytes]) => ({
+            name: String(name),
             space: schema.identifier("space").parse(space),
             meter: { packageId: storage.id, name: disk.name },
             quantity: Number(gigabytes) * GB,
@@ -636,8 +636,8 @@ test("capture usage of a period its subscription billed already as refused, and 
     });
 
     // use storage before the period and in it
-    const use = (id: string, time: number) => ({
-        id,
+    const use = (name: string, time: number) => ({
+        name,
         space: spaces.notes,
         meter: { packageId: storage.id, name: disk.name },
         quantity: GB,
@@ -733,7 +733,7 @@ test("derive the account's storage entitlement from the capacity its plan grants
     await finance.entitle();
     const within = await resources(finance);
     await append(finance, {
-        id: "1",
+        name: "1",
         space: spaces.notes,
         meter: stored.name,
         value: 1200,
