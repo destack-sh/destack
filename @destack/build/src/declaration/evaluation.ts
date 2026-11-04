@@ -254,6 +254,7 @@ async function evaluateProject(
         evaluated.recorded.map(([value, site]) => [value, DeclarationSite.parse(site)]),
     );
     const seen = new Set<unknown>();
+    const inLists: unknown[] = [];
     const declarations: EvaluatedDeclaration[] = [];
     const owner = project.packageJson.package;
     for (const [index, [, file]] of exports.entries()) {
@@ -261,11 +262,10 @@ async function evaluateProject(
         for (const [name, value] of Object.entries(namespace).toSorted(([left], [right]) =>
             left < right ? -1 : Number(left > right),
         )) {
-            // leave the declarations in an exported list, which no export of their own declares
+            // leave an exported list, whose elements count as exported once every export declared
             if (Array.isArray(value)) {
-                for (const element of value) {
-                    seen.add(element);
-                }
+                const list: readonly unknown[] = value;
+                inLists.push(...list);
                 continue;
             }
 
@@ -290,6 +290,11 @@ async function evaluateProject(
                 declarations.push({ description, file, export: name });
             }
         }
+    }
+
+    // take the listed declarations no export of their own declares as exported, unnamed
+    for (const element of inLists) {
+        seen.add(element);
     }
 
     // name each module-level declaration its module does not export, by its first kind's description

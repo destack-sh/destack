@@ -87,6 +87,28 @@ async function read(path: string): Promise<string> {
     ]);
 });
 
+test("declare each exported value a constructor made, whether or not an exported list sorting first holds it", async () => {
+    // export a list of two things beside both and a third outside the list
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const directory = await thingPackage(
+        `import { defineThing } from "@example/owner";
+
+export const first = defineThing({ name: "first" });
+export const second = defineThing({ name: "second" });
+export const third = defineThing({ name: "third" });
+export const THINGS = [first, second];
+`,
+        environment,
+    );
+
+    // declare all three things once
+    await using store = await LocalBuildStore.temporary(environment);
+    const compilers = await CompilerPool.open(store);
+    const build = await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });
+    expect(await thingNames(build)).toEqual(["first", "second", "third"]);
+});
+
 test("reinspect edited modules a declaration imports in a retained compiler", async () => {
     // declare a thing whose name a title module returns, and write a noisy module beside it
     await using simulation = testSimulation();
