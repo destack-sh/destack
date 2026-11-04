@@ -736,7 +736,7 @@ export class TestConnection {
                     scope: OWNER,
                     handle: "owner",
                     name: "Owner",
-                    residencyId: "eu",
+                    residencyId: Identifier.create("residency", environment),
                     kind: "personal",
                     createdAt: 0,
                     updatedAt: 0,
