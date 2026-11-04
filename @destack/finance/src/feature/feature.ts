@@ -11,9 +11,6 @@ import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, schema, type JsonValue } from "@destack/schema";
 
-/** The feature declaration kind, which finance defines. */
-export const FEATURE_KIND = defineDeclarationKind("feature");
-
 /** What a feature grants. */
 export const FeatureKind = schema.enum(FEATURE_KINDS);
 /** What a feature grants. */
@@ -103,6 +100,9 @@ export const FeatureDescription = schema.discriminatedUnion("kind", [
 /** A feature declaration as manifests describe it. */
 export type FeatureDescription = schema.Infer<typeof FeatureDescription>;
 
+/** The feature declaration kind, which finance defines. */
+export const FEATURE_KIND = defineDeclarationKind("feature", FeatureDescription);
+
 /** A feature declaration: what a product grants to the accounts buying it. */
 export class Feature<Value extends schema.Schema = schema.Schema> {
     /** The declaring package. */
@@ -117,8 +117,8 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
     }
 
     /** Read the features a build declares, each value schema rebuilt from its JSON Schema. */
-    static async list(build: Pick<BuildReader, "declared">): Promise<Feature[]> {
-        const declared = await build.declared(FEATURE_KIND, FeatureDescription);
+    static async list(build: Pick<BuildReader, "declarations">): Promise<Feature[]> {
+        const declared = FEATURE_KIND.select(await build.declarations());
 
         return declared.map(({ description: { package: declaring, ...definition } }) =>
             definition.kind === "static"
