@@ -29,38 +29,39 @@ import { StoreRelationship } from "./relationship.ts";
 export function implementPlacement(): typeof placement {
     return placement.implement({
         methods: { place, move, decide, withdraw, assign, unassign },
-        controller: {
-            // decide every placement again after each of its writes, which converges a decision a concurrent change outdated
-            pending: {},
-            watches: [
-                // decide again once a machine comes, goes or changes its standing, for its account or its residency's
-                ObjectWatch.of(machine.table, async (_row, database, change) => {
-                    // leave a change no decision reads, such as a heartbeat
-                    const before = Change.before(change);
-                    const after = Change.after(change);
-                    if (!isMachineChanged(before, after)) {
-                        return [];
-                    }
+        projections: [
+            {
+                // decide a placement again after each of its writes, which converges a decision a concurrent change outdated
+                watches: [
+                    // decide again once a machine comes, goes or changes its standing, for its account or its residency's
+                    ObjectWatch.of(machine.table, async (_row, database, change) => {
+                        // leave a change no decision reads, such as a heartbeat
+                        const before = Change.before(change);
+                        const after = Change.after(change);
+                        if (!isMachineChanged(before, after)) {
+                            return [];
+                        }
 
-                    // decide again for the accounts before and after the change
-                    const sides = [before, after].filter((side) => side !== null);
-                    const keys = await Promise.all(
-                        sides.map((side) => machinePlacements(database, side)),
-                    );
+                        // decide again for the accounts before and after the change
+                        const sides = [before, after].filter((side) => side !== null);
+                        const keys = await Promise.all(
+                            sides.map((side) => machinePlacements(database, side)),
+                        );
 
-                    return keys.flat();
-                }),
-                // decide again for an account whose tenancy entitlement changed
-                ObjectWatch.of(entitlement.table, (row, database) =>
-                    row.resource === "tenancy"
-                        ? accountPlacements(database, [
-                              schema.identifier("account").parse(row.scope),
-                          ])
-                        : [],
-                ),
-            ],
-            reconcile,
-        },
+                        return keys.flat();
+                    }),
+                    // decide again for an account whose tenancy entitlement changed
+                    ObjectWatch.of(entitlement.table, (row, database) =>
+                        row.resource === "tenancy"
+                            ? accountPlacements(database, [
+                                  schema.identifier("account").parse(row.scope),
+                              ])
+                            : [],
+                    ),
+                ],
+                project,
+            },
+        ],
     });
 }
 
@@ -153,10 +154,8 @@ async function decide(
         : context.update({ schedule: decided });
 }
 
-/** Decide where each pending placement's tenancy places its space, recording changed decisions. */
-async function reconcile(
-    reconciliation: ObjectReconciliation<typeof placement>,
-): Promise<undefined> {
+/** Decide a placement again as its inputs changed, recording a changed decision. */
+async function project(reconciliation: ObjectReconciliation<typeof placement>): Promise<void> {
     // find the placements whose decision changed, as the latest commits read
     const reader = Snapshot.live(reconciliation.database);
     const crypto = reconciliation.store.environment.crypto;
@@ -176,8 +175,6 @@ async function reconcile(
             changed.map(({ row }) => placement.call("decide", placement.target(row))),
         );
     }
-
-    return undefined;
 }
 
 /** Decide where a space's tenancy places it, by its plan and the machines it may use. */
