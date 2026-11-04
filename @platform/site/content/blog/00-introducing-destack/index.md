@@ -10,9 +10,9 @@ author: "Florian"
 > Think GitHub + NPM + Convex + Vercel + Sentry with all the boring decisions already made: auth, migrations, multiplayer, permissions, workflows, telemetry, testing.
 > 
 > Destack **standardises the tools and processes for software production**:
-> 1. **Build anything**, with your own AI, in a standardised pipeline.
-> 2. **Integrate everything**: one account, one database, no walls.
-> 3. **Control it all**: your data, your context, your machine.
+> 1. **Build custom software**, with your own AI, in a standardised pipeline.
+> 2. **Integrate every app and agent**: one account, one database, no walls.
+> 3. **Control your whole stack**: your data, your context, your machine.
 > 
 > The Destack comprises both the platform core for building malleable software _and_ standard apps for common use cases (think Notion, Linear, Miro).
 > Everything built on Destack is fully standardised and integrated by default, and thus fully hackable and programmable by your agents.
