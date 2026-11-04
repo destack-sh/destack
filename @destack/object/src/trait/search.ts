@@ -6,7 +6,7 @@ import {
     SearchText,
     type TableConstraint,
 } from "@destack/db";
-import { CHUNKS } from "../text/chunk.ts";
+import { CHUNKS } from "../text/table.ts";
 import { present, schema } from "@destack/schema";
 
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";

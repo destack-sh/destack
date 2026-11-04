@@ -6,6 +6,7 @@ import type { LiveItems, Subscriber } from "../client/query.ts";
 import { ObjectQueryBuilder } from "../client/query.ts";
 import type { ObjectQueries } from "../client/client.ts";
 import { ObjectError } from "../error/error.ts";
+import { RelationGraph } from "../query/query.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { ObjectQuery } from "../replica/replica.ts";
 
@@ -21,14 +22,14 @@ type LevelItem = {
 
 /** Follow queries over a call's view, which stays the same through the call: one read each. */
 export class ViewSubscriber implements Subscriber {
-    /** The object types the queries' relations reach. */
-    readonly #objects: readonly ObjectType[];
+    /** The relations between the object types the queries reach. */
+    readonly #relations: RelationGraph;
     /** Read a table's rows in the view. */
     readonly #read: TableReader;
 
-    /** Follow queries of some object types through a view's table reads. */
-    constructor(objects: readonly ObjectType[], read: TableReader) {
-        this.#objects = objects;
+    /** Follow queries of some related object types through a view's table reads. */
+    constructor(relations: RelationGraph, read: TableReader) {
+        this.#relations = relations;
         this.#read = read;
     }
 
@@ -37,14 +38,14 @@ export class ViewSubscriber implements Subscriber {
         objects: Objects,
         read: TableReader,
     ): ObjectQueries<Objects> {
-        const subscriber = new ViewSubscriber(Object.values(objects), read);
+        const subscriber = new ViewSubscriber(new RelationGraph(Object.values(objects)), read);
 
         return ObjectQueryBuilder.of(subscriber, objects);
     }
 
     /** Follow a query's items in the view, read once since the view stays the same. */
     rows(object: ObjectType, query: Omit<ObjectQuery, "object" | "package">): LiveItems {
-        const compiled: Query = { ...object.compile(query, this.#objects), scopes: "every" };
+        const compiled: Query = { ...this.#relations.compile(object, query), scopes: "every" };
         const read = () => this.#items(compiled, undefined);
 
         return {

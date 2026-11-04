@@ -80,7 +80,7 @@ import { ObjectKey, ObjectType, type ObjectStorage, type PermissionOf } from "..
 import { ObjectPolicy } from "../object/access.ts";
 
 import type { NestedItem } from "../query/item.ts";
-import { related } from "../query/query.ts";
+import { RelationGraph } from "../query/query.ts";
 import { TextPresenter } from "../text/chunk.ts";
 import {
     RelationalQuery,
@@ -321,8 +321,8 @@ export class ObjectClient<
 > {
     /** The local database with the replica and the queued mutations. */
     readonly database: DatabaseConnection;
-    /** The object types the client replicates, with the chunk types serving their texts. */
-    readonly objects: readonly ObjectType[];
+    /** The relations between the object types the client replicates, chunk types among them. */
+    readonly relations: RelationGraph;
     /** The relational queries of the object types, by key. */
     readonly query: ObjectQueries<Objects>;
     /** Run queries live over the local replica, as the client's relational queries do. */
@@ -437,7 +437,7 @@ export class ObjectClient<
         this.#undoStack = new UndoStack(this);
 
         // replicate the scope's objects for the caller, and the principals storing local objects
-        this.objects = ObjectType.served(Object.values(options.objects));
+        this.relations = new RelationGraph(ObjectType.served(Object.values(options.objects)));
         this.query = ObjectQueryBuilder.of(this.#subscriber, options.objects);
         this.scope = options.scope;
         this.caller = options.caller;
@@ -629,6 +629,11 @@ export class ObjectClient<
 
             return connected;
         };
+    }
+
+    /** The object types the client replicates, with the chunk types serving their texts. */
+    get objects(): readonly ObjectType[] {
+        return this.relations.objects;
     }
 
     /** The clock the client reads time at, its environment's. */
@@ -1944,7 +1949,7 @@ export class ObjectClient<
                 ({ via }) => via,
             );
             const foreign = vias.filter(
-                (via) => related(object, via, this.objects).object.storage !== object.storage,
+                (via) => this.relations.related(object, via).object.storage !== object.storage,
             );
             if (foreign.length === 0) {
                 sameStorage[name] = expression;
@@ -1958,7 +1963,7 @@ export class ObjectClient<
         // take same-storage relations, and look up other-storage ones by key
         const nested: Record<string, FindOptions> = {};
         for (const [name, relation] of FindOptions.includes({ with: included ?? {} })) {
-            const joined = related(object, name, this.objects);
+            const joined = this.relations.related(object, name);
             if (joined.object.storage === object.storage) {
                 const child = this.#split(joined.object, relation);
                 const { object: _object, package: _package, ...childOptions } = child.query;
@@ -1988,7 +1993,7 @@ export class ObjectClient<
 
     /** Look up the rows of another storage a relation joins by key. */
     #lookup(object: ObjectType, relation: string, options: FindOptions): Lookup {
-        const { object: target, relation: joined } = related(object, relation, this.objects);
+        const { object: target, relation: joined } = this.relations.related(object, relation);
         if (joined.on.kind !== "key") {
             throw ObjectError.of(
                 "RELATION_BY_KEY",
@@ -2011,7 +2016,7 @@ export class ObjectClient<
             Condition.resolve(where, Namespace.fields(object.table, { extras })),
         );
         for (const { via } of relations) {
-            if (related(object, via, this.objects).object.storage !== object.storage) {
+            if (this.relations.related(object, via).object.storage !== object.storage) {
                 throw ObjectError.of(
                     "RELATION_ACROSS_STORAGE",
                     `object ${object.name} cannot relate ${via}: it has another storage`,
@@ -2299,7 +2304,7 @@ export class ObjectClient<
             prepared: undefined,
             caller: await this.#callerContext(database),
             location: { kind: "client", database, environment: this.environment },
-            objects: this.objects,
+            relations: this.relations,
             replicas: [],
             run: (entry, _caller, mutates, code) => {
                 const nested = ObjectType.resolve(this.objects, entry, mutates, code);
@@ -2528,7 +2533,7 @@ export class ObjectClient<
             (type) => type.name === query.object && type.package.id === query.package,
         );
         const chain = [this.#readScope(present(object, `the client's object ${query.object}`))];
-        const [compiled] = Object.values(ObjectType.queries(this.objects, { query }, chain));
+        const [compiled] = Object.values(this.relations.queries({ query }, chain));
 
         return present(compiled, `the compiled query of ${query.object}`);
     }

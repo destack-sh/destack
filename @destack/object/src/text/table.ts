@@ -2,6 +2,9 @@ import { defineTable, identifier, index, integer, json, text } from "@destack/db
 import { schema } from "@destack/schema";
 import { Run } from "../sequence/index.ts";
 
+/** The include with each owner's chunks. */
+export const CHUNKS = "chunks";
+
 /** The pieces of owners' texts, in position order per field. */
 export const chunk = defineTable(
     "chunk",

@@ -1,5 +1,6 @@
 import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
+import { RelationGraph } from "../query/query.ts";
 import { Condition, Key, OrderBy, RelationalQueryBuilder, TABLE, Table } from "@destack/db";
 import { JsonValue, present, schema } from "@destack/schema";
 import type { HookHandler, InstalledServerContext } from "../workload/workload.ts";
@@ -21,8 +22,8 @@ import { ObjectError } from "../error/index.ts";
 export class HookServer implements HookHandler {
     /** The types whose hooks the server runs. */
     readonly types: readonly ObjectType[];
-    /** The types the hooks' calls may name: the routed ones, their attachments and references. */
-    readonly objects: readonly ObjectType[];
+    /** The relations between the types the hooks' calls may name. */
+    readonly relations: RelationGraph;
     /** Send a hook's request to the store in its mutation's session. */
     readonly #session: (request: SessionRequest) => Promise<HandlerAnswer>;
     /** The server context of the installation the sandbox runs as. */
@@ -42,7 +43,7 @@ export class HookServer implements HookHandler {
             .flatMap((served) => Object.values(served.objects))
             .filter((type) => type instanceof ObjectType);
         this.types = routed.filter((type) => Object.keys(type.hooks).length > 0);
-        this.objects = HookServer.#attached(routed);
+        this.relations = new RelationGraph(HookServer.#attached(routed));
         this.#session = (request) => options.session(request);
         this.#server = options.server;
     }
@@ -126,7 +127,7 @@ export class HookServer implements HookHandler {
                 server: this.#server,
                 ...(record.base === undefined ? {} : { base: record.base }),
             },
-            objects: this.objects,
+            relations: this.relations,
             replicas: [],
             ...(record.requestId === undefined ? {} : { requestId: record.requestId }),
             prepared:

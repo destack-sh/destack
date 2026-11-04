@@ -16,7 +16,6 @@ import {
     Scope,
     type ObjectReference,
     ObjectTypeReference,
-    type Query,
     type Subject,
     Call,
 } from "@destack/sync";
@@ -79,7 +78,6 @@ import {
     type ObjectSchema,
 } from "../method/procedure.ts";
 import { storeProcedures, type ObjectQuery, type StoreProcedures } from "../replica/replica.ts";
-import { compile, compileQueries } from "../query/query.ts";
 import { record } from "../trait/record.ts";
 import { series, type SeriesMethodMap } from "../trait/series.ts";
 import {
@@ -1338,23 +1336,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         } = {},
     ): ObjectQuery {
         return { object: this.name, package: this.package.id, ...options };
-    }
-
-    /** Compile a query or include of the objects. */
-    compile(
-        options: Omit<ObjectQuery, "object" | "package">,
-        objects: readonly ObjectType[],
-    ): Omit<Query, "scopes"> {
-        return compile(this, options, objects);
-    }
-
-    /** Compile a scope's named object queries. */
-    static queries(
-        objects: readonly ObjectType[],
-        queries: Readonly<Record<string, ObjectQuery>> | undefined,
-        chain: readonly string[],
-    ): Record<string, Query> {
-        return compileQueries(objects, queries, chain);
     }
 
     /** Accept the members of one of this type's relations as subjects. */

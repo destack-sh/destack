@@ -86,7 +86,7 @@ export class ObjectSource {
             }
 
             // compile the queries against the followed shapes' types first
-            const compiled = Object.values(ObjectType.queries(this.store.followed, named, [scope]));
+            const compiled = Object.values(this.store.followed.queries(named, [scope]));
 
             // follow each queried table's rows under its queries' conditions
             const tables = [...new Set(compiled.map((query) => query.table))];
@@ -115,9 +115,12 @@ export class ObjectSource {
             }
 
             // relate the followed types, which the conditions read through
-            const graph = RelationGraph.of(this.store.followed);
+            const { followed } = this.store;
             const relations = new Map(
-                this.store.followed.map((object) => [object.table, graph.of(object.table)]),
+                followed.objects.map((object) => [
+                    object.table,
+                    followed.relations.of(object.table),
+                ]),
             );
 
             return new sync.Replica({
@@ -569,7 +572,7 @@ export class ObjectSource {
             ? undefined
             : Object.fromEntries(
                   Object.entries(named).filter(([, query]) =>
-                      this.store.followed.some((object) => object.name === query.object),
+                      this.store.followed.objects.some((object) => object.name === query.object),
                   ),
               );
     }
@@ -589,8 +592,7 @@ export class ObjectSource {
 
         // compile a request's queries over the scope's chain now
         const compile = (parameters: JsonObject) =>
-            ObjectType.queries(
-                this.store.followed,
+            this.store.followed.queries(
                 this.#served(QueriesParameters.parse(parameters).queries),
                 audience.chain,
             );
@@ -752,11 +754,10 @@ export class ObjectSource {
         const store = this.store.requireEphemeral();
         await store.ready();
         const release = store.track(EphemeralStorage.writerKey(context.access(scope), writerId));
-        const compiled = ObjectType.queries(store.objects, queries, [scope]);
+        const graph = new RelationGraph(store.objects);
+        const compiled = graph.queries(queries, [scope]);
         const compile = (parameters: JsonObject) =>
-            ObjectType.queries(store.objects, EphemeralParameters.parse(parameters).queries, [
-                scope,
-            ]);
+            graph.queries(EphemeralParameters.parse(parameters).queries, [scope]);
 
         // collect the scope's events for the whole follow, kept across its restarts
         const events: ScopeEvents = { received: [], arrival: Promise.withResolvers<void>() };
@@ -766,7 +767,7 @@ export class ObjectSource {
         });
         const earlier =
             previous === undefined ? undefined : EphemeralParameters.parse(previous).queries;
-        const reflected = earlier && ObjectType.queries(store.objects, earlier, [scope]);
+        const reflected = earlier && graph.queries(earlier, [scope]);
         try {
             // follow until access changes, or to a completed page once the caller lapses
             yield* this.#decided(
@@ -821,14 +822,13 @@ export class ObjectSource {
             external.objects.map((object) => object.table),
             {},
         );
-        const compiled = ObjectType.queries(external.objects, queries, [scope]);
+        const graph = new RelationGraph(external.objects);
+        const compiled = graph.queries(queries, [scope]);
         const compile = (parameters: JsonObject) =>
-            ObjectType.queries(external.objects, QueriesParameters.parse(parameters).queries, [
-                scope,
-            ]);
+            graph.queries(QueriesParameters.parse(parameters).queries, [scope]);
         const earlier =
             previous === undefined ? undefined : QueriesParameters.parse(previous).queries;
-        const reflected = earlier && ObjectType.queries(external.objects, earlier, [scope]);
+        const reflected = earlier && graph.queries(earlier, [scope]);
 
         // follow until access changes, or to a completed page once the caller lapses
         yield* this.#decided(scope, follower, context, "external", (audience, signal, isFirst) => {

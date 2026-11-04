@@ -79,11 +79,11 @@ export class Listing implements Audience {
             Caller.principal(call.caller),
         );
         const compiled = {
-            ...call.object.compile(
+            ...call.relations.compile(
+                call.object,
                 options.aggregate === undefined
                     ? { ...options, limit: listing.limit + 1 }
                     : options,
-                call.objects,
             ),
             scopes: [...new Set([...call.object.readScopes(call.chain), ...replicated])],
         };

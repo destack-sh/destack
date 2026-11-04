@@ -32,6 +32,7 @@ import {
 import type { EventKeyFields, EventKind } from "@destack/event";
 import type { BranchEntry } from "../branch/entry.ts";
 import { ViewSubscriber } from "./query.ts";
+import type { RelationGraph } from "../query/query.ts";
 import type { ObjectQueries } from "../client/client.ts";
 import type { ObjectQueryBuilder } from "../client/query.ts";
 import {
@@ -122,8 +123,8 @@ export class MethodContext<
     readonly caller: AccessContext;
     /** Where the call runs: predicted on a client replica, or served by an authorized store. */
     readonly #location: CallLocation;
-    /** The object types served together. */
-    readonly objects: readonly ObjectType[];
+    /** The relations between the object types served together. */
+    readonly relations: RelationGraph;
     /** The object types queried here over rows replicated from their home. */
     readonly replicas: readonly ObjectType[];
     /** The value the prepare phase produced. */
@@ -162,7 +163,7 @@ export class MethodContext<
         const { approvers: _approvers, ...caller } = fields.caller;
         this.caller = caller;
         this.prepared = fields.prepared;
-        this.objects = fields.objects;
+        this.relations = fields.relations;
         this.replicas = fields.replicas;
         this.#location = fields.location;
 
@@ -381,6 +382,11 @@ export class MethodContext<
     /** Whether a client predicts the call, which it runs without the server's authorization. */
     get isPredicted(): boolean {
         return this.#location.kind === "client";
+    }
+
+    /** The object types served together. */
+    get objects(): readonly ObjectType[] {
+        return this.relations.objects;
     }
 
     /** Read a table's or object types' rows in the call's view. */
@@ -1047,7 +1053,7 @@ export type MethodContextOptions<
     | "id"
     | "target"
     | "caller"
-    | "objects"
+    | "relations"
     | "replicas"
     | "prepared"
     | "idempotencyKey"

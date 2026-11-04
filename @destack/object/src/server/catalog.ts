@@ -1,5 +1,6 @@
 import { PackageManifest } from "@destack/package/manifest";
 import { graph, Package } from "@destack/package";
+import { RelationGraph } from "../query/query.ts";
 import type { EventStore } from "@destack/event";
 import { type Authorizer, decisionTables, Policy, type TableMapping } from "@destack/access";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
@@ -118,7 +119,9 @@ export class Catalog {
     /** The served or authorized durable types whose rows the database replicates from home. */
     readonly replicated: readonly ObjectType[];
     /** The types follower replicas compile against: the followed shapes' and the decided. */
-    readonly followed: readonly ObjectType[];
+    readonly followed: RelationGraph;
+    /** The relations between the object types served, which the served queries compile against. */
+    readonly relations: RelationGraph;
     /** The tables the store's feed follows: the decided types' and the decisions'. */
     readonly tables: readonly Table[];
     /** The served kinds' resources, each controlled by the loop its trait builds. */
@@ -132,7 +135,7 @@ export class Catalog {
 
     /** Hold a compiled catalog. */
     private constructor(
-        fields: Omit<{ readonly [Key in keyof Catalog]: Catalog[Key] }, "isServing">,
+        fields: Omit<{ readonly [Key in keyof Catalog]: Catalog[Key] }, "isServing" | "relations">,
     ) {
         // keep each compiled field
         this.servers = fields.servers;
@@ -152,6 +155,7 @@ export class Catalog {
         this.decided = fields.decided;
         this.replicated = fields.replicated;
         this.followed = fields.followed;
+        this.relations = new RelationGraph(fields.objects);
         this.tables = fields.tables;
         this.provisioned = fields.provisioned;
         this.providers = fields.providers;
@@ -312,7 +316,7 @@ export class Catalog {
             authorizer,
             decided,
             replicated,
-            followed: [...shapes, ...decided],
+            followed: new RelationGraph([...shapes, ...decided]),
             tables,
             provisioned: Catalog.#control(
                 objects,

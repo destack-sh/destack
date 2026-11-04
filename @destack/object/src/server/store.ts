@@ -1,5 +1,6 @@
 import type { Health } from "./health.ts";
 import { Casing } from "../object/name.ts";
+import { RelationGraph } from "../query/query.ts";
 import { CLIENT_HEAD_HEADER, ROUTE_PATH } from "../workload/start.ts";
 import type { BlobStorage } from "@destack/resource";
 import { ObjectError } from "../error/error.ts";
@@ -104,7 +105,8 @@ import { InputSchema } from "../method/input.ts";
 import { ACCESS_KINDS, ObjectType } from "../object/object.ts";
 import { ObjectTypePool, ObjectDescription, type KnownDeclaration } from "../object/description.ts";
 import { ObjectController } from "../object/controller.ts";
-import { Chunk, CHUNKS } from "../text/chunk.ts";
+import { Chunk } from "../text/chunk.ts";
+import { CHUNKS } from "../text/table.ts";
 import { Authorization } from "./authorization.ts";
 import { type ClaimPrimary, Reservation } from "../claim/reservation.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
@@ -732,8 +734,13 @@ export class ObjectStore {
     }
 
     /** The types follower replicas compile against: the followed shapes' and the decided. */
-    get followed(): readonly ObjectType[] {
+    get followed(): RelationGraph {
         return this.#catalog.followed;
+    }
+
+    /** The relations between the object types served, which the served queries compile against. */
+    get relations(): RelationGraph {
+        return this.#catalog.relations;
     }
 
     /** The served durable object types. */
@@ -2756,7 +2763,7 @@ export class ObjectStore {
             ...(options.expansion === undefined ? {} : { expansion: options.expansion }),
             ...(options.requestId === undefined ? {} : { requestId: options.requestId }),
             location: execution,
-            objects: this.objects,
+            relations: this.relations,
             replicas: this.replicas,
         });
 

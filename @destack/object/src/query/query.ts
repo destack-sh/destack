@@ -5,107 +5,20 @@ import { Scope, type Query } from "@destack/sync";
 import { present } from "@destack/schema";
 import type { ObjectQuery } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";
-import { CHUNKS } from "../text/chunk.ts";
+import { CHUNKS } from "../text/table.ts";
 import { ObjectSearch } from "../trait/search.ts";
 
 import type {} from "@destack/package/import-meta";
 
-/** Compile object queries of a scope chain, nearest first, into queries of their tables. */
-export function compileQueries(
-    objects: readonly ObjectType[],
-    queries: Readonly<Record<string, ObjectQuery>> | undefined,
-    chain: readonly string[],
-): Record<string, Query> {
-    // default to every listed object type of the scope's level
-    const scope = present(chain[0], "the scope chain's first scope");
-    const isGlobal = scope === Scope.universe.id;
-    const named = queries ?? QueryDerivation.defaultQueries(objects, isGlobal);
-
-    // compile each query
-    return Object.fromEntries(
-        Object.entries(named).map(([name, query]): [string, Query] => {
-            // find the object type of the query's package, and require its scope level
-            const { object: objectName, package: packageId, scopes, ...options } = query;
-            const object = objects.find(
-                (entry) => entry.name === objectName && entry.package.id === packageId,
-            );
-            if (!object) {
-                throw ObjectError.of("OBJECT_UNKNOWN", `object ${objectName} not found`);
-            }
-            // read every scope's rows, each decided by its access
-            else if (scopes === "every") {
-                return [name, { ...compile(object, options, objects), scopes }];
-            }
-            // refuse a type of another scope level
-            else if ((object.scope === Scope.universe.id) !== isGlobal) {
-                throw ObjectError.of(
-                    "SCOPE_MISMATCH",
-                    `object ${objectName} is not in scope ${scope}`,
-                );
-            }
-
-            return [
-                name,
-                { ...compile(object, options, objects), scopes: object.readScopes(chain) },
-            ];
-        }),
-    );
-}
-
-/** Compile one object query: its table, the served types' relations and what it selects. */
-export function compile(
-    object: ObjectType,
-    options: Omit<ObjectQuery, "object" | "package">,
-    objects: readonly ObjectType[],
-): Omit<Query, "scopes"> {
-    // refuse a permission the type does not declare
-    const { permission, ...found } = options;
-    if (permission !== undefined && !object.permissions.includes(permission)) {
-        throw ObjectError.of(
-            "PERMISSION_UNKNOWN",
-            `object ${object.name} has no permission ${permission}`,
-        );
-    }
-
-    return {
-        table: object.table,
-        relations: RelationGraph.of(objects),
-        ...QueryDerivation.compileOptions(object, found, objects, true),
-        ...(permission === undefined ? {} : { permission }),
-    };
-}
-
-/** Find the object type a relation of a type leads to, with the relation. */
-export function related(
-    object: ObjectType,
-    name: string,
-    objects: readonly ObjectType[],
-): { readonly object: ObjectType; readonly relation: Relation } {
-    // read the relation, refusing a name the type does not relate by
-    const relation = RelationGraph.of(objects).of(object.table)[name];
-    const target =
-        relation === undefined
-            ? undefined
-            : objects.find((entry) => entry.table === relation.table);
-    if (relation === undefined || target === undefined) {
-        throw ObjectError.of(
-            "INCLUDE_UNKNOWN",
-            `object ${object.name} has no include named ${name}`,
-        );
-    }
-
-    return { object: target, relation };
-}
-
-/** The relations of a list of served object types, derived once per list. */
+/** The relations between a set of served object types, which their queries compile against. */
 export class RelationGraph {
-    /** The graph of each list derived before. */
-    static readonly #known = new WeakMap<readonly ObjectType[], RelationGraph>();
+    /** The served object types. */
+    readonly objects: readonly ObjectType[];
     /** The relations between the listed types. */
     readonly relations: Relations;
 
     /** Derive served types' relations: references, parents, children, attachments, join types. */
-    private constructor(objects: readonly ObjectType[]) {
+    constructor(objects: readonly ObjectType[]) {
         // relate each listed type to the listed types it references, nests in or contains
         const listed = objects.filter((object) => object.listing !== undefined);
         const tables = new Map<ObjectType["table"], Record<string, Relation>>();
@@ -121,15 +34,92 @@ export class RelationGraph {
                 }
             }
         }
+        this.objects = objects;
         this.relations = new Relations(tables);
     }
 
-    /** Read the relations of a served list, deriving them once per list. */
-    static of(objects: readonly ObjectType[]): Relations {
-        const graph = RelationGraph.#known.get(objects) ?? new RelationGraph(objects);
-        RelationGraph.#known.set(objects, graph);
+    /** Compile object queries of a scope chain, nearest first, into queries of their tables. */
+    queries(
+        queries: Readonly<Record<string, ObjectQuery>> | undefined,
+        chain: readonly string[],
+    ): Record<string, Query> {
+        // default to every listed object type of the scope's level
+        const scope = present(chain[0], "the scope chain's first scope");
+        const isGlobal = scope === Scope.universe.id;
+        const named = queries ?? QueryDerivation.defaultQueries(this.objects, isGlobal);
 
-        return graph.relations;
+        // compile each query
+        return Object.fromEntries(
+            Object.entries(named).map(([name, query]): [string, Query] => {
+                // find the object type of the query's package, and require its scope level
+                const { object: objectName, package: packageId, scopes, ...options } = query;
+                const object = this.objects.find(
+                    (entry) => entry.name === objectName && entry.package.id === packageId,
+                );
+                if (!object) {
+                    throw ObjectError.of("OBJECT_UNKNOWN", `object ${objectName} not found`);
+                }
+                // read every scope's rows, each decided by its access
+                else if (scopes === "every") {
+                    return [name, { ...this.compile(object, options), scopes }];
+                }
+                // refuse a type of another scope level
+                else if ((object.scope === Scope.universe.id) !== isGlobal) {
+                    throw ObjectError.of(
+                        "SCOPE_MISMATCH",
+                        `object ${objectName} is not in scope ${scope}`,
+                    );
+                }
+
+                return [
+                    name,
+                    { ...this.compile(object, options), scopes: object.readScopes(chain) },
+                ];
+            }),
+        );
+    }
+
+    /** Compile one object query: its table, the served types' relations and what it selects. */
+    compile(
+        object: ObjectType,
+        options: Omit<ObjectQuery, "object" | "package">,
+    ): Omit<Query, "scopes"> {
+        // refuse a permission the type does not declare
+        const { permission, ...found } = options;
+        if (permission !== undefined && !object.permissions.includes(permission)) {
+            throw ObjectError.of(
+                "PERMISSION_UNKNOWN",
+                `object ${object.name} has no permission ${permission}`,
+            );
+        }
+
+        return {
+            table: object.table,
+            relations: this.relations,
+            ...QueryDerivation.compileOptions(object, found, this, true),
+            ...(permission === undefined ? {} : { permission }),
+        };
+    }
+
+    /** Find the object type a relation of a type leads to, with the relation. */
+    related(
+        object: ObjectType,
+        name: string,
+    ): { readonly object: ObjectType; readonly relation: Relation } {
+        // read the relation, refusing a name the type does not relate by
+        const relation = this.relations.of(object.table)[name];
+        const target =
+            relation === undefined
+                ? undefined
+                : this.objects.find((entry) => entry.table === relation.table);
+        if (relation === undefined || target === undefined) {
+            throw ObjectError.of(
+                "INCLUDE_UNKNOWN",
+                `object ${object.name} has no include named ${name}`,
+            );
+        }
+
+        return { object: target, relation };
     }
 }
 
@@ -164,7 +154,7 @@ const QueryDerivation = {
     compileOptions(
         object: ObjectType,
         options: Omit<ObjectQuery, "object" | "package">,
-        objects: readonly ObjectType[],
+        graph: RelationGraph,
         isRoot: boolean,
     ): FindOptions {
         // require a listed object type, and trash selection at the root only
@@ -189,9 +179,9 @@ const QueryDerivation = {
                 ([name, selected]): [string, FindOptions] => [
                     name,
                     QueryDerivation.compileOptions(
-                        related(object, name, objects).object,
+                        graph.related(object, name).object,
                         selected,
-                        objects,
+                        graph,
                         false,
                     ),
                 ],

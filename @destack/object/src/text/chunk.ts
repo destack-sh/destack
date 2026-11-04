@@ -9,7 +9,7 @@ import type { MethodContext } from "../method/context.ts";
 import { method } from "../method/record.ts";
 import { type ObjectDefinition, ObjectType } from "../object/object.ts";
 import { Run, Sequence, SequenceEdit, type Element } from "../sequence/index.ts";
-import { chunk, chunkRun } from "./table.ts";
+import { chunk, chunkRun, CHUNKS } from "./table.ts";
 import { Execution } from "../method/execution.ts";
 
 import type {} from "@destack/package/import-meta";
@@ -25,9 +25,6 @@ const FILL_CHARACTERS = (CHUNK_CHARACTERS * 3) / 4;
 
 /** The owner permission whose holders read its text. */
 export const TEXT_READ = "text";
-
-/** The include with each owner's chunks. */
-export const CHUNKS = "chunks";
 
 /** One chunk of a text. */
 type Chunk = typeof chunk.$inferSelect;
