@@ -57,6 +57,7 @@ async function play(files: FileSystem, base: string): Promise<unknown[]> {
     await run(() => files.rename(at("a/b"), at("c")));
     await run(() => files.copy(at("a"), at("d")));
     await run(() => files.readDirectory(at("d"), { recursive: true }));
+    await run(() => files.readLink(at("d/link")));
     await run(() => files.remove(at("d")));
     await run(() => files.remove(at("d"), { recursive: true }));
     await run(() => files.exists(at("d")));

@@ -200,9 +200,16 @@ export class BunFileSystem implements FileSystem {
         );
     }
 
-    /** Copy a path to another, with everything inside a directory. */
+    /** Copy a path to another, with everything inside a directory, copying links as written. */
     copy(from: string, to: string): Promise<void> {
-        return BunFileSystem.#run(`copy ${from} to ${to}`, () => cp(from, to, { recursive: true }));
+        // clone each file copy-on-write where the volume can, keeping links as written
+        return BunFileSystem.#run(`copy ${from} to ${to}`, () =>
+            cp(from, to, {
+                recursive: true,
+                mode: constants.COPYFILE_FICLONE,
+                verbatimSymlinks: true,
+            }),
+        );
     }
 
     /** Create a symbolic link at a path to a target. */

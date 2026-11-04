@@ -193,7 +193,7 @@ export interface FileSystem {
     readonly rename: (from: string, to: string) => Promise<void>;
     /** Copy a file to another path, cloning its blocks where the file system can. */
     readonly copyFile: (from: string, to: string) => Promise<void>;
-    /** Copy a path to another, with everything inside a directory. */
+    /** Copy a path to another, with everything inside a directory, copying links as written. */
     readonly copy: (from: string, to: string) => Promise<void>;
     /** Create a symbolic link at a path to a target. */
     readonly symlink: (target: string, path: string) => Promise<void>;
