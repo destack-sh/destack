@@ -1,15 +1,7 @@
 import { Account, Space, space } from "@destack/account/object";
 import { KERNEL_TYPES } from "../../stack/kernel.ts";
-import { Identifier, type JsonObject, schema } from "@destack/schema";
-import {
-    and,
-    type BlobStore,
-    type DatabaseConnection,
-    eq,
-    isNotNull,
-    Snapshot,
-    Transaction,
-} from "@destack/db";
+import { Identifier, type JsonObject, present, schema } from "@destack/schema";
+import { and, type DatabaseConnection, eq, isNotNull, Snapshot, Transaction } from "@destack/db";
 import {
     ObjectDescription,
     ObjectError,
@@ -27,36 +19,21 @@ import {
     rollout,
     type StackReason,
     type InstallationRollout,
+    type RevisionOptions,
 } from "../../object/index.ts";
 import { Approval } from "./approval.ts";
 import { implementRelationship, implementRole } from "../access/role.ts";
-import { type SpaceBuildStore, type Registry } from "./build.ts";
 import { Failure } from "@destack/error";
-import type { Forge } from "./follow.ts";
-
-/** What a machine applies stacks with: builds, the registry, blobs and repositories. */
-export interface StackOptions {
-    /** The space's builds, read through to the machine's cache. */
-    readonly builds: SpaceBuildStore;
-    /** The registry of published releases. */
-    readonly registry: Registry;
-    /** The space's blobs, storing the states its revisions require. */
-    readonly blobs: BlobStore;
-    /** The forge whose references and tags installations select, null without one. */
-    readonly forge: Forge | null;
-    /** The types the kernel declares, which packages implement and their descriptions refer to. */
-    readonly kernel: readonly ObjectType[];
-}
 
 /** The space's stack installation: it applies its document and targets what it manages. */
 export class StackInstallation {
     /** The stack's rollout, with its installation's fields. */
     readonly #target: InstallationRollout;
     /** What the machine applies stacks and describes revisions with. */
-    readonly #options: StackOptions;
+    readonly #options: RevisionOptions;
 
     /** Reconcile a space's stack installation with what the machine applies it with. */
-    constructor(target: InstallationRollout, options: StackOptions) {
+    constructor(target: InstallationRollout, options: RevisionOptions) {
         this.#target = target;
         this.#options = options;
     }
@@ -91,14 +68,6 @@ export class StackInstallation {
             return undefined;
         }
         const { stack, revision } = served;
-        const release: StackApplicationOptions["release"] = async (
-            snapshot,
-            packageId,
-            installationId,
-        ) => {
-            // open its revision's build, else the release it selects before its first revision
-            return Rollout.reader(snapshot, spaceId, packageId, installationId, this.#options);
-        };
         const objects = declaredTypes(store.objects);
         const applied = await appliedDefinition(database, stack);
 
@@ -112,8 +81,8 @@ export class StackInstallation {
         // tear down a deleted stack: retire every declaration, then finalize it once nothing it manages remains
         if (stack.installation.deletedAt !== null) {
             const retiring = stackApplication(database, stack, {}, applied, objects, {
+                ...this.#options,
                 store,
-                release,
                 isHome,
             });
             await retiring.apply(store.clock.now());
@@ -144,8 +113,8 @@ export class StackInstallation {
         try {
             const { definition } = revision;
             const applying = stackApplication(database, stack, definition, applied, objects, {
+                ...this.#options,
                 store,
-                release,
                 isHome,
             });
             const outcome = await Transaction.retry(database, "CONCURRENT_UPDATE", async () => {
@@ -290,7 +259,10 @@ async function appliedDefinition(
 }
 
 /** Where a stack revision applies. */
-export interface StackApplicationOptions {
+export interface StackApplicationOptions extends Pick<
+    RevisionOptions,
+    "builds" | "registry" | "forge" | "linked"
+> {
     /** The object store running the handlers' calls as its principal. */
     readonly store: Pick<
         ObjectStore,
@@ -302,9 +274,8 @@ export interface StackApplicationOptions {
         | "claims"
         | "isReplica"
         | "environment"
+        | "release"
     >;
-    /** Open the build of a package's release in the stack's space, through a step's database. */
-    readonly release: NonNullable<Stack["options"]["release"]>;
     /** Whether the stack's space is its account's home, which may declare into the account. */
     readonly isHome: boolean;
 }
@@ -320,8 +291,7 @@ function stackApplication(
 ): Stack {
     // apply every declaration the machine supports in dependency order, those of installed types once the store serves them
     return new Stack({
-        installing: (snapshot) =>
-            installedTypes(snapshot, stack, document, objects, options.release),
+        installing: (snapshot) => installedTypes(snapshot, stack, document, objects, options),
         database,
         objects,
         manager: { installationId: stack.id, packageId: stack.installation.packageId },
@@ -341,7 +311,7 @@ async function installedTypes(
     stack: InstallationRollout,
     document: JsonObject,
     objects: readonly ObjectType[],
-    release: StackApplicationOptions["release"],
+    options: StackApplicationOptions,
 ): Promise<{ readonly types: readonly ObjectType[]; readonly isPending: boolean }> {
     // read the installations the stack manages that follow a revision or a pinned release
     const installed = await snapshot.read(installation.table).findMany({
@@ -360,7 +330,11 @@ async function installedTypes(
     // read the object types each one's build declares
     const declared = await Promise.all(
         following.map(async (entry) => {
-            const reader = await release(snapshot, entry.installation.packageId, entry.id);
+            const { packageId } = entry.installation;
+            const reader = present(
+                await Rollout.reader(snapshot, stack.scope, packageId, entry.id, options),
+                `the release ${entry.id} follows`,
+            );
 
             return await ObjectDescription.read(reader);
         }),

@@ -417,6 +417,8 @@ export interface RevisionOptions {
     readonly forge: Forge | null;
     /** The types the kernel declares, which packages implement and their descriptions refer to. */
     readonly kernel: readonly ObjectType[];
+    /** The release the machine links of each package, which its spaces run before any revision. */
+    readonly linked: ReadonlyMap<PackageId, PackageRelease>;
 }
 
 /** The build a selection resolves to: the space's build, its manifest and source. */
@@ -528,16 +530,16 @@ export const Rollout = {
         return rows.filter((each) => matches(each.selection));
     },
 
-    /** Read the build a space's installation follows, else the release it selects at first. */
+    /** Read the build an installation follows, else the linked release, else its selection. */
     async reader(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
         packageId: PackageId,
         installationId: Identifier<"installation"> | undefined,
-        options: Pick<RevisionOptions, "forge" | "registry"> & {
+        options: Pick<RevisionOptions, "forge" | "registry" | "linked"> & {
             readonly builds: Pick<SpaceBuildStore, "contents" | "pull">;
         },
-    ): Promise<BuildReader> {
+    ): Promise<BuildReader | undefined> {
         // read the installation's rollout, refusing several of the package unless one is named
         const installed = await snapshot.read(installation.table).findMany({
             where: {
@@ -551,6 +553,7 @@ export const Rollout = {
             .findMany({ where: { id: { in: installed.map((row) => row.id) } } });
         const [found] = rows;
         const [only] = installed.length === 1 ? installed : [];
+        const linked = options.linked.get(packageId);
         const selection =
             installed.find((row) => row.id === found?.id)?.selection ?? only?.selection;
         if (rows.length > 1) {
@@ -559,9 +562,17 @@ export const Rollout = {
                 `several installations in ${spaceId} follow builds of ${packageId}: pick one`,
             );
         }
+        // answer none for a package the space neither installs nor links
+        else if (installed.length === 0 && linked === undefined) {
+            return undefined;
+        }
         // read the revision's build
         else if (found?.revisionId !== undefined && found.revisionId !== null) {
             return InstallationRevision.reader(snapshot, found.revisionId, options.builds);
+        }
+        // read the release the machine links, which runs until a revision replaces it
+        else if (linked !== undefined) {
+            return options.builds.pull(options.registry, packageId, linked.manifest);
         }
         // resolve the release a planned installation selects as its rollout will
         else if (selection?.kind === "release" || selection?.kind === "tag") {

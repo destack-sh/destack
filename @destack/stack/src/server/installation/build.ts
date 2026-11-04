@@ -219,6 +219,8 @@ export class SpaceBuildStore {
     readonly cache: BuildCache;
     /** The browser closure of each build served so far, by build and base path. */
     readonly #browsers = new Map<string, Promise<BrowserClosure>>();
+    /** The builds opened so far, by manifest, each opened once as a build never changes. */
+    readonly #opened = new Map<Digest, Promise<BuildReader>>();
 
     /** Keep a space's builds in its blobs, read through to the machine's cache. */
     constructor(space: BuildStore, cache: BuildCache) {
@@ -233,7 +235,16 @@ export class SpaceBuildStore {
 
     /** Open a build the space stores, else the machine's copy of it. */
     async contents(manifest: Digest): Promise<BuildReader> {
-        return (await this.store(manifest)).contents(manifest);
+        // open each build once, forgetting a failed open
+        const known = this.#opened.get(manifest);
+        if (known !== undefined) {
+            return known;
+        }
+        const opening = this.store(manifest).then((store) => store.contents(manifest));
+        this.#opened.set(manifest, opening);
+        opening.catch(() => this.#opened.delete(manifest));
+
+        return opening;
     }
 
     /** Read a build's manifest from the space, else from the machine. */

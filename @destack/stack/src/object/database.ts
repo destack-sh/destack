@@ -61,7 +61,7 @@ export const Database = {
         open: (
             packageId: PackageId,
             manifest: Digest,
-        ) => Promise<Pick<BuildReader, "declarations" | "declared">>,
+        ) => Promise<Pick<BuildReader, "declarations">>,
     ): Promise<
         {
             readonly rollout: InstallationRollout;

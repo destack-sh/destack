@@ -512,7 +512,7 @@ test("follow a distribution tag, recording the version of the release it points 
     ]);
 });
 
-test("open the build each package's installation in a space follows, refusing a package the space does not install", async () => {
+test("open the build each package's installation in a space follows, and none for a package the space does not install", async () => {
     // install two packages at different releases, publishing the second's
     const fixture = await TestSpace.open();
     const { database } = fixture;
@@ -564,15 +564,16 @@ test("open the build each package's installation in a space follows, refusing a 
     await follow(ids.package, "2026.9.0", "e1");
     await follow(ids.stackPackage, "2026.10.0", "e2");
 
-    // open each package's build and refuse a package the space does not install
+    // open each package's build, and none for a package the space does not install
     const builds = await fixture.builds();
     const version = (packageId: PackageId) =>
         Rollout.reader(Snapshot.live(database), ids.space, packageId, undefined, {
             builds,
             registry: fixture.registry,
             forge: null,
+            linked: new Map(),
         }).then(
-            (reader) => reader.manifest.package.version,
+            (reader) => reader?.manifest.package.version,
             (error: unknown) => (error instanceof Error ? error.message : error),
         );
     const absent = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f2");
@@ -580,11 +581,7 @@ test("open the build each package's installation in a space follows, refusing a 
         await version(ids.package),
         await version(ids.stackPackage),
         await version(absent),
-    ]).toEqual([
-        "2026.9.0",
-        "2026.10.0",
-        `no installation in ${ids.space} follows a build of ${absent}`,
-    ]);
+    ]).toEqual(["2026.9.0", "2026.10.0", undefined]);
 });
 
 test("serve the installation of a call at its mount by its identifier or its name, refusing a name no installation has and a suspended installation", async () => {

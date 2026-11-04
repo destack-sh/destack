@@ -88,7 +88,7 @@ test("serve an installation once its targets are bound and the space's main data
         opening: (
             packageId: PackageId,
             manifest: Digest,
-        ) => Promise<Pick<BuildReader, "declarations" | "declared">> = open,
+        ) => Promise<Pick<BuildReader, "declarations">> = open,
     ) =>
         (await Database.installed(Snapshot.live(connection), ids.space, opening))
             .map((entry) => [entry.rollout.id, entry.declarations.map((each) => each.name)])
@@ -109,7 +109,6 @@ test("serve an installation once its targets are bound and the space's main data
 
         return {
             declarations: async () => [...declarations, { ...nth(declarations, 0), ...vault }],
-            declared: built.declared.bind(built),
         };
     };
 

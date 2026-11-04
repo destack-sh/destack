@@ -6,7 +6,7 @@ import { hostname, machine } from "@destack/account/object";
 import type { PackageId, PackageRelease } from "@destack/package";
 import { type Identifier, present, schema } from "@destack/schema";
 import { type Publisher, RequestId, type Subject, Scope, type Uplink } from "@destack/sync";
-import { type CallKey, installation, Provisioned } from "@destack/object";
+import { type CallKey, Provisioned } from "@destack/object";
 import type { ObjectPackage } from "@destack/object/server";
 import type accountPackage from "@destack/account/package";
 import type { ClientOf } from "@destack/object/client";
@@ -42,7 +42,6 @@ import { type PackageHandler } from "@destack/object/server";
 import { bucketProvider, type CatalogueBucketHost } from "@destack/bucket/provider";
 import { implementBucket } from "./resource/bucket.ts";
 import type { Runtime } from "../runtime/index.ts";
-import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import { type BaseServerContext, PackageContext } from "@destack/object/workload";
 import settingPackage from "@destack/setting/package";
@@ -288,6 +287,30 @@ export class SpaceStore {
                 ),
             origin: { package: stackPackage, machineId: options.machine },
             uplink: options.publisher,
+            // open the release the space runs of a package, or the published version a value names
+            release: async (view, scope, packageId, version) => {
+                // read the installed release, and whether the value names another version
+                const spaceId = schema.identifier("space").parse(scope);
+                const installed = await Rollout.reader(
+                    view,
+                    spaceId,
+                    packageId,
+                    undefined,
+                    options,
+                );
+                const isOther =
+                    installed !== undefined &&
+                    version !== undefined &&
+                    installed.manifest.package.version !== version;
+
+                return isOther
+                    ? options.builds.pull(
+                          options.registry,
+                          packageId,
+                          await options.registry.find(packageId, version),
+                      )
+                    : installed;
+            },
             // root the chain above the space by its placement, as primary or move target
             chain: async (view) => {
                 // read where the space is placed, and whether it moves here
@@ -419,7 +442,7 @@ export class SpaceStore {
         const born = [stack.at(base(stackPackage)), access.at(base(objectPackage))];
 
         return options.role === "primary"
-            ? [...born, installedSettingsServer(options).at(base(settingPackage))]
+            ? [...born, settingServer({ after: [rollout] }).at(base(settingPackage))]
             : born;
     }
 }
@@ -493,32 +516,6 @@ function stackObjects(served: readonly ObjectType[]): ObjectType[] {
         .map((type) => served.find((each) => each.same(type)) ?? type);
 
     return [...own, ...served.filter((type) => !own.includes(type))];
-}
-
-/** Serve the space's installations' settings, read from the builds they install. */
-function installedSettingsServer(options: SpaceOptions): PackageImplementation {
-    const declared = Setting.declared(async (written, view) => {
-        // read the declaring package's build from the release serving it: an installation's revision, else the machine's linked release
-        const spaceId = schema.identifier("space").parse(written.scope);
-        const linked = options.linked.get(written.packageId);
-        const installed = await view
-            .read(installation.table)
-            .findMany({ where: { scope: spaceId, packageId: written.packageId } });
-        const following = await view.read(rollout.table).findMany({
-            where: { id: { in: installed.map((row) => row.id) }, revisionId: { isNotNull: true } },
-        });
-
-        // answer none for a package the space does not install yet, whose stack waits for it
-        if (installed.length === 0 && linked === undefined) {
-            return undefined;
-        }
-
-        return following.length > 0 || linked === undefined
-            ? Rollout.reader(view, spaceId, written.packageId, written.installation, options)
-            : options.builds.pull(options.registry, written.packageId, linked.manifest);
-    });
-
-    return settingServer({ declared, after: [rollout] });
 }
 
 /** Collect the external types, refusing one under a name the space serves. */

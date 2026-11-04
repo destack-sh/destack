@@ -14,9 +14,6 @@ import { StackError } from "../error/index.ts";
 import { install, InstallationDefinition } from "./installation.ts";
 import { SPACE_KERNEL } from "./kernel.ts";
 
-/** The stack declaration kind, which stack defines. */
-export const STACK_KIND = defineDeclarationKind("stack");
-
 /** The database every space has, which no stack declares. */
 export const MAIN_DATABASE = "main";
 
@@ -51,6 +48,9 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
     },
 });
 
+/** The stack declaration kind, which stack defines. */
+export const STACK_KIND = defineDeclarationKind("stack", StackDefinition);
+
 /** Read the stack a stack package declares at an export, with its installations' dependencies. */
 export async function declaredStack(
     reader: BuildReader,
@@ -59,7 +59,7 @@ export async function declaredStack(
     read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
 ): Promise<JsonObject> {
     // require the package's stack declared at the export the name has
-    const found = (await reader.declared(STACK_KIND, StackDefinition)).find(
+    const found = STACK_KIND.select(await reader.declarations()).find(
         (entry) => graph.Moniker.name(entry.symbol) === name,
     );
     if (found === undefined) {

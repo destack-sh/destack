@@ -28,6 +28,7 @@ import {
     Build,
     type Submission,
     type InstallationRollout,
+    type RevisionOptions,
 } from "../../object/index.ts";
 import { PackageManifest, ViewDescription } from "@destack/package/manifest";
 import { type ApplicationOptions, ApplicationInstallation } from "./application.ts";
@@ -35,13 +36,13 @@ import { Approval } from "./approval.ts";
 import { SelectedRepository } from "./selection.ts";
 import { CommitBuild, type Forge } from "./follow.ts";
 import type { SpaceAccounts } from "../server.ts";
-import { StackInstallation, type StackOptions } from "./stack.ts";
+import { StackInstallation } from "./stack.ts";
 import type { TokenIssuer } from "@destack/access/token";
 import { InstallationAssertion } from "./token.ts";
 import { StackError } from "../../error/index.ts";
 
 /** The options a machine serves installations with. */
-export interface InstallationOptions extends StackOptions, ApplicationOptions {
+export interface InstallationOptions extends RevisionOptions, ApplicationOptions {
     /** The objects of the resource kinds the machine serves. */
     readonly resources: readonly ResourceType<typeof space>[];
     /** The account package, reading the home a person opens views in. */
@@ -139,7 +140,7 @@ function rolloutProjection(options: InstallationOptions): ObjectProjection<typeo
             ...rolloutWatches(options.resources),
             ...(options.forge === null ? [] : forgeWatches(options.forge)),
         ],
-        project: async (reconciliation) => {
+        project: async (_id, reconciliation) => {
             // read the rollout with its installation, none once uninstalled
             const rows = await Rollout.read(
                 Snapshot.live(reconciliation.database),
