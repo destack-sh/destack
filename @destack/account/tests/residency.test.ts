@@ -376,9 +376,10 @@ test("relate a shared account's contents to its residency as residents beside th
     };
     await client.account.delete(target);
     await client.account.purge({ ...target, requestId: RequestId.create(fixture.environment) });
+    const eu = await fixture.residency("eu");
     expect({ related, purged: await residents() }).toEqual({
         related: [
-            [account.name, "eu", "server"],
+            [account.name, eu.id, "server"],
             [residency.name, created.id, "contained"],
         ],
         purged: [],
@@ -416,7 +417,8 @@ test("relate an organization's residents again when one of its accounts lives in
         kind: "shared",
         residencyId: "us",
     });
-    expect([before, await residents()]).toEqual([["eu"], ["eu", "us"]]);
+    const [eu, us] = [await fixture.residency("eu"), await fixture.residency("us")];
+    expect([before, await residents()]).toEqual([[eu.id], [eu.id, us.id].toSorted()]);
 });
 
 test("find the account selling a handle's packages to the buyers of the asking installation's residency: the handle's account, the residency space's platform account for the platform's handles, none otherwise, refusing a person", async () => {
@@ -519,9 +521,10 @@ test("relate an installation its residency's space declares once its release ask
                 ...input,
             }),
         );
+    const eu = await fixture.residency("eu");
     const related = async () =>
         (
-            await Relationship.readOn(snapshot, residency.reference(Scope.universe.id, "eu"), {
+            await Relationship.readOn(snapshot, residency.reference(Scope.universe.id, eu.id), {
                 relation: "installation",
             })
         ).map((row) => row.subjectId);

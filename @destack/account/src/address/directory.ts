@@ -139,7 +139,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
                 ? undefined
                 : await this.snapshot
                       .read(endpoint.table)
-                      .findFirst({ where: { id: placed.machine } });
+                      .findFirst({ where: { parentId: placed.machine } });
 
         return placed === undefined ||
             published === undefined ||
@@ -203,7 +203,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     async answering(machineId: Identifier<"machine">, now: number): Promise<string> {
         const published = await this.snapshot
             .read(endpoint.table)
-            .findFirst({ where: { id: machineId } });
+            .findFirst({ where: { parentId: machineId } });
         if (published === undefined || !Endpoint.isAnswering(published, now)) {
             throw AccountError.of(
                 "MACHINE_NOT_PUBLISHED",
@@ -218,14 +218,12 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     async #placement(
         spaceId: Identifier<"space">,
     ): Promise<PlacementEndpoint["placement"] | undefined> {
-        const placed = await this.snapshot
-            .read(placement.table)
-            .findFirst({ where: { id: spaceId } });
+        const placed = await this.snapshot.read(placement.table).findFirst({ where: { spaceId } });
 
         return placed === undefined
             ? undefined
             : {
-                  id: placed.id,
+                  space: placed.spaceId,
                   scope: placed.scope,
                   machine: placed.machineId,
                   epoch: placed.epoch,

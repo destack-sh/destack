@@ -1,7 +1,8 @@
 import type { Crypto } from "@destack/environment";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { IdentityOperation, type PublicKey } from "@destack/identity";
-import { Identity, operation, type Operation } from "../object/identity.ts";
+import { Identity, identity, operation, type Operation } from "../object/identity.ts";
+import { present } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
@@ -20,8 +21,12 @@ async function create(
     context: MethodContextOf<typeof operation, "create">,
     next: NextOf<typeof operation, "create">,
 ): Promise<ResultOf<typeof operation, "create">> {
-    // read the operation and the identity's log
-    const subject = context.requireParent().id;
+    // read the identity's subject, then the operation and the identity's log
+    const parent = context.requireParent();
+    const owned = await context
+        .read(identity)
+        .findFirst({ where: { id: identity.identifier(parent.id) } });
+    const { subject } = present(owned, `identity ${parent.id}`);
     const signed = context.input.operation;
     const claims = IdentityOperation.read(signed);
     const log = await Identity.log(context, subject);

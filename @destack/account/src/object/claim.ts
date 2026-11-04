@@ -14,8 +14,8 @@ export const claim = defineObject(
             scope: "scope",
             attributes: {},
             relations: {
-                space: { column: "owner", scope: ANY_SCOPE },
-                object: { column: "objectId", scope: ANY_SCOPE },
+                space: { column: "owner", scope: ANY_SCOPE, key: "spaceId" },
+                object: { column: "objectId", scope: ANY_SCOPE, key: "spaceId" },
                 account: { column: "owner", scope: ANY_SCOPE },
             },
         },

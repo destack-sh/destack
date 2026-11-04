@@ -23,18 +23,24 @@ export const identity = defineObject(
         name: "identity",
         plural: "identities",
         scope: "universe",
-        key: schema.string().min(1),
-        fields: {},
+        key: "subject",
+        fields: {
+            /** The space or the universe the identity is of. */
+            subject: field.string(schema.string().min(1)).immutable(),
+        },
         // let the universe's roles grant reading and extending identities, signatures deciding each change
         permissions: { read: none(), list: none(), start: none(), extend: none() },
     },
     (method) => ({
         /** Start an identity with its first signed operation. */
         create: method.create("start", {
-            fields: [],
+            fields: ["subject"],
             input: schema.object({ operation: SignedOperation }),
             isPredicted: false,
         }),
+
+        /** Read an identity, by its identifier or its subject. */
+        get: method.get("read"),
 
         /** Read the keys that verify what the identity signs, as a JSON Web Key Set. */
         keys: method.query({ permission: "read", output: KeySet }),
@@ -110,8 +116,14 @@ export interface Verification {
 export const Identity = {
     /** List an identity's log in order, nullified operations included. */
     async log(reader: Pick<Snapshot, "read">, subject: string): Promise<Operation[]> {
+        // read the subject's identity, none before its first operation
+        const found = await reader.read(identity.table).findFirst({ where: { subject } });
+        if (found === undefined) {
+            return [];
+        }
+
         return reader.read(operation.table).findMany({
-            where: { parentId: subject },
+            where: { parentId: found.id },
             orderBy: { sequence: "asc" },
         });
     },

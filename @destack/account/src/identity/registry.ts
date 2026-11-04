@@ -4,6 +4,7 @@ import { IdentityOperation } from "@destack/identity";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import type { ClientOf } from "@destack/object/client";
+import { CallError } from "@destack/object";
 import type accountPackage from "../package.ts";
 import { identity, Identity, operation } from "../object/identity.ts";
 import type { Environment } from "@destack/environment";
@@ -45,10 +46,8 @@ export const IdentityRegistry = {
             start: (signed) =>
                 call([
                     identity.call("create", {
-                        ...identity.target({
-                            scope: Scope.universe.id,
-                            id: IdentityOperation.read(signed).subject,
-                        }),
+                        ...identity.in(Scope.universe.id),
+                        subject: IdentityOperation.read(signed).subject,
                         operation: signed,
                     }),
                 ]),
@@ -73,7 +72,7 @@ export const IdentityRegistry = {
         return {
             start: async (signed) => {
                 await accounts.identity.create({
-                    id: IdentityOperation.read(signed).subject,
+                    subject: IdentityOperation.read(signed).subject,
                     requestId: RequestId.create(environment),
                     operation: signed,
                 });
@@ -87,8 +86,19 @@ export const IdentityRegistry = {
             },
             find: async (subject) => {
                 // read the identity's whole log, short after a few rotations
+                const started = await accounts.identity
+                    .get({ id: subject })
+                    .catch((error: unknown) => {
+                        if (CallError.of(error)?.code === "NOT_FOUND") {
+                            return undefined;
+                        }
+                        throw error;
+                    });
+                if (started === undefined) {
+                    return Identity.current([]);
+                }
                 const { items } = await accounts.operation.list({
-                    where: { parentId: subject },
+                    where: { parentId: started.id },
                     limit: LOG_PAGE,
                 });
 

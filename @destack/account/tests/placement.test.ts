@@ -196,18 +196,27 @@ async function relayed(
 
 /** Read where a space runs as a caller. */
 async function locate(caller: TestCaller, accountId: string, spaceId: string) {
-    const { id, scope, machineId, epoch } = await caller.client(accountPackage).placement.get({
+    const { scope, machineId, epoch } = await caller.client(accountPackage).placement.get({
         accountId: schema.identifier("account").parse(accountId),
         id: schema.identifier("space").parse(spaceId),
     });
 
-    return { id, scope, machine: machineId, epoch };
+    return { space: spaceId, scope, machine: machineId, epoch };
 }
 
 /** Read the URL a machine answers at as a caller, none once its tunnel lapsed. */
 async function url(fixture: TestAccountStore, caller: TestCaller, scope: string, id: string) {
-    const target = endpoint.target({ scope, id: schema.identifier("machine").parse(id) });
-    const found = await caller.client(accountPackage).endpoint.get(target);
+    // find the machine's endpoint, none once withdrawn, and read it as the caller
+    const parentId = schema.identifier("machine").parse(id);
+    const stored = await Snapshot.live(fixture.database)
+        .read(endpoint.table)
+        .findFirst({ where: { parentId } });
+    if (stored === undefined) {
+        return undefined;
+    }
+    const found = await caller
+        .client(accountPackage)
+        .endpoint.get(endpoint.target({ scope, id: stored.id }));
 
     return Endpoint.isAnswering(found, fixture.clock.now()) ? found.url : null;
 }
@@ -281,7 +290,7 @@ test("place a created space again only as the machine serving it, and let the ac
     await using fixture = opened.fixture;
     const { accountId, laptop, local, peer, outsider } = opened;
     const foreign = Identifier.create("space", fixture.environment);
-    const placedOn = { id: laptop, scope: accountId, machine: local.subject.id, epoch: 1 };
+    const placedOn = { space: laptop, scope: accountId, machine: local.subject.id, epoch: 1 };
 
     // place it again as its machine alone, refusing the peer, an unknown space and another account's machine
     expect([
@@ -562,7 +571,7 @@ test("move a space only to a standing machine of its account, which serves it fr
         ],
         "done",
         ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: place"],
-        { id: laptop, scope: accountId, machine: cloud.subject.id, epoch: 2 },
+        { space: laptop, scope: accountId, machine: cloud.subject.id, epoch: 2 },
     ]);
 });
 
@@ -644,7 +653,7 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
         address,
         {
             id: laptop,
-            placement: { id: laptop, scope: accountId, machine: local.subject.id, epoch: 1 },
+            placement: { space: laptop, scope: accountId, machine: local.subject.id, epoch: 1 },
             url: address,
         },
         ["NOT_FOUND", "ADDRESS_NOT_FOUND", `nothing responds at missing--${handle}`],
@@ -670,11 +679,7 @@ test("withdraw a revoked machine's published tunnel", async () => {
     });
 
     // find no endpoint of it
-    expect(await refusal(url(fixture, peer, accountId, revoked.subject.id))).toEqual([
-        "NOT_FOUND",
-        "NOT_FOUND",
-        `endpoint ${revoked.subject.id} not found`,
-    ]);
+    expect(await url(fixture, peer, accountId, revoked.subject.id)).toEqual(undefined);
 });
 
 test("move and withdraw a space only as the machine serving it, at the epoch it serves it", async () => {
@@ -735,6 +740,12 @@ test("replicate the spaces giving a machine work to that machine alone, until th
         machine: schema.identifier("machine").parse(serving.subject.id),
     });
     const placed = await locate(serving, accountId, created.id);
+    const row = present(
+        await Snapshot.live(fixture.database)
+            .read(placement.table)
+            .findFirst({ where: { spaceId: created.id } }),
+        "the space's placement",
+    );
 
     // give the runner work in the space, then withdraw it
     const machineId = schema.identifier("machine").parse(runner.subject.id);
@@ -764,7 +775,7 @@ test("replicate the spaces giving a machine work to that machine alone, until th
 
     // replicate the assignment to the runner alone while the work and the placement last
     expect([...assigned, unassigned, await assignments(runner), remaining]).toEqual([
-        [created.id],
+        [row.id],
         [],
         [],
         [],
@@ -953,7 +964,7 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
     const decided = async () => {
         const row = await Snapshot.live(fixture.database)
             .read(placement.table)
-            .findFirst({ where: { id: laptop } });
+            .findFirst({ where: { spaceId: laptop } });
 
         return present(row, "the laptop's placement").schedule;
     };
@@ -1035,7 +1046,7 @@ test("move a space off a draining machine, decide again once it is placed, and k
         present(
             await Snapshot.live(fixture.database)
                 .read(placement.table)
-                .findFirst({ where: { id: laptop } }),
+                .findFirst({ where: { spaceId: laptop } }),
             "the laptop's placement",
         );
     const placed = (await read()).schedule;

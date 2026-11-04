@@ -27,14 +27,14 @@ function create(
 function placements(fixture: TestAccountStore, person: TestPerson) {
     return fixture.database
         .select({
-            id: placement.table.id,
+            space: placement.table.spaceId,
             scope: placement.table.scope,
             machine: placement.table.machineId,
             epoch: placement.table.epoch,
         })
         .from(placement.table)
         .where(eq(placement.table.scope, person.account))
-        .orderBy(placement.table.id);
+        .orderBy(placement.table.spaceId);
 }
 
 test("place a new space on its account's residency cloud machine, on a machine of the account, or on a named cloud machine of the residency", async () => {
@@ -71,14 +71,14 @@ test("place a new space on its account's residency cloud machine, on a machine o
     }).toEqual({
         placements: [
             {
-                id: Account.home(person.account),
+                space: Account.home(person.account),
                 scope: person.account,
                 machine: ids.machine,
                 epoch: 1,
             },
-            { id: cloud.id, scope: person.account, machine: ids.machine, epoch: 1 },
-            { id: local.id, scope: person.account, machine: laptop.machineId, epoch: 1 },
-            { id: shared.id, scope: person.account, machine: ids.machine, epoch: 1 },
+            { space: cloud.id, scope: person.account, machine: ids.machine, epoch: 1 },
+            { space: local.id, scope: person.account, machine: laptop.machineId, epoch: 1 },
+            { space: shared.id, scope: person.account, machine: ids.machine, epoch: 1 },
         ],
         claimed: { scope: person.account, id: cloud.id },
     });
@@ -96,7 +96,7 @@ test("refuse a space under a taken name or on another account's machine, placing
     expect({
         taken: await refusal(create(fixture, person, "work")),
         foreign: await refusal(create(fixture, person, "other", elsewhere.machineId)),
-        placements: (await placements(fixture, person)).map((placed) => placed.id),
+        placements: (await placements(fixture, person)).map((placed) => placed.space),
     }).toEqual({
         taken: ["CONFLICT", "NAME_TAKEN", "name is taken"],
         foreign: [
@@ -170,7 +170,7 @@ test("create a space at the universe with its row and its own access, the space 
             .where(eq(space.table.id, created.id)),
         placed: await fixture.database
             .select({
-                id: placement.table.id,
+                spaceId: placement.table.spaceId,
                 scope: placement.table.scope,
                 machineId: placement.table.machineId,
                 epoch: placement.table.epoch,
@@ -180,7 +180,7 @@ test("create a space at the universe with its row and its own access, the space 
                 updatedAt: placement.table.updatedAt,
             })
             .from(placement.table)
-            .where(eq(placement.table.id, created.id)),
+            .where(eq(placement.table.spaceId, created.id)),
         tuples: (
             await snapshot.read(accessRelationship).findMany({ where: { objectId: created.id } })
         ).map((row) => [row.scope, row.roleId, row.subjectType, row.subjectId]),
@@ -188,7 +188,7 @@ test("create a space at the universe with its row and its own access, the space 
         row: [{ id: created.id, scope: owner.account, name: "work" }],
         placed: [
             {
-                id: created.id,
+                spaceId: created.id,
                 scope: owner.account,
                 machineId: ids.machine,
                 epoch: 1,

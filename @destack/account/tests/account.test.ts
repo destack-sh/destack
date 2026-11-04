@@ -126,7 +126,7 @@ test("create a person's shared account beside their personal one, and refuse a s
             tags: {},
             handle: "florian",
             name: "Personal",
-            residencyId: "eu",
+            residencyId: (await fixture.residency("eu")).id,
             kind: "shared",
             deletedAt: null,
             scope: owner.id,
@@ -416,7 +416,7 @@ test("create accounts in an organization, administered by its owner members", as
         tags: {},
         handle: "initech",
         name: "Acme",
-        residencyId: "us",
+        residencyId: (await fixture.residency("us")).id,
         kind: "shared",
         deletedAt: null,
         scope: acme.id,
@@ -462,7 +462,7 @@ test("create a person's home with their personal account at sign-up, placed on a
     const read = await machine.client(accountPackage).user.get({ id: owner.id });
     const placed = await fixture.database
         .select({
-            id: placement.table.id,
+            spaceId: placement.table.spaceId,
             scope: placement.table.scope,
             machineId: placement.table.machineId,
             epoch: placement.table.epoch,
@@ -470,12 +470,12 @@ test("create a person's home with their personal account at sign-up, placed on a
             transferId: placement.table.transferId,
         })
         .from(placement.table)
-        .where(eq(placement.table.id, read.homeId));
+        .where(eq(placement.table.spaceId, read.homeId));
     expect([read.homeId, placed]).toEqual([
         Account.home(owner.account),
         [
             {
-                id: Account.home(owner.account),
+                spaceId: Account.home(owner.account),
                 scope: owner.account,
                 machineId: ids.machine,
                 epoch: 1,

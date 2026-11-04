@@ -361,10 +361,10 @@ export class Issuer {
     }
 
     /** List the residencies a new person's account may store data in. */
-    async residencies(): Promise<Pick<Residency, "id" | "name">[]> {
+    async residencies(): Promise<Pick<Residency, "code" | "name">[]> {
         const items = await Array.fromAsync(ListPage.all(this.accounts().residency.list, {}));
 
-        return items.map(({ id, name }) => ({ id, name }));
+        return items.map(({ code, name }) => ({ code, name }));
     }
 
     /** Connect to the account package at the issuer, with an access token when given. */

@@ -7,7 +7,7 @@ import { type Identifier, schema } from "@destack/schema";
 import { Account, HOME_SPACE, account } from "../object/account.ts";
 import { organization } from "../object/organization.ts";
 import { relationship } from "@destack/object";
-import { Residency } from "../object/residency.ts";
+import { Residency, residency } from "../object/residency.ts";
 import { StoreRelationship } from "./relationship.ts";
 import { space } from "../object/space.ts";
 import { Entitlement, entitlement } from "../object/entitlement.ts";
@@ -145,7 +145,7 @@ export async function residentCalls(
     const accounts = await reader
         .read(account.table)
         .findMany({ where: { scope: organizationId } });
-    const wanted = new Set(accounts.map((row) => row.residencyId));
+    const wanted = new Set<string>(accounts.map((row) => row.residencyId));
     const object = organization.reference(Scope.universe.id, organizationId);
     const related = await Relationship.readOn(reader, object, { relation: "resident" });
 
@@ -163,7 +163,7 @@ export async function residentCalls(
                 ...relationship.in(Scope.universe.id),
                 object,
                 relation: "resident",
-                subject: Residency.servers(residencyId),
+                subject: Residency.servers(residency.identifier(residencyId)),
             }),
         ),
     ];

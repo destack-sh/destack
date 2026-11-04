@@ -11,7 +11,6 @@ export const endpoint = defineObject(
         name: "endpoint",
         plural: "endpoints",
         scope: [account, "universe"],
-        key: schema.identifier("machine"),
         nested: { in: machine, delete: "cascade", receive: "publish" },
         fields: {
             /** The URL the machine's packages answer at. */
@@ -60,12 +59,15 @@ export const Endpoint = {
         machineId: Identifier<"machine">,
         published: Pick<Endpoint, "url" | "relay">,
     ): Promise<void> {
-        const target = endpoint.target({ scope: context.scope, id: machineId });
-        const existing = await context.read(endpoint).findFirst({ where: { id: machineId } });
+        const existing = await context.read(endpoint).findFirst({ where: { parentId: machineId } });
         await context.mutate(context.self, [
             existing === undefined
-                ? endpoint.call("create", { ...target, parentId: machineId, ...published })
-                : endpoint.call("update", { ...target, ...published }),
+                ? endpoint.call("create", {
+                      ...endpoint.in(context.scope),
+                      parentId: machineId,
+                      ...published,
+                  })
+                : endpoint.call("update", { ...endpoint.target(existing), ...published }),
         ]);
     },
 };

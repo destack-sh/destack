@@ -12,15 +12,9 @@ import { canonicalize, type DigestCrypto, type Identifier, present, schema } fro
 import { account } from "../object/account.ts";
 import { Entitlement, entitlement } from "../object/entitlement.ts";
 import { Machine, machine } from "../object/machine.ts";
-import {
-    assignment,
-    Placement,
-    placement,
-    type Schedule,
-    type Tenancy,
-} from "../object/placement.ts";
+import { assignment, Placement, placement, type Schedule } from "../object/placement.ts";
 import { ObjectReference, Scope } from "@destack/sync";
-import { space } from "../object/space.ts";
+import { space, type Tenancy } from "../object/space.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 import { StoreRelationship } from "./relationship.ts";
@@ -84,7 +78,7 @@ async function place(
     if (!isRetained && !isAdvanced) {
         throw AccountError.of(
             "PLACEMENT_MISMATCH",
-            `${current.id} is not placed on or moving to ${caller} at epoch ${epoch}`,
+            `${current.spaceId} is not placed on or moving to ${caller} at epoch ${epoch}`,
         );
     }
 
@@ -116,7 +110,7 @@ async function move(
     // relate the target as the space's one receiver, keeping its relationship when it already is one
     await releaseReceivers(context, target, context.input.target);
     await StoreRelationship.touch(context, {
-        object: space.reference(target.scope, target.id),
+        object: space.reference(target.scope, target.spaceId),
         relation: "receiver",
         subject: principal.machine.reference(Scope.universe.id, context.input.target),
     });
@@ -127,11 +121,11 @@ async function move(
 /** Revoke the receivers of a space's moves but a kept machine, as the store. */
 async function releaseReceivers(
     context: MethodContext,
-    row: Pick<Placement, "id" | "scope">,
+    row: Pick<Select<typeof placement.table>, "spaceId" | "scope">,
     kept: Identifier<"machine"> | null,
 ): Promise<void> {
     // read the receivers other than the kept machine
-    const object = space.reference(row.scope, row.id);
+    const object = space.reference(row.scope, row.spaceId);
     const receivers = await Relationship.readOn(context, object, { relation: "receiver" });
     const released = receivers.filter((each) => each.subjectId !== kept);
 
@@ -183,13 +177,13 @@ async function project(
 /** Decide where a space's tenancy places it, by its plan and the machines it may use. */
 export async function decideSchedule(
     reader: Pick<Snapshot, "read">,
-    row: Pick<Select<typeof placement.table>, "id" | "scope" | "machineId">,
+    row: Pick<Select<typeof placement.table>, "spaceId" | "scope" | "machineId">,
     crypto: DigestCrypto,
 ): Promise<Schedule> {
     // read the space's tenancy, its account's plan and the machine serving it
     const placed = present(
-        await reader.read(space.table).findFirst({ where: { id: row.id } }),
-        `space ${row.id}`,
+        await reader.read(space.table).findFirst({ where: { id: row.spaceId } }),
+        `space ${row.spaceId}`,
     );
     const entitled = await reader.read(entitlement.table).findMany({ where: { scope: row.scope } });
     const serving = present(
@@ -223,7 +217,7 @@ export async function decideSchedule(
 /** Find the machine running a tenancy for a space, a residency's or the account's own. */
 async function tenancyMachine(
     reader: Pick<Snapshot, "read">,
-    row: Pick<Select<typeof placement.table>, "id" | "scope">,
+    row: Pick<Select<typeof placement.table>, "spaceId" | "scope">,
     asked: Tenancy,
     crypto: DigestCrypto,
 ): Promise<Schedule> {
@@ -244,7 +238,7 @@ async function tenancyMachine(
 
     // pick a cloud machine of the residency for a shared space, staying where none serves it
     if (asked === "shared") {
-        const picked = await Placement.pick(row.id, ids, crypto);
+        const picked = await Placement.pick(row.spaceId, ids, crypto);
         const message = `no cloud machine serves ${residencyId}`;
 
         return picked === undefined
@@ -313,7 +307,7 @@ async function accountPlacements(
         .read(placement.table)
         .findMany({ where: { scope: { in: [...accounts] } } });
 
-    return rows.map((row) => ({ id: row.id }));
+    return rows.map((row) => ({ spaceId: row.spaceId }));
 }
 
 /** End a space's placement as the machine serving it, its work with it. */

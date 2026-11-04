@@ -240,13 +240,13 @@ export class Platform {
             .findMany({ where: { id: { in: ids } } });
         const published = await snapshot
             .read(endpoint.table)
-            .findMany({ where: { id: { in: ids } } });
+            .findMany({ where: { parentId: { in: ids } } });
         for (const row of existing) {
             const declared = present(
                 this.definition.machines.find((entry) => entry.id === row.id),
                 `the definition of ${row.id}`,
             );
-            const origin = published.find((entry) => entry.id === row.id)?.url;
+            const origin = published.find((entry) => entry.parentId === row.id)?.url;
             if (origin !== declared.origin) {
                 throw AccountError.of(
                     "ORIGIN_MISMATCH",
@@ -271,7 +271,7 @@ export class Platform {
                     publicKey: entry.key,
                 }),
                 endpoint.call("create", {
-                    ...endpoint.target({ scope: Scope.universe.id, id: entry.id }),
+                    ...endpoint.in(Scope.universe.id),
                     parentId: entry.id,
                     url: entry.origin,
                     relay: null,
@@ -386,8 +386,12 @@ export class Platform {
         // relate the platform's residency's cloud machines as the organization's publishing administrators
         const organizationId = await this.#organization();
         const object = organization.reference(Scope.universe.id, organizationId);
+        const platform = await Residency.require(
+            Snapshot.live(this.store.database),
+            this.definition.residencyId,
+        );
         const subject = {
-            ...residency.reference(Scope.universe.id, this.definition.residencyId),
+            ...residency.reference(Scope.universe.id, platform.id),
             relation: "machine",
         };
         await this.#authorize(organizationId, now, (authorization) =>
@@ -467,7 +471,7 @@ export class Platform {
         const organizationId = await this.#organization();
         for (const entry of await Residency.list(this.store.database)) {
             // read the platform's account in the residency
-            const handle = Platform.handle(this.definition, entry.id);
+            const handle = Platform.handle(this.definition, entry.code);
             const [existing] = await this.store.database
                 .select({ id: account.table.id })
                 .from(account.table)
@@ -483,23 +487,23 @@ export class Platform {
                               name: handle,
                               kind: "shared",
                               residencyId: entry.id,
-                              stack: this.#home(entry.id),
+                              stack: this.#home(entry.code),
                           }),
                       ])
                     : [existing];
-            const accountId = present(created, `the platform's account in ${entry.id}`).id;
+            const accountId = present(created, `the platform's account in ${entry.code}`).id;
 
             // give the account the hostnames its home's routes serve on, and move its home to its stack
-            await this.#addHostnames(accountId, this.definition.hostnames[entry.id] ?? []);
-            await this.#upgradeHome(Account.home(accountId), this.#home(entry.id));
+            await this.#addHostnames(accountId, this.definition.hostnames[entry.code] ?? []);
+            await this.#upgradeHome(Account.home(accountId), this.#home(entry.code));
 
             // make its home the residency's space once
-            const stored = await Residency.require(Snapshot.live(this.store.database), entry.id);
+            const stored = await Residency.require(Snapshot.live(this.store.database), entry.code);
             const spaceId = stored.space ?? Account.home(accountId);
             if (stored.space === null) {
                 await this.#mutate([
                     residency.call("update", {
-                        ...residency.target({ scope: Scope.universe.id, id: entry.id }),
+                        ...residency.target(entry),
                         space: spaceId,
                     }),
                 ]);

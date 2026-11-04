@@ -15,7 +15,7 @@ import { canonicalize, type Identifier, present, schema } from "@destack/schema"
 import { Scope } from "@destack/sync";
 import { Account, account } from "./account.ts";
 import { space, Space, type SpaceResource } from "./space.ts";
-import { Tenancy } from "./placement.ts";
+import { Tenancy } from "./space.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 import {

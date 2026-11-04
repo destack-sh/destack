@@ -260,6 +260,6 @@ async function userScopes(context: MethodContext, scopes: readonly string[]): Pr
     return [
         context.scope,
         ...[...accounts, ...organizations].map((row) => row.id),
-        ...spaces.map((row) => row.id),
+        ...spaces.map((row) => row.space),
     ];
 }

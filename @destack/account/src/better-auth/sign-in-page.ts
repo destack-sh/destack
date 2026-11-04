@@ -679,10 +679,10 @@ export class SignInPage {
     ): Promise<Response> {
         // offer the residencies, preserving the selection
         const residencies = await Residency.list(this.database);
-        const options = residencies.map(({ id, name }) =>
-            id === choice.residency
-                ? html`<option value="${id}" selected>${name}</option>`
-                : html`<option value="${id}">${name}</option>`,
+        const options = residencies.map(({ code, name }) =>
+            code === choice.residency
+                ? html`<option value="${code}" selected>${name}</option>`
+                : html`<option value="${code}">${name}</option>`,
         );
 
         return render(
@@ -840,15 +840,15 @@ function hiddenFields(signUp: SignUp): Record<string, string> {
 /** Read a chosen residency among the universe's. */
 function parseResidency(
     value: string,
-    residencies: readonly Pick<Residency, "id" | "name">[],
+    residencies: readonly Pick<Residency, "code">[],
 ): ResidencyCode {
     // refuse an unknown residency
-    const residency = residencies.find((known) => known.id === value);
+    const residency = residencies.find((known) => known.code === value);
     if (residency === undefined) {
         throw AccountError.of("RESIDENCY_UNKNOWN", `unknown residency: ${value}`);
     }
 
-    return residency.id;
+    return residency.code;
 }
 
 /** Read whether a form approves or denies, refusing any other action. */

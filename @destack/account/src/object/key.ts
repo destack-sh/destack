@@ -161,7 +161,7 @@ export const Key = {
             .mutate(context.self, [
                 proof.call("create", {
                     ...proof.in(Scope.universe.id),
-                    id: digest,
+                    digest,
                     expiresAt: presented.expiresAt,
                 }),
             ])

@@ -13,7 +13,7 @@ export function implementIdentity(): typeof identity {
     return identity.implement({
         methods: {
             create,
-            keys: (call) => Identity.keys(call, call.target.id, call.environment.crypto),
+            keys: (call) => Identity.keys(call, call.target.subject, call.environment.crypto),
         },
     });
 }
@@ -24,7 +24,7 @@ async function create(
     next: NextOf<typeof identity, "create">,
 ): Promise<ResultOf<typeof identity, "create">> {
     // require the identity's first operation
-    const subject = context.id;
+    const { subject } = context.input;
     const claims = IdentityOperation.read(context.input.operation);
     if (claims.subject !== subject || claims.previous !== null) {
         throw AccountError.of(
@@ -39,7 +39,7 @@ async function create(
         subject === Scope.universe.id && Subject.same(sender, Caller.principal(context.self));
     const spaceId = schema.identifier("space").safeParse(subject);
     const served = spaceId.success
-        ? await context.read(placement).findFirst({ where: { id: spaceId.data } })
+        ? await context.read(placement).findFirst({ where: { spaceId: spaceId.data } })
         : undefined;
     const isServing =
         served !== undefined &&
@@ -58,7 +58,7 @@ async function create(
     await context.mutate(context.caller, [
         operation.call("create", {
             ...operation.in(Scope.universe.id),
-            parentId: subject,
+            parentId: created.id,
             operation: context.input.operation,
         }),
     ]);

@@ -152,7 +152,9 @@ async function revoke(
     await leaveResidency(context, Machine.of(context.target));
 
     // withdraw the machine with its endpoint
-    const published = await context.read(endpoint).findFirst({ where: { id: context.target.id } });
+    const published = await context
+        .read(endpoint)
+        .findFirst({ where: { parentId: context.target.id } });
     if (published !== undefined) {
         await context.mutate(context.caller, [endpoint.call("delete", endpoint.target(published))]);
     }

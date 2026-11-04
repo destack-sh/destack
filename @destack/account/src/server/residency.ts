@@ -163,11 +163,11 @@ async function machines(
     });
     const published = await context
         .read(endpoint)
-        .findMany({ where: { id: { in: serving.map((row) => row.id) } } });
+        .findMany({ where: { parentId: { in: serving.map((row) => row.id) } } });
 
     // list the machines that answer at a URL now
     return serving.flatMap((row) => {
-        const found = published.find((entry) => entry.id === row.id);
+        const found = published.find((entry) => entry.parentId === row.id);
 
         return found === undefined || !Endpoint.isAnswering(found, context.now)
             ? []

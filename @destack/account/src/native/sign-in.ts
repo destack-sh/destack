@@ -219,7 +219,7 @@ export class NativeSignIn {
     }
 
     /** List the residencies a new person's account may store data in. */
-    residencies(): Promise<Pick<Residency, "id" | "name">[]> {
+    residencies(): Promise<Pick<Residency, "code" | "name">[]> {
         return this.#options.issuer.residencies();
     }
 

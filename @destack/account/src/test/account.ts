@@ -581,6 +581,11 @@ export class TestAccountStore implements AsyncDisposable {
         };
     }
 
+    /** Read a residency by its code. */
+    residency(code: ResidencyCode): Promise<Residency> {
+        return Residency.require(Snapshot.live(this.database), code);
+    }
+
     /** Read a residency's space, the home of the platform's account in it. */
     async residencySpace(residencyId: ResidencyCode): Promise<Identifier<"space">> {
         return Residency.space(Snapshot.live(this.database), residencyId);
@@ -906,7 +911,7 @@ export class TestAccountStore implements AsyncDisposable {
         const placed = present(
             await Snapshot.live(this.database)
                 .read(placement.table)
-                .findFirst({ where: { id: spaceId } }),
+                .findFirst({ where: { spaceId } }),
             `the placement of ${spaceId}`,
         );
 
@@ -914,7 +919,7 @@ export class TestAccountStore implements AsyncDisposable {
     }
 
     /** Read the billing installation of a residency's space, related to it by its operator once. */
-    #entitler(residencyId: ResidencyCode): Promise<Subject> {
+    #entitler(residencyId: Identifier<"residency">): Promise<Subject> {
         // relate each residency's installation once, whichever entitlement asks first
         const known = this.#entitlers.get(residencyId);
         if (known !== undefined) {
@@ -923,7 +928,13 @@ export class TestAccountStore implements AsyncDisposable {
         const relating = (async () => {
             // derive the installation the residency's space declares for billing
             const snapshot = Snapshot.live(this.database);
-            const home = await Scope.object(snapshot, await this.residencySpace(residencyId));
+            const served = await snapshot
+                .read(residency.table)
+                .findFirst({ where: { id: residencyId } });
+            const residencySpace = Residency.requireSpace(
+                present(served, `residency ${residencyId}`),
+            );
+            const home = await Scope.object(snapshot, residencySpace);
             const id = await InstallationId.of(home, BILLING_INSTALLATION, this.environment.crypto);
             const installed = principal.installation.reference(home.id, id);
 
@@ -1472,7 +1483,7 @@ export class TestAccountStore implements AsyncDisposable {
     /** Start the identities of the residencies' homes as the cloud machines serving them. */
     async #serveHomes(): Promise<void> {
         for (const entry of await Residency.list(this.database)) {
-            const home = await this.residencySpace(entry.id);
+            const home = await this.residencySpace(entry.code);
             await this.startIdentity(home, this.as(await this.machine(home)));
         }
     }

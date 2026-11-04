@@ -2,7 +2,7 @@ import { principal, universe } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { type DatabaseConnection, eq } from "@destack/db";
 import { type ClaimPrimary, RemoteStore } from "@destack/object/server";
-import type { Identifier } from "@destack/schema";
+import { Identifier } from "@destack/schema";
 import { serversOf, testCallKey, testEvents, TestObjectStore } from "@destack/object/test";
 import { Scope, type Uplink } from "@destack/sync";
 import { account } from "../object/account.ts";
@@ -92,9 +92,9 @@ export const TestDirectory = {
         // write the space a placement belongs to once, then the placement or a replacement of it
         const now = clock.now();
         const stored = {
-            id: placed.id,
+            id: placed.space,
             scope: placed.scope,
-            name: `placed-${placed.id.slice(-12)}`,
+            name: `placed-${placed.space.slice(-12)}`,
             stack: STACKS.space,
             createdAt: now,
             updatedAt: now,
@@ -114,8 +114,14 @@ export const TestDirectory = {
             await transaction.insert(space.table).values(stored).onConflictDoNothing();
             await transaction
                 .insert(placement.table)
-                .values({ id: placed.id, ...fields, createdAt: now, updatedAt: now })
-                .onConflictDoUpdate({ target: placement.table.id, set: fields });
+                .values({
+                    id: Identifier.derive("placement", Identifier.uuid(placed.space)),
+                    spaceId: placed.space,
+                    ...fields,
+                    createdAt: now,
+                    updatedAt: now,
+                })
+                .onConflictDoUpdate({ target: placement.table.spaceId, set: fields });
         });
     },
 
@@ -150,12 +156,17 @@ export const TestDirectory = {
         // replace its endpoint, or withdraw it
         await database.transaction(
             async (transaction) =>
-                await transaction.delete(endpoint.table).where(eq(endpoint.table.id, id)),
+                await transaction.delete(endpoint.table).where(eq(endpoint.table.parentId, id)),
         );
         if (url !== null) {
-            await database
-                .insert(endpoint.table)
-                .values({ id, parentId: id, scope, url, relay: null, ...times });
+            await database.insert(endpoint.table).values({
+                id: Identifier.derive("endpoint", Identifier.uuid(id)),
+                parentId: id,
+                scope,
+                url,
+                relay: null,
+                ...times,
+            });
         }
     },
 };

@@ -31,8 +31,8 @@ async function placements(
 ): Promise<unknown[]> {
     const { items } = await client.placement.list({ accountId });
 
-    return items.map(({ id, scope, machineId, epoch }) => ({
-        id,
+    return items.map(({ spaceId, scope, machineId, epoch }) => ({
+        space: spaceId,
         scope,
         machine: machineId,
         epoch,
@@ -106,7 +106,7 @@ test("find and resolve a place's address over the directory's rows, to the URL i
         undefined,
         {
             id: spaceId,
-            placement: { id: spaceId, scope: accountId, machine: computer.subject.id, epoch: 1 },
+            placement: { space: spaceId, scope: accountId, machine: computer.subject.id, epoch: 1 },
             url,
         },
         ["NOT_FOUND", "ADDRESS_NOT_FOUND", `nothing responds at other--${handle}`],
@@ -125,8 +125,13 @@ test("list an account's placements to those reading it and to its machines, and 
         .parse("account-01996ab0-0000-7000-8000-000000000009");
 
     // list the account's home, placed with the account on the residency's cloud machine, beside the space
-    const home = { id: Account.home(accountId), scope: accountId, machine: ids.machine, epoch: 1 };
-    const placed = { id: spaceId, scope: accountId, machine: computer.subject.id, epoch: 1 };
+    const home = {
+        space: Account.home(accountId),
+        scope: accountId,
+        machine: ids.machine,
+        epoch: 1,
+    };
+    const placed = { space: spaceId, scope: accountId, machine: computer.subject.id, epoch: 1 };
     expect([
         await placements(owner.client(accountPackage), accountId),
         await placements(computer.client(accountPackage), accountId),
@@ -221,7 +226,7 @@ test("locate each of many spaces placed on a machine in one statement for its pl
     await database.transaction(
         async (transaction) =>
             await transaction.insert(endpoint.table).values({
-                id: ids.machine,
+                id: Identifier.derive("endpoint", Identifier.uuid(ids.machine)),
                 scope: ids.account,
                 parentId: ids.machine,
                 url: "https://machine.test/",
@@ -233,12 +238,19 @@ test("locate each of many spaces placed on a machine in one statement for its pl
 
     // place many spaces on the machine
     const spaces = Array.from({ length: STRESS_SPACES }, () => Identifier.create("space", world));
-    const placed = spaces.map((id) => ({ id, scope: ids.account, machine: ids.machine, epoch: 1 }));
+    const placed = spaces.map((id) => ({
+        space: id,
+        scope: ids.account,
+        machine: ids.machine,
+        epoch: 1,
+    }));
     await database.transaction(
         async (transaction) =>
             await transaction.insert(placement.table).values(
-                placed.map(({ machine: machineId, ...rest }) => ({
+                placed.map(({ space: spaceId, machine: machineId, ...rest }) => ({
                     ...rest,
+                    id: Identifier.create("placement", world),
+                    spaceId,
                     machineId,
                     schedule: {
                         kind: "stay",

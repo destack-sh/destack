@@ -56,12 +56,12 @@ async function create(
     const created = await next(context.with({ input: { ...context.input, stack } }));
 
     // place it at the first epoch in the same transaction, decided for its machine
-    const placed = { id: spaceId, scope: accountId, machineId: target };
+    const placed = { spaceId, scope: accountId, machineId: target };
     const decided = await decideSchedule(context, placed, context.environment.crypto);
     await context.mutate(context.self, [
         placement.call("create", {
             ...placement.in(accountId),
-            id: context.id,
+            spaceId,
             machineId: target,
             epoch: 1,
             schedule: decided,

@@ -7,7 +7,7 @@ import {
     type SQLWrapper,
     type Snapshot,
 } from "@destack/db";
-import { placement, TENANCIES } from "./placement.ts";
+import { placement } from "./placement.ts";
 import { defineObject, field, type KeyFields, ObjectWatch } from "@destack/object";
 import { RISKS } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
@@ -30,6 +30,14 @@ import {
 import { SPACE_NAME_LENGTH, SpaceName } from "../address/address.ts";
 import { Label } from "../address/label.ts";
 import { AccountError } from "../error/error.ts";
+
+/** The tenancies: shared or dedicated cloud machines, or a space's people's computers. */
+export const TENANCIES = ["shared", "dedicated", "local"] as const;
+
+/** Where a space's work runs: shared or dedicated cloud machines, or its people's computers. */
+export const Tenancy = schema.enum(TENANCIES);
+/** Where a space's work runs. */
+export type Tenancy = schema.Infer<typeof Tenancy>;
 
 /** The longest space title, in characters: a line of a sidebar with room to spare. */
 const TITLE_LENGTH = 128;
@@ -254,7 +262,7 @@ export const Space = {
         ) => PromiseLike<readonly KeyFields[]>,
     ): ObjectWatch<typeof placement.table> {
         return ObjectWatch.of(placement.table, async (row, database) =>
-            keys(schema.identifier("space").parse(row.id), database),
+            keys(row.spaceId, database),
         );
     },
 };

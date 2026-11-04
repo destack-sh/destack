@@ -12,7 +12,7 @@ import { defineObject, field, InstallationName } from "@destack/object";
 import { PackageId } from "@destack/package";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId, Scope, Subject } from "@destack/sync";
-import { type Identifier, schema, Version } from "@destack/schema";
+import { type Identifier, present, schema, Version } from "@destack/schema";
 import { AccountHandle } from "../address/handle.ts";
 import { DisplayName } from "./display-name.ts";
 import type {} from "@destack/package/import-meta";
@@ -59,8 +59,10 @@ export const residency = defineObject(
         name: "residency",
         plural: "residencies",
         scope: "universe",
-        key: ResidencyCode,
+        key: "code",
         fields: {
+            /** The code people and configurations name it by, such as eu. */
+            code: field.string(ResidencyCode).immutable(),
             /** The name people read, such as European Union. */
             name: field.string(DisplayName),
             /** The origin its accounts' machines open their tunnels at, its relay's. */
@@ -103,7 +105,7 @@ export const residency = defineObject(
     (method) => ({
         /** Store a residency the universe declares, shown to everyone. */
         create: method.create("operate", {
-            fields: ["name", "relay"],
+            fields: ["code", "name", "relay"],
             visibility: "package",
             isPredicted: false,
         }),
@@ -179,8 +181,8 @@ export interface ResidencyDefinition {
 /** The rows of residencies. */
 export const Residency = {
     /** Read the principals serving a residency as a subject set. */
-    servers(code: ResidencyCode): Subject {
-        return { ...residency.reference(Scope.universe.id, code), relation: "server" };
+    servers(id: Identifier<"residency">): Subject {
+        return { ...residency.reference(Scope.universe.id, id), relation: "server" };
     },
 
     /** List the universe permissions the installation relation gives an installation. */
@@ -195,30 +197,30 @@ export const Residency = {
     },
 
     /** Read the installations a residency's space declares, which serve its accounts, as a set. */
-    installations(code: ResidencyCode): Subject {
-        return { ...residency.reference(Scope.universe.id, code), relation: "installed" };
+    installations(id: Identifier<"residency">): Subject {
+        return { ...residency.reference(Scope.universe.id, id), relation: "installed" };
     },
 
     /** Read a residency's relay as a subject set, which publishes the tunnels it accepts. */
-    relays(code: ResidencyCode): Subject {
-        return { ...residency.reference(Scope.universe.id, code), relation: "relaying" };
+    relays(id: Identifier<"residency">): Subject {
+        return { ...residency.reference(Scope.universe.id, id), relation: "relaying" };
     },
 
     /** Read the principals claiming names in a residency's accounts, as a set. */
-    claimants(code: ResidencyCode): Subject {
-        return { ...residency.reference(Scope.universe.id, code), relation: "claim" };
+    claimants(id: Identifier<"residency">): Subject {
+        return { ...residency.reference(Scope.universe.id, id), relation: "claim" };
     },
 
-    /** List every residency by code. */
-    async list(database: DatabaseConnection): Promise<Pick<Residency, "id" | "name">[]> {
-        return database
-            .select({ id: residency.table.id, name: residency.table.name })
-            .from(residency.table)
-            .orderBy(residency.table.id);
+    /** List every residency, by code. */
+    list(database: DatabaseConnection): Promise<Residency[]> {
+        return Snapshot.live(database)
+            .read(residency.table)
+            .findMany({ orderBy: { code: "asc" } });
     },
 
     /** Read the residency a cloud machine or residency space serves, if any. */
     async of(database: DatabaseConnection, server: Subject): Promise<ResidencyCode | undefined> {
+        // find the residency the server's relationship relates it to as a server, none for none
         const relationships = await Relationship.readBySubject(Snapshot.live(database), [server]);
         const found = relationships.find(
             (row) =>
@@ -226,32 +228,43 @@ export const Residency = {
                 row.objectType === residency.typeReference.type &&
                 SERVERS.some((kind) => kind === row.relation),
         );
+        if (found === undefined) {
+            return undefined;
+        }
 
-        return found === undefined ? undefined : ResidencyCode.parse(found.objectId);
+        // read the code of the residency it serves
+        const served = await Snapshot.live(database)
+            .read(residency.table)
+            .findFirst({ where: { id: residency.identifier(found.objectId) } });
+
+        return present(served, `residency ${found.objectId}`).code;
     },
 
-    /** Read a residency's space, and refuse a residency without one. */
-    async space(reader: Pick<Snapshot, "read">, code: ResidencyCode): Promise<Identifier<"space">> {
-        return Residency.requireSpace(await Residency.require(reader, code));
+    /** Read a residency's space by its identifier or code, and refuse a residency without one. */
+    async space(reader: Pick<Snapshot, "read">, value: string): Promise<Identifier<"space">> {
+        return Residency.requireSpace(await Residency.require(reader, value));
     },
 
     /** Read a residency row's space, refusing a residency the platform does not serve yet. */
-    requireSpace(row: Pick<Residency, "id" | "space">): Identifier<"space"> {
-        if (row.space === null) {
-            throw AccountError.of("RESIDENCY_SPACE_MISSING", `residency ${row.id} has no space`);
+    requireSpace(row: {
+        readonly code: string;
+        readonly space?: Identifier<"space"> | null;
+    }): Identifier<"space"> {
+        if (row.space === null || row.space === undefined) {
+            throw AccountError.of("RESIDENCY_SPACE_MISSING", `residency ${row.code} has no space`);
         }
 
         return row.space;
     },
 
-    /** Read a residency, and refuse an unknown code. */
-    async require(reader: Pick<Snapshot, "read">, code: string): Promise<Residency> {
-        // read the residency and refuse an unknown code
+    /** Read a residency by its identifier or code, and refuse an unknown one. */
+    async require(reader: Pick<Snapshot, "read">, value: string): Promise<Residency> {
+        // read the residency and refuse an unknown one
         const row = await reader
             .read(residency.table)
-            .findFirst({ where: { id: ResidencyCode.parse(code) } });
+            .findFirst({ where: { [residency.identify(value)]: value } });
         if (row === undefined) {
-            throw AccountError.of("RESIDENCY_NOT_FOUND", `residency ${code} not found`);
+            throw AccountError.of("RESIDENCY_NOT_FOUND", `residency ${value} not found`);
         }
 
         return row;
@@ -268,17 +281,23 @@ export const Residency = {
         // create the missing ones and update the changed ones
         const calls = definitions.flatMap((definition) => {
             // find its row
-            const row = rows.find((entry) => entry.id === definition.code);
-            const target = residency.target({ scope: Scope.universe.id, id: definition.code });
+            const row = rows.find((entry) => entry.code === definition.code);
 
             // create a missing residency
-            const { name, relay } = definition;
+            const { code, name, relay } = definition;
             if (row === undefined) {
-                return [residency.call("create", { ...target, name, relay })];
+                return [
+                    residency.call("create", {
+                        ...residency.in(Scope.universe.id),
+                        code,
+                        name,
+                        relay,
+                    }),
+                ];
             }
             // update a renamed or relayed one
             else if (row.name !== name || row.relay !== relay) {
-                return [residency.call("update", { ...target, name, relay })];
+                return [residency.call("update", { ...residency.target(row), name, relay })];
             }
 
             return [];

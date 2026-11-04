@@ -326,13 +326,14 @@ test("apply the declared cloud machines with their keys in the universe once, an
     const urls = await database
         .select({ url: endpoint.table.url })
         .from(endpoint.table)
-        .where(inArray(endpoint.table.id, declared))
+        .where(inArray(endpoint.table.parentId, declared))
         .orderBy(endpoint.table.url);
     const administrators = await Relationship.readOn(
         Snapshot.live(database),
         organization.reference(Scope.universe.id, organizationId),
         { relation: "admin" },
     );
+    const [eu, us] = [await fixture.residency("eu"), await fixture.residency("us")];
     expect([
         machines,
         keys.map((row) => row.parentId),
@@ -347,7 +348,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
                 scope: Scope.universe.id,
                 name: "eu-west",
                 kind: "cloud",
-                residencyId: "eu",
+                residencyId: eu.id,
                 providerCode: PROVIDER,
                 location: "eu",
             },
@@ -356,14 +357,14 @@ test("apply the declared cloud machines with their keys in the universe once, an
                 scope: Scope.universe.id,
                 name: "us-west",
                 kind: "cloud",
-                residencyId: "us",
+                residencyId: us.id,
                 providerCode: PROVIDER,
                 location: "us",
             },
         ],
         declared.toSorted(),
         [{ url: "https://eu-west.machine.test/" }, { url: "https://us-west.machine.test/" }],
-        [["eu", "machine"]],
+        [[eu.id, "machine"]],
     ]);
 });
 

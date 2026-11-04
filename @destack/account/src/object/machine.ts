@@ -9,10 +9,10 @@ import { CompactProof, PublicKey } from "@destack/identity";
 import { Label } from "../address/label.ts";
 import { key, Key } from "./key.ts";
 import { account } from "./account.ts";
-import { residency, ResidencyCode } from "./residency.ts";
+import { residency } from "./residency.ts";
 import { Platform, PLATFORMS } from "./platform.ts";
 import { AccountError } from "../error/error.ts";
-import type { Tenancy } from "./placement.ts";
+import type { Tenancy } from "./space.ts";
 
 /** The longest machine name, so `<machine>--<handle>` fits one DNS label: see `HANDLE_LENGTH`. */
 const MACHINE_NAME_LENGTH = 37;
@@ -77,7 +77,7 @@ const CloudMachine = schema.object({
     /** A provider's cloud machine. */
     kind: schema.literal("cloud"),
     /** The jurisdiction the machine serves. */
-    residencyId: ResidencyCode,
+    residencyId: schema.identifier("residency"),
     /** The provider running the machine. */
     providerCode: ProviderCode,
     /** The provider location, such as Cloudflare's eu jurisdiction. */

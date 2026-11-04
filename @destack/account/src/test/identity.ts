@@ -77,7 +77,7 @@ export const TestIdentityRegistry = {
                 await TestDirectory.place(
                     database,
                     {
-                        id: space,
+                        space,
                         scope: Identifier.create("account", environment),
                         machine: machineId,
                         epoch: 1,

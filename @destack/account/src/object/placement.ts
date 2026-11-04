@@ -1,20 +1,13 @@
 import { contained, none, principal, relation, through, union } from "@destack/access";
-import type { Snapshot } from "@destack/db";
-import { Condition, defineObject, field } from "@destack/object";
+import type { Select, Snapshot } from "@destack/db";
+import { Condition, defineObject, field, type ObjectOf } from "@destack/object";
 import { Digest, type DigestCrypto, Identifier, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { account } from "./account.ts";
 import { machine } from "./machine.ts";
+import { space } from "./space.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-
-/** The tenancies: shared or dedicated cloud machines, or a space's people's computers. */
-export const TENANCIES = ["shared", "dedicated", "local"] as const;
-
-/** Where a space's work runs: shared or dedicated cloud machines, or its people's computers. */
-export const Tenancy = schema.enum(TENANCIES);
-/** Where a space's work runs. */
-export type Tenancy = schema.Infer<typeof Tenancy>;
 
 /** Where the universe places a space for its tenancy: stay on its machine or move. */
 export const Schedule = schema.discriminatedUnion("kind", [
@@ -37,7 +30,7 @@ export type Schedule = schema.Infer<typeof Schedule>;
 /** Where a space runs: the machine serving its databases at an epoch. */
 const PlacementSchema = schema.object({
     /** The placed space. */
-    id: schema.identifier("space"),
+    space: schema.identifier("space"),
     /** The account the space belongs to. */
     scope: schema.identifier("account"),
     /** The machine serving the space's databases. */
@@ -72,10 +65,10 @@ export const Placement = Object.assign(PlacementSchema, {
     ): Promise<Placement[]> {
         const rows = await reader
             .read(placement.table)
-            .findMany({ where: { id: { in: [...spaces] } } });
+            .findMany({ where: { spaceId: { in: [...spaces] } } });
 
         return rows.map((row) => ({
-            id: row.id,
+            space: row.spaceId,
             scope: row.scope,
             machine: row.machineId,
             epoch: row.epoch,
@@ -114,9 +107,15 @@ export const Placement = Object.assign(PlacementSchema, {
     },
 
     /** Refuse a call at an epoch other than the space's current epoch. */
-    requireServed(row: Pick<Placement, "id" | "epoch">, epoch: number): void {
+    requireServed(
+        row: Pick<Select<typeof placement.table>, "spaceId" | "epoch">,
+        epoch: number,
+    ): void {
         if (row.epoch !== epoch) {
-            throw AccountError.of("EPOCH_STALE", `${row.id} is no longer placed at epoch ${epoch}`);
+            throw AccountError.of(
+                "EPOCH_STALE",
+                `${row.spaceId} is no longer placed at epoch ${epoch}`,
+            );
         }
     },
 });
@@ -151,8 +150,12 @@ export const placement = defineObject(
         name: "placement",
         plural: "placements",
         scope: account,
-        key: schema.identifier("space"),
+        key: "spaceId",
         fields: {
+            /** The space placed. */
+            space: field
+                .reference((): ObjectOf<{ identity: "space" }> => space, { delete: "cascade" })
+                .immutable(),
             /** The machine serving the space. */
             machine: field.reference(principal.machine),
             /** The epoch the machine serves the space at. */
@@ -165,12 +168,12 @@ export const placement = defineObject(
             schedule: field.json(Schedule),
         },
         relations: {
-            // the placed space itself, under the placement's identifier
-            self: { subjects: [principal.space], grantedBy: null },
+            // the placed space itself
+            space: { subjects: [principal.space], grantedBy: null },
         },
         permissions: {
             read: union(
-                relation("self"),
+                relation("space"),
                 relation("machine"),
                 relation("target"),
                 through("account", "read"),
@@ -209,7 +212,7 @@ export const placement = defineObject(
     (method) => ({
         create: method.create("create", {
             visibility: "package",
-            fields: ["machineId", "epoch", "schedule"],
+            fields: ["spaceId", "machineId", "epoch", "schedule"],
         }),
 
         /** Serve a space at an epoch. */

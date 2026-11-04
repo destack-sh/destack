@@ -30,7 +30,7 @@ async function openRegistry(world: Environment) {
         /** Start the space's identity as the serving machine, or as another caller. */
         start: (signed: string, as: TestCaller = serving) =>
             as.client(accountPackage).identity.create({
-                id: space,
+                subject: space,
                 requestId: RequestId.create(environment),
                 operation: signed,
             }),

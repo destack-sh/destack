@@ -24,8 +24,7 @@ export const spaceShape = defineShape({
     objects: [space, placement, assignment, machine],
     queries: ({ space: id, machine: machineId }) => [
         space.query({ scopes: "every", where: { id } }),
-        placement.query({ scopes: "every", where: { id } }),
-        assignment.query({ scopes: "every", where: { placementId: id } }),
+        placement.query({ scopes: "every", where: { spaceId: id }, with: { assignments: true } }),
         machine.query({ scopes: "every", where: { id: machineId } }),
     ],
 });
@@ -120,8 +119,8 @@ export const residentsShape = defineShape({
         residency: ResidencyCode,
     }),
     objects: [account],
-    queries: ({ residency: residencyId }) => [
-        account.query({ scopes: "every", where: { residencyId } }),
+    queries: ({ residency: code }) => [
+        account.query({ scopes: "every", where: { residency: { code } } }),
     ],
 });
 

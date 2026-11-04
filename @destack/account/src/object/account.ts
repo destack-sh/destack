@@ -17,7 +17,7 @@ import { Identifier, schema } from "@destack/schema";
 import { Label } from "../address/label.ts";
 import { AccountHandle, HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { organization } from "./organization.ts";
-import { Residency, residency, ResidencyCode } from "./residency.ts";
+import { Residency, residency } from "./residency.ts";
 import { StackRelease } from "./stack-release.ts";
 import { user } from "./user.ts";
 import { sudo } from "../authentication/sudo.ts";
@@ -235,7 +235,9 @@ export const Account = {
     /** Relate a new account's owner, home and residency servers. */
     async creation(context: MethodContext, object: ObjectReference): Promise<Creation> {
         // read the residency the account stores data in
-        const residencyId = ResidencyCode.parse(context.input["residencyId"]);
+        const residencyId = residency.identifier(
+            schema.string().parse(context.input["residencyId"]),
+        );
 
         // relate the residency's servers, claimants, relay and installations, and the account's home
         const resident = { relation: "resident", subject: Residency.servers(residencyId) };
