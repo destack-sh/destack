@@ -8,7 +8,6 @@ import { Machine, machine } from "../object/machine.ts";
 import { space } from "../object/space.ts";
 import { account } from "../object/account.ts";
 import { user } from "../object/user.ts";
-import { Placement } from "../object/placement.ts";
 import accountPackage from "../package.ts";
 import { OAuthError } from "../authentication/token.ts";
 import { AccessToken, type TokenGrant } from "./token.ts";
@@ -70,34 +69,27 @@ export function bearerGrant(options: BearerOptions): TokenGrant {
         const now = options.environment.clock.now();
         const { caller: asserted, credential } = await assertions.verify(assertion, now);
 
-        // take the universe or a machine's own partition as they are
-        const isMachine = principal.machine.is(asserted.subject);
-        const isOpen = partition === undefined || (isMachine && partition === asserted.subject.id);
-        const spaceId = SPACE_IDENTIFIER.safeParse(partition);
+        // read the partitions the subject acts in: a machine its own and any space, a space any space, an installation its space
+        const { subject } = asserted;
+        const isMachine = principal.machine.is(subject);
+        const isSpaceActor = isMachine || principal.space.is(subject);
+        const isSpace = SPACE_IDENTIFIER.safeParse(partition).success;
+        const isOwn = isMachine && partition === subject.id;
+        const isInstallationSpace = !isSpaceActor && subject.scope === partition;
 
-        // bind a machine to a space it serves, receives, works in or reports its own telemetry to
-        if (!isOpen && isMachine && spaceId.success) {
-            const machineId = schema.identifier("machine").parse(asserted.subject.id);
-            await Placement.requirePartition(Snapshot.live(database), spaceId.data, machineId);
-        }
-        // refuse a machine any other partition
-        else if (!isOpen && isMachine) {
-            throw OAuthError.of(
-                "INVALID_GRANT",
-                `${asserted.subject.id} acts in its own partition and its spaces alone`,
-            );
-        }
-        // refuse a space a partition other than a space
-        else if (!isOpen && principal.space.is(asserted.subject) && !spaceId.success) {
-            throw OAuthError.of("INVALID_GRANT", `${asserted.subject.id} acts in spaces alone`);
-        }
-        // bind an installation to its space alone
-        else if (
-            !isOpen &&
-            !principal.space.is(asserted.subject) &&
-            asserted.subject.scope !== partition
+        // refuse any other partition, a space's access deciding what the subject may do in it
+        if (
+            partition !== undefined &&
+            !isOwn &&
+            !(isSpaceActor && isSpace) &&
+            !isInstallationSpace
         ) {
-            throw OAuthError.of("INVALID_GRANT", `${asserted.subject.id} acts in its space alone`);
+            const scopes = isMachine
+                ? "its own partition and in spaces"
+                : isSpaceActor
+                  ? "spaces"
+                  : "its space";
+            throw OAuthError.of("INVALID_GRANT", `${subject.id} acts in ${scopes} alone`);
         }
 
         // issue the token for the partition the call goes to, else the universe, lapsing with the token alone

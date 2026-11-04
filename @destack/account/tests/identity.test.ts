@@ -487,89 +487,36 @@ test("reuse a machine's token for several calls to one package, exchanging it on
     });
 });
 
-test("grant a machine tokens for its own partition, its owner's home and the spaces it serves, receives or works in, and refuse others", async () => {
-    // enroll an account's machine, take the residency's shared cloud machine and place a space on each
+test("grant a machine tokens for its own partition and any space, whose access decides what it may do there, and refuse another machine's partition", async () => {
+    // enroll an account's machine, take the residency's shared cloud machine and place a space on the cloud
     await using accounts = await TestAccountStore.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const laptop = await accounts.enroll(ids.account, owner);
     const cloud = accounts.cloud(ids.machine);
-    const movedId = Identifier.create("space", accounts.environment);
     const served = Identifier.create("space", accounts.environment);
-    const elsewhere = Identifier.create("space", accounts.environment);
-    await place(accounts, owner, movedId, laptop.machineId);
     await place(accounts, owner, served, cloud.machineId);
 
-    // grant a token in the machine's own partition, and refuse another machine's
-    const partitions = [
-        await grant(accounts, laptop, laptop.machineId),
-        await grant(accounts, laptop, cloud.machineId),
-    ];
-
-    // grant tokens in the owner's home its own telemetry goes to: the account's, the residency's
-    const homes = [
-        await grant(accounts, laptop, Account.home(ids.account)),
-        await grant(accounts, cloud, await accounts.residencySpace("eu")),
-    ];
-
-    // refuse tokens in the spaces other machines serve
-    const refused = [
-        await grant(accounts, laptop, served),
-        await grant(accounts, cloud, elsewhere),
-        await grant(accounts, cloud, movedId),
-    ];
-
-    // grant a token in a space giving the machine work, until the space withdraws it
-    const work = {
-        accountId: ids.account,
-        id: served,
-        epoch: 1,
-        machine: laptop.machineId,
-        requestId: RequestId.create(accounts.environment),
-    };
-    await accounts.as(cloud).client(accountPackage).placement.assign(work);
-    const assigned = await grant(accounts, laptop, served);
-    await accounts
-        .as(cloud)
-        .client(accountPackage)
-        .placement.unassign({ ...work, requestId: RequestId.create(accounts.environment) });
-    const withdrawn = await grant(accounts, laptop, served);
-
-    // grant a token in a space moving to the machine
-    await accounts
-        .as(laptop)
-        .client(accountPackage)
-        .placement.move({
-            accountId: ids.account,
-            id: movedId,
-            epoch: 1,
-            target: cloud.machineId,
-            transferId: Identifier.create("transfer", accounts.environment),
-            requestId: RequestId.create(accounts.environment),
-        });
     expect([
-        homes,
-        await grant(accounts, laptop, movedId),
+        // grant tokens in the machine's own partition and in spaces it serves or does not
+        await grant(accounts, laptop, laptop.machineId),
+        await grant(accounts, laptop, served),
         await grant(accounts, cloud, served),
-        refused,
-        await grant(accounts, cloud, movedId),
-        [assigned, withdrawn],
-        partitions,
+        await grant(accounts, laptop, Account.home(ids.account)),
+        await grant(accounts, laptop, await accounts.residencySpace("eu")),
+        // refuse another machine's partition
+        await grant(accounts, laptop, cloud.machineId),
     ]).toEqual([
-        ["done", "done"],
         "done",
         "done",
-        [placedElsewhere(served), placedElsewhere(elsewhere), placedElsewhere(movedId)],
         "done",
-        ["done", placedElsewhere(served)],
+        "done",
+        "done",
         [
-            "done",
-            [
-                400,
-                {
-                    error: "invalid_grant",
-                    error_description: `${laptop.machineId} acts in its own partition and its spaces alone`,
-                },
-            ],
+            400,
+            {
+                error: "invalid_grant",
+                error_description: `${laptop.machineId} acts in its own partition and in spaces alone`,
+            },
         ],
     ]);
 });
