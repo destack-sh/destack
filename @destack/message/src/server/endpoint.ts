@@ -18,7 +18,7 @@ import {
 } from "../webhook/message.ts";
 import { MessageError } from "../error/error.ts";
 import {
-    type Endpoint,
+    Endpoint,
     endpoint,
     endpointConditions,
     type Message,
@@ -123,9 +123,9 @@ async function deliver(
     row: Endpoint,
     keys: Pick<Deriver, "derivePrivateKey">,
 ): Promise<boolean> {
-    // read the succeeded calls of the endpoint's scope committed past its place, from its first read on
-    const reader = endpoint.reader("endpoint").at(row.id);
-    const after = await reader.after(reconciliation.database);
+    // read the succeeded calls of the endpoint's scope past where its delivery continues
+    const { database, now } = reconciliation;
+    const after = await Endpoint.after(database, row, now);
     const page = await reconciliation.store.events.changes(
         call.eventKind(),
         { scopes: [row.scope], where: { outcome: "success" } },
@@ -172,7 +172,7 @@ async function deliver(
 
     // move the endpoint's place past the page, and list the calls after it
     if (page.sequence > after) {
-        await reader.move(after, page.sequence, reconciliation.now, reconciliation.database);
+        await Endpoint.move(database, row, after, page.sequence, now);
     }
 
     return items.length === PAGE_CALLS;

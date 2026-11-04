@@ -12,6 +12,6 @@ export function serveMessages(options: MessageOptions): ImplementationInput<type
 
     return {
         objects: [implementMessage(options), implementEndpoint(options.keys), ...tasks.objects],
-        consumers: tasks.consumers,
+        cursors: tasks.cursors,
     };
 }

@@ -1,13 +1,16 @@
-import { AuditActionName } from "@destack/object";
-import { type Select } from "@destack/db";
+import { AuditActionName, call } from "@destack/object";
+import type { DatabaseConnection, LogCursor, Select } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { ConditionSet, defineObject, field } from "@destack/object";
-import { schema } from "@destack/schema";
+import { Duration, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { WEBHOOK_FORMATS, WebhookAuthentication } from "../webhook/message.ts";
 
 /** The most event types one endpoint subscribes to, a screen of event names. */
 const MAX_ENDPOINT_EVENTS = 100;
+
+/** How long the log keeps an endpoint's undelivered calls: a week, past its longest retry. */
+const ENDPOINT_HOLD: Duration = { days: 7 };
 
 /** A scope's webhook subscription to its audit history. */
 export const endpoint = defineObject(
@@ -38,8 +41,6 @@ export const endpoint = defineObject(
         constraints: {
             scope: { kind: "index", on: ["scope", "status"] },
         },
-        // read each endpoint's calls from its creation on, kept a week past its longest retry
-        readers: { endpoint: { by: "id", start: "latest", hold: { days: 7 } } },
     },
     (method) => ({
         create: method.create("manage", {
@@ -69,6 +70,37 @@ export const Endpoint = {
         const target = endpoint.target({ scope: source.scope, id: endpoint.identifier(source.id) });
 
         return store.query(store.as(endpoint), endpoint.call("get", target));
+    },
+
+    /** Read where an endpoint's delivery continues in its calls, the log's head at first. */
+    async after(database: DatabaseConnection, row: Endpoint, now: number): Promise<number> {
+        // read its cursor, placing it at the log's head on its first delivery
+        const cursor = Endpoint.cursor(row);
+        const placed = await database.log.checkpoint(cursor.name);
+        if (placed !== undefined) {
+            return placed;
+        }
+        const { sequence } = await database.log.position();
+        await database.log.advance(cursor, sequence, now + Duration.milliseconds(ENDPOINT_HOLD));
+
+        return sequence;
+    },
+
+    /** Move an endpoint's delivery past the calls it delivered. */
+    async move(
+        database: DatabaseConnection,
+        row: Endpoint,
+        from: number,
+        to: number,
+        now: number,
+    ): Promise<void> {
+        const hold = Duration.milliseconds(ENDPOINT_HOLD);
+        await database.log.move(Endpoint.cursor(row), from, to, now + hold);
+    },
+
+    /** Read an endpoint's cursor in the calls, named by the endpoint. */
+    cursor(row: Pick<Endpoint, "id">): LogCursor {
+        return { name: `${endpoint.name}/${row.id}`, tables: [call.table] };
     },
 };
 
