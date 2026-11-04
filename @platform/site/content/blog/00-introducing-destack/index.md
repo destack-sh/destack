@@ -9,7 +9,7 @@ author: "Florian"
 > Destack is an **open-source software engine** for general purpose application software, just like Unity and Unreal are engines for games.
 > Think GitHub + NPM + Convex + Vercel + Sentry with all the boring decisions already made: auth, migrations, multiplayer, permissions, workflows, telemetry, testing.
 > 
-> Destack bundles the tools and processes for software production:
+> Destack **standardises the tools and processes for software production**:
 > 1. **Build anything**, with your own AI, in a standardised pipeline.
 > 2. **Integrate everything**: one account, one database, no walls.
 > 3. **Control it all**: your data, your context, your machine.
