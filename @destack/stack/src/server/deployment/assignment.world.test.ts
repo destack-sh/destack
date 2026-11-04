@@ -1,6 +1,6 @@
 import { eq } from "@destack/db";
-import { assignment } from "@destack/account/object";
-import { Identifier } from "@destack/schema";
+import { assignment, placement } from "@destack/account/object";
+import { Identifier, nth } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { build } from "../../object/index.ts";
 import { ids, TestSpace } from "../../test/index.ts";
@@ -62,7 +62,11 @@ test("assign the machine of an unfinished checkout build in the space, and withd
         return rows.map((row) => [row.placementId, row.machineId]);
     };
     await projection.project(ids.space, reconciliation);
-    expect(await assignments()).toEqual([[ids.space, laptopId]]);
+    const placed = await database
+        .select({ id: placement.table.id })
+        .from(placement.table)
+        .where(eq(placement.table.spaceId, ids.space));
+    expect(await assignments()).toEqual([[nth(placed, 0).id, laptopId]]);
 
     // withdraw the laptop once its build is cancelled
     await database.transaction(

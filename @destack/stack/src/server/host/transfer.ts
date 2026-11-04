@@ -197,10 +197,10 @@ export function implementTransfer(options: TransferOptions) {
                     // retire its snapshots as the space
                     const retired = await context
                         .read(snapshot.table)
-                        .findMany({ where: { spaceId: located.id } });
+                        .findMany({ where: { spaceId: located.space } });
                     await context.mutate(
                         AccessContext.of(
-                            Caller.of(principal.space.reference(Scope.universe.id, located.id)),
+                            Caller.of(principal.space.reference(Scope.universe.id, located.space)),
                             context.now,
                         ),
                         retired.map(({ id }) => snapshot.call("delete", { id })),
@@ -270,7 +270,7 @@ async function mark(
     }
 
     // mark the move at the epoch this machine serves the space at
-    const move = { accountId: located.scope, id: located.id, epoch: located.epoch };
+    const move = { accountId: located.scope, id: located.space, epoch: located.epoch };
     const transferId = schema.identifier("transfer").parse(call.id);
     await options.publisher.receive({
         id: RequestId.create(call.environment),
@@ -348,7 +348,7 @@ export class SpaceTransfer {
 
     /** The space moving. */
     get spaceId(): Identifier<"space"> {
-        return this.placement.id;
+        return this.placement.space;
     }
 
     /** Plan a space's move with its main database's tables, by default those applied here. */
@@ -360,12 +360,12 @@ export class SpaceTransfer {
     ): Promise<SpaceTransfer> {
         const added =
             tables ??
-            SpaceTransfer.tables(space.database, await SpaceTransfer.states(space, placed.id));
+            SpaceTransfer.tables(space.database, await SpaceTransfer.states(space, placed.space));
 
         return new SpaceTransfer({
             placement: placed,
             target,
-            space: await SpaceReplica.of(space.database, placed.id, added),
+            space: await SpaceReplica.of(space.database, placed.space, added),
         });
     }
 
@@ -409,7 +409,7 @@ export class SpaceTransfer {
         }
 
         // plan its move with its main database's tables, refusing a plan waiting for approval
-        const main = await Database.mainMaybe(Snapshot.live(options.database), located.id);
+        const main = await Database.mainMaybe(Snapshot.live(options.database), located.space);
         const states =
             main === undefined || main.reference === null
                 ? []
@@ -466,7 +466,7 @@ export class SpaceTransfer {
         if (options.target === options.placement.machine) {
             throw StackError.of(
                 "SERVED_BY_TARGET",
-                `${options.placement.id} is already placed on ${options.target}`,
+                `${options.placement.space} is already placed on ${options.target}`,
             );
         }
 
@@ -483,15 +483,15 @@ export class SpaceTransfer {
     ): Promise<Fence> {
         // fence the space once, reading the database's position and the digest of the space's rows at it
         await Transaction.run(this.space.database, async (transaction) => {
-            const chain = await Scope.chain(transaction.view(), this.placement.id);
+            const chain = await Scope.chain(transaction.view(), this.placement.space);
             if (chain.every((link) => link.movedTo === undefined)) {
-                await Scope.fence(transaction, this.placement.id, this.target, now);
+                await Scope.fence(transaction, this.placement.space, this.target, now);
             }
         });
 
         // read the space's latest change, its rows' digest and its subtree
         const fenced = await this.space.database.transaction(async (database) => {
-            const scopes = await Scope.subtree(Snapshot.live(database), this.placement.id);
+            const scopes = await Scope.subtree(Snapshot.live(database), this.placement.space);
 
             return {
                 position: await database.log.changed(this.space.tables, scopes),
@@ -840,7 +840,7 @@ export class SpaceTransfer {
 
         // serve the replica and forget the restores the takeover recorded
         await Transaction.run(database, async (transaction) => {
-            await Scope.unfence(transaction, this.placement.id);
+            await Scope.unfence(transaction, this.placement.space);
             for (const row of await transaction
                 .read(restore.table)
                 .findMany({ where: this.#restoring() })) {
@@ -855,7 +855,7 @@ export class SpaceTransfer {
     static placing(placed: Placement): Call {
         return placement.call("place", {
             accountId: placed.scope,
-            id: placed.id,
+            id: placed.space,
             epoch: placed.epoch,
         });
     }
@@ -925,7 +925,7 @@ export class SpaceTransfer {
         await Transaction.run(store.database, async (transaction) => {
             // promote the replicated rows and write into them past the replicated fence
             await this.space.promote(transaction);
-            await Scope.unfence(transaction, this.placement.id);
+            await Scope.unfence(transaction, this.placement.space);
 
             // find the transfer the replica has
             const [record] = await transaction.read(transfer.table).findMany({
@@ -937,7 +937,7 @@ export class SpaceTransfer {
             if (record === undefined) {
                 throw StackError.of(
                     "ACTIVE_TRANSFER_MISSING",
-                    `the replica of ${this.placement.id} has no active transfer`,
+                    `the replica of ${this.placement.space} has no active transfer`,
                 );
             }
 
@@ -952,7 +952,7 @@ export class SpaceTransfer {
             );
 
             // fence the replica again until the universe places the space here
-            await Scope.fence(transaction, this.placement.id, this.target, now);
+            await Scope.fence(transaction, this.placement.space, this.target, now);
         });
     }
 
@@ -1040,7 +1040,7 @@ export class SpaceTransfer {
 
     /** Match the spaces a machine stores from a move to it whose placement is elsewhere now. */
     static abandoned(machine: Identifier<"machine">): SQL {
-        return sql`EXISTS (SELECT 1 FROM ${transfer.table} WHERE ${transfer.table.scope} = ${Scope.table.scope} AND ${transfer.table.targetId} = ${machine}) AND NOT EXISTS (SELECT 1 FROM ${placement.table} WHERE ${placement.table.id} = ${Scope.table.scope} AND (${placement.table.machineId} = ${machine} OR ${placement.table.targetId} = ${machine})) AND (EXISTS (SELECT 1 FROM ${replica} WHERE ${replica.scope} = ${Scope.table.scope}) OR ${Scope.table.movedTo} IS NULL OR ${Scope.table.movedTo} = ${machine})`;
+        return sql`EXISTS (SELECT 1 FROM ${transfer.table} WHERE ${transfer.table.scope} = ${Scope.table.scope} AND ${transfer.table.targetId} = ${machine}) AND NOT EXISTS (SELECT 1 FROM ${placement.table} WHERE ${placement.table.spaceId} = ${Scope.table.scope} AND (${placement.table.machineId} = ${machine} OR ${placement.table.targetId} = ${machine})) AND (EXISTS (SELECT 1 FROM ${replica} WHERE ${replica.scope} = ${Scope.table.scope}) OR ${Scope.table.movedTo} IS NULL OR ${Scope.table.movedTo} = ${machine})`;
     }
 
     /** Match the spaces a machine took over and fenced toward itself. */
@@ -1083,7 +1083,7 @@ export class SpaceTransfer {
             return undefined;
         }
         const served = {
-            id: spaceId,
+            space: spaceId,
             scope: schema.identifier("account").parse(latest.account),
             machine: latest.source,
             epoch: latest.epoch,
@@ -1104,7 +1104,7 @@ export class SpaceTransfer {
             .from(transfer.table)
             .where(
                 and(
-                    eq(transfer.table.scope, moving.id),
+                    eq(transfer.table.scope, moving.space),
                     eq(transfer.table.sourceId, machine),
                     or(isNull(transfer.table.outcome), eq(transfer.table.outcome, "succeeded")),
                     lt(transfer.table.sourceEpoch, moving.epoch),
@@ -1154,7 +1154,7 @@ export class SpaceTransfer {
                 await away.remove(options, store, store.clock.now());
             } else {
                 throw new TypeError(
-                    `the rows of ${moving.id} here belong to no transfer of this machine`,
+                    `the rows of ${moving.space} here belong to no transfer of this machine`,
                 );
             }
         }
@@ -1189,8 +1189,8 @@ export class SpaceTransfer {
             concurrency: TRANSFER_CONCURRENCY,
             follow: async (rows, following) => {
                 // receive the space, ending quietly once the placement leaves this machine
-                const { id, scope, machineId, epoch } = present(rows[0], "a moving placement");
-                const moving = { id, scope, machine: machineId, epoch };
+                const { spaceId, scope, machineId, epoch } = present(rows[0], "a moving placement");
+                const moving = { space: spaceId, scope, machine: machineId, epoch };
                 await SpaceTransfer.receive(moving, following.signal, options, store).catch(
                     (error: unknown) => {
                         if (!following.signal.aborted) {
@@ -1220,7 +1220,7 @@ export class SpaceTransfer {
             keys: async (change) => {
                 // take the space of a placement, a move or a space's scope
                 const image = Change.image(change);
-                const key = Change.of(change, placement.table) ? image["id"] : image["scope"];
+                const key = Change.of(change, placement.table) ? image["spaceId"] : image["scope"];
                 const spaceId = schema.identifier("space").safeParse(key);
 
                 return spaceId.success ? [spaceId.data] : [];
@@ -1241,7 +1241,7 @@ export class SpaceTransfer {
                     const [row] = await database
                         .select({ machine: placement.table.machineId })
                         .from(placement.table)
-                        .where(eq(placement.table.id, spaceId));
+                        .where(eq(placement.table.spaceId, spaceId));
                     const move =
                         row?.machine === machine
                             ? await SpaceTransfer.latest(store, spaceId, machine, "fenced")

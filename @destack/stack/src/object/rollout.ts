@@ -136,9 +136,11 @@ export const rollout = defineObject(
     {
         name: "rollout",
         plural: "rollouts",
-        identity: "installation",
         scope: space,
+        key: "installationId",
         fields: {
+            /** The installation rolling out, its rollout removed with it. */
+            installation: field.reference(() => installation, { delete: "cascade" }).immutable(),
             /** The revision to apply, absent before the first submission. */
             revision: field.reference(() => installationRevision).optional(),
             /** The principal submitting the targeted revision, absent before the first one. */
@@ -171,34 +173,28 @@ export const rollout = defineObject(
                 references: { object: () => space, on: ["id"] },
                 onDelete: "no action",
             },
-            installation: {
-                kind: "foreignKey",
-                on: ["scope", "id"],
-                references: { object: () => installation, on: ["scope", "id"] },
-                onDelete: "cascade",
-            },
             scopeId: { kind: "unique", on: ["scope", "id"] },
             revisionInstallation: {
                 kind: "foreignKey",
-                on: ["id", "revisionId"],
+                on: ["installationId", "revisionId"],
                 references: { object: () => installationRevision, on: ["installationId", "id"] },
                 onDelete: "no action",
             },
             appliedRevisionInstallation: {
                 kind: "foreignKey",
-                on: ["id", "appliedRevisionId"],
+                on: ["installationId", "appliedRevisionId"],
                 references: { object: () => installationRevision, on: ["installationId", "id"] },
                 onDelete: "no action",
             },
             servedRevisionInstallation: {
                 kind: "foreignKey",
-                on: ["id", "servedRevisionId"],
+                on: ["installationId", "servedRevisionId"],
                 references: { object: () => installationRevision, on: ["installationId", "id"] },
                 onDelete: "no action",
             },
             previousRevisionInstallation: {
                 kind: "foreignKey",
-                on: ["id", "previousRevisionId"],
+                on: ["installationId", "previousRevisionId"],
                 references: { object: () => installationRevision, on: ["installationId", "id"] },
                 onDelete: "no action",
             },
@@ -320,7 +316,7 @@ export const rollout = defineObject(
             await call.mutate(call.self, [
                 installation.call("update", {
                     ...installation.in(call.target.scope),
-                    id: call.target.id,
+                    id: call.target.installationId,
                     selection: { kind: "release", version: built.source.version },
                 }),
             ]);
@@ -400,7 +396,7 @@ export interface RolloutActor {
 }
 
 /** An installation's rollout joined with the installation, never a base one, so with its name. */
-export type InstallationRollout = Rollout & {
+export type InstallationRollout = Omit<Rollout, "id"> & {
     /** The installation the rollout rolls out, with its name in its space. */
     readonly installation: Installation & { readonly name: string };
 };
@@ -440,14 +436,14 @@ export const Rollout = {
     ): Promise<InstallationRollout[]> {
         const rows = await snapshot
             .read(rollout.table)
-            .findMany({ where: { id: { in: installed.map((entry) => entry.id) } } });
+            .findMany({ where: { installationId: { in: installed.map((entry) => entry.id) } } });
 
         return rows.map((row) =>
             Rollout.join(
                 row,
                 present(
-                    installed.find((entry) => entry.id === row.id),
-                    `the installation of rollout ${row.id}`,
+                    installed.find((entry) => entry.id === row.installationId),
+                    `the installation of rollout ${row.installationId}`,
                 ),
             ),
         );
@@ -474,11 +470,17 @@ export const Rollout = {
         // read the installations of the rollouts at once
         const installed = await snapshot
             .read(installation.table)
-            .findMany({ where: { id: { in: rows.map((row) => row.id) } } });
+            .findMany({ where: { id: { in: rows.map((row) => row.installationId) } } });
         const byId = new Map(installed.map((row) => [row.id, row]));
 
         return rows.map((row) =>
-            Rollout.join(row, present(byId.get(row.id), `the installation of rollout ${row.id}`)),
+            Rollout.join(
+                row,
+                present(
+                    byId.get(row.installationId),
+                    `the installation of rollout ${row.installationId}`,
+                ),
+            ),
         );
     },
 
@@ -511,7 +513,7 @@ export const Rollout = {
         const live = isNull(installation.table.deletedAt);
         const rows = await database
             .select({
-                id: rollout.table.id,
+                id: rollout.table.installationId,
                 scope: rollout.table.scope,
                 packageId: installation.table.packageId,
                 managerInstallationId: installation.table.managerInstallationId,
@@ -521,7 +523,7 @@ export const Rollout = {
             .innerJoin(
                 installation.table,
                 and(
-                    eq(installation.table.id, rollout.table.id),
+                    eq(installation.table.id, rollout.table.installationId),
                     eq(installation.table.scope, rollout.table.scope),
                 ),
             )
@@ -550,12 +552,12 @@ export const Rollout = {
         });
         const rows = await snapshot
             .read(rollout.table)
-            .findMany({ where: { id: { in: installed.map((row) => row.id) } } });
+            .findMany({ where: { installationId: { in: installed.map((row) => row.id) } } });
         const [found] = rows;
         const [only] = installed.length === 1 ? installed : [];
         const linked = options.linked.get(packageId);
         const selection =
-            installed.find((row) => row.id === found?.id)?.selection ?? only?.selection;
+            installed.find((row) => row.id === found?.installationId)?.selection ?? only?.selection;
         if (rows.length > 1) {
             throw StackError.of(
                 "INSTALLATION_AMBIGUOUS",
@@ -730,7 +732,7 @@ export const Rollout = {
             .read(rollout.table)
             .findMany({ where: { scope: spaceId } });
         const calls = rows.flatMap((row) => {
-            const served = revisions.get(row.id) ?? null;
+            const served = revisions.get(row.installationId) ?? null;
 
             return row.servedRevisionId === served
                 ? []
@@ -746,7 +748,7 @@ export const Rollout = {
     },
 
     /** Read who consents to a rollout's requests: its revision's submitter, else its installer. */
-    consenter(target: Rollout): Subject {
+    consenter(target: Omit<Rollout, "id">): Subject {
         return target.submittedById === null
             ? ObjectReference.at("createdBy", target)
             : ObjectReference.at("submittedBy", target);
@@ -782,7 +784,7 @@ export const Rollout = {
 
         // ask consent for its requests on other packages' types, its own types going by their policies
         const set = Rollout.permissions(target.installation, description, "space");
-        const installed = principal.installation.reference(target.scope, target.id);
+        const installed = principal.installation.reference(target.scope, target.installationId);
         const requested = set.space ?? [];
         const consented = requested.filter(
             (permission) => permission.packageId !== target.installation.packageId,
@@ -790,13 +792,13 @@ export const Rollout = {
 
         // bind the consented permissions in the role the consenter manages
         const manager = {
-            installationId: target.id,
+            installationId: target.installationId,
             packageId: target.installation.packageId,
             name: GRANT_NAME,
         };
         const binding = role.call("upsertBinding", {
             ...role.in(target.scope),
-            name: `installation/${target.id}`,
+            name: `installation/${target.installationId}`,
             description: `What ${target.installation.name} requests in this space`,
             permissions: consented,
             subject: installed,
@@ -821,7 +823,7 @@ export const Rollout = {
                   {
                       ...installation.permission("allow"),
                       scope: target.scope,
-                      objectId: target.id,
+                      objectId: target.installationId,
                       mode: "approval" as const,
                   },
               ]
@@ -859,7 +861,7 @@ export const Rollout = {
 
         // unrelate one asking for nothing there
         const at = residency.target({ scope: Scope.universe.id, id: homed.id });
-        const { id: installed } = target;
+        const { installationId: installed } = target;
         const { name, packageId, selection } = target.installation;
         if ((set.universe ?? []).length === 0) {
             return [residency.call("revoke", { ...at, installation: installed, name })];
@@ -992,7 +994,7 @@ export const Rollout = {
             .from(rollout.table)
             .innerJoin(installation.table, joinedInstallation())
             .innerJoin(space.table, eq(space.table.id, rollout.table.scope))
-            .where(and(eq(rollout.table.id, id), Space.served(), launchable()));
+            .where(and(eq(rollout.table.installationId, id), Space.served(), launchable()));
 
         return joined === undefined ? undefined : Rollout.join(joined.rollout, joined.installation);
     },
@@ -1173,7 +1175,7 @@ export const Rollout = {
         const calls: Call[] = [];
         for (const { row, selected, evaluation, digest, described } of changed) {
             // retain the revision of the build once, and target it
-            const revisionId = await InstallationRevision.id(row.id, digest, crypto);
+            const revisionId = await InstallationRevision.id(row.installationId, digest, crypto);
             calls.push(
                 await InstallationRevision.create(
                     row.installation,
@@ -1183,7 +1185,12 @@ export const Rollout = {
                     crypto,
                 ),
             );
-            calls.push(rollout.call("target", { ...rollout.target(row), revisionId }));
+            calls.push(
+                rollout.call("target", {
+                    ...rollout.target({ scope: row.scope, id: row.installationId }),
+                    revisionId,
+                }),
+            );
         }
         await reconciliation.mutate(calls);
     },
@@ -1321,7 +1328,7 @@ function launchable(): SQL {
 /** Join a rollout's installation, which shares its identifier and scope. */
 function joinedInstallation(): SQL {
     return and(
-        eq(installation.table.id, rollout.table.id),
+        eq(installation.table.id, rollout.table.installationId),
         eq(installation.table.scope, rollout.table.scope),
     );
 }

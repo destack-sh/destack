@@ -93,7 +93,7 @@ test("give birth to placed spaces from their replicated rows with main in their 
     const stacks = await home.database
         .select({ scope: rollout.table.scope, revisionId: rollout.table.revisionId })
         .from(rollout.table)
-        .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
+        .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
         .where(isNotNull(installation.table.export));
     expect({
         mains: mains.map((entry) => entry.placement),

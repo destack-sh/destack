@@ -125,7 +125,7 @@ export class CommitBuild {
         // submit the succeeded build, a stack's with its evaluation
         await reconciliation.mutate([
             rollout.call("submit", {
-                ...rollout.target(target),
+                ...rollout.target({ scope: target.scope, id: target.installationId }),
                 selection,
                 build: { kind: "build", build: built.id },
                 ...(target.installation.export !== null

@@ -191,7 +191,7 @@ export class Binder {
                     ).object;
                     const [row] = await call
                         .read(rollout.table)
-                        .findMany({ where: { id: call.target.installationId } });
+                        .findMany({ where: { installationId: call.target.installationId } });
                     const declaring = await Rollout.read(call, [
                         present(row, `the rollout of ${call.target.installationId}`),
                     ]);
@@ -363,7 +363,7 @@ export class Binder {
         const bindings = await Promise.all(
             rows.map(async (entry) => ({
                 binding: entry,
-                owned: await this.owned(context, entry, target.id),
+                owned: await this.owned(context, entry, target.installationId),
             })),
         );
         const bound = new Map(
@@ -496,7 +496,7 @@ export class Binder {
         }
         await context.mutate(context.self, [
             binding.call("create", {
-                installationId: target.id,
+                installationId: target.installationId,
                 packageId: need.package.id,
                 name,
                 ...selected,
@@ -641,7 +641,7 @@ export class Binder {
             where: {
                 ...Deployment.live(),
                 scope: target.scope,
-                installationId: target.id,
+                installationId: target.installationId,
             },
         });
         const captured = await context.read(capture.table).findMany({
@@ -685,7 +685,7 @@ export class Binder {
         );
         if (digest !== related) {
             // relate it to each used type's objects as their declarer, skipping types it never related
-            const consumer = principal.installation.reference(target.scope, target.id);
+            const consumer = principal.installation.reference(target.scope, target.installationId);
             const relating = consumed.filter(({ ids }) => related !== null || ids.length > 0);
             for (const { object, ids } of relating) {
                 const declarer = Binder.#declarer(context, target, object);
@@ -726,7 +726,7 @@ export class Binder {
 
         // find the kind's resource of the name in the space
         const name = `${target.installation.name}.${need.name}`;
-        const owner = principal.installation.reference(target.scope, target.id);
+        const owner = principal.installation.reference(target.scope, target.installationId);
         const [named] = await context.read(kind.object.table).findMany({
             where: {
                 scope: target.scope,
@@ -774,7 +774,7 @@ export class Binder {
         // bind the declaration to it
         await context.mutate(context.self, [
             binding.call("create", {
-                installationId: target.id,
+                installationId: target.installationId,
                 packageId: need.package.id,
                 name: need.name,
                 target: ownedId,
@@ -804,7 +804,7 @@ export class Binder {
         if (provisioned !== undefined) {
             await context.mutate(context.self, [
                 binding.call("create", {
-                    installationId: target.id,
+                    installationId: target.installationId,
                     packageId: need.package.id,
                     name: need.name,
                     target: provisioned,
@@ -819,7 +819,7 @@ export class Binder {
         target: InstallationRollout,
         object: ObjectType,
     ): AccessContext {
-        const owner = principal.installation.reference(target.scope, target.id);
+        const owner = principal.installation.reference(target.scope, target.installationId);
         const declarer =
             object.package.id === target.installation.packageId ? owner : Rollout.consenter(target);
 
@@ -833,7 +833,7 @@ export class Binder {
     ): Promise<Binding[]> {
         return snapshot
             .read(binding.table)
-            .findMany({ where: { scope: target.scope, installationId: target.id } });
+            .findMany({ where: { scope: target.scope, installationId: target.installationId } });
     }
 
     /** Update an owned resource and its binding to a declaration. */
@@ -923,7 +923,7 @@ export class Binder {
             const bound = await connection
                 .selectDistinct({ target: binding.table.target })
                 .from(binding.table)
-                .where(eq(binding.table.installationId, changed.id));
+                .where(eq(binding.table.installationId, changed.installationId));
 
             return [
                 ...main.map((entry) => entry.id),
@@ -945,11 +945,13 @@ export class Binder {
 
             return this.#targets(captured.map((entry) => entry.target));
         }
-        // select the resources of a space whose approval threshold or placement changed
-        else if (Change.of(change, space.table) || Change.of(change, placement.table)) {
-            return this.#resourcesIn(connection, [
-                Change.image<typeof space.table | typeof placement.table>(change).id,
-            ]);
+        // select the resources of a space whose approval threshold changed
+        else if (Change.of(change, space.table)) {
+            return this.#resourcesIn(connection, [Change.image(change).id]);
+        }
+        // select the resources of a space whose placement changed
+        else if (Change.of(change, placement.table)) {
+            return this.#resourcesIn(connection, [Change.image(change).spaceId]);
         }
         // select a changed resource
         else {
@@ -1094,8 +1096,11 @@ export class Binder {
             .selectDistinct({ deployment: deployment.table })
             .from(capture.table)
             .innerJoin(deployment.table, eq(deployment.table.id, capture.table.deploymentId))
-            .innerJoin(rollout.table, eq(rollout.table.id, deployment.table.installationId))
-            .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
+            .innerJoin(
+                rollout.table,
+                eq(rollout.table.installationId, deployment.table.installationId),
+            )
+            .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
             .where(
                 and(
                     eq(capture.table.scope, row.scope),
@@ -1185,7 +1190,7 @@ async function consumedStates(
               .innerJoin(
                   installation.table,
                   and(
-                      eq(installation.table.id, rollout.table.id),
+                      eq(installation.table.id, rollout.table.installationId),
                       eq(installation.table.scope, rollout.table.scope),
                   ),
               )
@@ -1198,7 +1203,10 @@ async function consumedStates(
                   revisionId: rollout.table.revisionId,
               })
               .from(binding.table)
-              .innerJoin(rollout.table, eq(rollout.table.id, binding.table.installationId))
+              .innerJoin(
+                  rollout.table,
+                  eq(rollout.table.installationId, binding.table.installationId),
+              )
               .where(and(eq(binding.table.scope, row.scope), eq(binding.table.target, row.id)));
 
     // read the revisions the available deployments capturing it run, and the ones their installations target
@@ -1212,8 +1220,8 @@ async function consumedStates(
         })
         .from(capture.table)
         .innerJoin(deployment.table, eq(deployment.table.id, capture.table.deploymentId))
-        .innerJoin(rollout.table, eq(rollout.table.id, deployment.table.installationId))
-        .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
+        .innerJoin(rollout.table, eq(rollout.table.installationId, deployment.table.installationId))
+        .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
         .where(
             and(
                 eq(capture.table.scope, row.scope),

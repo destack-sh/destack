@@ -31,7 +31,7 @@ test("delete a space at its home once its installations are gone, clearing its b
 
     // remove the installations, the space's replica here and its keys, and its placement and row at the universe, the account's home left
     const installations = await fixture.database
-        .select({ id: object.rollout.table.id })
+        .select({ id: object.rollout.table.installationId })
         .from(object.rollout.table);
     const keys = await fixture.database
         .select({ scope: identityKey.scope })

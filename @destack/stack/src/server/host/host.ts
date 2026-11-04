@@ -451,7 +451,9 @@ export class SpaceHost {
         // keep this start's servers of installations at the revision served before, by installation and revision
         const earlier: ReadonlyMap<string, ServedEntry> =
             this.#served?.signal === signal ? this.#served.entries : new Map();
-        const keys = installed.map(({ rollout: row, revisionId }) => `${row.id}@${revisionId}`);
+        const keys = installed.map(
+            ({ rollout: row, revisionId }) => `${row.installationId}@${revisionId}`,
+        );
 
         // load the server of each other installation the store runs from its build
         const loaded = await Promise.all(
@@ -468,7 +470,7 @@ export class SpaceHost {
                 try {
                     return { kind: "process", server: await start.server(manifest) } as const;
                 } catch (error) {
-                    const name = row.installation.name ?? row.id;
+                    const name = row.installation.name ?? row.installationId;
                     start.report(
                         new Error(
                             `installation ${name} serves nothing: its server failed to load`,
@@ -492,7 +494,10 @@ export class SpaceHost {
         const sandboxes: HookSandbox[] = [];
         for (const [index, entry] of installed.entries()) {
             const key = present(keys[index], "the installation's key");
-            const load = present(loaded[index], `the load of installation ${entry.rollout.id}`);
+            const load = present(
+                loaded[index],
+                `the load of installation ${entry.rollout.installationId}`,
+            );
             const served =
                 earlier.get(key)?.served ??
                 (await this.#serve(entry, load, { start, signal, trusted }));
@@ -580,12 +585,14 @@ export class SpaceHost {
         // wait for the applied revision and for the replica of the grant its space lends it
         const parties = {
             delegator: principal.space.reference(Scope.universe.id, target.scope),
-            delegate: principal.installation.reference(target.scope, target.id),
+            delegate: principal.installation.reference(target.scope, target.installationId),
         };
         await this.database.log.waitUntil(async () => {
             // read the rollout's applied revision and the grant it borrows by
             const snapshot = Snapshot.live(this.database);
-            const [row] = await snapshot.read(rollout.table).findMany({ where: { id: target.id } });
+            const [row] = await snapshot
+                .read(rollout.table)
+                .findMany({ where: { installationId: target.installationId } });
             const isApplied = row?.appliedRevisionId === revisionId;
             const isGranted =
                 !isLent ||
@@ -612,7 +619,7 @@ export class SpaceHost {
             // refuse a requirement another package declares
             if (!ResourceDeclaration.is(declaration)) {
                 throw new TypeError(
-                    `installation ${row.id} binds ${declaration.name}, which is no declaration of this process's resource kinds`,
+                    `installation ${row.installationId} binds ${declaration.name}, which is no declaration of this process's resource kinds`,
                 );
             }
             bound.bind(declaration, await this.#open(row, declaration, start, caller, trusted));
@@ -630,7 +637,7 @@ export class SpaceHost {
         trusted: readonly PackageImplementation[],
     ): Promise<unknown> {
         // read the target the installation binds the declaration to
-        const { scope, id } = row;
+        const { scope, installationId: id } = row;
         const { packageId } = row.installation;
         const [bound] = await Snapshot.live(this.database)
             .read(binding.table)
@@ -753,7 +760,7 @@ export class SpaceHost {
         const view = Snapshot.live(this.database);
         const bindings = await view
             .read(binding.table)
-            .findMany({ where: { scope: row.scope, installationId: row.id } });
+            .findMany({ where: { scope: row.scope, installationId: row.installationId } });
         const local = bindings.filter((each) => each.targetSpaceId === null);
         const provided = start.providers.filter(
             (each): each is SpaceProvider => !("connect" in each),
@@ -823,7 +830,7 @@ export class SpaceHost {
 
         return {
             scope: row.scope,
-            installationId: row.id,
+            installationId: row.installationId,
             resources: resources.flat(),
             installations,
             runs: { kind: "store" },
@@ -879,7 +886,7 @@ export class SpaceHost {
     ): Promise<InstalledServerContext> {
         // call the space's stack package in process as the installation
         const { machine } = this;
-        const { id, scope } = row;
+        const { installationId: id, scope } = row;
         const signer = principal.installation.reference(scope, id);
         const stack = createClient(
             stackPackage,
@@ -1156,7 +1163,7 @@ export class SpaceHost {
     #placementKeys(change: Change): readonly string[] {
         // take the space's placement
         if (Change.of(change, accountObject.placement.table)) {
-            return this.#touching(Change.image(change).id);
+            return this.#touching(Change.image(change).spaceId);
         }
         // take the space's replicated row
         else if (Change.of(change, accountObject.space.table)) {
@@ -1186,7 +1193,7 @@ export class SpaceHost {
         // read the space while placed here with its stack and the stack its installation last followed
         const rows = await this.database
             .select({
-                id: accountObject.placement.table.id,
+                id: accountObject.placement.table.spaceId,
                 born: Scope.table.scope,
                 main: database.table.id,
                 stack: accountObject.space.table.stack,
@@ -1195,27 +1202,27 @@ export class SpaceHost {
             .from(accountObject.placement.table)
             .innerJoin(
                 accountObject.space.table,
-                eq(accountObject.space.table.id, accountObject.placement.table.id),
+                eq(accountObject.space.table.id, accountObject.placement.table.spaceId),
             )
             .leftJoin(Scope.table, eq(Scope.table.scope, accountObject.space.table.id))
             .leftJoin(
                 database.table,
                 and(
-                    eq(database.table.scope, accountObject.placement.table.id),
+                    eq(database.table.scope, accountObject.placement.table.spaceId),
                     eq(database.table.name, MAIN_DATABASE),
                 ),
             )
             .leftJoin(
                 installation.table,
                 and(
-                    eq(installation.table.scope, accountObject.placement.table.id),
+                    eq(installation.table.scope, accountObject.placement.table.spaceId),
                     isNotNull(installation.table.export),
                 ),
             )
-            .leftJoin(rollout.table, eq(rollout.table.id, installation.table.id))
+            .leftJoin(rollout.table, eq(rollout.table.installationId, installation.table.id))
             .where(
                 and(
-                    eq(accountObject.placement.table.id, this.id),
+                    eq(accountObject.placement.table.spaceId, this.id),
                     eq(accountObject.placement.table.machineId, this.machine.id),
                     isNull(accountObject.space.table.deletedAt),
                 ),
@@ -1245,12 +1252,12 @@ export class SpaceHost {
             .from(accountObject.placement.table)
             .innerJoin(
                 accountObject.space.table,
-                eq(accountObject.space.table.id, accountObject.placement.table.id),
+                eq(accountObject.space.table.id, accountObject.placement.table.spaceId),
             )
             .leftJoin(Scope.table, eq(Scope.table.scope, accountObject.space.table.id))
             .where(
                 and(
-                    eq(accountObject.placement.table.id, spaceId),
+                    eq(accountObject.placement.table.spaceId, spaceId),
                     eq(accountObject.placement.table.machineId, this.machine.id),
                     isNull(accountObject.space.table.deletedAt),
                 ),
@@ -1296,7 +1303,7 @@ export class SpaceHost {
                     isNotNull(installation.table.export),
                 ),
             )
-            .leftJoin(rollout.table, eq(rollout.table.id, installation.table.id))
+            .leftJoin(rollout.table, eq(rollout.table.installationId, installation.table.id))
             .where(eq(accountObject.space.table.id, spaceId));
         const row = present(received, `the row of ${spaceId}`);
         const digest = await Digest.json(row.stack, this.database.state.environment.crypto);
@@ -1416,14 +1423,18 @@ export class SpaceHost {
     }
 
     /** List the space a change of its work, its placement or its assignments touches. */
-    #assignmentKeys(change: Change): readonly string[] {
+    async #assignmentKeys(change: Change): Promise<readonly string[]> {
         // take a placement's space
         if (Change.of(change, accountObject.placement.table)) {
-            return [Change.image(change).id];
+            return [Change.image(change).spaceId];
         }
-        // take an assignment's space
+        // take the space of an assignment's placement
         else if (Change.of(change, accountObject.assignment.table)) {
-            return [Change.image(change).placementId];
+            const placed = await Snapshot.live(this.database)
+                .read(accountObject.placement.table)
+                .findFirst({ where: { id: Change.image(change).placementId } });
+
+            return placed === undefined ? [] : [placed.spaceId];
         }
         // take the space of its work otherwise
         else {
@@ -1450,7 +1461,7 @@ export class SpaceHost {
             .from(accountObject.placement.table)
             .where(
                 and(
-                    eq(accountObject.placement.table.id, spaceId),
+                    eq(accountObject.placement.table.spaceId, spaceId),
                     eq(accountObject.placement.table.machineId, this.machine.id),
                 ),
             );
@@ -1485,12 +1496,19 @@ export class SpaceHost {
 
     /** List the machines a space gave work, from the replicated assignments. */
     async #assigned(spaceId: Identifier<"space">): Promise<Identifier<"machine">[]> {
-        const rows = await this.database
-            .select({ machine: accountObject.assignment.table.machineId })
-            .from(accountObject.assignment.table)
-            .where(eq(accountObject.assignment.table.placementId, spaceId));
+        // read the space's placement, then the machines its assignments give work
+        const reader = Snapshot.live(this.database);
+        const placed = await reader
+            .read(accountObject.placement.table)
+            .findFirst({ where: { spaceId } });
+        const rows =
+            placed === undefined
+                ? []
+                : await reader
+                      .read(accountObject.assignment.table)
+                      .findMany({ where: { placementId: placed.id } });
 
-        return rows.map((row) => row.machine);
+        return rows.map((row) => row.machineId);
     }
 
     /** List the machines a space's active builds and live deployments are addressed to. */

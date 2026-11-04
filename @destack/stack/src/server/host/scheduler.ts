@@ -12,7 +12,7 @@ export const Scheduler = {
     /** The changes that schedule a space again: its transfers, its placement and its row. */
     watches: [
         ObjectWatch.of(transfer.table, (row) => [{ id: row.scope }]),
-        ObjectWatch.of(placement.table, (row) => [{ id: row.id }]),
+        ObjectWatch.of(placement.table, (row) => [{ id: row.spaceId }]),
         Space.watch(async (spaceId) => [{ id: spaceId }]),
     ],
 
@@ -26,7 +26,7 @@ export const Scheduler = {
         const moving = await view
             .read(transfer.table)
             .findFirst({ where: { scope: row.id, completedAt: { isNull: true } } });
-        const placed = await view.read(placement.table).findFirst({ where: { id: row.id } });
+        const placed = await view.read(placement.table).findFirst({ where: { spaceId: row.id } });
         const asked = placed?.schedule;
 
         // keep a person's move, and this scheduler's move while the decision still asks for it

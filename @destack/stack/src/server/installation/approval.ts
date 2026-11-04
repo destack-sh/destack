@@ -71,17 +71,24 @@ export class Approval {
         const queue: InstallationRollout[] = [target];
         for (const entry of queue) {
             // refuse a manager cycle, which the managed installations' tree forbids
-            if (walked.has(entry.id)) {
-                throw new TypeError(`installation ${entry.id} manages itself through a cycle`);
+            if (walked.has(entry.installationId)) {
+                throw new TypeError(
+                    `installation ${entry.installationId} manages itself through a cycle`,
+                );
             }
-            walked.add(entry.id);
+            walked.add(entry.installationId);
 
             // take its own waiting plan
             const installed = entry.installation;
             const isAwaiting = installed.conditions["Ready"]?.reason === "AwaitingApproval";
             if (installed.plan !== null && isAwaiting) {
                 const { plan } = installed;
-                waiting.push({ kind: "installation", object: installation, id: entry.id, plan });
+                waiting.push({
+                    kind: "installation",
+                    object: installation,
+                    id: entry.installationId,
+                    plan,
+                });
             }
 
             // take the waiting plans of its managed, owned or bound resources
@@ -97,7 +104,7 @@ export class Approval {
 
             // queue the installations it manages
             const managed = await view.read(installation.table).findMany({
-                where: { scope: entry.scope, managerInstallationId: entry.id },
+                where: { scope: entry.scope, managerInstallationId: entry.installationId },
             });
             queue.push(...(await Rollout.installed(view, managed)));
         }
@@ -218,13 +225,13 @@ export class Approval {
 async function readResources(
     view: Pick<Snapshot, "read">,
     resources: readonly ResourceType<typeof space>[],
-    target: Rollout,
+    target: Omit<Rollout, "id">,
 ): Promise<{ readonly object: ResourceType<typeof space>; readonly row: Resource }[]> {
     // read the targets of its bindings
     const bound = await view.read(binding.table).findMany({
         where: {
             scope: target.scope,
-            installationId: target.id,
+            installationId: target.installationId,
         },
     });
     const revision =
@@ -246,7 +253,7 @@ async function readResources(
     const found: { readonly object: ResourceType<typeof space>; readonly row: Resource }[] = [];
     const owner = ObjectReference.columns(
         "owner",
-        principal.installation.reference(target.scope, target.id),
+        principal.installation.reference(target.scope, target.installationId),
     );
     for (const object of resources) {
         const targeted = targets.filter((id) => object.identifies(id));
@@ -254,7 +261,7 @@ async function readResources(
             where: {
                 scope: target.scope,
                 OR: [
-                    { managerInstallationId: target.id },
+                    { managerInstallationId: target.installationId },
                     owner,
                     ...(targeted.length === 0
                         ? []

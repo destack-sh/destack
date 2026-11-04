@@ -89,7 +89,7 @@ export class StackInstallation {
             const managed = await database
                 .select({ id: installation.table.id })
                 .from(installation.table)
-                .where(eq(installation.table.managerInstallationId, stack.id));
+                .where(eq(installation.table.managerInstallationId, stack.installationId));
             if (managed.length === 0) {
                 await reconciliation.mutate([
                     installation.call("finalize", installation.target(stack.installation)),
@@ -104,8 +104,11 @@ export class StackInstallation {
         }
 
         // require an evaluated revision of this stack
-        if (revision.installationId !== stack.id || !revision.definition) {
-            throw StackError.of("DEFINITION_INVALID", `not a revision of stack ${stack.id}`);
+        if (revision.installationId !== stack.installationId || !revision.definition) {
+            throw StackError.of(
+                "DEFINITION_INVALID",
+                `not a revision of stack ${stack.installationId}`,
+            );
         }
 
         // plan the declarations once and apply the plan unchanged unless it waits for an approval, again while it loses a race
@@ -168,7 +171,7 @@ export class StackInstallation {
             );
             await reconciliation.mutate([
                 rollout.call("update", {
-                    ...rollout.target(stack),
+                    ...rollout.target({ scope: stack.scope, id: stack.installationId }),
                     ...Rollout.applied(stack, revision.id),
                 }),
             ]);
@@ -190,7 +193,7 @@ export class StackInstallation {
         const managed = await snapshot.read(installation.table).findMany({
             where: {
                 scope: stack.scope,
-                managerInstallationId: stack.id,
+                managerInstallationId: stack.installationId,
                 detachedAt: { isNull: true },
                 deletedAt: { isNull: true },
             },
@@ -212,7 +215,7 @@ async function readServedStack(spaceId: Identifier<"space">, database: DatabaseC
         .innerJoin(
             installation.table,
             and(
-                eq(installation.table.id, rollout.table.id),
+                eq(installation.table.id, rollout.table.installationId),
                 eq(installation.table.scope, rollout.table.scope),
             ),
         )
@@ -251,7 +254,7 @@ async function appliedDefinition(
     if (definition === undefined || definition === null) {
         throw StackError.of(
             "DEFINITION_INVALID",
-            `stack ${stack.id} has no applied evaluated revision`,
+            `stack ${stack.installationId} has no applied evaluated revision`,
         );
     }
 
@@ -294,7 +297,7 @@ function stackApplication(
         installing: (snapshot) => installedTypes(snapshot, stack, document, objects, options),
         database,
         objects,
-        manager: { installationId: stack.id, packageId: stack.installation.packageId },
+        manager: { installationId: stack.installationId, packageId: stack.installation.packageId },
         as: options.store.principal,
         scope: stack.scope,
         document,
@@ -315,13 +318,13 @@ async function installedTypes(
 ): Promise<{ readonly types: readonly ObjectType[]; readonly isPending: boolean }> {
     // read the installations the stack manages that follow a revision or a pinned release
     const installed = await snapshot.read(installation.table).findMany({
-        where: { scope: stack.scope, managerInstallationId: stack.id },
+        where: { scope: stack.scope, managerInstallationId: stack.installationId },
     });
     const managed = await Rollout.read(
         snapshot,
         await snapshot
             .read(rollout.table)
-            .findMany({ where: { id: { in: installed.map((entry) => entry.id) } } }),
+            .findMany({ where: { installationId: { in: installed.map((entry) => entry.id) } } }),
     );
     const following = managed.filter(
         (entry) => entry.revisionId !== null || Rollout.pinned(entry.installation) !== undefined,
@@ -332,8 +335,14 @@ async function installedTypes(
         following.map(async (entry) => {
             const { packageId } = entry.installation;
             const reader = present(
-                await Rollout.reader(snapshot, stack.scope, packageId, entry.id, options),
-                `the release ${entry.id} follows`,
+                await Rollout.reader(
+                    snapshot,
+                    stack.scope,
+                    packageId,
+                    entry.installationId,
+                    options,
+                ),
+                `the release ${entry.installationId} follows`,
             );
 
             return await ObjectDescription.read(reader);

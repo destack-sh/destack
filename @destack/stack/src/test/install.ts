@@ -100,7 +100,14 @@ export async function insertRollout(
         await transaction
             .insert(installation.table)
             .values({ ...record, packageId, name, selection, capabilities: [...capabilities] });
-        const [inserted] = await transaction.insert(rollout.table).values(record).returning();
+        const [inserted] = await transaction
+            .insert(rollout.table)
+            .values({
+                ...record,
+                id: Identifier.derive("rollout", Identifier.uuid(id)),
+                installationId: id,
+            })
+            .returning();
 
         return present(inserted, `the rollout ${id}`);
     });
@@ -129,7 +136,7 @@ export async function readStack(database: DatabaseConnection): Promise<Installat
     const rows = await database
         .select()
         .from(rollout.table)
-        .where(eq(rollout.table.id, present(stacked, "the space's stack").id));
+        .where(eq(rollout.table.installationId, present(stacked, "the space's stack").id));
     const [stack] = await Rollout.read(Snapshot.live(database), rows);
 
     return present(stack, "the space's stack");
@@ -244,7 +251,7 @@ async function installNotes(
             await transaction
                 .update(rollout.table)
                 .set({ revisionId, appliedRevisionId: revisionId })
-                .where(eq(rollout.table.id, ids.notes)),
+                .where(eq(rollout.table.installationId, ids.notes)),
     );
 
     return revisionId;

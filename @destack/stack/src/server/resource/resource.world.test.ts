@@ -249,7 +249,7 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
             await transaction
                 .update(object.rollout.table)
                 .set({ revisionId })
-                .where(eq(object.rollout.table.id, named.installation));
+                .where(eq(object.rollout.table.installationId, named.installation));
         });
 
         return digest;

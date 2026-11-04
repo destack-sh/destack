@@ -7,7 +7,7 @@ import { ObjectClient } from "@destack/object/client";
 import { graph, PackageId } from "@destack/package";
 import { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import { Digest, found, schema } from "@destack/schema";
+import { Digest, found, present, schema } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { BunGraphStorage } from "../src/bun/index.ts";
@@ -63,7 +63,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
         const row = await store.query(owner, declaration.call("get", { buildId, id }));
 
         return [
-            row.id,
+            row.moniker,
             row.moduleId,
             row.kind,
             row.name,
@@ -75,7 +75,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
         const row = await store.query(owner, symbol.call("get", { buildId, id }));
 
         return [
-            row.id,
+            row.moniker,
             row.moduleId,
             row.kind,
             row.name,
@@ -84,6 +84,13 @@ test("serve a build's modules, declarations and code symbols from its index to t
         ];
     };
     const modules = await store.query(owner, module.call("list", { buildId }));
+    const listed = modules.items.toSorted((left, right) =>
+        left.moniker.localeCompare(right.moniker),
+    );
+    const { id: moduleId } = present(
+        listed.find((row) => row.moniker === at),
+        "the object module",
+    );
 
     // read the rebuild's notebook variable, in its own scope and finish, from the one index
     const rebuilt = await store.query(
@@ -97,7 +104,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
 
     // list every module with its dependencies and the notebook's object declaration at its variable
     expect([
-        modules.items.map((row) => [row.id, row.path, relations(row.relationships)]),
+        listed.map((row) => [row.moniker, row.path, relations(row.relationships)]),
         await declared(`${at}#notebook:object:notebook`),
         await coded(`${at}#notebook`),
         [rebuilt.scope, rebuilt.createdAt],
@@ -108,10 +115,10 @@ test("serve a build's modules, declarations and code symbols from its index to t
             [at, "src/object.ts", [`depends ${packages.object}`]],
             [moniker("src/service.ts"), "src/service.ts", ["depends src/object.ts"]],
         ],
-        [`${at}#notebook:object:notebook`, at, "object", "notebook", `${at}#notebook`, []],
+        [`${at}#notebook:object:notebook`, moduleId, "object", "notebook", `${at}#notebook`, []],
         [
             `${at}#notebook`,
-            at,
+            moduleId,
             "variable",
             "notebook",
             NOTEBOOK_SIGNATURE,
@@ -150,7 +157,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
     });
     const service = `${moniker("src/service.ts")}#notebooksService`;
     const procedures = client.query.declaration
-        .findMany({ where: { kind: "procedure" }, orderBy: { id: "asc" } })
+        .findMany({ where: { kind: "procedure" }, orderBy: { moniker: "asc" } })
         .subscribe();
     await procedures.ready;
     expect([(await procedures.read()).map((row) => [row.enclosing, row.name]), failures]).toEqual([

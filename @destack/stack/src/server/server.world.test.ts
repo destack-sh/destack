@@ -45,8 +45,8 @@ test("serve a person calling the space with the token their client exchanges for
 
     // list the space's stack to its owner, and conceal the space from the stranger
     const stack = await readStack(fixture.database);
-    expect([owned.items.map((item) => item.id), refused]).toEqual([
-        [stack.id],
+    expect([owned.items.map((item) => item.installationId), refused]).toEqual([
+        [stack.installationId],
         ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${fixture.id} not found`],
     ]);
 });

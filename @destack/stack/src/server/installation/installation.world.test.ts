@@ -53,9 +53,9 @@ test("install an application into a space as its owner, refuse one without a nam
         .from(installation.table)
         .where(eq(installation.table.id, created.id));
     const [rolled] = await fixture.database
-        .select({ id: rollout.table.id })
+        .select({ id: rollout.table.installationId })
         .from(rollout.table)
-        .where(eq(rollout.table.id, created.id));
+        .where(eq(rollout.table.installationId, created.id));
     expect([
         installed?.managerInstallationId,
         installed?.name,
@@ -134,7 +134,7 @@ test("find and list only the enabled installations not being deleted, as a machi
             await transaction
                 .update(rollout.table)
                 .set({ revisionId })
-                .where(eq(rollout.table.id, id));
+                .where(eq(rollout.table.installationId, id));
             const changed = {
                 ...(status === undefined ? {} : { status }),
                 ...(deletedAt === undefined ? {} : { deletedAt }),
@@ -204,7 +204,7 @@ test("roll an installation back to the revision applied before, a reused one too
         const [row] = await fixture.database
             .select()
             .from(rollout.table)
-            .where(eq(rollout.table.id, installed.id));
+            .where(eq(rollout.table.installationId, installed.id));
 
         return present(row, "the rollout");
     };
@@ -215,7 +215,7 @@ test("roll an installation back to the revision applied before, a reused one too
                 await transaction
                     .update(rollout.table)
                     .set({ revisionId, ...fields })
-                    .where(eq(rollout.table.id, installed.id)),
+                    .where(eq(rollout.table.installationId, installed.id)),
         );
     };
     const rollBack = () =>
@@ -320,13 +320,16 @@ test("relate a residency home's declared installation at the universe once a pas
     const { network } = home.simulation;
     network.partition(home.machine.id, UNIVERSE_NODE);
     const installed = await home.install(served, build);
+    const snapshot = Snapshot.live(home.universe.storage.database);
+    const eu = present(
+        await snapshot.read(residency.table).findFirst({ where: { code: "eu" } }),
+        "the eu residency",
+    );
     const related = async () =>
         (
-            await Relationship.readOn(
-                Snapshot.live(home.universe.storage.database),
-                residency.reference(Scope.universe.id, "eu"),
-                { relation: "installation" },
-            )
+            await Relationship.readOn(snapshot, residency.reference(Scope.universe.id, eu.id), {
+                relation: "installation",
+            })
         ).map((row) => row.subjectId);
     const partitioned = await related();
 

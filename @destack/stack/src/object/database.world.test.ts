@@ -67,7 +67,7 @@ test("serve an installation once its targets are bound and the space's main data
             await transaction
                 .update(rollout.table)
                 .set({ revisionId: revision })
-                .where(eq(rollout.table.id, ids.notes)),
+                .where(eq(rollout.table.installationId, ids.notes)),
     );
     const notes = await MemoryBuild.of(
         Package.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
@@ -91,7 +91,10 @@ test("serve an installation once its targets are bound and the space's main data
         ) => Promise<Pick<BuildReader, "declarations">> = open,
     ) =>
         (await Database.installed(Snapshot.live(connection), ids.space, opening))
-            .map((entry) => [entry.rollout.id, entry.declarations.map((each) => each.name)])
+            .map((entry) => [
+                entry.rollout.installationId,
+                entry.declarations.map((each) => each.name),
+            ])
             .toSorted(([left], [right]) => String(left).localeCompare(String(right)));
 
     // open the stack's build with a vault it declares for its document, which nothing binds to it
@@ -185,7 +188,7 @@ test("serve an installation once its targets are bound and the space's main data
     const unborn = await served();
 
     // serve the space's stack throughout, its document's vault unbound, and notes once bound and applied
-    const stacked = [stack.id, [STACKS.space.export]];
+    const stacked = [stack.installationId, [STACKS.space.export]];
     expect({ unbound, unapplied, applied, waiting, withVault, unborn }).toEqual({
         unbound: [stacked],
         unapplied: [stacked],
@@ -193,7 +196,7 @@ test("serve an installation once its targets are bound and the space's main data
         waiting: [[ids.notes, ["note"]], stacked],
         withVault: [
             [ids.notes, ["note"]],
-            [stack.id, [STACKS.space.export, "credentials"]],
+            [stack.installationId, [STACKS.space.export, "credentials"]],
         ],
         unborn: [],
     });

@@ -41,7 +41,7 @@ export const Declaration = {
         // join the applied rollouts of enabled installations with them
         const byId = new Map(enabled.map((each) => [each.id, each]));
         const rollouts = applied.flatMap((row) => {
-            const installed = byId.get(row.id);
+            const installed = byId.get(row.installationId);
 
             return installed === undefined ? [] : [Rollout.join(row, installed)];
         });

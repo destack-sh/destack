@@ -87,7 +87,10 @@ export function implementInstallations(options: InstallationOptions) {
                 );
                 const created = await next(call.identify(id));
                 await call.mutate(call.caller, [
-                    rollout.call("create", { ...rollout.in(call.scope), id: created.id }),
+                    rollout.call("create", {
+                        ...rollout.in(call.scope),
+                        installationId: created.id,
+                    }),
                 ]);
 
                 return created;
@@ -183,7 +186,7 @@ async function requireUnneeded(
     );
     const others = rows.filter(
         (row) =>
-            row.id !== target.id &&
+            row.installationId !== target.installationId &&
             row.installation.deletedAt === null &&
             row.revisionId !== null &&
             (row.installation.managerInstallationId === null ||
@@ -328,7 +331,7 @@ async function submit(
     }
 
     // refuse a build whose space settings without a default the space leaves unset, before any apply
-    const placement = { scope: target.scope, installation: target.id };
+    const placement = { scope: target.scope, installation: target.installationId };
     for (const declared of await Setting.list(reader)) {
         const { definition } = declared;
         if (definition.scope === "space" && "required" in definition) {
@@ -365,7 +368,7 @@ async function submit(
         await context.mutate(context.self, [
             installation.call("update", {
                 ...installation.in(target.scope),
-                id: target.id,
+                id: target.installationId,
                 ...selected,
             }),
         ]);
@@ -435,8 +438,8 @@ async function resolveBuild(
 }
 
 /** Key a rollout by its installation. */
-function rolloutKey(row: { readonly id: Identifier<"installation"> }) {
-    return { id: row.id };
+function rolloutKey(row: { readonly installationId: Identifier<"installation"> }) {
+    return { installationId: row.installationId };
 }
 
 /** Key an installation following a source and its manager, which targets a managed one's build. */
@@ -445,8 +448,10 @@ function followerKeys(row: {
     readonly managerInstallationId: Identifier<"installation"> | null;
 }) {
     return [
-        { id: row.id },
-        ...(row.managerInstallationId === null ? [] : [{ id: row.managerInstallationId }]),
+        { installationId: row.id },
+        ...(row.managerInstallationId === null
+            ? []
+            : [{ installationId: row.managerInstallationId }]),
     ];
 }
 
@@ -526,7 +531,9 @@ function checkoutWatch() {
         );
 
         return selecting.flatMap((entry) =>
-            entry.managerInstallationId === null ? [] : [{ id: entry.managerInstallationId }],
+            entry.managerInstallationId === null
+                ? []
+                : [{ installationId: entry.managerInstallationId }],
         );
     });
 }
@@ -544,9 +551,12 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
 
                 // find the space's stack, which reads its resources however it last stood
                 const [stack] = await database
-                    .select({ id: rollout.table.id })
+                    .select({ id: rollout.table.installationId })
                     .from(rollout.table)
-                    .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
+                    .innerJoin(
+                        installation.table,
+                        eq(installation.table.id, rollout.table.installationId),
+                    )
                     .where(
                         and(
                             eq(rollout.table.scope, row.scope),
@@ -563,8 +573,8 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                     );
 
                 return [
-                    ...(stack === undefined ? [] : [{ id: stack.id }]),
-                    ...bound.map((entry) => ({ id: entry.id })),
+                    ...(stack === undefined ? [] : [{ installationId: stack.id }]),
+                    ...bound.map((entry) => ({ installationId: entry.id })),
                 ];
             }),
         ),
@@ -574,10 +584,10 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
             change.before["generation"] === change.after["generation"]
                 ? []
                 : [
-                      { id: row.id },
+                      { installationId: row.id },
                       ...(row.managerInstallationId === null
                           ? []
-                          : [{ id: row.managerInstallationId }]),
+                          : [{ installationId: row.managerInstallationId }]),
                   ],
         ),
         // wake every other rollout of the space once it serves another revision, as what they wait for may be served now
@@ -590,23 +600,28 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
 
             // find the space's other rollouts
             const rollouts = await database
-                .select({ id: rollout.table.id })
+                .select({ id: rollout.table.installationId })
                 .from(rollout.table)
-                .where(and(eq(rollout.table.scope, row.scope), ne(rollout.table.id, row.id)));
+                .where(
+                    and(
+                        eq(rollout.table.scope, row.scope),
+                        ne(rollout.table.installationId, row.installationId),
+                    ),
+                );
 
-            return rollouts.map((entry) => ({ id: entry.id }));
+            return rollouts.map((entry) => ({ installationId: entry.id }));
         }),
         // wake a space's rollouts once its row arrives or changes, as the space serves its applications only then
         ObjectWatch.of(space.table, async (row, database) => {
             const rollouts = await database
-                .select({ id: rollout.table.id })
+                .select({ id: rollout.table.installationId })
                 .from(rollout.table)
                 .where(eq(rollout.table.scope, row.id));
 
-            return rollouts.map((entry) => ({ id: entry.id }));
+            return rollouts.map((entry) => ({ installationId: entry.id }));
         }),
-        ObjectWatch.of(deployment.table, (row) => [{ id: row.installationId }]),
-        ObjectWatch.of(binding.table, (row) => [{ id: row.installationId }]),
+        ObjectWatch.of(deployment.table, (row) => [{ installationId: row.installationId }]),
+        ObjectWatch.of(binding.table, (row) => [{ installationId: row.installationId }]),
         // wake the applications of the account's spaces refused for an unentitled capability
         ObjectWatch.of(entitlement.table, async (row, database) => {
             const spaces = await Space.within(database, row.scope);
@@ -622,7 +637,7 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
 
             return refused
                 .filter((each) => each.conditions["Ready"]?.reason === "UnentitledCapability")
-                .map((each) => ({ id: each.id }));
+                .map((each) => ({ installationId: each.id }));
         }),
         // wake the space's applications waiting for a dependency once its package is installed or served
         ObjectWatch.of(installation.table, async (row, database) => {
@@ -635,12 +650,15 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
             // read the space's rollouts with their conditions and dependencies
             const refused = await database
                 .select({
-                    id: rollout.table.id,
+                    id: rollout.table.installationId,
                     conditions: installation.table.conditions,
                     dependencies: installationRevision.table.dependencies,
                 })
                 .from(rollout.table)
-                .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
+                .innerJoin(
+                    installation.table,
+                    eq(installation.table.id, rollout.table.installationId),
+                )
                 .innerJoin(
                     installationRevision.table,
                     eq(installationRevision.table.id, rollout.table.revisionId),
@@ -655,7 +673,7 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                         ) &&
                         each.dependencies.some((release) => release.package.id === row.packageId),
                 )
-                .map((each) => ({ id: each.id }));
+                .map((each) => ({ installationId: each.id }));
         }),
         // wake the space's applications waiting for a setting of its package once a value is placed
         ObjectWatch.of(setting.table, async (row, database) => {
@@ -668,12 +686,15 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
             // read the space's rollouts with their packages and conditions
             const waiting = await database
                 .select({
-                    id: rollout.table.id,
+                    id: rollout.table.installationId,
                     packageId: installation.table.packageId,
                     conditions: installation.table.conditions,
                 })
                 .from(rollout.table)
-                .innerJoin(installation.table, eq(installation.table.id, rollout.table.id))
+                .innerJoin(
+                    installation.table,
+                    eq(installation.table.id, rollout.table.installationId),
+                )
                 .where(eq(rollout.table.scope, scope.data));
 
             return waiting
@@ -682,12 +703,12 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                         each.packageId === row.packageId &&
                         each.conditions["Ready"]?.reason === "WaitingForSettings",
                 )
-                .map((each) => ({ id: each.id }));
+                .map((each) => ({ installationId: each.id }));
         }),
         // wake the space's stack and applications once its placement changes
         Space.watch(async (spaceId, database) => {
             const rows = await database
-                .select({ id: rollout.table.id })
+                .select({ installationId: rollout.table.installationId })
                 .from(rollout.table)
                 .where(eq(rollout.table.scope, spaceId));
 
@@ -744,7 +765,7 @@ async function open(
     const declared = await PackageDescription.of(reader);
 
     return {
-        installationId: target.id,
+        installationId: target.installationId,
         revisionId: revision.id,
         manifest: built.manifest,
         view,

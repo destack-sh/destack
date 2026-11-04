@@ -63,9 +63,9 @@ test("deploy an installation capturing each binding at its target's generation o
     // follow the release, bind its declared targets, and deploy it once the space serves it, capturing the bindings
     await fixture.release(ids.package, "2026.9.1");
     const store = new SpaceStore(await fixture.options()).store;
-    await reconcile(store, "rollout", { id: ids.notes });
+    await reconcile(store, "rollout", { installationId: ids.notes });
     await fixture.serveInstalled(store, ids.space);
-    await reconcile(store, "rollout", { id: ids.notes });
+    await reconcile(store, "rollout", { installationId: ids.notes });
 
     // run the unpinned binding at the target's generation and the pinned one at its pinned generation
     const [deployed] = await database

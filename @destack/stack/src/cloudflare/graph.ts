@@ -141,7 +141,10 @@ export class DurableObjectGraphStorage implements ExternalStorage {
         const viewed = Viewed.parse(await send(object, { operation: "view", index: fields }));
         if (!viewed.isComplete) {
             // store its rows
-            const { modules, declarations, symbols, catalogs } = await index.rows(this.#builds);
+            const { modules, declarations, symbols, catalogs } = await index.rows(
+                this.#builds,
+                this.#database.state.environment.crypto,
+            );
             await send(object, {
                 operation: "index",
                 index: fields,

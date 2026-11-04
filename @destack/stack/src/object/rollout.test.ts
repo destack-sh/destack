@@ -63,7 +63,9 @@ test("bind an installation's requests on other packages' types on its consenter'
     const { database, crypto, now } = await installNotes();
     const installer = INSTALLER;
     const snapshot = Snapshot.live(database);
-    const rows = await snapshot.read(rollout.table).findMany({ where: { id: ids.notes } });
+    const rows = await snapshot
+        .read(rollout.table)
+        .findMany({ where: { installationId: ids.notes } });
     const target = nth(await Rollout.read(snapshot, rows), 0);
 
     // build its access as the space's base stack installation, then once it goes
@@ -108,12 +110,16 @@ test("bind an installation's requests on other packages' types on its consenter'
 test("relate a residency home's declared installation for its universe-scoped requests, and unrelate it once it goes", async () => {
     // declare notes in the space, which homes a residency
     const { database, now } = await installNotes();
+    const lab = schema
+        .identifier("residency")
+        .parse("residency-01996ab0-0000-7000-8000-00000000000e");
     await database.transaction(
         async (transaction) =>
             await transaction.insert(residency.table).values(
                 Table.complete(residency.table, {
-                    id: "lab",
+                    id: lab,
                     scope: Scope.universe.id,
+                    code: "lab",
                     name: "Lab",
                     relay: "https://relay-lab.machine.test",
                     space: ids.space,
@@ -123,7 +129,9 @@ test("relate a residency home's declared installation for its universe-scoped re
             ),
     );
     const snapshot = Snapshot.live(database);
-    const rows = await snapshot.read(rollout.table).findMany({ where: { id: ids.notes } });
+    const rows = await snapshot
+        .read(rollout.table)
+        .findMany({ where: { installationId: ids.notes } });
     const read = nth(await Rollout.read(snapshot, rows), 0);
     const stack = schema
         .identifier("installation")
@@ -133,7 +141,7 @@ test("relate a residency home's declared installation for its universe-scoped re
 
     // relate it while it asks for the universe's permissions, and unrelate it once it goes
     const set = { universe: [user.permission("recipient")] };
-    const at = residency.target({ scope: Scope.universe.id, id: "lab" });
+    const at = residency.target({ scope: Scope.universe.id, id: lab });
     expect({
         installed: await Rollout.relate(snapshot, target, set),
         removed: await Rollout.relate(snapshot, target, {}),

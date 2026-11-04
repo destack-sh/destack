@@ -196,11 +196,18 @@ export class ApplicationInstallation {
         if (!Manager.isManaged(target.installation) && (kind === "release" || kind === "tag")) {
             await Rollout.target(reconciliation, [target], this.#options);
         }
-        await reconciliation.mutate([rollout.call("deploy", rollout.target(target))]);
+        await reconciliation.mutate([
+            rollout.call(
+                "deploy",
+                rollout.target({ scope: target.scope, id: target.installationId }),
+            ),
+        ]);
 
         // read what the committed deploy left: the rollout targeting its revision, or none once removed
         const snapshot = Snapshot.live(reconciliation.database);
-        const rows = await snapshot.read(rollout.table).findMany({ where: { id: target.id } });
+        const rows = await snapshot
+            .read(rollout.table)
+            .findMany({ where: { installationId: target.installationId } });
         const [deployed] = await Rollout.read(snapshot, rows);
         const { builds } = this.#options;
         const build =
@@ -237,7 +244,7 @@ export class ApplicationInstallation {
         const live = await call.read(deployment).findMany({
             where: {
                 ...Deployment.live(),
-                installationId: target.id,
+                installationId: target.installationId,
             },
         });
 
@@ -279,7 +286,7 @@ export class ApplicationInstallation {
         // delete its retired deployments with their instances and captures
         const retired = await call
             .read(deployment)
-            .findMany({ where: { installationId: target.id } });
+            .findMany({ where: { installationId: target.installationId } });
         const ids = retired.map((entry) => entry.id);
         const instances = await call
             .read(instance)
@@ -306,7 +313,10 @@ export class ApplicationInstallation {
         // record what it related once that changed
         if (digest !== target.consumption) {
             await call.mutate(call.self, [
-                rollout.call("update", { ...rollout.target(target), consumption: digest }),
+                rollout.call("update", {
+                    ...rollout.target({ scope: target.scope, id: target.installationId }),
+                    consumption: digest,
+                }),
             ]);
         }
     }
@@ -426,7 +436,7 @@ export class ApplicationInstallation {
         );
         const unset = await SettingValue.missing({ read: (table) => call.read(table) }, placed, {
             scope: target.scope,
-            installation: target.id,
+            installation: target.installationId,
         });
         if (unset.length > 0) {
             const keys = unset.map((declared) => DeclarationReference.key(declared.reference));
@@ -485,7 +495,7 @@ export class ApplicationInstallation {
         });
         await call.mutate(call.self, [
             rollout.call("update", {
-                ...rollout.target(target),
+                ...rollout.target({ scope: target.scope, id: target.installationId }),
                 ...Rollout.applied(target, revision.id),
             }),
         ]);
@@ -724,7 +734,7 @@ export class ApplicationInstallation {
         const bound = await call.read(binding).findMany({
             where: {
                 scope: this.#target.scope,
-                installationId: this.#target.id,
+                installationId: this.#target.installationId,
             },
         });
 
@@ -759,7 +769,7 @@ export class ApplicationInstallation {
     ): Promise<void> {
         const [activated] = await call.mutate(call.self, [
             deployment.call("create", {
-                installationId: this.#target.id,
+                installationId: this.#target.installationId,
                 packageId: this.#target.installation.packageId,
                 revisionId: revision.id,
                 output: workload.output,
@@ -790,7 +800,7 @@ export class ApplicationInstallation {
         const bindings = await call.read(binding).findMany({
             where: {
                 scope: target.scope,
-                installationId: target.id,
+                installationId: target.installationId,
             },
         });
         const captures = await call.read(capture).findMany({
@@ -1101,7 +1111,7 @@ export async function describeUngranted(
     const rollouts = await call.read(rollout).findMany({ where: { scope: target.scope } });
     const isServed = (row: (typeof rows)[number]) =>
         row.name === null ||
-        rollouts.some((each) => each.id === row.id && each.servedRevisionId !== null);
+        rollouts.some((each) => each.installationId === row.id && each.servedRevisionId !== null);
     const waiting = Rollout.needed(target.installation, revision, description)
         .filter((entry) => !rows.some((row) => row.packageId === entry.package.id && isServed(row)))
         .map((entry) => entry.package.name);

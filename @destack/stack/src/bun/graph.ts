@@ -152,7 +152,7 @@ async function write(
     environment: DatabaseEnvironment,
 ): Promise<void> {
     // derive the build's objects
-    const rows = await index.rows(builds);
+    const rows = await index.rows(builds, environment.crypto);
 
     // write them in one transaction
     const database = await connectBunSqlite(new Database(file), GraphIndex.tables, {

@@ -259,7 +259,7 @@ test(
             await transaction
                 .update(object.rollout.table)
                 .set({ revisionId })
-                .where(eq(object.rollout.table.id, ids.notes));
+                .where(eq(object.rollout.table.installationId, ids.notes));
             await transaction
                 .update(installation.table)
                 .set({ status: "suspended" })
@@ -441,7 +441,7 @@ test(
                 files: [`${scratchId}.db`],
                 blobs: [],
             },
-            placement: { id: ids.space, scope: ids.account, machine: targetId, epoch: 2 },
+            placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 2 },
             notes: [
                 { id: "n1", scope: ids.space, body: "first", rank: 1 },
                 { id: "n2", scope: ids.space, body: "second", rank: 2 },
@@ -529,7 +529,7 @@ test("move every table of the space database with rows in spaces, leaving out th
     const fixture = await TestSpace.open({
         packages: [{ objects: { note: sharedNote }, tables: [] }],
     });
-    const moving = { id: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
+    const moving = { space: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
 
     // plan the move from the served store, whose servers declared their tables
     const served = await fixture.serve();
@@ -607,7 +607,7 @@ test("move the tables a space's main database applied in addition to the space d
     );
 
     // plan the move with the pins and the space's tables, and read their state at the handoff
-    const moving = { id: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
+    const moving = { space: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
     const states = await SpaceTransfer.states(fixture, ids.space);
     const moved = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE));
     const own = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE, []));
@@ -645,7 +645,7 @@ test("stop the instances of a moving space running on its machine once its fence
     });
 
     // fence the moving space on the machine running it
-    const moving = { id: ids.space, scope: ids.account, machine: space.machine.id, epoch: 1 };
+    const moving = { space: ids.space, scope: ids.account, machine: space.machine.id, epoch: 1 };
     const transfer = await SpaceTransfer.of(space, moving, UNKNOWN_MACHINE);
     await transfer.fence(
         { providers: new ProviderIndex(space.machine.id, []), runtimes: [runtime] },
@@ -701,7 +701,7 @@ test(
                 target: placement.table.targetId,
             })
             .from(placement.table)
-            .where(eq(placement.table.id, ids.space));
+            .where(eq(placement.table.spaceId, ids.space));
         const [ended] = await database
             .select({
                 completedAt: object.transfer.table.completedAt,
@@ -754,7 +754,7 @@ test(
             .from(object.transfer.table)
             .orderBy(object.transfer.table.sourceEpoch);
         expect({ placement: await placementOf(universe), transfers }).toEqual({
-            placement: { id: ids.space, scope: ids.account, machine: targetId, epoch: 4 },
+            placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 4 },
             transfers: [
                 { sourceId, sourceEpoch: 1, outcome: "succeeded" },
                 { sourceId: targetId, sourceEpoch: 2, outcome: "succeeded" },
@@ -907,7 +907,7 @@ test(
                 ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${ids.space} not found`],
             ],
             moved: [],
-            placement: { id: ids.space, scope: ids.account, machine: targetId, epoch: 3 },
+            placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 3 },
             transfers: [
                 { sourceEpoch: 1, outcome: "cancelled" },
                 { sourceEpoch: 2, outcome: "succeeded" },
@@ -1101,7 +1101,7 @@ async function placementRow(database: DatabaseConnection) {
     const [row] = await database
         .select()
         .from(placement.table)
-        .where(eq(placement.table.id, ids.space));
+        .where(eq(placement.table.spaceId, ids.space));
 
     return row;
 }

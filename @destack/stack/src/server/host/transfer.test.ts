@@ -101,7 +101,7 @@ test("hand a space's database to another machine and send its clients there", as
         account.policy,
     );
     const { registry } = await TestIdentityRegistry.open(universe.database, world, ids.machineA);
-    const placement = { id: spaceId, scope: accountId, machine: ids.machineA, epoch: 1 };
+    const placement = { space: spaceId, scope: accountId, machine: ids.machineA, epoch: 1 };
     for (const machine of [ids.machineA, ids.machineB]) {
         await TestDirectory.publish(universe.database, machine, accountId, null, clock);
     }

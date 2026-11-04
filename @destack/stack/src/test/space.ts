@@ -315,6 +315,8 @@ export class TestSpace implements AsyncDisposable {
     readonly #test: TestDatabase;
     /** What the space's servers reported, which refusals take and disposal refuses. */
     readonly #reported: unknown[] = [];
+    /** The waits failing at the space's servers' next reported failure. */
+    readonly #reporting = new Set<(error: unknown) => void>();
     /** Load the installations main applied since into a served store, by the store. */
     readonly #appliers = new WeakMap<TestObjectStore, () => Promise<void>>();
     /** The closing of the machine's database, absent while open. */
@@ -1092,6 +1094,14 @@ export class TestSpace implements AsyncDisposable {
         return fixture;
     }
 
+    /** Record a failure the space's servers report, failing the waits listening for one. */
+    #report(error: unknown): void {
+        this.#reported.push(error);
+        for (const listening of this.#reporting) {
+            listening(error);
+        }
+    }
+
     /** Open a machine's buckets and the space's own databases below a directory. */
     static async #openFiles(
         environment: Environment<"files">,
@@ -1140,7 +1150,7 @@ export class TestSpace implements AsyncDisposable {
             buildRunner: this.machine.id,
             main: spaceDatabase,
             sandboxes: [],
-            report: (error) => this.#reported.push(error),
+            report: (error) => this.#report(error),
             blobs: this.blobs,
             registry: this.registry,
             buckets: await this.buckets(),
@@ -1205,7 +1215,9 @@ export class TestSpace implements AsyncDisposable {
             spaceId,
             (packageId, manifest) => builds.pull(this.registry, packageId, manifest),
         );
-        const revisions = new Map(installed.map((entry) => [entry.rollout.id, entry.revisionId]));
+        const revisions = new Map(
+            installed.map((entry) => [entry.rollout.installationId, entry.revisionId]),
+        );
 
         // record what the space serves
         await Rollout.serve(store, spaceId, revisions);
@@ -1665,7 +1677,7 @@ export class TestSpace implements AsyncDisposable {
                 isControlled ? handler : { ...handler, control: { controllers: [], cursors: [] } },
             ),
             credential: this.#credential(store),
-            report: (error) => this.#reported.push(error),
+            report: (error) => this.#report(error),
         });
         serving.resolve(served);
         this.#appliers.set(served, async () => {
@@ -1686,8 +1698,18 @@ export class TestSpace implements AsyncDisposable {
             stopping.abort();
             await served[Symbol.asyncDispose]();
         });
-        // serve once ready and the world idle, refusing what the servers reported, then once the space's chain is live
-        await served.ready();
+        // serve once ready, failing at once on a failure the servers report meanwhile
+        const failing = Promise.withResolvers<never>();
+        const listening = (error: unknown) =>
+            failing.reject(new AggregateError([error], "the space's servers reported failures"));
+        this.#reporting.add(listening);
+        try {
+            await Promise.race([served.ready(), failing.promise]);
+        } finally {
+            this.#reporting.delete(listening);
+        }
+
+        // refuse what the servers reported once the world idles, then serve once the space's chain is live
         await this.simulation.idle();
         const reported = this.#reported.splice(0);
         if (reported.length > 0) {
@@ -1704,7 +1726,7 @@ export class TestSpace implements AsyncDisposable {
         // follow only a space placed on the fixture's machine, as its machine serves only those
         const placed = await Snapshot.live(this.database)
             .read(placement.table)
-            .findFirst({ where: { id: this.id } });
+            .findFirst({ where: { spaceId: this.id } });
         if (placed?.machineId !== this.machine.id) {
             return;
         }
@@ -2088,7 +2110,7 @@ export class TestSpaceDatabaseHost extends BunSqliteDatabaseHost {
     }
 }
 
-/** Reconcile one key of a served type's controller once, else project it through its projection. */
+/** Reconcile one key of a served type's controller once, else project the object of its key. */
 export async function reconcile(
     store: ObjectStore,
     name: string,
@@ -2114,7 +2136,12 @@ export async function reconcile(
                 .findMany({ where: key });
             await controller.reconcile(rows, reconciliation);
         } else if (projection instanceof Projection) {
-            await projection.project(schema.string().parse(key["id"]), reconciliation);
+            const projected = present(
+                store.objects.find((each) => each.name === name),
+                `the object ${name}`,
+            );
+            const field = projected.keyed ?? "id";
+            await projection.project(present(key[field], `the ${field} key`), reconciliation);
         } else {
             throw new TypeError(
                 `the fixture serves no converging controller or projection ${name}`,

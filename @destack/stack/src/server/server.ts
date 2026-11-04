@@ -318,7 +318,9 @@ export class SpaceStore {
             chain: async (view) => {
                 // read where the space is placed, and whether it moves here
                 const served = schema.identifier("space").parse(options.principal.id);
-                const row = await view.read(placement.table).findFirst({ where: { id: served } });
+                const row = await view
+                    .read(placement.table)
+                    .findFirst({ where: { spaceId: served } });
                 const isFollowing = options.role === "primary" || row?.targetId === options.machine;
 
                 // root the chain at the placement, wait for a primary's, and follow none elsewhere
@@ -585,7 +587,7 @@ function spaceFollows(
         residentsShape.per(residency, {
             key: async (row) =>
                 row.space === served
-                    ? { key: { scope: Scope.universe.id, residency: row.id } }
+                    ? { key: { scope: Scope.universe.id, residency: row.code } }
                     : undefined,
         }),
         // follow the profiles of the people related to the space once it is placed here
@@ -594,7 +596,7 @@ function spaceFollows(
             key: async (row, view) => {
                 const placed = await view
                     .read(placement.table)
-                    .findFirst({ where: { id: served } });
+                    .findFirst({ where: { spaceId: served } });
                 const isPerson = row.subjectRelation === null && user.identifies(row.subjectId);
 
                 return isPerson && placed?.machineId === options.machine
@@ -605,7 +607,7 @@ function spaceFollows(
         // follow the grants people delegate to the space once it is placed here
         grantShape.per(placement, {
             key: async (row) =>
-                row.id === served && row.machineId === options.machine
+                row.spaceId === served && row.machineId === options.machine
                     ? {
                           key: {
                               scope: Scope.universe.id,

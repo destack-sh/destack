@@ -169,7 +169,9 @@ export const Database = {
             const hasBindings = declarations
                 .filter((each) => RESOURCE_KIND.has(each))
                 .every((each) =>
-                    bound.has(`${entry.id}:${entry.installation.packageId}:${each.name}`),
+                    bound.has(
+                        `${entry.installationId}:${entry.installation.packageId}:${each.name}`,
+                    ),
                 );
 
             return isStack || hasBindings

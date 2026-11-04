@@ -80,7 +80,7 @@ async function submit(
         id: RequestId.create(fixture.machine.environment),
         calls: [
             rollout.call("submit", {
-                ...rollout.target(stack),
+                ...rollout.target({ scope: stack.scope, id: stack.installationId }),
                 ...submission,
                 ...evaluation,
                 build,
@@ -89,7 +89,9 @@ async function submit(
     });
 
     // apply it, then reconcile the installations it changed
-    await reconcile(store, "rollout", { id: (await readStack(store.database)).id });
+    await reconcile(store, "rollout", {
+        installationId: (await readStack(store.database)).installationId,
+    });
     await settleRollouts(store);
 
     return readStack(store.database);
@@ -190,9 +192,16 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
     );
     await store.mutate(store.as(rollout), {
         id: RequestId.create(fixture.machine.environment),
-        calls: [rollout.call("approve", { ...rollout.target(waiting), plan: digest })],
+        calls: [
+            rollout.call("approve", {
+                ...rollout.target({ scope: waiting.scope, id: waiting.installationId }),
+                plan: digest,
+            }),
+        ],
     });
-    await reconcile(store, "rollout", { id: (await readStack(store.database)).id });
+    await reconcile(store, "rollout", {
+        installationId: (await readStack(store.database)).installationId,
+    });
     const [retired] = await database
         .select()
         .from(object.database.table)
@@ -261,7 +270,9 @@ test("apply a waiting stack again once its resources turn ready, without waking 
 
     // apply it again while it waits without writing
     const position = await database.log.position();
-    await reconcile(store, "rollout", { id: (await readStack(store.database)).id });
+    await reconcile(store, "rollout", {
+        installationId: (await readStack(store.database)).installationId,
+    });
     expect(await database.log.position()).toEqual(position);
 
     // apply the waiting stack once its database turns ready
@@ -286,7 +297,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
     expect([stacked.installation.conditions["Ready"]?.reason, installed, managed]).toEqual([
         "Applied",
         [
-            { name: "notes", manager: stacked.id },
+            { name: "notes", manager: stacked.installationId },
             { name: "stack", manager: null },
         ],
         [{ name: "main" }],
@@ -336,7 +347,7 @@ test("leave a declared installation whose fields are unchanged as it is when its
         const [followed] = await database
             .select({ revision: rollout.table.revision })
             .from(rollout.table)
-            .where(eq(rollout.table.id, found.id));
+            .where(eq(rollout.table.installationId, found.id));
 
         return [found.revision, present(followed, "the notes rollout").revision];
     };
@@ -348,9 +359,9 @@ test("leave a declared installation whose fields are unchanged as it is when its
             await transaction
                 .update(rollout.table)
                 .set({ appliedRevisionId: null })
-                .where(eq(rollout.table.id, stack.id)),
+                .where(eq(rollout.table.installationId, stack.installationId)),
     );
-    await reconcile(store, "rollout", { id: stack.id });
+    await reconcile(store, "rollout", { installationId: stack.installationId });
 
     // read the installation's fields joined in, so the declaration compares equal and writes nothing
     expect([
@@ -623,7 +634,7 @@ test("install a package and declare records of its type in one approved plan, ap
         id: RequestId.create(fixture.machine.environment),
         calls: [
             rollout.call("submit", {
-                ...rollout.target(stack),
+                ...rollout.target({ scope: stack.scope, id: stack.installationId }),
                 selection: {
                     kind: "checkout",
                     machine: ids.machine,
@@ -637,7 +648,9 @@ test("install a package and declare records of its type in one approved plan, ap
     });
 
     // plan installing notes and declaring the meter as one plan waiting for approval
-    await reconcile(store, "rollout", { id: (await readStack(store.database)).id });
+    await reconcile(store, "rollout", {
+        installationId: (await readStack(store.database)).installationId,
+    });
     const waiting = await readStack(database);
     expect([waiting.installation.conditions["Ready"]?.reason, waiting.installation.plan]).toEqual([
         "AwaitingApproval",
@@ -657,9 +670,16 @@ test("install a package and declare records of its type in one approved plan, ap
     );
     await store.mutate(store.as(rollout), {
         id: RequestId.create(fixture.machine.environment),
-        calls: [rollout.call("approve", { ...rollout.target(waiting), plan: digest })],
+        calls: [
+            rollout.call("approve", {
+                ...rollout.target({ scope: waiting.scope, id: waiting.installationId }),
+                plan: digest,
+            }),
+        ],
     });
-    await reconcile(store, "rollout", { id: (await readStack(store.database)).id });
+    await reconcile(store, "rollout", {
+        installationId: (await readStack(store.database)).installationId,
+    });
     const installed = await readStack(database);
     expect(installed.installation.conditions["Ready"]?.message).toBe(
         "meters wait for the store to serve their types",
@@ -667,7 +687,9 @@ test("install a package and declare records of its type in one approved plan, ap
 
     // apply the meter under the same approval once the reloaded store serves meters
     const reloaded = await serve(fixture, { servers: [meters] });
-    await reconcile(reloaded, "rollout", { id: (await readStack(reloaded.database)).id });
+    await reconcile(reloaded, "rollout", {
+        installationId: (await readStack(reloaded.database)).installationId,
+    });
     const applied = await readStack(database);
     const declared = await database.select({ name: meter.table.managerName }).from(meter.table);
     expect([

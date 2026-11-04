@@ -134,7 +134,7 @@ async function remove(
     const itself = principal.space.reference(Scope.universe.id, row.id);
     const rollouts = await database
         .select({
-            id: rollout.table.id,
+            id: rollout.table.installationId,
             scope: rollout.table.scope,
             packageId: installation.table.packageId,
             deletedAt: installation.table.deletedAt,
@@ -145,7 +145,7 @@ async function remove(
         .innerJoin(
             installation.table,
             and(
-                eq(installation.table.id, rollout.table.id),
+                eq(installation.table.id, rollout.table.installationId),
                 eq(installation.table.scope, rollout.table.scope),
             ),
         )
@@ -176,7 +176,7 @@ async function remove(
     // withdraw the space's placement as its machine, which an earlier look may have withdrawn already
     const [located] = await Placement.find(Snapshot.live(database), [row.id]);
     if (located !== undefined) {
-        const withdrawal = { accountId: located.scope, id: located.id, epoch: located.epoch };
+        const withdrawal = { accountId: located.scope, id: located.space, epoch: located.epoch };
         await options.publisher
             .receive({
                 id: RequestId.create(store.environment),

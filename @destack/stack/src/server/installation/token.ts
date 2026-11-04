@@ -65,7 +65,7 @@ export const InstallationAssertion = {
                       installation.table,
                       eq(installation.table.id, installationKey.table.parentId),
                   )
-                  .leftJoin(rollout.table, eq(rollout.table.id, installation.table.id))
+                  .leftJoin(rollout.table, eq(rollout.table.installationId, installation.table.id))
                   .where(
                       and(
                           eq(installationKey.table.id, keyId.data),

@@ -50,7 +50,7 @@ test("apply a submitted stack build and open its installations' views", async ()
     const stack = await readStack(fixture.database);
     const submission = {
         spaceId: ids.space,
-        id: stack.id,
+        id: stack.installationId,
         selection,
         build: await fixture.recordBuild(
             await fixtureBuild(
@@ -90,32 +90,34 @@ test("apply a submitted stack build and open its installations' views", async ()
         evaluation,
         requestId: RequestId.create(fixture.machine.environment),
     });
-    await reconcile(store, "rollout", { id: (await readStack(store.database)).id });
-    const applied = await readInstalled(fixture.database, stack.id);
+    await reconcile(store, "rollout", {
+        installationId: (await readStack(store.database)).installationId,
+    });
+    const applied = await readInstalled(fixture.database, stack.installationId);
     expect([
         applied.appliedRevisionId === null,
         applied.installation.conditions["Ready"]?.reason,
     ]).toEqual([false, "Applied"]);
-    expect(await owner.rollout.plan({ spaceId: ids.space, id: stack.id })).toEqual({
+    expect(await owner.rollout.plan({ spaceId: ids.space, id: stack.installationId })).toEqual({
         steps: [],
     });
 
     // apply the notes installation, then open a view its applied revision declares and refuse one it does not
     const listed = await Rollout.find(fixture.database, ids.space, "notes");
     const notes = present(listed, "the notes installation");
-    await reconcile(store, "rollout", { id: notes.id });
+    await reconcile(store, "rollout", { installationId: notes.installationId });
     await fixture.serveInstalled(store, ids.space);
-    await reconcile(store, "rollout", { id: notes.id });
-    const revised = await readInstalled(fixture.database, notes.id);
+    await reconcile(store, "rollout", { installationId: notes.installationId });
+    const revised = await readInstalled(fixture.database, notes.installationId);
     expect(
         await owner.rollout.open({
             spaceId: ids.space,
-            id: notes.id,
+            id: notes.installationId,
             view: "home",
             path: "/",
         }),
     ).toEqual({
-        installationId: notes.id,
+        installationId: notes.installationId,
         revisionId: revised.revisionId,
         manifest: await fixture.registry.find(ids.package, "2026.9.0"),
         view: "home",
@@ -136,7 +138,7 @@ test("apply a submitted stack build and open its installations' views", async ()
         await refusal(
             owner.rollout.open({
                 spaceId: ids.space,
-                id: notes.id,
+                id: notes.installationId,
                 view: "settings",
                 path: "/",
             }),
@@ -155,7 +157,7 @@ test("apply an earlier build submitted again after a later one, approving each p
     const submit = async (role: string, version: string) => {
         const submission = {
             spaceId: ids.space,
-            id: stack.id,
+            id: stack.installationId,
             selection,
             build: await fixture.recordBuild(
                 await fixtureBuild(
@@ -176,18 +178,25 @@ test("apply an earlier build submitted again after a later one, approving each p
         });
 
         // apply the revision, approving the plan it waits on first
-        await reconcile(store, "rollout", { id: (await readStack(store.database)).id });
-        const read = () => readInstalled(fixture.database, stack.id);
+        await reconcile(store, "rollout", {
+            installationId: (await readStack(store.database)).installationId,
+        });
+        const read = () => readInstalled(fixture.database, stack.installationId);
         const isWaiting = (await read()).installation.plan !== null;
         if (isWaiting) {
-            const waiting = await owner.rollout.plan({ spaceId: ids.space, id: stack.id });
+            const waiting = await owner.rollout.plan({
+                spaceId: ids.space,
+                id: stack.installationId,
+            });
             await owner.rollout.approve({
                 spaceId: ids.space,
-                id: stack.id,
+                id: stack.installationId,
                 requestId: RequestId.create(fixture.machine.environment),
                 plan: await Plan.digest(waiting, fixture.environment.crypto),
             });
-            await reconcile(store, "rollout", { id: (await readStack(store.database)).id });
+            await reconcile(store, "rollout", {
+                installationId: (await readStack(store.database)).installationId,
+            });
         }
 
         return { revision: (await read()).revisionId, isWaiting };
@@ -197,7 +206,7 @@ test("apply an earlier build submitted again after a later one, approving each p
     const third = await submit("reviewer", "2026.9.0");
 
     // apply the first build's revision once more, each submission after the first waiting on its plan
-    const applied = await readInstalled(fixture.database, stack.id);
+    const applied = await readInstalled(fixture.database, stack.installationId);
     expect([
         [first.isWaiting, second.isWaiting, third.isWaiting],
         applied.revisionId,
@@ -230,9 +239,9 @@ test("install an application from a checkout by submitting its build, following 
         selection,
         build: recorded,
     });
-    await reconcile(store, "rollout", { id: notes.id });
+    await reconcile(store, "rollout", { installationId: notes.id });
     await fixture.serveInstalled(store, ids.space);
-    await reconcile(store, "rollout", { id: notes.id });
+    await reconcile(store, "rollout", { installationId: notes.id });
     const followed = await readInstalled(fixture.database, notes.id);
     expect(
         await owner.rollout.open({
@@ -260,7 +269,10 @@ test("install an application from a checkout by submitting its build, following 
         home: fixture.owner.home,
     });
     const declared = await owner.declaration.list({ buildId: recorded.build });
-    expect(declared.items.map(({ kind, name, description }) => [kind, name, description])).toEqual([
+    const sorted = declared.items.toSorted((left, right) =>
+        left.moniker.localeCompare(right.moniker),
+    );
+    expect(sorted.map(({ kind, name, description }) => [kind, name, description])).toEqual([
         ["command", "archive", ARCHIVE],
         ["relation", "editor", {}],
     ]);
@@ -348,9 +360,9 @@ test("wait for an approval of an application's upgrade planned from the release 
     // apply the first release and wait on the upgrade to the last
     const deploy = async () => {
         // record the targets bound, then deploy once the space serves the bound revision
-        await reconcile(store, "rollout", { id: notes.id });
+        await reconcile(store, "rollout", { installationId: notes.id });
         await fixture.serveInstalled(store, ids.space);
-        await reconcile(store, "rollout", { id: notes.id });
+        await reconcile(store, "rollout", { installationId: notes.id });
     };
     await submit("2026.9.0");
     await deploy();
@@ -436,9 +448,9 @@ test("refuse a build of another package, and deploy a release that is not later 
     // refuse the fork's build at once
     const deploy = async () => {
         // record the targets bound, then deploy once the space serves the bound revision
-        await reconcile(store, "rollout", { id: notes.id });
+        await reconcile(store, "rollout", { installationId: notes.id });
         await fixture.serveInstalled(store, ids.space);
-        await reconcile(store, "rollout", { id: notes.id });
+        await reconcile(store, "rollout", { installationId: notes.id });
     };
     await submit(release("2026.9.0"), release("2026.9.0"));
     await deploy();
@@ -556,7 +568,7 @@ test("open the build each package's installation in a space follows, and none fo
                 await transaction
                     .update(rollout.table)
                     .set({ revisionId })
-                    .where(eq(rollout.table.id, id)),
+                    .where(eq(rollout.table.installationId, id)),
         );
     };
     const { crypto } = fixture.machine.environment;
@@ -601,7 +613,9 @@ test("serve the installation of a call at its mount by its identifier or its nam
     // read it by its identifier and its name, and refuse another name and a path naming no space
     const served = async (spaceId: string, named: string) =>
         refusal(
-            Rollout.requireServed(database, { spaceId, installation: named }).then(({ id }) => id),
+            Rollout.requireServed(database, { spaceId, installation: named }).then(
+                ({ installationId }) => installationId,
+            ),
         );
     const byId = await Rollout.requireServed(database, {
         spaceId: ids.space,
@@ -612,8 +626,8 @@ test("serve the installation of a call at its mount by its identifier or its nam
         installation: "notes",
     });
     expect([
-        byId.id,
-        byName.id,
+        byId.installationId,
+        byName.installationId,
         await served(ids.space, "tasks"),
         await served("nowhere", "notes"),
     ]).toEqual([
