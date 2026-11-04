@@ -186,7 +186,7 @@ export class Universe implements AsyncDisposable {
             settingServer({ after: [] }),
             implementPackage(universePackage, {
                 objects: applied.objects,
-                consumers: applied.consumers,
+                cursors: applied.cursors,
             }),
         ];
         const { crypto } = options.environment;
