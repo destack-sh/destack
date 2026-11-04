@@ -1,7 +1,8 @@
 import { TestObjectStore } from "@destack/object/test";
 import type { ObjectReference, Subject } from "@destack/sync";
 import { settingServer } from "../../src/server/index.ts";
-import { Setting, type SettingDeclared } from "../../src/setting/index.ts";
+import type { PackageId } from "@destack/package";
+import type { Setting } from "../../src/setting/index.ts";
 import { editor, history, lineNumbers, release } from "./setting/index.ts";
 
 /** Serve setting values in a scope, checked against a release declaring some settings. */
@@ -13,21 +14,22 @@ export async function openSettings(
         readonly settings?: readonly Setting[];
         /** The subjects owning the scope beside itself. */
         readonly owners?: readonly Subject[];
-        /** The values the store opened their setting's build for, in order. */
-        readonly opened?: SettingDeclared[];
+        /** The packages and versions the store opened releases of, in order. */
+        readonly opened?: { readonly packageId: PackageId; readonly version?: string }[];
     } = {},
 ): Promise<TestObjectStore> {
     // serve the setting package against a release declaring the settings
     const { scope, settings = [editor, lineNumbers, history], owners = [], opened } = options;
     const reader = release(settings);
-    const open = (written: SettingDeclared) => {
-        opened?.push(written);
-
-        return reader;
-    };
 
     return await TestObjectStore.open({
-        packages: [settingServer({ declared: Setting.declared(open), after: [] })],
+        packages: [settingServer({ after: [] })],
+        // open the release for each package and version, recording the open
+        release: async (_view, _scope, packageId, version) => {
+            opened?.push({ packageId, ...(version === undefined ? {} : { version }) });
+
+            return await reader;
+        },
         ...(scope === undefined ? {} : { scope }),
         owners,
     });

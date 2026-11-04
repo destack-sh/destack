@@ -5,17 +5,13 @@ import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, nth, schema, Version, canonicalize } from "@destack/schema";
 import type { JsonObject, JsonValue } from "@destack/schema";
-import { Expression, Condition, type Table } from "@destack/db";
-import type { RelationalQueryBuilder } from "@destack/db";
+import { Expression, Condition } from "@destack/db";
 import type { SettingDefault, SettingDefinition } from "../declare/setting.ts";
 import type { SettingValue } from "../object/setting.ts";
 import type { DeviceValue, SettingResolution, SettingSource } from "./resolution.ts";
 import { SettingPlacement, type SettingSelection } from "./placement.ts";
 import type { SettingMode } from "./mode.ts";
 import { SettingError } from "../error/error.ts";
-
-/** The setting declaration kind, which setting defines. */
-export const SETTING_KIND = defineDeclarationKind("setting");
 
 /** The declaration default ranks below every placed value. */
 const DEFAULT_TIER = 0;
@@ -103,6 +99,9 @@ export const SettingDescription = schema.discriminatedUnion("scope", [
 /** A setting declaration as manifests describe it. */
 export type SettingDescription = schema.Infer<typeof SettingDescription>;
 
+/** The setting declaration kind, which setting defines. */
+export const SETTING_KIND = defineDeclarationKind("setting", SettingDescription);
+
 /** A value written in a scope, from a write or a stack's declaration. */
 export type SettingWrite = Omit<SettingPlacement, "scope"> & {
     /** How the value applies. */
@@ -153,7 +152,7 @@ export class Setting<
 
     /** Read the settings a build declares, in declaration order. */
     static async list(reader: BuildReader): Promise<Setting[]> {
-        const declared = await reader.declared(SETTING_KIND, SettingDescription);
+        const declared = SETTING_KIND.select(await reader.declarations());
 
         return declared.map((entry) => Setting.of(entry.description));
     }
@@ -168,19 +167,6 @@ export class Setting<
         }
 
         return setting;
-    }
-
-    /** Find a value's setting in the build `open` opens for it, none while its package has none. */
-    static declared(
-        open: (written: SettingDeclared, view: SettingView) => Promise<BuildReader | undefined>,
-    ): (written: SettingDeclared, view: SettingView) => Promise<Setting | undefined> {
-        return async (written, view) => {
-            const reader = await open(written, view);
-
-            return reader === undefined
-                ? undefined
-                : Setting.find(await Setting.list(reader), written);
-        };
     }
 
     /** The identity its values refer to. */
@@ -767,15 +753,4 @@ function equalValue(left: unknown, right: unknown): boolean {
 /** Read a merged setting's value as its record of keys. */
 function recordOf(value: unknown): JsonObject {
     return schema.jsonObject().parse(value);
-}
-
-/** A value's setting at a placement, its release absent until a stack stamps it. */
-export type SettingDeclared = DeclarationReference &
-    SettingPlacement &
-    Partial<Pick<SettingWrite, "release">>;
-
-/** A view a setting's declaring build is read in: a call's or an apply's. */
-export interface SettingView {
-    /** Read a table's rows in the view. */
-    readonly read: <Read extends Table>(table: Read) => RelationalQueryBuilder<Read>;
 }

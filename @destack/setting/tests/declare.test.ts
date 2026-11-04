@@ -6,7 +6,7 @@ import { nth, schema, type JsonObject } from "@destack/schema";
 
 import { defineSetting } from "../src/declare/index.ts";
 import { setting } from "../src/object/index.ts";
-import type { SettingDeclared } from "../src/setting/index.ts";
+import type { PackageId } from "@destack/package";
 import { editor, notes, release } from "./fixture/setting/index.ts";
 import { openSettings } from "./fixture/store.ts";
 
@@ -29,7 +29,6 @@ test("set, recommend and require declared values in the space and refuse undecla
     await using served = await openSettings({ settings: [editor, template] });
     const spaceId = served.scope;
     const objects = served.store.objects.filter((type) => type.same(setting));
-    const reader = release([editor, template]);
     let applied: JsonObject = {};
     const apply = async (settings: JsonObject) => {
         // apply the settings against the ones applied last
@@ -40,7 +39,6 @@ test("set, recommend and require declared values in the space and refuse undecla
             objects,
             store: served.store,
             as: served.store.principal,
-            release: async () => await reader,
             manager,
             scope: spaceId,
             document,
@@ -145,16 +143,14 @@ test("set, recommend and require declared values in the space and refuse undecla
 
 test("stamp a declared value with the release of the build declaring its setting, then check it at that release", async () => {
     // apply a recommendation of a setting its build declares, recording each build the store opens
-    const opened: SettingDeclared[] = [];
+    const opened: { readonly packageId: PackageId; readonly version?: string }[] = [];
     await using served = await openSettings({ settings: [editor], opened });
-    const reader = release([editor]);
     await new Stack({
         database: served.database,
         isHome: false,
         objects: served.store.objects.filter((type) => type.same(setting)),
         store: served.store,
         as: served.store.principal,
-        release: async () => await reader,
         manager,
         scope: served.scope,
         document: {
@@ -165,9 +161,9 @@ test("stamp a declared value with the release of the build declaring its setting
 
     // stamp the value with the installed build's release, then check the write against that release
     const placed = single(await served.database.select().from(setting.table));
-    const declared = { ...editor.reference, scope: served.scope };
+    const { packageId } = editor.reference;
     expect([placed.release, opened]).toEqual([
         editor.package.version,
-        [declared, { ...declared, release: editor.package.version }],
+        [{ packageId }, { packageId, version: editor.package.version }],
     ]);
 });
