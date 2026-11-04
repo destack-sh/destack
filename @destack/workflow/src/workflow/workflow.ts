@@ -20,7 +20,7 @@ import { changeRequest } from "@destack/object";
 import type { RunContext, Step } from "../step/step.ts";
 import { ENDED_STATES, LIVE_STATES, Run, RUN_STATES } from "../run/run.ts";
 import type { ObjectStore } from "@destack/object/server";
-import type { Consumer } from "@destack/db";
+import type { Cursor } from "@destack/db";
 import type { InstalledServerContext, WebhookHandler } from "@destack/object/workload";
 import { ScheduleOn, ScheduleSkip } from "../trigger/schedule.ts";
 import {
@@ -105,8 +105,8 @@ export interface WorkflowServing {
 export interface WorkflowImplementation {
     /** The run, step and trigger types with their handlers and controllers. */
     readonly objects: readonly ObjectType[];
-    /** The consumers recording the declared triggers and following their changes. */
-    readonly consumers: readonly ((store: ObjectStore) => Consumer)[];
+    /** The cursors recording the declared triggers at each start. */
+    readonly cursors: readonly ((store: ObjectStore) => Cursor)[];
     /** Answer the declared triggers' webhook deliveries through a store. */
     readonly webhooks: (store: ObjectStore) => WebhookHandler;
 }
@@ -297,7 +297,7 @@ export function defineWorkflow<
                 triggers.implement(),
             ];
 
-            return { objects, consumers: triggers.consumers(), webhooks: triggers.webhooks() };
+            return { objects, cursors: [triggers.cursor()], webhooks: triggers.webhooks() };
         },
     });
 

@@ -19,9 +19,15 @@ import {
     type LogPosition,
     Transaction,
 } from "@destack/db";
-import { ObjectType, type ObjectReconciliation, refuseInput, refusal } from "@destack/object";
+import {
+    ObjectType,
+    type ObjectReconciliation,
+    ObjectWatch,
+    refuseInput,
+    refusal,
+} from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import type { Consumer } from "@destack/db";
+import type { Cursor } from "@destack/db";
 import { RequestId, type Call, Scope } from "@destack/sync";
 import type { InstalledServerContext, WebhookHandler } from "@destack/object/workload";
 import { Failure } from "@destack/error";
@@ -143,6 +149,28 @@ export class TriggerServer<Input> {
                 },
             },
             controllers: [
+                // start each active change trigger's runs from its source's changes, at each start and change
+                ...[...this.#declared.values()]
+                    .filter(
+                        (declared): declared is ChangeTrigger<Input> => declared.kind === "change",
+                    )
+                    .map((declared) => ({
+                        name: declared.name,
+                        pending: {
+                            state: "active" as const,
+                            kind: "change" as const,
+                            name: declared.name,
+                        },
+                        key: ["name" as const],
+                        watches: [
+                            ObjectWatch.of(TriggerServer.#table(declared), () => [
+                                { name: declared.name },
+                            ]),
+                        ],
+                        reconcile: async (reconciliation: ObjectReconciliation<typeof trigger>) => {
+                            await this.#follow(reconciliation.store, declared);
+                        },
+                    })),
                 {
                     // fire a declared schedule once, recording its next occurrence
                     name: "start",
@@ -170,29 +198,15 @@ export class TriggerServer<Input> {
         });
     }
 
-    /** List the consumers recording the declared triggers' rows and following their changes. */
-    consumers(): readonly ((store: ObjectStore) => Consumer)[] {
-        // follow the changes of each declared change trigger
+    /** Build the cursor recording the declared triggers' rows at each start. */
+    cursor(): (store: ObjectStore) => Cursor {
         const { trigger } = this.#workflow;
-        const changes = [...this.#declared.values()].filter(
-            (declared): declared is ChangeTrigger<Input> => declared.kind === "change",
-        );
 
-        return [
-            // record the declared triggers at each start, as declarations change with releases
-            (store) => ({
-                name: `${trigger.name}:declared`,
-                reads: [],
-                checkpoint: "none",
-                consume: async () => this.#declare(store, this.scope(store)),
-            }),
-            ...changes.map((declared) => (store: ObjectStore): Consumer => ({
-                name: `${trigger.name}:${declared.name}`,
-                reads: [TriggerServer.#table(declared), trigger.table],
-                checkpoint: "none",
-                consume: async () => this.#follow(store, declared),
-            })),
-        ];
+        return (store) => ({
+            name: `${trigger.name}:declared`,
+            tables: [],
+            take: async () => this.#declare(store, this.scope(store)),
+        });
     }
 
     /** Answer webhook deliveries by their trigger's name, starting one run per delivery. */
