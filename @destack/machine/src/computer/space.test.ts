@@ -713,7 +713,7 @@ test(
 );
 
 test(
-    "accept a peer machine's universe token only for the space it is bound to, and refuse it at once after its key is revoked",
+    "accept a peer machine's universe token only for the space it is bound to, fence only a space it receives, and refuse it at once after its key is revoked",
     { timeout: SCENARIO_MILLISECONDS },
     async () => {
         // serve two spaces and enroll a peer computer through the relay
@@ -741,7 +741,7 @@ test(
                 .where(eq(placement.table.id, space)),
         ]).toEqual([computer.machine.id, [{ target: peer.machine.id }]]);
 
-        // grant the peer tokens in the universe and the moving space and refuse one in the other space
+        // grant the peer tokens in the universe, the moving space and the other space it does not receive
         const issuer = {
             url: `${PackageMount.url(world.universe.origin, accountPackage.id)}${OAUTH_PATH}`,
         };
@@ -754,7 +754,7 @@ test(
             );
         const unbound = await grant({});
         const bound = await grant({ partition: space });
-        const elsewhere = await refusal(grant({ partition: other }));
+        const elsewhere = await grant({ partition: other });
 
         // fence the moving space with the bound token alone and refuse it once the peer's key is revoked
         const peerKeys = async () =>
@@ -776,6 +776,7 @@ test(
         const outcomes = [
             await refusal(fence(space, unbound)),
             await refusal(fence(other, bound)),
+            await refusal(fence(other, elsewhere)),
             await refusal(fence(space, bound)),
         ];
         await peer.connect(machinePackage).computer.revoke({
@@ -787,15 +788,9 @@ test(
             (await peerKeys()).every((each) => each.revokedAt !== null),
         );
         expect({
-            elsewhere,
             outcomes,
             revoked: await refusal(fence(space, bound)),
         }).toEqual({
-            elsewhere: [
-                "BAD_REQUEST",
-                "INVALID_GRANT",
-                `the token endpoint refused the request: invalid_grant: ${other} is placed on other machines`,
-            ],
             outcomes: [
                 [
                     "UNAUTHORIZED",
@@ -807,6 +802,7 @@ test(
                     "FOREIGN_PARTITION_TOKEN",
                     "the universe token is bound to another partition",
                 ],
+                ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${other} not found`],
                 "done",
             ],
             revoked: ["UNAUTHORIZED", "KEY_REVOKED", "the machine token's key is no longer valid"],
