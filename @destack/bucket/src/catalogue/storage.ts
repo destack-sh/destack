@@ -124,7 +124,7 @@ export class CatalogueStorage implements AsyncDisposable {
                     "consume or cancel bucket streams before closing storage",
                 );
             }
-            await this.#expire();
+            await this.expire();
 
             // release the catalogue
             await this.#catalogue.close();
@@ -133,7 +133,7 @@ export class CatalogueStorage implements AsyncDisposable {
     }
 
     /** Expire the uploads past their time and reclaim their parts, as S3 lifecycle rules do. */
-    async #expire(): Promise<void> {
+    async expire(): Promise<void> {
         // expire one upload at a time, each bounded by the 10000-part limit
         while (true) {
             const expired = await this.database
@@ -204,7 +204,7 @@ export class CatalogueStorage implements AsyncDisposable {
         const isAlone = await this.#catalogue.reclaim(async () => {
             isSwept = await this.exclusive(async () => {
                 // expire the uploads past their time, and stop while a writer runs
-                await this.#expire();
+                await this.expire();
                 if (this.#writers > 0) {
                     return false;
                 }

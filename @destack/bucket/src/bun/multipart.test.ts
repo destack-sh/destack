@@ -275,7 +275,7 @@ function digestOf(text: string): string {
     return createHash("sha256").update(text).digest("hex");
 }
 
-test("expire an upload at its seven days on a sweep or a close, reclaiming its parts, and keep it through writes", async () => {
+test("expire an upload at its seven days as the next upload starts or the bucket closes, reclaiming its parts, and keep it through writes", async () => {
     // start an upload with a part
     await using simulation = new Simulation({ seed: 1, start: Date.parse("2026-10-01T00:00:00Z") });
     const { clock } = simulation;
@@ -293,18 +293,17 @@ test("expire an upload at its seven days on a sweep or a close, reclaiming its p
     await bucket.put("other", "kept");
     const written = await uploadsOf(bucket);
 
-    // expire it and its part on the sweep, and another one with its part on the close
-    await bucket.sweep();
-    const swept = await uploadsOf(bucket);
+    // expire it and its part as the next upload starts, and that one with its part on the close
     const draft = await bucket.createMultipartUpload("draft");
+    const started = await uploadsOf(bucket);
     await draft.uploadPart(1, "draft part");
     await simulation.jump(clock.now() + UPLOAD_RETENTION);
     await bucket[Symbol.asyncDispose]();
     await using reopened = await LocalBucket.open(directory, "space-test", world);
-    expect({ before, written, swept, closed: await uploadsOf(reopened) }).toEqual({
+    expect({ before, written, started, closed: await uploadsOf(reopened) }).toEqual({
         before: [1, 1],
         written: [1, 1],
-        swept: [0, 0],
+        started: [1, 0],
         closed: [0, 0],
     });
 });

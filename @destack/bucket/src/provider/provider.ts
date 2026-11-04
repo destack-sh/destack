@@ -6,7 +6,6 @@ import {
     type ResourceRecord,
     type Snapshotter,
 } from "@destack/resource";
-import type { Controller } from "@destack/db";
 import { schema } from "@destack/schema";
 import {
     BucketSnapshot,
@@ -15,22 +14,13 @@ import {
 } from "../catalogue/index.ts";
 import type { BucketReference } from "../s3/index.ts";
 import { BucketKind } from "../declare/index.ts";
-import { SweepController } from "./sweep.ts";
 
 /** A bucket provider for one host's buckets. */
-export type BucketProvider<Object> = Provider<
-    typeof BucketKind,
-    Object,
-    CatalogueHandle,
-    never,
-    never,
-    Controller
-> & {
+export type BucketProvider<Object> = Provider<typeof BucketKind, Object, CatalogueHandle> & {
     readonly provision: Provisioner<typeof BucketKind>;
     readonly open: Opener<typeof BucketKind, CatalogueHandle>;
     readonly fence: Fence<typeof BucketKind>;
     readonly snapshot: Snapshotter<typeof BucketKind>;
-    readonly controllers: readonly Controller[];
 };
 
 /** Provide a host's buckets under its provider code, one per resource. */
@@ -68,7 +58,6 @@ export function bucketProvider<Object>(
                 await BucketSnapshot.restore(bucket, digest, store, base);
             },
         },
-        controllers: [new SweepController(buckets)],
     };
 }
 

@@ -77,8 +77,12 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
             return opened;
         }
 
-        // open the bucket and keep the opening
-        const opening = this.load(bucket, scope);
+        // open the bucket, deleting what writes a crash interrupted, and keep the opening
+        const opening = this.load(bucket, scope).then(async (loaded) => {
+            await loaded.sweep();
+
+            return loaded;
+        });
         this.#buckets.set(bucket.bucketId, opening);
 
         // forget a failed open, so the next call opens the bucket again
@@ -123,20 +127,6 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
         const opened = this.#buckets.get(bucket.bucketId);
         this.#buckets.delete(bucket.bucketId);
         await (await opened)?.[Symbol.asyncDispose]();
-    }
-
-    /** Sweep each open bucket, answering false when writers kept a sweep from finishing. */
-    async sweep(): Promise<boolean> {
-        let isSwept = true;
-        for (const opened of this.#buckets.values()) {
-            // sweep each bucket that opened, leaving a failed opening to its opener
-            const [settled] = await Promise.allSettled([opened]);
-            if (settled.status === "fulfilled") {
-                isSwept = (await settled.value.sweep()) && isSwept;
-            }
-        }
-
-        return isSwept;
     }
 
     /** Close every opened bucket. */

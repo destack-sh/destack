@@ -7,7 +7,6 @@ import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { LocalBucketHost } from "../bun/index.ts";
 import { segment } from "../catalogue/stack/index.ts";
 import { bucketProvider } from "./provider.ts";
-import { SweepController } from "./sweep.ts";
 
 /** The bucket resource both hosts keep. */
 const record = {
@@ -104,7 +103,6 @@ test("fence a bucket through its provider, reporting the one concurrent call tha
         set: set.toSorted(),
         refused,
         written: await (await bucket.get("notes/a.txt"))?.text(),
-        controllers: provider.controllers,
     }).toEqual({
         set: [false, true],
         refused: [
@@ -113,7 +111,6 @@ test("fence a bucket through its provider, reporting the one concurrent call tha
             "bucket is fenced while a transfer copies it",
         ],
         written: "first",
-        controllers: [new SweepController(buckets)],
     });
 });
 

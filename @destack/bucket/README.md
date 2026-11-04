@@ -43,7 +43,7 @@ const memory = new MemoryBucket(world.clock); // versions counted per bucket
 
 ## Providers
 
-`bucketProvider` manages a machine's buckets as resources: it snapshots, fences and sweeps them.
+`bucketProvider` manages a machine's buckets as resources: it snapshots and fences them, and its host sweeps each one as it opens.
 
 ```ts
 import { LocalBucketHost } from "@destack/bucket/bun";

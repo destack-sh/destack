@@ -71,9 +71,10 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         const storageClass = StorageClass.read(options.storageClass ?? "Standard");
         const uploadId = Uuid.v7(storage.environment);
 
-        // register the upload in an unfenced bucket
+        // expire the uploads past their time, then register the upload in an unfenced bucket
         await storage.exclusive(async () => {
             storage.checkWritable();
+            await storage.expire();
             await storage.database.transaction(
                 async (transaction) =>
                     await transaction.insert(upload).values({

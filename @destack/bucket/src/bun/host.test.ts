@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { setImmediate } from "node:timers/promises";
 import { present, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
-import { SweepController } from "../provider/index.ts";
 import { BucketError } from "../error/index.ts";
 import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
 import { LocalBucketHost } from "./host.ts";
@@ -77,7 +76,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
     ]);
 });
 
-test("sweep a host's open buckets daily, deleting the packs no row points into", async () => {
+test("sweep a bucket as its host opens it, deleting the packs no row points into", async () => {
     await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("buckets-");
@@ -97,14 +96,12 @@ test("sweep a host's open buckets daily, deleting the packs no row points into",
     await bucket.put("notes/a.txt", "kept");
     const files = join(buckets.path({ bucketId }), "files");
     await world.files.writeTextFile(join(files, digestOf("abandoned")), "abandoned");
-    const sweep = new SweepController(buckets);
 
-    // sweep the abandoned pack no row points into, leaving the written one
-    const swept = [
-        await sweep.reconcile(),
-        (await world.files.readDirectory(files)).map((entry) => entry.name),
-    ];
-    expect(swept).toEqual([24 * 60 * 60_000, [digestOf("kept")]]);
+    // sweep the abandoned pack no row points into once the bucket opens again, leaving the written one
+    await buckets.close({ bucketId });
+    await buckets.open({ bucketId });
+    const kept = (await world.files.readDirectory(files)).map((entry) => entry.name);
+    expect(kept).toEqual([digestOf("kept")]);
 });
 
 test("open a bucket again after a failed open", async () => {
