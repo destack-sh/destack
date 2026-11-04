@@ -6,7 +6,7 @@
     </picture>
   </a>
 </p>
-<p align="center">Own your whole stack, build great custom software, and bring all your agents.</p>
+<p align="center">Build custom software, integrate every app and agent, control your whole stack.</p>
 <p align="center">
   <a href="https://discord.gg/xUFQ45TWYd"><img alt="Discord" src="https://img.shields.io/badge/discord-join-5865f2?style=flat-square&logo=discord&logoColor=white" /></a>
   <a href="https://github.com/destack-sh/destack/actions/workflows/check.yml"><img alt="Check" src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/check.yml?style=flat-square&branch=main&label=check" /></a>
