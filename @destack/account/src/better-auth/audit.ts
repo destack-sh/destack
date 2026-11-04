@@ -1,5 +1,6 @@
 import { CallErrorCode, Failure } from "@destack/error";
 import { AuditCaller, defineAuditAction } from "@destack/object";
+import type { Outcome } from "@destack/sync";
 import { AuditRecorder, type Journal } from "@destack/object/server";
 import { Scope } from "@destack/sync";
 import { present, schema, zip } from "@destack/schema";
@@ -15,6 +16,7 @@ import {
 } from "@destack/telemetry";
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
+import { queueAfterTransactionHook } from "@better-auth/core/context";
 import { principal, ANONYMOUS } from "@destack/access";
 import type { Fetch } from "@destack/object";
 import { sessionCreate } from "../object/session.ts";
@@ -113,15 +115,19 @@ export class BetterAuthAudit {
                                 this.journal,
                             );
 
-                            // record the issued session's verified identity
-                            await this.journal.database.transaction((transaction) =>
-                                recorder.record(transaction, sessionCreate, {
-                                    target: { type: "session", id: sessionId },
-                                    details:
-                                        endpoint.path === undefined ? {} : { path: endpoint.path },
-                                    outcome: { kind: "success" },
-                                }),
-                            );
+                            // record the issued session's verified identity once the request commits
+                            await queueAfterTransactionHook(async () => {
+                                await this.journal.database.transaction((transaction) =>
+                                    recorder.record(transaction, sessionCreate, {
+                                        target: { type: "session", id: sessionId },
+                                        details:
+                                            endpoint.path === undefined
+                                                ? {}
+                                                : { path: endpoint.path },
+                                        outcome: { kind: "success" },
+                                    }),
+                                );
+                            });
                         }),
                     },
                 ],
@@ -129,7 +135,7 @@ export class BetterAuthAudit {
         };
     }
 
-    /** Trace a request and persist required audit attempts and outcomes. */
+    /** Trace a request and record its outcome once it ends. */
     async invoke(
         request: Request,
         caller: AuditCaller,
@@ -177,7 +183,7 @@ export class BetterAuthAudit {
         });
     }
 
-    /** Persist a request attempt before dispatch and its outcome before returning. */
+    /** Record a request's outcome once it ends, a failure as an internal error. */
     async #record(
         request: Request,
         route: string,
@@ -196,76 +202,73 @@ export class BetterAuthAudit {
             },
             this.journal,
         );
-        const attempt = READS.has(route)
-            ? undefined
-            : recorder.begin(authenticationRequest, {
-                  target: { type: "authentication-endpoint", id: route },
-                  details: { method: request.method },
-              });
 
-        // require durable acceptance before running a credential mutation
-        if (attempt !== undefined) {
-            await recorder.append(attempt);
+        // answer reads without a record
+        if (READS.has(route)) {
+            return BetterAuthAudit.#traced(request, await handler(request), span);
         }
 
-        // run the request and record a failure
+        // run the request, then record its outcome
+        const attempt = recorder.begin(authenticationRequest, {
+            target: { type: "authentication-endpoint", id: route },
+            details: { method: request.method },
+        });
         const response = await BetterAuthAudit.#dispatch(request, handler, recorder, attempt, span);
+        await recorder.append(
+            recorder.finish(attempt, BetterAuthAudit.#outcome(request, response)),
+        );
 
-        // mark a rejected response on the span
-        const isRejected = BetterAuthAudit.#isRejected(request, response);
-        span.setAttribute("http.response.status_code", response.status);
-        if (isRejected) {
-            span.setStatus({ code: SpanStatusCode.ERROR });
-        }
-
-        // record the outcome before answering, a rejecting redirect as unauthorized
-        if (attempt !== undefined) {
-            const code =
-                response.status >= 400 ? CallErrorCode.of(response.status) : "UNAUTHORIZED";
-            const outcome = isRejected
-                ? {
-                      kind: "failure" as const,
-                      error: Failure.http(code, "authentication rejected"),
-                  }
-                : { kind: "success" as const };
-            await recorder.append(recorder.finish(attempt, outcome));
-        }
-
-        return response;
+        return BetterAuthAudit.#traced(request, response, span);
     }
 
-    /** Run a request, and record a failing run of a recorded attempt. */
+    /** Run a request, and record its failure. */
     static async #dispatch(
         request: Request,
         handler: Fetch,
         recorder: AuditRecorder,
-        attempt: ReturnType<AuditRecorder["begin"]> | undefined,
+        attempt: ReturnType<AuditRecorder["begin"]>,
         span: Span,
     ): Promise<Response> {
         try {
             return await handler(request);
         } catch (error) {
-            // record the failure of a recorded attempt
+            // record the failure
             span.setStatus({ code: SpanStatusCode.ERROR });
-            if (attempt !== undefined) {
-                try {
-                    await recorder.append(
-                        recorder.finish(attempt, {
-                            kind: "failure",
-                            error: Failure.http("INTERNAL_SERVER_ERROR", "internal error"),
-                        }),
-                    );
-                } catch (auditError) {
-                    throw new AggregateError(
-                        [error, auditError],
-                        "authentication and audit recording failed",
-                        { cause: auditError },
-                    );
-                }
+            try {
+                await recorder.append(
+                    recorder.finish(attempt, {
+                        kind: "failure",
+                        error: Failure.http("INTERNAL_SERVER_ERROR", "internal error"),
+                    }),
+                );
+            } catch (auditError) {
+                throw new AggregateError(
+                    [error, auditError],
+                    "authentication and audit recording failed",
+                    { cause: auditError },
+                );
             }
-
             throw error;
         }
+    }
+
+    /** Mark a response's status on its span, and a refusal as an error. */
+    static #traced(request: Request, response: Response, span: Span): Response {
+        span.setAttribute("http.response.status_code", response.status);
+        if (BetterAuthAudit.#isRejected(request, response)) {
+            span.setStatus({ code: SpanStatusCode.ERROR });
+        }
+
+        return response;
+    }
+
+    /** Read a response's outcome, a rejecting redirect as unauthorized. */
+    static #outcome(request: Request, response: Response): Outcome {
+        const code = response.status >= 400 ? CallErrorCode.of(response.status) : "UNAUTHORIZED";
+
+        return BetterAuthAudit.#isRejected(request, response)
+            ? { kind: "failure", error: Failure.http(code, "authentication rejected") }
+            : { kind: "success" };
     }
 
     /** Decide whether a response refuses the request. */

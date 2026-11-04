@@ -24,6 +24,7 @@
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
+        "@better-auth/core": "1.7.6",
         "@better-auth/passkey": "1.7.6",
         "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
