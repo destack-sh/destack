@@ -25,15 +25,14 @@ export const claimMethods = {
             output: ClaimRefusal,
         }),
         async (call, execution) => {
-            // reserve the free names in the store's transaction
+            // reserve the free names in a transaction of the store's database
             const { request, ...claimant } = call.input;
             const { store, transaction } = Execution.store(execution, call);
-            const { database } = transaction;
-            const { environment } = store;
+            const refused = await transaction.database.transaction((reserving) =>
+                Claim.reserve(reserving, claimant, request, call.now, store.environment),
+            );
 
-            return {
-                refused: await Claim.reserve(database, claimant, request, call.now, environment),
-            };
+            return { refused };
         },
     ),
 
@@ -49,7 +48,9 @@ export const claimMethods = {
             // settle the names the committed write has
             const { request, ...claimant } = call.input;
             const { database } = Execution.store(execution, call).transaction;
-            await Claim.confirm(database, claimant, request);
+            await database.transaction((confirming) =>
+                Claim.confirm(confirming, claimant, request),
+            );
 
             return {};
         },
@@ -67,7 +68,7 @@ export const claimMethods = {
             // release the names the failed write reserved
             const { request, ...object } = call.input;
             const { database } = Execution.store(execution, call).transaction;
-            await Claim.release(database, object, request);
+            await database.transaction((releasing) => Claim.release(releasing, object, request));
 
             return {};
         },
@@ -84,10 +85,11 @@ export const claimMethods = {
         async (call, execution) => {
             // replace the names, refusing those others claim
             const { store, transaction } = Execution.store(execution, call);
+            const refused = await transaction.database.transaction((replacing) =>
+                Claim.replace(replacing, call.input, store.environment),
+            );
 
-            return {
-                refused: await Claim.replace(transaction.database, call.input, store.environment),
-            };
+            return { refused };
         },
     ),
 

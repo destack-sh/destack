@@ -145,29 +145,26 @@ export const Reservation = {
             : Reservation.remote(claims.object, claims.home, claimants, types, request, database);
     },
 
-    /** Replace objects' names after unreserved writes, refusing taken names. */
+    /** Replace objects' names at their home after unreserved writes, refusing taken names. */
     async replace(
-        claims: ClaimPrimary,
-        database: DatabaseConnection,
+        claim: ClaimType,
+        home: RemoteStore,
         claimants: readonly Claimant[],
         types: readonly ObjectType[],
         environment: UuidEnvironment,
     ): Promise<void> {
-        // replace in the store's database, else at the claim type's home
-        const refused: Claim[] = [];
-        if (claims.home === undefined) {
-            for (const claimant of claimants) {
-                refused.push(...(await Claim.replace(database, claimant, environment)));
-            }
-        } else if (claimants.length > 0) {
-            const calls = claimants.map((claimant) => claims.object.call("replace", claimant));
-            const mutation = { id: RequestId.create(environment), calls };
-            const results = await claims.home.mutate(mutation);
-            refused.push(...results.flatMap((result) => ClaimRefusal.parse(result).refused));
+        // replace every object's names in one mutation at the home
+        if (claimants.length === 0) {
+            return;
         }
+        const calls = claimants.map((claimant) => claim.call("replace", claimant));
+        const results = await home.mutate({ id: RequestId.create(environment), calls });
 
         // refuse names other objects claim
-        Reservation.refuse(types, refused);
+        Reservation.refuse(
+            types,
+            results.flatMap((result) => ClaimRefusal.parse(result).refused),
+        );
     },
 
     /** Refuse a write whose names other objects claim, reporting the index of the first. */
@@ -194,12 +191,11 @@ export const Reservation = {
     ): Reservation {
         return {
             commit: async (committing) => {
-                // replace each object's names at once, refusing names other objects claim
-                const refused: Claim[] = [];
-                for (const claimant of claimants) {
-                    refused.push(...(await Claim.replace(committing, claimant, environment)));
-                }
-                Reservation.refuse(types, refused);
+                // replace every object's names together, refusing names other objects claim
+                const refused = await Promise.all(
+                    claimants.map((claimant) => Claim.replace(committing, claimant, environment)),
+                );
+                Reservation.refuse(types, refused.flat());
             },
             confirm: async () => {},
             release: async () => {},
@@ -301,7 +297,11 @@ export const Reservation = {
     },
 
     /** Declare the controller replacing the names a crash left reserved past their expiry. */
-    controller(store: ObjectStore, claims: ClaimPrimary): Controller<typeof claimReservation> {
+    controller(
+        store: ObjectStore,
+        claim: ClaimType,
+        home: RemoteStore,
+    ): Controller<typeof claimReservation> {
         // find each indexed type by its indexes
         const types = new Map(
             store.objects.flatMap((object) =>
@@ -344,7 +344,7 @@ export const Reservation = {
                 );
 
                 // replace their names at the home, then forget the reservations
-                await Reservation.replace(claims, database, claimants, store.objects, environment);
+                await Reservation.replace(claim, home, claimants, store.objects, environment);
                 await database.transaction(async (transaction) => {
                     for (const reservation of rows) {
                         await transaction

@@ -8,6 +8,7 @@ import {
     Snapshot,
     type Row,
     type RelationalQueryBuilder,
+    sql,
 } from "@destack/db";
 import { claimReservation, type ClaimPrimary, implementPackage } from "../src/server/index.ts";
 import {
@@ -214,12 +215,14 @@ test("claim the names of writes outside the object store and finish expired rese
         const { packageId } = profile.policy.definition;
         const claimed = { index, key, packageId, objectId, owner };
         const claimant = { indexes: [index], objectId, owner, claims: [claimed] };
-        await Claim.reserve(
-            storage.database,
-            { ...claimant, state: "active" },
-            "request",
-            at - RESERVATION_MILLISECONDS,
-            world,
+        await storage.database.transaction((transaction) =>
+            Claim.reserve(
+                transaction,
+                { ...claimant, state: "active" },
+                "request",
+                at - RESERVATION_MILLISECONDS,
+                world,
+            ),
         );
         await east.database.transaction(
             async (transaction) =>
@@ -274,22 +277,42 @@ test("resolve a confirmed name to its object alone, and refuse it to others whil
 
     // reserve a name and confirm it once the write committed
     expect([
-        await Claim.reserve(database, claimant("notes", "active"), "request-1", now, world),
-        await Claim.reserve(database, claimant("notes", "active", second), "request-2", now, world),
+        await database.transaction((transaction) =>
+            Claim.reserve(transaction, claimant("notes", "active"), "request-1", now, world),
+        ),
+        await database.transaction((transaction) =>
+            Claim.reserve(
+                transaction,
+                claimant("notes", "active", second),
+                "request-2",
+                now,
+                world,
+            ),
+        ),
     ]).toEqual([[], [entry("notes", second)]]);
     const reserved = await Claim.owner(readClaims(database), { index, key: "notes" });
-    await Claim.confirm(database, claimant("notes", "active"), "request-1");
+    await database.transaction((transaction) =>
+        Claim.confirm(transaction, claimant("notes", "active"), "request-1"),
+    );
     const active = await Claim.owner(readClaims(database), { index, key: "notes" });
 
     // retain the name while its object sits in the trash, still refusing it to another object
-    await Claim.replace(database, claimant("notes", "trashed"), world);
+    await database.transaction((transaction) =>
+        Claim.replace(transaction, claimant("notes", "trashed"), world),
+    );
     const trashed = await Claim.owner(readClaims(database), { index, key: "notes" });
-    const taken = await Claim.replace(database, claimant("notes", "active", second), world);
+    const taken = await database.transaction((transaction) =>
+        Claim.replace(transaction, claimant("notes", "active", second), world),
+    );
 
     // restore and rename the object
-    await Claim.replace(database, claimant("notes", "active"), world);
+    await database.transaction((transaction) =>
+        Claim.replace(transaction, claimant("notes", "active"), world),
+    );
     const restored = await Claim.owner(readClaims(database), { index, key: "notes" });
-    await Claim.replace(database, claimant("archive", "active"), world);
+    await database.transaction((transaction) =>
+        Claim.replace(transaction, claimant("archive", "active"), world),
+    );
     expect([
         reserved,
         active,
@@ -310,6 +333,56 @@ test("resolve a confirmed name to its object alone, and refuse it to others whil
 });
 
 /** Serve one space's profiles in a separate database, returning a client per user. */
+test("refuse a name a postgresql write took after a commit's owners read as a lost race, and plainly once run again", async () => {
+    // run in a world of its own on postgresql, where writes interleave
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(
+        tablesOf({ packages: [], follows: [], tables: [claimTable] }).tables,
+        { environment: world, isMigrated: true, dialect: "postgresql" },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const index = "package-1/place/name";
+    const claimant = (objectId: string) => ({
+        indexes: [index],
+        objectId,
+        owner: "account-1",
+        claims: [{ index, key: "notes", packageId: "package-1", objectId, owner: "account-1" }],
+        state: "active" as const,
+    });
+    const replace = (objectId: string) =>
+        database.transaction(
+            (transaction) => Claim.replace(transaction, claimant(objectId), world),
+            { isolationLevel: "read committed" },
+        );
+
+    // hold a write's name uncommitted, and replace another object's names until its insert waits on it
+    const written = Promise.withResolvers<number>();
+    const released = Promise.withResolvers<void>();
+    const holding = database.transaction(async (transaction) => {
+        await Claim.replace(transaction, claimant("place-1"), world);
+        const [row] = await transaction.all(sql`SELECT pg_backend_pid() AS pid`);
+        written.resolve(Number(row?.["pid"]));
+        await released.promise;
+    });
+    const holder = await written.promise;
+    const late = refusal(replace("place-2"));
+    for (let waiting = 0; waiting === 0;) {
+        const [row] = await database.all(
+            sql`SELECT count(*) AS waiting FROM pg_stat_activity WHERE ${holder}::INTEGER = ANY(pg_blocking_pids(pid))`,
+        );
+        waiting = Number(row?.["waiting"]);
+    }
+
+    // refuse the late insert as a lost race, then plainly once the commit shows the owner
+    released.resolve();
+    await holding;
+    expect([await late, await replace("place-2")]).toEqual([
+        ["SERVICE_UNAVAILABLE", "CONCURRENT_UPDATE", "another write claimed a name meanwhile"],
+        [{ index, key: "notes", packageId: "package-1", objectId: "place-2", owner: "account-1" }],
+    ]);
+});
+
 async function serveProfiles(world: Environment, claims: ClaimPrimary) {
     // store the space's profiles in a separate database
     const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a006`);
@@ -478,7 +551,9 @@ test("retain a trashed object's names, activate them on restore, and release the
     const write = async (row: Row & { readonly id: string }) => {
         const object = { objectId: row.id, owner: "space-1" };
 
-        return Claim.replace(database, await Claimant.of(tag, object, row, snapshot), world);
+        const claimant = await Claimant.of(tag, object, row, snapshot);
+
+        return database.transaction((transaction) => Claim.replace(transaction, claimant, world));
     };
     const owner = async () => (await Claim.lookup(tag, names(database), "name", ["urgent"]))?.id;
     const states = [];
