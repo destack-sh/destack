@@ -1,5 +1,7 @@
 import type { Clock, Environment } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import {
     type DriverStatement,
     exists,
@@ -54,6 +56,9 @@ import type { Row } from "../table/row.ts";
 
 /** The channel a database's connections track their live instances and owners on. */
 const TRACKER_CHANNEL = "tracker";
+
+/** How long a database's log keeps windowed changes: a week. */
+const LOG_WINDOW_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
 /** The weight each read cache of a database stores, in rows: 2 MB of 0.5 KB rows, 4 MB for both. */
 const CACHED_ROWS = 4096;
@@ -537,6 +542,14 @@ export class DatabaseConnection<
                         TRANSACTION,
                     );
                     attempt?.commit();
+                    if (written.size > 0) {
+                        await this.state.compactIfDue(this.log, (error) =>
+                            TelemetryScope.of(
+                                import.meta.destack.package,
+                                this.state.environment.telemetry,
+                            ).captureException(error),
+                        );
+                    }
 
                     return committed;
                 } catch (error) {
@@ -655,6 +668,10 @@ export class ConnectionState {
     #serialized: Promise<unknown> = Promise.resolve();
     /** The operations to finish before close. */
     readonly #pending = new Set<Promise<void>>();
+    /** When the log's oldest windowed change leaves its window, zero before a commit looked. */
+    #compactionDue = 0;
+    /** Whether a compaction runs. */
+    #isCompacting = false;
     /** The shutdown. */
     #closing?: Promise<void>;
     /** The tracker of the database's live instances and owners, opened on first use. */
@@ -820,6 +837,29 @@ export class ConnectionState {
         this.#pending.add(settled);
 
         return result;
+    }
+
+    /** Compact the log after a logged commit once its oldest windowed change left the window. */
+    async compactIfDue(log: Log, report: (error: unknown) => void): Promise<void> {
+        // leave a log not due, compacting or closing
+        const at = this.clock.now();
+        if (at <= this.#compactionDue || this.#isCompacting || this.#closing !== undefined) {
+            return;
+        }
+
+        // compact, recording when it is due again, reporting a failure without failing the commit
+        this.#isCompacting = true;
+        try {
+            this.#compactionDue = await log.compactIfDue(
+                LOG_WINDOW_MILLISECONDS,
+                this.#compactionDue,
+                at,
+            );
+        } catch (error) {
+            report(error);
+        } finally {
+            this.#isCompacting = false;
+        }
     }
 
     /** Run work after the connection's earlier serialized work, one at a time in arrival order. */

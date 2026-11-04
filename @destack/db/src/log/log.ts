@@ -7,7 +7,7 @@ import { assertNever, DatabaseError } from "../error/error.ts";
 import {
     COMMIT_LOCK,
     LOG_EPOCH,
-    LOG_SLOT,
+    LOG_CHECKPOINT,
     LOG_HORIZON,
     LOG_REPLICA,
     LOG,
@@ -21,6 +21,22 @@ import type { Row } from "../table/row.ts";
 import { Key } from "../query/key.ts";
 import { Digest, type DigestCrypto, mapValues, toJsonSchema, Uuid } from "@destack/schema";
 
+/** A named reader of some tables' changes, whose checkpoint only their changes hold back. */
+export type LogReader = {
+    /** The reader's name, unique per consumer, which names its checkpoint. */
+    readonly name: string;
+    /** The tables whose changes the consumer reads. */
+    readonly tables: readonly Table[];
+};
+
+/** Readers as the checkpoint table stores them. */
+export const LogReader = {
+    /** Write a reader's tables as the JSON array of their SQL names. */
+    tables(reader: LogReader): string {
+        return JSON.stringify(reader.tables.map((table) => table[TABLE].sqlName));
+    },
+};
+
 /** A consumer's claimed page: where it ends, and when it was claimed. */
 export interface LogClaim {
     /** The log sequence the page ends at. */
@@ -29,9 +45,9 @@ export interface LogClaim {
     readonly claimedAt: number;
 }
 
-/** Claims as the slot table stores them. */
+/** Claims as the checkpoint table stores them. */
 export const LogClaim = {
-    /** Read a claim from its slot row. */
+    /** Read a claim from its checkpoint row. */
     read(row: Readonly<Record<string, unknown>>): LogClaim {
         return {
             through: LogColumn.integer(row["claim"]),
@@ -677,29 +693,29 @@ export class Log {
         );
     }
 
-    /** Place a consumer's slot at a sequence and end its claim, retaining changes until a time. */
-    async advance(slot: string, sequence: number, expiresAt: number): Promise<void> {
-        const table = sql.relation(LOG_SLOT);
+    /** Place a reader's checkpoint at a sequence, ending its claim, retaining changes a while. */
+    async advance(reader: LogReader, sequence: number, expiresAt: number): Promise<void> {
+        const table = sql.relation(LOG_CHECKPOINT);
         await this.database.run(sql`
-            INSERT INTO ${table} (name, sequence, expires_at)
-            VALUES (${slot}, ${sequence}, ${expiresAt})
-            ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, claim = NULL, claimed_at = NULL
+            INSERT INTO ${table} (name, sequence, expires_at, tables)
+            VALUES (${reader.name}, ${sequence}, ${expiresAt}, ${LogReader.tables(reader)})
+            ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, tables = excluded.tables, claim = NULL, claimed_at = NULL
         `);
     }
 
-    /** Place a consumer's slot at the log's start unless placed, retaining changes until a time. */
-    async place(slot: string, expiresAt: number): Promise<void> {
+    /** Place a reader's checkpoint at the log's start unless placed, retaining changes a while. */
+    async place(reader: LogReader, expiresAt: number): Promise<void> {
         await this.database.run(sql`
-            INSERT INTO ${sql.relation(LOG_SLOT)} (name, sequence, expires_at)
-            VALUES (${slot}, 0, ${expiresAt})
+            INSERT INTO ${sql.relation(LOG_CHECKPOINT)} (name, sequence, expires_at, tables)
+            VALUES (${reader.name}, 0, ${expiresAt}, ${LogReader.tables(reader)})
             ON CONFLICT (name) DO NOTHING
         `);
     }
 
-    /** List the names of the slots starting with a prefix, in name order. */
-    async slots(prefix: string): Promise<string[]> {
+    /** List the names of the checkpoints starting with a prefix, in name order. */
+    async checkpoints(prefix: string): Promise<string[]> {
         const rows = await this.database.all(sql`
-            SELECT name FROM ${sql.relation(LOG_SLOT)}
+            SELECT name FROM ${sql.relation(LOG_CHECKPOINT)}
             WHERE substr(name, 1, ${prefix.length}) = ${prefix}
             ORDER BY name
         `);
@@ -707,47 +723,51 @@ export class Log {
         return rows.map((row) => LogColumn.text(row["name"]));
     }
 
-    /** Move a consumer's slot from the position it read to another. */
-    async move(slot: string, from: number, to: number, expiresAt: number): Promise<void> {
-        // move a slot at the read position, placing a new one for a consumer from the start
-        const table = sql.relation(LOG_SLOT);
+    /** Move a reader's checkpoint from the position it read to another. */
+    async move(reader: LogReader, from: number, to: number, expiresAt: number): Promise<void> {
+        // move a checkpoint at the read position, placing a new one for a consumer from the start
+        const table = sql.relation(LOG_CHECKPOINT);
+        const tables = LogReader.tables(reader);
         const moved = await this.database.all(
             from === 0
                 ? sql`
-                    INSERT INTO ${table} (name, sequence, expires_at)
-                    VALUES (${slot}, ${to}, ${expiresAt})
-                    ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, claim = NULL, claimed_at = NULL
+                    INSERT INTO ${table} (name, sequence, expires_at, tables)
+                    VALUES (${reader.name}, ${to}, ${expiresAt}, ${tables})
+                    ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, tables = excluded.tables, claim = NULL, claimed_at = NULL
                     WHERE ${table}.sequence = ${from}
                     RETURNING name
                 `
                 : sql`
-                    UPDATE ${table} SET sequence = ${to}, expires_at = ${expiresAt}, claim = NULL, claimed_at = NULL
-                    WHERE name = ${slot} AND sequence = ${from}
+                    UPDATE ${table} SET sequence = ${to}, expires_at = ${expiresAt}, tables = ${tables}, claim = NULL, claimed_at = NULL
+                    WHERE name = ${reader.name} AND sequence = ${from}
                     RETURNING name
                 `,
         );
 
-        // refuse a slot another consumer moved since the read
+        // refuse a checkpoint another consumer moved since the read
         if (moved.length === 0) {
-            throw DatabaseError.of("CONCURRENT_UPDATE", `slot ${slot} moved past ${from}`);
+            throw DatabaseError.of(
+                "CONCURRENT_UPDATE",
+                `checkpoint ${reader.name} moved past ${from}`,
+            );
         }
     }
 
-    /** Claim a consumer's page through a sequence unless claimed, absent once the slot moved on. */
+    /** Claim a reader's page through a sequence unless claimed, absent once it moved on. */
     async claim(
-        slot: string,
+        reader: LogReader,
         after: number,
         through: number,
         now: number,
         expiresAt: number,
     ): Promise<LogClaim | undefined> {
-        // leave the slot's claim, else claim through the sequence at the read
-        const table = sql.relation(LOG_SLOT);
+        // leave the checkpoint's claim, else claim through the sequence at the read
+        const table = sql.relation(LOG_CHECKPOINT);
         const [row] = await this.database.all(
             after === 0
                 ? sql`
-                    INSERT INTO ${table} (name, sequence, expires_at, claim, claimed_at)
-                    VALUES (${slot}, 0, ${expiresAt}, ${through}, ${now})
+                    INSERT INTO ${table} (name, sequence, expires_at, tables, claim, claimed_at)
+                    VALUES (${reader.name}, 0, ${expiresAt}, ${LogReader.tables(reader)}, ${through}, ${now})
                     ON CONFLICT (name) DO UPDATE SET
                         claim = COALESCE(${table}.claim, excluded.claim),
                         claimed_at = COALESCE(${table}.claimed_at, excluded.claimed_at)
@@ -757,7 +777,7 @@ export class Log {
                 : sql`
                     UPDATE ${table}
                     SET claim = COALESCE(claim, ${through}), claimed_at = COALESCE(claimed_at, ${now})
-                    WHERE name = ${slot} AND sequence = ${after}
+                    WHERE name = ${reader.name} AND sequence = ${after}
                     RETURNING claim, claimed_at
                 `,
         );
@@ -766,29 +786,31 @@ export class Log {
     }
 
     /** Read a consumer's claimed page, absent while it claims none. */
-    async claimed(slot: string): Promise<LogClaim | undefined> {
+    async claimed(name: string): Promise<LogClaim | undefined> {
         const [row] = await this.database.all(
-            sql`SELECT claim, claimed_at FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot} AND claim IS NOT NULL`,
+            sql`SELECT claim, claimed_at FROM ${sql.relation(LOG_CHECKPOINT)} WHERE name = ${name} AND claim IS NOT NULL`,
         );
 
         return row === undefined ? undefined : LogClaim.read(row);
     }
 
-    /** Read the position of a consumer's slot, absent without one. */
-    async slot(slot: string): Promise<number | undefined> {
+    /** Read a reader's checkpoint, absent without one. */
+    async checkpoint(name: string): Promise<number | undefined> {
         const [row] = await this.database.all(
-            sql`SELECT sequence FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`,
+            sql`SELECT sequence FROM ${sql.relation(LOG_CHECKPOINT)} WHERE name = ${name}`,
         );
 
         return row === undefined ? undefined : LogColumn.integer(row["sequence"]);
     }
 
-    /** Drop a slot and its claim, retaining no more changes for it. */
-    async drop(slot: string): Promise<void> {
-        await this.database.run(sql`DELETE FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`);
+    /** Drop a checkpoint and its claim, retaining no more changes for it. */
+    async drop(name: string): Promise<void> {
+        await this.database.run(
+            sql`DELETE FROM ${sql.relation(LOG_CHECKPOINT)} WHERE name = ${name}`,
+        );
     }
 
-    /** Delete old windowed changes no slot retains, answering when the oldest one left was made. */
+    /** Delete old changes no checkpoint retains, answering when the oldest left was made. */
     async compact(before: number, now: number): Promise<number | undefined> {
         return await this.database.transaction(async (transaction) => {
             // find the newest removable change and the oldest windowed one
@@ -806,10 +828,22 @@ export class Log {
                 return oldest;
             }
 
-            // retain the changes after the earliest live slot
+            // move each unclaimed checkpoint past the removable changes when none is of its tables
+            const checkpoints = sql.relation(LOG_CHECKPOINT);
+            await transaction.run(sql`
+                UPDATE ${checkpoints} SET sequence = ${newest}
+                WHERE claim IS NULL AND sequence < ${newest} AND NOT EXISTS (
+                    SELECT 1 FROM ${log} AS entry
+                    WHERE entry.sequence > ${checkpoints}.sequence
+                        AND entry.sequence <= ${newest}
+                        AND ${listed(sql`entry."table"`, sql`${checkpoints}.tables`)}
+                )
+            `);
+
+            // retain the changes after the earliest live checkpoint
             const [retainedRow] = await transaction.all(sql`
                 SELECT
-                    (SELECT min(sequence) FROM ${sql.relation(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
+                    (SELECT min(sequence) FROM ${sql.relation(LOG_CHECKPOINT)} WHERE expires_at > ${now}) AS sequence,
                     (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
             `);
             const retained = {

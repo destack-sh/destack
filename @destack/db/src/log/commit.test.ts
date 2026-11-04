@@ -766,6 +766,17 @@ test("commit runs of inserts, plain updates and deletes in a few statements, shi
         return database.driver.state.statements - before;
     };
 
+    // commit once, as each database's first logged commit also looks at the log's compaction
+    await database.transaction((transaction) =>
+        transaction
+            .insert(entry)
+            .values(entryRow("warm", "warm", 0))
+            .execute(),
+    );
+    await database.transaction((transaction) =>
+        transaction.delete(entry).where(eq(entry.id, "warm")).execute(),
+    );
+
     // insert four entries, then update them, one clearing its details beside the count
     const written = [
         entryRow("a", "x", 0, "first"),

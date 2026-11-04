@@ -4,10 +4,15 @@ import { schema } from "@destack/schema";
 import { sql } from "../../sql/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "../../test/database.ts";
-import { Change, DatabaseError, eq, LogPosition, TABLE } from "../../index.ts";
+import { Change, DatabaseError, eq, LogPosition, type LogReader, TABLE } from "../../index.ts";
 import { changeTables, first, lease, note, reading, revision } from "./fixture.ts";
 import { setting } from "../../bun/test/setting.ts";
 import { testSimulation } from "@destack/test/world";
+
+/** A reader of the notes. */
+function reader(name: string): LogReader {
+    return { name, tables: [note] };
+}
 
 /** Open a migrated test database in a world, its own by default, with the world's clock. */
 async function open(
@@ -286,7 +291,7 @@ test("compact once a change leaves the window, answering when compacting is next
     expect({ compacted, waiting, due }).toEqual({
         compacted: { next: logged + window, statements: 2 },
         waiting: { next: logged + window, statements: 0 },
-        due: { next: logged + 2 * window + 1, statements: 7 },
+        due: { next: logged + 2 * window + 1, statements: 8 },
     });
 });
 
@@ -415,46 +420,46 @@ test("end each page with a whole transaction", async () => {
     ]);
 });
 
-test("move a consumer's slot only from the position it read, refusing a consumer whose read another one moved past", async () => {
+test("move a consumer's checkpoint only from the position it read, refusing a consumer whose read another one moved past", async () => {
     const { database, clock } = await open();
     const expiresAt = clock.now() + 60_000;
 
-    // place a slot from the start, then move it from where it stands
-    await database.log.move("rating", 0, 3, expiresAt);
-    await database.log.move("rating", 3, 5, expiresAt);
+    // place a checkpoint from the start, then move it from where it stands
+    await database.log.move(reader("rating"), 0, 3, expiresAt);
+    await database.log.move(reader("rating"), 3, 5, expiresAt);
 
-    // refuse a second consumer that read the start, and one that read the slot before the last move
+    // refuse a second consumer that read the start, and one that read the checkpoint before the last move
     const refused = await Promise.all(
-        [0, 3].map((from) => refusal(database.log.move("rating", from, 4, expiresAt))),
+        [0, 3].map((from) => refusal(database.log.move(reader("rating"), from, 4, expiresAt))),
     );
-    expect({ refused, slot: await database.log.slot("rating") }).toEqual({
+    expect({ refused, checkpoint: await database.log.checkpoint("rating") }).toEqual({
         refused: [
-            ["SERVICE_UNAVAILABLE", "CONCURRENT_UPDATE", "slot rating moved past 0"],
-            ["SERVICE_UNAVAILABLE", "CONCURRENT_UPDATE", "slot rating moved past 3"],
+            ["SERVICE_UNAVAILABLE", "CONCURRENT_UPDATE", "checkpoint rating moved past 0"],
+            ["SERVICE_UNAVAILABLE", "CONCURRENT_UPDATE", "checkpoint rating moved past 3"],
         ],
-        slot: 5,
+        checkpoint: 5,
     });
 });
 
-test("claim a consumer's page once from where its slot stands at the first claim's time, claiming nothing behind a move, placing a slot claimed from the start, and end the claim on a move, an advance or a drop", async () => {
+test("claim a consumer's page once from where its checkpoint stands at the first claim's time, claiming nothing behind a move, placing a checkpoint claimed from the start, and end the claim on a move, an advance or a drop", async () => {
     const { database, clock } = await open();
     const expiresAt = clock.now() + 60_000;
 
     // claim the page after 3 through 5 at 100, then claim again through 7 at 200
-    await database.log.move("rating", 0, 3, expiresAt);
-    const claimed = await database.log.claim("rating", 3, 5, 100, expiresAt);
-    const kept = await database.log.claim("rating", 3, 7, 200, expiresAt);
+    await database.log.move(reader("rating"), 0, 3, expiresAt);
+    const claimed = await database.log.claim(reader("rating"), 3, 5, 100, expiresAt);
+    const kept = await database.log.claim(reader("rating"), 3, 7, 200, expiresAt);
 
     // move past the claimed page, then refuse a claim from the old place
-    await database.log.move("rating", 3, 5, expiresAt);
+    await database.log.move(reader("rating"), 3, 5, expiresAt);
     const moved = await database.log.claimed("rating");
-    const behind = await database.log.claim("rating", 3, 9, 300, expiresAt);
+    const behind = await database.log.claim(reader("rating"), 3, 9, 300, expiresAt);
 
-    // claim again from the new place, advance to end it, then claim a new slot from the start
-    const next = await database.log.claim("rating", 5, 9, 400, expiresAt);
-    await database.log.advance("rating", 5, expiresAt);
+    // claim again from the new place, advance to end it, then claim a new checkpoint from the start
+    const next = await database.log.claim(reader("rating"), 5, 9, 400, expiresAt);
+    await database.log.advance(reader("rating"), 5, expiresAt);
     const advanced = await database.log.claimed("rating");
-    const fromStart = await database.log.claim("usage:a", 0, 4, 500, expiresAt);
+    const fromStart = await database.log.claim(reader("usage:a"), 0, 4, 500, expiresAt);
     await database.log.drop("rating");
     expect({
         claimed,
@@ -463,8 +468,8 @@ test("claim a consumer's page once from where its slot stands at the first claim
         behind,
         next,
         advanced,
-        fromStart: [fromStart, await database.log.slot("usage:a")],
-        dropped: [await database.log.slot("rating"), await database.log.claimed("rating")],
+        fromStart: [fromStart, await database.log.checkpoint("usage:a")],
+        dropped: [await database.log.checkpoint("rating"), await database.log.claimed("rating")],
     }).toEqual({
         claimed: { through: 5, claimedAt: 100 },
         kept: { through: 5, claimedAt: 100 },
@@ -548,25 +553,46 @@ test("refuse a logged script outside a transaction, and log one inside a transac
     });
 });
 
-test("place a consumer's slot at the log's start once, and list the slots of a prefix", async () => {
+test("place a consumer's checkpoint at the log's start once, and list the checkpoints of a prefix", async () => {
     const { database, clock } = await open();
     const expiresAt = clock.now() + 60_000;
 
-    // place three slots, placing a moved one again
-    await database.log.place("usage:a", expiresAt);
-    await database.log.move("usage:a", 0, 3, expiresAt);
-    await database.log.place("usage:a", expiresAt);
-    await database.log.place("usage:b", expiresAt);
-    await database.log.place("rating", expiresAt);
+    // place three checkpoints, placing a moved one again
+    await database.log.place(reader("usage:a"), expiresAt);
+    await database.log.move(reader("usage:a"), 0, 3, expiresAt);
+    await database.log.place(reader("usage:a"), expiresAt);
+    await database.log.place(reader("usage:b"), expiresAt);
+    await database.log.place(reader("rating"), expiresAt);
 
-    // list the prefix's slots, the moved one where it moved and the new one at the start
+    // list the prefix's checkpoints, the moved one where it moved and the new one at the start
     expect({
-        slots: await database.log.slots("usage:"),
-        positions: [await database.log.slot("usage:a"), await database.log.slot("usage:b")],
-    }).toEqual({ slots: ["usage:a", "usage:b"], positions: [3, 0] });
+        checkpoints: await database.log.checkpoints("usage:"),
+        positions: [
+            await database.log.checkpoint("usage:a"),
+            await database.log.checkpoint("usage:b"),
+        ],
+    }).toEqual({ checkpoints: ["usage:a", "usage:b"], positions: [3, 0] });
 });
 
-test("retain the changes after a consumer's slot until it expires or is dropped, and read its position", async () => {
+test("move a checkpoint past compacted changes of other tables, and hold one at a change of its own tables", async () => {
+    const { database, clock } = await open();
+    const now = clock.now();
+
+    // place a checkpoint over the notes and one over the readings at the start, then change a note
+    await database.log.advance(reader("notes"), 0, now + 60_000);
+    await database.log.advance({ name: "readings", tables: [reading] }, 0, now + 60_000);
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
+    const head = (await database.log.position()).sequence;
+
+    // compact: the readings' checkpoint moves past the note, the notes' checkpoint holds before it
+    await database.log.compact(now + 1, now);
+    expect([
+        await database.log.checkpoint("notes"),
+        await database.log.checkpoint("readings"),
+    ]).toEqual([0, head]);
+});
+
+test("retain the changes after a consumer's checkpoint until it expires or is dropped, and read its position", async () => {
     const { database, clock } = await open();
     await database.transaction((transaction) => transaction.insert(note).values(first).execute());
     const kept = (await database.log.position()).sequence;
@@ -574,13 +600,13 @@ test("retain the changes after a consumer's slot until it expires or is dropped,
         transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a")).execute(),
     );
 
-    // retain the changes after the slot while it lasts
+    // retain the changes after the checkpoint while it lasts
     const now = clock.now();
-    await database.log.advance("subscription", kept, now + 60_000);
-    expect([await database.log.slot("subscription"), await database.log.slot("other")]).toEqual([
-        kept,
-        undefined,
-    ]);
+    await database.log.advance(reader("subscription"), kept, now + 60_000);
+    expect([
+        await database.log.checkpoint("subscription"),
+        await database.log.checkpoint("other"),
+    ]).toEqual([kept, undefined]);
     await database.log.compact(now + 1, now);
     expect(
         (await database.log.read({ tables: [note], after: kept })).changes.map(
@@ -588,7 +614,7 @@ test("retain the changes after a consumer's slot until it expires or is dropped,
         ),
     ).toEqual(["update"]);
 
-    // compact past an expired and a dropped slot
+    // compact past an expired and a dropped checkpoint
     await database.log.compact(now + 1, now + 120_000);
     expect(await refusal(database.log.read({ tables: [note], after: kept }))).toEqual([
         "GONE",
@@ -596,9 +622,9 @@ test("retain the changes after a consumer's slot until it expires or is dropped,
         `changes after ${kept} were compacted: list the tables again`,
     ]);
     await database.log.drop("subscription");
-    expect(await database.all(sql`SELECT name FROM ${sql.relation("__destack_log_slot")}`)).toEqual(
-        [],
-    );
+    expect(
+        await database.all(sql`SELECT name FROM ${sql.relation("__destack_log_checkpoint")}`),
+    ).toEqual([]);
 });
 
 test("bound a transaction's changes by the positions around it", async () => {

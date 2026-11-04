@@ -15,8 +15,8 @@ export const LOG = "__destack_log";
 /** The SQL name of the highest compacted change sequence. */
 export const LOG_HORIZON = "__destack_log_horizon";
 
-/** The SQL name of the consumers' slots: each position, and when it stops retaining changes. */
-export const LOG_SLOT = "__destack_log_slot";
+/** The SQL name of the readers' checkpoints: position, tables and how long each retains changes. */
+export const LOG_CHECKPOINT = "__destack_log_checkpoint";
 
 /** The SQL name of the log's identity: its identifier, its epoch and the database's scope. */
 export const LOG_EPOCH = "__destack_log_epoch";
@@ -37,7 +37,7 @@ export const LOG_TRANSACTION = "__destack_log_transaction";
 export const LOG_TABLES: readonly string[] = [
     LOG,
     LOG_HORIZON,
-    LOG_SLOT,
+    LOG_CHECKPOINT,
     LOG_EPOCH,
     LOG_REPLICA,
     LOG_TRANSACTION,
@@ -114,15 +114,16 @@ export function loggedKey(table: Table): readonly Column[] {
     return columns;
 }
 
-/** Create the log's slot, replica marker and epoch tables once. */
+/** Create the log's checkpoint, replica marker and epoch tables once. */
 export function createEpoch(namespace?: string): readonly string[] {
     const name = (table: string) => quote(relation(table, namespace));
 
     return [
-        `CREATE TABLE IF NOT EXISTS ${name(LOG_SLOT)} (
+        `CREATE TABLE IF NOT EXISTS ${name(LOG_CHECKPOINT)} (
             name TEXT PRIMARY KEY,
             sequence BIGINT NOT NULL,
             expires_at BIGINT NOT NULL,
+            tables TEXT NOT NULL,
             claim BIGINT,
             claimed_at BIGINT,
             CHECK ((claim IS NULL) = (claimed_at IS NULL))
