@@ -1,6 +1,6 @@
 import { Subscription } from "@destack/notification";
-import { ObjectWatch } from "@destack/object";
-import { Snapshot } from "@destack/db";
+import { ObjectWatch, Observation } from "@destack/object";
+import { now, Snapshot } from "@destack/db";
 import { EventTime } from "@destack/event";
 import { implementPackage } from "@destack/object/server";
 import { present, schema } from "@destack/schema";
@@ -11,7 +11,6 @@ import {
     alertRule,
     AlertRule,
     NO_PENDING,
-    EVALUATION_MILLISECONDS,
     Issue,
     issue,
     exception,
@@ -252,29 +251,51 @@ export default implementPackage(observabilityPackage, {
         alertRule.implement({
             // let stacks declare rules as code, applied through create and update, which check each rule
             declaration: {},
-            controller: {
-                pending: {},
-                watches: [
-                    // evaluate the space's issue rules again once one of its issues changes
-                    ObjectWatch.of(issue.table, async (row, database) => {
-                        const rules = await Snapshot.live(database)
-                            .read(alertRule.table)
-                            .findMany({ where: { scope: row.scope } });
+            controllers: [
+                {
+                    // evaluate a rule as it, its space's issues, silences or its alerts change
+                    pending: {},
+                    watches: [
+                        ObjectWatch.of(issue.table, async (row, database) => {
+                            const rules = await Snapshot.live(database)
+                                .read(alertRule.table)
+                                .findMany({ where: { scope: row.scope } });
 
-                        return rules
-                            .filter((rule) => rule.condition.kind === "issue")
-                            .map((rule) => ({ id: rule.id }));
-                    }),
-                ],
-                reconcile: async (reconciliation) => {
-                    // evaluate the rule, again every minute
-                    for (const row of reconciliation.rows) {
-                        await new AlertRule(row).evaluate(reconciliation);
-                    }
+                            return rules
+                                .filter((rule) => rule.condition.kind === "issue")
+                                .map((rule) => ({ id: rule.id }));
+                        }),
+                        ObjectWatch.of(silence.table, async (row, database) => {
+                            const rules = await Snapshot.live(database)
+                                .read(alertRule.table)
+                                .findMany({ where: { scope: row.scope } });
 
-                    return EVALUATION_MILLISECONDS;
+                            return rules.map((rule) => ({ id: rule.id }));
+                        }),
+                        ObjectWatch.of(alert.table, (row) => [{ id: row.ruleId }]),
+                    ],
+                    reconcile: async (reconciliation) => {
+                        for (const row of reconciliation.rows) {
+                            await new AlertRule(row).evaluate(reconciliation);
+                        }
+                    },
                 },
-            },
+                {
+                    // clear a rule's due time once it comes, which its evaluation then takes
+                    name: "due",
+                    pending: { evaluateAt: { lte: now } },
+                    reconcile: async ({ rows, mutate }) => {
+                        await mutate(
+                            rows.map((row) =>
+                                Observation.call(alertRule, row, {
+                                    conditions: {},
+                                    fields: { evaluateAt: null },
+                                }),
+                            ),
+                        );
+                    },
+                },
+            ],
             methods: {
                 create: async (call, next) => {
                     // refuse an unreadable rule before writing it
@@ -373,8 +394,10 @@ export default implementPackage(observabilityPackage, {
         ...responses.objects,
     ],
     // run the responses to fired alerts
-    controllers: [
-        ...responses.controllers,
+    consumers: [
+        ...responses.consumers,
+        // mark a space's events rules due as its events append, a minute at a time
+        (store) => AlertRule.consumer(store),
         // count each space's exceptions into its issues a minute at a time, moving the reader in the same commit
         exception.consume("issues", async (page, { store, transaction }) => {
             const { key: scope, after, through } = page;

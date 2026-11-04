@@ -1,7 +1,6 @@
 import { testHost } from "@destack/test/host";
 import { space } from "@destack/account/object";
 import { defineObject, field, OBJECT_KIND, ObjectDescription } from "@destack/object";
-import objectPackage from "@destack/object/package";
 import { graph, Package } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Attribution, StackFrame, Symbolicator } from "@destack/package/stack";

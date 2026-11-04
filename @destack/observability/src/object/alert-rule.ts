@@ -2,6 +2,7 @@ import { space } from "@destack/account/object";
 import {
     and,
     Condition,
+    type Consumer,
     type DatabaseConnection,
     eq,
     Filter,
@@ -36,7 +37,7 @@ import {
     schema,
 } from "@destack/schema";
 import { rollout } from "@destack/stack/object";
-import { ObjectReference, ObjectTypeReference } from "@destack/sync";
+import { ObjectReference, ObjectTypeReference, RequestId } from "@destack/sync";
 import type { Step, WaitOf } from "@destack/workflow";
 import { ObservabilityError } from "../error/error.ts";
 import {
@@ -65,8 +66,11 @@ const REPEAT_INTERVAL = { minutes: 30 };
 /** The narrowest window an events condition reads: a minute. */
 const MINUTE_MILLISECONDS = 60_000;
 
-/** How often a space's alert rules are evaluated again without a change: every minute. */
-export const EVALUATION_MILLISECONDS = MINUTE_MILLISECONDS;
+/** How long a space's first unconsumed event waits before its events rules are due: a minute. */
+const EVALUATION_MILLISECONDS = MINUTE_MILLISECONDS;
+
+/** The consumer marking a space's events rules due as its events append. */
+const EVENTS_CONSUMER = "alert-events";
 
 /** The microseconds in a millisecond, between event times and clocks. */
 const MICROSECONDS = 1000;
@@ -178,6 +182,10 @@ export const alertRule = defineObject(
             pending: field.json(Duration.schema).default(NO_PENDING),
             /** Whether an events condition with an empty window fires, or counts as clear. */
             noData: field.enum(NO_DATA).default("ok"),
+
+            // observed
+            /** When the evaluation next changes without new input, absent while none is due. */
+            evaluateAt: field.time().optional(),
         },
         permissions: ["read", "write", "manage"],
         attachments: [
@@ -297,8 +305,157 @@ export class AlertRule {
                     : await this.#eventCrossings(store, condition, now);
             await this.#advance(reconciliation, crossings);
             await this.#announce(reconciliation);
-            await this.#observe(reconciliation);
+            await this.#observe(reconciliation, await this.#due(reconciliation, crossings));
         }
+    }
+
+    /** Consume a store's events, marking a space's events rules due once its events append. */
+    static consumer(store: ObjectStore): Consumer {
+        // read the tables of every events type the store serves
+        const reads = store.objects
+            .filter((object) => object.storage === "events")
+            .map((object) => object.table);
+
+        return {
+            name: EVENTS_CONSUMER,
+            reads,
+            checkpoint: "scope",
+            batch: EVALUATION_MILLISECONDS,
+            consume: async (scope) => {
+                // read the log's position, then the space's events rules not due by now
+                const { database } = store;
+                const now = store.clock.now();
+                const { sequence } = await database.log.position();
+                const rows = await database
+                    .select()
+                    .from(alertRule.table)
+                    .where(and(alertRule.inScope(scope), isNull(alertRule.table.deletedAt)));
+                const waiting = rows.filter(
+                    (row) =>
+                        row.condition.kind === "events" &&
+                        (row.evaluateAt === null || row.evaluateAt > now),
+                );
+
+                // mark them due now
+                if (waiting.length > 0) {
+                    const calls = waiting.map((row) =>
+                        Observation.call(alertRule, row, {
+                            conditions: {},
+                            fields: { evaluateAt: now },
+                        }),
+                    );
+                    await store.mutate(
+                        store.as(alertRule, now),
+                        { id: RequestId.create(store.environment), calls },
+                        { scope },
+                    );
+                }
+
+                // move the space's checkpoint past the appends, holding no changes back
+                await database.log.advance(
+                    { name: `${EVENTS_CONSUMER}:${scope}`, tables: reads },
+                    sequence,
+                    now,
+                );
+            },
+        };
+    }
+
+    /** Read when the evaluation can next change without new input, null while nothing is due. */
+    async #due(
+        reconciliation: ObjectReconciliation<typeof alertRule>,
+        crossings: readonly Crossing[],
+    ): Promise<number | null> {
+        // read the rule's alerts as the evaluation left them, and the subjects crossing
+        const { now, store } = reconciliation;
+        const interval = Duration.milliseconds(this.row.interval);
+        const alerts = await this.#alerts(store.database, now - interval);
+        const crossed = new Set(crossings.map((crossing) => crossing.fingerprint));
+
+        // fire a pending alert once its period ends, and alert a crossing subject again after its interval
+        const pending = Duration.milliseconds(this.row.pending);
+        const fired = alerts
+            .filter((row) => row.status === "pending")
+            .map((row) => row.createdAt + pending);
+        const repeated = alerts
+            .filter((row) => row.status === "resolved" && crossed.has(row.fingerprint))
+            .map((row) => row.createdAt + interval);
+
+        // announce a held alert once a silence covering it ends
+        const silences = await this.#activeSilences(store.database, now);
+        const released = alerts
+            .filter((row) => row.status === "firing" && row.announcedAt === null)
+            .flatMap((row) =>
+                silences.filter((each) => each.covers(row, now)).map((each) => each.row.endsAt),
+            );
+
+        // fold the events again once one leaves or enters the window
+        const { condition } = this.row;
+        const moved = condition.kind === "events" ? await this.#moves(store, condition, now) : [];
+
+        // take the earliest time after now
+        const times = [...fired, ...repeated, ...released, ...moved].filter((time) => time > now);
+
+        return times.length === 0 ? null : Math.min(...times);
+    }
+
+    /** Read when the oldest event in the window leaves it and the next later event enters it. */
+    async #moves(store: ObjectStore, condition: EventsCondition, now: number): Promise<number[]> {
+        // read the first event of a selection in a range of times
+        const kind = eventsTypeOf(store.objects, condition.event).eventKind();
+        const first = async (where: string | undefined, range: JsonCondition) => {
+            const selected = FilterText.condition(where);
+            const page = await store.events.query(
+                kind,
+                {
+                    scopes: [this.row.scope],
+                    where: selected === undefined ? range : { AND: [range, selected] },
+                },
+                { limit: 1 },
+            );
+
+            return page.events[0]?.time;
+        };
+
+        // read each selection's oldest event in the window and its first later one
+        const width = AlertRule.#width(condition);
+        const selections = [
+            condition.where,
+            ...(condition.per === undefined ? [] : [condition.per.where]),
+        ];
+        const times = await Promise.all(
+            selections.map(async (where) => {
+                const oldest = await first(where, {
+                    time: { gte: (now - width) * MICROSECONDS, lt: now * MICROSECONDS },
+                });
+                const later = await first(where, { time: { gte: now * MICROSECONDS } });
+
+                // leave the window once past its width, and enter it once past now
+                return [
+                    ...(oldest === undefined
+                        ? []
+                        : [Math.floor(oldest / MICROSECONDS) + width + 1]),
+                    ...(later === undefined ? [] : [Math.floor(later / MICROSECONDS) + 1]),
+                ];
+            }),
+        );
+
+        return times.flat();
+    }
+
+    /** Read the width of an events condition's window, at least a minute. */
+    static #width(condition: EventsCondition): number {
+        return Math.max(Duration.milliseconds(condition.window), MINUTE_MILLISECONDS);
+    }
+
+    /** Read the silences of the rule's space active at a time. */
+    async #activeSilences(database: DatabaseConnection, now: number): Promise<Silence[]> {
+        const active = await database
+            .select()
+            .from(silence.table)
+            .where(and(eq(silence.table.scope, this.row.scope), gt(silence.table.endsAt, now)));
+
+        return active.map((row) => new Silence(row));
     }
 
     /** Announce the rule's firing alerts a silence held back, once it no longer covers them. */
@@ -320,11 +477,7 @@ export class AlertRule {
 
         // announce only the alerts no active silence covers any longer
         const now = reconciliation.store.clock.now();
-        const active = await reconciliation.store.database
-            .select()
-            .from(silence.table)
-            .where(and(eq(silence.table.scope, this.row.scope), gt(silence.table.endsAt, now)));
-        const silences = active.map((row) => new Silence(row));
+        const silences = await this.#activeSilences(reconciliation.store.database, now);
         const released = held.filter((row) => !silences.some((each) => each.covers(row, now)));
         if (released.length > 0) {
             await reconciliation.mutate(
@@ -546,7 +699,7 @@ export class AlertRule {
         const { crypto } = store.environment;
 
         // read the window as one step
-        const width = Math.max(Duration.milliseconds(condition.window), MINUTE_MILLISECONDS);
+        const width = AlertRule.#width(condition);
         const range: JsonCondition = {
             time: { gte: (now - width) * MICROSECONDS, lt: now * MICROSECONDS },
         };
@@ -660,21 +813,15 @@ export class AlertRule {
         return [...latest.values()];
     }
 
-    /** Report the rule evaluated at its generation, once per generation. */
-    async #observe(reconciliation: ObjectReconciliation<typeof alertRule>): Promise<void> {
-        // report only a new generation or a changed readiness
-        const ready = this.row.conditions["Ready"];
-        const isReported =
-            Observation.isCurrent(this.row, "Ready") && ready?.reason === "Evaluated";
-        if (!isReported) {
-            await reconciliation.mutate([
-                alertRule.call("observe", {
-                    ...alertRule.target(this.row),
-                    observedGeneration: this.row.generation,
-                    conditions: { Ready: { status: "true", reason: "Evaluated", message: "" } },
-                }),
-            ]);
-        }
+    /** Report the rule evaluated at its generation and when it is next due, once each changes. */
+    async #observe(
+        reconciliation: ObjectReconciliation<typeof alertRule>,
+        evaluateAt: number | null,
+    ): Promise<void> {
+        await reconciliation.observe(alertRule, this.row, {
+            conditions: { Ready: { status: "true", reason: "Evaluated", message: "" } },
+            fields: { evaluateAt },
+        });
     }
 
     /** Refuse an events condition with keys its type lacks or a fold it cannot take. */
