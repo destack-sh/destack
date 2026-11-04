@@ -1,10 +1,9 @@
-import type { RowImage } from "@destack/db";
 import { schema } from "@destack/schema";
 
 import { MethodBuilder } from "../method/record.ts";
 import type { ObjectOf } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
-import { Claim, Claimant, ClaimOwner, ClaimRefusal, claimTable, Expiry } from "./claim.ts";
+import { Claim, Claimant, ClaimOwner, ClaimRefusal, claimTable } from "./claim.ts";
 
 /** The request whose write reserved an object's names. */
 const ReservedBy = schema.object({
@@ -101,28 +100,6 @@ export const claimMethods = {
             output: ClaimOwner.nullable(),
         }),
         async (call) => (await Claim.owner(call.read(claimTable), call.input)) ?? null,
-    ),
-
-    /** List the expired reservations of some indexes the caller claims names in. */
-    expired: Execution.handle(
-        claimMethod.query({
-            permission: "resolve",
-            target: "scope",
-            input: schema.object({
-                /** The indexes. */
-                indexes: schema.array(schema.string().min(1)),
-            }),
-            output: Expiry,
-        }),
-        async (call, execution) => {
-            // filter the reservations the caller may claim names in
-            const { authorization } = Execution.store(execution, call);
-            const filter = async (rows: readonly RowImage<typeof claimTable>[]) =>
-                (await authorization.filter(call.object, call.object.permission("claim"), rows))
-                    .rows;
-
-            return Claim.expired(call.read(claimTable), call.input.indexes, call.now, filter);
-        },
     ),
 };
 

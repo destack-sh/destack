@@ -9,7 +9,7 @@ import {
     type Row,
     type RelationalQueryBuilder,
 } from "@destack/db";
-import { ClaimController, type ClaimPrimary, implementPackage } from "../src/server/index.ts";
+import { claimReservation, type ClaimPrimary, implementPackage } from "../src/server/index.ts";
 import {
     Claim,
     ClaimLookup,
@@ -29,7 +29,7 @@ import { none, universe } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
-import { testEvents } from "../src/test/index.ts";
+import { settleControl, testEvents } from "../src/test/index.ts";
 
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { tablesOf } from "../src/index.ts";
@@ -97,9 +97,9 @@ test("enforce unique handles across spaces in separate databases", async () => {
 
     // leave no reservation once every owner let go: the failed claim left none behind
     const index = Claim.index(profile, "handle");
-    expect(await Claim.expired(readClaims(storage.database), [index], world.clock.now())).toEqual({
-        claims: [],
-    });
+    expect(
+        await readClaims(storage.database).findMany({ where: { state: "pending", index } }),
+    ).toEqual([]);
 });
 
 test("reserve a write's names before it commits and confirm them once it committed", async () => {
@@ -207,19 +207,25 @@ test("claim the names of writes outside the object store and finish expired rese
                 .insert(profile.table)
                 .values({ ...row, id: existing, handle: "existing" }),
     );
-    const reserve = (key: string, objectId: string, at: number) => {
+    const reserve = async (key: string, objectId: string, at: number) => {
+        // reserve at the home and record the reservation here, as a write that then crashed would
         const owner = east.spaceId;
         const index = Claim.index(profile, "handle");
         const { packageId } = profile.policy.definition;
         const claimed = { index, key, packageId, objectId, owner };
         const claimant = { indexes: [index], objectId, owner, claims: [claimed] };
-
-        return Claim.reserve(
+        await Claim.reserve(
             storage.database,
             { ...claimant, state: "active" },
             "request",
             at - RESERVATION_MILLISECONDS,
             world,
+        );
+        await east.database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(claimReservation)
+                    .values({ requestId: "request", objectId, owner, index, expiresAt: at }),
         );
     };
     await reserve('["universe","existing"]', existing, now);
@@ -227,13 +233,14 @@ test("claim the names of writes outside the object store and finish expired rese
     await reserve('["universe","later"]', `profile-${Uuid.v7(world)}`, now + 1000);
     await simulation.jump(now);
 
-    // finish the expired reservations through the controller, looking again at the later one
-    const controller = new ClaimController(claims, east.database, [profile], world);
-    expect([await controller.reconcile(), await handle("existing"), await handle("lost")]).toEqual([
-        1000,
-        existing,
-        undefined,
-    ]);
+    // finish the expired reservations through the controller, keeping the later one
+    await settleControl(east.store);
+    const recorded = await east.database.select().from(claimReservation);
+    expect([
+        await handle("existing"),
+        await handle("lost"),
+        recorded.map((reservation) => reservation.expiresAt),
+    ]).toEqual([existing, undefined, [now + 1000]]);
 });
 
 test("resolve a confirmed name to its object alone, and refuse it to others while trashed", async () => {
@@ -333,6 +340,7 @@ async function serveProfiles(world: Environment, claims: ClaimPrimary) {
     return {
         environment: world,
         spaceId,
+        store: served.store,
         database: storage.database,
         alice: connect(users.alice),
         bob: connect(users.bob),

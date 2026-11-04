@@ -1,15 +1,16 @@
 import { ObjectError } from "../error/error.ts";
 import {
     and,
+    type Controller,
     eq,
     isNotNull,
     isNull,
     lte,
+    now,
     or,
     type DatabaseConnection,
-    type ReconcileController,
 } from "@destack/db";
-import { schema, Duration, type JsonValue, Uuid } from "@destack/schema";
+import { type JsonValue, Uuid } from "@destack/schema";
 
 import type { MethodContext } from "../method/context.ts";
 import { settlement, SettlementContext } from "../method/settlement.ts";
@@ -46,6 +47,7 @@ export const Settlement = {
                     prepared: null,
                     committedAt: null,
                     createdAt: context.now,
+                    settleAt: context.now + SETTLE_GRACE_MILLISECONDS,
                 }),
         );
 
@@ -77,11 +79,11 @@ export const Settlement = {
         transaction: DatabaseConnection,
         id: string,
         context: MethodContext,
-        now: number,
+        at: number,
     ): Promise<void> {
         const committed = await transaction
             .update(settlement)
-            .set({ committedAt: now })
+            .set({ committedAt: at })
             .where(
                 and(
                     eq(settlement.id, id),
@@ -95,25 +97,21 @@ export const Settlement = {
         }
     },
 
-    /** Claim a settlement unless another claim is fresh. */
+    /** Claim an unclaimed settlement, or one past its grace, holding it for another grace. */
     async claim(
         database: DatabaseConnection,
         id: string,
-        now: number,
-        grace = SETTLE_GRACE_MILLISECONDS,
+        at: number,
     ): Promise<Settlement | undefined> {
         const [claimed] = await database.transaction(
             async (transaction) =>
                 await transaction
                     .update(settlement)
-                    .set({ claimedAt: now })
+                    .set({ claimedAt: at, settleAt: at + SETTLE_GRACE_MILLISECONDS })
                     .where(
                         and(
                             eq(settlement.id, id),
-                            or(
-                                isNull(settlement.claimedAt),
-                                lte(settlement.claimedAt, now - grace),
-                            ),
+                            or(isNull(settlement.claimedAt), lte(settlement.settleAt, at)),
                         ),
                     )
                     .returning(),
@@ -131,7 +129,7 @@ export const Settlement = {
     },
 
     /** Settle one claimed settlement as recorded, committing or rolling back, then forget it. */
-    async settle(store: ObjectStore, row: Settlement, now: number): Promise<void> {
+    async settle(store: ObjectStore, row: Settlement, at: number): Promise<void> {
         // find the method
         const object = store.objects.find(
             (served) => served.package.id === row.packageId && served.name === row.object,
@@ -157,7 +155,7 @@ export const Settlement = {
             id: row.target ?? undefined,
             idempotencyKey: row.key,
             database: store.database,
-            now,
+            now: at,
             store,
         });
         const prepared = row.prepared === null ? undefined : declared.parse(row.prepared.value);
@@ -175,46 +173,24 @@ export const Settlement = {
     },
 
     /** Settle what servers left once the grace passes. */
-    controller(
-        store: ObjectStore,
-        options: { readonly grace?: Duration } = {},
-    ): ReconcileController {
-        const grace =
-            options.grace === undefined
-                ? SETTLE_GRACE_MILLISECONDS
-                : Duration.milliseconds(options.grace);
-
+    controller(store: ObjectStore): Controller<typeof settlement> {
         return {
             name: "settlement",
-            watches: [settlement],
-            keys: (change) => [schema.string().parse(change.key["id"])],
-            list: async () =>
-                (await store.database.select({ id: settlement.id }).from(settlement)).map(
-                    (row) => row.id,
-                ),
-            reconcile: async (key) => {
-                // wait out the grace
-                const [row] = await store.database
-                    .select()
-                    .from(settlement)
-                    .where(eq(settlement.id, key));
-                const now = store.clock.now();
-                if (row === undefined) {
-                    return undefined;
-                } else if (row.createdAt > now - grace) {
-                    return row.createdAt + grace - now;
-                }
-
-                // claim and settle
-                const claimed = await Settlement.claim(store.database, key, now, grace);
-                if (claimed === undefined) {
-                    return row.claimedAt === null ? 0 : row.claimedAt + grace - now;
-                }
-                await Settlement.settle(store, claimed, now);
-
-                return undefined;
-            },
+            table: settlement,
+            pending: { settleAt: { lte: now } },
+            reconcile: async (rows) => Settlement.recover(store, rows),
         };
+    },
+
+    /** Claim each settlement unless another settler holds it, and settle it, leaving held ones. */
+    async recover(store: ObjectStore, rows: readonly Settlement[]): Promise<void> {
+        for (const row of rows) {
+            const at = store.clock.now();
+            const claimed = await Settlement.claim(store.database, row.id, at);
+            if (claimed !== undefined) {
+                await Settlement.settle(store, claimed, at);
+            }
+        }
     },
 
     /** Refuse a call whose settlement a settler claimed after its grace passed. */

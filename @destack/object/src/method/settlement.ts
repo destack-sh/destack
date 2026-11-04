@@ -43,6 +43,8 @@ export const settlement = defineTable(
         createdAt: integer("created_at").notNull(),
         /** When a settler last claimed it, null while unclaimed. */
         claimedAt: integer("claimed_at"),
+        /** When a settler may take it: a grace after its reservation or its latest claim. */
+        settleAt: integer("settle_at").notNull(),
     },
     { log: {} },
 );

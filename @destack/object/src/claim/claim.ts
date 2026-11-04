@@ -2,7 +2,6 @@ import { ObjectError } from "../error/error.ts";
 import {
     and,
     check,
-    CHAIN_TERMS,
     type DatabaseConnection,
     defineTable,
     eq,
@@ -24,14 +23,7 @@ import {
     combine,
     textEnum,
 } from "@destack/db";
-import {
-    canonicalize,
-    Identifier,
-    type UuidEnvironment,
-    Instant,
-    present,
-    schema,
-} from "@destack/schema";
+import { canonicalize, Identifier, type UuidEnvironment, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 
 import { ObjectKey, ObjectType, type ObjectIndex } from "../object/object.ts";
@@ -355,43 +347,6 @@ export const Claim = Object.assign(claim, {
         return new Set(rows.map((row) => row.key));
     },
 
-    /** List the expired reservations of some indexes a reader has, and the next deadline. */
-    async expired(
-        claims: RelationalQueryBuilder<typeof claimTable>,
-        indexes: readonly string[],
-        now: number,
-        filter: (
-            rows: readonly RowImage<typeof claimTable>[],
-        ) => Promise<readonly RowImage<typeof claimTable>[]> = async (rows) => rows,
-    ): Promise<Expiry> {
-        // read the expired reservations of the indexes a chain's worth at a time, filtered for the reader
-        const reserved: ClaimCondition = { state: "pending", index: { in: [...indexes] } };
-        const expired = await filter(
-            await claims.findMany({
-                where: { AND: [reserved, { expiresAt: { lte: now } }] },
-                orderBy: { expiresAt: "asc" },
-                limit: CHAIN_TERMS,
-            }),
-        );
-
-        // find the next deadline
-        const next = await claims.findFirst({
-            where: { AND: [reserved, { expiresAt: { gt: now } }] },
-            orderBy: { expiresAt: "asc" },
-        });
-        const found = expired.map((row) => ({
-            index: row.index,
-            key: row.key,
-            packageId: row.packageId,
-            objectId: row.objectId,
-            owner: row.owner,
-        }));
-
-        return next === undefined
-            ? { claims: found }
-            : { claims: found, next: present(next.expiresAt, "a pending claim's expiry") };
-    },
-
     /** Read the objects that claim some names, by claim key. */
     async owners(
         database: DatabaseConnection,
@@ -584,16 +539,6 @@ export const Claimant = Object.assign(claimant, {
 });
 /** An object and the names it claims in its type's indexes after a write. */
 export type Claimant = schema.Infer<typeof claimant>;
-
-/** The expired reservations of some indexes and the next deadline. */
-export const Expiry = schema.object({
-    /** The expired reservations. */
-    claims: schema.array(claim),
-    /** When the next reservation expires, in UTC epoch milliseconds. */
-    next: Instant.exactOptional(),
-});
-/** The expired reservations of some indexes and the next deadline. */
-export type Expiry = schema.Infer<typeof Expiry>;
 
 /** Every claimed name: pending during its write, trashed with its object, else active. */
 export const claimTable = defineTable(

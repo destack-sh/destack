@@ -1324,14 +1324,17 @@ export class StackPlan {
     /** Reserve the names the written objects claim until the commit, absent without claims. */
     async #reserve(): Promise<Reservation | undefined> {
         // reserve before the commit, and write the reservation in it
-        const { claims, objects, store } = this.stack.options;
+        const { claims, objects, store, database } = this.stack.options;
         const claimants = await Claimant.written(this.transaction, objects);
         const reservation =
             claims &&
-            (await Reservation.reserve(claims, claimants, objects, {
-                id: Uuid.v4(store.environment.random),
-                environment: store.environment,
-            }));
+            (await Reservation.reserve(
+                claims,
+                claimants,
+                objects,
+                { id: Uuid.v4(store.environment.random), environment: store.environment },
+                database,
+            ));
         this.transaction.record(async (committing) => {
             await reservation?.commit(committing);
         });

@@ -4,12 +4,11 @@ import {
     eq,
     isNull,
     sql,
-    lte,
-    min,
     inArray,
     type DatabaseConnection,
     type TransactionOptions,
-    type ReconcileController,
+    type Controller,
+    now,
 } from "@destack/db";
 import { type EventKind, type EventStore, EventTime } from "@destack/event";
 import { canonicalize, Digest, Duration } from "@destack/schema";
@@ -31,8 +30,6 @@ import { journal } from "../stack/db.ts";
 import type { Clock, Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 
-/** The most calls one prune removes: about a millisecond of deletes. */
-const MAX_PRUNE_CALLS = 1000;
 /** How long calls stay by default: as long as a request identifier stays retryable. */
 const LIFETIME: Duration = { milliseconds: REQUEST_LIFETIME_MILLISECONDS };
 
@@ -353,57 +350,26 @@ export class Journal {
         return recorded.at(-1)?.execution.outcome;
     }
 
-    /** Remove the oldest calls past their lifetime, at most a batch, returning how many. */
-    async #prune(now: number): Promise<number> {
-        // read the oldest expired calls, then delete them
-        const rows = await this.database
-            .select({ id: journal.id })
-            .from(journal)
-            .where(lte(journal.expiresAt, now))
-            .orderBy(asc(journal.expiresAt))
-            .limit(MAX_PRUNE_CALLS);
-        if (rows.length > 0) {
-            await this.database.transaction(
-                async (transaction) =>
-                    await transaction.delete(journal).where(
-                        inArray(
-                            journal.id,
-                            rows.map((row) => row.id),
-                        ),
-                    ),
-            );
-        }
-
-        return rows.length;
-    }
-
     /** Remove the calls past their request's retry lifetime as they expire. */
-    controller(): ReconcileController {
+    controller(): Controller<typeof journal> {
         return {
             name: "journal",
-            watches: [],
-            keys: () => [],
-            list: async () => ["expiry"],
-            reconcile: async () => {
-                // remove a batch and look again at the earliest expiry, or a lifetime on when none is left
-                const now = this.clock.now();
-                if ((await this.#prune(now)) === MAX_PRUNE_CALLS) {
-                    return 0;
-                }
-                const next = (await this.#earliestExpiry()) ?? now + this.lifetime;
-
-                return Math.max(0, next - now);
+            table: journal,
+            pending: { expiresAt: { lte: now } },
+            key: [],
+            reconcile: async (rows) => {
+                // remove the calls past their lifetime
+                await this.database.transaction(
+                    async (transaction) =>
+                        await transaction.delete(journal).where(
+                            inArray(
+                                journal.id,
+                                rows.map((row) => row.id),
+                            ),
+                        ),
+                );
             },
         };
-    }
-
-    /** Read the earliest expiry of the recorded calls. */
-    async #earliestExpiry(): Promise<number | undefined> {
-        const [row] = await this.database
-            .select({ expiresAt: min(journal.expiresAt) })
-            .from(journal);
-
-        return row?.expiresAt ?? undefined;
     }
 
     /** Read a request's recorded calls in order. */

@@ -1,14 +1,27 @@
 import { Failure } from "@destack/error";
 import { ObjectError } from "../error/error.ts";
 import { AccessContext, Caller } from "@destack/access";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import {
+    and,
+    type Controller,
+    type DatabaseConnection,
+    defineTable,
+    eq,
+    index,
+    integer,
+    now,
+    type Row,
+    Snapshot,
+    TABLE,
+    text,
+} from "@destack/db";
 import { type UuidEnvironment, present, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import type { ObjectStore } from "../server/store.ts";
 import type { ObjectType } from "../object/object.ts";
-import { Claim, type Claimant, ClaimRefusal, claimTable, Expiry } from "./claim.ts";
+import { Claim, Claimant, ClaimRefusal, RESERVATION_MILLISECONDS } from "./claim.ts";
 import type { ClaimType } from "./method.ts";
 import type { PushResult } from "../replica/replica.ts";
 
@@ -70,6 +83,24 @@ export const RemoteStore = {
     },
 };
 
+/** The names a write reserved at the claims' home, kept here until it confirms or releases them. */
+export const claimReservation = defineTable(
+    "claim_reservation",
+    {
+        /** The write's request. */
+        requestId: text("request_id").primaryKey(),
+        /** The object whose names the write reserved. */
+        objectId: text("object_id").primaryKey(),
+        /** The owner scope of the names. */
+        owner: text("owner").notNull(),
+        /** One of the object type's indexes, which finds the type. */
+        index: text("index").notNull(),
+        /** When the home's reservation expires, in UTC epoch milliseconds. */
+        expiresAt: integer("expires_at").notNull(),
+    },
+    { constraints: (columns) => [index("claim_reservation_expiry").on(columns.expiresAt)] },
+);
+
 /** The claim type recording the names of indexed objects, and the store serving it, its primary. */
 export interface ClaimPrimary {
     /** The claim type, whose methods reserve, confirm, release and replace names. */
@@ -106,11 +137,12 @@ export const Reservation = {
         claimants: readonly Claimant[],
         types: readonly ObjectType[],
         request: ClaimRequest,
+        database: DatabaseConnection,
     ): Promise<Reservation> {
         // claim in the committing transaction of the store serving the claim type, else at its home now
         return claims.home === undefined
             ? Reservation.local(claimants, types, request.environment)
-            : Reservation.remote(claims.object, claims.home, claimants, types, request);
+            : Reservation.remote(claims.object, claims.home, claimants, types, request, database);
     },
 
     /** Replace objects' names after unreserved writes, refusing taken names. */
@@ -138,27 +170,13 @@ export const Reservation = {
         Reservation.refuse(types, refused);
     },
 
-    /** List the expired reservations of some indexes. */
-    async expired(
-        claims: ClaimPrimary,
-        database: DatabaseConnection,
-        indexes: readonly string[],
-        now: number,
-    ): Promise<Expiry> {
-        return claims.home === undefined
-            ? Claim.expired(Snapshot.live(database).read(claimTable), indexes, now)
-            : Expiry.parse(
-                  await claims.home.query(claims.object.call("expired", { indexes: [...indexes] })),
-              );
-    },
-
     /** Refuse a write whose names other objects claim, reporting the index of the first. */
     refuse(types: readonly ObjectType[], taken: readonly Claim[]): void {
         const [first] = taken;
         if (first !== undefined) {
             const [name] = types.flatMap((type) =>
                 Object.keys(type.indexes).filter(
-                    (index) => Claim.index(type, index) === first.index,
+                    (indexName) => Claim.index(type, indexName) === first.index,
                 ),
             );
             throw ObjectError.of(
@@ -195,9 +213,45 @@ export const Reservation = {
         claimants: readonly Claimant[],
         types: readonly ObjectType[],
         request: ClaimRequest,
+        database: DatabaseConnection,
     ): Promise<Reservation> {
-        // reserve the claiming objects' names in one request
+        // record the reservations here first, so a crash before their confirmation leaves them due
         const { id, environment } = request;
+        const expiresAt = environment.clock.now() + RESERVATION_MILLISECONDS;
+        const recorded = claimants.flatMap((claimant) => {
+            const [first] = claimant.indexes;
+
+            return first === undefined
+                ? []
+                : [
+                      {
+                          requestId: id,
+                          objectId: claimant.objectId,
+                          owner: claimant.owner,
+                          index: first,
+                          expiresAt,
+                      },
+                  ];
+        });
+        if (recorded.length > 0) {
+            await database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .insert(claimReservation)
+                        .values(recorded)
+                        .onConflictDoNothing(),
+            );
+        }
+        const forget = async () => {
+            await database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .delete(claimReservation)
+                        .where(eq(claimReservation.requestId, id)),
+            );
+        };
+
+        // reserve the claiming objects' names in one request
         const claiming = claimants.filter((claimant) => claimant.claims.length > 0);
         const results =
             claiming.length === 0
@@ -222,6 +276,7 @@ export const Reservation = {
                         ),
                     });
                 }
+                await forget();
             },
             release: async () => {
                 if (claiming.length > 0) {
@@ -232,6 +287,7 @@ export const Reservation = {
                         ),
                     });
                 }
+                await forget();
             },
         };
 
@@ -242,5 +298,66 @@ export const Reservation = {
         }
 
         return reservation;
+    },
+
+    /** Declare the controller replacing the names a crash left reserved past their expiry. */
+    controller(store: ObjectStore, claims: ClaimPrimary): Controller<typeof claimReservation> {
+        // find each indexed type by its indexes
+        const types = new Map(
+            store.objects.flatMap((object) =>
+                Object.keys(object.indexes).map(
+                    (name) => [Claim.index(object, name), object] as const,
+                ),
+            ),
+        );
+
+        return {
+            name: "claim-reservation",
+            table: claimReservation,
+            pending: { expiresAt: { lte: now } },
+            key: [],
+            reconcile: async (rows) => {
+                // read each object's names as its row has them now, under the reservation's owner once gone
+                const { database, environment } = store;
+                const snapshot = Snapshot.live(database);
+                const claimants = await Promise.all(
+                    rows.map(async (reservation) => {
+                        // read the reserving object's row by its type
+                        const object = present(
+                            types.get(reservation.index),
+                            `the type of index ${reservation.index}`,
+                        );
+                        const [row]: readonly Row[] = await database
+                            .select()
+                            .from(object.table)
+                            .where(eq(object.table[TABLE].column("id"), reservation.objectId));
+                        const owner =
+                            row === undefined ? reservation.owner : Claim.owning(object, row);
+
+                        return Claimant.of(
+                            object,
+                            { objectId: reservation.objectId, owner },
+                            row,
+                            snapshot,
+                        );
+                    }),
+                );
+
+                // replace their names at the home, then forget the reservations
+                await Reservation.replace(claims, database, claimants, store.objects, environment);
+                await database.transaction(async (transaction) => {
+                    for (const reservation of rows) {
+                        await transaction
+                            .delete(claimReservation)
+                            .where(
+                                and(
+                                    eq(claimReservation.requestId, reservation.requestId),
+                                    eq(claimReservation.objectId, reservation.objectId),
+                                ),
+                            );
+                    }
+                });
+            },
+        };
     },
 };

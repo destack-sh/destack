@@ -13,7 +13,7 @@ import { eq } from "@destack/db";
 import { Identifier, nth, present, schema, toJsonSchema, Uuid } from "@destack/schema";
 import { AuditTarget, defineObject, field, method, settlement, suspendable } from "../src/index.ts";
 
-import { RecoverableController, Settlement } from "../src/server/index.ts";
+import { Settlement } from "../src/server/index.ts";
 import { describeAuditAction } from "../src/inspect/index.ts";
 import { comment, folder, objectDatabase, task, taskCopy, taskVersion } from "./schema.ts";
 import {
@@ -28,7 +28,7 @@ import {
 } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { auditedActions } from "../src/test/index.ts";
+import { auditedActions, settleControl } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 
@@ -640,7 +640,9 @@ test("refuse changing objects a stack manages, then trash, restore and purge the
         requestId: RequestId.create(store.environment),
         revision: stale.revision,
     });
-    expect(await RecoverableController.purge(store, simulation.clock.now() + 60_000)).toBe(1);
+    await simulation.jump(simulation.clock.now() + 60_000);
+    await settleControl(store);
+    expect(await purges()).toEqual(["task.purge"]);
 
     // purge more trash than one batch takes, across several transactions
     const trashed = Array.from({ length: 100 }, () => ({
@@ -651,7 +653,8 @@ test("refuse changing objects a stack manages, then trash, restore and purge the
     await database.transaction(
         async (transaction) => await transaction.insert(task.table).values(trashed),
     );
-    expect(await RecoverableController.purge(store, simulation.clock.now() + 60_000)).toBe(100);
+    await simulation.jump(simulation.clock.now() + 60_000);
+    await settleControl(store);
 
     // audit each purge as the system's, and each caller's change once
     expect(await purges()).toEqual(Array.from({ length: 101 }, () => "task.purge"));
@@ -963,7 +966,8 @@ test("run a prepare and a settle phase's calls as the store in separate requests
 
 test("authorize a creation before its external work, and settle committed work through the settlement controller once settling fails", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create(objectDatabase, {
         environment: world,
@@ -1050,11 +1054,9 @@ test("authorize a creation before its external work, and settle committed work t
         [new Error("confirmation failed")],
     ]);
 
-    // confirm it through the controller
-    const controller = Settlement.controller(store, { grace: { milliseconds: 0 } });
-    expect(
-        await controller.reconcile(nth(settled, 0).id, reconciliation(world.clock.timeout(5000))),
-    ).toBeUndefined();
+    // confirm it through the controller once its claim's grace passes
+    await simulation.jump(world.clock.now() + 60_000);
+    await settleControl(store);
     expect([external, await storage.database.select().from(settlement)]).toEqual([
         ["copy Draft", `confirm copy-${drafted.id}`],
         [],
@@ -1175,13 +1177,9 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         .then(([written]) => written);
 
     // cancel the reserved settlement mid-copy
-    const controller = Settlement.controller(store, { grace: { milliseconds: 0 } });
     during = async () => {
-        const [reserved] = await storage.database.select().from(settlement);
-        await controller.reconcile(
-            present(reserved, "the reserved settlement").id,
-            reconciliation(world.clock.timeout(5000)),
-        );
+        const reserved = await storage.database.select().from(settlement);
+        await Settlement.recover(store, reserved);
     };
     const version = {
         spaceId,

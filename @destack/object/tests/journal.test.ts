@@ -80,9 +80,13 @@ test("remove calls past their lifetime through the journal's controller, ended o
 
         // let the journal's control loop remove both once their lifetime ends
         const { simulation } = storage;
-        const loop = new ControlLoop(storage.database, [storage.journal.controller()], {
-            report,
-        }).run(stopping.signal);
+        const loop = new ControlLoop(
+            storage.database,
+            { controllers: [storage.journal.controller()], consumers: [] },
+            {
+                report,
+            },
+        ).run(stopping.signal);
         const remaining = async () =>
             (await storage.database.select({ id: journal.id }).from(journal)).map((row) => row.id);
         await simulation.waitUntil(async () => (await remaining()).length === 0);
