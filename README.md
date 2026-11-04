@@ -56,7 +56,7 @@ The actual "stack" is carefully composed with [incremental granularity](https://
  2. **[Presentation](ARCHITECTURE.md#02-presentation)**: one look and feel, on web and desktop
  3. **[Application](ARCHITECTURE.md#03-application)**: one API for basically everything
  4. **[Persistence](ARCHITECTURE.md#04-persistence)**: one data plane, synced everywhere
- 5. **[Source](ARCHITECTURE.md#05-source)**: every app's code, transparent, forkable
+ 5. **[Source](ARCHITECTURE.md#05-source)**: one central repository for all code and builds
  6. **[Infrastructure](ARCHITECTURE.md#06-infrastructure)**: run anywhere, from your laptop to the edge
 
 The packages of each layer, with what they do and the prior art they follow, are in [ARCHITECTURE.md](ARCHITECTURE.md).
