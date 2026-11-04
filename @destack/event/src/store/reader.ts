@@ -27,7 +27,7 @@ export class EventReader {
         await database.log.advance(this, sequence, now + this.hold);
     }
 
-    /** Place the reader at the log's start unless placed, as its first events append. */
+    /** Place the reader at the log's oldest retained change unless placed. */
     async place(now: number, database: DatabaseConnection): Promise<void> {
         await database.log.place(this, now + this.hold);
     }
