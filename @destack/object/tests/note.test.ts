@@ -2,8 +2,8 @@ import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
 import { users, userName } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { journal } from "../src/index.ts";
-import { eq } from "@destack/db";
+import { journal, ViewSubscriber } from "../src/index.ts";
+import { eq, Snapshot } from "@destack/db";
 import { BrowserTab, type BrowserTabWorker } from "../src/browser/index.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { ObjectClient } from "../src/client/index.ts";
@@ -789,4 +789,67 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
         "NOT_FOUND",
         `notebook ${research.id} not found`,
     ]);
+});
+
+test("read notebooks with their notes and notes with their notebook in a method's view, a limit per notebook", async () => {
+    const { connect, database, environment } = await serveNotes();
+    const alice = connect(users.alice);
+
+    // file two notes into travel, one into work, and keep one loose
+    const create = (name: string) =>
+        alice.notebook.create({ spaceId, requestId: RequestId.create(environment), name });
+    const file = (title: string, parentId?: string) =>
+        alice.note.create({
+            spaceId,
+            requestId: RequestId.create(environment),
+            title,
+            ...(parentId === undefined
+                ? {}
+                : { parentId: schema.identifier("notebook").parse(parentId) }),
+        });
+    const travel = await create("Travel");
+    const work = await create("Work");
+    await file("Packing", travel.id);
+    await file("Tickets", travel.id);
+    await file("Plan", work.id);
+    await file("Ideas");
+
+    // read both directions of the notebook relation through the live view, as a method does
+    const queries = ViewSubscriber.queries({ notebook, note }, (table) =>
+        Snapshot.live(database).read(table),
+    );
+    const books = await queries.notebook.findMany({
+        orderBy: { name: "asc" },
+        with: { notes: { orderBy: { title: "asc" } } },
+    });
+    const firsts = await queries.notebook.findMany({
+        orderBy: { name: "asc" },
+        with: { notes: { orderBy: { title: "asc" }, limit: 1 } },
+    });
+    const notes = await queries.note.findMany({
+        orderBy: { title: "asc" },
+        with: { parent: true },
+    });
+
+    // expect every note under its notebook, the first per notebook, and a loose note's notebook null
+    expect({
+        books: books.map((book) => [book.name, book.notes.map((each) => each.title)]),
+        firsts: firsts.map((book) => [book.name, book.notes.map((each) => each.title)]),
+        notes: notes.map((each) => [each.title, each.parent?.name ?? null]),
+    }).toEqual({
+        books: [
+            ["Travel", ["Packing", "Tickets"]],
+            ["Work", ["Plan"]],
+        ],
+        firsts: [
+            ["Travel", ["Packing"]],
+            ["Work", ["Plan"]],
+        ],
+        notes: [
+            ["Ideas", null],
+            ["Packing", "Travel"],
+            ["Plan", "Work"],
+            ["Tickets", "Travel"],
+        ],
+    });
 });

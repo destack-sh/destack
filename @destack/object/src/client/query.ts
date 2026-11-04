@@ -7,7 +7,7 @@ import type { ObjectType } from "../object/object.ts";
 import type { ObjectQuery } from "../replica/replica.ts";
 import type { AggregateOptions, FindOptions, FindResult } from "../query/item.ts";
 import { type NestedItem, relateItems } from "../query/item.ts";
-import type { LiveQuery } from "./client.ts";
+import type { LiveQuery, ObjectQueries } from "./client.ts";
 
 /** How long a closed live query stays followed: for a while, always, or not at all when absent. */
 export interface SubscribeOptions {
@@ -38,7 +38,7 @@ export interface Subscriber {
 }
 
 /** The relational queries of one object type. */
-export class RelationalQueryBuilder<Object extends ObjectType, Objects extends ObjectType> {
+export class ObjectQueryBuilder<Object extends ObjectType, Objects extends ObjectType> {
     /** Follow queries live over the client's replica. */
     readonly #subscriber: Subscriber;
     /** The queried object type. */
@@ -48,6 +48,17 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
     constructor(subscriber: Subscriber, object: Object) {
         this.#subscriber = subscriber;
         this.#object = object;
+    }
+
+    /** Query each of some object types through one subscriber, by key. */
+    static of<const Objects extends Readonly<Record<string, ObjectType>>>(
+        subscriber: Subscriber,
+        objects: Objects,
+    ): ObjectQueries<Objects> {
+        return mapValues<Objects, ObjectQueries<Objects>>(
+            objects,
+            (object) => new ObjectQueryBuilder(subscriber, object),
+        );
     }
 
     /** Query the rows with their relations. */

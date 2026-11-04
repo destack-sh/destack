@@ -31,6 +31,9 @@ import {
 } from "@destack/db";
 import type { EventKeyFields, EventKind } from "@destack/event";
 import type { BranchEntry } from "../branch/entry.ts";
+import { ViewSubscriber } from "./query.ts";
+import type { ObjectQueries } from "../client/client.ts";
+import type { ObjectQueryBuilder } from "../client/query.ts";
 import {
     found,
     Identifier,
@@ -380,17 +383,41 @@ export class MethodContext<
         return this.#location.kind === "client";
     }
 
-    /** Read a table's or object type's rows in the call's view. */
-    read<Read extends Table>(
-        source: Read | { readonly table: Read },
-    ): RelationalQueryBuilder<Read> {
-        // read through the hook's session, else the store's view or the client's replica
-        const table = TABLE in source ? source : source.table;
-        const location = this.#location;
+    /** Read a table's or object types' rows in the call's view. */
+    read<Read extends Table>(source: Read): RelationalQueryBuilder<Read>;
+    read<const Object extends ObjectType>(object: Object): ObjectQueryBuilder<Object, Object>;
+    read<const Objects extends Readonly<Record<string, ObjectType>>>(
+        objects: Objects,
+    ): ObjectQueries<Objects>;
+    read(
+        source: Table | ObjectType | Readonly<Record<string, ObjectType>>,
+    ):
+        | RelationalQueryBuilder<Table>
+        | ObjectQueryBuilder<ObjectType, ObjectType>
+        | ObjectQueries<Readonly<Record<string, ObjectType>>> {
+        // read a table through the hook's session, else the store's view or the client's replica
+        if (TABLE in source) {
+            const location = this.#location;
 
-        return location.kind === "sandbox"
-            ? location.session.read(table)
-            : Execution.snapshot(location).read(table);
+            return location.kind === "sandbox"
+                ? location.session.read(source)
+                : Execution.snapshot(location).read(source);
+        }
+        // query several object types with their relations as clients do, by key
+        else if (MethodContext.#isKeyed(source)) {
+            return ViewSubscriber.queries(source, (table) => this.read(table));
+        }
+        // query one object type with its relations as clients do
+        else {
+            return ViewSubscriber.queries({ object: source }, (table) => this.read(table)).object;
+        }
+    }
+
+    /** Decide whether a read names object types by key: a plain record, unlike an object type. */
+    static #isKeyed(
+        source: ObjectType | Readonly<Record<string, ObjectType>>,
+    ): source is Readonly<Record<string, ObjectType>> {
+        return Object.getPrototypeOf(source) === Object.prototype;
     }
 
     /** Read the whole rows of a type of the call's package, sensitive columns included. */
