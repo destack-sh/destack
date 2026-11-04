@@ -603,9 +603,10 @@ test("capture a space's few dozen rows across many tables as one page applied in
     );
     const large = await capture();
 
-    // read each table once per page of its rows, write each table's rows once, prune each table once
+    // read each table once per page of its rows, write each table's rows once, prune each table once,
+    //  the target's first commit reading when its log next compacts in two more
     expect({ small, large }).toEqual({
-        small: { pages: [[true, true, 24]], staged: 0, read: 42, written: 59 },
+        small: { pages: [[true, true, 24]], staged: 0, read: 42, written: 61 },
         large: {
             pages: [
                 [true, false, 500],

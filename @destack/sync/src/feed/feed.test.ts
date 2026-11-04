@@ -598,6 +598,11 @@ test("serve many streams of one query from the one read of the log each commit t
     const database = await open({ simulation, dialect: "sqlite" });
     const query = { table: note, scopes: ["inbox"] };
 
+    // commit once, so the connection knows when its log next compacts before counting
+    await database.transaction(
+        async (transaction) => await transaction.insert(note).values({ ...first, id: "warm" }),
+    );
+
     // snapshot the query in some streams, then count the source's statements per commit
     const cost = async (streams: number, prefix: string) => {
         const feed = new Feed(database, [note]);
