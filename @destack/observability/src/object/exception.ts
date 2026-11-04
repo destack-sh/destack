@@ -29,10 +29,6 @@ export const exception = defineObject(
             delivery: "exactly-once",
             subject: "person",
         },
-        // count each space's exceptions into its issues a minute at a time, kept a day past a stalled reader
-        readers: {
-            issues: { by: "scope", start: "earliest", hold: { days: 1 }, batch: { minutes: 1 } },
-        },
         fields: {
             /** The issue it is grouped into, derived from its installation and fingerprint. */
             issue: field.string(),

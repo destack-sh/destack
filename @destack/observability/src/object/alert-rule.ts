@@ -2,7 +2,7 @@ import { space } from "@destack/account/object";
 import {
     and,
     Condition,
-    type Consumer,
+    type Cursor,
     type DatabaseConnection,
     eq,
     Filter,
@@ -69,8 +69,8 @@ const MINUTE_MILLISECONDS = 60_000;
 /** How long a space's first unconsumed event waits before its events rules are due: a minute. */
 const EVALUATION_MILLISECONDS = MINUTE_MILLISECONDS;
 
-/** The consumer marking a space's events rules due as its events append. */
-const EVENTS_CONSUMER = "alert-events";
+/** The cursor marking a space's events rules due as its events append. */
+const EVENTS_CURSOR = "alert-events";
 
 /** The microseconds in a millisecond, between event times and clocks. */
 const MICROSECONDS = 1000;
@@ -309,56 +309,65 @@ export class AlertRule {
         }
     }
 
-    /** Consume a store's events, marking a space's events rules due once its events append. */
-    static consumer(store: ObjectStore): Consumer {
+    /** Build the cursor over a store's events, marking the touched spaces' events rules due. */
+    static cursor(store: ObjectStore): Cursor {
         // read the tables of every events type the store serves
-        const reads = store.objects
+        const tables = store.objects
             .filter((object) => object.storage === "events")
             .map((object) => object.table);
 
         return {
-            name: EVENTS_CONSUMER,
-            reads,
-            checkpoint: "scope",
+            name: EVENTS_CURSOR,
+            tables,
             batch: EVALUATION_MILLISECONDS,
-            consume: async (scope) => {
-                // read the log's position, then the space's events rules not due by now
+            take: async () => {
+                // read the scopes appended in past the cursor through the log's head
                 const { database } = store;
                 const now = store.clock.now();
+                const after = (await database.log.checkpoint(EVENTS_CURSOR)) ?? 0;
                 const { sequence } = await database.log.position();
-                const rows = await database
-                    .select()
-                    .from(alertRule.table)
-                    .where(and(alertRule.inScope(scope), isNull(alertRule.table.deletedAt)));
-                const waiting = rows.filter(
-                    (row) =>
-                        row.condition.kind === "events" &&
-                        (row.evaluateAt === null || row.evaluateAt > now),
+                const changes = await database.log.range({ tables, after }, sequence);
+                const scopes = new Set(
+                    changes
+                        .filter((change) => change.operation === "insert")
+                        .map((change) => change.scope),
                 );
 
-                // mark them due now
-                if (waiting.length > 0) {
-                    const calls = waiting.map((row) =>
-                        Observation.call(alertRule, row, {
-                            conditions: {},
-                            fields: { evaluateAt: now },
-                        }),
-                    );
-                    await store.mutate(
-                        store.as(alertRule, now),
-                        { id: RequestId.create(store.environment), calls },
-                        { scope },
-                    );
+                // mark each scope's events rules not due by now due now
+                for (const scope of scopes) {
+                    await AlertRule.#markDue(store, scope, now);
                 }
 
-                // move the space's checkpoint past the appends, holding no changes back
-                await database.log.advance(
-                    { name: `${EVENTS_CONSUMER}:${scope}`, tables: reads },
-                    sequence,
-                    now,
-                );
+                // move past the appends, holding no changes back
+                await database.log.advance({ name: EVENTS_CURSOR, tables }, sequence, now);
             },
         };
+    }
+
+    /** Mark a space's events rules due now, leaving those due already. */
+    static async #markDue(store: ObjectStore, scope: string, now: number): Promise<void> {
+        // read the space's live events rules not due by now
+        const rows = await store.database
+            .select()
+            .from(alertRule.table)
+            .where(and(alertRule.inScope(scope), isNull(alertRule.table.deletedAt)));
+        const waiting = rows.filter(
+            (row) =>
+                row.condition.kind === "events" &&
+                (row.evaluateAt === null || row.evaluateAt > now),
+        );
+
+        // mark them due now
+        if (waiting.length > 0) {
+            const calls = waiting.map((row) =>
+                Observation.call(alertRule, row, { conditions: {}, fields: { evaluateAt: now } }),
+            );
+            await store.mutate(
+                store.as(alertRule, now),
+                { id: RequestId.create(store.environment), calls },
+                { scope },
+            );
+        }
     }
 
     /** Read when the evaluation can next change without new input, null while nothing is due. */

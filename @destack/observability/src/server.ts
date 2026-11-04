@@ -394,22 +394,26 @@ export default implementPackage(observabilityPackage, {
         ...responses.objects,
     ],
     // run the responses to fired alerts
-    consumers: [
-        ...responses.consumers,
+    cursors: [
+        ...responses.cursors,
         // mark a space's events rules due as its events append, a minute at a time
-        (store) => AlertRule.consumer(store),
-        // count each space's exceptions into its issues a minute at a time, moving the reader in the same commit
-        exception.consume("issues", async (page, { store, transaction }) => {
-            const { key: scope, after, through } = page;
-            await store.mutate(
-                store.as(issue),
-                {
-                    id: RequestId.create(store.environment),
-                    calls: [issue.call("count", { ...issue.in(scope), after, through })],
-                },
-                { transaction, scope },
-            );
-        }),
+        (store) => AlertRule.cursor(store),
+        // count each space's exceptions into its issues a minute at a time, kept a day past a stalled cursor
+        exception.cursor(
+            "issues",
+            async (page, { store, transaction }) => {
+                const { scope, after, through } = page;
+                await store.mutate(
+                    store.as(issue),
+                    {
+                        id: RequestId.create(store.environment),
+                        calls: [issue.call("count", { ...issue.in(scope), after, through })],
+                    },
+                    { transaction, scope },
+                );
+            },
+            { hold: { days: 1 }, batch: { minutes: 1 } },
+        ),
     ],
     // take OTLP exports, grouping a space's exceptions into its issues
     adapters: {
