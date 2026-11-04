@@ -719,6 +719,60 @@ test("refuse a unique key a commit after the transaction's base took as a lost r
     ]);
 });
 
+test("refuse a unique key a commit took after the transaction checked it as a lost race at the commit", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([label], {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+
+    // check the name free in a transaction, then let another commit take it
+    const name = (id: string) => ({
+        table: label,
+        before: null,
+        after: { id, scope: "board", folder: null, name: "urgent", archivedAt: null },
+    });
+    const late = await Transaction.open(database);
+    await late.write(name("b"));
+    await Transaction.run(database, (transaction) => transaction.write(name("a")));
+
+    // refuse the commit's failed insert as a lost race, a run repeating it
+    expect(await refusal(late.commit())).toEqual([
+        "SERVICE_UNAVAILABLE",
+        "CONCURRENT_UPDATE",
+        "another commit changed what the transaction read",
+    ]);
+});
+
+test("commit a transaction that rewrote a row it read while another commit wrote other rows", async () => {
+    const { database } = await open();
+
+    // read and rewrite one task, then let another commit add a task in another folder
+    const transaction = await Transaction.open(database);
+    const first = present(await transaction.read(task).findFirst({ where: { id: "a" } }), "task a");
+    await transaction.write({ table: task, before: first, after: { ...first, priority: 7 } });
+    await Transaction.run(database, (other) =>
+        other.write({
+            table: task,
+            before: null,
+            after: { id: "d", scope: "archive", priority: 4 },
+        }),
+    );
+
+    // commit the rewrite, its own log entries past the commit's position touching no read
+    await transaction.commit();
+    expect(await tasks(database)).toEqual([
+        { id: "a", scope: "inbox", priority: 7 },
+        { id: "b", scope: "inbox", priority: 2 },
+        { id: "c", scope: "archive", priority: 3 },
+        { id: "d", scope: "archive", priority: 4 },
+    ]);
+});
+
 /** Entries with slugs unique across them, optional details and a count. */
 const entry = defineTable(
     "commit_entry",
@@ -850,6 +904,43 @@ test("read a committed row once per transaction, and see the transaction's write
         first: { id: "a", scope: "inbox", priority: 1 },
         second: { id: "a", scope: "inbox", priority: 1 },
         third: written,
+    });
+});
+
+test("answer keyed reads of rows a transaction wrote from its writes, reading the database for any other key", async () => {
+    const { database } = await open();
+
+    // write one task and rewrite another, then read them by key, and with a committed one
+    const transaction = await Transaction.open(database);
+    const created = { id: "d", scope: "inbox", priority: 4 };
+    const rewritten = { id: "a", scope: "inbox", priority: 7 };
+    await transaction.write(
+        { table: task, before: null, after: created },
+        { table: task, before: { id: "a", scope: "inbox", priority: 1 }, after: rewritten },
+    );
+    const view = transaction.view();
+    const before = database.driver.state.statements;
+    const written = await view.select(task, ["id"], [["d"], ["a"]]);
+    const single = await view.read(task).findFirst({ where: { id: "d" } });
+    const scanned = await view.read(task).findMany({ where: { id: { in: ["d", "a"] } } });
+    const answered = database.driver.state.statements - before;
+    const mixed = await view.select(task, ["id"], [["d"], ["b"]]);
+
+    // spend no statement on the written keys alone, one on a key the writes lack
+    expect({
+        answered,
+        written: written.toSorted((left, right) => left.id.localeCompare(right.id)),
+        single,
+        scanned: scanned.toSorted((left, right) => left.id.localeCompare(right.id)),
+        mixed: mixed.toSorted((left, right) => left.id.localeCompare(right.id)),
+        read: database.driver.state.statements - before,
+    }).toEqual({
+        answered: 0,
+        written: [rewritten, created],
+        single: created,
+        scanned: [rewritten, created],
+        mixed: [{ id: "b", scope: "inbox", priority: 2 }, created],
+        read: 1,
     });
 });
 

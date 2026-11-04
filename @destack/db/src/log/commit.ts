@@ -250,7 +250,7 @@ export class ChangeSet {
         return rows;
     }
 
-    /** Apply the records once and then the changes in one transaction. */
+    /** Apply the records and the changes in one transaction. */
     async commit(
         database: DatabaseConnection,
         base: LogPosition,
@@ -258,28 +258,44 @@ export class ChangeSet {
         records: (transaction: DatabaseConnection) => Promise<void>,
     ): Promise<void> {
         // validate reads under the lock and check references after the writes
-        await database.transaction(
-            async (transaction) => {
-                // take the commit lock, then read the position in the same round trip when validating reads
-                const locked = transaction.log.serialize();
-                const reading = reads.tables.length === 0 ? undefined : transaction.log.position();
-                const [, position] = await Promise.all([locked, reading]);
+        let position: LogPosition | undefined;
+        try {
+            await database.transaction(
+                async (transaction) => {
+                    // take the commit lock, read the position and send the writes in one round trip
+                    const locked = transaction.log.serialize();
+                    const reading =
+                        reads.tables.length === 0 ? undefined : transaction.log.position();
+                    const writing = Promise.all([
+                        records(transaction),
+                        ...ChangeSet.#runs(this.changes, transaction.dialect).map((run) =>
+                            ChangeSet.#apply(transaction, run),
+                        ),
+                    ]);
+                    const settled = await Promise.allSettled([locked, reading, writing]);
+                    const [, read, written] = settled;
+                    position = read.status === "fulfilled" ? read.value : undefined;
 
-                // refuse once a commit since the base touched a read
-                if (position !== undefined) {
-                    await ChangeSet.requireCurrent(transaction, base, reads, position);
-                }
+                    // refuse once a commit since the base touched a read
+                    if (written.status === "fulfilled" && position !== undefined) {
+                        await ChangeSet.requireCurrent(transaction, base, reads, position);
+                    }
 
-                // send the records, then each run of one table's changes, in one round trip
-                await Promise.all([
-                    records(transaction),
-                    ...ChangeSet.#runs(this.changes, transaction.dialect).map((run) =>
-                        ChangeSet.#apply(transaction, run),
-                    ),
-                ]);
-            },
-            { constraints: "deferred", isolationLevel: "read committed" },
-        );
+                    // fail with the first failure
+                    const failed = settled.find((each) => each.status === "rejected");
+                    if (failed !== undefined) {
+                        throw failed.reason;
+                    }
+                },
+                { constraints: "deferred", isolationLevel: "read committed" },
+            );
+        } catch (error) {
+            // refuse a failed write as a lost race once a commit since the base touched a read
+            if (position !== undefined && !DatabaseError.is(error, "CONCURRENT_UPDATE")) {
+                await ChangeSet.requireCurrent(database, base, reads, position);
+            }
+            throw error;
+        }
     }
 
     /** Group consecutive inserts, plain updates or deletes of one table, other updates one each. */
@@ -492,8 +508,9 @@ export class ChangeSet {
                 throw error;
             });
 
-            // refuse a page that touched a read
-            if (page.changes.some((change) => reads.touches(change))) {
+            // refuse a change up to the position that touched a read, skipping SQLite's own writes past it
+            const committed = page.changes.filter((change) => change.sequence <= position.sequence);
+            if (committed.some((change) => reads.touches(change))) {
                 throw DatabaseError.of(
                     "CONCURRENT_UPDATE",
                     "another commit changed what the transaction read",
@@ -726,7 +743,7 @@ export class Transaction {
             }
         }
 
-        // refuse a duplicate of a unique key, reading each table once
+        // refuse a duplicate of a unique key, reading each table once and all tables together
         const tables = new Map<Table, RowChange[]>();
         for (const change of changes) {
             const written = tables.get(change.table);
@@ -736,9 +753,9 @@ export class Transaction {
                 written.push(change);
             }
         }
-        for (const [table, written] of tables) {
-            await this.#requireUnique(table, written);
-        }
+        await Promise.all(
+            [...tables].map(([table, written]) => this.#requireUnique(table, written)),
+        );
 
         // record each change
         for (const change of changes) {

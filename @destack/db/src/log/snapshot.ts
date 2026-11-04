@@ -180,8 +180,14 @@ export class Snapshot {
         table: Definition,
         where: Condition<RowImage<NoInfer<Definition>>>,
     ): Promise<RowImage<Definition>[]> {
-        // record the scan
+        // record the scan, and answer keys the overlay wrote from the overlay alone
         this.#reads?.images(table, where);
+        const keys = Snapshot.#keys(table, where);
+        const written =
+            keys === undefined ? undefined : await this.#written(table, table[TABLE].key, keys);
+        if (written !== undefined) {
+            return written;
+        }
 
         // read the current rows and the changed rows' images
         const predicate = Condition.resolve(where, Namespace.fields(table));
@@ -225,6 +231,13 @@ export class Snapshot {
             ),
             "image",
         );
+        // answer keys the overlay wrote from the overlay alone
+        const written = await this.#written(table, columns, tuples);
+        if (written !== undefined) {
+            return written;
+        }
+
+        // read the rows from the database
         const isPositioned = this.position !== undefined;
         const dialect = this.database.dialect;
         const read = await tupleRead(table, columns, dialect, isPositioned).values(this.database, {
@@ -262,13 +275,79 @@ export class Snapshot {
         return kept.map((row) => Table.image(table, row));
     }
 
+    /** List the key tuples of a condition on a one-column text key alone, else absent. */
+    static #keys(table: Table, where: Condition<Row>): string[][] | undefined {
+        // take a key equal to a text, or in a list of texts
+        const { key } = table[TABLE];
+        const entries = Object.entries(where);
+        const [entry] = entries;
+        if (
+            key.length !== 1 ||
+            entries.length !== 1 ||
+            entry === undefined ||
+            entry[0] !== key[0]
+        ) {
+            return undefined;
+        }
+        const [, value] = entry;
+        const isList =
+            typeof value === "object" &&
+            value !== null &&
+            Object.keys(value).length === 1 &&
+            "in" in value;
+        const listed = typeof value === "string" ? [value] : isList ? value["in"] : undefined;
+
+        return Array.isArray(listed) && listed.every((each) => typeof each === "string")
+            ? listed.map((each) => [each])
+            : undefined;
+    }
+
+    /** Find the overlay's live rows for every key tuple, absent when one needs the database. */
+    async #written<Definition extends Table>(
+        table: Definition,
+        columns: readonly string[],
+        tuples: readonly (readonly unknown[])[],
+    ): Promise<RowImage<Definition>[] | undefined> {
+        // skip a positioned view, one without an overlay, and a read by other columns than the key
+        const { key } = table[TABLE];
+        const isKeyed =
+            columns.length === key.length && key.every((name) => columns.includes(name));
+        if (this.position !== undefined || this.#overlay === undefined || !isKeyed) {
+            return undefined;
+        }
+
+        // take each tuple's written row, needing the database for a tuple the overlay lacks
+        const byTuple = new Map<string, Row>();
+        for (const row of (await this.#overlay(table)).values()) {
+            if (row !== null) {
+                byTuple.set(
+                    JSON.stringify(columns.map((column) => jsonOf(table, column, row))),
+                    row,
+                );
+            }
+        }
+        const wanted = new Set(tuples.map((tuple) => JSON.stringify(tuple)));
+        const rows = [...wanted].map((tuple) => byTuple.get(tuple));
+
+        return rows.every((row) => row !== undefined)
+            ? rows.map((row) => Table.image(table, row))
+            : undefined;
+    }
+
     /** Read one row by its key, null when it did not exist at the position. */
     async #row<Definition extends Table>(
         table: Definition,
         key: Key,
     ): Promise<RowImage<Definition> | null> {
-        // record the read
+        // record the read, and answer a row the overlay wrote from the overlay alone
         this.#reads?.image(table, key);
+        const overlaid =
+            this.position === undefined && this.#overlay !== undefined
+                ? (await this.#overlay(table)).get(Key.name(table, key))
+                : undefined;
+        if (overlaid !== undefined) {
+            return overlaid === null ? null : Table.image(table, overlaid);
+        }
 
         // read the row and its earlier image
         const { rows, sequence } = await this.#read(table, Key.match(table, key));
