@@ -12,6 +12,12 @@ test("read a JSON body within its limit", async () => {
     });
 });
 
+test("read a request without a body as no bytes, at once", async () => {
+    // post with no body, as a client binding its key sends
+    const request = new Request("https://example.com/client/bind", { method: "POST" });
+    expect(await RequestBody.bytes(request, "a bind")).toEqual(new Uint8Array(0));
+});
+
 test("refuse a body whose declared or streamed size passes the limit", async () => {
     const body = "x".repeat(65);
     expect(await refusal(RequestBody.text(post(body), "a journal batch", 64))).toEqual([

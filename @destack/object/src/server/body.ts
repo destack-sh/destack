@@ -22,10 +22,10 @@ export const RequestBody = {
             throw tooLarge;
         }
 
-        // read the body up to the limit
+        // read an absent body as no bytes, else the body up to the limit
         const chunks: Uint8Array[] = [];
         let size = 0;
-        for await (const chunk of request.body ?? new ReadableStream<Uint8Array>()) {
+        for await (const chunk of request.body ?? []) {
             size += chunk.byteLength;
             if (size > limit) {
                 throw tooLarge;
