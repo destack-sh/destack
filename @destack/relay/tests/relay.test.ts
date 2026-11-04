@@ -212,7 +212,6 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
     const handshakes = new Relay({
         origin: relay.origin,
         issuer: host.universe.issuer,
-        residency: "eu",
         itself: { url: relay.origin, fetch: async () => new Response(null) },
         view: Snapshot.live(computer.universe.storage.database),
         domains: DOMAINS,
@@ -280,9 +279,8 @@ test("refuse a machine's handshake at a relay of another residency than its acco
     const handshakes = new Relay({
         origin: us.origin,
         issuer: host.universe.issuer,
-        residency: "us",
         itself: { url: us.origin, fetch: async () => new Response(null) },
-        view: Snapshot.live(computer.universe.storage.database),
+        view: Snapshot.live(await us.memory()),
         domains: DOMAINS,
         fetch: async () => new Response(null),
         synced: async () => {},
@@ -671,7 +669,6 @@ test("close a machine's tunnel as moved at a relay its endpoint no longer leads 
     const elsewhere = new Relay({
         origin: "http://other.relay.test",
         issuer: host.universe.issuer,
-        residency: "eu",
         itself: {
             url: "http://other.relay.test",
             fetch: async (request) => {

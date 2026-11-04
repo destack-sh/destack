@@ -13,7 +13,6 @@ import {
     key,
     machine,
     Placement,
-    type ResidencyCode,
     space,
 } from "@destack/account/object";
 import { Change, type DatabaseConnection, Projection, type Snapshot } from "@destack/db";
@@ -43,11 +42,9 @@ export interface RelayOptions {
     readonly origin: string;
     /** The universe's issuer, which machines' tokens carry. */
     readonly issuer: string;
-    /** The residency the relay serves, whose accounts' machines alone tunnel to it. */
-    readonly residency: ResidencyCode;
     /** The relay installation itself, which calls each machine's tunnel in its partition. */
     readonly itself: { readonly url: string; readonly fetch: Fetch };
-    /** The replica of the universe's directory and identities. */
+    /** The replica of the universe's directory, identities and the relay's residency's accounts. */
     readonly view: Snapshot;
     /** The domains names resolve under. */
     readonly domains: Domains;
@@ -89,9 +86,6 @@ export class Relay {
     /** The relay's own origin. */
     readonly #origin: URL;
 
-    /** The residency the relay serves. */
-    readonly #residency: ResidencyCode;
-
     /** Call cloud machines. */
     readonly #fetch: Fetch;
 
@@ -112,7 +106,6 @@ export class Relay {
         this.domains = options.domains;
         this.#itself = options.itself;
         this.#origin = new URL(options.origin);
-        this.#residency = options.residency;
         this.#fetch = options.fetch;
     }
 
@@ -168,11 +161,11 @@ export class Relay {
             throw RelayError.of(reason, `machine ${machineId} ${refused}`);
         }
 
-        // require its account to live in the relay's residency
+        // require its account among the relay's residents
         const resident = await this.#view
             .read(account.table)
             .findFirst({ where: { id: standing.account } });
-        if (resident?.residencyId !== this.#residency) {
+        if (resident === undefined) {
             throw RelayError.of(
                 "RESIDENCY_FOREIGN",
                 `machine ${machineId} tunnels through the relay of its account's residency`,
@@ -201,14 +194,14 @@ export class Relay {
         const relayed = { relay: { isNotNull: true } } as const;
         const rows = await this.#view.read(endpoint.table).findMany({ where: relayed });
 
-        return rows.filter((row) => this.isHere(row)).map((row) => row.id);
+        return rows.filter((row) => this.isHere(row)).map((row) => row.parentId);
     }
 
     /** Report whether a machine's endpoint leads to a tunnel here. */
     async isTunnelled(machineId: Identifier<"machine">): Promise<boolean> {
         const published = await this.#view
             .read(endpoint.table)
-            .findFirst({ where: { id: machineId } });
+            .findFirst({ where: { parentId: machineId } });
 
         return published !== undefined && this.isHere(published);
     }
@@ -235,7 +228,7 @@ export class Relay {
         const standing = await this.standing(machineId);
         const published = await this.#view
             .read(endpoint.table)
-            .findFirst({ where: { id: machineId } });
+            .findFirst({ where: { parentId: machineId } });
 
         // close the tunnel of a machine that no longer stands
         if ("reason" in standing) {
@@ -272,7 +265,7 @@ export class Relay {
             const wasHere = before !== null && this.isHere(before);
             const isHere = after !== null && this.isHere(after);
 
-            return wasHere !== isHere ? [Change.image(change).id] : [];
+            return wasHere !== isHere ? [Change.image(change).parentId] : [];
         }
         // select a renamed machine tunnelled here, its revoke selected by its endpoint's deletion
         else if (Change.of(change, machine.table)) {
@@ -491,7 +484,7 @@ export class Relay {
         // refuse a machine without an answering endpoint
         const published = await this.#view
             .read(endpoint.table)
-            .findFirst({ where: { id: machineId } });
+            .findFirst({ where: { parentId: machineId } });
         if (published === undefined || !Endpoint.isAnswering(published, this.#clock.now())) {
             throw RelayError.of("MACHINE_DISCONNECTED", `machine ${machineId} is disconnected`);
         }

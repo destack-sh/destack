@@ -121,9 +121,12 @@ export class TestRelay implements AsyncDisposable {
             await directory.read(machine.table).findFirst({ where: { id: host.id } }),
             `the machine ${host.id}`,
         );
-        const residencyId = present(hosted.residencyId, "a residency");
-        const home = await Residency.space(directory, residencyId);
-        const installation = options.installation ?? (await universe.relay(residencyId));
+        const { code } = await Residency.require(
+            directory,
+            present(hosted.residencyId, "a residency"),
+        );
+        const home = await Residency.space(directory, code);
+        const installation = options.installation ?? (await universe.relay(code));
         const relayOrigin = `http://${hostname}`;
         const egress = `http://host.${hostname}${Egress.path}`;
 
@@ -195,7 +198,7 @@ export class TestRelay implements AsyncDisposable {
         const settings = {
             [DeclarationReference.key(origin.reference)]: relayOrigin,
             [DeclarationReference.key(issuer.reference)]: host.universe.issuer,
-            [DeclarationReference.key(residency.reference)]: residencyId,
+            [DeclarationReference.key(residency.reference)]: code,
         };
         const start = (partition: string | undefined): Promise<Instance> => {
             // take a started instance
@@ -373,11 +376,16 @@ export class TestRelay implements AsyncDisposable {
         );
     }
 
+    /** Open the root's memory, its replicas of the universe. */
+    async memory(): Promise<DatabaseConnection> {
+        return await present(this.#memories.get(undefined), "the root's memory");
+    }
+
     /** Report whether the root's replicas reached the universe's log as of now. */
     async isCaughtUp(): Promise<boolean> {
         // read the universe's head and the root's replicas of the universe
         const position = await this.#universe.storage.database.log.position();
-        const root = await present(this.#memories.get(undefined), "the root's memory");
+        const root = await this.memory();
         const replicas = await Replica.including(root, Scope.universe.id);
 
         return await Replica.isAt(root, replicas, position);
@@ -387,7 +395,7 @@ export class TestRelay implements AsyncDisposable {
     async waitCaughtUp(signal: AbortSignal): Promise<boolean> {
         // wait until the root's replicas of the universe reach its head
         const position = await this.#universe.storage.database.log.position();
-        const root = await present(this.#memories.get(undefined), "the root's memory");
+        const root = await this.memory();
 
         return await Replica.wait(root, Scope.universe.id, position, signal);
     }

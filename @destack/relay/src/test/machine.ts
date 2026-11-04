@@ -229,7 +229,7 @@ export class TestTunnelMachine implements AsyncDisposable {
     async endpoint(): Promise<Endpoint | undefined> {
         return Snapshot.live(this.universe.storage.database)
             .read(endpoint.table)
-            .findFirst({ where: { id: this.machine.id } });
+            .findFirst({ where: { parentId: this.machine.id } });
     }
 
     /** Open a tunnel from the computer to a relay, which publishes its endpoint at each renewal. */

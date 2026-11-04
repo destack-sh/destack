@@ -93,8 +93,8 @@ async function serveRoot(
     };
 
     // follow the directory and the identities into memory
-    const residencyId = residency.read(server.settings);
-    const residents = residentsFollow(residencyId);
+    const code = residency.read(server.settings);
+    const residents = residentsFollow(code);
     const follows = [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, residents];
     const names = (request: Request) =>
         relay.fetch(copyRequest(restore(request), { signal: request.signal }));
@@ -102,7 +102,6 @@ async function serveRoot(
     const relay = new Relay({
         origin: origin.read(server.settings),
         issuer: issuer.read(server.settings),
-        residency: residencyId,
         domains: DOMAINS,
         itself: server.at(Egress.address(server.name, server.scope)),
         view: Snapshot.live(store.database),
@@ -115,7 +114,7 @@ async function serveRoot(
                     DIRECTORY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id }),
                     residents.shape.isSynced(store.database, {
                         scope: Scope.universe.id,
-                        residency: residencyId,
+                        residency: code,
                     }),
                 ]);
 
