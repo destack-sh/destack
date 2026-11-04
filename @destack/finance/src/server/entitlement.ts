@@ -1,8 +1,7 @@
 import { account } from "@destack/account/object";
-import { Change, Snapshot, TABLE, type Table } from "@destack/db";
+import { Change, Projection, Snapshot, TABLE } from "@destack/db";
 import { EventView } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import type { ReconcileController } from "@destack/db";
 import { RequestId } from "@destack/sync";
 import {
     customer,
@@ -16,19 +15,8 @@ import {
 import { usage } from "@destack/stack/object";
 import type { Metering } from "./metering.ts";
 
-/** Derives each account's entitlements as its usage, subscriptions or defaults change. */
-export class EntitlementController implements ReconcileController {
-    /** The controller's name in reports. */
-    readonly name = "entitlement";
-    /** The account replicas, subscriptions and default products entitlements derive from. */
-    readonly watches: readonly Table[] = [
-        account.table,
-        usage.table,
-        subscription.table,
-        subscriptionItem.table,
-        product.table,
-        productFeature.table,
-    ];
+/** Each customer's entitlements, derived again as its usage, subscriptions or defaults change. */
+export class CustomerEntitlement {
     /** The object store deriving as finance's installation. */
     readonly #store: ObjectStore;
     /** The residency's home, storing the customers whose announcements alert the accounts. */
@@ -41,6 +29,24 @@ export class EntitlementController implements ReconcileController {
         this.#store = store;
         this.#home = home;
         this.#metering = metering;
+    }
+
+    /** Project each account's entitlements from its replica, usage, subscriptions and defaults. */
+    projection(): Projection {
+        return new Projection(this.#store.database, {
+            name: "entitlement",
+            reads: [
+                account.table,
+                usage.table,
+                subscription.table,
+                subscriptionItem.table,
+                product.table,
+                productFeature.table,
+            ],
+            keys: (change) => this.keys(change),
+            all: () => this.list(),
+            project: (scope) => this.derive(scope),
+        });
     }
 
     /** Select a change's accounts, all on a rare default edit: about 1 ms each, 100 s per 100k. */
@@ -89,10 +95,10 @@ export class EntitlementController implements ReconcileController {
 
             return parent !== undefined && parent.isDefault ? this.list() : [];
         }
-        // refuse an unwatched table
+        // refuse an unread table
         else {
             throw new TypeError(
-                `table ${change.table[TABLE].name} is not watched by the entitlement controller`,
+                `table ${change.table[TABLE].name} is not read by the entitlement projection`,
             );
         }
     }
@@ -124,7 +130,7 @@ export class EntitlementController implements ReconcileController {
     }
 
     /** Announce an account's changed usage states, then write its entitlements at the universe. */
-    async reconcile(scope: string): Promise<number | undefined> {
+    async derive(scope: string): Promise<void> {
         // derive the account's entitlements and alerts, comparing them to its replicated ones
         const accountId = account.identifier(scope);
         const caller = this.#store.as(customer);
@@ -153,7 +159,5 @@ export class EntitlementController implements ReconcileController {
                 calls,
             });
         }
-
-        return undefined;
     }
 }

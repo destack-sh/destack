@@ -6,7 +6,7 @@ export * from "./price.ts";
 export * from "./subscription.ts";
 export * from "./checkout-session.ts";
 export * from "./customer.ts";
-export * from "./entitlement-controller.ts";
+export * from "./entitlement.ts";
 export * from "./charge.ts";
 export * from "./billing.ts";
 export * from "./metering.ts";

@@ -14,12 +14,12 @@ import { Scope, RequestId } from "@destack/sync";
 import type { ImplementationInput } from "@destack/object/server";
 import financePackage from "../package.ts";
 import { type PaymentProvider, ProviderEvent } from "../provider/provider.ts";
-import { EntitlementController } from "./entitlement-controller.ts";
+import { CustomerEntitlement } from "./entitlement.ts";
 import { usage } from "@destack/stack/object";
 import { charge } from "../object/index.ts";
 import type {} from "@destack/package/import-meta";
 
-/** Implement the finance package in a home: its types, the provider's webhook, its controllers. */
+/** Implement the finance package in a home: its types, the provider's webhook, its consumers. */
 export function implementFinance(
     home: string,
     metering: Metering,
@@ -61,7 +61,7 @@ export function implementFinance(
         ],
 
         // rate the usage routed here and derive each account's entitlements
-        controllers: [
+        consumers: [
             usage.consume("usage", async (page, { store, transaction }) => {
                 // rate the claimed page through the charges' method, moving the reader in the same commit
                 await store.mutate(
@@ -80,7 +80,7 @@ export function implementFinance(
                     { transaction, scope: home },
                 );
             }),
-            (store) => new EntitlementController(store, home, metering),
+            (store) => new CustomerEntitlement(store, home, metering).projection(),
         ],
     };
 }

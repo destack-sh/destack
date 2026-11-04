@@ -3,7 +3,7 @@ import objectPackage from "@destack/object/package";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { account, organization, Residency } from "@destack/account/object";
 import { OPERATOR_EMAIL, type TestPerson } from "@destack/account/test";
-import { type Controller, Snapshot } from "@destack/db";
+import { type Consumer, eq, Snapshot, TABLE } from "@destack/db";
 import { reconciliation } from "@destack/db/test";
 import type { Crypto, Clock, Environment } from "@destack/environment";
 import type { Simulation } from "@destack/environment/simulation";
@@ -45,7 +45,7 @@ import { FEATURE_KIND } from "../feature/feature.ts";
 import { SKU_KIND } from "../sku/sku.ts";
 import type { PaymentProvider } from "../provider/index.ts";
 import type { Period } from "../rate/index.ts";
-import { EntitlementController } from "../server/entitlement-controller.ts";
+import { CustomerEntitlement } from "../server/entitlement.ts";
 import { Metering } from "../server/metering.ts";
 import { implementFinance } from "../server/server.ts";
 import { Sku } from "../sku/index.ts";
@@ -186,7 +186,7 @@ type FinanceWorld = schema.Infer<typeof FinanceWorld>;
 export class TestFinance {
     /** The residency's home serving finance. */
     readonly space: TestSpace;
-    /** The home as its machine serves it, its controllers stepped by the test. */
+    /** The home as its machine serves it, its consumers stepped by the test. */
     readonly served: TestObjectStore;
     /** The payment provider billing through, absent for a fixture selling nothing. */
     readonly provider: PaymentProvider | undefined;
@@ -196,8 +196,10 @@ export class TestFinance {
     readonly platform: Identifier<"account">;
     /** The published builds the metering reads, by their manifest's digest. */
     readonly #published: Map<string, BuildReader>;
-    /** Finance's controllers, which the test runs where the control loop would. */
-    readonly #controllers: readonly Controller[];
+    /** Finance's consumers, which the test runs where the control loop would. */
+    readonly #consumers: readonly Consumer[];
+    /** The derivation of customers' entitlements, which the test runs as the loop would. */
+    readonly #entitlement: CustomerEntitlement;
 
     /** Keep a served home with finance and the world the template wrote. */
     private constructor(fields: {
@@ -207,7 +209,8 @@ export class TestFinance {
         readonly telemetry: TestTelemetry;
         readonly world: FinanceWorld;
         readonly published: Map<string, BuildReader>;
-        readonly controllers: readonly Controller[];
+        readonly consumers: readonly Consumer[];
+        readonly entitlement: CustomerEntitlement;
     }) {
         // keep the home, how it is served, and the metering and provider finance runs with
         this.space = fields.space;
@@ -218,7 +221,8 @@ export class TestFinance {
         // keep the world's accounts and machines, and the published builds
         this.platform = fields.world.platform;
         this.#published = fields.published;
-        this.#controllers = fields.controllers;
+        this.#consumers = fields.consumers;
+        this.#entitlement = fields.entitlement;
     }
 
     /** Serve a copy of the template's home with package releases, billing through a provider. */
@@ -247,10 +251,16 @@ export class TestFinance {
             ),
         });
 
-        // serve it at the test's start, its controllers stepped by the test, and publish the releases as the platform
+        // serve it at the test's start, its consumers stepped by the test, and publish the releases as the platform
         const served = await home.serve({ isControlled: false });
-        const { controllers = [] } = await implemented.promise;
-        const built = controllers.map((controller) => controller(served.store));
+        const implementation = await implemented.promise;
+        const { consumers = [] } = implementation.definition;
+        const built = consumers.map((consumer) => consumer(served.store));
+        const entitlement = new CustomerEntitlement(
+            served.store,
+            implementation.home,
+            implementation.metering,
+        );
         if (options.start !== undefined) {
             await home.simulation.jump(options.start);
         }
@@ -265,7 +275,8 @@ export class TestFinance {
             telemetry: new TestTelemetry(home.simulation.telemetry),
             world,
             published,
-            controllers: built,
+            consumers: built,
+            entitlement,
         });
     }
 
@@ -434,13 +445,10 @@ export class TestFinance {
         return name === "dave" ? OPERATOR_EMAIL : `${name}@example.test`;
     }
 
-    /** Append an account's uses, then rate them page by page. */
+    /** Append an account's uses, then rate them. */
     async use(payer: string, uses: readonly FinanceUse[]): Promise<void> {
-        // append the uses, then rate every page
         await this.append(payer, uses);
-        while ((await this.rate(payer)) === 0) {
-            continue;
-        }
+        await this.rate(payer);
     }
 
     /** Fold a paying account's usage of a meter as rating reads it, in a period or now. */
@@ -495,68 +503,61 @@ export class TestFinance {
         };
     }
 
-    /** Find a served controller by its name. */
-    #controller(name: string): Controller {
+    /** Find a served consumer by its name. */
+    #consumer(name: string): Consumer {
         return present(
-            this.#controllers.find((each) => each.name === name),
-            `finance's ${name} controller`,
+            this.#consumers.find((each) => each.name === name),
+            `finance's ${name} consumer`,
         );
-    }
-
-    /** The entitlement derivation, which the test runs where the control loop would. */
-    get #entitlements(): EntitlementController {
-        const found = this.#controller("entitlement");
-        if (!(found instanceof EntitlementController)) {
-            throw new TypeError("the entitlement controller is not finance's derivation");
-        }
-
-        return found;
     }
 
     /** Resolve each feature an account's sources grant now, with its metered usage. */
     resolutions(scope: string): Promise<Resolution[]> {
-        return this.#entitlements.resolve(scope);
+        return this.#entitlement.resolve(scope);
     }
 
-    /** Rate the next page of an account's usage and derive its entitlements, as the loop does. */
-    async rate(scope: string): Promise<number | undefined> {
-        // rate the page, then derive the entitlements and run the world idle
-        const rated = await this.#controller(`${usage.name}/usage`).reconcile(
-            scope,
-            reconciliation(),
-        );
-        await this.#entitlements.reconcile(scope);
+    /** Rate an account's new usage and derive its entitlements, as the loop does. */
+    async rate(scope: string): Promise<void> {
+        // rate the usage, then derive the entitlements and run the world idle
+        await this.#consumer(usage.reader("usage").name).consume(scope, reconciliation());
+        await this.#entitlement.derive(scope);
         await this.space.simulation.idle();
-
-        return rated;
     }
 
-    /** Flush the hot usage of an account into segments, as the event store's controller does. */
+    /** Flush the hot usage of an account into segments, as the event store's flush does. */
     async flush(payer: string): Promise<void> {
-        await this.events
-            .controller()
-            .reconcile(`${usage.eventKind().key} ${payer}`, reconciliation());
+        // read the payer's hot usage, and flush it through the kind's flush controller
+        const kind = usage.eventKind();
+        const flush = present(
+            this.events.controllers().find((each) => each.name === `event-flush:${kind.key}`),
+            `the flush of ${kind.key}`,
+        );
+        const rows = await this.database
+            .select()
+            .from(kind.table)
+            .where(eq(kind.table[TABLE].column("scope"), payer))
+            .limit(1);
+        if (!("reconcile" in flush)) {
+            throw new TypeError(`the flush of ${kind.key} follows instead of reconciling`);
+        }
+        await flush.reconcile(rows, reconciliation());
     }
 
-    /** Rate each payer a restarted usage controller lists until its pages run out. */
+    /** Rate each payer whose usage placed a checkpoint, as a restarted loop lists them. */
     async rateListed(): Promise<readonly string[]> {
-        const listed = await this.#controller(`${usage.name}/usage`).list(
-            Snapshot.live(this.database),
-        );
+        const listed = await usage.reader("usage").keys(this.database);
         for (const payer of listed) {
-            while ((await this.rate(payer)) === 0) {
-                continue;
-            }
+            await this.rate(payer);
         }
 
         return listed;
     }
 
-    /** Derive every account's entitlements, as the controller does. */
+    /** Derive every account's entitlements, as the projection does at its start. */
     async entitle(): Promise<void> {
-        const entitlements = this.#entitlements;
+        const entitlements = this.#entitlement;
         for (const key of await entitlements.list()) {
-            await entitlements.reconcile(key);
+            await entitlements.derive(key);
         }
         await this.space.simulation.idle();
     }
@@ -617,8 +618,15 @@ export class TestFinance {
     }
 }
 
-/** What finance's server implements in a home. */
-type FinanceDefinition = ReturnType<typeof implementFinance>;
+/** What finance's server implements in a home, with the home and the metering it runs with. */
+interface FinanceDefinition {
+    /** The implementation. */
+    readonly definition: ReturnType<typeof implementFinance>;
+    /** The home finance runs in. */
+    readonly home: string;
+    /** The metering it rates against. */
+    readonly metering: Metering;
+}
 
 /** Implement finance in a home, billing through a provider and metering published releases. */
 function financeServer(
@@ -627,10 +635,11 @@ function financeServer(
     implemented: (definition: FinanceDefinition) => void = () => {},
 ) {
     return implementPackage(financePackage, (context) => {
-        // implement finance, handing the definition to the fixture that steps its controllers
+        // implement finance, handing the definition to the fixture that steps its consumers
         const provider = charging === undefined ? undefined : charging(context.scope);
-        const definition = implementFinance(context.scope, metering(context, published), provider);
-        implemented(definition);
+        const metered = metering(context, published);
+        const definition = implementFinance(context.scope, metered, provider);
+        implemented({ definition, home: context.scope, metering: metered });
 
         return definition;
     });
