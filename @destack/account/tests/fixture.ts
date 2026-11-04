@@ -80,7 +80,7 @@ export async function claimNames(
         home: RemoteStore.of(caller.client(accountPackage).store, Scope.universe.id),
     };
     const request = { id: RequestId.create(environment), environment };
-    const reservation = await Reservation.reserve(service, [claimant], [place], request);
+    const reservation = await Reservation.reserve(service, [claimant], [place], request, database);
     await reservation.commit(database);
     await reservation.confirm();
 }

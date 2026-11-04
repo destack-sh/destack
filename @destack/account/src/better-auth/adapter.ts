@@ -396,10 +396,13 @@ async function createUser(
         reservation = undefined;
         const claims = present(objects.claims, "the account objects' claim type");
         const claimants = await Claimant.written(transaction, [account, space]);
-        reservation = await Reservation.reserve(claims, claimants, [account, space], {
-            id: Uuid.v4(objects.environment.random),
-            environment: objects.environment,
-        }).catch(handleTaken);
+        reservation = await Reservation.reserve(
+            claims,
+            claimants,
+            [account, space],
+            { id: Uuid.v4(objects.environment.random), environment: objects.environment },
+            database,
+        ).catch(handleTaken);
         const reserved = reservation;
         transaction.record(async (committing) => {
             await reserved.commit(committing).catch(handleTaken);

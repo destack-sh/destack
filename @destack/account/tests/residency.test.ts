@@ -75,15 +75,6 @@ function chain(space: string, accountId: string) {
     };
 }
 
-/** List the owners of the expired reservations a caller claims names for. */
-async function expired(caller: TestCaller): Promise<unknown[]> {
-    const listed = await caller
-        .client(accountPackage)
-        .claim.expired({ indexes: [Claim.index(place, "name")] });
-
-    return listed.claims.map((entry) => entry.owner);
-}
-
 /** Replicate an account's chain as a residency home for its space, reporting the refusal. */
 async function replicas(caller: TestCaller, space: string, accountId: string): Promise<Refusal> {
     const controller = new AbortController();
@@ -178,7 +169,7 @@ test("replicate the chains of a residency's accounts as its home, and refuse ano
     ]);
 });
 
-test("claim names of objects in its residency's accounts as a residency home or a cloud machine, refuse another residency's, and list the expired reservation to both", async () => {
+test("claim names of objects in its residency's accounts as a residency home or a cloud machine, and refuse another residency's", async () => {
     // store an eu and a us account, the eu home and an eu cloud machine
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
@@ -215,14 +206,6 @@ test("claim names of objects in its residency's accounts as a residency home or 
         ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: claim"],
         "done",
         ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: claim"],
-    ]);
-
-    // list a reservation of a write that never confirmed it, once expired, to the residency's claimants
-    await reserve(home, europeanId, "lost");
-    await fixture.simulation.jump(fixture.clock.now() + RESERVATION_MILLISECONDS + 1);
-    expect([await expired(home), await expired(cloud)]).toEqual([
-        [europeanId, europeanId],
-        [europeanId, europeanId],
     ]);
 });
 

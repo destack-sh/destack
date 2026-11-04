@@ -119,9 +119,9 @@ postgres action:
     fi
     "$bin/pg_ctl" --pgdata "$data" --log "$data/server.log" --options "-p 55432 -k /tmp" --wait "{{action}}"
 
-# serve the local universe, a cloud machine per residency and the dev channel's machine (dev reset drops their state)
-dev *arguments: (postgres "up")
-    just @platform/release/dev {{arguments}}
+# serve the local universe, a cloud machine per residency and the local stage's machine (local reset drops their state)
+local *arguments: (postgres "up")
+    just @platform/release/local {{arguments}}
 
 # version
 version:

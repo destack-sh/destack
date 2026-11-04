@@ -126,7 +126,10 @@
             "rules": { "destack/no-ambient-effect": "off" }
         },
         {
-            "files": ["@destack/forge/tests/fixture/consumer/run.js"],
+            "files": [
+                "@destack/forge/tests/fixture/consumer/run.js",
+                "@destack/forge/tests/fixture/greeting/src/main.js"
+            ],
             "rules": { "eslint/no-console": "off", "typescript/no-unsafe-call": "off" }
         },
         {
@@ -220,10 +223,6 @@
         {
             "files": ["@platform/release/src/distribution/executable.ts"],
             "rules": { "destack/no-ambient-effect": "off" }
-        },
-        {
-            "files": ["@platform/site/src/view/content/asset.ts"],
-            "rules": { "destack/no-ambient-effect": "off" }
         }
     ],
     "settings": {
@@ -247,11 +246,13 @@
                 "@destack/identity",
                 "@destack/locale",
                 "@destack/machine",
+                "@destack/mail",
                 "@destack/message",
                 "@destack/notification",
                 "@destack/object",
                 "@destack/observability",
                 "@destack/package",
+                "@destack/registry",
                 "@destack/relay",
                 "@destack/resource",
                 "@destack/sandbox",
@@ -265,6 +266,7 @@
                 "@destack/telemetry",
                 "@destack/test",
                 "@destack/theme",
+                "@destack/tunnel",
                 "@destack/ui",
                 "@destack/universe",
                 "@destack/update",
@@ -281,9 +283,10 @@
                 "@destack/build/tests/fixture/library/source",
                 "@destack/build/tests/fixture/unit-application/source",
                 "@destack/build/tests/fixture/unit-library/source",
-                "@destack/cli/tests/fixture/board",
                 "@destack/machine/tests/fixture/apps",
                 "@destack/machine/tests/fixture/board",
+                "@destack/machine/tests/fixture/mention",
+                "@destack/machine/tests/fixture/stack",
                 "@destack/view/tests/fixture/notebook"
             ],
             "entrypoints": [
@@ -326,7 +329,7 @@
                 "@platform/release/src/bitwarden/tests/bitwarden.ts",
                 "@platform/release/src/cloudflare/machine.ts",
                 "@platform/release/src/cloudflare/universe.ts",
-                "@platform/release/src/cloudflare/worker.ts",
+                "@platform/release/src/cloudflare/feed.ts",
                 "@platform/release/src/distribution/icon.ts",
                 "@platform/release/src/distribution/install.ts",
                 "@platform/release/src/distribution/open.ts",
@@ -351,14 +354,11 @@
                 "@platform/release/src/signing/sign.ts",
                 "@platform/release/src/yubico/attestation.ts",
                 "@platform/site/build/main.ts",
-                "@platform/site/scripts/readme.ts",
                 "@platform/site/scripts/test-highlighting.ts",
                 "@platform/site/scripts/test-markdown.ts",
-                "@platform/site/scripts/sync-assets.ts",
                 "@platform/site/scripts/generate-release.ts",
                 "@platform/site/scripts/generate-pricing.ts",
-                "@platform/site/scripts/generate-headword.ts",
-                "@platform/site/scripts/generate-content.ts"
+                "@platform/site/scripts/generate-headword.ts"
             ]
         }
     },
