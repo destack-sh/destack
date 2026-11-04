@@ -2,14 +2,14 @@ import type { Crypto, Environment } from "@destack/environment";
 import * as account from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
-import { asc, eq } from "@destack/db";
+import { asc, eq, Snapshot } from "@destack/db";
 import type { Simulation, SimulatedClock } from "@destack/environment/simulation";
 import type { LocaleTag } from "@destack/locale";
 import { type TestMailAnswer, TestMailTransport } from "@destack/mail/test";
 import { mailConnector } from "@destack/mail/transport";
 import { MAIL_PROVIDER, subscribeBrowser, TestMessage, type Browser } from "@destack/message/test";
 import { message } from "@destack/message/object";
-import { MethodContext } from "@destack/object";
+import { MethodContext, ViewSubscriber } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
 import { testBuild, type TestCaller, TestObjectStore } from "@destack/object/test";
@@ -521,14 +521,14 @@ export class TestNotification implements AsyncDisposable {
             .orderBy(asc(table.recipientId), asc(table.createdAt), asc(table.id));
     }
 
-    /** Read a person's inbox: their home's notifications joined with its activity replicas. */
+    /** Read a person's inbox: their home's notifications with their activity replicas. */
     async inbox(person: Person): Promise<Inbox> {
-        // read the home's notifications and activity replicas
         const { database } = (await this.home(person)).served;
-        const notifications = await database.select().from(notification.table);
-        const activities = await database.select().from(activity.table);
+        const rows = await ViewSubscriber.queries({ notification, activity }, (table) =>
+            Snapshot.live(database).read(table),
+        ).notification.findMany({ with: { activity: true } });
 
-        return new Inbox(notifications, activities, this.clock.now());
+        return new Inbox(rows, this.clock.now());
     }
 
     /** Read a person's messages of a notification, by channel. */

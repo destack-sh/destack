@@ -1,7 +1,10 @@
 import type { MethodContext } from "@destack/object";
 import type { Subject } from "@destack/sync";
 import { Activity, activity } from "../object/activity.ts";
-import { Notification } from "../object/notification.ts";
+import type { Notification } from "../object/notification.ts";
+
+/** A notification as an inbox reads it, with its activity included. */
+export type InboxRow = Notification & { readonly activity: Activity | null };
 
 /** One notification in a person's inbox, with its activity and the state the two derive. */
 export class InboxEntry {
@@ -32,14 +35,14 @@ export class InboxEntry {
         this.isPlanned = notification.plannedAt >= occurrence.occurredAt;
     }
 
-    /** Read a notification's entry with its activity, absent once the home lost the activity. */
+    /** Read a notification's entry with its activity, absent while the home lacks the activity. */
     static async read(
         context: Pick<MethodContext, "read" | "now">,
         notification: Notification,
     ): Promise<InboxEntry | undefined> {
         const occurrence = await context
             .read(activity)
-            .findFirst({ where: { id: Notification.activity(notification.id) } });
+            .findFirst({ where: { id: notification.activityId } });
 
         return occurrence === undefined
             ? undefined
@@ -57,19 +60,12 @@ export class Inbox {
     /** The entries, latest occurrence first. */
     readonly entries: readonly InboxEntry[];
 
-    /** Join each notification with its activity replica, leaving out one whose activity expired. */
-    constructor(
-        notifications: readonly Notification[],
-        activities: readonly Activity[],
-        now: number,
-    ) {
-        // pair each notification with its activity
-        const byId = new Map(activities.map((row) => [row.id, row]));
-        const entries = notifications.flatMap((notification) => {
-            const occurrence = byId.get(Notification.activity(notification.id));
-
-            return occurrence === undefined ? [] : [new InboxEntry(notification, occurrence, now)];
-        });
+    /** Take notifications read with their activity, leaving out those whose activity left. */
+    constructor(notifications: readonly InboxRow[], now: number) {
+        // derive each notification's state against its activity
+        const entries = notifications.flatMap(({ activity: occurrence, ...notification }) =>
+            occurrence === null ? [] : [new InboxEntry(notification, occurrence, now)],
+        );
 
         // order the latest occurrence first
         this.entries = entries.toSorted(

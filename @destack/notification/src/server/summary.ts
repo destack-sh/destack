@@ -6,7 +6,7 @@ import { Recipient, Routing, Settings } from "../message/index.ts";
 import type { NotificationContent } from "../notification/content.ts";
 import { Inbox } from "../notification/inbox.ts";
 import { Activity, activity } from "../object/activity.ts";
-import { Notification, notification } from "../object/notification.ts";
+import { notification } from "../object/notification.ts";
 import { summary } from "../object/summary.ts";
 import { compose, createMessage, readMessageKey } from "./message.ts";
 import type { NotificationServer } from "./server.ts";
@@ -44,11 +44,10 @@ async function send(
 ): Promise<ResultOf<typeof summary, "send">> {
     // read the notifications waiting for the summary, with their activities
     const { at } = context.target;
-    const states = await context.read(notification).findMany({ where: { summaryAt: at } });
-    const activities = await context.read(activity).findMany({
-        where: { id: { in: states.map((state) => Notification.activity(state.id)) } },
-    });
-    const { entries } = new Inbox(states, activities, context.now);
+    const rows = await context
+        .read({ notification, activity })
+        .notification.findMany({ where: { summaryAt: at }, with: { activity: true } });
+    const { entries } = new Inbox(rows, context.now);
     const [lead] = entries;
     if (lead === undefined) {
         await context.mutate(context.self, [release(context.scope, at)]);

@@ -5,15 +5,19 @@ import type { Message } from "@destack/message";
 import { defineObject, field } from "@destack/object";
 import { Identifier, Instant, schema } from "@destack/schema";
 import { NotificationError } from "../error/error.ts";
+import { activity } from "./activity.ts";
 import { ObjectReference, type ReferenceColumns } from "@destack/sync";
 
-/** A person's state of one activity in their home, keyed by the activity's replica. */
+/** A person's state of one activity in their home, beside the activity's replica. */
 export const notification = defineObject(
     {
         name: "notification",
         plural: "notifications",
         scope: space,
+        key: "activityId",
         fields: {
+            /** The activity whose state it stores, its replica leaving with a revoked share. */
+            activity: field.reference(activity, { delete: "keep" }).immutable(),
             /** When the person last read it, unread while before the activity's last occurrence. */
             readAt: field.time().optional(),
             /** When its snooze ends. */
@@ -41,7 +45,7 @@ export const notification = defineObject(
         /** Create the notification of an activity replica. */
         create: method.create("plan", {
             visibility: "package",
-            fields: ["plannedAt", "deliveryAt"],
+            fields: ["activityId", "plannedAt", "deliveryAt"],
         }),
         /** Plan its delivery and the summary it waits for, as its controllers do. */
         update: method.update("plan", {
@@ -111,16 +115,6 @@ export type Notification = Select<typeof notification.table>;
 
 /** The notification of an activity, and the person's state it derives against the activity. */
 export const Notification = {
-    /** Derive the identifier of an activity's notification, which shares its UUID. */
-    of(activityId: Identifier<"activity">): Identifier<"notification"> {
-        return Identifier.derive("notification", Identifier.uuid(activityId));
-    },
-
-    /** Derive the identifier of a notification's activity, which shares its UUID. */
-    activity(notificationId: Identifier<"notification">): Identifier<"activity"> {
-        return Identifier.derive("activity", Identifier.uuid(notificationId));
-    },
-
     /** Take the notification a message was sent for, absent for another source. */
     from(
         sent: Pick<Message, keyof ReferenceColumns<"source">>,

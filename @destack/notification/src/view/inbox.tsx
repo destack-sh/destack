@@ -113,13 +113,15 @@ function useInbox(): {
     readonly inbox: () => Inbox | undefined;
     readonly now: () => number | undefined;
 } {
-    // follow the home's unarchived notifications and activity replicas at the view's time
+    // follow the home's unarchived notifications with their activity replicas at the view's time
     const home = useHome({ notification, activity });
     const now = useNow();
     const notifications = useQuery(() =>
-        home.query.notification.findMany({ where: { archivedAt: { isNull: true } } }),
+        home.query.notification.findMany({
+            where: { archivedAt: { isNull: true } },
+            with: { activity: true },
+        }),
     );
-    const activities = useQuery(() => home.query.activity.findMany({}));
 
     return {
         read: (entry) => home.mutate.notification.read({ id: entry.notification.id }),
@@ -127,7 +129,7 @@ function useInbox(): {
             // decide snoozes once mounted, when the view knows the time
             const time = now();
 
-            return time === undefined ? undefined : new Inbox(notifications(), activities(), time);
+            return time === undefined ? undefined : new Inbox(notifications(), time);
         }),
         now,
     };

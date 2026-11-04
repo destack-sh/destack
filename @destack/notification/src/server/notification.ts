@@ -12,7 +12,7 @@ import { Duration, type Identifier, nth, present, schema } from "@destack/schema
 import { Recipient, Routing, Settings } from "../message/index.ts";
 import { InboxEntry } from "../notification/inbox.ts";
 import { Activity, activity } from "../object/activity.ts";
-import { Notification, notification } from "../object/notification.ts";
+import { notification } from "../object/notification.ts";
 import { summary } from "../object/summary.ts";
 import { compose, createMessage, readMessageKey } from "./message.ts";
 import type { NotificationServer } from "./server.ts";
@@ -23,12 +23,10 @@ export function implementNotification(server: NotificationServer): typeof notifi
         methods: { deliver: (context) => deliver(context, server) },
         projections: [
             {
-                // plan a home's notification as its activity changes, and again once it is stale or missing
-                watches: [
-                    ObjectWatch.of(activity.table, (row) => [{ id: Notification.of(row.id) }]),
-                ],
-                project: (id, reconciliation) =>
-                    plan(schema.identifier("notification").parse(id), reconciliation),
+                // plan a home's notification of an activity as the activity changes, and again once it is stale or missing
+                watches: [ObjectWatch.of(activity.table, (row) => [{ activityId: row.id }])],
+                project: (activityId, reconciliation) =>
+                    plan(schema.identifier("activity").parse(activityId), reconciliation),
             },
         ],
         controllers: [
@@ -46,16 +44,14 @@ export function implementNotification(server: NotificationServer): typeof notifi
     });
 }
 
-/** Plan the delivery of a home's notification once its activity occurs again, creating it first. */
+/** Plan the delivery of an activity's notification once it occurs again, creating it first. */
 async function plan(
-    id: Identifier<"notification">,
+    activityId: Identifier<"activity">,
     reconciliation: ObjectReconciliation<typeof notification>,
 ): Promise<void> {
-    // read the notification's activity, none once it left the home
+    // read the activity, none once it left the home
     const view = Snapshot.live(reconciliation.database);
-    const occurred = await view
-        .read(activity.table)
-        .findFirst({ where: { id: Notification.activity(id) } });
+    const occurred = await view.read(activity.table).findFirst({ where: { id: activityId } });
     if (occurred === undefined) {
         return;
     }
@@ -69,13 +65,18 @@ async function plan(
 
     // create the notification, or plan the delivery of its new occurrence to every destination, recording which occurrence it planned
     const [state] = reconciliation.rows;
-    const target = notification.target({ scope: home, id });
     const planned = { plannedAt: occurred.occurredAt, deliveryAt: reconciliation.now };
     if (state === undefined) {
-        await reconciliation.mutate([notification.call("create", { ...target, ...planned })]);
+        await reconciliation.mutate([
+            notification.call("create", { ...notification.in(home), activityId, ...planned }),
+        ]);
     } else if (!new InboxEntry(state, occurred, reconciliation.now).isPlanned) {
         await reconciliation.mutate([
-            notification.call("update", { ...target, ...planned, delivered: [] }),
+            notification.call("update", {
+                ...notification.target(state),
+                ...planned,
+                delivered: [],
+            }),
         ]);
     }
 }
