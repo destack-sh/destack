@@ -48,11 +48,11 @@ export class Registry {
         this.#releases = releases;
     }
 
-    /** Call forges through the universe directory's replica, signing for the forge package. */
+    /** Call forges through the universe directory's replica, signing for each forge's home. */
     static of(
         directory: Directory,
         home: (account: Identifier<"account">) => Promise<Identifier<"space">>,
-        sign: (audience: PackageId) => Fetch,
+        sign: (audience: PackageId, home: Identifier<"space">) => Fetch,
         environment: Environment,
         installation: string,
         releases: readonly PackageRelease[] = [],
@@ -67,7 +67,7 @@ export class Registry {
                 const now = environment.clock.now();
                 const url = await directory.mount(spaceId, installation, registryPackage.id, now);
 
-                return { url, space: spaceId, fetch: sign(registryPackage.id) };
+                return { url, space: spaceId, fetch: sign(registryPackage.id, spaceId) };
             },
             environment,
             releases,
