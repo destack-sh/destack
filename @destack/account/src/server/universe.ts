@@ -415,10 +415,9 @@ export class Platform {
         };
 
         // replace the organization's names, refusing a handle another object claims
-        const [conflict] = await Claim.replace(
-            this.store.database,
-            claimant,
-            this.store.environment,
+        const { database, environment } = this.store;
+        const [conflict] = await database.transaction((transaction) =>
+            Claim.replace(transaction, claimant, environment),
         );
         if (conflict !== undefined) {
             throw AccountError.of(
