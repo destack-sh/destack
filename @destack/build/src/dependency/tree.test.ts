@@ -147,3 +147,32 @@ test("place a running tree's npm units as their Bun outputs alone, under runtime
         roots: [`${lists.manifest}.bun`, `${unit.manifest}.bun`].toSorted(),
     });
 });
+
+test("list the roots a layered build links, through the links inside each package a root places", async () => {
+    // lay out a schema tree placing @acme/schema, which links a validator tree beside it, as a store's trees do
+    await using simulation = testSimulation();
+    const { files } = simulation.environment("test");
+    const root = await files.makeTemporaryDirectory("linked-roots-");
+    const schemaTree = join(root, "trees", "schema.bun");
+    const validator = join(root, "trees", "validator.bun");
+    const placed = join(schemaTree, "node_modules", "@acme", "schema");
+    await files.mkdir(join(placed, "node_modules"), { recursive: true });
+    await files.mkdir(join(validator, "node_modules", "validator"), { recursive: true });
+    await files.symlink(
+        join(validator, "node_modules", "validator"),
+        join(placed, "node_modules", "validator"),
+    );
+
+    // link the schema package alone from a layered build
+    const layered = join(root, "layered");
+    await files.mkdir(join(layered, "node_modules", "@acme"), { recursive: true });
+    await files.symlink(placed, join(layered, "node_modules", "@acme", "schema"));
+
+    // reach both trees
+    const linked = await DependencyTree.linkedRoots(layered, files);
+    const real = await files.realPath(root);
+    expect(linked.map((each) => relative(real, each))).toEqual([
+        join("trees", "schema.bun"),
+        join("trees", "validator.bun"),
+    ]);
+});

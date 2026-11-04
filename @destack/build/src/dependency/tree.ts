@@ -185,13 +185,12 @@ export class DependencyTree {
                 dependency.package.name,
             );
             const shipped = store.layeredTree(basename(root));
-            const isPlaced = await files.exists(root);
-            // link a tree the store's layer ships
-            if (!isPlaced && shipped !== undefined) {
+            // clone what the store still lacks of a tree the store's layer ships
+            if (shipped !== undefined) {
                 await DependencyTree.#adopt(shipped, root, files);
             }
             // place a tree outside the layer
-            else if (!isPlaced) {
+            else if (!(await files.exists(root))) {
                 await DependencyTree.#place(store, dependency, recorded, directory, {
                     installation,
                     named,
@@ -499,13 +498,18 @@ export class DependencyTree {
         const { files } = store.environment;
         const target = join(root, "node_modules", name);
         const shipped = store.layeredTree(basename(root));
-        if (placing.has(root) || (await files.exists(root))) {
+        // leave a tree this materialization places
+        if (placing.has(root)) {
             return target;
         }
-        // link a tree the store's layer ships
+        // clone what the store still lacks of a tree the store's layer ships
         else if (shipped !== undefined) {
             await DependencyTree.#adopt(shipped, root, files);
 
+            return target;
+        }
+        // leave a tree placed before
+        else if (await files.exists(root)) {
             return target;
         }
         const reader = await store.contents(dependency.manifest);
@@ -562,17 +566,18 @@ export class DependencyTree {
         return target;
     }
 
-    /** Link a staged path to a target relative to where its tree moves, so trees move whole. */
+    /** Link a staged path to a sibling tree relatively, so trees move whole, else absolutely. */
     static async #symlink(
         target: string,
         link: string,
         tree: { readonly staged: string; readonly root: string },
         files: FileSystem,
     ): Promise<void> {
-        // point the link from its place in the moved tree
+        // point the link from its place in the moved tree when the target lies beside the tree
         const moved = join(tree.root, relative(tree.staged, link));
+        const isSibling = relative(dirname(tree.root), target).split(sep)[0] !== "..";
         await files.mkdir(dirname(link), { recursive: true });
-        await files.symlink(relative(dirname(moved), target), link);
+        await files.symlink(isSibling ? relative(dirname(moved), target) : target, link);
     }
 
     /** List a build's files a tree places: a running tree's output alone, else the whole build. */
@@ -609,15 +614,44 @@ export class DependencyTree {
         return run === undefined ? base : `${base}.${run.runtime}`;
     }
 
-    /** Link a tree root to the tree a layer ships, keeping a concurrent link. */
+    /** Clone every tree a layer's tree reaches that the store lacks, whole once it returns. */
     static async #adopt(shipped: string, root: string, files: FileSystem): Promise<void> {
-        // link the root, keeping the link a concurrent materialization made first
-        await files.mkdir(dirname(root), { recursive: true });
-        await files.symlink(shipped, root).catch((error: unknown) => {
-            if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
-                throw error;
+        // leave a root in place, which has every tree it reaches in place
+        if (await files.exists(root)) {
+            return;
+        }
+
+        // clone each reached tree missing beside the root, one a concurrent clone has not moved in too
+        const reached = await DependencyTree.#follow([await files.realPath(shipped)], files);
+        // clone the root last, so a root in place has every tree it reaches in place
+        for (const tree of [...reached].toReversed()) {
+            const owned = join(dirname(root), basename(tree));
+            // clone a tree the store does not own yet
+            if (!(await files.exists(owned))) {
+                await DependencyTree.#clone(tree, owned, files);
             }
+        }
+    }
+
+    /** Clone a tree to a root in a staging directory beside it, keeping a concurrent clone. */
+    static async #clone(tree: string, root: string, files: FileSystem): Promise<void> {
+        // clone the tree in a staging directory beside the root, which a replaced layer leaves intact
+        await files.mkdir(dirname(root), { recursive: true });
+        const staging = await files.makeTemporaryDirectory(`${basename(root)}.`, {
+            directory: dirname(root),
         });
+        const staged = join(staging, "tree");
+        try {
+            // move it into place, keeping the root a concurrent materialization placed first
+            await files.copy(tree, staged);
+            await files.rename(staged, root).catch((error: unknown) => {
+                if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
+                    throw error;
+                }
+            });
+        } finally {
+            await files.remove(staging, { recursive: true, force: true });
+        }
     }
 
     /** Locate a directory's workspace where its lockfile really is, past a linked lockfile. */
@@ -682,12 +716,19 @@ export class DependencyTree {
         const roots = new Set<string>();
         for (let root = pending.pop(); root !== undefined; root = pending.pop()) {
             if (!roots.has(root)) {
+                // take the links beside the root's packages and inside each package it places
                 roots.add(root);
                 const modules = join(root, "node_modules");
-                for (const linked of await DependencyTree.#linkedPackages(modules, files)) {
-                    pending.push(
-                        await files.realPath(DependencyTree.#rootOf(await files.realPath(linked))),
-                    );
+                const placed = await DependencyTree.#placedPackages(modules, files);
+                const directories = [modules, ...placed.map((path) => join(path, "node_modules"))];
+                for (const directory of directories) {
+                    for (const linked of await DependencyTree.#linkedPackages(directory, files)) {
+                        pending.push(
+                            await files.realPath(
+                                DependencyTree.#rootOf(await files.realPath(linked)),
+                            ),
+                        );
+                    }
                 }
             }
         }
@@ -698,6 +739,26 @@ export class DependencyTree {
     /** Find the root of a package placed below its node_modules directory. */
     static #rootOf(directory: string): string {
         return directory.slice(0, directory.lastIndexOf(`${sep}node_modules${sep}`));
+    }
+
+    /** List the package directories placed below a node_modules directory, scoped ones included. */
+    static async #placedPackages(directory: string, files: FileSystem): Promise<string[]> {
+        // read the directory's package directories, and those inside each scope
+        const entries = await files.readDirectory(directory).catch(FileSystemError.absent);
+        const placed: string[] = [];
+        for (const entry of entries ?? []) {
+            const path = join(directory, entry.name);
+            // list a scope's packages
+            if (entry.kind === "directory" && entry.name.startsWith("@")) {
+                placed.push(...(await DependencyTree.#placedPackages(path, files)));
+            }
+            // list a package, leaving dotfiles such as .bin
+            else if (entry.kind === "directory" && !entry.name.startsWith(".")) {
+                placed.push(path);
+            }
+        }
+
+        return placed;
     }
 
     /** List the linked package directories below a node_modules directory, scoped ones included. */

@@ -151,8 +151,8 @@ test("place a stored file by its blob and a layered one from where its layer kee
     ]).toEqual(["stored", "export const answer = 42;"]);
 });
 
-test("lay out a distribution's release trees once, linking a root to its tree instead of placing it", async () => {
-    // write a layer of a stored release to a directory, as a distribution does, and open it
+test("lay out a distribution's release trees once, cloning a root and the trees it links, which outlive the layer", async () => {
+    // write a layer of a stored release to a directory, as a distribution does
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files, crypto } = environment;
@@ -162,6 +162,17 @@ test("lay out a distribution's release trees once, linking a root to its tree in
     const release = await store.put(build);
     const distribution = join(directory, "distribution");
     await store.writeLayer([release], [], distribution);
+
+    // ship an npm tree beside it, which its root reaches through a relative link alone
+    const npm = join(distribution, "trees", "npm-left-pad", "node_modules", "left-pad");
+    await files.mkdir(npm, { recursive: true });
+    await files.writeTextFile(join(npm, "index.js"), "export const pad = 1;");
+    await files.symlink(
+        "../../../npm-left-pad/node_modules/left-pad",
+        join(distribution, "trees", release, "node_modules", "@example", "left-pad"),
+    );
+
+    // materialize the release over the opened layer
     const layer = await BuildLayer.open(distribution, environment);
     await using layered = await LocalBuildStore.of({
         blobs: store.blobs,
@@ -169,25 +180,37 @@ test("lay out a distribution's release trees once, linking a root to its tree in
         environment,
         layer,
     });
-
-    // materialize the release over the layer
-    const tree = await DependencyTree.materialize(
-        layered,
-        [{ kind: "destack", package: PackageManifest.package(build.manifest), manifest: release }],
-        join(directory, "tree"),
-    );
+    const materialize = () =>
+        DependencyTree.materialize(
+            layered,
+            [
+                {
+                    kind: "destack",
+                    package: PackageManifest.package(build.manifest),
+                    manifest: release,
+                },
+            ],
+            join(directory, "tree"),
+        );
+    const tree = await materialize();
     const root = join(directory, "tree", release);
     const module = join(present(tree.directories["@example/answer"], "answer"), "src/answer.ts");
 
-    // link the root to the shipped tree and read the module through it
+    // clone the root and the npm tree, and read both modules once the layer is removed, materializing again from the clones
+    const shipped = layer.tree(release);
+    const { kind } = await files.lstat(root);
+    await files.remove(distribution, { recursive: true });
+    await materialize();
     expect({
-        shipped: layer.tree(release),
-        link: await files.readLink(root),
+        shipped,
+        kind,
         module: await files.readTextFile(module),
+        linked: await files.readTextFile(join(root, "node_modules/@example/left-pad/index.js")),
     }).toEqual({
         shipped: join(distribution, "trees", release),
-        link: join(distribution, "trees", release),
+        kind: "directory",
         module: "export const answer = 42;",
+        linked: "export const pad = 1;",
     });
 });
 
