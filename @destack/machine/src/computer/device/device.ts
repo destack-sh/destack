@@ -548,7 +548,7 @@ export class Device implements AsyncDisposable {
         });
 
         // forget the session and the login
-        await this.signIns.signOut(login.row);
+        await this.signIns.forget(login.row);
     }
 
     /** Read the person this computer acts as. */

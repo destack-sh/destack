@@ -5,6 +5,7 @@ import { testHost } from "@destack/test/host";
 import { DOMAINS } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import { TestDns } from "@destack/account/test";
+import { KeyPair, Proof, PROOF_HEADER } from "@destack/identity";
 import { Plan } from "@destack/resource";
 import * as accountObject from "@destack/account/object";
 import { space, user } from "@destack/account/object";
@@ -1023,6 +1024,81 @@ test(
 );
 
 test(
+    "serve Home's page with its session cookie after its computer restarts, its document and its home path's calls answering",
+    async () => {
+        // open Home's start view, then restart the computer serving the home
+        const home = await openHome();
+        const page = await openPage(home, {
+            space: home.address,
+            installation: "home",
+            view: "home",
+            path: "/",
+        });
+        const restarted = await home.computer.restart();
+        await restarted.ready(home.spaceId);
+
+        // request the document and list the space's installations with the cookie from before the restart
+        const send = (request: Request) => {
+            const headers = new Headers(request.headers);
+            headers.set("cookie", page.cookie);
+            headers.set("sec-fetch-site", "same-origin");
+            headers.set("host", new URL(page.origin).host);
+
+            return restarted.computer.fetch(new Request(request, { headers }));
+        };
+        const location = new URL(header(page.traded, "location"), page.launched.url).href;
+        const document = await send(new Request(location));
+        await document.body?.cancel();
+        const objects = createClient(
+            objectPackage,
+            {
+                url: `${page.origin}${HOME_PATH}/${home.spaceId}${PackageMount.path(objectPackage.id)}`,
+                fetch: send,
+            },
+            restarted.environment,
+        );
+        const installations = await objects.installation.list({ scope: home.spaceId });
+
+        // launch Home afresh after the restart from the browser keeping its cookie, as a window the desktop restores does
+        const login = await restarted.device.session(home.login);
+        const launched = await login.launch({
+            space: home.address,
+            installation: "home",
+            view: "home",
+            path: "/",
+        });
+        const traded = await restarted.computer.fetch(
+            new Request(launched.url, { headers: { cookie: page.cookie } }),
+        );
+        await traded.body?.cancel();
+
+        expect({
+            traded: traded.status,
+            document: document.status,
+            named: installations.items
+                .flatMap((row) => (row.name === null ? [] : [row.name]))
+                .toSorted(),
+            base: installations.items.filter((row) => row.name === null).length,
+        }).toEqual({
+            traded: 303,
+            document: 200,
+            named: [
+                "connection",
+                "home",
+                "inbox",
+                "message",
+                "observability",
+                "social",
+                "stack",
+                "vault",
+            ],
+            base: 7,
+        });
+    },
+    SCENARIO_MILLISECONDS,
+);
+
+test(
     "list a space's rollouts and installations through its home path, at the packages its store serves",
     async () => {
         // open Home's start view, whose grant lists the space's installations and rollouts
@@ -1158,6 +1234,101 @@ test(
                 `scope ${person} not found`,
                 "@destack/object",
             ),
+        });
+    },
+    SCENARIO_MILLISECONDS,
+);
+
+test(
+    "bind Home's page to a registered client by a proof of its key for the bind, refusing a proof for another request, and answer a removed client as gone",
+    async () => {
+        // open Home's start view, and register a browser client and its key from it
+        const home = await openHome();
+        const page = await openPage(home, {
+            space: home.address,
+            installation: "home",
+            view: "home",
+            path: "/",
+        });
+        const { environment } = home.computer.device;
+        const { pair } = await KeyPair.generate(environment.crypto);
+        const client = Identifier.create("client", environment);
+        const now = () => environment.clock.now();
+        await registerClient(page, client);
+        const keyed = await page.fetch(
+            new Request(`${page.origin}/.destack/client/key`, {
+                method: "POST",
+                body: JSON.stringify({
+                    client,
+                    publicKey: pair.publicKey,
+                    proof: await Proof.sign(
+                        pair.privateKey,
+                        pair.publicKey,
+                        client,
+                        now(),
+                        environment,
+                    ),
+                }),
+            }),
+        );
+
+        // bind with a proof of the bind request, and with one of another request
+        const url = `${page.origin}/.destack/client/bind`;
+        const bind = async (target: string) =>
+            page.fetch(
+                new Request(url, {
+                    method: "POST",
+                    headers: {
+                        [PROOF_HEADER]: await Proof.sign(
+                            pair.privateKey,
+                            pair.publicKey,
+                            client,
+                            now(),
+                            environment,
+                            { method: "POST", url: target },
+                        ),
+                    },
+                }),
+            );
+        const bound = await bind(url);
+        const cookie = nth(header(bound, "set-cookie").split(";"), 0);
+        const location = new URL(header(page.traded, "location"), page.launched.url).href;
+        const document = await home.computer.computer.fetch(
+            new Request(location, { headers: { cookie } }),
+        );
+        await document.body?.cancel();
+        const elsewhere = await bind(`${page.origin}/.destack/client/elsewhere`);
+
+        // remove the client as the person, and bind again
+        await page.login.login.accounts().client.revoke({
+            userId: home.computer.world.owner.id,
+            id: client,
+            requestId: RequestId.create(environment),
+        });
+        const removed = await bind(url);
+
+        expect({
+            keyed: keyed.status,
+            bound: [bound.status, await bound.json()],
+            document: document.status,
+            elsewhere: await summary(elsewhere),
+            removed: await summary(removed),
+        }).toEqual({
+            keyed: 200,
+            bound: [200, { client }],
+            document: 200,
+            elsewhere: [
+                400,
+                JSON.stringify({
+                    defined: false,
+                    code: "BAD_REQUEST",
+                    status: 400,
+                    message: "key proof is for another request",
+                    reason: "PROOF_INVALID",
+                    domain: "@destack/identity",
+                }),
+            ],
+            removed: [410, ""],
         });
     },
     SCENARIO_MILLISECONDS,

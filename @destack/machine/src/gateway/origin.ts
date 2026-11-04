@@ -1,5 +1,7 @@
 import { Catalog } from "@destack/locale";
 import * as accountObject from "@destack/account/object";
+import { AccountError } from "@destack/account/error";
+import { Failure, HTTP_DOMAIN } from "@destack/error";
 import { PackageId, Package, Sandbox } from "@destack/package";
 import { Digest, schema, type Identifier, present } from "@destack/schema";
 import {
@@ -22,7 +24,7 @@ import { Snapshot } from "@destack/db";
 import type { ExchangeSubject } from "./gateway.ts";
 import { OtlpSignal } from "@destack/telemetry/otlp";
 import { ANONYMOUS, Authentication, GrantClaim, LinkSecret, principal } from "@destack/access";
-import { IdentityError, Jwt } from "@destack/identity";
+import { IdentityError, Jwt, Proof, PROOF_HEADER } from "@destack/identity";
 import { copyRequest, Forwarded, HostAddress } from "@destack/environment";
 import stackPackage from "@destack/stack/package";
 import type { BrowserClosure } from "@destack/build/store";
@@ -73,6 +75,9 @@ const VISITOR_KEY_BYTES = 16;
 
 /** The largest client registration a page sends, in bytes. */
 const REGISTRATION_BYTES = 16 * 1024;
+
+/** The status a bind of a client the person removed answers, RFC 9110 15.5.11. */
+const GONE = 410;
 
 /** The most bytes of a posted launch form, which has one token: 16 KiB. */
 const LAUNCH_FORM_BYTES = 16 * 1024;
@@ -318,8 +323,9 @@ export class ViewOrigin {
         token: string,
         found: InstallationRollout,
     ): Promise<Authentication> {
-        // verify the token as the request's bearer
+        // verify the token as the request's bearer, without the session cookie a reopened browser sends beside it
         const headers = new Headers(request.headers);
+        headers.delete("cookie");
         headers.set("authorization", `Bearer ${token}`);
         const authentication = await this.#space.machine.authenticate(
             new Request(request.url, { headers }),
@@ -457,7 +463,7 @@ export class ViewOrigin {
         return primary.forward(request, url);
     }
 
-    /** Register the browser as the person's client, or a key of it, under the page's grant. */
+    /** Register the browser as the person's client or a key of it, or bind the page to it. */
     async #client(request: Request, url: URL, page: Page): Promise<Response> {
         // require a POST from the page's own origin
         if (request.method !== "POST") {
@@ -465,15 +471,22 @@ export class ViewOrigin {
         }
         ViewOrigin.#requireSameOrigin(request, url);
 
-        // register a client or its key as the page's person, refusing a visitor
+        // act as the page's person, refusing a visitor
         const { visitor } = page;
         if (visitor.kind !== "person") {
             throw MachineError.of("PERSON_REQUIRED", "only a person can register a client");
         }
         const accounts = this.#accounts(page, visitor);
-        const body = await RequestBody.json(request, "a client registration", REGISTRATION_BYTES);
         const userId = schema.identifier("user").parse(visitor.subject.id);
         const requestId = RequestId.create(this.#space.machine.environment);
+
+        // bind the page's session to a client by a proof of its key, which has no body
+        if (url.pathname === `${CLIENT_PATH}/bind`) {
+            return await this.#bind(request, url, accounts, userId);
+        }
+
+        // register a client or its key
+        const body = await RequestBody.json(request, "a client registration", REGISTRATION_BYTES);
         if (url.pathname === `${CLIENT_PATH}/key`) {
             const {
                 client: parent,
@@ -513,6 +526,67 @@ export class ViewOrigin {
         });
 
         return Response.json({ client: created.id }, { status: 201 });
+    }
+
+    /** Bind the page's session to its person's client by a proof of its key (RFC 9449). */
+    async #bind(
+        request: Request,
+        url: URL,
+        accounts: ClientOf<typeof accountPackage>,
+        userId: Identifier<"user">,
+    ): Promise<Response> {
+        // read the proof the client's key signed for this request
+        const proof = request.headers.get(PROOF_HEADER);
+        if (proof === null) {
+            throw MachineError.of(
+                "PROOF_REQUIRED",
+                `binding a client needs a ${PROOF_HEADER} proof of its key`,
+            );
+        }
+        const client = schema.identifier("client").parse(Proof.read(proof).subject);
+
+        // prove the key for this request, answering a removed or unknown client as gone (RFC 9110 15.5.11)
+        try {
+            await accounts.client.prove({
+                userId,
+                id: client,
+                requestId: RequestId.create(this.#space.machine.environment),
+                proof,
+                request: { method: request.method, url: url.href },
+            });
+        } catch (error) {
+            if (ViewOrigin.#isGone(error)) {
+                return new Response(null, { status: GONE });
+            }
+            throw error;
+        }
+
+        // sign the page's session again within the bound client, keeping its grant and expiry
+        const cookie = new OriginCookie(SESSION_COOKIE, url);
+        const session = present(
+            await this.#read(present(cookie.read(request), "the page's session cookie")),
+            "the page's session",
+        );
+        const bound = await this.#sign({ ...session, client });
+        const remaining = session.exp - Math.floor(this.#space.machine.clock.now() / 1000);
+
+        return Response.json(
+            { client },
+            {
+                headers: {
+                    "cache-control": "no-store",
+                    "set-cookie": cookie.write(bound, remaining),
+                },
+            },
+        );
+    }
+
+    /** Report whether a proof failed for a client the person removed or never had. */
+    static #isGone(error: unknown): boolean {
+        const failure = Failure.of(error);
+        const isHidden = failure.domain === HTTP_DOMAIN && failure.reason === "NOT_FOUND";
+
+        return AccountError.is(error, "CREDENTIAL_REVOKED") || isHidden;
     }
 
     /** Sign a page's session with the space's derived session key, as a compact JWS (RFC 7515). */

@@ -149,6 +149,8 @@ export interface TestComputerOptions {
 export class TestComputer implements AsyncDisposable {
     /** The world the computer runs in. */
     readonly world: TestWorld;
+    /** The options the computer was opened with, which a restart opens it with again. */
+    readonly #options: TestComputerOptions;
     /** The computer. */
     readonly computer: Computer;
     /** The computer's state directory. */
@@ -174,6 +176,7 @@ export class TestComputer implements AsyncDisposable {
     /** Take a started computer. */
     private constructor(fields: {
         readonly world: TestWorld;
+        readonly options: TestComputerOptions;
         readonly computer: Computer;
         readonly directory: string;
         readonly endpoint: string;
@@ -185,6 +188,7 @@ export class TestComputer implements AsyncDisposable {
     }) {
         // set the computer, its world and its state
         this.world = fields.world;
+        this.#options = fields.options;
         this.computer = fields.computer;
         this.directory = fields.directory;
         this.endpoint = fields.endpoint;
@@ -485,6 +489,7 @@ export class TestComputer implements AsyncDisposable {
         // close the computer with the lifetime
         const started = new TestComputer({
             world,
+            options,
             computer,
             directory,
             endpoint: declared ?? `http://127.0.0.1:${port}`,
@@ -793,6 +798,23 @@ export class TestComputer implements AsyncDisposable {
         return new TypeError(
             `${message}, its world capturing ${captured} with ${pending.length} in flight:\n${pending.join("\n")}`,
             { cause },
+        );
+    }
+
+    /** Stop the computer and start it again over its directory and keychains, as a restart does. */
+    async restart(defer: Defer = onTestFinished): Promise<TestComputer> {
+        // stop it, keeping what its keychains hold
+        await this.close();
+        const keychains = Object.fromEntries(
+            [...this.keychains].map(([service, keychain]) => [
+                service,
+                Object.fromEntries(keychain.secrets),
+            ]),
+        );
+
+        return TestComputer.open(
+            { ...this.#options, world: this.world, directory: this.directory, keychains },
+            defer,
         );
     }
 

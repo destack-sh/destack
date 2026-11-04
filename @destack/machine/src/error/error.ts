@@ -36,6 +36,7 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     TOKEN_UNBOUND: { code: "UNAUTHORIZED" },
     COPY_CREDENTIAL_UNKNOWN: { code: "UNAUTHORIZED" },
     SESSION_INVALID: { code: "UNAUTHORIZED" },
+    PROOF_REQUIRED: { code: "UNAUTHORIZED" },
 
     // forbidden
     CONNECTION_MISMATCH: { code: "FORBIDDEN" },
