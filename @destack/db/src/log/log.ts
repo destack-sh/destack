@@ -703,11 +703,16 @@ export class Log {
         `);
     }
 
-    /** Place a reader's checkpoint at the log's start unless placed, retaining changes a while. */
+    /** Place a reader's checkpoint at the log's oldest retained change unless placed. */
     async place(reader: LogReader, expiresAt: number): Promise<void> {
         await this.database.run(sql`
             INSERT INTO ${sql.relation(LOG_CHECKPOINT)} (name, sequence, expires_at, tables)
-            VALUES (${reader.name}, 0, ${expiresAt}, ${LogReader.tables(reader)})
+            VALUES (
+                ${reader.name},
+                COALESCE((SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1), 0),
+                ${expiresAt},
+                ${LogReader.tables(reader)}
+            )
             ON CONFLICT (name) DO NOTHING
         `);
     }
