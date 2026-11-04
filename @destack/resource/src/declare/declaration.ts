@@ -5,9 +5,6 @@ import type { ResourceState } from "@destack/package/declare";
 import type { Connector } from "../provider/provider.ts";
 import { ResourceHandle } from "./handle.ts";
 
-/** The resource declaration kind, which resource defines and every provider's constructors make. */
-export const RESOURCE_KIND = defineDeclarationKind("resource");
-
 /** A resource's identifier, whichever kind it is: the kind's name as prefix and a UUIDv7. */
 export const ResourceId = schema.anyIdentifier();
 /** A resource's identifier, whichever kind it is. */
@@ -24,6 +21,9 @@ export const ResourceDescription = schema.object({
 });
 /** A named infrastructure dependency declared by a package. */
 export type ResourceDescription = schema.Infer<typeof ResourceDescription>;
+
+/** The resource declaration kind, which resource defines and every provider's constructors make. */
+export const RESOURCE_KIND = defineDeclarationKind("resource", ResourceDescription);
 
 /** What deleting a resource does to its content. */
 export const ResourceRetention = schema.union([
