@@ -23,6 +23,8 @@ import {
     type DatabaseConnection,
     type SQL,
     Condition,
+    Namespace,
+    Predicate,
     Order,
     Scalar,
     DatabaseError,
@@ -291,7 +293,9 @@ export class Replica {
     readonly name: string;
     /** The scope whose rows the replica stores. */
     readonly scope: string;
-    /** The replicated tables, parents first. */
+    /** The tables the replica lists, parents first, without those only its includes reach. */
+    readonly roots: readonly Table[];
+    /** The replicated tables: the roots and the tables their includes reach, parents first. */
     readonly tables: readonly Table[];
     /** The condition on each table's replicated rows. */
     readonly where: ReadonlyMap<Table, Condition>;
@@ -320,7 +324,7 @@ export class Replica {
         readonly name: string;
         /** The scope whose rows the replica stores. */
         readonly scope: string;
-        /** The replicated tables, parents first. */
+        /** The tables the replica lists, parents first. */
         readonly tables: readonly Table[];
         /** The condition on each table's replicated rows, none by default. */
         readonly where?: ReadonlyMap<Table, Condition>;
@@ -340,7 +344,6 @@ export class Replica {
         // store the identity
         this.name = definition.name;
         this.scope = definition.scope;
-        this.tables = definition.tables;
         this.where = definition.where ?? new Map();
         this.scopes = definition.scopes ?? new Map();
         this.everywhere = definition.everywhere ?? new Set();
@@ -348,6 +351,14 @@ export class Replica {
         this.includes = definition.includes ?? new Map();
         this.relations = definition.relations ?? new Map();
         this.isRelayed = definition.isRelayed ?? true;
+
+        // hold the queried tables and every table their includes reach
+        const relations = new Relations(this.relations);
+        const reached = [...this.includes].flatMap(([table, included]) =>
+            Node.tables({ table, scopes: [this.scope], with: included, relations }),
+        );
+        this.roots = definition.tables;
+        this.tables = [...new Set([...definition.tables, ...reached])];
         this.#replicated = new Map(this.tables.map((table) => [table[TABLE].sqlName, table]));
 
         // list the scopes the replica reads beyond its scope
@@ -365,13 +376,13 @@ export class Replica {
     /** Join replicas of several scopes into one replica of a scope. */
     static union(name: string, scope: string, replicas: readonly Replica[]): Replica {
         // list the tables in the order the replicas list them, parents first
-        const tables = [...new Set(replicas.flatMap((each) => each.tables))];
+        const tables = [...new Set(replicas.flatMap((each) => each.roots))];
         const where = new Map<Table, Condition>();
         const scopes = new Map<Table, readonly string[]>();
         const everywhere = new Set<Table>();
         for (const table of tables) {
             // read a table as its replicas read it, each arm within its own scopes unless it reads every scope
-            const reading = replicas.filter((each) => each.tables.includes(table));
+            const reading = replicas.filter((each) => each.roots.includes(table));
             const arms = reading.map((each): Condition | undefined => {
                 const condition = each.where.get(table);
 
@@ -436,6 +447,13 @@ export class Replica {
                 `replica ${this.name} replicates tables across scopes, but no capture can read them`,
             );
         }
+        // refuse tables held through includes
+        else if (this.tables.length > this.roots.length) {
+            throw SyncError.of(
+                "SCOPE_INVALID",
+                `replica ${this.name} includes rows of other tables, but no capture can read them`,
+            );
+        }
 
         return Object.fromEntries(
             this.tables.map((table) => [table[TABLE].sqlName, this.#query(table)]),
@@ -444,8 +462,8 @@ export class Replica {
 
     /** The queries the replica follows by table: its logged tables and the source's record. */
     get queries(): Record<string, Query> {
-        // follow each logged table outside a parent's rows
-        const queries = this.tables
+        // follow each queried logged table outside a parent's rows
+        const queries = this.roots
             .filter((table) => !this.within.has(table) && table[TABLE].retention !== "none")
             .map((table): [string, Query] => {
                 // include the parent's children and the declared includes
@@ -2207,14 +2225,30 @@ export class Replica {
 
     /** Take the rows a completed snapshot left out of the replica, a batch at a time by key. */
     async #prune(database: DatabaseConnection, table: Table, delivered: ReadonlySet<string>) {
-        // read a table replicated across scopes or including rows by the rows the replica includes
-        if (this.within.has(table) || this.everywhere.has(table) || this.includes.has(table)) {
+        // read a table whose rows its scope and condition cannot select here by the rows the replica includes
+        if (this.#isKeyed(table)) {
             await this.#pruneIncluded(database, table, delivered);
         }
         // read any other table by the rows of the replica's scope and condition
         else {
             await this.#pruneSelected(database, table, delivered);
         }
+    }
+
+    /** Decide whether only the replica's keys select a table's rows here. */
+    #isKeyed(table: Table): boolean {
+        const where = this.where.get(table);
+        const isRelated =
+            where !== undefined &&
+            Predicate.relations(Condition.resolve(where, Namespace.fields(table, { extras: {} })))
+                .length > 0;
+
+        return (
+            this.within.has(table) ||
+            this.everywhere.has(table) ||
+            this.includes.has(table) ||
+            isRelated
+        );
     }
 
     /** Take the rows a snapshot left out of a table replicated across scopes. */

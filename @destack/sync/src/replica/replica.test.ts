@@ -27,6 +27,7 @@ import { Subject } from "../call/subject.ts";
 import { SyncError } from "../error/error.ts";
 import {
     asset,
+    comment,
     first,
     label,
     note,
@@ -2079,4 +2080,120 @@ test("include the links two steps from the links a replica stores in its scope, 
         linked: ["a1", "a2", "a3"],
         relinked: ["a1", "a2", "a5"],
     });
+});
+
+test("hold the comments a replica's task includes, querying the task alone and refusing a capture", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+    // keep two tasks with a comment each in one folder
+    const tables = [task, comment, ...replicaTables];
+    const source = await open({ simulation, tables });
+    const local = await openReplica({ simulation, tables });
+    const row = { scope: "a", projectId: null, state: "open", points: null, title: null };
+    await source.transaction(async (transaction) => {
+        await transaction.insert(task).values([
+            { ...row, id: "t1", rank: 1, isSecret: false },
+            { ...row, id: "t2", rank: 2, isSecret: false },
+        ]);
+        await transaction.insert(comment).values([
+            { id: "c1", scope: "a", taskId: "t1", position: 1 },
+            { id: "c2", scope: "a", taskId: "t2", position: 1 },
+        ]);
+    });
+
+    // replicate the first task with its comments
+    const feed = new Feed(source, [task, comment, replicaPosition]);
+    const commented = new Replica({
+        name: "commented",
+        scope: "a",
+        tables: [task],
+        where: new Map([[task, { id: "t1" }]]),
+        includes: new Map([[task, { comments: true }]]),
+        relations: new Map([[task, { comments: relations.get(task, "comments") }]]),
+    });
+    const controller = new AbortController();
+    const { following, confirmed } = followConfirmed(
+        commented,
+        local,
+        source,
+        feed,
+        controller.signal,
+    );
+    await confirmed();
+    const held = {
+        tasks: (await local.select({ id: task.id }).from(task)).map((each) => each.id),
+        comments: (await local.select({ id: comment.id }).from(comment)).map((each) => each.id),
+    };
+    controller.abort();
+    await simulation.wait(following);
+
+    // hold the included comment, query the task alone, and refuse capturing the comments
+    expect({
+        held,
+        tables: commented.tables.map((each) => each[TABLE].sqlName),
+        queried: Object.keys(commented.queries),
+        captured: await refusal(Promise.resolve().then(() => commented.captured)),
+    }).toEqual({
+        held: { tasks: ["t1"], comments: ["c1"] },
+        tables: [task[TABLE].sqlName, comment[TABLE].sqlName],
+        queried: [task[TABLE].sqlName, replicaPosition[TABLE].sqlName],
+        captured: [
+            "UNPROCESSABLE_CONTENT",
+            "SCOPE_INVALID",
+            "replica commented includes rows of other tables, but no capture can read them",
+        ],
+    });
+});
+
+test("follow the comments of open tasks, pruning by key the rows a condition through a relation selects", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+    // keep an open and a done task with a comment each
+    const tables = [task, comment, ...replicaTables];
+    const source = await open({ simulation, tables });
+    const local = await openReplica({ simulation, tables });
+    const row = { scope: "a", projectId: null, points: null, title: null, isSecret: false };
+    await source.transaction(async (transaction) => {
+        await transaction.insert(task).values([
+            { ...row, id: "t1", state: "open", rank: 1 },
+            { ...row, id: "t2", state: "done", rank: 2 },
+        ]);
+        await transaction.insert(comment).values([
+            { id: "c1", scope: "a", taskId: "t1", position: 1 },
+            { id: "c2", scope: "a", taskId: "t2", position: 1 },
+        ]);
+    });
+
+    // replicate the comments of open tasks, which the replica holds no task of
+    const feed = new Feed(source, [task, comment, replicaPosition]);
+    const filtered = new Replica({
+        name: "filtered",
+        scope: "a",
+        tables: [comment],
+        where: new Map([[comment, { task: { state: "open" } }]]),
+        relations: new Map([[comment, { task: relations.get(comment, "task") }]]),
+    });
+    const controller = new AbortController();
+    const { following, confirmed } = followConfirmed(
+        filtered,
+        local,
+        source,
+        feed,
+        controller.signal,
+    );
+    const held = async () =>
+        (await local.select({ id: comment.id }).from(comment).orderBy(asc(comment.id))).map(
+            (each) => each.id,
+        );
+    await confirmed();
+    const opened = await held();
+
+    // close the first task and open the second, moving the replica to the second's comment
+    await source.transaction(async (transaction) => {
+        await transaction.update(task).set({ state: "done" }).where(eq(task.id, "t1"));
+        await transaction.update(task).set({ state: "open" }).where(eq(task.id, "t2"));
+    });
+    await confirmed();
+    const moved = await held();
+    controller.abort();
+    await simulation.wait(following);
+    expect({ opened, moved }).toEqual({ opened: ["c1"], moved: ["c2"] });
 });
