@@ -508,7 +508,7 @@ test("read a bound secret in process as its installation, and refuse another ins
     const snapshot = Snapshot.live(database);
     const rows = await snapshot
         .read(rollout.table)
-        .findMany({ where: { id: fixture.installation } });
+        .findMany({ where: { installationId: fixture.installation } });
     const row = single(await Rollout.read(snapshot, rows));
     const keyOf = async (installationId: Identifier<"installation">) =>
         single(

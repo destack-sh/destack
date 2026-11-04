@@ -28,7 +28,7 @@ export const vaultProvider: VaultProvider = {
     },
     connect: async (serving, row, bound) => {
         const id = vault.identifier(bound.target);
-        const reader = principal.installation.reference(row.scope, row.id);
+        const reader = principal.installation.reference(row.scope, row.installationId);
 
         return {
             reference: vault.reference(row.scope, id),

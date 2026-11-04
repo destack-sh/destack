@@ -48,7 +48,7 @@ test("read a bound vault's secret in process as its installation, and refuse ano
     const snapshot = Snapshot.live(database);
     const rows = await snapshot
         .read(rollout.table)
-        .findMany({ where: { id: fixture.installation } });
+        .findMany({ where: { installationId: fixture.installation } });
     const row = single(await Rollout.read(snapshot, rows));
     const own = await vaultProvider.connect(store, row, await bindingOf(fixture.installation));
     const stray = await vaultProvider.connect(store, row, strayBinding);

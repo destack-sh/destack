@@ -201,7 +201,7 @@ export const secretBindable: ObjectBindable<typeof secret, Secret> = {
             // read the version the binding captured as the installation, once the store serves
             const store = await serving;
             const id = secret.identifier(bound.target);
-            const reader = principal.installation.reference(row.scope, row.id);
+            const reader = principal.installation.reference(row.scope, row.installationId);
             const read = await store.query(
                 AccessContext.of(Caller.of(reader), store.clock.now()),
                 secret.call("read", {
