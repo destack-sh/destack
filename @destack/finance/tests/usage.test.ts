@@ -564,7 +564,7 @@ test("charge each machine's awake hours up to the SKU's 10 hour cap per period, 
     ]);
 });
 
-test("rate an account's usage after its hot rows flush, as a restarted controller lists only the payers with usage", async () => {
+test("rate an account's usage after its hot rows flush, as a restarted loop takes its cursor", async () => {
     // append 100 GB-months measured two hours ago, and flush them before any rating
     const { finance } = await open();
     const now = finance.fixture.clock.now();
@@ -581,14 +581,9 @@ test("rate an account's usage after its hot rows flush, as a restarted controlle
     ]);
     await finance.fixture.flush(ids.buyer);
 
-    // list the buyer alone among the replicated accounts, and rate its usage
-    expect({
-        listed: await finance.fixture.rateListed(),
-        charges: await charges(finance),
-    }).toEqual({
-        listed: [ids.buyer],
-        charges: [["Usage", spaces.notes, 100, "200", "0", "open"]],
-    });
+    // rate the flushed usage once the restarted loop takes the cursor
+    await finance.fixture.restart();
+    expect(await charges(finance)).toEqual([["Usage", spaces.notes, 100, "200", "0", "open"]]);
 });
 
 test("rate an account's usage once when two ratings of it overlap", async () => {

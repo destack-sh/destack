@@ -35,7 +35,7 @@ export class CustomerEntitlement {
     projection(): Projection {
         return new Projection(this.#store.database, {
             name: "entitlement",
-            reads: [
+            tables: [
                 account.table,
                 usage.table,
                 subscription.table,

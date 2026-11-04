@@ -19,7 +19,7 @@ import { usage } from "@destack/stack/object";
 import { charge } from "../object/index.ts";
 import type {} from "@destack/package/import-meta";
 
-/** Implement the finance package in a home: its types, the provider's webhook, its consumers. */
+/** Implement the finance package in a home: its types, the provider's webhook, its cursors. */
 export function implementFinance(
     home: string,
     metering: Metering,
@@ -61,25 +61,30 @@ export function implementFinance(
         ],
 
         // rate the usage routed here and derive each account's entitlements
-        consumers: [
-            usage.consume("usage", async (page, { store, transaction }) => {
-                // rate the claimed page through the charges' method, moving the reader in the same commit
-                await store.mutate(
-                    store.as(charge),
-                    {
-                        id: RequestId.create(store.environment),
-                        calls: [
-                            charge.call("rate", {
-                                ...charge.in(home),
-                                accountId: account.identifier(page.key),
-                                after: page.after,
-                                through: page.through,
-                            }),
-                        ],
-                    },
-                    { transaction, scope: home },
-                );
-            }),
+        cursors: [
+            // read each payer's usage, held thirty days past any rating outage
+            usage.cursor(
+                "usage",
+                async (page, { store, transaction }) => {
+                    // rate the claimed page through the charges' method, moving the cursor in the same commit
+                    await store.mutate(
+                        store.as(charge),
+                        {
+                            id: RequestId.create(store.environment),
+                            calls: [
+                                charge.call("rate", {
+                                    ...charge.in(home),
+                                    accountId: account.identifier(page.scope),
+                                    after: page.after,
+                                    through: page.through,
+                                }),
+                            ],
+                        },
+                        { transaction, scope: home },
+                    );
+                },
+                { hold: { days: 30 } },
+            ),
             (store) => new CustomerEntitlement(store, home, metering).projection(),
         ],
     };
