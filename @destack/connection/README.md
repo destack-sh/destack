@@ -1,6 +1,6 @@
 # @destack/connection
 
-`@destack/connection` keeps the credentials of external accounts in vaults and applies them to outbound requests, as Nango's integrations, connections and proxy do.
+`@destack/connection` keeps the credentials of external accounts in its bound vault and applies them to outbound requests, as Nango's integrations, connections and proxy do.
 
 ```ts
 // a Nango integration
@@ -12,7 +12,6 @@ await client.integration.create({
     clientId,
     authentication: "client_secret_basic",
     redirectUris,
-    vault,
     secret,
     isPublic: false,
 });
@@ -22,7 +21,6 @@ await client.connection.create({
     requestId,
     protocol: { kind: "authorization-code" },
     resource,
-    vault,
 });
 // Nango's auth flow
 const { url } = await client.connection.authorize({ scope, id, requestId, redirectUri });
@@ -32,7 +30,7 @@ await client.connection.revoke({ scope, id, requestId }); // RFC 7009 revocation
 
 ## Connections
 
-A `connection` keeps the credential of one external account in a vault of its scope, authenticating by its `protocol`'s kind.
+A `connection` keeps the credential of one external account, authenticating by its `protocol`'s kind.
 
 ```ts
 const { id } = await client.connection.create({
@@ -42,7 +40,6 @@ const { id } = await client.connection.create({
     // token-exchange, mtls
     protocol: { kind: "key", header: "x-api-key" },
     material: { kind: "key", key },
-    vault: vault.reference(spaceId, vaultId),
 });
 ```
 
@@ -56,18 +53,27 @@ await client.connection.create({
     requestId,
     protocol: { kind: "authorization-code" },
     resource: "https://mcp.example.com/mcp",
-    vault,
 });
 ```
 
 ## Server
 
 `@destack/connection/server` serves connections and integrations as the connection installation, whose controller obtains and refreshes every token before it expires.
+The installation keeps every credential and client secret in the vault its stack binds as `credentials`.
 
 ```ts
 import server from "@destack/connection/server";
+import { connectionVault } from "@destack/connection/stack";
 
 const extension = server(context); // tokens through the host's network, the primary through its egress
+
+// an account home's stack: the vault, bound to the connections
+const home = {
+    vaults: { credentials: connectionVault.declare() },
+    installations: {
+        connection: install(connectionPackage, { credentials: "credentials" }),
+    },
+};
 ```
 
 ## Leasing
@@ -111,7 +117,7 @@ await client.integration.create({
 
 ## Tables
 
-`connectionTables` lists the tables of connections and their pending authorizations, and `integrationTables` lists the integrations.
+`connectionTables` lists the tables of connections and their pending authorizations, `integrationTables` lists the integrations, and `connectionVault` declares the vault of their credentials.
 
 ```ts
 import { connectionTables, integrationTables } from "@destack/connection/stack";

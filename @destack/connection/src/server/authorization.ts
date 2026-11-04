@@ -305,15 +305,11 @@ export class ConnectionAuthorization {
         );
 
         // register at the scope that stores the integrations
-        const placement = this.#tokens.isPrimary(context.chain)
-            ? { scope: context.scope, vault: target.vault }
-            : {
-                  scope: present(context.chain[1], `the scope enclosing ${context.scope}`),
-                  vault: null,
-              };
-        const request = { resource, redirectUri, vault: placement.vault };
+        const scope = this.#tokens.isPrimary(context.chain)
+            ? context.scope
+            : present(context.chain[1], `the scope enclosing ${context.scope}`);
 
-        return this.#tokens.register(placement.scope, request, context);
+        return this.#tokens.register(scope, { resource, redirectUri }, context);
     }
 
     /** Keep a longer poll interval for later polls (RFC 8628 3.5), returning the next poll. */

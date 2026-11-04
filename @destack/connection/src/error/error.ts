@@ -28,9 +28,8 @@ export const ConnectionError = defineErrorFamily(import.meta.destack.package, {
     REDIRECT_URI_REQUIRED: { code: "BAD_REQUEST" },
     REDIRECT_URI_UNREGISTERED: { code: "BAD_REQUEST" },
     SECRET_UNSUPPORTED: { code: "BAD_REQUEST" },
-    SECRET_VAULT_MISMATCH: { code: "BAD_REQUEST" },
+    SECRET_MISMATCH: { code: "BAD_REQUEST" },
     SIGNING_KEY_INVALID: { code: "BAD_REQUEST" },
-    VAULT_FOREIGN: { code: "BAD_REQUEST" },
 
     // forbidden
     EXCHANGE_SOURCE_FOREIGN: { code: "FORBIDDEN" },
@@ -55,7 +54,6 @@ export const ConnectionError = defineErrorFamily(import.meta.destack.package, {
     ISSUER_NOT_SERVER: { code: "CONFLICT" },
     REFRESH_TOKEN_MISSING: { code: "CONFLICT" },
     REGISTRATION_UNSUPPORTED: { code: "CONFLICT" },
-    VAULT_REQUIRED: { code: "CONFLICT" },
 
     // bad gateway
     AUTHORIZATION_REFUSED: { code: "BAD_GATEWAY", data: OAuthRefusal },

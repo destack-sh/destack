@@ -1,13 +1,11 @@
 import { anyone, type Creation, InstallationId, principal } from "@destack/access";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import { present } from "@destack/schema";
-import { Credential } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import { integration, type Registration } from "../object/integration.ts";
 import { TokenGrant } from "../oauth/grant.ts";
 import { AuthorizationServer } from "../oauth/server.ts";
 import { Runner, TokenSource } from "./token.ts";
-import type { ObjectReference } from "@destack/sync";
 
 /** Implement integrations. */
 export function implementIntegration(tokens: TokenSource): typeof integration {
@@ -16,29 +14,26 @@ export function implementIntegration(tokens: TokenSource): typeof integration {
             create: {
                 // relate anyone to a public integration, and the installation issuing its tokens
                 creation: (context) => relate(context),
-                authorize: async (context) => requireSecretVault(context),
+                authorize: async (context) => requireSecret(context),
                 prepare: (context) => keepSecret(context, tokens),
                 handle: (_call, next) => next(),
             },
             register: {
-                authorize: async (context) => {
-                    if (context.input.vault !== null) {
-                        Credential.requireVault(context.input.vault, context.scope);
-                    }
-                },
                 prepare: (context) =>
                     register(
-                        context.scope,
                         present(context.id, "a registered client's identifier"),
                         context.input,
                         tokens,
                         context,
                     ),
                 handle: (context, next) => {
-                    const { vault, ...registration } = context.prepared;
-                    const input = { ...context.input, ...registration, vault: vault ?? null };
+                    const input = {
+                        ...context.input,
+                        ...context.prepared,
+                        registration: "dynamic",
+                    };
 
-                    return next(context.with({ input: { ...input, registration: "dynamic" } }));
+                    return next(context.with({ input }));
                 },
             },
             authorizeDevice: {
@@ -101,40 +96,36 @@ async function relate(
     return { relationships: [...everyone, ...issuing] };
 }
 
-/** Require a confidential client's vault in the integration's scope, and a secret with a vault. */
-function requireSecretVault(context: MethodContextOf<typeof integration, "create", unknown>): void {
+/** Require a secret exactly when the client authenticates with one, none for an installed app. */
+function requireSecret(context: MethodContextOf<typeof integration, "create", unknown>): void {
     // refuse a secret for an installed app
-    const vault = context.input.vault ?? undefined;
-    if (context.input.issuer.kind === "installation" && vault !== undefined) {
+    const { issuer, authentication, secret } = context.input;
+    if (issuer.kind === "installation" && secret !== undefined) {
         throw ConnectionError.of(
             "SECRET_UNSUPPORTED",
             "an installed app's integration takes no client secret",
         );
     }
-    // require a vault exactly with a secret
-    else if ((vault === undefined) !== (context.input.secret === undefined)) {
+    // require a secret exactly when the client authenticates with one
+    else if ((authentication === "none") !== (secret === undefined)) {
+        const needed = authentication === "none" ? "no secret" : "a secret";
         throw ConnectionError.of(
-            "SECRET_VAULT_MISMATCH",
-            "an integration needs a vault exactly when it has a secret",
+            "SECRET_MISMATCH",
+            `an integration authenticating with ${authentication} needs ${needed}`,
         );
-    }
-    // require the vault in the integration's scope
-    else if (vault !== undefined) {
-        Credential.requireVault(vault, context.scope);
     }
 }
 
-/** Store a created integration's secret in its vault. */
+/** Store a created integration's secret. */
 async function keepSecret(
     context: MethodContextOf<typeof integration, "create", unknown>,
     tokens: TokenSource,
 ): Promise<{}> {
     // write the secret of a confidential client
-    const vault = context.input.vault ?? undefined;
-    const secret = context.input.secret;
-    if (vault !== undefined && secret !== undefined) {
+    const { secret } = context.input;
+    if (secret !== undefined) {
         const id = present(context.id, "a prepared creation's identifier");
-        await tokens.put(context, vault, id, secret);
+        await tokens.put(context, id, secret);
     }
 
     return {};
@@ -142,13 +133,8 @@ async function keepSecret(
 
 /** Register a client at a resource's authorization server, storing an issued secret. */
 async function register(
-    scope: string,
     id: string,
-    request: {
-        readonly resource: string;
-        readonly redirectUri: string;
-        readonly vault: ObjectReference | null;
-    },
+    request: { readonly resource: string; readonly redirectUri: string },
     tokens: TokenSource,
     runner: Runner,
 ): Promise<Registration> {
@@ -179,20 +165,13 @@ async function register(
         return registration;
     }
 
-    // store the issued secret in the registration's vault
-    const vault = request.vault;
-    if (vault === null) {
-        throw ConnectionError.of(
-            "VAULT_REQUIRED",
-            `${issuer} issued a client secret, but ${scope} has no vault`,
-        );
-    }
-    await tokens.put(runner, vault, id, issued.secret);
+    // store the issued secret
+    await tokens.put(runner, id, issued.secret);
 
-    return { ...registration, vault };
+    return registration;
 }
 
-/** Delete an integration, destroying its secret with it. */
+/** Delete an integration, destroying a confidential client's secret with it. */
 async function destroy(
     context: MethodContextOf<typeof integration, "delete">,
     next: () => Promise<ResultOf<typeof integration, "delete">>,
@@ -201,14 +180,14 @@ async function destroy(
     // delete the integration, then its secret
     const target = context.target;
     const deleted = await next();
-    if (target.vault !== null) {
-        await tokens.remove(context, target.vault, target.id);
+    if (target.authentication !== "none") {
+        await tokens.remove(context, target.id);
     }
 
     return deleted;
 }
 
-/** Call the target integration's server as its client, with its primary vault's secret. */
+/** Call the target integration's server as its client, with its secret. */
 async function client(
     context: MethodContextOf<
         typeof integration,

@@ -10,7 +10,6 @@ import { RetryPolicy } from "@destack/environment";
 import { nth, present } from "@destack/schema";
 import { ConnectionError } from "../error/error.ts";
 import { authorizationRequest } from "../object/authorization-request.ts";
-import { Credential } from "../credential/credential.ts";
 import {
     Connection,
     type ConnectionKind,
@@ -37,10 +36,9 @@ export function implementConnection(tokens: TokenSource): typeof connection {
         methods: {
             create: {
                 authorize: async (context) => {
-                    // require the space, client, vault and exchange source the connection's kind needs
+                    // require the space, client and exchange source the connection's kind needs
                     requireInstallable(context.input.protocol.kind, context.chain, tokens);
                     requireClient(context.input);
-                    Credential.requireVault(context.input.vault, context.scope);
                     await Connection.requireSource(context);
                 },
                 prepare: (context) => storeMaterial(context, tokens),
@@ -103,7 +101,7 @@ async function storeMaterial(
     tokens: TokenSource,
 ) {
     // require material of the connection's kind for exactly the kinds that send it
-    const { protocol, vault, material } = context.input;
+    const { protocol, material } = context.input;
     const isSupplied = SUPPLIED_KINDS.has(protocol.kind) || protocol.kind === "jwt";
     if (
         isSupplied !== (material !== undefined) ||
@@ -120,7 +118,7 @@ async function storeMaterial(
     // store the material
     if (material !== undefined) {
         const id = present(context.id, "a prepared creation's identifier");
-        await tokens.write(context, { id, vault }, { material });
+        await tokens.write(context, { id }, { material });
     }
 
     return {};
@@ -179,7 +177,7 @@ async function withdraw(runner: Runner, withdrawn: Connection, tokens: TokenSour
     }
 
     // remove the stored credential
-    await tokens.remove(runner, withdrawn.vault, withdrawn.id);
+    await tokens.remove(runner, withdrawn.id);
 }
 
 /** Reconcile a connection's credential, then record when it is next due. */

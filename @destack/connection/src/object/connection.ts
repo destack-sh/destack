@@ -161,8 +161,6 @@ export const connection = defineObject(
             resource: field.string(schema.url({ protocol: /^https$/u })).optional(),
             /** The scopes requested, then the ones granted. */
             scopes: field.json(schema.array(schema.string().min(1))).default([]),
-            /** The vault storing the credential. */
-            vault: field.json(ObjectReference),
 
             // the controller's authorization
             /** The external account's identifier, such as a user or installation identifier. */
@@ -189,7 +187,7 @@ export const connection = defineObject(
     (method) => ({
         /** Create a connection, storing the material its kind sends in the vault. */
         create: method.create("manage", {
-            fields: ["protocol", "integration", "resource", "scopes", "vault"],
+            fields: ["protocol", "integration", "resource", "scopes"],
             input: schema.object({
                 /** The material a key, signature, SigV4, JWT or mTLS connection sends. */
                 material: schema.sensitive(Material).exactOptional(),

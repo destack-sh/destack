@@ -20,7 +20,6 @@ async function createKey(fixture: TestConnection, input: Readonly<Record<string,
             calls: [
                 connection.call("create", {
                     scope: fixture.scope.id,
-                    vault: fixture.vaultReference,
                     protocol: { kind: "key", header: "x-api-key" },
                     material: { kind: "key", key: "sk-test-0123456789" },
                     ...input,

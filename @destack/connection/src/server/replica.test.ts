@@ -66,7 +66,6 @@ async function connect(
             calls: [
                 connection.call("create", {
                     scope: space.scope.id,
-                    vault: space.vaultReference,
                     protocol: { kind: input.kind ?? "authorization-code" },
                     integration: fixture.registered,
                 }),
@@ -122,7 +121,6 @@ async function bindAtPrimary(
             calls: [
                 connection.call("create", {
                     scope: primary.scope.id,
-                    vault: primary.vaultReference,
                     protocol: { kind: "client-credentials" },
                     integration: registered,
                 }),
@@ -240,7 +238,6 @@ test("register the client of a space's connection without an integration at the 
             calls: [
                 connection.call("create", {
                     scope: space.scope.id,
-                    vault: space.vaultReference,
                     protocol: { kind: "authorization-code" },
                     resource: RESOURCE,
                 }),
@@ -302,7 +299,6 @@ test("lease a connection its primary stores to a space's bound installation thro
                 calls: [
                     connection.call("create", {
                         scope: space.scope.id,
-                        vault: space.vaultReference,
                         protocol: { kind: "installation" },
                         integration: registered,
                     }),

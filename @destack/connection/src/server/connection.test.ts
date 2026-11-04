@@ -28,7 +28,6 @@ async function create(
             calls: [
                 connection.call("create", {
                     scope: fixture.scope.id,
-                    vault: fixture.vaultReference,
                     ...input,
                 }),
             ],
@@ -582,7 +581,6 @@ test("install an app through the installation issuing its tokens, lease an insta
     const keyed = await refusal(
         register({
             ...app,
-            vault: fixture.vaultReference,
             secret: "-----BEGIN RSA PRIVATE KEY-----",
         }),
     );
@@ -695,7 +693,7 @@ test("refresh a person's token with its rotating refresh token, and mark the con
         const token = present(credential.token, "the token");
         await fixture.tokens.write(
             Runner.of(fixture.objects),
-            { id: reference.id, vault: fixture.vaultReference },
+            { id: reference.id },
             {
                 ...credential,
                 token: { ...token, refreshToken, expiresAt: fixture.environment.clock.now() },

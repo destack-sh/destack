@@ -492,9 +492,11 @@ export class TestConnection {
         // reach the served issuer as the connection installation, and other installations at the primary
         const consumer = TestConnection.#installation(scope);
         const issuer = Egress.address(ISSUER_NAME, consumer.scope);
+        const vaultReference = await TestConnection.#vault(database, scope, environment);
         const tokens = new TokenSource({
             environment,
             consumer,
+            vault: vaultReference,
             fetch: server.fetch,
             at: (address) =>
                 address === issuer && options.issuer !== undefined
@@ -531,7 +533,7 @@ export class TestConnection {
             tokens,
             server,
             scope,
-            vaultReference: await TestConnection.#vault(database, scope, environment),
+            vaultReference,
             http,
             simulation,
             environment,
@@ -698,7 +700,7 @@ export class TestConnection {
         return Server.start({
             environment: objects.environment,
             ...objects.package(handle),
-            control: { controllers: [], consumers: [] },
+            control: { controllers: [], cursors: [] },
             drainTimeout: 1000,
             health: new Health("connection"),
             resources: new ResourceContext(),
@@ -1034,11 +1036,7 @@ export class TestConnection {
             .orderBy(secret.table.createdAt);
         const values: string[] = [];
         for (const row of rows) {
-            const value = await this.tokens.readSecret(
-                Runner.of(this.objects),
-                this.vaultReference,
-                row.name,
-            );
+            const value = await this.tokens.readSecret(Runner.of(this.objects), row.name);
             values.push(present(value, `the value of secret ${row.name}`));
         }
 
@@ -1071,7 +1069,6 @@ export class TestConnection {
                         clientId: "static-client",
                         authentication: "client_secret_basic",
                         redirectUris: ["https://app.test/callback"],
-                        vault: this.vaultReference,
                         secret: this.server.clientSecret,
                         isPublic: options.isPublic ?? false,
                     }),

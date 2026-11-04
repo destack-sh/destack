@@ -51,8 +51,10 @@ export const PERSON_KINDS: ReadonlySet<ConnectionKind> = new Set([
 
 /** What a token source works with. */
 export interface TokenSourceOptions {
-    /** Connection's own installation, the consumer the credentials in the vaults are bound to. */
+    /** Connection's own installation, the consumer of its vault. */
     readonly consumer: Subject;
+    /** The vault bound as the installation's credentials, keeping every credential and secret. */
+    readonly vault: ObjectReference;
     /** Send requests to authorization servers. */
     readonly fetch: Fetch;
     /** Call the packages at an address through the host's egress as the installation. */
@@ -125,16 +127,11 @@ export class TokenSource {
         return Identifier.derive("secret", Identifier.uuid(owner));
     }
 
-    /** Store a connection's or integration's secret in a vault, bound to the consumer. */
-    async put(
-        runner: Runner,
-        reference: ObjectReference,
-        id: string,
-        value: string,
-    ): Promise<void> {
-        await runner.mutate(runner.self, [
+    /** Store a connection's or integration's secret in the vault as the consumer. */
+    async put(runner: Runner, id: string, value: string): Promise<void> {
+        await runner.mutate(this.#consumer(runner), [
             vault.call("put", {
-                ...TokenSource.#vault(reference),
+                ...this.#vault,
                 secret: TokenSource.secret(id),
                 name: id,
                 value: { encoding: "text", value },
@@ -142,31 +139,40 @@ export class TokenSource {
         ]);
     }
 
-    /** Read a connection's or integration's secret from its vault as the consumer. */
-    async readSecret(runner: Runner, reference: ObjectReference, id: string): Promise<string> {
-        // read the secret's current version through its vault as the consumer
-        const target = secret.target({ scope: reference.scope, id: TokenSource.secret(id) });
-        const caller = AccessContext.of(Caller.of(this.options.consumer), runner.now);
+    /** Read a connection's or integration's secret from the vault as the consumer. */
+    async readSecret(runner: Runner, id: string): Promise<string> {
+        // read the secret's current version through the vault as the consumer
+        const target = secret.target({
+            scope: this.options.vault.scope,
+            id: TokenSource.secret(id),
+        });
         const reading = SecretReading.parse(
-            await runner.query(caller, secret.call("read", target)),
+            await runner.query(this.#consumer(runner), secret.call("read", target)),
         );
 
         return SecretReading.text(reading);
     }
 
-    /** Remove a connection's or integration's secret from its vault. */
-    async remove(runner: Runner, reference: ObjectReference, id: string): Promise<void> {
-        await runner.mutate(runner.self, [
+    /** Remove a connection's or integration's secret from the vault as the consumer. */
+    async remove(runner: Runner, id: string): Promise<void> {
+        await runner.mutate(this.#consumer(runner), [
             vault.call("remove", {
-                ...TokenSource.#vault(reference),
+                ...this.#vault,
                 secret: TokenSource.secret(id),
             }),
         ]);
     }
 
-    /** Address a vault by its reference. */
-    static #vault(reference: ObjectReference) {
-        return vault.target({ scope: reference.scope, id: vault.identifier(reference.id) });
+    /** Act as the consumer of the vault, at the runner's time. */
+    #consumer(runner: Runner): AccessContext {
+        return AccessContext.of(Caller.of(this.options.consumer), runner.now);
+    }
+
+    /** Address the vault. */
+    get #vault() {
+        const { scope, id } = this.options.vault;
+
+        return vault.target({ scope, id: vault.identifier(id) });
     }
 
     /** Read a connection's credential, refusing one without a token or with a lapsed one. */
@@ -192,15 +198,9 @@ export class TokenSource {
         return credential;
     }
 
-    /** Read a connection's stored credential from its vault. */
-    async read(
-        runner: Runner,
-        row: {
-            readonly id: string;
-            readonly vault: ObjectReference;
-        },
-    ): Promise<Credential> {
-        return Credential.read(await this.readSecret(runner, row.vault, row.id));
+    /** Read a connection's stored credential from the vault. */
+    async read(runner: Runner, row: { readonly id: string }): Promise<Credential> {
+        return Credential.read(await this.readSecret(runner, row.id));
     }
 
     /** Read an integration as client: here with its vault's secret, or through its primary. */
@@ -312,7 +312,6 @@ export class TokenSource {
         request: {
             readonly resource: string;
             readonly redirectUri: string;
-            readonly vault: ObjectReference | null;
         },
         runner: Runner,
     ): Promise<Integration> {
@@ -337,13 +336,13 @@ export class TokenSource {
         return present(registered, `the client registered in ${scope}`);
     }
 
-    /** Store a credential in a connection's vault. */
+    /** Store a connection's credential in the vault. */
     async write(
         runner: Runner,
-        row: { readonly id: string; readonly vault: ObjectReference },
+        row: { readonly id: string },
         credential: Credential,
     ): Promise<void> {
-        await this.put(runner, row.vault, row.id, Credential.write(credential));
+        await this.put(runner, row.id, Credential.write(credential));
     }
 
     /** Record a connection's Authorized condition and fields, refusing a deleted connection. */
@@ -424,9 +423,9 @@ export class TokenSource {
         );
     }
 
-    /** Read a stored integration's secret from its vault, absent for a public client. */
+    /** Read a stored integration's secret, absent for a client authenticating with none. */
     async #secret(runner: Runner, row: Integration): Promise<string | undefined> {
-        return row.vault === null ? undefined : this.readSecret(runner, row.vault, row.id);
+        return row.authentication === "none" ? undefined : this.readSecret(runner, row.id);
     }
 
     /** Report whether a failure ends a person's grant, refused or without a refresh token. */

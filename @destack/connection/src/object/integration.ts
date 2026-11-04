@@ -76,7 +76,7 @@ export const IntegrationIssuer = Object.assign(
 /** Who issues an integration's tokens. */
 export type IntegrationIssuer = schema.Infer<typeof IntegrationIssuer>;
 
-/** A dynamically registered client (RFC 7591 3.2.1), with the vault of an issued secret. */
+/** A dynamically registered client (RFC 7591 3.2.1). */
 export const Registration = schema.object({
     /** The authorization server issuing its tokens. */
     issuer: IntegrationIssuer,
@@ -88,8 +88,6 @@ export const Registration = schema.object({
     authentication: schema.enum(CLIENT_AUTHENTICATIONS),
     /** The redirect URIs the client registered. */
     redirectUris: schema.array(schema.httpUrl()),
-    /** The vault storing the secret the server issued, absent for a public client. */
-    vault: ObjectReference.exactOptional(),
 });
 /** A client an authorization server registered dynamically. */
 export type Registration = schema.Infer<typeof Registration>;
@@ -114,8 +112,6 @@ export const integration = defineObject(
             redirectUris: field.json(schema.array(schema.httpUrl())),
             /** Whether the owner registered the client or a connection did (RFC 7591). */
             registration: field.enum(["static", "dynamic"]).default("static"),
-            /** The vault storing the client secret or private key, absent for a public client. */
-            vault: field.json(ObjectReference).optional(),
         },
         relations: {
             // every space a public integration serves, beside its owner's spaces and the spaces below them
@@ -137,11 +133,11 @@ export const integration = defineObject(
         reserved: ["request"],
     },
     (method) => ({
-        /** Register an integration, storing its client secret or private key in the vault. */
+        /** Register an integration, storing the secret its client authenticates with. */
         create: method.create("manage", {
-            fields: ["issuer", "endpoints", "clientId", "authentication", "redirectUris", "vault"],
+            fields: ["issuer", "endpoints", "clientId", "authentication", "redirectUris"],
             input: schema.object({
-                /** The client secret or private key as JWK or PEM text, stored in the vault. */
+                /** The client secret or private key as JWK or PEM text, kept by the connections. */
                 secret: schema.sensitive(schema.string().min(1)).exactOptional(),
                 /** Whether it serves every space beside its owner's and those below them. */
                 isPublic: schema.boolean().exactOptional(),
@@ -157,8 +153,6 @@ export const integration = defineObject(
                 resource: schema.url({ protocol: /^https$/u }),
                 /** The URI the authorization server redirects the person back to. */
                 redirectUri: schema.httpUrl(),
-                /** The scope's vault for an issued secret, null if the connection has none. */
-                vault: ObjectReference.nullable(),
             }),
             prepared: Registration,
             isPredicted: false,
