@@ -279,28 +279,42 @@ export const Role = {
         subject: Subject,
         authorization: Authorization,
     ): Promise<void> {
-        // refuse a binding whose scope another database homes
+        // build the binding and read whether the subject has it, together
+        const { transaction } = authorization;
+        const [binding, bound] = await Promise.all([
+            Role.binding(scope, role, subject, authorization),
+            transaction.read(accessRelationship).findMany({
+                where: {
+                    ...Relationship.objectColumns(scope),
+                    roleId: role,
+                    subjectPackageId: subject.packageId,
+                    subjectType: subject.type,
+                    subjectScope: subject.scope,
+                    subjectId: subject.id,
+                },
+                limit: 1,
+            }),
+        ]);
+
+        // write a binding the subject lacks
+        if (bound.length === 0) {
+            await transaction.write({ table: accessRelationship, before: null, after: binding });
+        }
+    },
+
+    /** Build a role binding in its scope, refusing a scope another database homes. */
+    async binding(
+        scope: ObjectReference,
+        role: Select<typeof accessRole>["id"],
+        subject: Subject,
+        authorization: Authorization,
+    ): Promise<Select<typeof accessRelationship>> {
+        // place the binding, refusing a scope another database homes
         const { transaction, snapshot } = authorization;
         const placed = await Relationship.scope(snapshot, { object: scope, role });
         await authorization.authorizer.requireHome(transaction, scope, placed);
 
-        // leave a binding the subject has
-        const bound = await transaction.read(accessRelationship).findMany({
-            where: {
-                ...Relationship.objectColumns(scope),
-                roleId: role,
-                subjectPackageId: subject.packageId,
-                subjectType: subject.type,
-                subjectScope: subject.scope,
-                subjectId: subject.id,
-            },
-            limit: 1,
-        });
-        if (bound.length > 0) {
-            return;
-        }
-
-        // write the binding in its scope
+        // encode the binding in its scope
         const relationship = Relationship.encode(
             {
                 id: Identifier.create("relationship", authorization.environment),
@@ -312,11 +326,8 @@ export const Role = {
             },
             placed,
         );
-        await transaction.write({
-            table: accessRelationship,
-            before: null,
-            after: Table.complete(accessRelationship, relationship),
-        });
+
+        return Table.complete(accessRelationship, relationship);
     },
 
     /** Read a role permission from its row, its approvals only when its uses wait for some. */

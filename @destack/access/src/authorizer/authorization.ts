@@ -232,23 +232,23 @@ export class Authorization {
 
     /** Record a new object's access beside its row, which has no relationships yet. */
     async create(object: ObjectReference, creation: Creation): Promise<void> {
-        // record a new scope below the scopes containing it, none below the universe
+        // build a new scope's row below the scopes containing it, none below the universe
         const isScope = this.authorizer.policy(object).definition.scope === true;
-        if (isScope) {
-            const ancestors =
-                object.scope === Scope.universe.id
-                    ? []
-                    : [object.scope, ...(await this.#parent(object.scope)).ancestors];
-            await this.#record(object, ancestors);
-        }
+        const parent =
+            isScope && object.scope !== Scope.universe.id
+                ? await this.#parent(object.scope)
+                : undefined;
+        const ancestors = parent === undefined ? [] : [object.scope, ...parent.ancestors];
+        const scoped = isScope ? [await this.#scope(object, ancestors, parent)] : [];
 
-        // relate its first subjects and owner
-        await this.#relate(object, creation);
+        // relate its first subjects and owner, written with its scope row
+        await this.#relate(object, creation, scoped);
     }
 
     /** Record a scope at its home as it is born, below its containing scopes. */
     async receive(object: ObjectReference, ancestors: readonly string[]): Promise<void> {
-        await this.#record(object, ancestors);
+        const row = await this.#scope(object, ancestors, undefined);
+        await this.transaction.write({ table: Scope.table, before: null, after: row });
     }
 
     /** Forget a removed object's access: its relationships, a scope's row and inside rows. */
@@ -312,17 +312,26 @@ export class Authorization {
         }
     }
 
-    /** Relate a local object's first subjects, and bind a scope's owner. */
-    async #relate(object: ObjectReference, creation: Creation): Promise<void> {
-        // write the access of a local object
-        await this.authorizer.requireLocal(this.transaction, object);
-
+    /** Relate an object's first subjects and a scope's owner, written with a new scope's row. */
+    async #relate(
+        object: ObjectReference,
+        creation: Creation,
+        scoped: readonly RowImage<typeof Scope.table>[],
+    ): Promise<void> {
         // refuse owners of an object that is not a scope
         const definition = this.authorizer.policy(object).definition;
         if (definition.scope !== true && creation.owner !== undefined) {
             throw AccessError.of("SCOPE_REQUIRED", "only a scope can have owners");
         }
         const context = this.context();
+
+        // require a local object, and place the owner's binding meanwhile
+        const [, owning] = await Promise.all([
+            this.authorizer.requireLocal(this.transaction, object),
+            creation.owner === undefined
+                ? []
+                : Role.binding(object, Role.OWNER, creation.owner, this).then((row) => [row]),
+        ]);
 
         // refuse a first subject set outside the object's scope chain, as a grant refuses it
         const sets = [
@@ -338,7 +347,7 @@ export class Authorization {
             );
         }
 
-        // relate the first subjects
+        // write the scope row, the first subjects' relationships and the owner's binding in one write
         const relationships = this.authorizer.initialRelationships(
             object,
             creation,
@@ -346,28 +355,28 @@ export class Authorization {
             this.environment,
         );
         await this.transaction.write(
-            ...relationships.map((relationship) => ({
-                table: accessRelationship,
-                before: null,
-                after: Table.complete(accessRelationship, relationship),
-            })),
+            ...scoped.map((after) => ({ table: Scope.table, before: null, after })),
+            ...[
+                ...relationships.map((row) => Table.complete(accessRelationship, row)),
+                ...owning,
+            ].map((after) => ({ table: accessRelationship, before: null, after })),
         );
-
-        // bind the owner role on a scope to its owner
-        if (creation.owner !== undefined) {
-            await Role.bind(object, Role.OWNER, creation.owner, this);
-        }
     }
 
-    /** Record a scope's row below its ancestors, in the scope's partition or its parent's. */
-    async #record(object: ObjectReference, ancestors: readonly string[]): Promise<void> {
-        // write the row in the scope's partition or its parent's
+    /** Build a scope's row below its ancestors, in the scope's partition or its parent's. */
+    async #scope(
+        object: ObjectReference,
+        ancestors: readonly string[],
+        parent: RowImage<typeof Scope.table> | undefined,
+    ): Promise<RowImage<typeof Scope.table>> {
+        // take the scope's partition or its parent's
         const definition = this.authorizer.policy(object).definition;
         const partition =
             definition.partition === true
                 ? object.id
-                : (await this.#parent(object.scope)).partition;
-        const row = Table.complete(Scope.table, {
+                : (parent ?? (await this.#parent(object.scope))).partition;
+
+        return Table.complete(Scope.table, {
             scope: object.id,
             parent: object.scope,
             partition,
@@ -375,7 +384,6 @@ export class Authorization {
             type: object.type,
             ancestors: [...ancestors],
         });
-        await this.transaction.write({ table: Scope.table, before: null, after: row });
     }
 
     /** Read the row of a new scope's parent, refusing a scope this database lacks. */

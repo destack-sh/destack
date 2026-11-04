@@ -947,20 +947,26 @@ export class Authorizer {
             return this.partition === Scope.universe.id;
         }
 
-        // require the scope's row in this database's partition, stored by no replica
-        const [row] = await Scope.read(snapshot, [scope]);
+        // require the scope's row in this database's partition, stored by no replica, reading both together
+        const [[row], isCopied] = await Promise.all([
+            Scope.read(snapshot, [scope]),
+            Authorizer.#isCopied(snapshot, scope),
+        ]);
         const isPartition = this.partition !== undefined && row?.partition === this.partition;
 
-        return isPartition && !(await Authorizer.#isCopied(snapshot, scope));
+        return isPartition && !isCopied;
     }
 
     /** Decide whether a replica stored a scope's row here, by key or with the whole scope. */
     static async #isCopied(snapshot: Pick<Snapshot, "read">, scope: string): Promise<boolean> {
-        const stored = await snapshot.read(replicaKey).findFirst({
-            where: { table: Scope.table[TABLE].sqlName, key: Key.name(Scope.table, { scope }) },
-        });
+        const [stored, isReplicated] = await Promise.all([
+            snapshot.read(replicaKey).findFirst({
+                where: { table: Scope.table[TABLE].sqlName, key: Key.name(Scope.table, { scope }) },
+            }),
+            Replica.isReplicated(snapshot, scope, Scope.table),
+        ]);
 
-        return stored !== undefined || (await Replica.isReplicated(snapshot, scope, Scope.table));
+        return stored !== undefined || isReplicated;
     }
 
     /** Refuse a relationship another database stores, returning the scope it lives in. */
