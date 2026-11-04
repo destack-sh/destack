@@ -4,7 +4,7 @@ import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { PackageId, PackageName } from "@destack/package";
+import { PackageName } from "@destack/package";
 import { Vocabulary } from "@destack/resource";
 import { RegistryError } from "../error/index.ts";
 import { validRange } from "semver";
@@ -41,7 +41,6 @@ export const packageObject = defineObject(
         plural: "packages",
         scope: space,
         owner: "account",
-        key: PackageId,
         fields: {
             /** The account publishing the package. */
             account: field.reference(account).relate("account"),
