@@ -28,6 +28,7 @@ import { canonicalize, Duration, present, schema } from "@destack/schema";
 import { CallError } from "../error/call.ts";
 import { type RequestContext } from "./context.ts";
 import { withEventMeta } from "../procedure/index.ts";
+import { RelationGraph } from "../query/query.ts";
 import * as sync from "@destack/sync";
 import {
     ACCESS_PUBLICATION,
@@ -105,12 +106,28 @@ export class ObjectSource {
             }
             const everywhere = compiled.filter((query) => query.scopes === "every");
 
+            // include each queried table's related rows, merged across its queries
+            const includes = new Map<Table, NonNullable<sync.QuerySelection["with"]>>();
+            for (const query of compiled) {
+                if (query.with !== undefined) {
+                    includes.set(query.table, { ...includes.get(query.table), ...query.with });
+                }
+            }
+
+            // relate the followed types, which the conditions read through
+            const graph = RelationGraph.of(this.store.followed);
+            const relations = new Map(
+                this.store.followed.map((object) => [object.table, graph.of(object.table)]),
+            );
+
             return new sync.Replica({
                 name,
                 scope,
                 tables,
                 where,
                 everywhere: new Set(everywhere.map((query) => query.table)),
+                includes,
+                relations,
             });
         },
     });
@@ -1620,7 +1637,7 @@ export class ObjectSource {
             : page;
     }
 
-    /** Widen each query to the scopes a replica has rows of its table for. */
+    /** Widen each query to the scopes a held replica has rows of a table of its tree for. */
     static #withReplicas(
         queries: Record<string, sync.Query>,
         held: Awaited<ReturnType<typeof sync.Replica.tables>>,
@@ -1632,9 +1649,11 @@ export class ObjectSource {
                     return [name, query];
                 }
 
-                // add each replicated scope with the query's table
-                const table = query.table[TABLE].sqlName;
-                const replicated = held.filter((replica) => replica.tables.includes(table));
+                // add each replicated scope with a table of the query's tree, its includes reading them too
+                const tables = sync.Node.tables(query).map((table) => table[TABLE].sqlName);
+                const replicated = held.filter((replica) =>
+                    tables.some((table) => replica.tables.includes(table)),
+                );
                 const scopes = [
                     ...new Set([...query.scopes, ...replicated.map((replica) => replica.scope)]),
                 ];
