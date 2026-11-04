@@ -6,7 +6,7 @@ import { Authorizer } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
-import type { Controller, FollowController } from "@destack/db";
+import type { Controller } from "@destack/db";
 import { Health } from "../server/health.ts";
 import { Server } from "../server/index.ts";
 import { defineWorkload, type InstalledServerContext } from "./workload.ts";
@@ -496,6 +496,10 @@ test("run one start's controllers at a time, stopping the previous start's befor
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
+    await storage.database.transaction(
+        async (transaction) =>
+            await transaction.insert(marker).values({ id: "key", scope: "space" }),
+    );
     const events: string[] = [];
     const running = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
     let starts = 0;
@@ -504,11 +508,11 @@ test("run one start's controllers at a time, stopping the previous start's befor
             name: "fixture",
             start: () => {
                 const start = ++starts;
-                const controller: FollowController = {
+                const controller: Controller<typeof marker> = {
                     name: "follower",
-                    mode: "follow",
-                    list: async () => ["key"],
-                    reconcile: async (_key, { signal, synced }) => {
+                    table: marker,
+                    pending: {},
+                    follow: async (_rows, { signal, synced }) => {
                         events.push(`run ${start}`);
                         synced();
                         running[start - 1]?.resolve();
@@ -516,8 +520,6 @@ test("run one start's controllers at a time, stopping the previous start's befor
                             signal.addEventListener("abort", resolve, { once: true });
                         });
                         events.push(`stop ${start}`);
-
-                        return undefined;
                     },
                 };
 
@@ -526,7 +528,7 @@ test("run one start's controllers at a time, stopping the previous start's befor
                         {
                             package: first,
                             router: {},
-                            controllers: [controller],
+                            control: { controllers: [controller], consumers: [] },
                             access: {
                                 authorizer: new Authorizer([], []),
                                 database: storage.database,
@@ -574,16 +576,17 @@ test("close a server whose controllers were never activated, running none of the
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
+    await storage.database.transaction(
+        async (transaction) =>
+            await transaction.insert(marker).values({ id: "key", scope: "space" }),
+    );
     const runs: string[] = [];
-    const controller: Controller = {
+    const controller: Controller<typeof marker> = {
         name: "never",
-        watches: [],
-        keys: () => [],
-        list: async () => ["key"],
-        reconcile: async (key) => {
-            runs.push(key);
-
-            return undefined;
+        table: marker,
+        pending: {},
+        reconcile: async (rows) => {
+            runs.push(...rows.map((row) => row.id));
         },
     };
     const started = Server.start({
@@ -594,7 +597,7 @@ test("close a server whose controllers were never activated, running none of the
         health: new Health(first.name),
         drainTimeout: 100,
         router: {},
-        controllers: [controller],
+        control: { controllers: [controller], consumers: [] },
         access: {
             authorizer: new Authorizer([], []),
             database: storage.database,

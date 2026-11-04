@@ -1,14 +1,14 @@
 import type { Environment } from "@destack/environment";
 import { testSimulation } from "../test/index.ts";
 import { testCallKey } from "../test/context.ts";
-import { reconciliation, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessRelationship, none, principal, relation, through } from "@destack/access";
 import { call, defineObject, defineShape, field, relationship } from "../index.ts";
-import { testEvents, serversOf } from "../test/index.ts";
+import { followReplicas, testEvents, serversOf } from "../test/index.ts";
 import { TestAccess } from "@destack/access/test";
-import { asc, type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
-import { schema, present, type Identifier } from "@destack/schema";
+import { asc, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
+import { schema, type Identifier } from "@destack/schema";
 
 import { Replica, Scope, type Uplink } from "@destack/sync";
 import { ObjectStore } from "./index.ts";
@@ -190,18 +190,13 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
                 signal,
             ),
     });
-    const follower = present(
-        replicating.controllers().find((each) => each.name === "replica"),
-        "the replica controller",
-    );
-    const controller = new AbortController();
-    const keys = await follower.list(Snapshot.live(replicating.database));
-    const following = keys
-        .filter(isUniverseKey)
-        .map((key) => follower.reconcile(key, reconciliation(controller.signal)));
+    const { controller, running } = await followReplicas(replicating, {
+        isFollowed: isUniverseKey,
+        report: () => {},
+    });
     onTestFinished(async () => {
         controller.abort();
-        await Promise.allSettled(following);
+        await running;
     });
     const replicated = async () => {
         await Replica.wait(
@@ -488,18 +483,13 @@ async function follow(
     space: DatabaseConnection,
 ): Promise<void> {
     // run the replica controller's key of the universe's rows
-    const follower = present(
-        replicating.controllers().find((each) => each.name === "replica"),
-        "the replica controller",
-    );
-    const controller = new AbortController();
-    const keys = await follower.list(Snapshot.live(replicating.database));
-    const following = keys
-        .filter(isUniverseKey)
-        .map((key) => follower.reconcile(key, reconciliation(controller.signal)));
+    const { controller, running } = await followReplicas(replicating, {
+        isFollowed: isUniverseKey,
+        report: () => {},
+    });
     onTestFinished(async () => {
         controller.abort();
-        await Promise.allSettled(following);
+        await running;
     });
 
     // wait for the replica to arrive at home

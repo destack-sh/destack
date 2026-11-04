@@ -13,7 +13,7 @@ import { refusal, reportError } from "../error/report.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../procedure/bookmark.ts";
 import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context.ts";
 import type { ProcedureContext } from "./procedure.ts";
-import { type Alarm, ControlLoop, type Controller } from "@destack/db";
+import { type Alarm, type Control, ControlLoop } from "@destack/db";
 import { copyRequest, type Environment, LONGEST_DELAY } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
@@ -89,24 +89,24 @@ export class Server implements AsyncDisposable {
         });
 
         // run the controllers syncing the replicas, and the others once they are synced
-        this.#syncing = Server.#loopOf(options.syncing ?? [], options);
-        this.#loop = Server.#loopOf(options.controllers ?? [], options);
+        this.#syncing = Server.#loopOf(
+            options.syncing ?? { controllers: [], consumers: [] },
+            options,
+        );
+        this.#loop = Server.#loopOf(options.control ?? { controllers: [], consumers: [] }, options);
     }
 
-    /** Create the loop of some controllers over the access database, absent for none. */
-    static #loopOf(
-        controllers: readonly Controller[],
-        options: ServerOptions,
-    ): ControlLoop | undefined {
-        // run no loop without controllers, and refuse controllers without an access database
+    /** Create the loop of a package's control over the access database, absent for none. */
+    static #loopOf(control: Control, options: ServerOptions): ControlLoop | undefined {
+        // run no loop without work, and refuse work without an access database
         const { access } = options;
-        if (controllers.length === 0) {
+        if (control.controllers.length === 0 && control.consumers.length === 0) {
             return undefined;
         } else if (access === undefined) {
             throw new TypeError("a server with controllers needs an access database");
         }
 
-        return new ControlLoop(access.database, controllers, {
+        return new ControlLoop(access.database, control, {
             report: (controller, key, error) => {
                 // report the failure with the controller and the failed key
                 options.report?.(
@@ -637,10 +637,10 @@ export interface PackageHandler extends Omit<
     readonly fetch?: (request: Request, context: RequestContext) => Promise<Response | undefined>;
     /** The routes of each protocol the package implements, by the protocol's package. */
     readonly protocols?: ReadonlyMap<string, ReadonlySet<string>>;
-    /** The package's controllers, started once its replicas are synced. */
-    readonly controllers?: readonly Controller[];
-    /** The controllers syncing the package's replicas, started at once. */
-    readonly syncing?: readonly Controller[];
+    /** The package's controllers and consumers, started once its replicas are synced. */
+    readonly control?: Control;
+    /** The controllers and consumers syncing the package's replicas, started at once. */
+    readonly syncing?: Control;
     /** Wait until the package's replicas are synced, at once when absent. */
     readonly synced?: (signal: AbortSignal) => Promise<void>;
     /** Verify a credential whose keys the package has before the host, undefined for another. */

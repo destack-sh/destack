@@ -159,15 +159,11 @@ async function openStores(): Promise<{
         uplink: publisher,
     });
     const controller = new AbortController();
-    const loop = new ControlLoop(
-        followerTest.database,
-        follower.controllers().filter((each) => each.name === "replica"),
-        {
-            report: (_controller, _key, error) => {
-                throw error;
-            },
+    const loop = new ControlLoop(followerTest.database, follower.syncing(), {
+        report: (_controller, _key, error) => {
+            throw error;
         },
-    );
+    });
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();

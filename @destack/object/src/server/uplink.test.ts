@@ -1,15 +1,15 @@
 import type { Environment } from "@destack/environment";
 import { testSimulation } from "../test/index.ts";
 import { testCallKey } from "../test/context.ts";
-import { reconciliation, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
-import { type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
+import { type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { RequestId, Replica, Scope } from "@destack/sync";
 import { present, schema } from "@destack/schema";
 import { defineObject, defineShape, field, Shape } from "../index.ts";
-import { serversOf, testEvents } from "../test/index.ts";
+import { followReplicas, serversOf, testEvents } from "../test/index.ts";
 import { ObjectStore } from "./index.ts";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
@@ -168,22 +168,16 @@ async function serveHome(world: Environment) {
     });
 
     // follow the universe's rows until the test ends
-    const follower = present(
-        store.controllers().find((each) => each.name === "replica"),
-        "the replica controller",
-    );
-    const controller = new AbortController();
-    const key = present(
-        (await follower.list(Snapshot.live(store.database))).find(
-            (entry) => entry === `${Shape.replicaName(Scope.universe.id)} ${Scope.universe.id}`,
-        ),
-        "the universe's replica key",
-    );
-    const following = follower.reconcile(key, reconciliation(controller.signal));
+    const universeKey = `${Shape.replicaName(Scope.universe.id)} ${Scope.universe.id}`;
+    const { keys, controller, running } = await followReplicas(store, {
+        isFollowed: (key) => key === universeKey,
+        report: () => {},
+    });
     onTestFinished(async () => {
         controller.abort();
-        await following.catch(() => undefined);
+        await running;
     });
+    expect(keys).toEqual([universeKey]);
     await Replica.wait(
         replicating.database,
         Scope.universe.id,

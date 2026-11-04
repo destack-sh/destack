@@ -184,14 +184,18 @@ test("follow an installation's root chain from its machine, and a partition's ch
                 },
             },
         });
-        const listed = present(store.subscriber?.subscriptions, "the store's subscriptions");
-        const entries = await listed(Snapshot.live(storage.database));
+        const subscriber = present(store.subscriber, "the store's subscriber");
+        const entries = await subscriber.subscriptions(Snapshot.live(storage.database));
 
-        return entries.map((entry) => [
-            entry.subscription.name,
-            entry.subscription.scope,
-            entry.publisher === machine ? "machine" : entry.publisher === root ? "root" : "other",
-        ]);
+        return entries.map((entry) => {
+            const publisher = subscriber.publisher(entry.home);
+
+            return [
+                entry.subscription.name,
+                entry.subscription.scope,
+                publisher === machine ? "machine" : publisher === root ? "root" : "other",
+            ];
+        });
     };
 
     // follow each chain in one replica of its target, which at the universe has the access grants delegated into it

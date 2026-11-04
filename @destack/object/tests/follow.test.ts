@@ -16,7 +16,13 @@ import {
 } from "@destack/db";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
-import { FeedPublisher, testEvents, testServerContext, serversOf } from "../src/test/index.ts";
+import {
+    FeedPublisher,
+    followReplicas,
+    testEvents,
+    testServerContext,
+    serversOf,
+} from "../src/test/index.ts";
 import { definePackage } from "@destack/object";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
@@ -49,6 +55,7 @@ import { spacePrincipal } from "./fixture/space.ts";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { replicaRequest } from "../src/replica/request.ts";
 
 /** The lag access allows a replica: 30 s. */
 const LAG_MILLISECONDS = 30_000;
@@ -275,25 +282,13 @@ test("decide calls over a relayed replica of access as the holder does, through 
         },
     });
 
-    // follow the space's chain up to the universe
-    const follower = present(
-        store.controllers().find((each) => each.name === "replica"),
-        "the replica controller",
-    );
-    const controller = new AbortController();
-    const following: Promise<void>[] = [];
-    onTestFinished(async () => {
-        controller.abort();
-        await Promise.allSettled(following);
-    });
     // follow the space's chain in one replica, which at the universe has the grants delegated in
     const head = await home.database.log.position();
-    const keys = await follower.list(Snapshot.live(store.database));
-    for (const key of keys) {
-        following.push(
-            follower.reconcile(key, reconciliation(controller.signal)).then(() => undefined),
-        );
-    }
+    const { keys, controller, running } = await followReplicas(store, { report: failing });
+    onTestFinished(async () => {
+        controller.abort();
+        await running;
+    });
     for (const scope of [spaceId, accountId, Scope.universe.id]) {
         await Replica.wait(installed.database, scope, head, controller.signal);
     }
@@ -406,12 +401,9 @@ test("record the reads of a replica listing, so only a change of a followed sour
                 .insert(document.table)
                 .values({ id, scope: spaceId, title: "Follow", createdAt: 1, updatedAt: 1 }),
     );
-    const replica = present(
-        store.controllers().find((each) => each.name === "replica"),
-        "the replica controller",
-    );
+    const subscriber = present(store.subscriber, "the store's subscriber");
     const reads = new ReadSet();
-    await replica.list(Snapshot.live(machine.database).recording(reads));
+    await subscriber.subscriptions(Snapshot.live(machine.database).recording(reads));
 
     // add a document the follow leaves out, then retitle the followed one out of the follow
     const after = (await machine.database.log.position()).sequence;
@@ -505,23 +497,20 @@ test("read a row follow's keys again only for the source rows a change touched, 
                 })),
             ),
     );
-    const replica = present(
-        store.controllers().find((each) => each.name === "replica"),
-        "the replica controller",
-    );
+    const subscriber = present(store.subscriber, "the store's subscriber");
 
     // list every row's key, then list again for a retitled row and for an added one
-    await replica.list(Snapshot.live(machine.database));
+    await subscriber.subscriptions(Snapshot.live(machine.database));
     const listed = keyReads;
     const relist = async (change: () => PromiseLike<unknown>) => {
         const after = (await machine.database.log.position()).sequence;
         await change();
         const { changes } = await machine.database.log.read({ tables: [document.table], after });
         const before = keyReads;
-        await replica.list(Snapshot.live(machine.database).recording(new ReadSet()), {
+        await subscriber.subscriptions(
+            Snapshot.live(machine.database).recording(new ReadSet()),
             changes,
-            unlogged: new Set(),
-        });
+        );
 
         return keyReads - before;
     };
@@ -704,7 +693,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
     const failures: unknown[] = [];
     const loop = new ControlLoop(
         machine.database,
-        store.controllers().filter((each) => each.name === "replica"),
+        store.syncing(),
         // run the loop at a frozen clock, so a drop that waits out a failure's backoff never comes
         {
             report: (_controller, _key, error) => failures.push(error),
@@ -822,11 +811,7 @@ test("finish a wait through a store's replica of a scope once it stops following
 
     // follow the replicas to the home's head
     const controller = new AbortController();
-    const loop = new ControlLoop(
-        machine.database,
-        store.controllers().filter((each) => each.name === "replica"),
-        { report: failing },
-    );
+    const loop = new ControlLoop(machine.database, store.syncing(), { report: failing });
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
@@ -940,11 +925,7 @@ test("replicate a person's grant to an installation of the space from the univer
         origin: { package: document.package },
     });
     const controller = new AbortController();
-    const loop = new ControlLoop(
-        machine.database,
-        store.controllers().filter((each) => each.name === "replica"),
-        { report: failing },
-    );
+    const loop = new ControlLoop(machine.database, store.syncing(), { report: failing });
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
@@ -1013,11 +994,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
         return store;
     };
     const follow = (store: ObjectStore, signal: AbortSignal) => {
-        const loop = new ControlLoop(
-            installed.database,
-            store.controllers().filter((each) => each.name === "replica"),
-            { report: failing },
-        );
+        const loop = new ControlLoop(installed.database, store.syncing(), { report: failing });
 
         return loop.run(signal);
     };
@@ -1030,7 +1007,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
         const gates = await followed.sink.gates();
         const current = await Promise.all(
             gates.map(
-                async ({ subscription }) =>
+                async (subscription) =>
                     Replica.isLive(
                         installed.database,
                         subscription.name,
@@ -1051,7 +1028,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
     const pages = Promise.withResolvers<void>();
     const woken = await open(pages.promise);
     const handle = definePackage({ objects: { document } });
-    const implemented = woken.implement(handle, [], []);
+    const implemented = woken.implement(handle, [], { controllers: [], consumers: [] });
     const ready = present(implemented.ready, "the readiness wait");
     const waking = new AbortController();
     onTestFinished(() => waking.abort());
@@ -1081,10 +1058,13 @@ test("follow replicates as a server without methods, journal or call key", async
 
     // store an account and its space at home, and a database with access replicas
     const home = await TestDatabase.create(accessTables, { environment: world, isMigrated: true });
-    const follower = await TestDatabase.create([...accessTables, lock, ...BLOB_TABLES], {
-        environment: world,
-        isMigrated: true,
-    });
+    const follower = await TestDatabase.create(
+        [...accessTables, lock, ...BLOB_TABLES, replicaRequest],
+        {
+            environment: world,
+            isMigrated: true,
+        },
+    );
     onTestFinished(async () => {
         await Promise.all([home.close(), follower.close()]);
     });
@@ -1112,7 +1092,7 @@ test("follow replicates as a server without methods, journal or call key", async
         origin: { package: document.package },
     });
     const controller = new AbortController();
-    const loop = new ControlLoop(follower.database, store.controllers(), {
+    const loop = new ControlLoop(follower.database, store.control(), {
         report: failing,
     });
     const running = loop.run(controller.signal);
@@ -1124,10 +1104,10 @@ test("follow replicates as a server without methods, journal or call key", async
     await Replica.wait(follower.database, Scope.universe.id, head, controller.signal);
 
     // run only compaction, the blob collection and the replica follow, with no event log
-    expect(store.controllers().map((each) => each.name)).toEqual([
-        "compaction",
-        "blobs",
-        "replica",
+    const { controllers, consumers } = store.control();
+    expect([controllers.map((each) => each.name), consumers.map((each) => each.name)]).toEqual([
+        ["blob-leases", "blob-retired", "blob-freed", "replica"],
+        ["replica-requests"],
     ]);
 });
 
@@ -1671,7 +1651,7 @@ test("wait before serving for the store's chain replicas, never for its followed
     const listed = await present(store.subscriber, "the store's subscriber").subscriptions(
         Snapshot.live(database),
     );
-    const gates = (await store.sink.gates()).map(({ subscription }) => subscription.name);
+    const gates = (await store.sink.gates()).map((subscription) => subscription.name);
     expect([listed.length, gates]).toEqual([4, [ObjectSink.chainName(followingSpaceId)]]);
 });
 
@@ -1730,13 +1710,14 @@ test("serve a store once its chain is confirmed while the source of a followed s
     // follow both, and serve once the chain is confirmed
     const stopping = new AbortController();
     onTestFinished(() => stopping.abort());
-    const following = new ControlLoop(
-        installed.database,
-        store.controllers().filter((each) => each.name === "replica"),
-        { report: failing },
-    ).run(stopping.signal);
+    const following = new ControlLoop(installed.database, store.syncing(), { report: failing }).run(
+        stopping.signal,
+    );
     const ready = present(
-        store.implement(definePackage({ objects: { document } }), [], []).ready,
+        store.implement(definePackage({ objects: { document } }), [], {
+            controllers: [],
+            consumers: [],
+        }).ready,
         "the readiness wait",
     );
     await ready(stopping.signal);
@@ -1849,12 +1830,8 @@ test("replicate a scoped table an installation's database declares beside its fo
         events: await testEvents(installed.database, world),
         origin: { package: document.package },
     });
-    const replica = present(
-        replicating.controllers().find((each) => each.name === "replica"),
-        "the replica controller",
-    );
     const controller = new AbortController();
-    const loop = new ControlLoop(installed.database, [replica], {
+    const loop = new ControlLoop(installed.database, replicating.syncing(), {
         report: failing,
     }).run(controller.signal);
     onTestFinished(async () => {
@@ -2145,11 +2122,7 @@ test("replicate the chain of an account another replica brought first, once the 
 
     // run the replicas, whose universe replica then only records the account it shares with the other replica
     const controller = new AbortController();
-    const loop = new ControlLoop(
-        installed.database,
-        replicating.controllers().filter((each) => each.name === "replica"),
-        { report: failing },
-    );
+    const loop = new ControlLoop(installed.database, replicating.syncing(), { report: failing });
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
@@ -2169,18 +2142,13 @@ async function followUniverse(
     home: DatabaseConnection,
 ): Promise<AbortController> {
     // follow the store's replicas of the universe's rows, and of the grants delegated into it
-    const replica = present(
-        replicating.controllers().find((each) => each.name === "replica"),
-        "the replica controller",
-    );
-    const controller = new AbortController();
-    const keys = (await replica.list(Snapshot.live(replicating.database))).filter(
-        (each) => readScope(each) === Scope.universe.id,
-    );
-    const following = keys.map((key) => replica.reconcile(key, reconciliation(controller.signal)));
+    const { keys, controller, running } = await followReplicas(replicating, {
+        isFollowed: (key) => readScope(key) === Scope.universe.id,
+        report: failing,
+    });
     onTestFinished(async () => {
         controller.abort();
-        await Promise.allSettled(following);
+        await running;
     });
 
     // wait for each followed replica to arrive at the home's head, by the name and scope of its key

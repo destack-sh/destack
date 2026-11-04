@@ -30,20 +30,17 @@ import {
 } from "@destack/sync";
 import {
     and,
-    BlobController,
     BlobStore,
     Change,
-    CompactionController,
+    type Control,
     type Controller,
     type DatabaseConnection,
     DatabaseError,
-    type Delta,
     eq,
     Key,
     LogPosition,
     lte,
     ReadSet,
-    type ReconcileController,
     Row,
     Snapshot,
     TABLE,
@@ -107,7 +104,6 @@ import { ObjectTypePool, ObjectDescription, type KnownDeclaration } from "../obj
 import { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
 import { Authorization } from "./authorization.ts";
-import { ClaimController } from "../claim/controller.ts";
 import { type ClaimPrimary, Reservation } from "../claim/reservation.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
 import { ExternalStorage } from "./external.ts";
@@ -115,8 +111,6 @@ import { ObjectSource } from "./source.ts";
 import { ObjectSink } from "./sink.ts";
 import { Catalog, type CatalogOptions, type ServedType } from "./catalog.ts";
 import type { ResourceControllerOptions } from "./provisioned.ts";
-import { ExpiringController } from "./expiring.ts";
-import { RecoverableController } from "./recoverable.ts";
 import { TrackedHistory } from "./tracked.ts";
 import { Settlement } from "./settlement.ts";
 import { TelemetryScope } from "@destack/telemetry";
@@ -160,12 +154,12 @@ const BOOKMARK_TIMEOUT_MILLISECONDS = 5000;
 /** How long a store waits for a key it acquires to replicate: 5 s, above sub-second replica lag. */
 const ACQUIRE_MILLISECONDS = 5000;
 
-/** A database's replica: the subscription following it, and the publisher streaming its pages. */
+/** A database's replica: its subscription, and the scope whose publisher streams it. */
 export interface SubscriberEntry {
     /** The subscription following the replica. */
     readonly subscription: sync.SubscriptionRecord;
-    /** The publisher streaming the replica's pages, one step closer to its rows' home. */
-    readonly publisher: sync.Publisher;
+    /** The scope whose publisher streams the replica's pages, one step closer to its rows' home. */
+    readonly home: string;
     /** Whether a use acquired the replica's key, as on-demand follows do, not a declaration. */
     readonly isAcquired: boolean;
 }
@@ -178,8 +172,13 @@ export interface SubscriberOptions {
 
 /** The subscriptions a database follows for its replicas, each from its publisher. */
 export interface Subscriber extends SubscriberOptions {
-    /** List the subscriptions of the store's chains and follows, reading through a view. */
-    readonly subscriptions: (view: Snapshot, delta?: Delta) => Promise<readonly SubscriberEntry[]>;
+    /** List the subscriptions of the store's chains and follows, reusing keys no change touched. */
+    readonly subscriptions: (
+        view: Snapshot,
+        changes?: readonly Change[],
+    ) => Promise<readonly SubscriberEntry[]>;
+    /** Open the publisher streaming a home's replicas. */
+    readonly publisher: (home: string) => sync.Publisher;
 }
 
 /** Where a watermark's history is in a store: the local log, a lost one, its replicas, or none. */
@@ -781,24 +780,16 @@ export class ObjectStore {
         // follow the current catalog's follows' keys and the chains
         return {
             ...(uplink === undefined ? {} : { uplink }),
-            subscriptions: async (view, delta) => {
+            publisher: publisherOf,
+            subscriptions: async (view, changes) => {
                 // follow the follows' keys, then the chains
                 const followed = await ObjectStore.#followSubscriptions(
                     this,
                     this.#catalog.follows,
-                    {
-                        target,
-                        publisher: publisherOf,
-                        view,
-                        ...(delta === undefined ? {} : { delta }),
-                    },
+                    { target, view, ...(changes === undefined ? {} : { changes }) },
                 );
                 const chainedEntries = (await this.sink.chains(target, view)).map(
-                    ({ subscription, home }) => ({
-                        subscription,
-                        publisher: publisherOf(home),
-                        isAcquired: false,
-                    }),
+                    ({ subscription, home }) => ({ subscription, home, isAcquired: false }),
                 );
 
                 return [...chainedEntries, ...followed];
@@ -969,7 +960,7 @@ export class ObjectStore {
     implement(
         handle: PackageHandle,
         routed: readonly ObjectType[],
-        controllers: readonly Controller[],
+        control: Control,
     ): PackageHandler & { readonly objects: ObjectStore } {
         const { subscriber } = this;
 
@@ -984,7 +975,7 @@ export class ObjectStore {
                     { package: Package.of(handle), requestId: call.request.requestId },
                 ),
             ),
-            controllers,
+            control,
             ...(subscriber === undefined
                 ? {}
                 : {
@@ -1114,7 +1105,7 @@ export class ObjectStore {
             }
 
             // require each gating replica live and current, naming the first that is not
-            for (const { subscription } of await this.sink.gates()) {
+            for (const subscription of await this.sink.gates()) {
                 const { name, scope } = subscription;
                 if (!sync.Replica.isLive(database, name, scope, this.authorizer.lag)) {
                     return `the replica ${name} of ${scope} is not live`;
@@ -1790,10 +1781,13 @@ export class ObjectStore {
         const claimants = await Claimant.written(transaction, this.objects);
         const reservation =
             this.claims &&
-            (await Reservation.reserve(this.claims, claimants, this.objects, {
-                id: run.id,
-                environment: this.environment,
-            }));
+            (await Reservation.reserve(
+                this.claims,
+                claimants,
+                this.objects,
+                { id: run.id, environment: this.environment },
+                this.database,
+            ));
         progress.reservation = reservation;
 
         // commit prepared work and claims with the mutation
@@ -2178,58 +2172,65 @@ export class ObjectStore {
         return (await this.#readHomeAll(sent)).receive(sent, signer);
     }
 
-    /** List the controllers the served objects need: the store's, then each type's. */
-    controllers(): readonly Controller[] {
-        return [
-            ...this.#storeControllers(),
-            ...this.#syncing(),
-            ...this.#objectControllers(() => true),
-        ];
+    /** List what the served objects need: the store's controllers, then each type's. */
+    control(): Control {
+        const syncing = this.syncing();
+        const objects = this.#objectControl(() => true);
+
+        return {
+            controllers: [
+                ...this.#storeControllers(),
+                ...syncing.controllers,
+                ...objects.controllers,
+            ],
+            consumers: [...syncing.consumers, ...objects.consumers],
+        };
     }
 
-    /** List the controllers syncing the store's replicas. */
-    #syncing(): Controller[] {
-        return this.subscriber === undefined ? [] : [this.sink.controller(this.subscriber)];
+    /** List the consumer and controller syncing the store's replicas. */
+    syncing(): Control {
+        const { subscriber } = this;
+
+        return subscriber === undefined
+            ? { controllers: [], consumers: [] }
+            : {
+                  controllers: [this.sink.controller(subscriber)],
+                  consumers: [this.sink.consumer(subscriber)],
+              };
     }
 
-    /** List the controllers of the types a filter selects by their package's id. */
-    #objectControllers(isSelected: (packageId: PackageId) => boolean): ReconcileController[] {
-        return [...this.objects, ...this.#catalog.provisioned].flatMap((object) =>
-            object.controller === undefined || !isSelected(object.package.id)
-                ? []
-                : [ObjectController.control(this, object, object.controller)],
+    /** List the controllers and projections of the types a filter selects by their package's id. */
+    #objectControl(isSelected: (packageId: PackageId) => boolean): Control {
+        const selected = [...this.objects, ...this.#catalog.provisioned].filter((object) =>
+            isSelected(object.package.id),
         );
+
+        return {
+            controllers: selected.flatMap((object) =>
+                [...object.controllers, ...object.traitControllers()].map((declared) =>
+                    ObjectController.control(this, object, declared),
+                ),
+            ),
+            consumers: selected.flatMap((object) =>
+                object.projections.map((declared) =>
+                    ObjectController.project(this, object, declared),
+                ),
+            ),
+        };
     }
 
-    /** List the store's controllers, from compaction to its branch. */
+    /** List the store's controllers over its own tables, from blobs to its branch. */
     #storeControllers(): Controller[] {
-        // compact the log, and pick the controllers the objects need
-        const isRecoverable = this.objects.some(
-            (object) => object.lifecycle.recoverable !== undefined,
-        );
-        const isExpiring = this.objects.some((object) => object.lifecycle.expiring !== undefined);
         const isSettled = this.objects.some((object) =>
             Object.values(object.methods).some((method) => Method.settles(method)),
         );
 
         return [
-            new CompactionController(this.database, this.clock),
-            new BlobController(this.blobs),
+            ...this.blobs.controllers(),
             ...(this.#journal === undefined
                 ? []
-                : [this.#journal.controller(), this.#journal.events.controller()]),
-            ...(this.claims === undefined
-                ? []
-                : [
-                      new ClaimController(
-                          this.claims,
-                          this.database,
-                          this.objects,
-                          this.environment,
-                      ),
-                  ]),
-            ...(isRecoverable ? [new RecoverableController(this)] : []),
-            ...(isExpiring ? [new ExpiringController(this)] : []),
+                : [this.#journal.controller(), ...this.#journal.events.controllers()]),
+            ...(this.claims?.home === undefined ? [] : [Reservation.controller(this, this.claims)]),
             ...(isSettled ? [Settlement.controller(this)] : []),
             ...(this.branch === undefined
                 ? []
@@ -3498,16 +3499,24 @@ export class ObjectStore {
         servedIds: ReadonlySet<PackageId>,
     ): PackageHandler & { readonly objects: ObjectStore } {
         // run the package's types' controllers, the first package also the store's and unserved types'
-        const { controllers = [], adapters = {}, access, responseHeaders } = entry.definition;
-        const listed = [
-            ...(isFirst ? this.#storeControllers() : []),
-            ...this.#objectControllers(
-                (packageId) =>
-                    packageId === entry.package.id || (isFirst && !servedIds.has(packageId)),
-            ),
-        ];
-        const built = controllers.map((controller) => controller(this));
-        const implemented = this.implement(entry.package, entry.objects, [...listed, ...built]);
+        const {
+            controllers = [],
+            consumers = [],
+            adapters = {},
+            access,
+            responseHeaders,
+        } = entry.definition;
+        const objects = this.#objectControl(
+            (packageId) => packageId === entry.package.id || (isFirst && !servedIds.has(packageId)),
+        );
+        const implemented = this.implement(entry.package, entry.objects, {
+            controllers: [
+                ...(isFirst ? this.#storeControllers() : []),
+                ...objects.controllers,
+                ...controllers.map((controller) => controller(this)),
+            ],
+            consumers: [...objects.consumers, ...consumers.map((consumer) => consumer(this))],
+        });
 
         // answer the package's adapters below its mount, and the routes of each protocol it implements
         const fetch = ObjectStore.#adapterFetch(entry.package, adapters, this);
@@ -3527,7 +3536,7 @@ export class ObjectStore {
 
         return {
             ...implemented,
-            ...(isFirst ? { syncing: this.#syncing() } : {}),
+            ...(isFirst ? { syncing: this.syncing() } : {}),
             ...(access === undefined ? {} : { access }),
             ...(responseHeaders === undefined ? {} : { responseHeaders }),
             ...(fetch === undefined ? {} : { fetch }),
@@ -3656,9 +3665,8 @@ export class ObjectStore {
         follows: readonly Follow[],
         options: {
             readonly target: string;
-            readonly publisher: (scope: string) => sync.Publisher;
             readonly view: Snapshot;
-            readonly delta?: Delta;
+            readonly changes?: readonly Change[];
         },
     ): Promise<SubscriberEntry[]> {
         // read each follow's keys: fixed, from the store's rows, or acquired on demand
@@ -3682,7 +3690,7 @@ export class ObjectStore {
                 }
                 // read a follow's keys from the store's rows
                 else {
-                    const keys = await store.#readKeys(follow, options.view, options.delta);
+                    const keys = await store.#readKeys(follow, options.view, options.changes);
 
                     return keys.map((key) => ({ shape: follow.shape, key, isAcquired: false }));
                 }
@@ -3724,7 +3732,7 @@ export class ObjectStore {
                 options.target,
                 subject,
             ),
-            publisher: options.publisher(scope),
+            home: scope,
             isAcquired,
         }));
     }
@@ -3760,7 +3768,7 @@ export class ObjectStore {
     async #readKeys(
         follow: RowFollow<object, ObjectType>,
         view: Snapshot,
-        delta: Delta | undefined,
+        changes: readonly Change[] | undefined,
     ): Promise<FollowKey[]> {
         // read the rows of the store's database the keys come from, in identifier order
         const table = follow.from.table;
@@ -3770,7 +3778,7 @@ export class ObjectStore {
 
         // list the source rows the commit changed, whose keys read again
         const changed = new Set(
-            (delta?.changes ?? [])
+            (changes ?? [])
                 .filter((change) => Change.of(change, table))
                 .map((change) => Key.name(table, change.key)),
         );
@@ -3784,11 +3792,10 @@ export class ObjectStore {
                 const name = Key.name(table, row);
                 const known = previous?.get(name);
                 const isReused =
-                    delta !== undefined &&
+                    changes !== undefined &&
                     known !== undefined &&
                     !changed.has(name) &&
-                    !delta.changes.some((change) => known.reads.touches(change)) &&
-                    !known.reads.tables.some((read) => delta.unlogged.has(read[TABLE].sqlName));
+                    !changes.some((change) => known.reads.touches(change));
                 const entry = isReused ? known : await this.#readKey(follow, row, view);
 
                 // list the row's entry, and its reads in the listing's

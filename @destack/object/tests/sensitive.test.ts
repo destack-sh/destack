@@ -121,7 +121,7 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
     // run the store's controllers until they settle, then flush the telemetry
     const failures: unknown[] = [];
     const stopping = new AbortController();
-    const loop = new ControlLoop(store.database, store.controllers(), {
+    const loop = new ControlLoop(store.database, store.control(), {
         report: (_controller, _key, error) => failures.push(error),
     });
     const running = loop.run(stopping.signal);

@@ -3,7 +3,8 @@ import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AccessContext, Authorization, Caller, none, principal } from "@destack/access";
-import { defineDatabase, Transaction, type ReconcileController } from "@destack/db";
+import { type Consumer, defineDatabase, Transaction } from "@destack/db";
+import { reconciliation } from "@destack/db/test";
 import { TestAccess } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
@@ -119,7 +120,7 @@ test("start a feed's reader at its creating commit and release it at its deletio
         spaces: await feed.reader("space").keys(database),
     };
 
-    // start each feed's slot at its creating commit, place the space's once, and release only the deleted feed's
+    // start each feed's checkpoint at its creating commit, place the space's once, and release only the deleted feed's
     expect({ created, deleted }).toEqual({
         created: { feeds: [firstId, secondId].toSorted(), first: sequence, spaces: [SPACE_ID] },
         deleted: { feeds: [secondId], spaces: [SPACE_ID] },
@@ -202,7 +203,7 @@ const tick = defineObject(
     }),
 );
 
-test("hand a scope's page of ticks to the handler once its first is a batch old, the same page after a failed attempt, the same page to two hosts at once, then the next page", async () => {
+test("hand a scope's claimed page of ticks to the handler, the same page after a failed attempt and to two hosts at once, then pass a page without its ticks", async () => {
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation(START);
     await (async () => {
@@ -257,11 +258,7 @@ test("hand a scope's page of ticks to the handler once its first is a batch old,
             readonly claimedAt: number;
         }[] = [];
         let isFailing = true;
-        const reconcile = (consumer: ReconcileController) =>
-            consumer.reconcile(SPACE_ID, {
-                signal: new AbortController().signal,
-                changed: async () => undefined,
-            });
+        const consume = (consumer: Consumer) => consumer.consume(SPACE_ID, reconciliation());
         const two = tick.consume("count", async (page) => {
             pages.push({
                 host: "two",
@@ -284,52 +281,37 @@ test("hand a scope's page of ticks to the handler once its first is a batch old,
                 isFailing = false;
                 throw new Error("the counter is unreachable");
             } else if (page.events.length > 1) {
-                await reconcile(two);
+                await consume(two);
             }
         })(store);
 
-        // tick, wait half a batch, fail a batch in, tick again, then retry
+        // tick, fail a batch in, tick again, then retry
         const first = await record("1");
-        await simulation.jump(START + BATCH / 2);
-        const young = await reconcile(one);
         await simulation.jump(START + BATCH);
-        const failed = await reconcile(one).catch((error: unknown) => String(error));
+        const failed = await consume(one).catch((error: unknown) => String(error));
         await record("2");
-        const retried = await reconcile(one);
+        await consume(one);
 
         // tick a batch later, then take the page on host one while host two takes it too
         await simulation.jump(START + 2 * BATCH);
         const third = await record("3");
         await simulation.jump(START + 3 * BATCH);
-        const both = await reconcile(one);
-        const idle = await reconcile(two);
+        await consume(one);
+        await consume(two);
 
-        // tick in another space, then pass the page without the space's ticks and look again
+        // tick in another space, then pass the page without the space's ticks
         await openSpace(database, world, OTHER_SPACE_ID);
         const elsewhere = await record("4", OTHER_SPACE_ID);
-        const passed = await reconcile(two);
-        const rest = await reconcile(two);
+        await consume(two);
 
         // take the failed page twice unchanged, and the next one on both hosts, host two moving past it
         const reader = tick.reader("count").at(SPACE_ID);
         expect({
-            young,
             failed,
-            retried,
-            both,
-            idle,
-            passed,
-            rest,
             pages,
             place: [await reader.after(database), await reader.claimed(database)],
         }).toEqual({
-            young: BATCH / 2,
             failed: "Error: the counter is unreachable",
-            retried: 0,
-            both: 0,
-            idle: undefined,
-            passed: 0,
-            rest: undefined,
             pages: [
                 { host: "one", ids: ["1"], after: 0, through: first, claimedAt: START + BATCH },
                 { host: "one", ids: ["1"], after: 0, through: first, claimedAt: START + BATCH },

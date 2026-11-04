@@ -5,7 +5,7 @@ import { FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { accessTables, none, principal, relation } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
-import { defineDatabase, eq, Snapshot } from "@destack/db";
+import { ControlLoop, defineDatabase, eq, Snapshot } from "@destack/db";
 import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { type ClientOptions, createClient } from "@destack/object/client";
@@ -222,30 +222,25 @@ async function followChain(
     database: TestDatabase["database"],
     home: TestDatabase["database"],
 ): Promise<void> {
-    // reconcile each listed replica, following it until the test ends
-    const follower = present(
-        replica.controllers().find((each) => each.name === "replica"),
-        "the replica controller",
-    );
+    // run the store's replicas until the test ends: its consumer lists them, its controller follows each
     const controller = new AbortController();
-    const following: Promise<unknown>[] = [];
+    const loop = new ControlLoop(database, replica.syncing(), { report: () => {} });
+    const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
-        await Promise.allSettled(following);
+        await running;
     });
 
-    // follow the listed replicas until the scopes their rows bring list no more, each to the home's head
+    // wait for the requested replicas until the scopes their rows bring request no more, each at the home's head
     const head = await home.log.position();
     const followed = new Set<string>();
     for (let isGrowing = true; isGrowing;) {
-        const keys = (await follower.list(Snapshot.live(database))).filter(
-            (entry) => !followed.has(entry),
-        );
+        await loop.idle();
+        const keys = (await replica.sink.followed())
+            .map(({ subscription }) => `${subscription.name} ${subscription.scope}`)
+            .filter((entry) => !followed.has(entry));
         for (const key of keys) {
             followed.add(key);
-            following.push(follower.reconcile(key, reconciliation(controller.signal)));
-        }
-        for (const key of keys) {
             const [name, scope] = key.split(" ");
             const listed = { name: present(name, "a name"), scope: present(scope, "a scope") };
             await Replica.waitAt(database, [listed], head, controller.signal);

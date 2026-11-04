@@ -88,13 +88,13 @@ test("subscribe to a fixed key and to one key per row the follower has as one re
     await create("Notes", null);
     const listed = async () =>
         (await subscriber.subscriptions(Snapshot.live(storage.database))).map(
-            ({ subscription, publisher }) => ({
+            ({ subscription, home }) => ({
                 name: subscription.name,
                 publication: subscription.publication,
                 scope: subscription.scope,
                 target: subscription.target,
                 parameters: subscription.parameters,
-                isScopePublisher: publisher === publishers.get(subscription.scope),
+                isScopePublisher: subscriber.publisher(home) === publishers.get(subscription.scope),
             }),
         );
     const first = await listed();

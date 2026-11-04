@@ -1,20 +1,32 @@
 import { CHAIN_PUBLICATION, type ChainOptions } from "@destack/access";
 import { Scope, type ObjectTypeReference } from "@destack/sync";
-import { Key, type LogPosition, Snapshot, TABLE, type Table } from "@destack/db";
+import {
+    type Change,
+    type Consumer,
+    type Controller,
+    DatabaseError,
+    eq,
+    Key,
+    type Following,
+    Snapshot,
+    TABLE,
+    type Table,
+} from "@destack/db";
 import { canonicalize, Digest, schema, present } from "@destack/schema";
 import * as sync from "@destack/sync";
-import type { FollowController, Delta } from "@destack/db";
 import { waitAborted } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
+import { replicaRequest } from "../replica/request.ts";
+
+/** One requested replica as its row stores it. */
+type ReplicaRequest = typeof replicaRequest.$inferSelect;
 
 /** The replicas a store follows: what its subscriber asks for, followed and dropped by key. */
 export class ObjectSink {
     /** The store whose database stores the replicas. */
     readonly store: ObjectStore;
-    /** The replicas the store's subscriber asks for as last listed, by replica key. */
-    readonly #listed = new Map<string, ReplicaEntry>();
-    /** The latest listing of the replicas, each one run after the one before. */
-    #listing: Promise<readonly string[]> | undefined;
+    /** The log position the requests were listed at, absent before this process listed them. */
+    #listed: number | undefined;
 
     /** Follow the replicas a store's subscriber asks for into its database. */
     constructor(store: ObjectStore) {
@@ -26,70 +38,155 @@ export class ObjectSink {
         return `${subscription.name} ${subscription.scope}`;
     }
 
-    /** Build the controller following requested replicas and dropping unrequested stored ones. */
-    controller(subscriber: Subscriber): FollowController {
-        // follow each listed replica under its key and lease
+    /** Build the consumer listing the requested replicas as the tables they read from change. */
+    consumer(subscriber: Subscriber): Consumer {
         return {
-            name: "replica",
-            mode: "follow",
-            watches: this.#replicaWatches(),
-            concurrency: Infinity,
-            list: (view, delta) => this.#listInOrder(subscriber, view, delta),
-            revision: (key) => this.#listed.get(key)?.digest,
-            reconcile: (key, { signal, synced }) => this.#reconcileReplica(key, signal, synced),
+            name: "replica-requests",
+            reads: this.#replicaWatches(),
+            checkpoint: "none",
+            consume: async () => this.#request(subscriber),
         };
     }
 
-    /** List the replicas the store follows as last listed, listing them first if none did yet. */
-    async followed(): Promise<Extract<ReplicaIntent, { readonly action: "follow" }>[]> {
+    /** Build the controller following each requested replica and dropping each unrequested one. */
+    controller(subscriber: Subscriber): Controller<typeof replicaRequest> {
+        return {
+            name: "replica",
+            table: replicaRequest,
+            pending: {},
+            concurrency: Infinity,
+            follow: async (rows, following) => {
+                const key = present(rows[0], "a requested replica").key;
+                await this.#follow(subscriber, key, following);
+            },
+        };
+    }
+
+    /** List the replicas the store follows, as their requests stand. */
+    async followed(): Promise<
+        {
+            readonly subscription: sync.SubscriptionRecord;
+            readonly publisher: sync.Publisher;
+            readonly replica: sync.Replica;
+        }[]
+    > {
         // follow nothing without a subscriber
         const subscriber = this.store.subscriber;
         if (subscriber === undefined) {
             return [];
         }
 
-        // wait for the latest listing, listing first if none ran yet
-        await (this.#listing ?? this.#listInOrder(subscriber, Snapshot.live(this.store.database)));
+        // read the followed requests
+        const rows = await Snapshot.live(this.store.database)
+            .read(replicaRequest)
+            .findMany({ where: { action: "follow" } });
 
-        return [...this.#listed.values()].filter((entry) => entry.action === "follow");
+        return rows.map((row) => ({
+            subscription: row.subscription,
+            publisher: subscriber.publisher(present(row.home, `the home of replica ${row.key}`)),
+            replica: this.store.source.buildReplica(row.subscription),
+        }));
     }
 
     /** List the replicas the store waits for: its own chain's, each up to the universe. */
-    async gates(): Promise<Extract<ReplicaIntent, { readonly action: "follow" }>[]> {
-        // take the scopes from the store's scope up to the universe
+    async gates(): Promise<sync.SubscriptionRecord[]> {
+        // take the chain replicas of the store's scope, leaving followed shapes, which gate nothing
         const view = Snapshot.live(this.store.database);
         const ancestry = new Set(await this.ancestry(this.store.scope, view));
-
-        // leave followed shapes, which report each key synced without gating the store
         const chain = ObjectSink.chainName(this.store.scope);
 
-        return (await this.followed()).filter(
-            ({ subscription }) => subscription.name === chain && ancestry.has(subscription.scope),
+        return (await this.chains(this.store.scope, view))
+            .map(({ subscription }) => subscription)
+            .filter(
+                (subscription) => subscription.name === chain && ancestry.has(subscription.scope),
+            );
+    }
+
+    /** List the requested replicas, reusing untouched keys, and write the changed requests. */
+    async #request(subscriber: Subscriber): Promise<void> {
+        // read the changes since the last listing, listing every key afresh at the first or once the log dropped them
+        const { database } = this.store;
+        const position = await database.log.position();
+        const changes = await this.#changes();
+
+        // list the requests
+        const view = Snapshot.live(database);
+        const entries = await subscriber.subscriptions(view, changes);
+        const named = new Set(entries.map((entry) => ObjectSink.#key(entry.subscription)));
+        const held = await sync.Replica.subscriptions(view);
+        const requests = await Promise.all(
+            [
+                ...held
+                    .filter((replica) => !named.has(ObjectSink.#key(replica)))
+                    .map((replica) => ({
+                        action: "drop" as const,
+                        subscription: replica,
+                        home: null,
+                        isAcquired: false,
+                    })),
+                ...entries.map(({ subscription, home, isAcquired }) => ({
+                    action: "follow" as const,
+                    subscription,
+                    home,
+                    isAcquired,
+                })),
+            ].map(async (request) => ({
+                ...request,
+                key: ObjectSink.#key(request.subscription),
+                scope: request.subscription.scope,
+                digest: await Digest.json(
+                    { action: request.action, subscription: request.subscription },
+                    this.store.environment.crypto,
+                ),
+            })),
         );
+
+        // write the requests whose digest changed, and remove the ones no longer asked for
+        const stored = new Map(
+            (await view.read(replicaRequest).findMany()).map((row) => [row.key, row.digest]),
+        );
+        const changed = requests.filter((request) => stored.get(request.key) !== request.digest);
+        const kept = new Set(requests.map((request) => request.key));
+        const removed = [...stored.keys()].filter((key) => !kept.has(key));
+        if (changed.length > 0 || removed.length > 0) {
+            await database.transaction(async (transaction) => {
+                for (const request of changed) {
+                    await transaction
+                        .insert(replicaRequest)
+                        .values(request)
+                        .onConflictDoUpdate({ target: replicaRequest.key, set: request });
+                }
+                for (const key of removed) {
+                    await transaction.delete(replicaRequest).where(eq(replicaRequest.key, key));
+                }
+            });
+        }
+        this.#listed = position.sequence;
     }
 
-    /** List the replicas after the listing before, recording this one as the latest. */
-    #listInOrder(
-        subscriber: Subscriber,
-        view: Snapshot,
-        delta?: Delta,
-    ): Promise<readonly string[]> {
-        // wait for the listing before, whose caller sees its failure
-        const previous = this.#listing?.catch(() => []) ?? Promise.resolve([]);
-        const listing = previous.then(() => this.#list(subscriber, view, delta));
-        this.#listing = listing;
+    /** Read the watched changes since the last listing, absent to list every key afresh. */
+    async #changes(): Promise<readonly Change[] | undefined> {
+        // list afresh at the first listing
+        const after = this.#listed;
+        if (after === undefined) {
+            return undefined;
+        }
 
-        return listing;
-    }
+        // read the watched changes, listing afresh once the log dropped them or none is logged
+        try {
+            const page = await this.store.database.log.read({
+                tables: this.#replicaWatches(),
+                after,
+            });
 
-    /** List the requested replicas through a view, revising the listed ones, by replica key. */
-    async #list(subscriber: Subscriber, view: Snapshot, delta?: Delta): Promise<readonly string[]> {
-        // list the replicas, revising the listed ones at the log position the listing read from
-        const revision = await this.store.database.log.position();
-        const replicas = await this.#replicas(subscriber, view, delta);
-        ObjectSink.#revise(this.#listed, replicas, revision);
+            return page.changes.length === 0 ? undefined : page.changes;
+        } catch (error) {
+            if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
+                throw error;
+            }
 
-        return [...replicas.keys()];
+            return undefined;
+        }
     }
 
     /** List the tables whose changes list the replicas again. */
@@ -111,112 +208,124 @@ export class ObjectSink {
         ];
     }
 
-    /** Follow requested replicas from publishers and drop unrequested ones, by replica key. */
-    async #replicas(
-        subscriber: Subscriber,
-        view: Snapshot,
-        delta?: Delta,
-    ): Promise<Map<string, ReplicaIntent & { digest: string }>> {
-        // drop the stored replicas no request asks for and follow the requested ones
-        const entries = await subscriber.subscriptions(view, delta);
-        const named = new Set(entries.map((entry) => ObjectSink.#key(entry.subscription)));
-        const held = await sync.Replica.subscriptions(view);
-        const actions: ReplicaIntent[] = [
-            ...held
-                .filter((replica) => !named.has(ObjectSink.#key(replica)))
-                .map((replica) => ({ action: "drop" as const, subscription: replica })),
-            ...entries.map(({ subscription, publisher, isAcquired }) => ({
-                action: "follow" as const,
-                subscription,
-                replica: this.store.source.buildReplica(subscription),
-                publisher,
-                isAcquired,
-            })),
-        ];
+    /** Follow or drop one requested replica until stopped, revised as its request changes. */
+    async #follow(subscriber: Subscriber, key: string, following: Following): Promise<void> {
+        // follow the request as it stands, then each revision of it
+        const { signal } = following;
+        let request = await this.#read(key);
+        while (request !== undefined && !signal.aborted) {
+            // revise the follow once the request changes, requesting it at the log's position now
+            const revised = new AbortController();
+            const revision = await this.store.database.log.position();
+            const current: Request = {
+                subscription: { ...request.subscription, revision },
+                waking: new AbortController(),
+            };
+            const watching = this.#watch(key, request, current, revised, following);
 
-        // digest each action with its subscription, the revision a listing compares
-        return new Map(
-            await Promise.all(
-                actions.map(
-                    async (entry): Promise<[string, ReplicaIntent & { digest: string }]> => {
-                        const { action, subscription } = entry;
-                        const digest = await Digest.json(
-                            { action, subscription },
-                            this.store.environment.crypto,
-                        );
-
-                        return [ObjectSink.#key(subscription), { ...entry, digest }];
-                    },
-                ),
-            ),
-        );
-    }
-
-    /** Follow or drop one listed replica until the controller stops it. */
-    async #reconcileReplica(
-        key: string,
-        signal: AbortSignal,
-        synced: () => void,
-    ): Promise<undefined> {
-        while (!signal.aborted) {
-            // wait for the loop to stop a replica no longer listed
-            const replica = this.#listed.get(key);
-            if (replica === undefined) {
-                synced();
-                await waitAborted(signal);
-
-                return undefined;
-            }
-
-            // follow a requested replica from the position it arrived at until its request changes
-            const revised = AbortSignal.any([signal, replica.revised.signal]);
-            if (replica.action === "follow") {
-                await this.#followReplica(replica, revised, synced);
-            }
-            // drop a stored replica no request asks for and wait for a request asking for it again
-            else {
+            // follow a requested replica, or drop an unrequested one and wait for a change
+            const until = AbortSignal.any([signal, revised.signal]);
+            if (request.action === "follow") {
+                await this.#followReplica(subscriber, request, current, until, following);
+            } else {
                 await sync.Replica.drop(this.store.database, {
-                    ...replica.subscription,
+                    ...request.subscription,
                     tables: [],
                 });
-                synced();
-                await waitAborted(revised);
+                following.synced();
+                await waitAborted(until);
             }
+            revised.abort();
+            await watching;
+            request = await this.#read(key);
         }
 
-        return undefined;
+        // hold a removed request's key until the loop stops it
+        following.synced();
+        await waitAborted(signal);
+    }
+
+    /** Read one replica's request, absent once removed. */
+    async #read(key: string): Promise<ReplicaRequest | undefined> {
+        return Snapshot.live(this.store.database)
+            .read(replicaRequest)
+            .findFirst({ where: { key } });
+    }
+
+    /** Watch a followed request: move a reshaped one in place, and revise any other change. */
+    async #watch(
+        key: string,
+        request: ReplicaRequest,
+        current: Request,
+        revised: AbortController,
+        following: Following,
+    ): Promise<void> {
+        let watched = request;
+        while (!revised.signal.aborted) {
+            // wait for the request's row to change
+            await Promise.race([following.changed(), waitAborted(revised.signal)]);
+            const next = revised.signal.aborted ? watched : await this.#read(key);
+
+            // keep an unchanged request
+            if (next?.digest === watched.digest) {
+                watched = next;
+            }
+            // move a follow of other parameters over the same tables in place, waking its request
+            else if (
+                next !== undefined &&
+                watched.action === "follow" &&
+                next.action === "follow" &&
+                this.#isReshape(watched.subscription, next.subscription)
+            ) {
+                const revision = await this.store.database.log.position();
+                current.subscription = { ...next.subscription, revision };
+                current.waking.abort();
+                current.waking = new AbortController();
+                watched = next;
+            }
+            // revise any other change
+            else {
+                revised.abort();
+            }
+        }
     }
 
     /** Follow a requested replica, failing on its source's refusal unless the request changed. */
     async #followReplica(
-        replica: ReplicaEntry & { readonly action: "follow" },
-        revised: AbortSignal,
-        synced: () => void,
+        subscriber: Subscriber,
+        request: ReplicaRequest,
+        current: Request,
+        until: AbortSignal,
+        following: Following,
     ): Promise<void> {
         try {
-            const { publisher, requested } = replica;
-            const { audience } = this.store.source.publication(requested.subscription);
-            const following = replica.replica.follow(
+            const publisher = subscriber.publisher(
+                present(request.home, `the home of ${request.key}`),
+            );
+            const replica = this.store.source.buildReplica(request.subscription);
+            const { audience } = this.store.source.publication(request.subscription);
+            const { synced } = following;
+            const follow = replica.follow(
                 this.store.database,
                 (from, stream, subscription) =>
                     publisher.stream(
                         { ...present(subscription, "the followed subscription"), ...from },
                         stream,
                     ),
-                revised,
+                until,
                 {
                     get subscription() {
-                        return requested.subscription;
+                        return current.subscription;
                     },
                     audience,
                     synced,
                     lag: this.store.authorizer.lag,
                 },
             );
-            await Promise.all([following, ObjectSink.#forward(requested, publisher, revised)]);
+            await Promise.all([follow, ObjectSink.#forward(current, publisher, until)]);
         } catch (error) {
-            // fail a refused follow unless the loop revised its request meanwhile
-            if (!revised.aborted) {
+            // fail a refused follow unless its request changed meanwhile
+            if (!until.aborted) {
                 throw error;
             }
         }
@@ -224,21 +333,35 @@ export class ObjectSink {
 
     /** Send a follow's request to its publisher each time its parameters move. */
     static async #forward(
-        requested: Request,
+        current: Request,
         publisher: sync.Publisher,
         signal: AbortSignal,
     ): Promise<void> {
-        let waking = requested.waking;
+        let waking = current.waking;
         while (!signal.aborted) {
             // wait for the subscription to move, taking the next move's signal before requesting
             await waitAborted(AbortSignal.any([signal, waking.signal]));
-            waking = requested.waking;
+            waking = current.waking;
 
             // request the moved subscription, failing the follow on a refusal
             if (!signal.aborted) {
-                await publisher.request(requested.subscription);
+                await publisher.request(current.subscription);
             }
         }
+    }
+
+    /** Decide whether a follow changes only its parameters, over the same tables. */
+    #isReshape(subscription: sync.SubscriptionRecord, next: sync.SubscriptionRecord): boolean {
+        // compare the subscriptions beside their parameters, and the tables
+        const { parameters: _parameters, ...identity } = subscription;
+        const { parameters: _next, ...nextIdentity } = next;
+        const tables = (record: sync.SubscriptionRecord) =>
+            this.store.source.buildReplica(record).tables.map((table) => table[TABLE].sqlName);
+
+        return (
+            canonicalize(identity) === canonicalize(nextIdentity) &&
+            canonicalize(tables(subscription)) === canonicalize(tables(next))
+        );
     }
 
     /** Read a store's scope and the scopes above it, up to the universe. */
@@ -487,107 +610,7 @@ export class ObjectSink {
                 .map((entry) => entry.key),
         );
     }
-
-    /** Revise each listed replica whose action changed or left, and list the new ones. */
-    static #revise(
-        listed: Map<string, ReplicaEntry>,
-        replicas: ReadonlyMap<string, ReplicaIntent & { digest: string }>,
-        revision: LogPosition,
-    ): void {
-        for (const [key, replica] of listed) {
-            // keep an unchanged replica
-            const next = replicas.get(key);
-            if (next?.digest === replica.digest) {
-                continue;
-            }
-
-            // move a follow of other parameters over the same tables at its source, waking its request
-            if (
-                next !== undefined &&
-                replica.action === "follow" &&
-                next.action === "follow" &&
-                ObjectSink.#isReshape(replica, next)
-            ) {
-                const { requested } = replica;
-                requested.subscription = { ...next.subscription, revision };
-                listed.set(key, { ...next, revised: replica.revised, requested });
-                requested.waking.abort();
-                requested.waking = new AbortController();
-            }
-            // abort and forget any other changed or left replica
-            else {
-                replica.revised.abort();
-                listed.delete(key);
-            }
-        }
-
-        // list the new replicas
-        for (const [key, replica] of replicas) {
-            if (!listed.has(key)) {
-                listed.set(key, {
-                    ...replica,
-                    revised: new AbortController(),
-                    requested: {
-                        subscription: { ...replica.subscription, revision },
-                        waking: new AbortController(),
-                    },
-                });
-            }
-        }
-    }
-
-    /** Decide whether a follow changes only its parameters, over the same tables. */
-    static #isReshape(
-        replica: Extract<ReplicaIntent, { readonly action: "follow" }>,
-        next: Extract<ReplicaIntent, { readonly action: "follow" }>,
-    ): boolean {
-        // compare the subscriptions beside their parameters, and the tables
-        const { parameters: _parameters, ...identity } = replica.subscription;
-        const { parameters: _next, ...nextIdentity } = next.subscription;
-
-        return (
-            canonicalize(identity) === canonicalize(nextIdentity) &&
-            canonicalize(ObjectSink.#tables(replica.replica)) ===
-                canonicalize(ObjectSink.#tables(next.replica))
-        );
-    }
-
-    /** List a replica's tables by SQL name. */
-    static #tables(replica: sync.Replica): string[] {
-        return replica.tables.map((table) => table[TABLE].sqlName);
-    }
 }
-
-/** What the replica controller does with a replica: follow it from its publisher, or drop it. */
-type ReplicaIntent =
-    | {
-          /** A request follows the replica. */
-          readonly action: "follow";
-          /** The subscription following the replica. */
-          readonly subscription: sync.SubscriptionRecord;
-          /** The replica the request follows into. */
-          readonly replica: sync.Replica;
-          /** The publisher streaming the replica's pages. */
-          readonly publisher: sync.Publisher;
-          /** Whether a use acquired the replica's key, not the store's declaration. */
-          readonly isAcquired: boolean;
-      }
-    | {
-          /** The stored replica drops for want of a request. */
-          readonly action: "drop";
-          /** The subscription the stored replica recorded. */
-          readonly subscription: sync.SubscriptionRecord;
-      };
-
-/** A replica the replica controller lists, with the digest each listing compares. */
-type ReplicaEntry = ReplicaIntent & {
-    /** The digest of the action and subscription. */
-    readonly digest: string;
-    /** Aborts once a listing changes the action, or the subscription beyond its parameters. */
-    readonly revised: AbortController;
-    /** The subscription a follow requests now, which a reshape moves in place. */
-    readonly requested: Request;
-};
 
 /** The subscription a follow requests now, and the signal waking its request once it moves. */
 interface Request {

@@ -16,7 +16,9 @@ import {
 import type { DatabaseDefinition, Table } from "@destack/db";
 import { accessTables } from "@destack/access";
 import { settlement } from "../method/settlement.ts";
+import { claimReservation } from "../claim/reservation.ts";
 import { followKey } from "../replica/key.ts";
+import { replicaRequest } from "../replica/request.ts";
 import type { Follow } from "../replica/shape.ts";
 import type { PackageHandle } from "../declare/package.ts";
 import { ObjectType } from "../object/object.ts";
@@ -63,10 +65,12 @@ export const SYSTEM_TABLES: readonly Table[] = [
     ...BLOB_TABLES,
     journal,
     settlement,
+    claimReservation,
     lease,
     ...ControlLoop.tables,
     bucket,
     followKey,
+    replicaRequest,
 ];
 
 /** List a store's tables: system tables, what it serves, follows and needs, and its host's. */
