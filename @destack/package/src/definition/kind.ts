@@ -1,22 +1,37 @@
+import type { schema } from "@destack/schema";
+import type { Declaration } from "../graph/declaration.ts";
 import { DeclarationName, PackageId } from "./package.ts";
 import { ModuleMetadata } from "./metadata.ts";
 
-/** A declaration kind: the package defining it and its name there, such as object's `object`. */
-export class DeclarationKind {
+/** A declaration kind: the package defining it, its name there and its descriptions' schema. */
+export class DeclarationKind<Description extends schema.Schema = schema.Schema> {
     /** The package defining the kind. */
     readonly packageId: PackageId;
     /** The kind's name within its package. */
     readonly name: DeclarationName;
+    /** The schema of the kind's declarations' descriptions. */
+    readonly description: Description;
 
-    /** Name a kind of a package. */
-    constructor(packageId: string, name: string) {
+    /** Name a kind of a package, with its descriptions' schema. */
+    constructor(packageId: string, name: string, description: Description) {
         this.packageId = PackageId.parse(packageId);
         this.name = DeclarationName.parse(name);
+        this.description = description;
     }
 
     /** The fields a declaration of this kind carries: its kind's name and package. */
     get identity(): { readonly kind: DeclarationName; readonly kindPackageId: PackageId } {
         return { kind: this.name, kindPackageId: this.packageId };
+    }
+
+    /** Select this kind's declarations, their descriptions parsed by its schema. */
+    select(declarations: readonly Declaration[]): Declaration<schema.Output<Description>>[] {
+        return declarations
+            .filter((declaration) => this.has(declaration))
+            .map((declaration) => ({
+                ...declaration,
+                description: this.description.parse(declaration.description),
+            }));
     }
 
     /** Report whether a declaration is of this kind. */
@@ -30,9 +45,13 @@ export class DeclarationKind {
     }
 }
 
-/** Define a declaration kind of the calling package by its name, such as `command`. */
-export function defineDeclarationKind(name: string, module?: ModuleMetadata): DeclarationKind {
+/** Define a declaration kind of the calling package by its name and descriptions' schema. */
+export function defineDeclarationKind<Description extends schema.Schema>(
+    name: string,
+    description: Description,
+    module?: ModuleMetadata,
+): DeclarationKind<Description> {
     const owner = ModuleMetadata.require(module, "defineDeclarationKind").package;
 
-    return new DeclarationKind(owner.id, name);
+    return new DeclarationKind(owner.id, name, description);
 }

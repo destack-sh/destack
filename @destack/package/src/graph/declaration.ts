@@ -22,8 +22,14 @@ export const Declaration = Object.assign(
     }),
     { at, member, isMember },
 );
-/** A Destack entity a module declares. */
-export type Declaration = schema.Infer<typeof Declaration>;
+/** A Destack entity a module declares, with its description as its kind's schema reads it. */
+export type Declaration<Description = schema.Infer<typeof Declaration>["description"]> = Omit<
+    schema.Infer<typeof Declaration>,
+    "description"
+> & {
+    /** The description, read by its kind's schema. */
+    readonly description: Description;
+};
 
 /** Declare a symbol as a kind: the moniker is the symbol's with the kind and the name. */
 function at(symbol: Moniker, declared: Omit<Declaration, "moniker" | "symbol">): Declaration {

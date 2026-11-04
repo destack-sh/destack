@@ -7,7 +7,6 @@ import type { PackageRelease } from "../definition/package.ts";
 import { SourceMapReference } from "../source/map.ts";
 import { Declaration } from "../graph/declaration.ts";
 import { PackageError } from "../error/index.ts";
-import type { DeclarationKind } from "../definition/kind.ts";
 import { PackageLocation, PackageManifest } from "./manifest.ts";
 
 /** The path of a build's root manifest beside its files, in stores and running workloads. */
@@ -27,8 +26,6 @@ export class BuildReader {
     readonly #sourceMaps = new Once<readonly SourceMapReference[]>();
     /** The declarations, read once. */
     readonly #declarations = new Once<readonly Declaration[]>();
-    /** Each kind's declarations parsed once, by the parsing schema, then kind package and kind. */
-    readonly #declared = new WeakMap<schema.Schema, Map<string, Promise<readonly unknown[]>>>();
     /** The listed files by path, read once. */
     readonly #listed = new Once<ReadonlyMap<string, PackageFile>>();
     /** The manifest's digest, the build's address, taken once. */
@@ -169,33 +166,6 @@ export class BuildReader {
         );
 
         return listed.filter((declaration) => !Declaration.isMember(declaration));
-    }
-
-    /** Read one kind's declarations from a package's constructors, parsing each description. */
-    async declared<Item extends schema.Schema>(
-        kind: DeclarationKind,
-        item: Item,
-    ): Promise<Declared<schema.Output<Item>>[]> {
-        // parse a kind's declarations once per schema, as a build never changes
-        const key = `${kind.packageId} ${kind.name}`;
-        const parsed = this.#declared.get(item) ?? new Map<string, Promise<readonly unknown[]>>();
-        this.#declared.set(item, parsed);
-        let declared = parsed.get(key);
-        if (declared === undefined) {
-            declared = this.declarations().then((declarations) =>
-                declarations
-                    .filter((declaration) => kind.has(declaration))
-                    .map((declaration) => ({
-                        ...declaration,
-                        description: item.parse(declaration.description),
-                    })),
-            );
-            parsed.set(key, declared);
-            declared.catch(() => parsed.delete(key));
-        }
-
-        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- the memo keys each parse by the schema that produced it
-        return [...((await declared) as readonly Declared<schema.Output<Item>>[])];
     }
 
     /** Read a listed JSON file and parse it with a schema. */
@@ -451,12 +421,6 @@ async function streamFile(
 function decode(bytes: Uint8Array<ArrayBuffer>): unknown {
     return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
 }
-
-/** A declaration of a build, with its description parsed. */
-export type Declared<Description> = Omit<Declaration, "description"> & {
-    /** The description, parsed by its reader. */
-    readonly description: Description;
-};
 
 /** A value read on first use and read again after a failure. */
 export class Once<Value> {
