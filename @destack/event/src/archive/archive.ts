@@ -2,14 +2,12 @@ import type { Bucket } from "@destack/bucket";
 import {
     and,
     asc,
-    count,
     desc,
     eq,
     gte,
     inArray,
     lt,
     lte,
-    min,
     type DatabaseConnection,
     listed,
     sql,
@@ -17,7 +15,13 @@ import {
 import { present, Digest } from "@destack/schema";
 import { SearchText, TABLE } from "@destack/db";
 import type { AsyncBuffer } from "hyparquet";
-import { BloomFilter, type ChosenSegment, chosenSegment, eventSegment } from "./catalog.ts";
+import {
+    BloomFilter,
+    type ChosenSegment,
+    chosenSegment,
+    eventSegment,
+    segmentDeletion,
+} from "./catalog.ts";
 import { type Event, type EventKind, EventTime, type SettingRetention } from "../kind/kind.ts";
 import { EventCursor, EventFilter, type EventOrder } from "../store/filter.ts";
 import { SegmentFile } from "./segment.ts";
@@ -25,8 +29,8 @@ import { SegmentFile } from "./segment.ts";
 /** The events one pruning statement deletes, far below every dialect's bound on parameters. */
 const PRUNE_BATCH = 500;
 
-/** How long a segment file may go uncatalogued before a sweep deletes it as an orphan. */
-const ORPHAN_MILLISECONDS = 60 * 60 * 1000;
+/** How long a segment upload may take before its uncatalogued file is deleted: an hour. */
+const UPLOAD_GRACE_MILLISECONDS = 60 * 60 * 1000;
 
 /** The share of rows below which an unlocked segment is compacted with its neighbours. */
 const SMALL_SHARE = 0.5;
@@ -71,59 +75,8 @@ export class EventArchive {
         this.#settings = options.settings;
     }
 
-    /** List the scopes with hot events or segments of a kind. */
-    async scopes(kind: EventKind): Promise<string[]> {
-        const [hot, flushed] = await Promise.all([
-            this.#database.selectDistinct({ scope: kind.table.scope }).from(kind.table),
-            this.#database
-                .selectDistinct({ scope: eventSegment.scope })
-                .from(eventSegment)
-                .where(eq(eventSegment.kind, kind.key)),
-        ]);
-
-        return [...new Set([...hot, ...flushed].map((row) => row.scope))];
-    }
-
-    /** Read whether and when a scope's hot events of a kind are due to flush. */
-    async flushDue(
-        kind: EventKind,
-        scope: string,
-        now: number,
-    ): Promise<{
-        readonly isDue: boolean;
-        readonly at: number | undefined;
-        readonly events: number;
-    }> {
-        // read the hot events' count and oldest time
-        const [held] = await this.#database
-            .select({ events: count(), oldest: min(kind.table.time) })
-            .from(kind.table)
-            .where(eq(kind.table.scope, scope));
-        const oldest = held?.oldest ?? null;
-        if (held === undefined || oldest === null) {
-            return { isDue: false, at: undefined, events: 0 };
-        }
-
-        // read the time of a full segment's last event, absent below the row cap
-        const { flush } = kind.policy;
-        const [last] = await this.#database
-            .select({ time: kind.table.time })
-            .from(kind.table)
-            .where(eq(kind.table.scope, scope))
-            .orderBy(asc(kind.table.time), asc(kind.table.id))
-            .limit(1)
-            .offset(flush.maxRows - 1);
-
-        // flush at the oldest's age or once a full segment settled, never before the oldest settled
-        const aged = EventTime.milliseconds(oldest) + flush.maxAge;
-        const full = last === undefined ? aged : EventTime.settled(last.time);
-        const at = Math.max(Math.min(aged, full), EventTime.settled(oldest));
-
-        return { isDue: at <= now, at, events: held.events };
-    }
-
-    /** Flush a scope's oldest hot events into a verified, catalogued segment. */
-    async flush(kind: EventKind, scope: string, now: number): Promise<boolean> {
+    /** Flush a scope's oldest settled hot events into a catalogued segment, returning how many. */
+    async flush(kind: EventKind, scope: string, now: number): Promise<number> {
         // read the oldest hot events, at most a segment's worth
         const { flush } = kind.policy;
         const rows = await this.#database
@@ -134,7 +87,7 @@ export class EventArchive {
             .limit(flush.maxRows);
         const events = rows.map((row) => kind.event(row));
         if (events.length === 0) {
-            return false;
+            return 0;
         }
 
         // write the segment, chained to the scope's previous one when the kind is locked
@@ -147,7 +100,7 @@ export class EventArchive {
             }
         });
 
-        return true;
+        return events.length;
     }
 
     /** Compact a scope's small segments of an unlocked kind into fuller ones. */
@@ -186,80 +139,52 @@ export class EventArchive {
             .flat()
             .toSorted((left, right) => left.time - right.time || (left.id < right.id ? -1 : 1));
         await this.#write(kind, scope, events, now, null, async (transaction) => {
-            await transaction.delete(eventSegment).where(
-                inArray(
-                    eventSegment.id,
-                    group.map((segment) => segment.id),
-                ),
-            );
+            await EventArchive.#retire(transaction, scope, group, now);
         });
-        await this.#files(scope).delete(group.map((segment) => segment.file));
 
         return group.length;
     }
 
-    /** Delete a scope's segments of a kind past its retention, their files first. */
-    async expire(kind: EventKind, scope: string, now: number): Promise<number> {
-        // read the segments whose latest event is older than the scope's retention
-        const retention = await kind.retention(scope, this.#settings);
-        const before = EventTime.of(now - retention);
-        const expired = await this.#database
-            .select({ id: eventSegment.id, file: eventSegment.file })
-            .from(eventSegment)
-            .where(
-                and(
-                    eq(eventSegment.kind, kind.key),
-                    eq(eventSegment.scope, scope),
-                    lt(eventSegment.to, before),
-                ),
-            );
-        if (expired.length === 0) {
-            return 0;
-        }
-
-        // delete the files, then their catalog rows
-        await this.#files(scope).delete(expired.map((segment) => segment.file));
-        await this.#database.delete(eventSegment).where(
-            inArray(
-                eventSegment.id,
-                expired.map((segment) => segment.id),
-            ),
-        );
-
-        return expired.length;
+    /** Remove expired segments from the catalog, deleting their files with the same commit. */
+    async expire(
+        segments: readonly Pick<ChosenSegment, "id" | "scope" | "file">[],
+        now: number,
+    ): Promise<void> {
+        await this.#database.transaction(async (transaction) => {
+            for (const [scope, expired] of Map.groupBy(segments, (segment) => segment.scope)) {
+                await EventArchive.#retire(transaction, scope, expired, now);
+            }
+        });
     }
 
-    /** Delete a scope's uncatalogued segment files of an unlocked kind, returning how many. */
-    async sweep(kind: EventKind, scope: string, now: number): Promise<number> {
-        // leave locked kinds, whose files stay until their retention
-        if (kind.isLocked) {
-            return 0;
-        }
-
-        // delete the uncatalogued files older than the orphan age, one listed page at a time
-        const catalogued = new Set(
-            (await this.#catalog(kind, scope)).map((segment) => segment.file),
+    /** Delete the files whose deletion came due, then their deletion rows. */
+    async delete(scope: string, files: readonly string[]): Promise<void> {
+        await this.#files(scope).delete([...files]);
+        await this.#database.transaction(
+            async (transaction) =>
+                await transaction
+                    .delete(segmentDeletion)
+                    .where(inArray(segmentDeletion.file, [...files])),
         );
-        const bucket = this.#files(scope);
-        let orphans = 0;
-        let cursor: string | undefined;
-        do {
-            const page = await bucket.list({
-                prefix: `${this.#directory(kind, scope)}/`,
-                ...(cursor === undefined ? {} : { cursor }),
-            });
-            const stale = page.files
-                .filter((file) => !catalogued.has(file.key))
-                .filter((file) => file.uploaded.getTime() <= now - ORPHAN_MILLISECONDS)
-                .map((file) => file.key);
-            if (stale.length > 0) {
-                await bucket.delete(stale);
-            }
-            orphans += stale.length;
-            cursor = page.cursor;
-        } while (cursor !== undefined);
+    }
 
-        return orphans;
+    /** Remove segments from the catalog and record their files' deletion in one transaction. */
+    static async #retire(
+        transaction: DatabaseConnection,
+        scope: string,
+        segments: readonly Pick<ChosenSegment, "id" | "file">[],
+        now: number,
+    ): Promise<void> {
+        await transaction.delete(eventSegment).where(
+            inArray(
+                eventSegment.id,
+                segments.map((segment) => segment.id),
+            ),
+        );
+        await transaction
+            .insert(segmentDeletion)
+            .values(segments.map((segment) => ({ file: segment.file, scope, deleteAt: now })))
+            .onConflictDoUpdate({ target: segmentDeletion.file, set: { deleteAt: now } });
     }
 
     /** Choose the catalogued segments that may contain the events a read selects. */
@@ -392,11 +317,17 @@ export class EventArchive {
         const digest = await Digest.of(data, this.#database.state.environment.crypto);
         const id = `${String(first.time)}-${String(last.time)}-${digest.slice(0, 16)}`;
         const file = `${this.#directory(kind, scope)}/${id}.parquet`;
+        const retention = await kind.retention(scope, this.#settings);
+        await this.#database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(segmentDeletion)
+                    .values({ file, scope, deleteAt: now + UPLOAD_GRACE_MILLISECONDS })
+                    .onConflictDoNothing(),
+        );
         await this.#files(scope).put(file, data, {
             sha256: digest,
-            ...(kind.isLocked
-                ? { retainUntil: new Date(now + (await kind.retention(scope, this.#settings))) }
-                : {}),
+            ...(kind.isLocked ? { retainUntil: new Date(now + retention) } : {}),
         });
 
         // catalog it with the caller's change
@@ -418,8 +349,10 @@ export class EventArchive {
                     digest,
                     previous,
                     flushedAt: now,
+                    expiresAt: EventTime.milliseconds(last.time) + retention,
                 })
                 .onConflictDoNothing();
+            await transaction.delete(segmentDeletion).where(eq(segmentDeletion.file, file));
             await change(transaction);
         });
     }

@@ -81,13 +81,30 @@ export const eventSegment = defineTable(
         previous: text("previous"),
         /** When the segment was flushed, in Unix milliseconds. */
         flushedAt: integer("flushed_at").notNull(),
+        /** When its latest event leaves the scope's retention, in Unix milliseconds. */
+        expiresAt: integer("expires_at").notNull(),
     },
     {
         constraints: (segment) => [
             index("segment_scope_time").on(segment.kind, segment.scope, segment.to),
             index("segment_scope_flushed").on(segment.kind, segment.scope, segment.flushedAt),
+            index("segment_expiry").on(segment.expiresAt),
         ],
     },
+);
+
+/** The segment files a bucket deletes at a time: stray uploads, replaced and expired files. */
+export const segmentDeletion = defineTable(
+    "segment_deletion",
+    {
+        /** The bucket key of the file. */
+        file: text("file").primaryKey(),
+        /** The scope whose bucket stores the file. */
+        scope: text("scope").notNull(),
+        /** When the bucket deletes the file, in Unix milliseconds. */
+        deleteAt: integer("delete_at").notNull(),
+    },
+    { constraints: (deletion) => [index("segment_deletion_time").on(deletion.deleteAt)] },
 );
 
 /** List the bit positions of a text, by double hashing two FNV-1a hashes. */
@@ -124,6 +141,7 @@ export const chosenSegment = {
     digest: eventSegment.digest,
     previous: eventSegment.previous,
     flushedAt: eventSegment.flushedAt,
+    expiresAt: eventSegment.expiresAt,
 };
 
 /** A catalogued segment as reads choose it, without its identifier and gram filters. */

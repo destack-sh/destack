@@ -122,9 +122,13 @@ export class TestEventStore implements AsyncDisposable {
         this.store = open(this);
 
         // run the store's controller in the world, failing it on their reports
-        const loop = new ControlLoop(this.store.database, [this.store.controller()], {
-            report: (_controller, _key, error) => simulation.scheduler.fail(error),
-        });
+        const loop = new ControlLoop(
+            this.store.database,
+            { controllers: this.store.controllers(), consumers: [] },
+            {
+                report: (_controller, _key, error) => simulation.scheduler.fail(error),
+            },
+        );
         this.#running = loop.run(this.#stop.signal).catch((error: unknown) => {
             simulation.scheduler.fail(error);
         });

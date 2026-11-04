@@ -1,5 +1,5 @@
 import type { Table } from "@destack/db";
-import { eventSegment } from "../archive/catalog.ts";
+import { eventSegment, segmentDeletion } from "../archive/catalog.ts";
 import type { EventKind } from "../kind/kind.ts";
 import { personalKey } from "../store/personal-keyring.ts";
 
@@ -8,6 +8,7 @@ export function eventTables(kinds: readonly EventKind[]): readonly Table[] {
     return [
         ...kinds.map((kind) => kind.table),
         eventSegment,
+        segmentDeletion,
         ...(kinds.some((kind) => kind.subject !== undefined) ? [personalKey] : []),
     ];
 }

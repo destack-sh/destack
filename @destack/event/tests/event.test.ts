@@ -5,7 +5,7 @@ import type { JsonCondition } from "@destack/db";
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { eventSegment } from "../src/archive/catalog.ts";
+import { eventSegment, segmentDeletion } from "../src/archive/catalog.ts";
 import { type EventKind, Histogram, OUT_OF_ORDER_MILLISECONDS, type Series } from "../src/index.ts";
 import { TestEventStore, testKind } from "../src/test/index.ts";
 import { eventTables } from "../src/stack/db.ts";
@@ -158,26 +158,32 @@ test("store a kind registered after opening like one opened with, once the datab
         after: store.has(line),
         read: read.events.map((event) => [event.id, event.data.message]),
     }).toEqual({ before: false, after: true, read: [["l", "up"]] });
-    expect(() => store.register([line, line])).toThrow(`event kind ${line.key} is registered twice`);
+    expect(() => store.register([line, line])).toThrow(
+        `event kind ${line.key} is registered twice`,
+    );
 });
 
-test("flush a scope's hot events at the row cap into segments that queries read like hot ones", async () => {
+test("flush a scope's settled events once its oldest is the flush age old, into segments that queries read like hot ones", async () => {
     const fixture = await open();
     const { store, database } = fixture;
 
-    // append five readings, and flush the policy's three rows once they settle, an hour before any is due by age
+    // append three readings, flush them as the first turns an hour old, then append two that stay hot
     await store.append(
         reading,
-        [1, 2, 3, 4, 5].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
+        [1, 2, 3].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
     );
-    await pass(fixture, 5);
+    await fixture.simulation.run(TEST_START + 61 * MINUTE);
+    await store.append(reading, [
+        measured("r4", 58, "db.bytes", 4),
+        measured("r5", 59, "db.bytes", 5),
+    ]);
     const hot = await database.database.select({ id: reading.table.id }).from(reading.table);
     const segments = await database.database.select().from(eventSegment);
 
     // the readings read back across the segment and the hot rows by time range and condition
     const ranged = await store.query(reading, {
         scopes: ["space-1"],
-        where: { time: { gte: at(2), lt: at(5) } },
+        where: { time: { gte: at(2), lt: at(59) } },
     });
     const selected = await store.query(reading, {
         scopes: ["space-1"],
@@ -207,20 +213,21 @@ test("store an event once, refusing a changed repeat whether hot or flushed and 
     const fixture = await open();
     const { store, database } = fixture;
 
-    // append four readings, and flush the first three once they settle, the fourth still within the window
+    // append three readings and flush them as the first turns an hour old, then append a fourth that stays hot
     await store.append(
         reading,
-        [1, 2, 3, 4].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
+        [1, 2, 3].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
     );
-    await pass(fixture, 3);
+    await fixture.simulation.run(TEST_START + 61 * MINUTE);
+    await store.append(reading, [measured("r4", 58, "db.bytes", 4)]);
 
     // repeat the hot fourth and the flushed first with other values
-    const changed = await refusal(store.append(reading, [measured("r4", 4, "db.bytes", 99)]));
+    const changed = await refusal(store.append(reading, [measured("r4", 58, "db.bytes", 99)]));
     const late = await refusal(store.append(reading, [measured("r1", 1, "db.bytes", 99)]));
 
     // repeat both unchanged
     await store.append(reading, [
-        measured("r4", 4, "db.bytes", 4),
+        measured("r4", 58, "db.bytes", 4),
         measured("r1", 1, "db.bytes", 1),
     ]);
 
@@ -253,38 +260,31 @@ test("store an event once, refusing a changed repeat whether hot or flushed and 
     });
 });
 
-test("flush at the row cap across single appends once a full segment settles", async () => {
+test("keep appended events hot until the oldest is the flush age old, then flush every settled one a row cap at a time", async () => {
     const fixture = await open();
     const { store, database } = fixture;
 
-    // append five readings one at a time, settling after each, an hour before any is due by age
-    const hot: string[][] = [];
+    // append five readings one at a time
     for (const minute of [1, 2, 3, 4, 5]) {
         await store.append(reading, [measured(`r${String(minute)}`, minute, "db.bytes", minute)]);
-        await fixture.simulation.idle();
-        const rows = await database.database.select({ id: reading.table.id }).from(reading.table);
-        hot.push(rows.map((row) => row.id).toSorted());
     }
 
-    // flush the first three once they settle, leaving the next two hot
-    await pass(fixture, 5);
-    const rows = await database.database.select({ id: reading.table.id }).from(reading.table);
-    const segments = await database.database.select().from(eventSegment);
-    expect({
-        hot,
-        settled: rows.map((row) => row.id).toSorted(),
-        segments: segments.map((segment) => segment.rows),
-    }).toEqual({
-        hot: [
-            ["r1"],
-            ["r1", "r2"],
-            ["r1", "r2", "r3"],
-            ["r1", "r2", "r3", "r4"],
-            ["r1", "r2", "r3", "r4", "r5"],
-        ],
-        settled: ["r4", "r5"],
-        segments: [3],
+    // keep them hot a minute before the first is an hour old, then flush them in segments of three
+    const read = async () => ({
+        hot: (await database.database.select({ id: reading.table.id }).from(reading.table))
+            .map((row) => row.id)
+            .toSorted(),
+        segments: (
+            await database.database.select().from(eventSegment).orderBy(eventSegment.from)
+        ).map((segment) => segment.rows),
     });
+    await fixture.simulation.run(TEST_START + 60 * MINUTE);
+    const before = await read();
+    await fixture.simulation.run(TEST_START + 61 * MINUTE);
+    expect([before, await read()]).toEqual([
+        { hot: ["r1", "r2", "r3", "r4", "r5"], segments: [] },
+        { hot: [], segments: [3, 2] },
+    ]);
 });
 
 test("read the events of several scopes, hot and flushed, in one time order", async () => {
@@ -372,30 +372,48 @@ test("search a scope's hot and flushed events by word prefixes, its segments pru
     });
 });
 
-test("sweep a scope's segment files without a catalog row once an hour old, daily, retaining catalogued and recent ones", async () => {
+test("delete an upload's file an hour after it started unless catalogued, keeping catalogued and recent ones", async () => {
     const fixture = await open();
-    const { store, bucket } = fixture;
+    const { store, bucket, database } = fixture;
     const directory = `events/${meters.id}/reading/space-1`;
+    const upload = (file: string) =>
+        database.database.transaction((transaction) =>
+            transaction
+                .insert(segmentDeletion)
+                .values({
+                    file: `${directory}/${file}`,
+                    scope: "space-1",
+                    deleteAt: fixture.simulation.clock.now() + 60 * MINUTE,
+                })
+                .execute(),
+        );
 
-    // flush a segment, then leave an uncatalogued file as a crashed write would
+    // flush a segment, then leave an uncatalogued upload as a crashed write would
     await store.append(
         reading,
         [1, 2, 3].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
     );
-    await fixture.simulation.idle();
+    await fixture.simulation.run(TEST_START + 61 * MINUTE);
+    await upload("orphan.parquet");
     await bucket.put(`${directory}/orphan.parquet`, "lost");
 
-    // advance a day, leave a fresh uncatalogued file as a write in flight, then sweep
-    await fixture.simulation.jump(TEST_START + DAY);
+    // an hour later, start another upload, still in flight
+    await fixture.simulation.run(TEST_START + 121 * MINUTE);
+    await upload("inflight.parquet");
     await bucket.put(`${directory}/inflight.parquet`, "writing");
     await fixture.simulation.idle();
 
-    // retain the catalogued segment and the file in flight, deleting the orphan
-    const catalogued = await fixture.database.database.select().from(eventSegment);
+    // keep the catalogued segment and the upload in flight, deleting the crashed one's file
+    const catalogued = await database.database.select().from(eventSegment);
     const listed = await bucket.list({ prefix: `${directory}/` });
-    expect(listed.files.map((file) => file.key).toSorted()).toEqual(
+    const deletions = await database.database.select().from(segmentDeletion);
+    expect([
+        listed.files.map((file) => file.key).toSorted(),
+        deletions.map((deletion) => deletion.file),
+    ]).toEqual([
         [...catalogued.map((segment) => segment.file), `${directory}/inflight.parquet`].toSorted(),
-    );
+        [`${directory}/inflight.parquet`],
+    ]);
 });
 
 test("fold a measure per step and group across hot events in SQL and flushed ones", async () => {
@@ -690,7 +708,7 @@ test("lock a locked kind's segments for its retention, chained by digest and nev
     const fixture = await open([call]);
     const { store, database, bucket } = fixture;
 
-    // flush two segments of two calls each as they settle
+    // flush two segments of two calls each as the first turns an hour old
     await store.append(
         call,
         [1, 2, 3, 4].map((minute) => ({
@@ -701,7 +719,7 @@ test("lock a locked kind's segments for its retention, chained by digest and nev
             data: {},
         })),
     );
-    await pass(fixture, 4);
+    await fixture.simulation.run(TEST_START + 61 * MINUTE);
     const segments = await database.database.select().from(eventSegment).orderBy(eventSegment.from);
     const [first, second] = segments;
 
@@ -716,13 +734,7 @@ test("lock a locked kind's segments for its retention, chained by digest and nev
         first?.previous,
         deleting === "deleted",
         (await bucket.head(first?.file ?? ""))?.retainUntil?.getTime(),
-    ]).toEqual([
-        2,
-        true,
-        null,
-        false,
-        TEST_START + 2 * MINUTE + OUT_OF_ORDER_MILLISECONDS + 1 + 365 * DAY,
-    ]);
+    ]).toEqual([2, true, null, false, TEST_START + 61 * MINUTE + 365 * DAY]);
 });
 
 test("compact an unlocked kind's small segments and expire them past the retention their scope reads", async () => {

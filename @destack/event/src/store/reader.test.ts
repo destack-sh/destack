@@ -29,13 +29,13 @@ test("place each key of a reader family once, list the placed keys in order, and
     onTestFinished(() => fixture[Symbol.asyncDispose]());
     const { database } = fixture.database;
     const now = fixture.clock.now();
-    const usage = new EventReader("usage", HOLD);
+    const usage = new EventReader("usage", [reading.table], HOLD);
 
     // place b, then a twice, beside another family's key
     await usage.at("b").place(now, database);
     await usage.at("a").place(now, database);
     await usage.at("a").place(now, database);
-    await new EventReader("endpoint", HOLD).at("c").place(now, database);
+    await new EventReader("endpoint", [reading.table], HOLD).at("c").place(now, database);
 
     // move a alone, leaving b at the start
     await usage.at("a").move(0, 7, now, database);
@@ -51,7 +51,7 @@ test("read a claimed page again unchanged after later appends, retain the first 
     const { database } = fixture.database;
     const { store } = fixture;
     const now = fixture.clock.now();
-    const metering = new EventReader("metering", HOLD).at("space-1");
+    const metering = new EventReader("metering", [reading.table], HOLD).at("space-1");
     const append = async (id: string) =>
         store.append(reading, [
             { scope: "space-1", id, time: now * 1000, keys: { meter: "requests" }, data: {} },

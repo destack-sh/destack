@@ -22,18 +22,19 @@ import {
     TABLE,
     listed,
 } from "@destack/db";
-import { canonicalize, type JsonValue, schema } from "@destack/schema";
+import { canonicalize, type JsonValue, nth, schema } from "@destack/schema";
 import { EventError } from "../error/index.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type { Bucket } from "@destack/bucket";
-import type { Controller } from "@destack/db";
-import { ArchiveController } from "../archive/controller.ts";
+import { type Controller, now } from "@destack/db";
+import { eventSegment, segmentDeletion } from "../archive/catalog.ts";
 import { EventArchive } from "../archive/archive.ts";
 import {
     type Event,
     type EventKeyFields,
     EventKind,
     EventTime,
+    OUT_OF_ORDER_MILLISECONDS,
     type SettingRetention,
 } from "../kind/kind.ts";
 import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
@@ -139,9 +140,61 @@ export class EventStore {
         this.database.state.declare(eventTables(kinds));
     }
 
-    /** Build the controller flushing, compacting and expiring the registered kinds' segments. */
-    controller(): Controller {
-        return new ArchiveController(this.#archive, [...this.#kinds.values()], this.#clock);
+    /** Declare the controllers flushing aged events, expiring segments and deleting files. */
+    controllers(): Controller[] {
+        // expire segments past their retention, and delete the files due
+        const archive = this.#archive;
+        const clock = this.#clock;
+        const expiry: Controller<typeof eventSegment> = {
+            name: "event-expiry",
+            table: eventSegment,
+            pending: { expiresAt: { lte: now } },
+            key: ["scope"],
+            reconcile: async (rows) => archive.expire(rows, clock.now()),
+        };
+        const deletion: Controller<typeof segmentDeletion> = {
+            name: "event-deletion",
+            table: segmentDeletion,
+            pending: { deleteAt: { lte: now } },
+            key: ["scope"],
+            reconcile: async (rows) =>
+                archive.delete(
+                    nth(rows, 0).scope,
+                    rows.map((row) => row.file),
+                ),
+        };
+
+        return [
+            ...[...this.#kinds.values()].map((kind): Controller => ({
+                name: `event-flush:${kind.key}`,
+                table: kind.table,
+                pending: {
+                    time: {
+                        lte: now.microseconds().minus({
+                            milliseconds: Math.max(
+                                kind.policy.flush.maxAge,
+                                OUT_OF_ORDER_MILLISECONDS + 1,
+                            ),
+                        }),
+                    },
+                },
+                key: ["scope"],
+                reconcile: async (rows) => {
+                    // read the scope and the time
+                    const scope = schema.string().parse(nth(rows, 0)["scope"]);
+                    const at = clock.now();
+
+                    // flush full segments while they fill, then compact the scope's small ones
+                    let flushed: number;
+                    do {
+                        flushed = await archive.flush(kind, scope, at);
+                    } while (flushed === kind.policy.flush.maxRows);
+                    await archive.compact(kind, scope, at);
+                },
+            })),
+            expiry,
+            deletion,
+        ];
     }
 
     /** Append events of a kind once each, sealing personal values. */
