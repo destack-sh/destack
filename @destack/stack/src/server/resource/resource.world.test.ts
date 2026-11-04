@@ -153,12 +153,12 @@ test("provision a resource as soon as its declaration changes", async () => {
                 updatedAt: now,
             }),
     );
-    const { controllers, consumers } = store.control();
+    const { controllers, cursors } = store.control();
     const kind = present(object.database.provisioned, "the database kind").kind;
     const binder = new Binder([ResourceBindable.of(kind, object.database)], []);
     await settle(database, {
         controllers,
-        consumers: [...consumers, binder.specification(store, spaceDatabase, new Map())],
+        cursors: [...cursors, binder.specification(store, spaceDatabase, new Map())],
     });
     const [provisioned] = await database
         .select()

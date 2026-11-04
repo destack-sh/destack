@@ -2,7 +2,6 @@ import { through } from "@destack/access";
 import { account, space } from "@destack/account/object";
 import { defineObject, field, installation } from "@destack/object";
 import { schema } from "@destack/schema";
-import { REQUEST_LIFETIME_MILLISECONDS } from "@destack/sync";
 
 /** When readings flush into a segment: hourly, or at 100,000 readings. */
 const READING_FLUSH = { maxAge: { hours: 1 }, maxRows: 100_000 } as const;
@@ -29,15 +28,6 @@ export const reading = defineObject(
             flush: READING_FLUSH,
             retention: READING_RETENTION,
             delivery: "exactly-once",
-        },
-        // bill each space's readings an hour at a time, kept while a billing call may retry
-        readers: {
-            metering: {
-                by: "scope",
-                start: "earliest",
-                hold: { milliseconds: REQUEST_LIFETIME_MILLISECONDS },
-                batch: { hours: 1 },
-            },
         },
         fields: {
             /** The meter the reading increments, by its declaration's key. */

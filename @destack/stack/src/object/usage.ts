@@ -30,8 +30,6 @@ export const usage = defineObject(
             delivery: "exactly-once",
             isLocked: true,
         },
-        // read each payer's usage from the log's start, stored thirty days past any rating outage
-        readers: { usage: { by: "scope", start: "earliest", hold: { days: 30 } } },
         fields: {
             /** The measure's unit and interval. */
             data: field.json(UsageData),

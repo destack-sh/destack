@@ -833,9 +833,9 @@ test("refuse a declaration in the enclosing account from a space that is not the
 
 /** Project every rollout of a store until its writes settle, as the space's control loop does. */
 async function settleRollouts(store: ObjectStore): Promise<void> {
-    const { consumers } = store.control();
+    const { cursors } = store.control();
     await settle(store.database, {
         controllers: [],
-        consumers: consumers.filter((consumer) => consumer.name === "project:rollout"),
+        cursors: cursors.filter((cursor) => cursor.name === "project:rollout"),
     });
 }

@@ -415,7 +415,7 @@ export class SpaceBuildStore {
 
         return new Projection(database, {
             name: "retention",
-            reads: [build.table, installationRevision.table],
+            tables: [build.table, installationRevision.table],
             keys: async () => [scope],
             all: async () => [scope],
             project: async () =>

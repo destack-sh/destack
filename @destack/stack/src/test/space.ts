@@ -1156,7 +1156,7 @@ export class TestSpace implements AsyncDisposable {
             forge: null,
             follows: [],
             controllers: [],
-            consumers: [],
+            cursors: [],
             external: await this.index(),
             ...overrides,
             servers: await this.#placed(overrides.servers ?? []),
@@ -1186,7 +1186,7 @@ export class TestSpace implements AsyncDisposable {
     projection(store: ObjectStore, spaceId: Identifier<"space">): Projection {
         return new Projection(store.database, {
             name: "host",
-            reads: [object.rollout.table, object.binding.table, object.database.table],
+            tables: [object.rollout.table, object.binding.table, object.database.table],
             keys: async () => [spaceId],
             all: async () => [spaceId],
             project: async () => this.serveInstalled(store, spaceId),
@@ -1662,9 +1662,7 @@ export class TestSpace implements AsyncDisposable {
         const served = TestObjectStore.serve(store, {
             scopes: await this.host.partitions(),
             packages: packages.map((handler) =>
-                isControlled
-                    ? handler
-                    : { ...handler, control: { controllers: [], consumers: [] } },
+                isControlled ? handler : { ...handler, control: { controllers: [], cursors: [] } },
             ),
             credential: this.#credential(store),
             report: (error) => this.#reported.push(error),
@@ -1713,12 +1711,12 @@ export class TestSpace implements AsyncDisposable {
 
         // run only the replica follow of a store over the space's database
         const { store } = new SpaceStore(await this.options());
-        const { controllers, consumers } = store.control();
+        const { controllers, cursors } = store.control();
         const loop = new ControlLoop(
             this.database,
             {
                 controllers: controllers.filter((controller) => controller.name === "replica"),
-                consumers: consumers.filter((consumer) => consumer.name === "replica-requests"),
+                cursors: cursors.filter((cursor) => cursor.name === "replica-requests"),
             },
             {
                 report: (_controller, _key, error) => {
@@ -2106,9 +2104,9 @@ export async function reconcile(
     const reconciliation = { signal: new AbortController().signal, changed };
 
     // reconcile the key's rows through the controller of the name, else project the key
-    const { controllers, consumers } = store.control();
+    const { controllers, cursors } = store.control();
     const controller = controllers.find((each) => each.name === name);
-    const projection = consumers.find((each) => each.name === `project:${name}`);
+    const projection = cursors.find((each) => each.name === `project:${name}`);
     try {
         if (controller !== undefined && "reconcile" in controller) {
             const rows = await Snapshot.live(store.database)
@@ -2153,7 +2151,7 @@ export async function reconcileResources(store: ObjectStore, spaceId: string): P
     }
 }
 
-/** Run some controllers and consumers until they idle, failing on any report. */
+/** Run some controllers and cursors until they idle, failing on any report. */
 export async function settle(database: DatabaseConnection, control: Control): Promise<void> {
     // run the loop until it idles, collecting its reports
     const stopping = new AbortController();

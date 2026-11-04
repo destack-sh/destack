@@ -1124,7 +1124,7 @@ export class SpaceHost {
     placement(store: ObjectStore, main: SpaceOptions["main"]): Projection {
         return new Projection(this.database, {
             name: "placement",
-            reads: [
+            tables: [
                 accountObject.placement.table,
                 accountObject.space.table,
                 rollout.table,
@@ -1140,7 +1140,7 @@ export class SpaceHost {
     assignment(publisher: Uplink): Projection {
         return new Projection(this.database, {
             name: "assignment",
-            reads: [
+            tables: [
                 build.table,
                 deployment.table,
                 accountObject.placement.table,

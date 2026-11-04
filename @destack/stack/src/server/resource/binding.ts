@@ -884,7 +884,7 @@ export class Binder {
     ): Projection {
         return new Projection(store.database, {
             name: "specification",
-            reads: [
+            tables: [
                 rollout.table,
                 binding.table,
                 capture.table,

@@ -394,9 +394,9 @@ async function serveControllers(
 
                 return settle(database, {
                     controllers: [...own.controllers, ...(stack?.controllers ?? [])],
-                    consumers: [
-                        ...own.consumers,
-                        ...(stack?.consumers ?? []),
+                    cursors: [
+                        ...own.cursors,
+                        ...(stack?.cursors ?? []),
                         fixture.projection(store, ids.space),
                     ],
                 });

@@ -1216,7 +1216,7 @@ export class SpaceTransfer {
 
         return new Projection(database, {
             name: "transfer:finish",
-            reads: [placement.table, transfer.table, Scope.table],
+            tables: [placement.table, transfer.table, Scope.table],
             keys: async (change) => {
                 // take the space of a placement, a move or a space's scope
                 const image = Change.image(change);
