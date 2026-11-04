@@ -1,6 +1,6 @@
 import { integer, json, TABLE, text, type Row, type Table, type TableColumnMap } from "@destack/db";
 import type { Package } from "@destack/package";
-import { Digest, type DigestCrypto, JsonValue, schema, toJsonSchema } from "@destack/schema";
+import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Histogram } from "./histogram.ts";
 
 /** The microseconds in a millisecond, the unit of event times. */
@@ -8,9 +8,6 @@ const MICROSECONDS_PER_MILLISECOND = 1000;
 
 /** How far behind newer events an event may arrive: writers' races and client retries. */
 export const OUT_OF_ORDER_MILLISECONDS = 5 * 60_000;
-
-/** The digest bytes of an event's identity: 128 bits, as unlikely to collide as a UUID. */
-const IDENTITY_BYTES = 16;
 
 /** The query keys of an event kind: a schema per key. */
 export type EventKeyFields = Readonly<Record<string, schema.Schema>>;
@@ -68,7 +65,7 @@ export const EventTime = {
 };
 
 /** An event of any kind as it is stored, its personal values sealed. */
-const EventSchema = schema.object({
+export const Event = schema.object({
     /** The scope the event happened in, its home. */
     scope: schema.string().min(1),
     /** The event's identity. */
@@ -84,20 +81,6 @@ const EventSchema = schema.object({
     ),
     /** The data. */
     data: schema.json(),
-});
-
-/** Events of any kind, and identities for events without one. */
-export const Event = Object.assign(EventSchema, {
-    /** Identify an event by a digest of its scope and contents, the same on every retry. */
-    async identity(
-        scope: string,
-        contents: readonly unknown[],
-        crypto: DigestCrypto,
-    ): Promise<string> {
-        const digest = await Digest.of(JSON.stringify([scope, ...contents]), crypto);
-
-        return digest.slice(0, IDENTITY_BYTES * 2);
-    },
 });
 
 /** How an event is stored: exactly once in the caller's transaction, or at most once outside it. */
