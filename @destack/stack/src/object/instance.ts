@@ -36,6 +36,8 @@ export const instance = defineObject(
             stoppedAt: field.time().optional(),
             /** The restarts after failures since the instance was recorded. */
             restarts: field.integer().default(0),
+            /** When a failed instance restarts after its backoff, in UTC epoch milliseconds. */
+            restartAt: field.time().optional(),
         },
         permissions: ["read", "record"],
         constraints: {

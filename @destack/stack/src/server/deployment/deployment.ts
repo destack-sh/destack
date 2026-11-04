@@ -15,6 +15,7 @@ import {
     eq,
     inArray,
     isNull,
+    now,
     or,
     Snapshot,
     Condition,
@@ -111,65 +112,67 @@ type CaptureStart = Pick<Capture, "packageId" | "name" | "target" | "version" | 
 /** Implement deployments: roll each out on this machine's runtimes. */
 export function implementDeployment(options: DeploymentOptions) {
     return deployment.implement({
-        controller: {
-            pending: { status: { in: ["active", "draining", "stopping"] } },
-            watches: [
-                // wake an instance's deployment and the deployments of its workload it may replace
-                ObjectWatch.of(instance.table, async (row, database) => [
-                    { id: row.deploymentId },
-                    ...(await replacedBy(row.deploymentId, database)),
-                ]),
-                // wake the space's draining deployments when another turns active or retires
-                ObjectWatch.of(deployment.table, async (row, database) =>
-                    row.status === "active" || row.status === "retired"
-                        ? database
-                              .select({ id: deployment.table.id })
-                              .from(deployment.table)
-                              .where(
-                                  and(
-                                      eq(deployment.table.scope, row.scope),
-                                      eq(deployment.table.status, "draining"),
-                                  ),
-                              )
-                        : [],
-                ),
-                // wake a space's live deployments once a move fences or lifts its scope or its placement changes
-                ObjectWatch.of(Scope.table, async (row, database) => {
-                    const fenced = schema.identifier("space").safeParse(row.scope);
-
-                    return fenced.success ? liveDeployments(fenced.data, database) : [];
-                }),
-                Space.watch(liveDeployments),
-                // reconcile the live deployments capturing a changed resource of any kind
-                ...options.providers.objects().map((object) =>
-                    ObjectWatch.of(object.table, async (row, database) =>
-                        !space.identifies(row.scope)
-                            ? []
-                            : database
-                                  .selectDistinct({ id: capture.table.deploymentId })
-                                  .from(capture.table)
-                                  .innerJoin(
-                                      deployment.table,
-                                      eq(deployment.table.id, capture.table.deploymentId),
-                                  )
+        controllers: [
+            {
+                pending: { status: { in: ["active", "draining", "stopping"] } },
+                watches: [
+                    // wake an instance's deployment and the deployments of its workload it may replace
+                    ObjectWatch.of(instance.table, async (row, database) => [
+                        { id: row.deploymentId },
+                        ...(await replacedBy(row.deploymentId, database)),
+                    ]),
+                    // wake the space's draining deployments when another turns active or retires
+                    ObjectWatch.of(deployment.table, async (row, database) =>
+                        row.status === "active" || row.status === "retired"
+                            ? database
+                                  .select({ id: deployment.table.id })
+                                  .from(deployment.table)
                                   .where(
                                       and(
-                                          eq(capture.table.scope, row.scope),
-                                          eq(capture.table.target, row.id),
-                                          Condition.render(Deployment.live(), deployment.table),
+                                          eq(deployment.table.scope, row.scope),
+                                          eq(deployment.table.status, "draining"),
                                       ),
-                                  ),
+                                  )
+                            : [],
                     ),
-                ),
-            ],
-            reconcile: async (reconciliation) => {
-                // reconcile a deployment of a served space the machine runs
-                const id = nth(reconciliation.rows, 0).id;
-                const pass = await Reconcile.read(id, reconciliation, options);
+                    // wake a space's live deployments once a move fences or lifts its scope or its placement changes
+                    ObjectWatch.of(Scope.table, async (row, database) => {
+                        const fenced = schema.identifier("space").safeParse(row.scope);
 
-                return pass?.reconcile();
+                        return fenced.success ? liveDeployments(fenced.data, database) : [];
+                    }),
+                    Space.watch(liveDeployments),
+                    // reconcile the live deployments capturing a changed resource of any kind
+                    ...options.providers.objects().map((object) =>
+                        ObjectWatch.of(object.table, async (row, database) =>
+                            !space.identifies(row.scope)
+                                ? []
+                                : database
+                                      .selectDistinct({ id: capture.table.deploymentId })
+                                      .from(capture.table)
+                                      .innerJoin(
+                                          deployment.table,
+                                          eq(deployment.table.id, capture.table.deploymentId),
+                                      )
+                                      .where(
+                                          and(
+                                              eq(capture.table.scope, row.scope),
+                                              eq(capture.table.target, row.id),
+                                              Condition.render(Deployment.live(), deployment.table),
+                                          ),
+                                      ),
+                        ),
+                    ),
+                ],
+                reconcile: async (reconciliation) => {
+                    // reconcile a deployment of a served space the machine runs
+                    const id = nth(reconciliation.rows, 0).id;
+                    const pass = await Reconcile.read(id, reconciliation, options);
+
+                    return pass?.reconcile();
+                },
             },
-        },
+        ],
     });
 }
 
@@ -180,6 +183,20 @@ export function implementInstance() {
             stop: (call) =>
                 call.update({ status: "stopped", stoppedAt: call.now, observedAt: call.now }),
         },
+        controllers: [
+            {
+                // clear a failed instance's restart once its backoff passed, which wakes its deployment
+                name: "restart",
+                pending: { status: "failed", restartAt: { lte: now } },
+                reconcile: async ({ rows, mutate }) => {
+                    await mutate(
+                        rows.map((row) =>
+                            instance.call("update", { ...instance.target(row), restartAt: null }),
+                        ),
+                    );
+                },
+            },
+        ],
     });
 }
 
@@ -247,7 +264,7 @@ class Reconcile {
     }
 
     /** Run the instance of an active deployment, and stop the instances of one no longer active. */
-    async reconcile(): Promise<number | undefined> {
+    async reconcile(): Promise<void> {
         // run the active deployment's instance
         if (this.#current.status === "active") {
             return this.#runActive();
@@ -258,7 +275,7 @@ class Reconcile {
             this.#recorded.length > 0 &&
             !(await this.#isReplaced())
         ) {
-            return undefined;
+            return;
         }
         // stop the instances of a deployment no longer active, running only this machine's
         else if (this.#recorded.length > 0) {
@@ -281,11 +298,11 @@ class Reconcile {
             ]);
         }
 
-        return undefined;
+        return;
     }
 
     /** Run an active deployment's instance on this machine, stopping other machines' instances. */
-    async #runActive(): Promise<number | undefined> {
+    async #runActive(): Promise<void> {
         // stop the instances of other machines
         const machine = this.#options.machine;
         const foreign = this.#recorded.filter((entry) => entry.machineId !== machine);
@@ -403,20 +420,16 @@ class Reconcile {
     }
 
     /** Run an instance after its captured resources apply. */
-    async #run(recorded: Instance): Promise<number | undefined> {
+    async #run(recorded: Instance): Promise<void> {
         // leave a running instance running while its process runs
         const reconciliation = this.#reconciliation;
-        const now = reconciliation.now;
-        const drawn = RetryPolicy.draw(`${recorded.id} ${recorded.restarts + 1}`);
-        const backoff = RetryPolicy.interval(RESTART, recorded.restarts + 1, () => drawn);
-        const due = (recorded.stoppedAt ?? now) + backoff;
         const running = this.#runtime();
         if (recorded.status === "running" && running.isRunning(recorded.id)) {
-            return undefined;
+            return;
         }
         // leave a failed instance until its backoff passes
-        else if (recorded.status === "failed" && due > now) {
-            return due - now;
+        else if (recorded.status === "failed" && recorded.restartAt !== null) {
+            return;
         }
 
         // wait until every captured resource applied its current generation, observing which
@@ -430,7 +443,7 @@ class Reconcile {
                 ready: ["false", "WaitingForResources", `resources ${names} are not applied`],
             });
 
-            return undefined;
+            return;
         }
 
         // run the revision's build and restart a failed instance in place
@@ -459,25 +472,22 @@ class Reconcile {
             stoppedAt: null,
             ready: ["true", "Running", ""],
         });
-
-        return undefined;
     }
 
-    /** Record an instance failed to start, returning the delay before its restart. */
-    async #recordFailure(recorded: Instance, restarts: number, error: unknown): Promise<number> {
-        // record the failure
+    /** Record an instance failed to start, restarting after a backoff drawn from its restarts. */
+    async #recordFailure(recorded: Instance, restarts: number, error: unknown): Promise<void> {
+        // record the failure, restarting after the backoff drawn from the instance and its restarts
         const { message } = Failure.of(error);
+        const stoppedAt = this.#reconciliation.store.clock.now();
+        const drawn = RetryPolicy.draw(`${recorded.id} ${restarts + 1}`);
+        const backoff = RetryPolicy.interval(RESTART, restarts + 1, () => drawn);
         await this.#observe(recorded, {
             status: "failed",
             restarts,
-            stoppedAt: this.#reconciliation.store.clock.now(),
+            stoppedAt,
+            restartAt: stoppedAt + backoff,
             ready: ["false", "StartFailed", message],
         });
-
-        // wait the backoff drawn from the instance and its restarts
-        const drawn = RetryPolicy.draw(`${recorded.id} ${restarts + 1}`);
-
-        return RetryPolicy.interval(RESTART, restarts + 1, () => drawn);
     }
 
     /** List the captured resources yet to apply their current generation. */
@@ -743,6 +753,8 @@ class Reconcile {
             readonly startedAt?: number;
             /** The finish or failure time. */
             readonly stoppedAt?: number | null;
+            /** When a failed instance restarts. */
+            readonly restartAt?: number | null;
         },
     ): Promise<void> {
         // skip an observation the instance has
@@ -762,19 +774,19 @@ class Reconcile {
         }
 
         // record the fields and the condition, with a transition time that stays while the status stays
-        const now = this.#reconciliation.now;
+        const time = this.#reconciliation.now;
         const ready: InstanceCondition = {
             status,
             reason,
             message,
-            lastTransitionAt: previous?.status === status ? previous.lastTransitionAt : now,
+            lastTransitionAt: previous?.status === status ? previous.lastTransitionAt : time,
         };
         await this.#reconciliation.mutate([
             instance.call("update", {
                 ...instance.target(recorded),
                 ...fields,
                 conditions: { ...recorded.conditions, Ready: ready },
-                observedAt: now,
+                observedAt: time,
             }),
         ]);
     }

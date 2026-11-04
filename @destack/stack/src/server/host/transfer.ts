@@ -14,8 +14,8 @@ import {
     isNull,
     lt,
     or,
-    type ReconcileController,
-    type Reconciliation,
+    type Controller,
+    Projection,
     type RowImage,
     type Select,
     Snapshot,
@@ -223,24 +223,26 @@ export function implementTransfer(options: TransferOptions) {
                 },
             },
         },
-        controller: {
-            pending: { completedAt: { isNull: true }, sourceId: options.machine },
-            watches: [
-                Space.watch((spaceId, database) =>
-                    database
-                        .select({ id: transfer.table.id })
-                        .from(transfer.table)
-                        .where(
-                            and(
-                                eq(transfer.table.scope, spaceId),
-                                isNull(transfer.table.completedAt),
+        controllers: [
+            {
+                pending: { completedAt: { isNull: true }, sourceId: options.machine },
+                watches: [
+                    Space.watch((spaceId, database) =>
+                        database
+                            .select({ id: transfer.table.id })
+                            .from(transfer.table)
+                            .where(
+                                and(
+                                    eq(transfer.table.scope, spaceId),
+                                    isNull(transfer.table.completedAt),
+                                ),
                             ),
-                        ),
-                ),
-            ],
-            reconcile: (reconciliation) =>
-                advance(nth(reconciliation.rows, 0), reconciliation, options),
-        },
+                    ),
+                ],
+                reconcile: (reconciliation) =>
+                    advance(nth(reconciliation.rows, 0), reconciliation, options),
+            },
+        ],
     });
 }
 
@@ -1174,127 +1176,84 @@ export class SpaceTransfer {
             await moved.place(options, database, store.environment);
         }
     }
-}
 
-/** Receive the spaces whose placements move to this machine. */
-export class TransferController implements ReconcileController {
-    /** The controller's name in reports. */
-    readonly name = "transfer";
-    /** The replicated placements, whose changes select their spaces. */
-    readonly watches: readonly Table[] = [placement.table];
-    /** The spaces received at once. */
-    readonly concurrency = TRANSFER_CONCURRENCY;
-    /** What the machine moves spaces with. */
-    readonly #options: TransferOptions;
-    /** The space's object store the moves run their calls through as its principal. */
-    readonly #store: TransferStore;
+    /** Declare the controller receiving a space while its placement moves it to a standby. */
+    static controller(
+        options: TransferOptions,
+        store: TransferStore,
+    ): Controller<typeof placement.table> {
+        return {
+            name: "transfer:receive",
+            table: placement.table,
+            pending: { targetId: options.machine },
+            concurrency: TRANSFER_CONCURRENCY,
+            follow: async (rows, following) => {
+                // receive the space, ending quietly once the placement leaves this machine
+                const { id, scope, machineId, epoch } = present(rows[0], "a moving placement");
+                const moving = { id, scope, machine: machineId, epoch };
+                await SpaceTransfer.receive(moving, following.signal, options, store).catch(
+                    (error: unknown) => {
+                        if (!following.signal.aborted) {
+                            throw error;
+                        }
+                    },
+                );
 
-    /** Move spaces to a machine with its relays, providers and keys, over its store. */
-    constructor(options: TransferOptions, store: TransferStore) {
-        this.#options = options;
-        this.#store = store;
-    }
-
-    /** List the space whose projected placement changed. */
-    keys(change: Change): readonly string[] {
-        return Change.of(change, placement.table) ? [Change.image(change).id] : [];
-    }
-
-    /** List the spaces moving to this machine. */
-    async list(): Promise<readonly string[]> {
-        // read the spaces moving here
-        const { database } = this.#store;
-        const machine = this.#options.machine;
-        const moving = await database
-            .select({ id: placement.table.id })
-            .from(placement.table)
-            .where(eq(placement.table.targetId, machine));
-
-        // read the spaces placed here still fenced toward this machine
-        const fenced = await database
-            .select({ id: Scope.table.scope })
-            .from(Scope.table)
-            .innerJoin(placement.table, eq(placement.table.id, Scope.table.scope))
-            .where(and(eq(placement.table.machineId, machine), SpaceTransfer.fenced(machine)));
-
-        // read the spaces left from moves the placements no longer target here
-        const abandoned = await database
-            .select({ id: Scope.table.scope })
-            .from(Scope.table)
-            .where(SpaceTransfer.abandoned(machine));
-
-        return [...moving, ...fenced, ...abandoned].map((row) => row.id);
-    }
-
-    /** Receive a space moving here, or place one whose replica here is still fenced. */
-    async reconcile(key: string, { signal }: Reconciliation): Promise<undefined> {
-        // read the replicated placement
-        const { database } = this.#store;
-        const { machine, providers } = this.#options;
-        const spaceId = schema.identifier("space").parse(key);
-        const [row] = await database
-            .select()
-            .from(placement.table)
-            .where(eq(placement.table.id, spaceId));
-
-        // receive a space moving here on a standby
-        const { role } = this.#options;
-        if (role === "standby" && row?.targetId === machine) {
-            const { id, scope, epoch } = row;
-            await this.#receiveWhileTargeted({ id, scope, machine: row.machineId, epoch }, signal);
-        }
-        // place a space whose replica here is fenced still, once primary
-        else if (role === "primary" && row?.machineId === machine) {
-            const move = await SpaceTransfer.latest(this.#store, spaceId, machine, "fenced");
-            await move?.place(this.#options, database, this.#store.environment);
-        }
-        // abort the latest move here the placement no longer targets, on a standby
-        else if (role === "standby") {
-            const move = await SpaceTransfer.latest(this.#store, spaceId, machine, "abandoned");
-            await move?.abort(providers, database);
-        }
-
-        return undefined;
-    }
-
-    /** Receive a space moving here until its placement no longer targets this machine. */
-    async #receiveWhileTargeted(moving: Placement, signal: AbortSignal): Promise<void> {
-        // stop the receipt once the projected placement targets another machine or none
-        const { database } = this.#store;
-        const machine = this.#options.machine;
-        const left = new AbortController();
-        const watched = new AbortController();
-        const isLeft = async () => {
-            const [row] = await database
-                .select({ target: placement.table.targetId })
-                .from(placement.table)
-                .where(eq(placement.table.id, moving.id));
-
-            return row?.target !== machine;
+                // hold the received space until its placement leaves this machine
+                following.synced();
+                await waitAborted(following.signal);
+            },
         };
-        const watching = database.log
-            .waitUntil(isLeft, AbortSignal.any([signal, watched.signal]))
-            .then((isMoved) => {
-                if (isMoved) {
-                    left.abort();
-                }
-            });
+    }
 
-        // receive it, ending quietly once the move left this machine
-        try {
-            await SpaceTransfer.receive(
-                moving,
-                AbortSignal.any([signal, left.signal]),
-                this.#options,
-                this.#store,
-            );
-        } catch (error) {
-            if (!left.signal.aborted) {
-                throw error;
-            }
-        } finally {
-            watched.abort();
-            await watching;
-        }
+    /** Declare the projection ending moves: placing fenced spaces, aborting abandoned moves. */
+    static projection(options: TransferOptions, store: TransferStore): Projection {
+        // match the spaces fenced toward this primary, else those whose moves to this standby were abandoned
+        const { database } = store;
+        const { machine, role } = options;
+        const condition =
+            role === "primary" ? SpaceTransfer.fenced(machine) : SpaceTransfer.abandoned(machine);
+
+        return new Projection(database, {
+            name: "transfer:finish",
+            reads: [placement.table, transfer.table, Scope.table],
+            keys: async (change) => {
+                // take the space of a placement, a move or a space's scope
+                const image = Change.image(change);
+                const key = Change.of(change, placement.table) ? image["id"] : image["scope"];
+                const spaceId = schema.identifier("space").safeParse(key);
+
+                return spaceId.success ? [spaceId.data] : [];
+            },
+            all: async () => {
+                // list the spaces with a fenced or an abandoned move here
+                const rows = await database
+                    .select({ id: Scope.table.scope })
+                    .from(Scope.table)
+                    .where(condition);
+
+                return rows.map((row) => row.id);
+            },
+            project: async (key) => {
+                // place a space fenced toward this primary once placed here
+                const spaceId = schema.identifier("space").parse(key);
+                if (role === "primary") {
+                    const [row] = await database
+                        .select({ machine: placement.table.machineId })
+                        .from(placement.table)
+                        .where(eq(placement.table.id, spaceId));
+                    const move =
+                        row?.machine === machine
+                            ? await SpaceTransfer.latest(store, spaceId, machine, "fenced")
+                            : undefined;
+                    await move?.place(options, database, store.environment);
+                }
+                // abort a move to this standby its placement no longer targets
+                else {
+                    const move = await SpaceTransfer.latest(store, spaceId, machine, "abandoned");
+                    await move?.abort(options.providers, database);
+                }
+            },
+        });
     }
 }

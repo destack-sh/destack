@@ -1,6 +1,8 @@
 import type { PackageFile } from "@destack/package/file";
 import { principal } from "@destack/access";
-import { and, eq } from "@destack/db";
+import { and, eq, Projection, Snapshot } from "@destack/db";
+import { SettingValue } from "@destack/setting/object";
+import { buildRetention } from "../../setting/index.ts";
 import { type BrowserClosure, type ManifestRead, BuildStore } from "@destack/build/store";
 import type { Runtime } from "@destack/package/runtime";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
@@ -16,6 +18,7 @@ import {
     BuildEnd,
     BuildSource,
     CodeIndex,
+    installationRevision,
 } from "../../object/index.ts";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../../error/index.ts";
@@ -393,6 +396,27 @@ export class SpaceBuildStore {
     /** Delete the space's builds as it leaves the machine, with their attached graph indexes. */
     async clear(): Promise<void> {
         await this.space.clear();
+    }
+
+    /** Declare the projection expiring the space's builds past its retention as builds change. */
+    retention(store: ObjectStore): Projection {
+        const { database, scope } = store;
+
+        return new Projection(database, {
+            name: "retention",
+            reads: [build.table, installationRevision.table],
+            keys: async () => [scope],
+            all: async () => [scope],
+            project: async () =>
+                this.retain(
+                    store,
+                    (space) =>
+                        SettingValue.resolve(Snapshot.live(database), buildRetention, {
+                            scope: space,
+                        }),
+                    store.clock.now(),
+                ),
+        });
     }
 
     /** Expire the space's builds its retention drops, leaving their blobs to the collection. */

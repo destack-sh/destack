@@ -8,7 +8,22 @@ import {
 } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
 import accountPackage from "@destack/account/package";
-import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import {
+    and,
+    Change,
+    Condition,
+    type DatabaseConnection,
+    eq,
+    inArray,
+    isNotNull,
+    isNull,
+    Projection,
+    Snapshot,
+    Transaction,
+} from "@destack/db";
+import { AccessContext, Authorization, Caller } from "@destack/access";
+import { MAIN_DATABASE } from "../../declare/index.ts";
+import { STACK_INSTALLATION } from "../../package.ts";
 import type { Environment, Network, SocketAddress } from "@destack/environment";
 import type { Deriver, Keyring } from "@destack/identity";
 import {
@@ -22,6 +37,7 @@ import {
     HttpsBinding,
     type HttpsClient,
     InstallationBinding,
+    installation,
     type ProcedureRouter,
     type PackageHandle,
     PackageMount,
@@ -41,19 +57,32 @@ import {
 import { type ClientOf, createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import { type graph, type PackageId, type PackageRelease, Sandbox } from "@destack/package";
-import { type Digest, type Identifier, present, schema } from "@destack/schema";
-import { type Publisher, Scope, Subject, type Subscription, Uplink } from "@destack/sync";
+import { Digest, type Identifier, present, schema } from "@destack/schema";
+import {
+    type Publisher,
+    RequestId,
+    Scope,
+    Subject,
+    type Subscription,
+    Uplink,
+} from "@destack/sync";
 import { SPACE_BASE_PACKAGES, type SpaceOptions } from "../server.ts";
 import {
+    ACTIVE_BUILD_STATES,
     binding,
     type Binding,
     bucket,
+    build,
     Database,
+    database,
+    deployment,
+    Deployment,
     dependency,
     https,
     InstallationRevision,
     Rollout,
     rollout,
+    SPACE_PROVIDER,
     type InstallationRollout,
 } from "../../object/index.ts";
 import { ObjectBindable } from "../resource/binding.ts";
@@ -188,11 +217,11 @@ export class SpaceHost {
         | undefined;
 
     /** Host a space over its database on a machine. */
-    constructor(machine: SpaceMachine, id: Identifier<"space">, database: DatabaseConnection) {
+    constructor(machine: SpaceMachine, id: Identifier<"space">, connection: DatabaseConnection) {
         // store the space, its machine and database, and its keys under the machine's keyring
         this.id = id;
         this.machine = machine;
-        this.database = database;
+        this.database = connection;
         this.keystore = new IdentityKeystore(
             machine.keyring,
             machine.identities,
@@ -208,15 +237,15 @@ export class SpaceHost {
     /** Start the space's identity where the directory places it here, then key its columns. */
     async open(): Promise<void> {
         // start the identity of a space placed here without keys on the machine yet
-        const { keystore, database } = this;
-        const isRetained = await keystore.hasKeys(database, this.id);
+        const { keystore } = this;
+        const isRetained = await keystore.hasKeys(this.database, this.id);
         if ((await this.role()) === "primary" && !isRetained) {
-            await keystore.generate(database, this.id);
+            await keystore.generate(this.database, this.id);
         }
 
         // key the space's sensitive columns with its identity's column key, once its keys live here
-        if (await keystore.hasKeys(database, this.id)) {
-            await keystore.key(database, this.id);
+        if (await keystore.hasKeys(this.database, this.id)) {
+            await keystore.key(this.database, this.id);
         }
         this.#sources.clear();
     }
@@ -357,6 +386,7 @@ export class SpaceHost {
         Pick<
             SpaceOptions,
             | "bases"
+            | "host"
             | "role"
             | "principal"
             | "partitions"
@@ -392,6 +422,7 @@ export class SpaceHost {
 
         return {
             bases: new Map(bases),
+            host: this,
             role: await this.role(),
             principal: this.principal,
             partitions: await this.partitions(),
@@ -847,7 +878,7 @@ export class SpaceHost {
         caller: () => Promise<EgressCaller>,
     ): Promise<InstalledServerContext> {
         // call the space's stack package in process as the installation
-        const { database, machine } = this;
+        const { machine } = this;
         const { id, scope } = row;
         const signer = principal.installation.reference(scope, id);
         const stack = createClient(
@@ -869,14 +900,14 @@ export class SpaceHost {
         });
 
         // describe its build and package, settings, keys rooted in its space's identity, replicas and peers
-        const build = await InstallationRevision.reader(
-            Snapshot.live(database),
+        const reader = await InstallationRevision.reader(
+            Snapshot.live(this.database),
             revisionId,
             machine.builds,
         );
-        const description = await PackageDescription.of(build);
+        const description = await PackageDescription.of(reader);
         const identity = present(
-            await this.keystore.deriver(database, scope),
+            await this.keystore.deriver(this.database, scope),
             `the keys of ${scope}, which this machine keeps`,
         );
 
@@ -891,7 +922,7 @@ export class SpaceHost {
             name: named.name,
             scope,
             url: InstallationMount.url(machine.origin, scope, id),
-            build,
+            build: reader,
             resources,
             capabilities: Rollout.enabled(row.installation, description),
             keys: await InstallationRoot.open(
@@ -910,7 +941,7 @@ export class SpaceHost {
                 locale,
                 timeZone,
             },
-            settings: await Rollout.settings(database, build, { scope, installation: id }),
+            settings: await Rollout.settings(this.database, reader, { scope, installation: id }),
             publisher: Uplink.of(() => stack.store),
             publisherAt: (address, packageId) => {
                 // follow the stack package at the address
@@ -1087,5 +1118,410 @@ export class SpaceHost {
         );
 
         return { ...verified, caller: { ...caller, groups: [...caller.groups, ...inside] } };
+    }
+
+    /** Declare the projection giving birth to the space once placed here, following its stack. */
+    placement(store: ObjectStore, main: SpaceOptions["main"]): Projection {
+        return new Projection(this.database, {
+            name: "placement",
+            reads: [
+                accountObject.placement.table,
+                accountObject.space.table,
+                rollout.table,
+                Scope.table,
+            ],
+            keys: async (change) => this.#placementKeys(change),
+            all: async () => this.#placed(),
+            project: async (key) => this.#place(key, store, main),
+        });
+    }
+
+    /** Declare the projection assigning the space's work to the other machines doing it. */
+    assignment(publisher: Uplink): Projection {
+        return new Projection(this.database, {
+            name: "assignment",
+            reads: [
+                build.table,
+                deployment.table,
+                accountObject.placement.table,
+                accountObject.assignment.table,
+            ],
+            keys: async (change) => this.#assignmentKeys(change),
+            all: async () => this.#spaces(),
+            project: async (key) => this.#assign(key, publisher),
+        });
+    }
+
+    /** List the store's space when a change touches it or an account's scope arrived. */
+    #placementKeys(change: Change): readonly string[] {
+        // take the space's placement
+        if (Change.of(change, accountObject.placement.table)) {
+            return this.#touching(Change.image(change).id);
+        }
+        // take the space's replicated row
+        else if (Change.of(change, accountObject.space.table)) {
+            return this.#touching(Change.image(change).id);
+        }
+        // take the space's rollouts, its stack's among them
+        else if (Change.of(change, rollout.table)) {
+            return this.#touching(Change.image(change).scope);
+        }
+        // take an account whose scope arrived, inside which the space may now be born
+        else if (Change.of(change, Scope.table)) {
+            return Change.image(change).type === "account" ? [this.id] : [];
+        }
+        // select nothing for any other change
+        else {
+            return [];
+        }
+    }
+
+    /** List the store's space if a change's space is it, else nothing. */
+    #touching(changed: string): readonly string[] {
+        return changed === this.id ? [this.id] : [];
+    }
+
+    /** List the space while placed here awaiting birth, a main database, or its changed stack. */
+    async #placed(): Promise<readonly string[]> {
+        // read the space while placed here with its stack and the stack its installation last followed
+        const rows = await this.database
+            .select({
+                id: accountObject.placement.table.id,
+                born: Scope.table.scope,
+                main: database.table.id,
+                stack: accountObject.space.table.stack,
+                followed: rollout.table.spaceStack,
+            })
+            .from(accountObject.placement.table)
+            .innerJoin(
+                accountObject.space.table,
+                eq(accountObject.space.table.id, accountObject.placement.table.id),
+            )
+            .leftJoin(Scope.table, eq(Scope.table.scope, accountObject.space.table.id))
+            .leftJoin(
+                database.table,
+                and(
+                    eq(database.table.scope, accountObject.placement.table.id),
+                    eq(database.table.name, MAIN_DATABASE),
+                ),
+            )
+            .leftJoin(
+                installation.table,
+                and(
+                    eq(installation.table.scope, accountObject.placement.table.id),
+                    isNotNull(installation.table.export),
+                ),
+            )
+            .leftJoin(rollout.table, eq(rollout.table.id, installation.table.id))
+            .where(
+                and(
+                    eq(accountObject.placement.table.id, this.id),
+                    eq(accountObject.placement.table.machineId, this.machine.id),
+                    isNull(accountObject.space.table.deletedAt),
+                ),
+            );
+
+        // select it unborn, without a main database, or with a stack changed since its installation followed it
+        const { crypto } = this.database.state.environment;
+        const listed = await Promise.all(
+            rows.map(async (row) =>
+                row.born === null ||
+                row.main === null ||
+                (await Digest.json(row.stack, crypto)) !== row.followed
+                    ? [row.id]
+                    : [],
+            ),
+        );
+
+        return listed.flat();
+    }
+
+    /** Give birth to the placed space from its replicated row, and install its stack. */
+    async #place(key: string, store: ObjectStore, main: SpaceOptions["main"]): Promise<void> {
+        // leave a space not placed here, a deleting one, and one whose row or parent scope has not arrived
+        const spaceId = accountObject.space.identifier(key);
+        const [placed] = await this.database
+            .select({ born: Scope.table.scope, parent: accountObject.space.table.scope })
+            .from(accountObject.placement.table)
+            .innerJoin(
+                accountObject.space.table,
+                eq(accountObject.space.table.id, accountObject.placement.table.id),
+            )
+            .leftJoin(Scope.table, eq(Scope.table.scope, accountObject.space.table.id))
+            .where(
+                and(
+                    eq(accountObject.placement.table.id, spaceId),
+                    eq(accountObject.placement.table.machineId, this.machine.id),
+                    isNull(accountObject.space.table.deletedAt),
+                ),
+            );
+        if (placed === undefined) {
+            return;
+        }
+
+        // open the space once its parent's scope arrived
+        if (placed.born === null) {
+            const [parent] = await this.database
+                .select({ ancestors: Scope.table.ancestors })
+                .from(Scope.table)
+                .where(eq(Scope.table.scope, placed.parent));
+            if (parent === undefined) {
+                return;
+            }
+            await this.#receive(store, spaceId, [placed.parent, ...parent.ancestors]);
+        }
+
+        // create its main database as the space
+        const [created] = await this.database
+            .select({ id: database.table.id })
+            .from(database.table)
+            .where(and(eq(database.table.scope, spaceId), eq(database.table.name, MAIN_DATABASE)));
+        if (created === undefined) {
+            await this.#createMain(store, main, spaceId);
+        }
+
+        // follow the space's stack once it changed, leaving a stack its owner applied since
+        const [received] = await this.database
+            .select({
+                stack: accountObject.space.table.stack,
+                installed: installation.table.id,
+                installedPackage: installation.table.packageId,
+                followed: rollout.table.spaceStack,
+            })
+            .from(accountObject.space.table)
+            .leftJoin(
+                installation.table,
+                and(
+                    eq(installation.table.scope, accountObject.space.table.id),
+                    isNotNull(installation.table.export),
+                ),
+            )
+            .leftJoin(rollout.table, eq(rollout.table.id, installation.table.id))
+            .where(eq(accountObject.space.table.id, spaceId));
+        const row = present(received, `the row of ${spaceId}`);
+        const digest = await Digest.json(row.stack, this.database.state.environment.crypto);
+        if (digest !== row.followed) {
+            await this.#followStack(
+                store,
+                spaceId,
+                row.stack,
+                digest,
+                row.installed,
+                row.installedPackage,
+            );
+        }
+    }
+
+    /** Receive a placed space at its primary below its ancestors, with its base installations. */
+    async #receive(
+        store: ObjectStore,
+        spaceId: Identifier<"space">,
+        ancestors: readonly string[],
+    ): Promise<void> {
+        // read the account the space lives in
+        const [row] = await this.database
+            .select({ scope: accountObject.space.table.scope })
+            .from(accountObject.space.table)
+            .where(eq(accountObject.space.table.id, spaceId));
+        const replicated = present(row, `the row of ${spaceId}`);
+        const now = store.clock.now();
+        // record its scope here, its primary, born with its base installations
+        const scope = accountObject.space.reference(replicated.scope, spaceId);
+        await Authorization.run(
+            store.authorizer,
+            this.database,
+            () => AccessContext.of(Caller.of(store.principal), now),
+            store.environment,
+            (authorization) =>
+                Installation.receive(authorization, scope, ancestors, SPACE_BASE_PACKAGES),
+        );
+    }
+
+    /** Create a space's main database where its stack places it. */
+    async #createMain(
+        store: ObjectStore,
+        main: SpaceOptions["main"],
+        spaceId: Identifier<"space">,
+    ): Promise<void> {
+        // describe the main database every space has in its own storage
+        await Transaction.run(this.database, async (transaction) => {
+            // create the main database as the space
+            await store.mutate(
+                store.as(database),
+                {
+                    id: RequestId.create(store.environment),
+                    calls: [
+                        database.call("create", {
+                            ...database.in(spaceId),
+                            name: MAIN_DATABASE,
+                            ...main.declare({
+                                placement: { provider: SPACE_PROVIDER },
+                                retention: "forever",
+                            }),
+                        }),
+                    ],
+                },
+                { transaction, scope: spaceId },
+            );
+        });
+    }
+
+    /** Create the space's stack installation following its stack, or point it at a changed one. */
+    async #followStack(
+        store: ObjectStore,
+        spaceId: Identifier<"space">,
+        stack: accountObject.StackRelease,
+        digest: Digest,
+        installed: Identifier<"installation"> | null,
+        installedPackage: string | null,
+    ): Promise<void> {
+        // refuse moving a space to another stack package, which its installation cannot follow
+        if (installedPackage !== null && installedPackage !== stack.packageId) {
+            throw new TypeError(
+                `the stack of ${spaceId} moved from ${installedPackage} to ${stack.packageId}`,
+            );
+        }
+
+        // install the stack package once, else follow the changed release and export
+        const followed = { selection: stack.selection, export: stack.export };
+        const [created] = await store.mutate(store.as(rollout), {
+            id: RequestId.create(store.environment),
+            calls: [
+                installed === null
+                    ? installation.call("create", {
+                          ...installation.in(spaceId),
+                          packageId: stack.packageId,
+                          ...followed,
+                          parameters: {},
+                          name: STACK_INSTALLATION,
+                      })
+                    : installation.call("update", {
+                          ...installation.target({ scope: spaceId, id: installed }),
+                          ...followed,
+                      }),
+            ],
+        });
+
+        // record the stack followed and drop an owner's earlier apply, so one its owner applies later stays
+        const id = installed ?? present(created, `the stack of ${spaceId}`).id;
+        await store.mutate(store.as(rollout), {
+            id: RequestId.create(store.environment),
+            calls: [
+                rollout.call("follow", {
+                    ...rollout.target({ scope: spaceId, id }),
+                    spaceStack: digest,
+                }),
+            ],
+        });
+    }
+
+    /** List the space a change of its work, its placement or its assignments touches. */
+    #assignmentKeys(change: Change): readonly string[] {
+        // take a placement's space
+        if (Change.of(change, accountObject.placement.table)) {
+            return [Change.image(change).id];
+        }
+        // take an assignment's space
+        else if (Change.of(change, accountObject.assignment.table)) {
+            return [Change.image(change).placementId];
+        }
+        // take the space of its work otherwise
+        else {
+            return [change.scope];
+        }
+    }
+
+    /** List the spaces this machine serves. */
+    async #spaces(): Promise<readonly string[]> {
+        const rows = await this.database
+            .select({ id: accountObject.space.table.id })
+            .from(accountObject.space.table)
+            .where(accountObject.Space.served());
+
+        return rows.map((row) => row.id);
+    }
+
+    /** Assign the machines with work in a space this machine serves and withdraw the others. */
+    async #assign(key: string, publisher: Uplink): Promise<void> {
+        // act only for a space the replicated placement places on this machine
+        const spaceId = accountObject.space.identifier(key);
+        const [placed] = await this.database
+            .select()
+            .from(accountObject.placement.table)
+            .where(
+                and(
+                    eq(accountObject.placement.table.id, spaceId),
+                    eq(accountObject.placement.table.machineId, this.machine.id),
+                ),
+            );
+        if (placed === undefined) {
+            return;
+        }
+
+        // assign the other machines with active builds of their checkouts or live deployments
+        const working = new Set(await this.#workers(spaceId));
+        working.delete(placed.machineId);
+        const assigned = new Set(await this.#assigned(spaceId));
+        const work = (name: "assign" | "unassign", machine: Identifier<"machine">) =>
+            accountObject.placement.call(name, {
+                accountId: placed.scope,
+                id: placed.id,
+                epoch: placed.epoch,
+                machine,
+            });
+
+        // assign the new work and withdraw the ended work in one mutation
+        const calls = [
+            ...[...working.difference(assigned)].map((machine) => work("assign", machine)),
+            ...[...assigned.difference(working)].map((machine) => work("unassign", machine)),
+        ];
+        if (calls.length > 0) {
+            await publisher.receive({
+                id: RequestId.create(this.machine.environment),
+                calls,
+            });
+        }
+    }
+
+    /** List the machines a space gave work, from the replicated assignments. */
+    async #assigned(spaceId: Identifier<"space">): Promise<Identifier<"machine">[]> {
+        const rows = await this.database
+            .select({ machine: accountObject.assignment.table.machineId })
+            .from(accountObject.assignment.table)
+            .where(eq(accountObject.assignment.table.placementId, spaceId));
+
+        return rows.map((row) => row.machine);
+    }
+
+    /** List the machines a space's active builds and live deployments are addressed to. */
+    async #workers(scope: Identifier<"space">): Promise<Identifier<"machine">[]> {
+        const [builds, deployments] = await Promise.all([
+            this.database
+                .select({ source: build.table.source })
+                .from(build.table)
+                .where(
+                    and(
+                        eq(build.table.scope, scope),
+                        inArray(build.table.state, [...ACTIVE_BUILD_STATES]),
+                    ),
+                ),
+            this.database
+                .select({ machineId: deployment.table.machineId })
+                .from(deployment.table)
+                .where(
+                    and(
+                        eq(deployment.table.scope, scope),
+                        Condition.render(Deployment.live(), deployment.table),
+                        isNotNull(deployment.table.machineId),
+                    ),
+                ),
+        ]);
+
+        return [
+            ...builds.flatMap((row) =>
+                row.source.kind === "checkout" ? [row.source.machine] : [],
+            ),
+            ...deployments.flatMap((row) => (row.machineId === null ? [] : [row.machineId])),
+        ];
     }
 }

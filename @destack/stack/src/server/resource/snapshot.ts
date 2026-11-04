@@ -1,12 +1,12 @@
 import { appliedDigests } from "./resource.ts";
-import { asc, type BlobStore, Condition, isNotNull, lt, Snapshot, Transaction } from "@destack/db";
+import { type BlobStore, Condition, now, Snapshot, Transaction } from "@destack/db";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { type ObjectReconciliation, type Resource, type ResourceType } from "@destack/object";
 import type { space } from "@destack/account/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Plan, type ContentStore } from "@destack/resource";
 import { Recipient } from "@destack/identity";
-import { Digest, type Identifier, present } from "@destack/schema";
+import { Digest, type Identifier, nth, present } from "@destack/schema";
 import { Scope, RequestId } from "@destack/sync";
 import { Restore, restore, snapshot } from "../../object/snapshot.ts";
 import { SpaceTransfer, type TransferOptions } from "../host/transfer.ts";
@@ -31,11 +31,11 @@ export async function retireSnapshots(
     transaction: Transaction,
     store: Pick<ObjectStore, "mutate" | "environment">,
     spaceId: Identifier<"space">,
-    now: number,
+    time: number,
 ): Promise<void> {
     const retired = await transaction.read(snapshot.table).findMany({ where: { spaceId } });
     await store.mutate(
-        AccessContext.of(Caller.of(principal.space.reference(Scope.universe.id, spaceId)), now),
+        AccessContext.of(Caller.of(principal.space.reference(Scope.universe.id, spaceId)), time),
         {
             id: RequestId.create(store.environment),
             calls: retired.map(({ id }) => snapshot.call("delete", { id })),
@@ -47,78 +47,102 @@ export async function retireSnapshots(
 /** Implement snapshots: take each pending one into the space's blobs. */
 export function implementSnapshot(options: TransferOptions) {
     return snapshot.implement({
-        controller: {
-            pending: TAKING,
-            reconcile: async (reconciliation) => {
-                // take each pending snapshot
-                for (const row of reconciliation.rows) {
-                    // find the resource and the provider that stores it here
-                    const { spaceId } = row;
-                    const { object, row: resource } = present(
-                        await options.providers.find(
-                            Snapshot.live(reconciliation.store.database),
-                            spaceId,
-                            row.resourceId,
-                        ),
-                        `resource ${row.resourceId}`,
-                    );
-                    const { kind, snapshot: snapshotter } = options.providers.snapshotting(
-                        object,
-                        resource.provider,
-                    );
-
-                    // copy its content into the space's blobs and record the copy with them as the space
-                    const { store, blobs } = recording(options.blobs);
-                    const digest = await snapshotter.snapshot(
-                        kind.record(resource),
-                        await Promise.all(
-                            appliedDigests(resource).map((applied) =>
-                                reconciliation.store.blobs.readJson(applied, kind.state),
+        controllers: [
+            {
+                pending: TAKING,
+                reconcile: async (reconciliation) => {
+                    // take each pending snapshot
+                    for (const row of reconciliation.rows) {
+                        // find the resource and the provider that stores it here
+                        const { spaceId } = row;
+                        const { object, row: resource } = present(
+                            await options.providers.find(
+                                Snapshot.live(reconciliation.store.database),
+                                spaceId,
+                                row.resourceId,
                             ),
-                        ),
-                        store,
-                        Recipient.of(row.recipient, reconciliation.store.environment),
-                    );
-                    await reconciliation.store.mutate(
-                        AccessContext.of(
-                            Caller.of(principal.space.reference(Scope.universe.id, spaceId)),
-                            reconciliation.now,
-                        ),
-                        {
-                            id: RequestId.create(reconciliation.store.environment),
-                            calls: [
-                                snapshot.call("update", {
-                                    ...snapshot.target(row),
-                                    digest,
-                                    takenAt: reconciliation.now,
-                                    blobs: [...blobs, digest],
-                                }),
-                            ],
-                        },
-                        { component: snapshot.name },
-                    );
-                }
+                            `resource ${row.resourceId}`,
+                        );
+                        const { kind, snapshot: snapshotter } = options.providers.snapshotting(
+                            object,
+                            resource.provider,
+                        );
 
-                return undefined;
+                        // copy its content into the space's blobs and record the copy with them as the space
+                        const { store, blobs } = recording(options.blobs);
+                        const digest = await snapshotter.snapshot(
+                            kind.record(resource),
+                            await Promise.all(
+                                appliedDigests(resource).map((applied) =>
+                                    reconciliation.store.blobs.readJson(applied, kind.state),
+                                ),
+                            ),
+                            store,
+                            Recipient.of(row.recipient, reconciliation.store.environment),
+                        );
+                        await reconciliation.store.mutate(
+                            AccessContext.of(
+                                Caller.of(principal.space.reference(Scope.universe.id, spaceId)),
+                                reconciliation.now,
+                            ),
+                            {
+                                id: RequestId.create(reconciliation.store.environment),
+                                calls: [
+                                    snapshot.call("update", {
+                                        ...snapshot.target(row),
+                                        digest,
+                                        takenAt: reconciliation.now,
+                                        blobs: [...blobs, digest],
+                                    }),
+                                ],
+                            },
+                            { component: snapshot.name },
+                        );
+                    }
+
+                    return undefined;
+                },
             },
-        },
+            {
+                // delete each space's snapshots past their retention, as the space
+                name: "expiry",
+                pending: {
+                    takenAt: { lte: now.minus({ milliseconds: SNAPSHOT_RETENTION_MILLISECONDS }) },
+                },
+                key: ["spaceId"],
+                reconcile: async ({ rows, store, now: at }) => {
+                    const { spaceId } = nth(rows, 0);
+                    const caller = Caller.of(principal.space.reference(Scope.universe.id, spaceId));
+                    await store.mutate(
+                        AccessContext.of(caller, at),
+                        {
+                            id: RequestId.create(store.environment),
+                            calls: rows.map(({ id }) => snapshot.call("delete", { id })),
+                        },
+                        { scope: Scope.universe.id },
+                    );
+                },
+            },
+        ],
     });
 }
 
 /** Implement restores: restore each pending one into a resource provisioned here. */
 export function implementRestore(options: TransferOptions) {
     return restore.implement({
-        controller: {
-            pending: RESTORING,
-            reconcile: async (reconciliation) => {
-                // restore each pending restore
-                for (const row of reconciliation.rows) {
-                    await restoreRow(options, reconciliation, row);
-                }
+        controllers: [
+            {
+                pending: RESTORING,
+                reconcile: async (reconciliation) => {
+                    // restore each pending restore
+                    for (const row of reconciliation.rows) {
+                        await restoreRow(options, reconciliation, row);
+                    }
 
-                return undefined;
+                    return undefined;
+                },
             },
-        },
+        ],
     });
 }
 
@@ -207,20 +231,20 @@ async function restoreFirst(
             );
         }
         await snapshotter.restore(record, states, copy.digest, copy.store, copy.recipient);
-        const { now } = reconciliation;
+        const { now: time } = reconciliation;
         const fields = {
             digest: copy.digest,
             provider: code,
             reference: provisioned.reference,
             location: provisioned.location ?? null,
             spec: resource.spec,
-            restoredAt: now,
-            ...(row.fencedAt === null ? {} : { caughtUpAt: now }),
+            restoredAt: time,
+            ...(row.fencedAt === null ? {} : { caughtUpAt: time }),
         };
         await reconciliation.store.mutate(
             AccessContext.of(
                 Caller.of(principal.space.reference(Scope.universe.id, row.spaceId)),
-                now,
+                time,
             ),
             {
                 id: RequestId.create(reconciliation.store.environment),
@@ -274,47 +298,6 @@ async function catchUp(
         },
         { component: restore.name },
     );
-}
-
-/** Delete a space's expired snapshots, which lets their blobs go, answering the next expiry. */
-export async function expireSnapshots(
-    objects: Pick<ObjectStore, "database" | "mutate" | "clock" | "environment">,
-): Promise<number | undefined> {
-    // delete the snapshots taken before their retention, each as its space
-    const { database } = objects;
-    const now = objects.clock.now();
-    const expired = await database
-        .select({ id: snapshot.table.id, spaceId: snapshot.table.spaceId })
-        .from(snapshot.table)
-        .where(lt(snapshot.table.takenAt, now - SNAPSHOT_RETENTION_MILLISECONDS));
-    const bySpace = Map.groupBy(expired, (row) => row.spaceId);
-    await Transaction.run(database, async (transaction) => {
-        for (const [spaceId, rows] of bySpace) {
-            await objects.mutate(
-                AccessContext.of(
-                    Caller.of(principal.space.reference(Scope.universe.id, spaceId)),
-                    now,
-                ),
-                {
-                    id: RequestId.create(objects.environment),
-                    calls: rows.map(({ id }) => snapshot.call("delete", { id })),
-                },
-                { transaction, scope: Scope.universe.id },
-            );
-        }
-    });
-
-    // read when the next snapshot expires
-    const [oldest] = await database
-        .select({ takenAt: snapshot.table.takenAt })
-        .from(snapshot.table)
-        .where(isNotNull(snapshot.table.takenAt))
-        .orderBy(asc(snapshot.table.takenAt))
-        .limit(1);
-
-    return oldest?.takenAt === null || oldest === undefined
-        ? undefined
-        : oldest.takenAt + SNAPSHOT_RETENTION_MILLISECONDS;
 }
 
 /** Write into a space's blobs, leasing each for a day, collecting what it writes or fetches. */

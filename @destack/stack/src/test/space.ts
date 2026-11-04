@@ -8,15 +8,13 @@ import { dirname, join } from "node:path";
 import { LocalBlobStorage, LocalBucketHost } from "@destack/bucket/bun";
 import {
     BlobStore,
-    Change,
-    type Controller,
+    type Control,
     ControlLoop,
     type DatabaseConnection,
     databaseProvider,
     defineDatabase,
     eq,
-    type LogPosition,
-    type ReconcileController,
+    Projection,
     Snapshot,
     type Table,
     TABLE,
@@ -33,7 +31,7 @@ import {
     type TestServed,
 } from "@destack/object/test";
 import { TokenVerifier } from "@destack/access/token";
-import { reconciliation, TestDatabase, TestTemplate, type TemplateStorage } from "@destack/db/test";
+import { TestDatabase, TestTemplate, type TemplateStorage } from "@destack/db/test";
 import { expect, onTestFinished, single } from "@destack/test";
 import { Failure } from "@destack/error";
 import { SettingValue } from "@destack/setting/object";
@@ -71,7 +69,6 @@ import settingPackage from "@destack/setting/package";
 import { describeSetting } from "@destack/setting/inspect";
 import { buildRetention } from "../setting/index.ts";
 import {
-    canonicalize,
     Digest,
     Identifier,
     type JsonObject,
@@ -91,7 +88,8 @@ import { SPACE_BASE_PACKAGES } from "../server/server.ts";
 import * as object from "../object/index.ts";
 import {
     SocketRegistry,
-    ConsumerController,
+    Binder,
+    ResourceBindable,
     SpaceStore,
     SpaceHost,
     type SpaceMachine,
@@ -251,9 +249,6 @@ const RESOURCES = "resources";
 
 /** The origin a test calls its served space at. */
 const SPACE_URL = "http://space.test";
-
-/** The most rounds of controller writes a reconciliation after a position follows. */
-const RECONCILE_ROUNDS = 20;
 
 /** The scheme a request's authorization header puts its bearer under (RFC 6750 2.1). */
 const BEARER_PREFIX = "Bearer ";
@@ -1183,21 +1178,15 @@ export class TestSpace implements AsyncDisposable {
         );
     }
 
-    /** Control a space as its machine does, serving its installed revisions at each change. */
-    controller(store: ObjectStore, spaceId: Identifier<"space">): ReconcileController {
-        const watches = [object.rollout.table, object.binding.table, object.database.table];
-
-        return {
+    /** Project a space as its machine does, serving its installed revisions at each change. */
+    projection(store: ObjectStore, spaceId: Identifier<"space">): Projection {
+        return new Projection(store.database, {
             name: "host",
-            watches,
-            keys: (change) => (watches.some((table) => Change.of(change, table)) ? [spaceId] : []),
-            list: async () => [spaceId],
-            reconcile: async () => {
-                await this.serveInstalled(store, spaceId);
-
-                return undefined;
-            },
-        };
+            reads: [object.rollout.table, object.binding.table, object.database.table],
+            keys: async () => [spaceId],
+            all: async () => [spaceId],
+            project: async () => this.serveInstalled(store, spaceId),
+        });
     }
 
     /** Serve a space's installed revisions through its store, as its machine's start does. */
@@ -1710,9 +1699,13 @@ export class TestSpace implements AsyncDisposable {
 
         // run only the replica follow of a store over the space's database
         const { store } = new SpaceStore(await this.options());
+        const { controllers, consumers } = store.control();
         const loop = new ControlLoop(
             this.database,
-            store.controllers().filter((controller) => controller.name === "replica"),
+            {
+                controllers: controllers.filter((controller) => controller.name === "replica"),
+                consumers: consumers.filter((consumer) => consumer.name === "replica-requests"),
+            },
             {
                 report: (_controller, _key, error) => {
                     throw error;
@@ -2082,15 +2075,12 @@ export class TestSpaceDatabaseHost extends BunSqliteDatabaseHost {
     }
 }
 
-/** Reconcile one key of a served object type's controller once. */
+/** Reconcile one key of a served type's controller once, else project it through its projection. */
 export async function reconcile(
-    store: Pick<ObjectStore, "controllers" | "database" | "environment">,
+    store: ObjectStore,
     name: string,
-    key: Readonly<Record<string, unknown>>,
-): Promise<number | undefined> {
-    // find the controller
-    const controller = controllerOf(store, name);
-
+    key: Readonly<Record<string, string>>,
+): Promise<void> {
     // see the key changed at each commit after the reconciliation waits
     const { log } = store.database;
     const settled = new AbortController();
@@ -2098,25 +2088,42 @@ export async function reconcile(
         const { sequence } = await log.position();
         await log.waitUntil(async () => (await log.position()).sequence > sequence, settled.signal);
     };
-    const signal = new AbortController().signal;
+    const reconciliation = { signal: new AbortController().signal, changed };
+
+    // reconcile the key's rows through the controller of the name, else project the key
+    const { controllers, consumers } = store.control();
+    const controller = controllers.find((each) => each.name === name);
+    const projection = consumers.find((each) => each.name === `project:${name}`);
     try {
-        return await controller.reconcile(canonicalize(key), { signal, changed });
+        if (controller !== undefined && "reconcile" in controller) {
+            const rows = await Snapshot.live(store.database)
+                .read(controller.table)
+                .findMany({ where: key });
+            await controller.reconcile(rows, reconciliation);
+        } else if (projection instanceof Projection) {
+            await projection.project(schema.string().parse(key["id"]), reconciliation);
+        } else {
+            throw new TypeError(
+                `the fixture serves no converging controller or projection ${name}`,
+            );
+        }
     } finally {
         settled.abort();
     }
 }
 
 /** Reconcile every resource of a space as the control loops do once it changes. */
-export async function reconcileResources(
-    store: Pick<
-        ObjectStore,
-        "controllers" | "database" | "blobs" | "objects" | "as" | "mutate" | "clock" | "environment"
-    >,
-    spaceId: string,
-): Promise<void> {
-    // reconcile each served kind's resources in the space
+export async function reconcileResources(store: ObjectStore, spaceId: string): Promise<void> {
+    // specify each served kind's resources in the space around their reconciliation
     const kinds = store.objects.filter((type) => Provisioned.is(type));
-    const consumers = new ConsumerController(store, kinds, spaceDatabase, new Map());
+    const binder = new Binder(
+        kinds.map((type) =>
+            ResourceBindable.of(present(type.provisioned, `the kind of ${type.name}`).kind, type),
+        ),
+        [],
+    );
+    const specification = binder.specification(store, spaceDatabase, new Map());
+    const reconciliation = { signal: new AbortController().signal, changed: async () => {} };
     for (const kind of kinds) {
         const rows = await store.database
             .select()
@@ -2124,66 +2131,30 @@ export async function reconcileResources(
             .where(kind.inScope(schema.identifier("space").parse(spaceId)));
         for (const row of rows) {
             const id = schema.string().parse(row["id"]);
-            await consumers.reconcile(id);
+            await specification.project(id, reconciliation);
             await reconcile(store, kind.name, { id });
-            await consumers.reconcile(id);
+            await specification.project(id, reconciliation);
         }
     }
 }
 
-/** Reconcile each key the changes since a log position select, round by round. */
-export async function reconcileAfter(
-    database: DatabaseConnection,
-    controllers: readonly Controller[],
-    after: LogPosition,
-): Promise<void> {
-    // follow the tables any of the controllers watch from the position
-    const tables = [...new Set(controllers.flatMap((controller) => controller.watches ?? []))];
-    let sequence = after.sequence;
-    for (let round = 0; round < RECONCILE_ROUNDS; round += 1) {
-        // read the changes the controllers watch since the last round
-        const page = await database.log.read({ tables, after: sequence });
-        if (page.changes.length === 0) {
-            return;
-        }
-        sequence = page.sequence;
+/** Run some controllers and consumers until they idle, failing on any report. */
+export async function settle(database: DatabaseConnection, control: Control): Promise<void> {
+    // run the loop until it idles, collecting its reports
+    const stopping = new AbortController();
+    const reported: unknown[] = [];
+    const loop = new ControlLoop(database, control, {
+        report: (_controller, _key, error) => reported.push(error),
+    });
+    const running = loop.run(stopping.signal);
+    await loop.idle();
+    stopping.abort();
+    await running;
 
-        // reconcile each key a watched change selects, once per controller
-        for (const controller of controllers) {
-            // leave following controllers, which keys never select
-            if (controller.mode === "follow") {
-                continue;
-            }
-            const keys = new Set<string>();
-            const watched = page.changes.filter((change) =>
-                (controller.watches ?? []).includes(change.table),
-            );
-            for (const change of watched) {
-                for (const key of (await controller.keys?.(change)) ?? []) {
-                    keys.add(key);
-                }
-            }
-            for (const key of keys) {
-                await controller.reconcile(key, reconciliation(new AbortController().signal));
-            }
-        }
+    // fail on any report
+    if (reported.length > 0) {
+        throw new AggregateError(reported, "the controllers failed");
     }
-
-    // refuse controllers that still write
-    throw new TypeError(`the controllers kept writing after ${RECONCILE_ROUNDS} rounds`);
-}
-
-/** Find a served converging controller by name, refusing one the fixture does not serve. */
-function controllerOf(
-    store: Pick<ObjectStore, "controllers" | "environment">,
-    name: string,
-): ReconcileController {
-    const controller = store.controllers().find((each) => each.name === name);
-    if (controller === undefined || controller.mode === "follow") {
-        throw new TypeError(`the fixture serves no converging controller ${name}`);
-    }
-
-    return controller;
 }
 
 /** The options a test gives the fixture's space. */

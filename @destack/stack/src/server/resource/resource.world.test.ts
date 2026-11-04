@@ -16,14 +16,14 @@ import {
 } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
 import { nth, schema, present, Digest, Identifier } from "@destack/schema";
-import { appliedDigests, ConsumerController, ProviderIndex, SpaceStore } from "../index.ts";
+import { appliedDigests, Binder, ProviderIndex, ResourceBindable, SpaceStore } from "../index.ts";
 import { testHost } from "@destack/test/host";
 import {
     ids,
     insertRelease,
     insertRollout,
     reconcileResources,
-    reconcileAfter,
+    settle,
     spaceDatabase,
     TestSpace,
     TestSpaceDatabaseHost,
@@ -139,7 +139,6 @@ test("provision a resource as soon as its declaration changes", async () => {
     ).store;
 
     // declare a database and provision it from the change its insert commits
-    const declared = await database.log.position();
     await database.transaction(
         async (transaction) =>
             await transaction.insert(object.database.table).values({
@@ -154,14 +153,13 @@ test("provision a resource as soon as its declaration changes", async () => {
                 updatedAt: now,
             }),
     );
-    await reconcileAfter(
-        database,
-        [
-            ...store.controllers(),
-            new ConsumerController(store, [object.database], spaceDatabase, new Map()),
-        ],
-        declared,
-    );
+    const { controllers, consumers } = store.control();
+    const kind = present(object.database.provisioned, "the database kind").kind;
+    const binder = new Binder([ResourceBindable.of(kind, object.database)], []);
+    await settle(database, {
+        controllers,
+        consumers: [...consumers, binder.specification(store, spaceDatabase, new Map())],
+    });
     const [provisioned] = await database
         .select()
         .from(object.database.table)

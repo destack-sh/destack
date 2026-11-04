@@ -64,7 +64,7 @@ import {
     insertRollout,
     reconcile,
     reconcileResources,
-    reconcileAfter,
+    settle,
     TestRuntime,
     TestSpace,
     TestSpaceDatabaseHost,
@@ -386,20 +386,21 @@ async function serveControllers(
         },
         instances: {
             reconcile: (id: string) => reconcile(store, "deployment", { id }),
-            reconcileAfter: (after: LogPosition) =>
-                reconcileAfter(
-                    database,
-                    [
-                        ...store.controllers(),
-                        // serve the installed revisions, as the space's machine does
-                        fixture.controller(store, ids.space),
-                        // write main's desired states, as the space's consumer controller does
-                        ...(nth(served.packages, 0).controllers ?? []).filter(
-                            (controller) => controller.name === "consumer",
-                        ),
+            restart: (id: string) => reconcile(store, "instance:restart", { id }),
+            settle: () => {
+                // run the store's and the stack package's control, serving the installed revisions as the space's machine does
+                const own = store.control();
+                const stack = nth(served.packages, 0).control;
+
+                return settle(database, {
+                    controllers: [...own.controllers, ...(stack?.controllers ?? [])],
+                    consumers: [
+                        ...own.consumers,
+                        ...(stack?.consumers ?? []),
+                        fixture.projection(store, ids.space),
                     ],
-                    after,
-                ),
+                });
+            },
         },
         resources: {
             reconcile: (scope: string) => reconcileResources(store, scope),
@@ -547,7 +548,7 @@ test("apply an application's tables from its revision to the space's main databa
     const provisioned = await database.log.position();
     await resources.reconcile(ids.space);
     await deployments.deploy(notes.id);
-    await instances.reconcileAfter(provisioned);
+    await instances.settle();
     const deployed = nth(await database.select().from(object.deployment.table), 0);
     const applied = nth(await database.select().from(object.database.table), 0);
     const captured = nth(await database.select().from(object.capture.table), 0);
@@ -635,27 +636,33 @@ test("restart a failing instance in place after a doubling backoff, with one rec
         await resources.reconcile(ids.space);
         const deployed = nth(await database.select().from(object.deployment.table), 0);
 
-        // fail, wait out the backoff and restart
-        const failed = await instances.reconcile(deployed.id);
-        const retried = await instances.reconcile(deployed.id);
-        await database.transaction(
-            async (transaction) =>
-                await transaction
-                    .update(object.instance.table)
-                    .set({ stoppedAt: now - 1000 })
-                    .where(eq(object.instance.table.deploymentId, deployed.id)),
-        );
-        const restarted = await instances.reconcile(deployed.id);
+        // fail, keep the instance through its backoff, then restart it once the backoff passed
+        const backoff = async () => {
+            const [row] = await database
+                .select()
+                .from(object.instance.table)
+                .where(eq(object.instance.table.deploymentId, deployed.id));
+            const { id, restartAt, stoppedAt } = present(row, "the deployment's instance");
+
+            return { id, backoff: (restartAt ?? 0) - (stoppedAt ?? 0) };
+        };
+        await instances.reconcile(deployed.id);
+        const failed = await backoff();
+        await instances.reconcile(deployed.id);
+        const retried = await backoff();
+        await instances.restart(failed.id);
+        await instances.reconcile(deployed.id);
+        const restarted = await backoff();
 
         return {
-            first: failed,
-            early: retried,
-            second: restarted,
+            first: failed.backoff,
+            early: retried.backoff,
+            second: restarted.backoff,
             recorded: await database.select().from(object.instance.table),
         };
     })();
     expect({
-        delays: [first, early, second],
+        backoffs: [first, early, second],
         attempts: failing.attempts,
         instances: recorded.map((entry) => [
             entry.status,
@@ -665,7 +672,7 @@ test("restart a failing instance in place after a doubling backoff, with one rec
             entry.conditions["Ready"]?.message,
         ]),
     }).toEqual({
-        delays: [1000, 1000, 2000],
+        backoffs: [1000, 1000, 2000],
         attempts: 2,
         instances: [["failed", 1, "false", "StartFailed", "runner exited before serving"]],
     });
@@ -1977,7 +1984,7 @@ test("refuse deploying an application until its space installs its dependency, a
         "f",
         await MemoryBuild.of(VAULT, [], testHost().crypto),
     );
-    await instances.reconcileAfter(before);
+    await instances.settle();
     const deployed = await readiness(database, notes.id);
 
     // uninstall the vault while notes needs it

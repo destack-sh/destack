@@ -72,11 +72,8 @@ import { type Handoff, handoffAdapter } from "./host/handoff.ts";
 import type { EventStore } from "@destack/event";
 import { SpaceBuildStore, type Registry, implementBuild } from "./installation/build.ts";
 import type { Forge } from "./installation/follow.ts";
-import { AssignmentController } from "./deployment/assignment.ts";
-import { PlacementController } from "./host/placement.ts";
-import { TransferController } from "./host/transfer.ts";
-import { ConsumerController } from "./resource/consumer.ts";
-import { RetentionController } from "./resource/retention.ts";
+import { SpaceTransfer } from "./host/transfer.ts";
+import type { SpaceHost } from "./host/host.ts";
 import { hookAdapter } from "./installation/hook.ts";
 import type { SocketRegistry } from "./host/socket.ts";
 import { implementRoute } from "./access/route.ts";
@@ -103,6 +100,8 @@ type AccountClient = ClientOf<typeof accountPackage>;
 export interface SpaceOptions {
     /** The space's role on this machine, as its placement decides. */
     readonly role: SpaceRole;
+    /** The space as this machine hosts it. */
+    readonly host: SpaceHost;
     /** The base installation of each package the space is born with, by package. */
     readonly bases: ReadonlyMap<PackageId, BaseServerContext>;
     /** The principal the store's own work runs as. */
@@ -205,11 +204,27 @@ function stackServer(
             push: options.builds.adapter(),
             hook: hookAdapter,
         },
-        // move the space in either role, run the primary's consumers and retention, and the host's own
+        // receive moving spaces on a standby, run a primary's providers, and the host's own
         controllers: [
-            (store) => new TransferController(transfers, store),
-            ...(isPrimary ? primaryControllers(options, providers) : []),
+            ...(isPrimary
+                ? options.providers.flatMap((provider) =>
+                      (provider.controllers ?? []).map((controller) => () => controller),
+                  )
+                : [(store: ObjectStore) => SpaceTransfer.controller(transfers, store)]),
             ...options.controllers,
+        ],
+        // finish moves in either role, and project a primary's birth, assignments, resources and retention
+        consumers: [
+            (store) => SpaceTransfer.projection(transfers, store),
+            ...(isPrimary
+                ? [
+                      (store: ObjectStore) => options.host.placement(store, options.main),
+                      () => options.host.assignment(options.publisher),
+                      (store: ObjectStore) =>
+                          binder.specification(store, options.main, options.linked),
+                      (store: ObjectStore) => options.builds.retention(store),
+                  ]
+                : []),
         ],
         responseHeaders: { "Cache-Control": "no-store" },
     });
@@ -217,34 +232,6 @@ function stackServer(
 
 /** The packages every space is born with as base installations: the installer and its kernel. */
 export const SPACE_BASE_PACKAGES = [stackPackage, ...SPACE_KERNEL];
-
-/** List a primary's controllers: assignments, placement, consumers and retention. */
-function primaryControllers(
-    options: SpaceOptions,
-    providers: ProviderIndex,
-): NonNullable<ImplementationInput["controllers"]> {
-    return [
-        () =>
-            new AssignmentController(
-                options.database,
-                options.publisher,
-                options.machine,
-                options.environment,
-            ),
-        (store) =>
-            new PlacementController(
-                store,
-                schema.identifier("space").parse(options.principal.id),
-                options.machine,
-                options,
-            ),
-        (store) => new ConsumerController(store, providers.objects(), options.main, options.linked),
-        (store) => new RetentionController(store, options.builds),
-        ...options.providers.flatMap((provider) =>
-            (provider.controllers ?? []).map((controller) => () => controller),
-        ),
-    ];
-}
 
 /** A space's store: its stack, access and settings over its installed packages, as they change. */
 export class SpaceStore {

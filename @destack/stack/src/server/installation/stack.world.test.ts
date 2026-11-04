@@ -36,7 +36,7 @@ import {
     fixtureOutputs,
     readStack,
     reconcile,
-    reconcileAfter,
+    settle,
     TestSpace,
     ids,
 } from "../../test/index.ts";
@@ -59,12 +59,11 @@ const personal = defineStack([], {
 /** Submit a build of a manifest to a space's stack, apply it, and reconcile its installations. */
 async function submit(
     fixture: TestSpace,
-    store: Pick<ObjectStore, "database" | "as" | "mutate" | "controllers" | "environment">,
+    store: ObjectStore,
     stack: InstallationRollout,
     submission: Omit<Submission, "build">,
 ): Promise<InstallationRollout> {
     // record the stack's build and the submission pinned as its evaluation is, as the system
-    const before = await store.database.log.position();
     const build = await fixture.recordBuild(
         await fixtureBuild(stack.installation.packageId, "2026.9.0", fixture.environment.crypto),
     );
@@ -91,8 +90,7 @@ async function submit(
 
     // apply it, then reconcile the installations it changed
     await reconcile(store, "rollout", { id: (await readStack(store.database)).id });
-    const installing = store.controllers().filter((each) => each.name === "rollout");
-    await reconcileAfter(store.database, installing, before);
+    await settleRollouts(store);
 
     return readStack(store.database);
 }
@@ -267,7 +265,6 @@ test("apply a waiting stack again once its resources turn ready, without waking 
     expect(await database.log.position()).toEqual(position);
 
     // apply the waiting stack once its database turns ready
-    const ready = await database.log.position();
     await database.transaction(
         async (transaction) =>
             await transaction
@@ -275,11 +272,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
                 .set({ conditions: condition("Applied", "true") })
                 .where(main),
     );
-    await reconcileAfter(
-        database,
-        store.controllers().filter((each) => each.name === "rollout"),
-        ready,
-    );
+    await settleRollouts(store);
     const installed = await database
         .select({
             name: installation.table.name,
@@ -405,7 +398,6 @@ test("replace an installation's own binding once its stack binds the declaration
     await submit(fixture, store, stack, submission);
 
     // bind the declaration in the stack to replace the owned binding and release its bucket
-    const before = await database.log.position();
     const bindings = {
         [ids.package]: { files: { target: { type: "bucket", name: "files" } } },
     };
@@ -419,11 +411,7 @@ test("replace an installation's own binding once its stack binds the declaration
             },
         },
     });
-    await reconcileAfter(
-        database,
-        store.controllers().filter((each) => each.name === "rollout"),
-        before,
-    );
+    await settleRollouts(store);
     const [files] = await database
         .select()
         .from(object.bucket.table)
@@ -842,3 +830,12 @@ test("refuse a declaration in the enclosing account from a space that is not the
         "role reviewer is declared in the enclosing scope, which only its home's stack declares into",
     ]);
 });
+
+/** Project every rollout of a store until its writes settle, as the space's control loop does. */
+async function settleRollouts(store: ObjectStore): Promise<void> {
+    const { consumers } = store.control();
+    await settle(store.database, {
+        controllers: [],
+        consumers: consumers.filter((consumer) => consumer.name === "project:rollout"),
+    });
+}

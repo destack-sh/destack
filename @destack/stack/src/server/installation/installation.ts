@@ -3,14 +3,13 @@ import { setting, SettingValue } from "@destack/setting/object";
 import { ObjectReference, Subject } from "@destack/sync";
 import { canonicalize, type Digest, type Identifier, present, schema } from "@destack/schema";
 import { InstallationId, principal } from "@destack/access";
-import { and, type Change, eq, inArray, isNotNull, isNull, Snapshot } from "@destack/db";
+import { and, eq, inArray, isNotNull, isNull, Snapshot } from "@destack/db";
 import {
     installation,
     type MethodContext,
     type MethodContextOf,
-    ObjectController,
     ObjectError,
-    type ObjectReconciliation,
+    type ObjectProjection,
     ObjectWatch,
     PackageDescription,
     type ResourceType,
@@ -125,21 +124,22 @@ export function implementInstallations(options: InstallationOptions) {
 }
 
 /** Roll out each installation: apply the space's stack, or deploy an application. */
-function rolloutController(options: InstallationOptions) {
+function rolloutProjection(options: InstallationOptions): ObjectProjection<typeof rollout> {
     return {
-        pending: {},
-        key: rolloutKey,
-        // reconcile a new rollout, a moved target or served revision, and a followed space stack, past its own applied and consumed records
-        wakes: (change: Change<typeof rollout.table>) =>
-            change.operation !== "update" ||
-            change.before.revisionId !== change.after.revisionId ||
-            change.before.servedRevisionId !== change.after.servedRevisionId ||
-            change.before.spaceStack !== change.after.spaceStack,
         watches: [
+            // project a new rollout, a moved target or served revision, and a followed space stack, past its own applied and consumed records
+            ObjectWatch.of(rollout.table, (row, _database, change) =>
+                change.operation !== "update" ||
+                change.before.revisionId !== change.after.revisionId ||
+                change.before.servedRevisionId !== change.after.servedRevisionId ||
+                change.before.spaceStack !== change.after.spaceStack
+                    ? [rolloutKey(row)]
+                    : [],
+            ),
             ...rolloutWatches(options.resources),
             ...(options.forge === null ? [] : forgeWatches(options.forge)),
         ],
-        reconcile: async (reconciliation: ObjectReconciliation<typeof rollout>) => {
+        project: async (reconciliation) => {
             // read the rollout with its installation, none once uninstalled
             const rows = await Rollout.read(
                 Snapshot.live(reconciliation.database),
@@ -147,14 +147,15 @@ function rolloutController(options: InstallationOptions) {
             );
             const [target] = rows;
             if (target === undefined) {
-                return undefined;
+                return;
             }
 
             // apply the space's stack, or deploy the application at the release it selects
-            const applied =
-                target.installation.export !== null
-                    ? await new StackInstallation(target, options).reconcile(reconciliation)
-                    : await new ApplicationInstallation(target, options).reconcile(reconciliation);
+            if (target.installation.export !== null) {
+                await new StackInstallation(target, options).reconcile(reconciliation);
+            } else {
+                await new ApplicationInstallation(target, options).reconcile(reconciliation);
+            }
 
             // then build the commit a repository selection's reference resolves to, submitting an unmanaged installation's
             const { forge } = options;
@@ -164,8 +165,6 @@ function rolloutController(options: InstallationOptions) {
                     reconciliation,
                 );
             }
-
-            return applied;
         },
     };
 }
@@ -230,7 +229,7 @@ async function requireUnneeded(
 export function implementRollouts(options: InstallationOptions) {
     return rollout.implement({
         // apply a space's stack and deploy each application
-        controller: rolloutController(options),
+        projections: [rolloutProjection(options)],
         methods: {
             open: async (call) => open(call, await Rollout.of(call), options),
             plan: async (call) => {
@@ -571,7 +570,8 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
         ),
         // wake an installation's rollout and its stack once it comes, goes or changes, past its observed status
         ObjectWatch.of(installation.table, (row, _database, change) =>
-            ObjectController.isObserved(installation, change)
+            change.operation === "update" &&
+            change.before["generation"] === change.after["generation"]
                 ? []
                 : [
                       { id: row.id },

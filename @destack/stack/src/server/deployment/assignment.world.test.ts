@@ -3,7 +3,6 @@ import { assignment } from "@destack/account/object";
 import { Identifier } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { build } from "../../object/index.ts";
-import { AssignmentController } from "../index.ts";
 import { ids, TestSpace } from "../../test/index.ts";
 
 /** The origin the owner's laptop answers at. */
@@ -45,12 +44,8 @@ test("assign the machine of an unfinished checkout build in the space, and withd
 
     // assign only the laptop through the machine's uplink, reading the assignments from the universe's rows
     const { publisher } = await fixture.options();
-    const controller = new AssignmentController(
-        database,
-        publisher,
-        fixture.machine.id,
-        fixture.machine.environment,
-    );
+    const projection = fixture.host.assignment(publisher);
+    const reconciliation = { signal: new AbortController().signal, changed: async () => {} };
     const assignments = async () => {
         // wait for the space's replica of the universe's assignments, which the fixture follows
         const rows = await fixture.universe.storage.database.select().from(assignment.table);
@@ -66,8 +61,7 @@ test("assign the machine of an unfinished checkout build in the space, and withd
 
         return rows.map((row) => [row.placementId, row.machineId]);
     };
-    expect(await controller.list()).toEqual([ids.space]);
-    await controller.reconcile(ids.space);
+    await projection.project(ids.space, reconciliation);
     expect(await assignments()).toEqual([[ids.space, laptopId]]);
 
     // withdraw the laptop once its build is cancelled
@@ -78,6 +72,6 @@ test("assign the machine of an unfinished checkout build in the space, and withd
                 .set({ state: "cancelled", finishedAt: now })
                 .where(eq(build.table.id, laptop)),
     );
-    await controller.reconcile(ids.space);
+    await projection.project(ids.space, reconciliation);
     expect(await assignments()).toEqual([]);
 });

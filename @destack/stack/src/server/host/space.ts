@@ -35,7 +35,7 @@ export function implementSpace(options: {
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
 }) {
-    return space.implement({ methods: {}, controller: control(options) });
+    return space.implement({ methods: {}, controllers: [control(options)] });
 }
 
 /** Control each served space. */

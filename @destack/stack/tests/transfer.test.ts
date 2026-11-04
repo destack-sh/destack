@@ -545,6 +545,7 @@ test("move every table of the space database with rows in spaces, leaving out th
         "destack__access__invitation",
         "destack__object__call",
         "destack__event__segment",
+        "destack__event__segment_deletion",
         "destack__object__proof",
         "destack__object__installation",
         "destack__object__branch",
