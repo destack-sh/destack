@@ -15,8 +15,8 @@ export async function run(
     command: string | undefined,
     environment: Environment<"files" | "process" | "host">,
 ): Promise<void> {
-    // open the site's workspace on the checkout's store
-    await using store = await LocalBuildStore.checkout(directory, "development", environment);
+    // open the site's workspace on the person's development store
+    await using store = await LocalBuildStore.user("development", environment);
     await using compilers = await CompilerPool.open(store);
     const workspace = await Workspace.open(directory, compilers);
 
