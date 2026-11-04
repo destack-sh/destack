@@ -2,6 +2,7 @@ import { type Package, PackageId } from "@destack/package";
 import {
     InstallationMount,
     PackageMount,
+    SpaceMount,
     ObjectTypePool,
     ObjectType,
     storeProcedures,
@@ -24,8 +25,8 @@ const PUSH_PATH = present(storeProcedures.push["~orpc"].route.path, "the replica
 /** The largest push a page sends a scope's primary, in bytes: 100 mutations of 10 KiB. */
 const PUSH_BYTES = 1024 * 1024;
 
-/** The headers of a page's own credentials, which a push to another primary leaves out. */
-const PAGE_HEADERS = ["cookie", "authorization"];
+/** The headers bound to the page's own origin: its credentials and its host. */
+const PAGE_HEADERS = ["cookie", "authorization", "host"];
 
 /** A push a page sends a scope's primary: the scope and the mutations' calls. */
 const Push = schema.looseObject({
@@ -97,16 +98,20 @@ export class ScopePrimary {
         else if (path.startsWith(STORE_PREFIX)) {
             return this.#forward(request, `${this.url}${path}${url.search}`, this.package.id);
         }
-        // call an installation's package in the space by its mount there
+        // call an installation's package, or a package the space's store serves, by its mount
         else if (this.home.kind === "space") {
-            const target = new URL(`${path}${url.search}`, this.home.origin).href;
-            const installed = InstallationMount.of(new Request(target));
-            const mounted =
-                installed === undefined ? undefined : PackageMount.of(installed.request);
-            if (installed?.spaceId !== this.scope || mounted === undefined) {
+            const called = new Request(new URL(`${path}${url.search}`, this.home.origin).href);
+            const installed = InstallationMount.of(called);
+            const mounted = PackageMount.of(installed?.request ?? called);
+            const below = installed === undefined ? SpaceMount.path(this.scope) : "";
+            const target = new URL(`${below}${path}${url.search}`, this.home.origin).href;
+            if (
+                (installed !== undefined && installed.spaceId !== this.scope) ||
+                mounted === undefined
+            ) {
                 throw MachineError.of(
                     "HOME_PATH_MISMATCH",
-                    `a page must call ${this.scope}'s installations below ${HOME_PATH}/${this.scope}/spaces/${this.scope}/installations`,
+                    `a page must call ${this.scope}'s packages below ${HOME_PATH}/${this.scope}`,
                 );
             }
 
@@ -168,7 +173,7 @@ export class ScopePrimary {
         return this.#send(
             new Request(`${this.url}${PUSH_PATH}`, {
                 method: "POST",
-                headers: ScopePrimary.#withoutPageCredentials(request.headers),
+                headers: ScopePrimary.#withoutPageHeaders(request.headers),
                 body: JSON.stringify(body),
             }),
             PackageId.parse(this.package.id),
@@ -177,21 +182,23 @@ export class ScopePrimary {
 
     /** Forward a request to a package at the primary, without the page's own credentials. */
     async #forward(request: Request, target: string, audience: PackageId): Promise<Response> {
+        // read a call's body within the store's limit, which the target reads whole too
         const isBodiless = request.method === "GET" || request.method === "HEAD";
+        const body = isBodiless ? undefined : await RequestBody.bytes(request, "a page's call");
 
         return this.#send(
             new Request(target, {
                 method: request.method,
-                headers: ScopePrimary.#withoutPageCredentials(request.headers),
-                ...(isBodiless ? {} : { body: request.body, duplex: "half" }),
+                headers: ScopePrimary.#withoutPageHeaders(request.headers),
+                ...(body === undefined ? {} : { body }),
                 signal: request.signal,
             }),
             audience,
         );
     }
 
-    /** Copy a page's request headers without its own credentials. */
-    static #withoutPageCredentials(given: Headers): Headers {
+    /** Copy a page's request headers without those bound to its origin. */
+    static #withoutPageHeaders(given: Headers): Headers {
         const headers = new Headers(given);
         for (const name of PAGE_HEADERS) {
             headers.delete(name);

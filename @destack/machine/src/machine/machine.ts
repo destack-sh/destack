@@ -258,7 +258,7 @@ export class Machine implements FollowController {
         this.#partition = options.partition;
         this.#describe = options.describe;
 
-        // read releases the machine ships first, else at the forges in their accounts' residency homes
+        // read releases the machine ships first, else at the forges in their accounts' residency homes, bound to each home
         const home = async (account: Identifier<"account">) =>
             (await this.accounts()).residency.locate({ account });
         this.registry = options.registry;
@@ -267,7 +267,7 @@ export class Machine implements FollowController {
             Registry.of(
                 this.directory,
                 home,
-                (audience) => this.fetch(audience),
+                (audience, partition) => this.fetch(audience, { partition }),
                 this.environment,
                 options.registry,
                 options.shipped,

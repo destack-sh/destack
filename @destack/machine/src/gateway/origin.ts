@@ -7,6 +7,7 @@ import {
     PACKAGE_PATH,
     PackageDescription,
     PackageMount,
+    SpaceMount,
     STORE_PATHS,
     RequestBody,
     refusal,
@@ -423,7 +424,10 @@ export class ViewOrigin {
                   }
                 : {
                       package: Package.of(stackPackage),
-                      url: PackageMount.url(located, stackPackage.id),
+                      url: new URL(
+                          `${SpaceMount.path(scope)}${PackageMount.path(stackPackage.id)}`,
+                          located,
+                      ).href,
                       home: { kind: "space" as const, origin: new URL(located).origin },
                   };
 

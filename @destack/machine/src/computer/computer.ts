@@ -1171,16 +1171,22 @@ export class Computer implements AsyncDisposable {
           }
         | undefined
     > {
-        // find the mount and the partition below it
-        const routed = PackageMount.of(request);
-        if (routed === undefined) {
+        // find the mount and the partition below it, leaving the request whole for a service it misses
+        const mounted = PackageMount.parse(new URL(request.url).pathname);
+        if (mounted === undefined) {
             return undefined;
         }
-        const partition = await PartitionRequest.of(routed.request);
-        const server = this.#services(partition, routed.packageId);
+        const partition = await PartitionRequest.of(request, mounted.path);
+        const server = this.#services(partition, mounted.packageId);
+        if (server === undefined) {
+            return undefined;
+        }
+
+        // take the request below the mount for the service
+        const routed = present(PackageMount.of(request), "the request below its mount");
         const isMachine = MACHINE_IDENTIFIER.safeParse(partition).success;
 
-        return server === undefined ? undefined : { server, request: routed.request, isMachine };
+        return { server, request: routed.request, isMachine };
     }
 
     /** Start this machine's own telemetry, posting it to its owner's home as the machine. */

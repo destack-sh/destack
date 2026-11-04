@@ -1023,6 +1023,49 @@ test(
 );
 
 test(
+    "list a space's rollouts and installations through its home path, at the packages its store serves",
+    async () => {
+        // open Home's start view, whose grant lists the space's installations and rollouts
+        const home = await openHome();
+        const page = await openPage(home, {
+            space: home.address,
+            installation: "home",
+            view: "home",
+            path: "/",
+        });
+        const below = (packageId: PackageId) => ({
+            url: `${page.origin}${HOME_PATH}/${home.spaceId}${PackageMount.path(packageId)}`,
+            fetch: (request: Request) => {
+                // send the page's own host, as a browser does
+                const headers = new Headers(request.headers);
+                headers.set("host", new URL(page.origin).host);
+
+                return page.fetch(new Request(request, { headers }));
+            },
+        });
+        const stack = createClient(stackPackage, below(stackPackage.id), home.computer.environment);
+        const objects = createClient(
+            objectPackage,
+            below(objectPackage.id),
+            home.computer.environment,
+        );
+
+        // list the applied rollouts and the enabled installations, each rollout of an enabled installation
+        const rollouts = await stack.rollout.list({
+            spaceId: home.spaceId,
+            where: { appliedRevisionId: { isNotNull: true } },
+        });
+        const installations = await objects.installation.list({
+            scope: home.spaceId,
+            where: { status: "enabled" },
+        });
+        const enabled = new Set(installations.items.map((row) => row.id));
+        expect(rollouts.items.filter((row) => !enabled.has(row.id))).toEqual([]);
+    },
+    SCENARIO_MILLISECONDS,
+);
+
+test(
     "refuse a page's push to a scope's home for a call outside the view's grant",
     async () => {
         // open Home's start view, whose grant gives the owner's settings alone

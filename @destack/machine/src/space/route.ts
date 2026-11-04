@@ -43,10 +43,8 @@ export interface SpaceRequest {
 
 /** The partition a request addresses: the innermost scoped route's, else its scoped body's. */
 export const PartitionRequest = {
-    /** Read the partition of a request, absent for a request addressing none. */
-    async of(request: Request): Promise<string | undefined> {
-        const { pathname } = new URL(request.url);
-
+    /** Read the partition of a request at a path, absent for a request addressing none. */
+    async of(request: Request, pathname: string): Promise<string | undefined> {
         return (
             PartitionRequest.scoped(pathname) ?? (await PartitionRequest.body(request, pathname))
         );
