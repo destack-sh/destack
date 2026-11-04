@@ -850,14 +850,11 @@ export class Device implements AsyncDisposable {
         return new ScopeReplica({ client, failed: failed.promise, stopping, database });
     }
 
-    /** Resolve a person's setting from a replica of their values at the universe. */
-    async #userSetting<Value extends schema.Schema>(
-        declared: Setting<Value>,
-        person: Login,
-    ): Promise<schema.Infer<Value>> {
-        // follow the person's values at the universe as the person
+    /** Replicate a person's settings along their scope chain at the universe, as the person. */
+    personSettings(person: Login): Promise<ScopeReplica<{ readonly setting: typeof setting }>> {
         const scope = person.subject.id;
-        const replica = await this.replicate(
+
+        return this.replicate(
             scope,
             { setting },
             person.subject,
@@ -869,6 +866,16 @@ export class Device implements AsyncDisposable {
                 );
             },
         );
+    }
+
+    /** Resolve a person's setting from a replica of their values at the universe. */
+    async #userSetting<Value extends schema.Schema>(
+        declared: Setting<Value>,
+        person: Login,
+    ): Promise<schema.Infer<Value>> {
+        // follow the person's values at the universe as the person
+        const scope = person.subject.id;
+        const replica = await this.personSettings(person);
         try {
             // wait for the values and the access rows of the person's chain
             const { client } = replica;
