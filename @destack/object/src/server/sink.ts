@@ -107,7 +107,7 @@ export class ObjectSink {
         // read the changes since the last listing, listing every key afresh at the first or once the log dropped them
         const { database } = this.store;
         const position = await database.log.position();
-        const changes = await this.#changes();
+        const changes = await this.#changes(position.sequence);
 
         // list the requests
         const view = Snapshot.live(database);
@@ -164,22 +164,31 @@ export class ObjectSink {
         this.#listed = position.sequence;
     }
 
-    /** Read the watched changes since the last listing, absent to list every key afresh. */
-    async #changes(): Promise<readonly Change[] | undefined> {
+    /** Read the watched changes since the last listing up to a sequence, absent to list afresh. */
+    async #changes(through: number): Promise<readonly Change[] | undefined> {
         // list afresh at the first listing
         const after = this.#listed;
         if (after === undefined) {
             return undefined;
         }
 
-        // read the watched changes, listing afresh once the log dropped them or none is logged
+        // read every page up to the sequence, listing afresh once the log dropped them or none is logged
         try {
-            const page = await this.store.database.log.read({
-                tables: this.#replicaWatches(),
-                after,
-            });
+            const changes: Change[] = [];
+            let sequence = after;
+            while (sequence < through) {
+                const page = await this.store.database.log.read({
+                    tables: this.#replicaWatches(),
+                    after: sequence,
+                });
+                if (page.changes.length === 0) {
+                    break;
+                }
+                changes.push(...page.changes);
+                sequence = page.sequence;
+            }
 
-            return page.changes.length === 0 ? undefined : page.changes;
+            return changes.length === 0 ? undefined : changes;
         } catch (error) {
             if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
                 throw error;
