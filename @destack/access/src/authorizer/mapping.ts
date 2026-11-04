@@ -45,8 +45,10 @@ export interface TableMapping {
         Record<
             string,
             {
-                /** The column with the subject identifier. */
+                /** The column with the subject identifier, or with its key. */
                 readonly column: string;
+                /** The subject's column the value matches, its identifier by default. */
+                readonly key?: string;
                 /** The scope of the column's subjects, the object's if absent, or `*`. */
                 readonly scope?: string;
                 /** The subject's type, scope and relation columns, for several subject types. */
@@ -286,21 +288,22 @@ export const TableMapping = {
         );
     },
 
-    /** Read rows of a mapped type in a scope by identifier from a snapshot. */
+    /** Read rows of a mapped type in a scope by identifier, or another column, from a snapshot. */
     async read(
         snapshot: Snapshot,
         mapping: TableMapping,
         within: string,
         ids: readonly string[],
+        column = mapping.id,
     ): Promise<Row[]> {
-        // read the rows by identifier, and scopes through their reader of the universe
+        // read the rows by the column, and scopes through their reader of the universe
         const definition = mapping.policy.definition;
         const rows: Row[] =
             mapping.table === Scope.table
                 ? await Scope.read(snapshot, ids)
                 : await snapshot.select(
                       mapping.table,
-                      [mapping.id],
+                      [column],
                       ids.map((id) => [id]),
                   );
 

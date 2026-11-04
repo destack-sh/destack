@@ -595,21 +595,19 @@ export class Access {
     }
 
     /** Read the gate a request fails on a row before grants: credential, elevation, suspension. */
-    gate(permission: PermissionReference, mapping: TableMapping, row: Row): Gate | undefined {
-        return this.allows(permission, TableMapping.text(row, mapping.id), { mapping, row })
+    gate(
+        permission: PermissionReference,
+        mapping: TableMapping,
+        row: Row,
+        related: ObjectReference | undefined,
+    ): Gate | undefined {
+        return this.allows(permission, TableMapping.text(row, mapping.id), related)
             ? this.blocked(permission)
             : "grant";
     }
 
     /** Decide whether the credential allows a permission on an object, directly or by source. */
-    allows(
-        permission: PermissionReference,
-        id: string,
-        stored?: {
-            readonly mapping: TableMapping;
-            readonly row: Row;
-        },
-    ): boolean {
+    allows(permission: PermissionReference, id: string, related?: ObjectReference): boolean {
         // allow a permission the credential lists
         if (GrantPermission.allows(permission, { scope: this.scope, id }, this.permissions)) {
             return true;
@@ -620,12 +618,10 @@ export class Access {
         if (source === undefined) {
             return false;
         } else if (source.relation === undefined) {
-            return this.allows({ ...permission, name: source.permission }, id, stored);
-        } else if (stored === undefined) {
-            return false;
+            return this.allows({ ...permission, name: source.permission }, id, related);
         }
-        const related = this.#authorizer.related(stored.mapping, source.relation, stored.row);
 
+        // allow it through the object its field relation refers to
         return (
             related !== undefined &&
             related.scope === this.scope &&

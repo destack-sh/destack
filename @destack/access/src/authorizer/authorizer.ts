@@ -883,39 +883,64 @@ export class Authorizer {
     }
 
     /** Read the object a row's field relation references, absent when the field is empty. */
-    related(mapping: TableMapping, relation: string, row: Row): ObjectReference | undefined {
-        // read the related identifier
+    async related(
+        snapshot: Snapshot,
+        mapping: TableMapping,
+        relation: string,
+        row: Row,
+    ): Promise<ObjectReference | undefined> {
+        // read the related identifier, or the key the subject holds
         const field = mapping.relations[relation];
         if (field === undefined) {
             throw AccessError.of("DECLARATION_INVALID", `${relation} is not a field relation`);
         }
-        const id = row[field.column];
-        if (id === null || id === undefined) {
+        const value = row[field.column];
+        if (value === null || value === undefined) {
             return undefined;
-        } else if (typeof id !== "string") {
+        } else if (typeof value !== "string") {
             throw new TypeError(`field ${field.column} is not an identifier`);
         }
 
-        // type it by the one type the relation accepts
-        const typed = field.subject;
-        if (typed === undefined) {
+        // read the one subject type's object holding a key, none when nobody holds it
+        if (field.key !== undefined) {
+            const only = this.onlySubject(mapping.policy, relation);
+            const target = this.requireMapping(only);
+            const within =
+                target.scope === undefined
+                    ? Scope.universe.id
+                    : (field.scope ?? TableMapping.scope(mapping, row));
+            const [held] = await TableMapping.read(snapshot, target, within, [value], field.key);
+
+            return held === undefined
+                ? undefined
+                : {
+                      ...only,
+                      scope: TableMapping.scope(target, held),
+                      id: TableMapping.text(held, target.id),
+                  };
+        }
+        // type an identifier by the one type the relation accepts
+        else if (field.subject === undefined) {
             const only = this.onlySubject(mapping.policy, relation);
 
             return {
                 packageId: only.packageId,
                 type: only.type,
                 scope: field.scope ?? TableMapping.scope(mapping, row),
-                id,
+                id: value,
             };
         }
-
         // or by the row's columns
-        return {
-            packageId: PackageId.parse(row[typed.packageId]),
-            type: TableMapping.text(row, typed.type),
-            scope: TableMapping.text(row, typed.scope),
-            id,
-        };
+        else {
+            const typed = field.subject;
+
+            return {
+                packageId: PackageId.parse(row[typed.packageId]),
+                type: TableMapping.text(row, typed.type),
+                scope: TableMapping.text(row, typed.scope),
+                id: value,
+            };
+        }
     }
 
     /** Read the scope deciding an object's access: a scope object itself, else its scope. */
@@ -1473,8 +1498,8 @@ export class Authorizer {
 
         // allow the caller when it passes the gate and its authority has the permission
         const isAllowed =
-            this.#gate(permission, mapping, row, access, "object") === undefined &&
-            TupleTree.permits(tree, access);
+            (await this.#gate(snapshot, permission, mapping, row, access, "object")) ===
+                undefined && TupleTree.permits(tree, access);
 
         return { isAllowed, ...(until === undefined ? {} : { until }) };
     }
@@ -1793,11 +1818,13 @@ export class Authorizer {
         ]);
 
         // allow the rows with a tree that allows the caller
-        const permitted = decided.flatMap(([[row, evaluated], tree], position) =>
-            this.#gate(permission, mapping, row, evaluated, lookup) === undefined &&
-            TupleTree.permits(tree, evaluated)
-                ? [position]
-                : [],
+        const gates = await Promise.all(
+            decided.map(([[row, evaluated]]) =>
+                this.#gate(snapshot, permission, mapping, row, evaluated, lookup),
+            ),
+        );
+        const permitted = decided.flatMap(([[, evaluated], tree], position) =>
+            gates[position] === undefined && TupleTree.permits(tree, evaluated) ? [position] : [],
         );
 
         return { permitted: new Set(permitted), ...(until === undefined ? {} : { until }) };
@@ -1825,7 +1852,7 @@ export class Authorizer {
         }
 
         // decide the authority by the permission's tree, and by each tuple alone
-        const blocked = this.#gate(permission, mapping, found, access, "object");
+        const blocked = await this.#gate(snapshot, permission, mapping, found, access, "object");
         const tree = await reader.tree(permission, found);
         const tuples = TupleTree.flatten(tree).flatMap((tuple) => {
             // drop relation sets the caller is no member of
@@ -1883,15 +1910,20 @@ export class Authorizer {
     }
 
     /** Read the gate a request fails on a row before any grant. */
-    #gate(
+    async #gate(
+        snapshot: Snapshot,
         permission: PermissionReference,
         mapping: TableMapping,
         row: Row,
         access: Access,
         lookup: Lookup,
-    ): ReturnType<Access["gate"]> | "outside" {
+    ): Promise<ReturnType<Access["gate"]> | "outside"> {
         // refuse a request that its credential, elevation or suspension refuses
-        const refused = access.gate(permission, mapping, row);
+        const related =
+            access.permissions === undefined
+                ? undefined
+                : await this.#derived(snapshot, permission, mapping, row);
+        const refused = access.gate(permission, mapping, row, related);
         if (refused !== undefined) {
             return refused;
         }
@@ -1911,6 +1943,24 @@ export class Authorizer {
                 (row["packageId"] !== definition.packageId || row["type"] !== definition.name))
             ? "outside"
             : undefined;
+    }
+
+    /** Read the object a permission derives from through a row's field relation, none for none. */
+    async #derived(
+        snapshot: Snapshot,
+        permission: PermissionReference,
+        mapping: TableMapping,
+        row: Row,
+    ): Promise<ObjectReference | undefined> {
+        // follow the permission's sources on the row to the first through a field relation
+        let source = this.source(permission);
+        while (source !== undefined && source.relation === undefined) {
+            source = this.source({ ...permission, name: source.permission });
+        }
+
+        return source?.relation === undefined
+            ? undefined
+            : await this.related(snapshot, mapping, source.relation, row);
     }
 
     /** Require a mapping to supply the trees and reference columns its expressions need. */

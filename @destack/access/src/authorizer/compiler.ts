@@ -253,9 +253,29 @@ export class Compiler {
             return named;
         }
 
-        // match each type the relation accepts through the related object's column
+        // match a key relation through the object holding the key in the caller's scope
         const { mapping, table } = stored;
         const field = TableMapping.field(mapping, source.relation);
+        if (field.key !== undefined) {
+            const subject = this.#authorizer.onlySubject(mapping.policy, source.relation);
+            const target = this.#authorizer.requireMapping(subject);
+            const held = alias(target.table, "access_keyed");
+            const derived = {
+                packageId: subject.packageId,
+                type: subject.type,
+                name: source.permission,
+            };
+            const allowed = this.#restricted(derived, TableMapping.column(held, target.id), access);
+
+            return sql`(${named} OR EXISTS (
+                SELECT 1 FROM ${from(held)}
+                WHERE ${TableMapping.column(held, field.key)} = ${TableMapping.column(table, field.column)}
+                    AND ${TableMapping.scopeColumn(held, target)} = ${access.scope}
+                    AND ${allowed}
+            ))`;
+        }
+
+        // match each type the relation accepts through the related object's column
         const typed = field.subject;
         const subjects = this.#authorizer.relation(mapping.policy, source.relation).subjects;
         const arrows = subjects.map((subject) => {
@@ -480,7 +500,7 @@ export class Compiler {
 
         return sql`EXISTS (
             SELECT 1 FROM ${from(owner)}
-            WHERE ${TableMapping.column(owner, target.id)} = ${referred}
+            WHERE ${TableMapping.column(owner, field.key ?? target.id)} = ${referred}
                 AND ${Compiler.#inScope(field, mapping, source, target, owner)}
                 AND ${this.#covers(binding, target, owner, within)}
         )`;
@@ -1093,7 +1113,7 @@ export class Compiler {
                 AND EXISTS (
                     SELECT 1 FROM ${from(parent)}
                     WHERE ${Compiler.#inScope(field, mapping, source, target, parent)}
-                        AND ${TableMapping.column(parent, target.id)} = ${TableMapping.column(source, field.column)}
+                        AND ${TableMapping.column(parent, field.key ?? target.id)} = ${TableMapping.column(source, field.column)}
                         AND ${predicate}
                 )
             )`,
@@ -1149,7 +1169,7 @@ export class Compiler {
         return sql`EXISTS (
             SELECT 1 FROM ${from(parent)}
             WHERE ${Compiler.#inScope(field, mapping, source, target, parent)}
-                AND ${TableMapping.column(parent, target.id)} = ${TableMapping.column(source, field.column)}
+                AND ${TableMapping.column(parent, field.key ?? target.id)} = ${TableMapping.column(source, field.column)}
                 AND ${predicate}
         )`;
     }

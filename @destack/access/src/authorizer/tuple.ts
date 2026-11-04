@@ -136,7 +136,7 @@ export class TupleReader {
         // know the new row and its first relationships, reading neither
         const mapping = this.#authorizer.requireMapping(object);
         this.#loaded.set(
-            TupleReader.#rowKey(mapping, object.scope, object.id),
+            TupleReader.#rowKey(mapping, object.scope, mapping.id, object.id),
             Promise.resolve(row),
         );
         this.#read.set(ObjectReference.key(object), Promise.resolve([...relationships]));
@@ -779,8 +779,10 @@ export class TupleReader {
 
         // decide the permission on each related object, a global type's at the universe it lives in
         const within = target.scope === undefined ? Scope.universe.id : (field.scope ?? scope);
+        const column = expression.transitive ? target.id : (field.key ?? target.id);
+        const rows = await this.#rows(target, within, ids, column);
         const trees: TupleTree[] = [];
-        for (const related of await this.#rows(target, within, ids)) {
+        for (const related of rows) {
             trees.push(
                 await this.#permission(
                     target.policy.permission(expression.permission),
@@ -912,9 +914,12 @@ export class TupleReader {
         }
 
         // read any other owner's coverage, and the bindings of its scope's chain
-        const owners = await this.#rows(target, field.scope ?? TableMapping.scope(mapping, row), [
-            referred,
-        ]);
+        const owners = await this.#rows(
+            target,
+            field.scope ?? TableMapping.scope(mapping, row),
+            [referred],
+            field.key ?? target.id,
+        );
         const bindings = await Promise.all(
             owners.map(async (owner) => [
                 ...(await this.#covering(target, owner)),
@@ -1045,39 +1050,51 @@ export class TupleReader {
         return read;
     }
 
-    /** Read rows of a mapped type in a scope by identifier, in the order of the identifiers. */
-    async #rows(mapping: TableMapping, scope: string, ids: readonly string[]): Promise<Row[]> {
-        // read nothing for no identifiers
-        if (ids.length === 0) {
+    /** Read rows of a mapped type in a scope by a column's values, in the values' order. */
+    async #rows(
+        mapping: TableMapping,
+        scope: string,
+        values: readonly string[],
+        column = mapping.id,
+    ): Promise<Row[]> {
+        // read nothing for no values
+        if (values.length === 0) {
             return [];
         }
 
-        // read the unread rows in one query, and note the missing ones, by table and type
-        const key = (id: string) => TupleReader.#rowKey(mapping, scope, id);
-        const missing = ids.filter((id) => !this.#loaded.has(key(id)));
+        // read the unread rows in one query, and note the missing ones, by table, type and column
+        const key = (value: string) => TupleReader.#rowKey(mapping, scope, column, value);
+        const missing = values.filter((value) => !this.#loaded.has(key(value)));
         if (missing.length > 0) {
-            const read = TableMapping.read(this.#snapshot, mapping, scope, missing).then(
-                (rows) => new Map(rows.map((row) => [TableMapping.text(row, mapping.id), row])),
+            const read = TableMapping.read(this.#snapshot, mapping, scope, missing, column).then(
+                (rows) => new Map(rows.map((row) => [TableMapping.text(row, column), row])),
             );
-            for (const id of missing) {
+            for (const value of missing) {
                 this.#loaded.set(
-                    key(id),
-                    read.then((byId) => byId.get(id)),
+                    key(value),
+                    read.then((byValue) => byValue.get(value)),
                 );
             }
         }
 
-        // preserve the order of the identifiers, nearest ancestors first
-        const rows = await Promise.all(ids.map((id) => found(this.#loaded, key(id))));
+        // preserve the order of the values, nearest ancestors first
+        const rows = await Promise.all(values.map((value) => found(this.#loaded, key(value))));
 
         return rows.flatMap((row) => (row === undefined ? [] : [row]));
     }
 
-    /** Key a row of a mapped type by its table, type, scope and identifier. */
-    static #rowKey(mapping: TableMapping, scope: string, id: string): string {
+    /** Key a row of a mapped type by its table, type, scope, and a column's value. */
+    static #rowKey(mapping: TableMapping, scope: string, column: string, value: string): string {
         const { packageId, name } = mapping.policy.definition;
 
-        return JSON.stringify([mapping.table[TABLE].sqlName, packageId, name, scope, id]);
+        return JSON.stringify([
+            mapping.table[TABLE].sqlName,
+            packageId,
+            name,
+            scope,
+            column,
+            value,
+        ]);
     }
 
     /** Read the identifiers of a row's proper ancestors through a tree. */
