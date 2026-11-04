@@ -144,10 +144,10 @@ test("ask the issuer for a fresh sign-in within the challenged age in a step-up,
     expect([asked.get("prompt"), asked.get("max_age")]).toEqual(["login", "900"]);
 });
 
-test("sign a person in through a browser redirect with PKCE as a new client, and sign them out revoking its refresh token", async () => {
+test("sign a person in through a browser redirect with PKCE as a new client, and forget them and their refresh token", async () => {
     await using accounts = await TestAccountStore.open();
     const { person: owner, browser: ownerBrowser } = await accounts.signInWithLink(EMAIL);
-    const { signIn, issuer, logins, sessions, network } = await native(accounts);
+    const { signIn, logins, sessions, network } = await native(accounts);
     const before = await nativeClients(accounts, owner);
 
     // allow the sign-in on the consent page and return to the loopback redirect
@@ -163,12 +163,13 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
 
     // expect a login of the new client, storing its refresh token in the keychain
     const person = { issuer: ISSUER, subjectId: owner.id };
-    const refreshToken = present(await sessions.load(person), "the stored refresh token");
     expect({
+        isStored: (await sessions.load(person)) !== undefined,
         page: [page.status, await page.text()],
         rows: await logins.query.login.findMany(),
         clients: await nativeClients(accounts, owner),
     }).toEqual({
+        isStored: true,
         page: [200, "Signed in. You can close this window."],
         rows: [loginRow(signedIn, owner)],
         clients: [...before, { id: signedIn.clientId, isRevoked: false }],
@@ -180,22 +181,12 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
         `fetch failed: nothing serves ${origin}`,
     );
 
-    // sign out, forgetting the refresh token the issuer no longer refreshes
-    await signIn.signOut(signedIn);
-    const registration = schema.identifier("client").parse(signedIn.clientId);
+    // forget the person here, their refresh token and their login
+    await signIn.forget(signedIn);
     expect({
         rows: await logins.query.login.findMany(),
         session: await sessions.load(person),
-        refreshed: await refusal(issuer.refresh(registration, refreshToken)),
-    }).toEqual({
-        rows: [],
-        session: undefined,
-        refreshed: [
-            "BAD_REQUEST",
-            "INVALID_GRANT",
-            "the token endpoint refused the request: invalid_grant: invalid refresh token",
-        ],
-    });
+    }).toEqual({ rows: [], session: undefined });
 });
 
 test("fail a browser sign-in whose redirect names another issuer", async () => {

@@ -14,7 +14,7 @@ import { account } from "../object/account.ts";
 import { organization } from "../object/organization.ts";
 import { OAuthConsent } from "../object/oauth-consent.ts";
 import { Revocation } from "../credential/revocation.ts";
-import { Proof } from "@destack/identity";
+import { Proof, type ProofRequest } from "@destack/identity";
 import { client } from "../object/client.ts";
 import { key, Key } from "../object/key.ts";
 import { session, type Session } from "../object/session.ts";
@@ -26,7 +26,7 @@ const LIFETIME_MILLISECONDS = 366 * 24 * 60 * 60 * 1000;
 
 /** Implement clients. */
 export function implementClient(): typeof client {
-    return client.implement({ methods: { create, issue, link, subscribe, revoke } });
+    return client.implement({ methods: { create, issue, prove, link, subscribe, revoke } });
 }
 
 /** Register a client as active now, linking a calling session that runs on no client yet. */
@@ -81,10 +81,33 @@ async function issue(
     return created;
 }
 
+/** Prove the caller holds one of the client's keys, recording its proven contact. */
+async function prove(
+    context: MethodContextOf<typeof client, "prove">,
+): Promise<ResultOf<typeof client, "prove">> {
+    await requireProof(context, context.input.request);
+
+    return context.update({ lastActiveAt: context.now });
+}
+
 /** Attach the calling session to a client by a proof of one of its keys. */
 async function link(
     context: MethodContextOf<typeof client, "link">,
 ): Promise<ResultOf<typeof client, "link">> {
+    // prove a key of the client, then link the calling session
+    await requireProof(context);
+    await context.mutate(context.self, [
+        session.call("link", { id: callingSession(context), clientId: context.target.id }),
+    ]);
+
+    return context.update({ lastActiveAt: context.now });
+}
+
+/** Require a proof of a standing key of the unrevoked client for a request if any, spending it. */
+async function requireProof(
+    context: MethodContextOf<typeof client, "prove" | "link">,
+    request?: ProofRequest,
+): Promise<void> {
     // find the client's authenticating key the proof was signed with
     const { target } = context;
     Revocation.requireUnrevoked(target, "client");
@@ -105,14 +128,15 @@ async function link(
         );
     }
 
-    // verify the proof and link the calling session
-    await proof.verify(found.publicKey, target.id, context.now, context.environment.crypto);
+    // verify the proof once
+    await proof.verify(
+        found.publicKey,
+        target.id,
+        context.now,
+        context.environment.crypto,
+        request,
+    );
     await Key.spend(context, proof);
-    await context.mutate(context.self, [
-        session.call("link", { id: callingSession(context), clientId: target.id }),
-    ]);
-
-    return context.update({ lastActiveAt: context.now });
 }
 
 /** Store a browser client's Web Push subscription. */

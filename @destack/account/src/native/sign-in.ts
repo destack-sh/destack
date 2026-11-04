@@ -223,13 +223,12 @@ export class NativeSignIn {
         return this.#options.issuer.residencies();
     }
 
-    /** Sign a person out: revoke and forget their refresh token, and remove their login. */
-    async signOut(current: Login["row"]): Promise<void> {
-        // revoke the refresh token at its issuer and forget it
-        const { sessions, logins, issuer } = this.#options;
+    /** Forget a person whose client was withdrawn: their refresh token and their login here. */
+    async forget(current: Login["row"]): Promise<void> {
+        // forget the refresh token
+        const { sessions, logins } = this.#options;
         const token = await sessions.load(current);
         if (token !== undefined) {
-            await issuer.revoke(client.identifier(current.clientId), token);
             await sessions.remove(current, token);
         }
 

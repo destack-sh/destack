@@ -3,7 +3,7 @@ import { eq } from "@destack/db";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import { session } from "../src/object/session.ts";
-import { KeyPair, Proof, PublicKey } from "@destack/identity";
+import { KeyPair, Proof, type ProofRequest, PublicKey } from "@destack/identity";
 import { client } from "../src/object/client.ts";
 import { key } from "../src/object/key.ts";
 import accountPackage from "../src/package.ts";
@@ -24,14 +24,15 @@ function sortIds(ids: readonly string[]): string[] {
     return ids.toSorted((left, right) => left.localeCompare(right));
 }
 
-/** Sign a proof for a client or machine by a key pair at a time, in a world. */
+/** Sign a proof for a client or machine by a key pair at a time, of a request if given, in a world. */
 function prove(
     pair: KeyPair,
     subject: string,
     now: number,
     world: Pick<Environment, "crypto" | "random">,
+    request?: ProofRequest,
 ): Promise<string> {
-    return Proof.sign(pair.privateKey, pair.publicKey, subject, now, world);
+    return Proof.sign(pair.privateKey, pair.publicKey, subject, now, world, request);
 }
 
 test("register clients with proven keys and revoke them with the sessions linked to them", async () => {
@@ -181,6 +182,44 @@ test("register clients with proven keys and revoke them with the sessions linked
         "key proof was already used",
     ]);
 
+    // prove the key again as the owner, linking no session, and refuse the spent proof
+    const proveKey = async (signed: string, request?: ProofRequest) =>
+        owner.client(accountPackage).client.prove({
+            userId: owner.id,
+            id: laptop.id,
+            requestId: RequestId.create(fixture.store.environment),
+            proof: signed,
+            ...(request === undefined ? {} : { request }),
+        });
+    const fresh = await prove(pair, laptop.id, fixture.store.clock.now(), fixture.environment);
+    const proven = await proveKey(fresh);
+    expect({
+        proven: [proven.id, proven.lastActiveAt],
+        linked: await linked(),
+        spent: await refusal(proveKey(fresh)),
+    }).toEqual({
+        proven: [laptop.id, fixture.store.clock.now()],
+        linked: sortIds([owner.clientId, laptop.id]),
+        spent: ["BAD_REQUEST", "PROOF_INVALID", "key proof was already used"],
+    });
+
+    // prove a request proof for its own request, refusing it for another
+    const bind = { method: "POST", url: "https://home.test/client/bind" };
+    const signRequest = () =>
+        prove(pair, laptop.id, fixture.store.clock.now(), fixture.environment, bind);
+    const requested = await proveKey(await signRequest(), bind);
+    expect({
+        requested: requested.id,
+        elsewhere: await refusal(
+            proveKey(await signRequest(), { ...bind, url: "https://elsewhere.test/client/bind" }),
+        ),
+        unstated: await refusal(proveKey(await signRequest())),
+    }).toEqual({
+        requested: laptop.id,
+        elsewhere: ["BAD_REQUEST", "PROOF_INVALID", "key proof is for another request"],
+        unstated: ["BAD_REQUEST", "PROOF_INVALID", "key proof is for another request"],
+    });
+
     // hide the client from another user
     const stranger = await fixture.signIn(STRANGER_EMAIL);
     expect(
@@ -227,7 +266,7 @@ test("register clients with proven keys and revoke them with the sessions linked
         [null],
     ]);
 
-    // revoke the computer, its key and the session linked to it
+    // revoke the computer, its key and the session linked to it, refusing its proofs after
     const linkedLaptop = await owner.client(accountPackage).client.get({
         userId: owner.id,
         id: laptop.id,
@@ -241,9 +280,13 @@ test("register clients with proven keys and revoke them with the sessions linked
         .select({ revokedAt: key.table.revokedAt })
         .from(key.table)
         .where(eq(key.table.id, registered.id));
+    const afterRevoke = await refusal(
+        proveKey(await prove(pair, laptop.id, fixture.store.clock.now(), fixture.environment)),
+    );
     expect({
         revoked,
         ended,
+        afterRevoke,
         exchanged: await refusal(
             fixture.issuer.exchange(await again.token(), accountPackage.id, {}),
         ),
@@ -255,6 +298,7 @@ test("register clients with proven keys and revoke them with the sessions linked
             revokedAt: now,
         },
         ended: [{ revokedAt: now }],
+        afterRevoke: ["CONFLICT", "CREDENTIAL_REVOKED", "client is revoked"],
         exchanged: [
             "BAD_REQUEST",
             "INVALID_GRANT",

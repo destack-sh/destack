@@ -4,7 +4,7 @@ import type { ObjectStore } from "@destack/object/server";
 import { RequestId, Scope } from "@destack/sync";
 import { defineObject, field } from "@destack/object";
 import { Digest, Instant, schema } from "@destack/schema";
-import { CompactProof } from "@destack/identity";
+import { CompactProof, ProofRequest } from "@destack/identity";
 import { key } from "./key.ts";
 import { machine } from "./machine.ts";
 import { Platform, PLATFORMS } from "./platform.ts";
@@ -136,6 +136,16 @@ export const client = defineObject(
         }),
         update: method.update("update", {
             fields: ["name", "platform", "platformVersion", "architecture", "model", "version"],
+        }),
+        /** Prove the caller holds one of the client's keys, recording its proven contact. */
+        prove: method.mutation({
+            permission: "verify",
+            input: schema.object({
+                /** The proof of one of the client's keys. */
+                proof: CompactProof,
+                /** The request the proof authenticates (RFC 9449), absent for possession. */
+                request: ProofRequest.exactOptional(),
+            }),
         }),
         /** Link the calling session to a client by a proof of one of its keys. */
         link: method.mutation({

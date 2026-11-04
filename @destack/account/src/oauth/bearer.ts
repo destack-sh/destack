@@ -75,10 +75,10 @@ export function bearerGrant(options: BearerOptions): TokenGrant {
         const isOpen = partition === undefined || (isMachine && partition === asserted.subject.id);
         const spaceId = SPACE_IDENTIFIER.safeParse(partition);
 
-        // bind a machine to a space it serves, receives or works in
+        // bind a machine to a space it serves, receives, works in or reports its own telemetry to
         if (!isOpen && isMachine && spaceId.success) {
             const machineId = schema.identifier("machine").parse(asserted.subject.id);
-            await Placement.requireWorker(Snapshot.live(database), spaceId.data, machineId);
+            await Placement.requirePartition(Snapshot.live(database), spaceId.data, machineId);
         }
         // refuse a machine any other partition
         else if (!isOpen && isMachine) {

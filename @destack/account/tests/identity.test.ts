@@ -11,7 +11,7 @@ import { expect, refusal, test } from "@destack/test";
 import { found, Identifier, present, schema } from "@destack/schema";
 import { MachineIdentity } from "../src/client/index.ts";
 import { TOKEN_PATH } from "../src/authentication/path.ts";
-import { Identity, key, machine } from "../src/object/index.ts";
+import { Account, Identity, key, machine } from "../src/object/index.ts";
 import { JWT_BEARER } from "../src/oauth/index.ts";
 import accountPackage from "../src/package.ts";
 import { MemoryKeychain } from "@destack/identity";
@@ -487,7 +487,7 @@ test("reuse a machine's token for several calls to one package, exchanging it on
     });
 });
 
-test("grant a machine tokens for its own partition and the spaces it serves, receives or works in, and refuse others", async () => {
+test("grant a machine tokens for its own partition, its owner's home and the spaces it serves, receives or works in, and refuse others", async () => {
     // enroll an account's machine, take the residency's shared cloud machine and place a space on each
     await using accounts = await TestAccountStore.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
@@ -503,6 +503,12 @@ test("grant a machine tokens for its own partition and the spaces it serves, rec
     const partitions = [
         await grant(accounts, laptop, laptop.machineId),
         await grant(accounts, laptop, cloud.machineId),
+    ];
+
+    // grant tokens in the owner's home its own telemetry goes to: the account's, the residency's
+    const homes = [
+        await grant(accounts, laptop, Account.home(ids.account)),
+        await grant(accounts, cloud, await accounts.residencySpace("eu")),
     ];
 
     // refuse tokens in the spaces other machines serve
@@ -541,6 +547,7 @@ test("grant a machine tokens for its own partition and the spaces it serves, rec
             requestId: RequestId.create(accounts.environment),
         });
     expect([
+        homes,
         await grant(accounts, laptop, movedId),
         await grant(accounts, cloud, served),
         refused,
@@ -548,6 +555,7 @@ test("grant a machine tokens for its own partition and the spaces it serves, rec
         [assigned, withdrawn],
         partitions,
     ]).toEqual([
+        ["done", "done"],
         "done",
         "done",
         [placedElsewhere(served), placedElsewhere(elsewhere), placedElsewhere(movedId)],

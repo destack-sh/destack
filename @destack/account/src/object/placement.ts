@@ -4,7 +4,7 @@ import { Condition, defineObject, field } from "@destack/object";
 import { Digest, type DigestCrypto, Identifier, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { account } from "./account.ts";
-import { machine } from "./machine.ts";
+import { Machine, machine } from "./machine.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
@@ -113,13 +113,13 @@ export const Placement = Object.assign(PlacementSchema, {
         return target;
     },
 
-    /** Refuse a machine neither serving nor receiving a space, nor working in it. */
-    async requireWorker(
+    /** Refuse binding a machine's token to a space it neither serves, works in nor reports to. */
+    async requirePartition(
         reader: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
         machineId: Identifier<"machine">,
     ): Promise<void> {
-        // read the space's placement and the machine's work in it
+        // read the space's placement, the machine's work in it and the machine
         const placed = await reader.read(placement.table).findFirst({ where: { id: spaceId } });
         const assigned = await reader.read(assignment.table).findFirst({
             where: {
@@ -127,10 +127,12 @@ export const Placement = Object.assign(PlacementSchema, {
                 machineId,
             },
         });
+        const found = await reader.read(machine.table).findFirst({ where: { id: machineId } });
+        const home = found === undefined ? undefined : await Machine.home(reader, found);
 
-        // refuse a machine neither serving nor receiving the space, nor working in it
+        // refuse a machine neither serving nor receiving the space, nor working in it, nor reporting to it
         const isPlaced = machineId === placed?.machineId || machineId === placed?.targetId;
-        if (!isPlaced && assigned === undefined) {
+        if (!isPlaced && assigned === undefined && home !== spaceId) {
             throw AccountError.of(
                 "SPACE_PLACED_ELSEWHERE",
                 `${spaceId} is placed on other machines`,

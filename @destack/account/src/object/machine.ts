@@ -2,14 +2,14 @@ import { none, permission, principal, relation, through, union } from "@destack/
 import { type Select, type Snapshot } from "@destack/db";
 import { type MethodContext, defineObject, field } from "@destack/object";
 import { ServerRuntime } from "@destack/package/runtime";
-import { schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import type { AssertionKey } from "@destack/access/token";
 import { CompactProof, PublicKey } from "@destack/identity";
 import { Label } from "../address/label.ts";
 import { key, Key } from "./key.ts";
-import { account } from "./account.ts";
-import { residency, ResidencyCode } from "./residency.ts";
+import { Account, account } from "./account.ts";
+import { Residency, residency, ResidencyCode } from "./residency.ts";
 import { Platform, PLATFORMS } from "./platform.ts";
 import { AccountError } from "../error/error.ts";
 import type { Tenancy } from "./placement.ts";
@@ -333,6 +333,21 @@ export const Machine = {
             : row.scope === Scope.universe.id
               ? "shared"
               : "dedicated";
+    },
+
+    /** Read the home a machine reports its telemetry to: its account's, else its residency's. */
+    async home(
+        reader: Pick<Snapshot, "read">,
+        row: Pick<Select<typeof machine.table>, "id" | "scope" | "residencyId">,
+    ): Promise<Identifier<"space"> | null> {
+        // take a cloud machine's residency's space, absent while the platform serves none there
+        if (row.scope === Scope.universe.id) {
+            const code = present(row.residencyId, `the residency of cloud machine ${row.id}`);
+
+            return (await Residency.require(reader, code)).space;
+        }
+
+        return Account.home(row.scope);
     },
 
     /** Read a machine record as its kind's variant. */
