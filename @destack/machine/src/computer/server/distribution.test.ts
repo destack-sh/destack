@@ -115,8 +115,10 @@ test("report a controller's failed reconciliation to the machine: a stage its re
             distribution: { distribution: installed, activate: () => {} },
         });
         const first = await reported;
+        const [recorded] = await device.database.select().from(distribution.table);
+        const key = JSON.stringify({ id: recorded?.id });
 
-        // expect the refused download reported with the controller and its key, and captured once
+        // expect the refused download reported with the controller and its distribution's key, and captured once
         expect({
             reported:
                 first instanceof Error && first.cause instanceof Error
@@ -125,7 +127,7 @@ test("report a controller's failed reconciliation to the machine: a stage its re
             captured: world.telemetry.take().map((captured) => captured.message),
         }).toEqual({
             reported: [
-                `distribution failed to reconcile ${device.id}`,
+                `distribution failed to reconcile ${key}`,
                 "metadata refresh failed: metadata request failed: HTTP 404",
             ],
             captured: ["metadata refresh failed: metadata request failed: HTTP 404"],

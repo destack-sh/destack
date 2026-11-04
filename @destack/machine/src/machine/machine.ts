@@ -17,7 +17,7 @@ import {
     type Select,
     Snapshot,
     type Table,
-    type FollowController,
+    type Controller,
     type Following,
 } from "@destack/db";
 import type { Environment, FetchOptions } from "@destack/environment";
@@ -128,7 +128,7 @@ export type MachineOptions = Pick<
 type PersonalEnrollment = Extract<Enrollment, { readonly kind: "personal" }>;
 
 /** A machine: its standing at the universe, the storage of its spaces, and the spaces it serves. */
-export class Machine implements FollowController {
+export class Machine {
     /** The universe's tables a machine replicates: machines, keys, names and placements. */
     static readonly replicated: readonly Table[] = [
         ...[
@@ -143,12 +143,6 @@ export class Machine implements FollowController {
         accountObject.assignment.table,
     ];
 
-    /** The controller's name in reports. */
-    readonly name = "machine";
-    /** Serve until the machine leaves its enrollment. */
-    readonly mode = "follow";
-    /** This machine's record, whose enrollment starts and stops the spaces. */
-    readonly watches: readonly Table[] = [computer.table];
     /** The machine. */
     readonly id: Identifier<"machine">;
     /** The clock the machine runs at, and the network it sends through. */
@@ -705,16 +699,28 @@ export class Machine implements FollowController {
         return instance.packages.some((handle) => handle.id === mounted.packageId);
     }
 
+    /** Build the controller serving the spaces while this machine's record states an enrollment. */
+    controller(): Controller<typeof computer.table> {
+        return {
+            name: "machine",
+            table: computer.table,
+            pending: { id: this.id },
+            follow: (_rows, following) => this.follow(following),
+        };
+    }
+
     /** Serve the spaces while the account enables the machine, until it is revoked or stops. */
-    async reconcile(_key: string, { signal, synced }: Following): Promise<undefined> {
-        // wait for the loop to stop a machine before it enrolls
+    async follow(following: Following): Promise<void> {
+        // wait for the machine's record to state an enrollment
+        const { signal, synced } = following;
         this.health.set("starting", "it reads its enrollment");
-        if ((await this.#enrollment()) === undefined) {
+        while ((await this.#enrollment()) === undefined) {
             this.health.set("starting", "it has not enrolled yet");
             synced();
-            await waitAborted(signal);
-
-            return undefined;
+            await Promise.race([following.changed(), waitAborted(signal)]);
+            if (signal.aborted) {
+                return;
+            }
         }
 
         // serve the machine's own partition, which follows its replicas, while enrolled
@@ -766,13 +772,6 @@ export class Machine implements FollowController {
                 await partition?.[Symbol.asyncDispose]();
             }
         }
-
-        return undefined;
-    }
-
-    /** List this machine while it is enrolled. */
-    async list(view: Snapshot): Promise<readonly string[]> {
-        return (await this.#enrollment(view)) === undefined ? [] : [this.id];
     }
 
     /** Find the space a request names at the machine's own hosts. */

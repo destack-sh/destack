@@ -145,43 +145,45 @@ export class CheckoutServer {
     /** Implement previews: build each checkout package and submit the build to its installation. */
     preview() {
         return preview.implement({
-            controller: {
-                pending: {},
-                reconcile: async (reconciliation) => {
-                    // finalize a deleted preview
-                    const row = nth(reconciliation.rows, 0);
-                    if (row.deletedAt !== null) {
-                        await reconciliation.mutate([
-                            preview.call("finalize", preview.target(row)),
-                        ]);
+            controllers: [
+                {
+                    pending: {},
+                    reconcile: async (reconciliation) => {
+                        // finalize a deleted preview
+                        const row = nth(reconciliation.rows, 0);
+                        if (row.deletedAt !== null) {
+                            await reconciliation.mutate([
+                                preview.call("finalize", preview.target(row)),
+                            ]);
 
-                        return undefined;
-                    }
-                    // leave one observed at its generation
-                    else if (Observation.isCurrent(row, "Ready")) {
-                        return undefined;
-                    }
+                            return;
+                        }
+                        // leave one observed at its generation
+                        else if (Observation.isCurrent(row, "Ready")) {
+                            return;
+                        }
 
-                    // run the generation, recording it ready with its views, else its failure
-                    try {
-                        const views = await this.#runPreview(row);
-                        await reconciliation.observe(preview, row, {
-                            conditions: {
-                                Ready: { status: "true", reason: "Running", message: "" },
-                            },
-                            fields: { views },
-                        });
-                    } catch (error) {
-                        const message = error instanceof Error ? error.message : String(error);
-                        await reconciliation.observe(preview, row, {
-                            conditions: { Ready: { status: "false", reason: "Failed", message } },
-                            fields: {},
-                        });
-                    }
-
-                    return undefined;
+                        // run the generation, recording it ready with its views, else its failure
+                        try {
+                            const views = await this.#runPreview(row);
+                            await reconciliation.observe(preview, row, {
+                                conditions: {
+                                    Ready: { status: "true", reason: "Running", message: "" },
+                                },
+                                fields: { views },
+                            });
+                        } catch (error) {
+                            const message = error instanceof Error ? error.message : String(error);
+                            await reconciliation.observe(preview, row, {
+                                conditions: {
+                                    Ready: { status: "false", reason: "Failed", message },
+                                },
+                                fields: {},
+                            });
+                        }
+                    },
                 },
-            },
+            ],
         });
     }
 

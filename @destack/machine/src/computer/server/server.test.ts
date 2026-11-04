@@ -372,7 +372,7 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
     const created = await opened.signIn(OWNER_EMAIL);
 
     // enroll as the owner and revoke
-    const idle = await machine.list(Snapshot.live(opened.device.database));
+    const idle = await machine.isEnrolled();
     const enrolled = await client.computer.enroll({
         deviceId,
         requestId: RequestId.create(opened.environment),
@@ -381,7 +381,7 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
         accountId: owner.account,
         name: "workstation",
     });
-    const serving = await machine.list(Snapshot.live(opened.device.database));
+    const serving = await machine.isEnrolled();
     await client.computer.revoke({
         deviceId,
         requestId: RequestId.create(opened.environment),
@@ -407,7 +407,7 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
 
     // serve spaces only while enrolled and refuse enrolling a revoked machine again
     expect({
-        lists: [idle, serving, await machine.list(Snapshot.live(opened.device.database))],
+        isEnrolled: [idle, serving, await machine.isEnrolled()],
         enrolled: enrolled.enrollment,
         revoked: revoked.enrollment,
         again,
@@ -416,7 +416,7 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
             isRevoked: row.revokedAt !== null,
         })),
     }).toEqual({
-        lists: [[], [machineId], []],
+        isEnrolled: [false, true, false],
         enrolled: {
             kind: "personal",
             issuer: universe.origin,

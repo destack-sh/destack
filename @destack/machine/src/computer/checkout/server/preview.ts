@@ -1,9 +1,9 @@
 import type { FileSystem } from "@destack/environment";
 import { Workspace } from "@destack/check/workspace";
 import { join, sep } from "node:path";
-import { eq, type Snapshot, type Table, type FollowController, type Following } from "@destack/db";
+import { type Controller, eq, type Following, type Select } from "@destack/db";
 import { type ObjectStore } from "@destack/object/server";
-import { schema, type Identifier } from "@destack/schema";
+import type { Identifier } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { CheckoutServer } from "./checkout.ts";
 import { preview } from "../object/index.ts";
@@ -20,15 +20,7 @@ const WATCHED_PREVIEWS = 32;
 const IGNORED_DIRECTORIES = new Set([".git", "node_modules"]);
 
 /** Start a new generation of each preview once its package's files change. */
-export class PreviewController implements FollowController {
-    /** The controller's name in reports. */
-    readonly name = "preview-source";
-    /** Watch each preview's sources until the preview is deleted. */
-    readonly mode = "follow";
-    /** The previews, whose deletion stops their watch. */
-    readonly watches: readonly Table[] = [preview.table];
-    /** The previews watched at once. */
-    readonly concurrency = WATCHED_PREVIEWS;
+export class PreviewSource {
     /** The object store starting previews' generations as the machine. */
     readonly #store: Pick<ObjectStore, "database" | "mutate" | "as" | "clock" | "environment">;
     /** The development workflow the previews build with. */
@@ -43,31 +35,33 @@ export class PreviewController implements FollowController {
         this.#server = server;
     }
 
-    /** List the previews not being deleted. */
-    async list(view: Snapshot): Promise<readonly string[]> {
-        const rows = await view
-            .read(preview.table)
-            .findMany({ where: { deletedAt: { isNull: true } } });
-
-        return rows.map((row) => row.id);
+    /** Build the controller watching each preview's sources until the preview is deleted. */
+    controller(): Controller<typeof preview.table> {
+        return {
+            name: "preview-source",
+            table: preview.table,
+            pending: { deletedAt: { isNull: true } },
+            concurrency: WATCHED_PREVIEWS,
+            follow: (rows, following) => this.follow(rows, following),
+        };
     }
 
     /** Watch a preview's sources until stopped. */
-    async reconcile(key: string, { signal, synced }: Following): Promise<undefined> {
+    async follow(
+        rows: readonly Select<typeof preview.table>[],
+        { signal, synced }: Following,
+    ): Promise<void> {
         // read the preview's package directory and the directories its build reads
-        const id = schema.identifier("preview").parse(key);
-        const [row] = await this.#store.database
-            .select()
-            .from(preview.table)
-            .where(eq(preview.table.id, id));
+        const [row] = rows;
         if (row === undefined) {
-            throw MachineError.of("PREVIEW_NOT_FOUND", `preview ${id} not found`);
+            throw MachineError.of("PREVIEW_NOT_FOUND", "a followed preview has no row");
         }
+        const { id } = row;
         const located = await CheckoutServer.locate(this.#server.machine, {
             checkout: row.checkoutId,
             directory: row.package,
         });
-        const directories = await PreviewController.#sources(located.path, this.#server.host.files);
+        const directories = await PreviewSource.#sources(located.path, this.#server.host.files);
 
         // start a generation once a burst of changes settles
         const failed = new AbortController();

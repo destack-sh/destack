@@ -4,15 +4,7 @@ import type { ClientOf } from "@destack/object/client";
 import { type CompilerPool, type DependencyBuild, outputsOf, Workspace } from "@destack/build";
 import type { Package, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import {
-    Change,
-    eq,
-    inArray,
-    type Select,
-    type Table,
-    type ReconcileController,
-    Reconciliation,
-} from "@destack/db";
+import { type Controller, eq, type Select, Reconciliation } from "@destack/db";
 import { GitLease } from "@destack/git/local";
 import { Commit, Digest, type Identifier, present, schema, Uuid } from "@destack/schema";
 import { HOST_RUNTIME, PRIMARY_RUNTIMES } from "@destack/package/runtime";
@@ -32,9 +24,6 @@ import { MachineError } from "../error/index.ts";
 /** The builds this machine runs at once, two beside a laptop's other work. */
 const RUN_CONCURRENCY = 2;
 
-/** The milliseconds a build its space's builds refuse for now waits before trying again. */
-const RETRY_MILLISECONDS = 5000;
-
 /** A build's package directory on this machine with the commit its files match. */
 type SourceDirectory = {
     readonly directory: string;
@@ -42,13 +31,7 @@ type SourceDirectory = {
 } & AsyncDisposable;
 
 /** Compile the builds assigned to this machine and push each to its space. */
-export class BuildRunner implements ReconcileController {
-    /** The controller's name in reports. */
-    readonly name = "build";
-    /** The replicated builds. */
-    readonly watches: readonly Table[] = [build.table];
-    /** The builds run at once. */
-    readonly concurrency = RUN_CONCURRENCY;
+export class BuildRunner {
     /** The machine whose replicas list the builds, and whose compilers build them. */
     readonly #machine: Machine;
     /** The warm compilers compiling the builds into the machine's local store. */
@@ -72,30 +55,30 @@ export class BuildRunner implements ReconcileController {
         this.#environment = environment;
     }
 
-    /** List the replicated build a change touches. */
-    keys(change: Change): readonly string[] {
-        return Change.of(change, build.table) ? [Change.image(change).id] : [];
-    }
-
-    /** List the unfinished replicated builds. */
-    async list(): Promise<readonly string[]> {
-        const rows = await this.#machine.database
-            .select({ id: build.table.id })
-            .from(build.table)
-            .where(inArray(build.table.state, [...ACTIVE_BUILD_STATES]));
-
-        return rows.map((row) => row.id);
+    /** Build the controller running the unfinished replicated builds, two at once. */
+    controller(): Controller<typeof build.table> {
+        return {
+            name: "build",
+            table: build.table,
+            pending: { state: { in: [...ACTIVE_BUILD_STATES] } },
+            concurrency: RUN_CONCURRENCY,
+            reconcile: (rows, reconciliation) => this.reconcile(rows, reconciliation),
+        };
     }
 
     /** Run an unfinished build once, aborting once its replica shows it ended elsewhere. */
-    async reconcile(key: string, reconciliation: Reconciliation): Promise<number | undefined> {
+    async reconcile(
+        rows: readonly Select<typeof build.table>[],
+        reconciliation: Reconciliation,
+    ): Promise<void> {
         // leave a finished build
-        const replicated = await this.#replicated(build.identifier(key));
+        const [row] = rows;
+        const replicated = row === undefined ? undefined : await this.#replicated(row.id);
         if (
             replicated === undefined ||
             !ACTIVE_BUILD_STATES.some((state) => state === replicated.state)
         ) {
-            return undefined;
+            return;
         }
         const spaceId = schema.identifier("space").parse(replicated.scope);
         const space = await this.#machine.connect(stackPackage, spaceId);
@@ -110,7 +93,7 @@ export class BuildRunner implements ReconcileController {
         }
 
         // run it until its replica shows it ended elsewhere
-        return Reconciliation.runUntil(
+        await Reconciliation.runUntil(
             reconciliation,
             async () => {
                 const current = await this.#replicated(replicated.id);
@@ -122,23 +105,19 @@ export class BuildRunner implements ReconcileController {
             async (signal) => {
                 try {
                     await this.#run(space, target, replicated, signal);
-
-                    return undefined;
                 } catch (error) {
-                    // try a build its space's builds refuse for now again later
+                    // leave a build its space refuses for now to the loop's retry
                     if (CallError.of(error)?.status === 503) {
-                        return RETRY_MILLISECONDS;
+                        throw error;
                     }
                     // finish a build still running here with its failure
-                    if (!signal.aborted) {
+                    else if (!signal.aborted) {
                         await space.build.finish({
                             ...target,
                             requestId: RequestId.create(this.#machine.environment),
                             end: { kind: "failed", failure: Failure.of(error) },
                         });
                     }
-
-                    return undefined;
                 }
             },
         );

@@ -7,7 +7,13 @@ import connectionPackage, {
     CONNECTION_INSTALLATION,
     ConnectionRequest,
 } from "@destack/connection/client";
-import { BlobStore, Change, type DatabaseConnection, Snapshot, type Table } from "@destack/db";
+import {
+    BlobStore,
+    type DatabaseConnection,
+    type Controller,
+    Snapshot,
+    type Table,
+} from "@destack/db";
 import { BuildStore } from "@destack/build/store";
 import * as stackObject from "@destack/stack/object";
 import type { Volume } from "./storage.ts";
@@ -27,7 +33,6 @@ import {
 import { PackageId } from "@destack/package";
 import { type Lease, ResourceHandle } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
-import type { ReconcileController } from "@destack/db";
 import { Health, type PackageHandler } from "@destack/object/server";
 import { defineWorkload, type WorkloadContext, WorkloadInstance } from "@destack/object/workload";
 import { type Identifier, present } from "@destack/schema";
@@ -55,7 +60,7 @@ import type { InstanceSpec } from "@destack/stack/runtime";
 import { Gateway } from "../gateway/index.ts";
 import { Traffic } from "../gateway/traffic.ts";
 import { DRAIN_TIMEOUT_MILLISECONDS, type Machine } from "../machine/index.ts";
-import { MeterController, Reading } from "../meter/index.ts";
+import { SpaceMeter, Reading } from "../meter/index.ts";
 import { MachineError } from "../error/index.ts";
 
 /** The adapter of OTLP/HTTP, which the installations taking a space's telemetry serve. */
@@ -84,9 +89,7 @@ export interface SpaceRun {
 }
 
 /** A space a machine serves: its database, events, traffic, workload and outbound calls. */
-export class Space implements ReconcileController {
-    /** The space's name in controller reports. */
-    readonly name = "space";
+export class Space {
     /** The installations, their rollouts, bindings and main, which decide what a primary serves. */
     readonly watches: readonly Table[] = [
         installation.table,
@@ -318,31 +321,36 @@ export class Space implements ReconcileController {
                 context.signal,
             );
 
-            // serve the space with the host's controllers: its lifecycle, and a rated primary's metering
+            // serve the space with the host's own jobs: what it serves, and a rated primary's metering
             const { skus } = machine;
-            const metering: NonNullable<ImplementationInput["controllers"]> =
-                skus === undefined || role === "standby"
-                    ? []
-                    : [
-                          (store) =>
-                              new MeterController(store, {
-                                  space: this.id,
-                                  measure: (from, to) =>
-                                      volume.measure(buckets, from, to, this.traffic),
-                                  skus,
-                                  payer: async () =>
-                                      accountObject.Account.payer(
-                                          this.machine.directory.snapshot,
-                                          await this.host.account(),
-                                      ),
-                                  traffic: (signal) => this.traffic.next(signal),
-                              }),
-                          // append each payer's uses of a page at their finance primary
-                          stackObject.reading.consume("metering", (page) => this.#append(page)),
-                      ];
+            const isMetered = skus !== undefined && role !== "standby";
+            const meters: NonNullable<ImplementationInput["controllers"]> = isMetered
+                ? [
+                      (store) =>
+                          new SpaceMeter(store, {
+                              space: this.id,
+                              measure: (from, to) =>
+                                  volume.measure(buckets, from, to, this.traffic),
+                              skus,
+                              payer: async () =>
+                                  accountObject.Account.payer(
+                                      this.machine.directory.snapshot,
+                                      await this.host.account(),
+                                  ),
+                              traffic: (signal) => this.traffic.next(signal),
+                          }).controller(),
+                  ]
+                : [];
+            const controllers = [() => this.controller(), ...meters];
+            const consumers: NonNullable<ImplementationInput["consumers"]> = isMetered
+                ? [
+                      // append each payer's uses of a page at their finance primary
+                      stackObject.reading.consume("metering", (page) => this.#append(page)),
+                  ]
+                : [];
             const served = this.#serveSpace(
                 hosted,
-                [() => this, ...metering],
+                { controllers, consumers },
                 { providers, sockets },
                 servers,
                 sandboxes,
@@ -365,18 +373,19 @@ export class Space implements ReconcileController {
         }
     }
 
-    /** Select the space at each change of what it may serve. */
-    keys(change: Change): readonly string[] {
-        return this.watches.some((table) => Change.of(change, table)) ? [this.id] : [];
-    }
-
-    /** List the space. */
-    async list(): Promise<readonly string[]> {
-        return [this.id];
+    /** Build the controller serving the space's installed set at each start and change of it. */
+    controller(): Controller<typeof Scope.table> {
+        return {
+            name: "space",
+            table: Scope.table,
+            pending: { scope: this.id },
+            watches: this.watches.map((table) => ({ table, keys: () => [{ scope: this.id }] })),
+            reconcile: () => this.serveInstalled(),
+        };
     }
 
     /** Serve a primary's changed installed set in place, then record the revisions it serves. */
-    async reconcile(): Promise<undefined> {
+    async serveInstalled(): Promise<void> {
         // apply a primary's changed installed set, then record its served revisions
         const serving = present(this.#serving, `the serving of ${this.id}`);
         if (serving.role === "primary") {
@@ -395,8 +404,6 @@ export class Space implements ReconcileController {
         // report whether every installation serves its revision
         const [status, reason] = await this.#readiness(serving.role);
         this.health.set(status, reason);
-
-        return undefined;
     }
 
     /** Read whether the space serves each installation at its revision, else the lagging one. */
@@ -621,7 +628,7 @@ export class Space implements ReconcileController {
     /** Serve the space's store with its servers and sandboxes, replicating account rows. */
     #serveSpace(
         hosted: Awaited<ReturnType<SpaceHost["options"]>>,
-        controllers: NonNullable<ImplementationInput["controllers"]>,
+        jobs: Pick<SpaceOptions, "controllers" | "consumers">,
         opened: Pick<SpaceOptions, "providers" | "sockets">,
         servers: readonly PackageImplementation[],
         sandboxes: readonly HookSandbox[],
@@ -650,7 +657,7 @@ export class Space implements ReconcileController {
             events: this.volume.events,
             forge,
             follows: forge === null ? [] : forge.follows(),
-            controllers,
+            ...jobs,
             external,
             ...opened,
             main: machine.spaces.main,

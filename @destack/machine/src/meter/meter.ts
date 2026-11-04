@@ -4,7 +4,8 @@ import { AccessContext, Caller } from "@destack/access";
 import { reading } from "@destack/stack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { journal } from "@destack/object";
-import { type FollowController, type Following, TABLE } from "@destack/db";
+import { type Controller, type Following, TABLE } from "@destack/db";
+import { Scope } from "@destack/sync";
 import { RequestId } from "@destack/sync";
 import { MachineError } from "../error/index.ts";
 import type { DigestCrypto, Identifier } from "@destack/schema";
@@ -41,11 +42,7 @@ type MeterStore = Pick<
 >;
 
 /** A space's meter: readings a minute into each burst of its activity, none while it idles. */
-export class MeterController implements FollowController {
-    /** The controller's name in reports. */
-    readonly name = "meter";
-    /** Follow the space's activity while it serves. */
-    readonly mode = "follow";
+export class SpaceMeter {
     /** The space's store. */
     readonly #store: MeterStore;
     /** How the space is measured. */
@@ -57,13 +54,18 @@ export class MeterController implements FollowController {
         this.#options = options;
     }
 
-    /** List the one key the space is measured under. */
-    async list(): Promise<readonly string[]> {
-        return [this.#options.space];
+    /** Build the controller following the space's activity while its scope's row stands. */
+    controller(): Controller<typeof Scope.table> {
+        return {
+            name: "meter",
+            table: Scope.table,
+            pending: { scope: this.#options.space },
+            follow: (_rows, following) => this.follow(following),
+        };
     }
 
     /** Read the space's use a minute into each burst of its activity, and once more as it stops. */
-    async reconcile(_key: string, { signal, synced }: Following): Promise<undefined> {
+    async follow({ signal, synced }: Following): Promise<void> {
         // wait for activity after the commits of the latest reading
         synced();
         let generation = this.#store.database.state.commits.generation;
@@ -76,8 +78,6 @@ export class MeterController implements FollowController {
             });
             generation = await this.read();
         }
-
-        return undefined;
     }
 
     /** Measure since the latest reading and append the space's use, answering the generation. */
@@ -93,11 +93,11 @@ export class MeterController implements FollowController {
             const payer = await this.#options.payer();
             const items = await Promise.all(
                 measured.flatMap((each) =>
-                    MeterController.#readingsOf(
+                    SpaceMeter.#readingsOf(
                         each,
                         from,
                         now,
-                        MeterController.#skuOf(skus, each.meter),
+                        SpaceMeter.#skuOf(skus, each.meter),
                         payer,
                         this.#store.environment.crypto,
                     ),
@@ -158,7 +158,7 @@ export class MeterController implements FollowController {
         const key = DeclarationReference.key(measured.meter.reference);
         const isAverage = measured.meter.definition.aggregation === "average";
         const installation = measured.installation ?? null;
-        const parts = isAverage ? MeterController.#months(from, to) : [[from, to] as const];
+        const parts = isAverage ? SpaceMeter.#months(from, to) : [[from, to] as const];
 
         return parts.map(async ([start, end]) => ({
             id: await Event.identity(measured.scope, [key, installation, end], crypto),
@@ -177,11 +177,7 @@ export class MeterController implements FollowController {
         // cut at each month start inside the interval
         const parts: (readonly [number, number])[] = [];
         let start = from;
-        for (
-            let cut = MeterController.#nextMonth(from);
-            cut < to;
-            cut = MeterController.#nextMonth(cut)
-        ) {
+        for (let cut = SpaceMeter.#nextMonth(from); cut < to; cut = SpaceMeter.#nextMonth(cut)) {
             parts.push([start, cut]);
             start = cut;
         }

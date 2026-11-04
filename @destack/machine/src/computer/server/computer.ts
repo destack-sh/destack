@@ -21,7 +21,7 @@ import objectServer, {
 } from "@destack/object/server";
 import type { WorkloadContext } from "@destack/object/workload";
 import type { EventStore } from "@destack/event";
-import { type DistributionHost, distributionServer } from "@destack/update/server";
+import { DistributionHost, distributionServer } from "@destack/update/server";
 import * as accountObject from "@destack/account/object";
 import type { Device } from "../device/device.ts";
 import { schema, type Identifier } from "@destack/schema";
@@ -30,10 +30,10 @@ import { RequestId, Scope, Subject } from "@destack/sync";
 import { Machine } from "../../machine/index.ts";
 import { MachineError } from "../../error/index.ts";
 import { computer, type MachineEnrollment } from "../device/object/index.ts";
-import { ScopeController } from "./scope.ts";
+import { ScopeReceiver } from "./scope.ts";
 import type { BuildRunner } from "../build.ts";
 import machinePackage from "../../package.ts";
-import { CheckoutServer, PreviewController } from "../checkout/server/index.ts";
+import { CheckoutServer, PreviewSource } from "../checkout/server/index.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The longest machine name taken from a computer's name: a DNS label (RFC 1035 2.3.4). */
@@ -133,23 +133,25 @@ export class ComputerServer {
             [
                 this.#implementDevice(own),
                 ...device.servers(others),
-                distributionServer({
-                    device: device.id,
-                    ...(this.distribution === undefined ? {} : { host: this.distribution }),
-                }),
+                distributionServer(this.distribution),
                 objectServer,
             ],
             this.callKey,
             this.deviceEvents,
         );
 
-        // write the computer's record as the machine and hand the started store to the process
+        // write the computer's record and an installed distribution's as the machine
         await ComputerServer.record(
             store,
             { device: device.id, machine },
             this.process,
             this.enrollment,
         );
+        if (this.distribution !== undefined) {
+            await DistributionHost.record(store, device.id, this.distribution);
+        }
+
+        // hand the started store to the process
         this.receive.device(store);
 
         return { packages: store.packages };
@@ -203,7 +205,7 @@ export class ComputerServer {
         return implementPackage(handle, {
             objects: [this.#computer(), ...objects],
             // serve the spaces as the machine while its record states an enrollment
-            controllers: [() => this.machine],
+            controllers: [() => this.machine.controller()],
         });
     }
 
@@ -235,9 +237,9 @@ export class ComputerServer {
             follows,
             // receive the machine's scope, run the builds assigned here and the checkouts' previews and sources
             controllers: [
-                (store) => new ScopeController(store, id),
-                () => this.runner,
-                (store) => new PreviewController(store, checkouts),
+                (store) => ScopeReceiver.controller(store, id),
+                () => this.runner.controller(),
+                (store) => new PreviewSource(store, checkouts).controller(),
             ],
         });
     }

@@ -14,13 +14,14 @@ test("report a restarted machine's missing key as the failure of its start", asy
     );
     const opened = await TestComputer.open({ world, directory, keychains });
 
-    // receive the failure its start met for want of the machine's key
+    // receive the failure its start met for want of the machine's key, captured once by its close
     const { code, reason, message } = Failure.of(await opened.reported);
-    expect([code, reason, message]).toEqual([
-        "NOT_FOUND",
-        "MACHINE_KEY_MISSING",
-        `machine ${opened.machine.id} has no key`,
-    ]);
+    const missing = `machine ${opened.machine.id} has no key`;
+    await opened.close();
+    expect({
+        reported: [code, reason, message],
+        captured: world.telemetry.take().map((captured) => captured.message),
+    }).toEqual({ reported: ["NOT_FOUND", "MACHINE_KEY_MISSING", missing], captured: [missing] });
 });
 
 test("start a space while the machine serves, and refuse to start it once the machine closed", async () => {

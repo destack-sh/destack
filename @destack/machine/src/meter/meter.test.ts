@@ -6,7 +6,7 @@ import { Identifier, Text } from "@destack/schema";
 import { TestSpace } from "@destack/stack/test";
 import { expect, test } from "@destack/test";
 import { Traffic } from "../gateway/traffic.ts";
-import { MeterController } from "./controller.ts";
+import { SpaceMeter } from "./meter.ts";
 import type { Reading } from "./reading.ts";
 import { METER_OPTIONS, METER_START } from "../computer/test/templates.ts";
 
@@ -91,7 +91,7 @@ test("append a space's use as readings each round, measuring a failed round in t
     };
 
     // read twice, fail, read from the latest reading, then after a restart
-    const meters = new MeterController(store, options);
+    const meters = new SpaceMeter(store, options);
     await meters.read();
     await fixture.simulation.run(METER_START + 2 * MINUTE);
     await meters.read();
@@ -103,7 +103,7 @@ test("append a space's use as readings each round, measuring a failed round in t
     await fixture.simulation.run(METER_START + 4 * MINUTE);
     await meters.read();
     await fixture.simulation.run(METER_START + 5 * MINUTE);
-    await new MeterController(store, options).read();
+    await new SpaceMeter(store, options).read();
 
     // record each reading once, a level as constant over its interval
     const read = async (
@@ -174,7 +174,7 @@ test("read nothing while a space idles, then its use a minute into its next traf
     const spaceId = fixture.id;
     const traffic = new Traffic();
     const measured: [number, number][] = [];
-    const meters = new MeterController(store, {
+    const meters = new SpaceMeter(store, {
         space: spaceId,
         skus: SKUS,
         payer: async () => fixture.account,
@@ -187,7 +187,7 @@ test("read nothing while a space idles, then its use a minute into its next traf
     });
     await meters.read();
     const stopping = new AbortController();
-    const following = meters.reconcile(spaceId, {
+    const following = meters.follow({
         signal: stopping.signal,
         changed: async () => undefined,
         synced: () => undefined,
