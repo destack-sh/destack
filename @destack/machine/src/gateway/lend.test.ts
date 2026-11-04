@@ -53,7 +53,6 @@ test("lend a connection's key to a workload's https call without showing it to t
                     scope: connections.scope.id,
                     protocol: { kind: "key", header: "authorization", scheme: "token" },
                     material: { kind: "key", key: KEY },
-                    vault: connections.vaultReference,
                 }),
             ],
         })

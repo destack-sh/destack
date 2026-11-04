@@ -23,7 +23,7 @@ import {
     HookSandbox,
     installation,
     PackageDescription,
-    type ReaderPage,
+    type CursorPage,
 } from "@destack/object";
 import {
     type ImplementationInput,
@@ -54,7 +54,7 @@ import {
     type SpaceMachine,
     type SpaceRole,
 } from "@destack/stack/server";
-import { Scope, type Subject } from "@destack/sync";
+import { REQUEST_LIFETIME_MILLISECONDS, Scope, type Subject } from "@destack/sync";
 import type { OtlpSignal } from "@destack/telemetry/otlp";
 import type { InstanceSpec } from "@destack/stack/runtime";
 import { Gateway } from "../gateway/index.ts";
@@ -342,15 +342,18 @@ export class Space {
                   ]
                 : [];
             const controllers = [() => this.controller(), ...meters];
-            const consumers: NonNullable<ImplementationInput["consumers"]> = isMetered
+            const cursors: NonNullable<ImplementationInput["cursors"]> = isMetered
                 ? [
-                      // append each payer's uses of a page at their finance primary
-                      stackObject.reading.consume("metering", (page) => this.#append(page)),
+                      // append each payer's uses of a page an hour at a time, kept while a billing call may retry
+                      stackObject.reading.cursor("metering", (page) => this.#append(page), {
+                          hold: { milliseconds: REQUEST_LIFETIME_MILLISECONDS },
+                          batch: { hours: 1 },
+                      }),
                   ]
                 : [];
             const served = this.#serveSpace(
                 hosted,
-                { controllers, consumers },
+                { controllers, cursors },
                 { providers, sockets },
                 servers,
                 sandboxes,
@@ -598,7 +601,7 @@ export class Space {
     }
 
     /** Append each payer's uses of a page of readings in its residency's home, as the machine. */
-    async #append(page: ReaderPage): Promise<void> {
+    async #append(page: CursorPage): Promise<void> {
         const { directory, environment } = this.machine;
         for (const use of await Reading.uses(page, environment.crypto)) {
             // call the stack in the home of the payer's residency
@@ -628,7 +631,7 @@ export class Space {
     /** Serve the space's store with its servers and sandboxes, replicating account rows. */
     #serveSpace(
         hosted: Awaited<ReturnType<SpaceHost["options"]>>,
-        jobs: Pick<SpaceOptions, "controllers" | "consumers">,
+        jobs: Pick<SpaceOptions, "controllers" | "cursors">,
         opened: Pick<SpaceOptions, "providers" | "sockets">,
         servers: readonly PackageImplementation[],
         sandboxes: readonly HookSandbox[],

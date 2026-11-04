@@ -1,5 +1,6 @@
 import homePackage from "@app/home/package";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
+import { connectionVault } from "@destack/connection/stack";
 import forgePackage from "@destack/forge/package";
 import { credentialVault, repositoryStorage } from "@destack/forge/stack";
 import { gitStorage } from "@destack/stack/object";
@@ -11,20 +12,17 @@ import { install } from "@destack/stack/declare";
 import { defineVault } from "@destack/vault/declare";
 import vaultPackage from "@destack/vault/package";
 
-/** The vault of every account's home that stores its connections' credentials. */
-export const connectionVault = defineVault({ name: "credentials", spec: {} });
-
 /** The vault of a residency's home, whose secrets the forge binds. */
 export const platformVault = defineVault({ name: "platform", spec: {} });
 
 /** What every account's home runs, as the platform's: its connections and their vault. */
 const ACCOUNT_HOME = {
-    vaults: { credentials: { ...connectionVault.declare(), scope: "enclosing" } },
+    vaults: { credentials: connectionVault.declare() },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
         connection: install(
             connectionPackage,
-            {},
+            { credentials: "credentials" },
             { isolation: "process", name: CONNECTION_INSTALLATION },
         ),
     },

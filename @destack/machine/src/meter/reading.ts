@@ -1,4 +1,4 @@
-import { Provisioned, type ReaderPage } from "@destack/object";
+import { type CursorPage, Provisioned } from "@destack/object";
 import { and, type DatabaseConnection, eq, gt, isNotNull, isNull, lt, or } from "@destack/db";
 import type { Meter } from "@destack/telemetry/meter";
 import { Duration, type Identifier, present, schema } from "@destack/schema";
@@ -162,10 +162,10 @@ export const Reading = {
     },
 
     /** Fold a page of a space's readings into each payer's uses, one per meter, SKU and month. */
-    async uses(page: ReaderPage, crypto: Crypto) {
+    async uses(page: CursorPage, crypto: Crypto) {
         // read each reading with the keys and data its kind declares
         const kind = reading.eventKind();
-        const spaceId = schema.identifier("space").parse(page.key);
+        const spaceId = schema.identifier("space").parse(page.scope);
         const readings = page.events.map((event) => ({
             id: event.id,
             time: EventTime.milliseconds(event.time),

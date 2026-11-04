@@ -58,7 +58,7 @@ test("fold a page of readings into each payer's uses, a counter's amount as read
     });
     const folded = await Reading.uses(
         {
-            key: SPACE,
+            scope: SPACE,
             claimedAt: START + 2 * HOUR,
             events: [
                 read("1", DISK, DISK_SKU, BUYER, level * HOUR, { level }),
