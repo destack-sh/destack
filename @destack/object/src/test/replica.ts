@@ -26,7 +26,7 @@ export async function followReplicas(
 ): Promise<ReplicaFollow> {
     // list the requests once as the sink's consumer does
     const subscriber = present(store.subscriber, "the store's subscriber");
-    await store.sink.consumer(subscriber).consume("", reconciliation());
+    await store.sink.cursor(subscriber).take(reconciliation());
     const rows = await Snapshot.live(store.database).read(replicaRequest).findMany();
     const keys = rows.map((row) => row.key).filter(options.isFollowed ?? (() => true));
 
@@ -38,14 +38,14 @@ export async function followReplicas(
     const controller = new AbortController();
     const loop = new ControlLoop(
         store.database,
-        { controllers: [follow], consumers: [] },
+        { controllers: [follow], cursors: [] },
         { report: options.report },
     );
 
     return { keys, controller, running: loop.run(controller.signal) };
 }
 
-/** Run a store's controllers and consumers until they settle, failing on a report. */
+/** Run a store's controllers and cursors until they settle, failing on a report. */
 export async function settleControl(store: ObjectStore): Promise<void> {
     // run the loop until it idles, collecting its reports
     const stopping = new AbortController();

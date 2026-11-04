@@ -988,10 +988,9 @@ export class StackPlan {
                 : {}),
         };
 
-        // write it, updating the type's readers
+        // write it
         const change = { table: object.table, before: row, after: { ...row, ...stamped } };
         await this.transaction.write(change);
-        object.updateReaders(this.transaction, change, this.now);
     }
 
     /** Create missing records and update changed attached ones, through the type's verbs. */

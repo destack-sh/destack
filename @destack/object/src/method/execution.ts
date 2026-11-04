@@ -70,13 +70,12 @@ export const Execution = {
         context: Pick<MethodContext, "objects" | "now">,
         ...changes: readonly RowChange[]
     ): Promise<void> {
-        // write through the transaction in a store, updating the readers of the written types
+        // write through the transaction in a store
         if (execution.kind === "store") {
             const { transaction, authorization } = execution;
             await transaction.write(...changes);
             for (const change of changes) {
                 const type = context.objects.find((object) => object.table === change.table);
-                type?.updateReaders(transaction, change, context.now);
 
                 // delete a removed scope's access and a removed principal's standing
                 if (type !== undefined && change.before !== null && change.after === null) {

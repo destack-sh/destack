@@ -2196,19 +2196,19 @@ export class ObjectStore {
                 ...syncing.controllers,
                 ...objects.controllers,
             ],
-            consumers: [...syncing.consumers, ...objects.consumers],
+            cursors: [...syncing.cursors, ...objects.cursors],
         };
     }
 
-    /** List the consumer and controller syncing the store's replicas. */
+    /** List the cursor and controller syncing the store's replicas. */
     syncing(): Control {
         const { subscriber } = this;
 
         return subscriber === undefined
-            ? { controllers: [], consumers: [] }
+            ? { controllers: [], cursors: [] }
             : {
                   controllers: [this.sink.controller(subscriber)],
-                  consumers: [this.sink.consumer(subscriber)],
+                  cursors: [this.sink.cursor(subscriber)],
               };
     }
 
@@ -2224,7 +2224,7 @@ export class ObjectStore {
                     ObjectController.control(this, object, declared),
                 ),
             ),
-            consumers: selected.flatMap((object) =>
+            cursors: selected.flatMap((object) =>
                 object.projections.map((declared) =>
                     ObjectController.project(this, object, declared),
                 ),
@@ -3516,7 +3516,7 @@ export class ObjectStore {
         // run the package's types' controllers, the first package also the store's and unserved types'
         const {
             controllers = [],
-            consumers = [],
+            cursors = [],
             adapters = {},
             access,
             responseHeaders,
@@ -3530,7 +3530,7 @@ export class ObjectStore {
                 ...objects.controllers,
                 ...controllers.map((controller) => controller(this)),
             ],
-            consumers: [...objects.consumers, ...consumers.map((consumer) => consumer(this))],
+            cursors: [...objects.cursors, ...cursors.map((cursor) => cursor(this))],
         });
 
         // answer the package's adapters below its mount, and the routes of each protocol it implements

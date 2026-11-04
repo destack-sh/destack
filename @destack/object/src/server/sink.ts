@@ -2,7 +2,7 @@ import { CHAIN_PUBLICATION, type ChainOptions } from "@destack/access";
 import { Scope, type ObjectTypeReference } from "@destack/sync";
 import {
     type Change,
-    type Consumer,
+    type Cursor,
     type Controller,
     DatabaseError,
     eq,
@@ -17,6 +17,9 @@ import * as sync from "@destack/sync";
 import { waitAborted } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
 import { replicaRequest } from "../replica/request.ts";
+
+/** The cursor listing a store's replica requests, whose checkpoint the listing moves. */
+const REQUESTS_CURSOR = "replica-requests";
 
 /** One requested replica as its row stores it. */
 type ReplicaRequest = typeof replicaRequest.$inferSelect;
@@ -38,13 +41,12 @@ export class ObjectSink {
         return `${subscription.name} ${subscription.scope}`;
     }
 
-    /** Build the consumer listing the requested replicas as the tables they read from change. */
-    consumer(subscriber: Subscriber): Consumer {
+    /** Build the cursor listing the requested replicas at each start and as their tables change. */
+    cursor(subscriber: Subscriber): Cursor {
         return {
-            name: "replica-requests",
-            reads: this.#replicaWatches(),
-            checkpoint: "none",
-            consume: async () => this.#request(subscriber),
+            name: REQUESTS_CURSOR,
+            tables: this.#replicaWatches(),
+            take: async () => this.#request(subscriber),
         };
     }
 
@@ -162,6 +164,11 @@ export class ObjectSink {
             });
         }
         this.#listed = position.sequence;
+        await database.log.advance(
+            { name: REQUESTS_CURSOR, tables: this.#replicaWatches() },
+            position.sequence,
+            this.store.clock.now(),
+        );
     }
 
     /** Read the watched changes since the last listing up to a sequence, absent to list afresh. */

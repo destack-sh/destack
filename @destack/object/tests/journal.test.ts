@@ -82,7 +82,7 @@ test("remove calls past their lifetime through the journal's controller, ended o
         const { simulation } = storage;
         const loop = new ControlLoop(
             storage.database,
-            { controllers: [storage.journal.controller()], consumers: [] },
+            { controllers: [storage.journal.controller()], cursors: [] },
             {
                 report,
             },

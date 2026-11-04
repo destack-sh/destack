@@ -40,13 +40,8 @@ export const EventLog = {
         const kind = context.object.eventKind();
         const events = rows.map((row) => kind.event(row));
 
-        // update the type's readers with the appended rows
-        const { transaction } = execution;
-        for (const row of rows) {
-            context.object.updateReaders(transaction, { before: null, after: row }, context.now);
-        }
-
         // append events recorded exactly once as the call commits
+        const { transaction } = execution;
         const store = execution.store.events;
         if (kind.delivery === "exactly-once") {
             transaction.record((committing) => store.append(kind, events, committing));

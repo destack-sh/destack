@@ -528,7 +528,7 @@ test("run one start's controllers at a time, stopping the previous start's befor
                         {
                             package: first,
                             router: {},
-                            control: { controllers: [controller], consumers: [] },
+                            control: { controllers: [controller], cursors: [] },
                             access: {
                                 authorizer: new Authorizer([], []),
                                 database: storage.database,
@@ -597,7 +597,7 @@ test("close a server whose controllers were never activated, running none of the
         health: new Health(first.name),
         drainTimeout: 100,
         router: {},
-        control: { controllers: [controller], consumers: [] },
+        control: { controllers: [controller], cursors: [] },
         access: {
             authorizer: new Authorizer([], []),
             database: storage.database,

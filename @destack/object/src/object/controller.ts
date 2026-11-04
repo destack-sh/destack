@@ -2,7 +2,7 @@ import type { Call } from "@destack/sync";
 import {
     Change,
     type Condition,
-    type Consumer,
+    type Cursor,
     type Controller,
     type DatabaseConnection,
     Projection,
@@ -242,7 +242,7 @@ export const ObjectController = {
     },
 
     /** Build a type's projection as a consumer of its inputs' changes past one checkpoint. */
-    project(store: ObjectStore, object: ObjectType, declared: ObjectProjection): Consumer {
+    project(store: ObjectStore, object: ObjectType, declared: ObjectProjection): Cursor {
         // read the touched objects' identifiers: the watches' of the changed table, else the type's own changed row
         const watches = Map.groupBy(declared.watches, (watch) => watch.table);
         const keys = async (change: Change, database: DatabaseConnection) => {
@@ -267,7 +267,7 @@ export const ObjectController = {
 
         return new Projection(store.database, {
             name: `project:${name}`,
-            reads: [...new Set([object.table, ...watches.keys()])],
+            tables: [...new Set([object.table, ...watches.keys()])],
             keys,
             all: async (database) =>
                 (await database.select({ id: idColumn }).from(object.table)).map((row) =>

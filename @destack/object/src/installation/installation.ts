@@ -208,7 +208,6 @@ export const Installation = {
                 });
                 const change = { table: installation.table, before: null, after: row };
                 await transaction.write(change);
-                installation.updateReaders(transaction, change, now);
             }
 
             // bind the installation to its package's role in the scope

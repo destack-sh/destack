@@ -34,9 +34,7 @@ import {
     type SQL,
     TABLE,
     type Table,
-    type Transaction,
     type Tree,
-    type Consumer,
 } from "@destack/db";
 import {
     nth,
@@ -55,13 +53,7 @@ import {
 
 import type { AuditAction } from "../audit/action.ts";
 import { ModuleMetadata, type Package } from "@destack/package";
-import {
-    type Delivery,
-    EventKind,
-    EventReader,
-    type EventRetention,
-    EventTable,
-} from "@destack/event";
+import { type Delivery, EventKind, type EventRetention, EventTable } from "@destack/event";
 import { Field, type FieldsByColumn, type ReferenceOf, type TextField } from "../field/field.ts";
 import { type Handler, type TypesOf } from "../method/context.ts";
 import { CallSite } from "../method/site.ts";
@@ -157,7 +149,7 @@ import type { GateOf, Gated, Trait } from "../trait/trait.ts";
 import { SYSTEM_TABLES } from "../stack/db.ts";
 import { eventTables } from "@destack/event/stack";
 import type { ObjectController, ObjectProjection } from "./controller.ts";
-import { EventConsumer, type ReaderHandler } from "./consumer.ts";
+import { type CursorRead, ObjectCursor, type CursorOptions } from "./cursor.ts";
 import type { ObjectStore } from "../server/store.ts";
 
 import type { DeclarationHandler } from "../server/stack.ts";
@@ -443,26 +435,12 @@ export interface ObjectDefinition<
     readonly indexes?: Readonly<Record<string, ObjectIndex>>;
     /** Where the objects live: a kind, or the event log with its settings. */
     readonly storage?: Exclude<ObjectStorage, "events"> | EventStorage;
-    /** The event log readers the store has a checkpoint of per row value, by checkpoint name. */
-    readonly readers?: Readonly<Record<string, EventReaderDefinition>>;
     /** The previous names of renamed fields, by current field. */
     readonly moved?: { readonly fields?: Readonly<Record<string, string>> };
     /** The fields each release computes from stored rows and earlier inputs, by release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     /** The rows every database has identical, which no call writes. */
     readonly predefined?: readonly Row[];
-}
-
-/** An event log reader with one checkpoint per distinct value of a row column. */
-export interface EventReaderDefinition {
-    /** The column whose distinct values each have a separate checkpoint. */
-    readonly by: "id" | "scope";
-    /** Where a new checkpoint starts: the creating commit's log position, or the log's start. */
-    readonly start: "latest" | "earliest";
-    /** How long the log retains events past a checkpoint's place once it advances. */
-    readonly hold: Duration;
-    /** How long a page's first event waits before a reader takes the page, none when absent. */
-    readonly batch?: Duration;
 }
 
 /** A package's setting of days a scope places, as data the type's description stores. */
@@ -968,48 +946,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.policy.reference(scope, id);
     }
 
-    /** Read one of the type's declared event readers, its checkpoints named by the type's table. */
-    reader(name: string): EventReader {
-        // refuse an undeclared reader
-        const declared = this.definition.readers?.[name];
-        if (declared === undefined) {
-            throw new TypeError(`object ${this.name} has no reader ${name}`);
-        }
-
-        // name its checkpoints by the events table, unique per type, and the reader
-        const checkpoint = `${this.table[TABLE].sqlName}/${name}`;
-
-        return new EventReader(checkpoint, [this.table], Duration.milliseconds(declared.hold));
-    }
-
-    /** Consume one of the type's readers by scope, handing each claimed page to a handler. */
-    consume(reader: string, handler: ReaderHandler): (store: ObjectStore) => Consumer {
-        return (store) => new EventConsumer(store, this, reader, handler);
-    }
-
-    /** Update the type's reader checkpoints with a row the transaction inserts or removes. */
-    updateReaders(
-        transaction: Transaction,
-        change: { readonly before: Row | null; readonly after: Row | null },
-        now: number,
-    ): void {
-        for (const [name, declared] of Object.entries(this.definition.readers ?? {})) {
-            // start or place an inserted row's checkpoint as the transaction commits
-            const { before, after } = change;
-            if (before === null && after !== null) {
-                const checkpoint = this.reader(name).at(schema.string().parse(after[declared.by]));
-                transaction.record((database) =>
-                    declared.start === "latest"
-                        ? checkpoint.start(now, database)
-                        : checkpoint.place(now, database),
-                );
-            }
-            // release a removed row's checkpoint
-            else if (before !== null && after === null && declared.by === "id") {
-                const checkpoint = this.reader(name).at(schema.string().parse(before[declared.by]));
-                transaction.record((database) => checkpoint.release(database));
-            }
-        }
+    /** Read the type's events under a cursor of the reading package, page by page, each once. */
+    cursor(
+        name: string,
+        read: CursorRead,
+        options: CursorOptions,
+    ): (store: ObjectStore) => ObjectCursor {
+        return (store) => new ObjectCursor(store, this, name, read, options);
     }
 
     /** Decide whether a value is an object type. */
@@ -2066,7 +2009,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.#requireIndexes();
         this.#requireOwner();
         this.#requireStorage(definition, this.traits);
-        this.#requireReaders();
         this.#requireRowSharing();
         this.#requireRoutes();
 
@@ -2106,27 +2048,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         if (this.isPartition && isSharing) {
             throw new TypeError(
                 `object ${this.name} must share a partitioned scope through its relationships`,
-            );
-        }
-    }
-
-    /** Require readers by scope to start at the log's start, and only them to batch. */
-    #requireReaders(): void {
-        // refuse a reader per scope starting at the latest commit, and a batch of a reader per row
-        const readers = Object.entries(this.definition.readers ?? {});
-        const restarting = readers.find(
-            ([, declared]) => declared.by === "scope" && declared.start === "latest",
-        );
-        const batching = readers.find(
-            ([, declared]) => declared.by === "id" && declared.batch !== undefined,
-        );
-        if (restarting !== undefined) {
-            throw new TypeError(
-                `reader ${restarting[0]} of ${this.name} starts each scope once: start it at the earliest`,
-            );
-        } else if (batching !== undefined) {
-            throw new TypeError(
-                `reader ${batching[0]} of ${this.name} reads each row, so it cannot batch pages: only readers by scope can`,
             );
         }
     }

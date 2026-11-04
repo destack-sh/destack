@@ -1028,7 +1028,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
     const pages = Promise.withResolvers<void>();
     const woken = await open(pages.promise);
     const handle = definePackage({ objects: { document } });
-    const implemented = woken.implement(handle, [], { controllers: [], consumers: [] });
+    const implemented = woken.implement(handle, [], { controllers: [], cursors: [] });
     const ready = present(implemented.ready, "the readiness wait");
     const waking = new AbortController();
     onTestFinished(() => waking.abort());
@@ -1104,8 +1104,8 @@ test("follow replicates as a server without methods, journal or call key", async
     await Replica.wait(follower.database, Scope.universe.id, head, controller.signal);
 
     // run only compaction, the blob collection and the replica follow, with no event log
-    const { controllers, consumers } = store.control();
-    expect([controllers.map((each) => each.name), consumers.map((each) => each.name)]).toEqual([
+    const { controllers, cursors } = store.control();
+    expect([controllers.map((each) => each.name), cursors.map((each) => each.name)]).toEqual([
         ["blob-leases", "blob-retired", "blob-freed", "replica"],
         ["replica-requests"],
     ]);
@@ -1716,7 +1716,7 @@ test("serve a store once its chain is confirmed while the source of a followed s
     const ready = present(
         store.implement(definePackage({ objects: { document } }), [], {
             controllers: [],
-            consumers: [],
+            cursors: [],
         }).ready,
         "the readiness wait",
     );
