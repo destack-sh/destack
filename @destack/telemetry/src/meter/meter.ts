@@ -32,7 +32,7 @@ export const MeterDescription = MeterMetadata.extend({
 export type MeterDescription = schema.Infer<typeof MeterDescription>;
 
 /** The meter declaration kind, which telemetry defines. */
-export const METER_KIND = defineDeclarationKind("meter");
+export const METER_KIND = defineDeclarationKind("meter", MeterDescription);
 
 /** A meter declaration: what its events count and how a period's events fold into usage. */
 export class Meter {
@@ -48,8 +48,8 @@ export class Meter {
     }
 
     /** Read the meters a build declares. */
-    static async list(build: Pick<BuildReader, "declared">): Promise<Meter[]> {
-        const declared = await build.declared(METER_KIND, MeterDescription);
+    static async list(build: Pick<BuildReader, "declarations">): Promise<Meter[]> {
+        const declared = METER_KIND.select(await build.declarations());
 
         return declared.map(
             ({ description: { package: declaring, ...definition } }) =>
