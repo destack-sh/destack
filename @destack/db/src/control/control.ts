@@ -200,8 +200,10 @@ export class ControlLoop {
     #followed = 0;
     /** Aborts once an idle check found the follow behind a compaction, making it list again. */
     #relisting = new AbortController();
-    /** The logged tables the controllers watch, which the follow reads. */
+    /** The logged tables the controllers watch, which the follow reads, one per name. */
     readonly #watched: readonly Table[];
+    /** The names of the tables each controller watches, which a reloaded module defines anew. */
+    readonly #watchedNames = new Map<Controller, ReadonlySet<string>>();
     /** Whether the loop stopped, after which nothing more runs. */
     #isStopped = false;
     /** The waiters for a change of each reconciling key, by controller. */
@@ -258,10 +260,14 @@ export class ControlLoop {
                 this.#locks.set(controller, new Lock(database, name, tracker.instance, holder));
             }
         }
+        // read the logged tables the controllers watch once per name, and each controller's names
+        const watched = controllers.flatMap((controller) => controller.watches ?? []);
         this.#watched = [
-            ...new Set(controllers.flatMap((controller) => controller.watches ?? [])),
+            ...new Map(watched.map((table) => [table[TABLE].sqlName, table])).values(),
         ].filter((table) => table[TABLE].retention !== "none");
         for (const controller of controllers) {
+            const names = (controller.watches ?? []).map((table) => table[TABLE].sqlName);
+            this.#watchedNames.set(controller, new Set(names));
             this.#due.set(controller, new Map());
             this.#failures.set(controller, new Map());
             this.#running.set(controller, new Map());
@@ -396,7 +402,11 @@ export class ControlLoop {
 
     /** List every controller and follow the watched logged tables. */
     async #follow(signal: AbortSignal): Promise<void> {
+        // find the controllers watching a followed table, which list again after a compaction
         const tables = this.#watched;
+        const watching = this.controllers.filter((controller) =>
+            tables.some((table) => found(this.#watchedNames, controller).has(table[TABLE].sqlName)),
+        );
         let listed = this.controllers;
         while (!signal.aborted) {
             // read the position before listing
@@ -417,10 +427,10 @@ export class ControlLoop {
             try {
                 for await (const page of this.database.log.follow({ tables, after }, following)) {
                     for (const controller of this.controllers) {
-                        // find the changes the controller watches
-                        const watched = controller.watches ?? [];
+                        // find the changes the controller watches, by table name
+                        const watched = found(this.#watchedNames, controller);
                         const changes = page.changes.filter((change) =>
-                            watched.includes(change.table),
+                            watched.has(change.table[TABLE].sqlName),
                         );
 
                         // list a following controller again once a change touches its list's reads
@@ -447,17 +457,13 @@ export class ControlLoop {
                 }
 
                 // list the watching controllers again once an idle check asked
-                listed = this.controllers.filter((controller) =>
-                    (controller.watches ?? []).some((table) => tables.includes(table)),
-                );
+                listed = watching;
             } catch (error) {
                 // list again after compaction the controllers following the tables
                 if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
                     throw error;
                 }
-                listed = this.controllers.filter((controller) =>
-                    (controller.watches ?? []).some((table) => tables.includes(table)),
-                );
+                listed = watching;
             }
         }
     }
@@ -498,8 +504,8 @@ export class ControlLoop {
         // record a follower's reads, refusing a read of a table it does not watch
         const reads = new ReadSet();
         const keys = await controller.list(Snapshot.live(this.database).recording(reads), delta);
-        const watched = new Set(controller.watches ?? []);
-        const unwatched = reads.tables.find((table) => !watched.has(table));
+        const watched = found(this.#watchedNames, controller);
+        const unwatched = reads.tables.find((table) => !watched.has(table[TABLE].sqlName));
         if (unwatched !== undefined) {
             throw new TypeError(
                 `${controller.name} lists through ${unwatched[TABLE].name} but does not watch it`,

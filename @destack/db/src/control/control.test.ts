@@ -29,6 +29,20 @@ const job = defineTable(
     { log: {} },
 );
 
+/** The jobs table defined anew, as a module loaded again defines it. */
+const reloadedJob = defineTable(
+    "controller_job",
+    {
+        /** The job's name. */
+        id: text("id").primaryKey(),
+        /** The space with the job. */
+        scope: text("scope").notNull(),
+        /** The desired number of runs. */
+        runs: integer("runs").notNull(),
+    },
+    { log: {} },
+);
+
 /** Logged notes no controller watches. */
 const note = defineTable(
     "controller_note",
@@ -784,6 +798,51 @@ test("take over a key whose lock a crashed instance left once this instance's jo
     await simulation.wait(storage.database.tracker.waitSynced());
     await simulation.waitUntil(() => reconciled.length > 0);
     expect(reconciled).toEqual(["shared"]);
+});
+
+test("follow the keys a list reads through a table defined anew, watched by its name", async () => {
+    // run in a world of its own, with one job
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+    const storage = await TestDatabase.create([job, lock], {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.transaction((transaction) =>
+        transaction.insert(job).values({ id: "first", scope: "space", runs: 1 }).execute(),
+    );
+
+    // watch the jobs table while the list reads its definition from a module loaded again
+    const started: string[] = [];
+    const controller: FollowController = {
+        name: "follow",
+        mode: "follow",
+        watches: [job],
+        list: async (view) => (await view.read(reloadedJob).findMany()).map((row) => row.id),
+        concurrency: 8,
+        reconcile: async (key, { signal, synced }) => {
+            started.push(key);
+            synced();
+            await new Promise<void>((resolve) => {
+                signal.addEventListener("abort", () => resolve(), { once: true });
+            });
+        },
+    };
+    const stopping = new AbortController();
+    const running = new ControlLoop(database, [controller], { report: () => {} }).run(
+        stopping.signal,
+    );
+
+    // follow the first job, then one added through the watched table
+    await waitEqual(simulation, () => started, ["first"]);
+    await database.transaction((transaction) =>
+        transaction.insert(job).values({ id: "second", scope: "space", runs: 1 }).execute(),
+    );
+    await waitEqual(simulation, () => started, ["first", "second"]);
+    stopping.abort();
+    await running;
 });
 
 test("follow each listed key until its list drops it or the loop stops", async () => {
