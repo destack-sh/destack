@@ -257,7 +257,7 @@ export class Relay {
     projection(database: DatabaseConnection): Projection {
         return new Projection(database, {
             name: "tunnel",
-            reads: [machine.table, endpoint.table, key.table, account.table],
+            tables: [machine.table, endpoint.table, key.table, account.table],
             keys: (change) => this.#touched(change),
             all: () => this.tunnelled(),
             project: (machineId) => this.reconcile(schema.identifier("machine").parse(machineId)),

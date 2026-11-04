@@ -131,7 +131,7 @@ async function serveRoot(
         ...handler,
         control: {
             controllers: handler.control?.controllers ?? [],
-            consumers: [...(handler.control?.consumers ?? []), relay.projection(store.database)],
+            cursors: [...(handler.control?.cursors ?? []), relay.projection(store.database)],
         },
     };
 
