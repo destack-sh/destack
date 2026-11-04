@@ -1,6 +1,5 @@
-import { Event } from "@destack/event";
 import type { Select } from "@destack/db";
-import type { ObjectType } from "@destack/object";
+import type { ObjectConfiguration, ObjectType } from "@destack/object";
 import { Digest, type DigestCrypto, type Identifier, schema } from "@destack/schema";
 import { ObservabilityError } from "../error/error.ts";
 import {
@@ -30,7 +29,7 @@ import {
     textOf,
 } from "../event/index.ts";
 import { type INSTRUMENTS, SPAN_STATUSES } from "../object/index.ts";
-import type * as kinds from "../object/index.ts";
+import * as kinds from "../object/index.ts";
 
 /** The OTLP aggregation temporality of deltas, the only one metric events keep. */
 const DELTA = 1;
@@ -82,8 +81,8 @@ interface OtlpRecord {
     readonly name: string;
     /** When it happened, in Unix microseconds. */
     readonly at: number;
-    /** The identity its contents derive. */
-    readonly id: string;
+    /** The contents its identifiers derive from, the same on every retry. */
+    readonly contents: readonly unknown[];
     /** The body as text. */
     readonly text: string | undefined;
     /** The trace. */
@@ -222,13 +221,18 @@ class OtlpDecoder {
                 // read a visit, an action or a session's end by its reserved name, else a log record
                 const read = await this.#record(record);
                 if (read.name === VISIT_EVENT) {
-                    events.visit.push(this.#visit(read));
+                    events.visit.push(this.#visit(read, await this.#identity(kinds.visit, read)));
                 } else if (read.name === ACTION_EVENT) {
-                    events.action.push(this.#action(read));
+                    events.action.push(
+                        this.#action(read, await this.#identity(kinds.action, read)),
+                    );
                 } else if (read.name === SESSION_EVENTS.end) {
-                    events.session.push(this.#session(read));
+                    events.session.push(
+                        this.#session(read, await this.#identity(kinds.session, read)),
+                    );
                 } else {
-                    events.log.push(this.#log(record, read, scope));
+                    const id = await this.#identity(kinds.log, read);
+                    events.log.push(this.#log(record, read, scope, id));
                 }
             }
         }
@@ -256,7 +260,7 @@ class OtlpDecoder {
 
                 // add it with its annotations and links
                 events.span.push({
-                    id: await this.#identity([span.traceId, span.spanId]),
+                    id: await this.#identity(kinds.span, { contents: [span.traceId, span.spanId] }),
                     time: start,
                     ...this.#stamp(),
                     name: span.name,
@@ -392,7 +396,9 @@ class OtlpDecoder {
         const time = microseconds(point.timeUnixNano);
         const start = microseconds(point.startTimeUnixNano ?? point.timeUnixNano);
         const kept = keyOf(attributesOf(point.attributes));
-        const id = await this.#identity([time, metric.name, this.emitter.instance, kept, start]);
+        const id = await this.#identity(kinds.metric, {
+            contents: [time, metric.name, this.emitter.instance, kept, start],
+        });
 
         return {
             id,
@@ -434,18 +440,23 @@ class OtlpDecoder {
         const trace = presentText(record.traceId);
         const split = this.#split(attributesOf(record.attributes));
 
-        // identify the record by its contents
-        const id = await this.#identity([at, name, trace, record.spanId, text, record.attributes]);
+        // collect the contents that identify it
+        const contents = [at, name, trace, record.spanId, text, record.attributes];
 
-        return { name, at, id, text, trace, split };
+        return { name, at, contents, text, trace, split };
     }
 
     /** Read a log record as a log event. */
-    #log(record: OtlpLogRecord, read: OtlpRecord, scope: Instrumentation): Item<typeof kinds.log> {
+    #log(
+        record: OtlpLogRecord,
+        read: OtlpRecord,
+        scope: Instrumentation,
+        id: Identifier<"log">,
+    ): Item<typeof kinds.log> {
         const span = presentText(record.spanId);
 
         return {
-            id: read.id,
+            id,
             time: read.at,
             ...this.#stamp(),
             name: read.name,
@@ -469,7 +480,7 @@ class OtlpDecoder {
     }
 
     /** Read a visit record as a visit of its route. */
-    #visit(read: OtlpRecord): Item<typeof kinds.visit> {
+    #visit(read: OtlpRecord, id: Identifier<"visit">): Item<typeof kinds.visit> {
         // read the visit's text attributes
         const { attributes, person, personal } = read.split;
         const text = (key: string) => textOf(attributes[key]);
@@ -485,7 +496,7 @@ class OtlpDecoder {
         }
 
         return {
-            id: read.id,
+            id,
             time: read.at,
             ...this.#stamp(),
             route,
@@ -504,7 +515,7 @@ class OtlpDecoder {
     }
 
     /** Read an action record as an action of its name with its properties. */
-    #action(read: OtlpRecord): Item<typeof kinds.action> {
+    #action(read: OtlpRecord, id: Identifier<"action">): Item<typeof kinds.action> {
         const {
             [ANALYTICS_ATTRIBUTES.action]: name,
             [ANALYTICS_ATTRIBUTES.route]: route,
@@ -515,7 +526,7 @@ class OtlpDecoder {
         }
 
         return {
-            id: read.id,
+            id,
             time: read.at,
             ...this.#stamp(),
             name,
@@ -530,7 +541,7 @@ class OtlpDecoder {
     }
 
     /** Read a session's end record as the session, by how it ended. */
-    #session(read: OtlpRecord): Item<typeof kinds.session> {
+    #session(read: OtlpRecord, id: Identifier<"session">): Item<typeof kinds.session> {
         // refuse an end without a status, or with an unknown one
         const value = read.split.attributes[SESSION_STATUS_ATTRIBUTE];
         const status = SESSION_STATUSES.find((each) => each === value);
@@ -544,7 +555,7 @@ class OtlpDecoder {
         }
 
         return {
-            id: read.id,
+            id,
             time: read.at,
             ...this.#stamp(),
             status,
@@ -599,9 +610,12 @@ class OtlpDecoder {
         };
     }
 
-    /** Identify an event of the resource by its contents, the same on every retry. */
-    #identity(contents: readonly unknown[]): Promise<string> {
-        return Event.identity(this.emitter.scope, contents, this.#crypto);
+    /** Derive an event's identifier of its type from its contents, the same on every retry. */
+    #identity<Configuration extends ObjectConfiguration>(
+        object: ObjectType<Configuration>,
+        read: Pick<OtlpRecord, "contents">,
+    ): Promise<Identifier<Configuration["identity"]>> {
+        return object.derive(this.emitter.scope, JSON.stringify(read.contents), this.#crypto);
     }
 
     /** Read the installation and build the forwarder named, as keys. */

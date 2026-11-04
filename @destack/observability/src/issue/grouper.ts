@@ -1,10 +1,11 @@
 import { and, asc, eq, inArray } from "@destack/db";
-import { Event, EventTime } from "@destack/event";
+import { EventTime } from "@destack/event";
 import { installation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Digest, Identifier, present } from "@destack/schema";
 import { build, installationRevision } from "@destack/stack/object";
 import {
+    exception,
     type ExceptionData,
     Issue,
     ISSUE_NAMESPACE,
@@ -12,9 +13,6 @@ import {
     type IssueOpening,
 } from "../object/index.ts";
 import type { Exception } from "./exception.ts";
-
-/** The kind an exception's event identity derives under, apart from its record's. */
-const EXCEPTION_EVENT = "exception";
 
 /** An unexpected exception of an installation that a log record or a span recorded. */
 export interface Occurrence {
@@ -95,7 +93,7 @@ export class Grouper {
         const events = await Promise.all(
             unexpected.map(async (occurrence) => ({
                 occurrence,
-                id: await Event.identity(scope, [EXCEPTION_EVENT, occurrence.identity], crypto),
+                id: await exception.derive(scope, occurrence.identity, crypto),
                 fingerprint: await occurrence.exception.fingerprint(crypto),
                 revision: built.get(`${occurrence.installation} ${occurrence.build}`),
             })),
@@ -240,11 +238,11 @@ class IssueGroup {
     /** The fields opening the group's issue at its first events. */
     get opening(): IssueOpening {
         // read the first event's title, its innermost in-app symbol and an in-app frame's declaration
-        const { exception, installation: installationId } = this.#first.occurrence;
-        const inApp = exception.frames.filter((frame) => frame.isInApp);
+        const { exception: thrown, installation: installationId } = this.#first.occurrence;
+        const inApp = thrown.frames.filter((frame) => frame.isInApp);
         const culprit = inApp.find((frame) => frame.moniker !== undefined)?.moniker;
         const declaration = inApp.find((frame) => frame.declaration !== undefined)?.declaration;
-        const firstLine = exception.message.split("\n")[0] ?? "";
+        const firstLine = thrown.message.split("\n")[0] ?? "";
 
         // span the events' times and revisions
         const earliest = this.#revisions().reduce<Revision | undefined>(
@@ -257,8 +255,8 @@ class IssueGroup {
         return {
             installationId,
             fingerprint: this.#first.fingerprint,
-            errorType: exception.errorType,
-            title: `${exception.type ?? exception.errorType}: ${firstLine}`.slice(
+            errorType: thrown.errorType,
+            title: `${thrown.type ?? thrown.errorType}: ${firstLine}`.slice(
                 0,
                 ISSUE_TITLE_LENGTH,
             ),

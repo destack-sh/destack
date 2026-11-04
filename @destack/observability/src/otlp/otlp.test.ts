@@ -199,9 +199,9 @@ test("identify the same records alike in one scope and apart across scopes, and 
             ),
         ),
     }).toEqual({
-        first: ["9a742f480682e247f897575afdb51f21"],
-        again: ["9a742f480682e247f897575afdb51f21"],
-        elsewhere: ["402cf82284e642ffec1b7b98cdfaf2b8"],
+        first: ["log-bebe9b51-5fbc-85bb-9e53-d8a63e94a32a"],
+        again: ["log-bebe9b51-5fbc-85bb-9e53-d8a63e94a32a"],
+        elsewhere: ["log-dec32677-842b-8d83-941d-52adfba1e94b"],
         cumulative: [
             "BAD_REQUEST",
             "TEMPORALITY_UNSUPPORTED",
