@@ -117,9 +117,6 @@ export const Capability = schema
 /** Something a package's installations can do, and what it needs. */
 export type Capability = schema.Infer<typeof Capability>;
 
-/** The kind of the declaration `definePackage` makes, which object defines. */
-export const PACKAGE_KIND = defineDeclarationKind("package");
-
 /** The export a build's package declaration comes from: its module's default export. */
 export const PACKAGE_EXPORT = "default";
 
@@ -152,13 +149,16 @@ const packageDescription = schema.object({
     errors: schema.array(ReasonDescription),
 });
 
+/** The kind of the declaration `definePackage` makes, which object defines. */
+export const PACKAGE_KIND = defineDeclarationKind("package", packageDescription);
+
 /** A declared package: the API its objects derive, its adapters and its views. */
 export const PackageDescription = Object.assign(packageDescription, {
     /** Read the package a build declares, absent for a library. */
     async of(
-        build: Pick<BuildReader, "declared">,
+        build: Pick<BuildReader, "declarations">,
     ): Promise<schema.Infer<typeof packageDescription> | undefined> {
-        const [declared] = await build.declared(PACKAGE_KIND, packageDescription);
+        const [declared] = PACKAGE_KIND.select(await build.declarations());
 
         return declared?.description;
     },

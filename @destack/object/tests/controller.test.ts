@@ -417,7 +417,7 @@ test("project a type's objects at the first start, then each one its own or a wa
                         ).map((each) => ({ id: each.id })),
                     ),
                 ],
-                project: async ({ rows }) => {
+                project: async (_id, { rows }) => {
                     projected.push(...rows.map((row) => row.topic));
                 },
             },

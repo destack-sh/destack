@@ -39,7 +39,9 @@ import {
     type JsonObject,
     type JsonValue,
 } from "@destack/schema";
-import type { PackageId } from "@destack/package";
+import type { DeclarationKind, graph, PackageId } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
+import { Catalog } from "@destack/locale";
 
 import * as sync from "@destack/sync";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
@@ -865,6 +867,51 @@ export class MethodContext<
     /** The time of the call in UTC epoch milliseconds: its caller's. */
     get now(): number {
         return this.caller.now;
+    }
+
+    /** Read a kind of its package from a package's release the scope runs, or a given version. */
+    async declarations<Description extends schema.Schema>(
+        kind: DeclarationKind<Description>,
+        packageId: PackageId,
+        version?: string,
+    ): Promise<graph.Declaration<schema.Output<Description>>[]> {
+        // refuse another package's kind, whose owner alone reads its declarations
+        if (kind.packageId !== this.object.package.id) {
+            throw new TypeError(
+                `${this.object.name} reads ${kind.name} declarations of another package`,
+            );
+        }
+        const release = await this.#release(packageId, version);
+
+        return kind.select(await release.declarations());
+    }
+
+    /** Read the catalogs of the release of a package the scope runs. */
+    async catalogs(packageId: PackageId): Promise<Catalog[]> {
+        return Catalog.read(await this.#release(packageId));
+    }
+
+    /** Open a package's release the scope runs, or a given version, refusing none. */
+    async #release(packageId: PackageId, version?: string): Promise<BuildReader> {
+        // open releases in the store alone, which knows what its scopes run
+        const location = this.#location;
+        const open = location.kind === "store" ? location.store.release : undefined;
+        if (location.kind !== "store" || open === undefined) {
+            throw new TypeError(
+                `${this.object.name}.${this.name} can only read releases in a store`,
+            );
+        }
+
+        // refuse a package the scope runs none of
+        const release = await open(location.transaction.view(), this.scope, packageId, version);
+        if (release === undefined) {
+            throw ObjectError.of(
+                "INSTALLATION_NOT_FOUND",
+                `${this.scope} runs no release of ${packageId}`,
+            );
+        }
+
+        return release;
     }
 
     /** The principal the call's code runs as: the installation serving its type. */

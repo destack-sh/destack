@@ -4,6 +4,7 @@ import { CLIENT_HEAD_HEADER, ROUTE_PATH } from "../workload/start.ts";
 import type { BlobStorage } from "@destack/resource";
 import { ObjectError } from "../error/error.ts";
 import { Package, type PackageId } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
 import type { EventStore } from "@destack/event";
 import {
     Authorizer,
@@ -353,6 +354,8 @@ export type ObjectStoreOptions = Omit<
         readonly sandboxes?: readonly HookSandbox[];
         /** The followed installation's link for replicated rows' changes, else the publisher. */
         readonly uplink?: sync.Uplink;
+        /** Open a package's release a scope runs, or a given version, absent for none. */
+        readonly release?: ObjectStore["release"];
         /** The machine running the servers' provisioned resources, which providers require. */
         readonly machine?: Identifier<"machine">;
         /** Open the publisher toward a followed scope's home, else the store's uplink. */
@@ -444,6 +447,15 @@ export type ObjectRouter = Readonly<Record<string, Router<ProcedureRouter, Reque
 export class ObjectStore {
     /** The database with the objects. */
     readonly database: DatabaseConnection;
+    /** Open a package's release a scope runs, or a given version, absent for none. */
+    readonly release:
+        | ((
+              view: Snapshot,
+              scope: string,
+              packageId: PackageId,
+              version?: string,
+          ) => Promise<BuildReader | undefined>)
+        | undefined;
     /** The partition's blobs, kept alive by its rows' blob columns. */
     readonly blobs: BlobStore;
     /** The principal of the store's work: controllers, settlements and in-process changes. */
@@ -539,7 +551,8 @@ export class ObjectStore {
                 : principal.installation.reference(server.scope, server.installation);
         this.partitions = ObjectStore.#composedPartitions(server?.partition, given.partitions);
 
-        // store the stores, machines and settings the store runs with
+        // store the stores, machines, releases and settings the store runs with
+        this.release = given.release;
         this.database = given.database;
         this.environment = given.environment;
         this.claims = given.claims;

@@ -111,6 +111,7 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     HOME_OR_REPLICA_MISSING: { code: "NOT_FOUND" },
     HOOKS_MISSING: { code: "NOT_FOUND" },
     HOOK_SESSION_MISSING: { code: "NOT_FOUND" },
+    INSTALLATION_NOT_FOUND: { code: "NOT_FOUND" },
     LIST_METHOD_MISSING: { code: "NOT_FOUND" },
     PACKAGE_ROUTES_MISSING: { code: "NOT_FOUND" },
     SOCKET_HANDLER_MISSING: { code: "NOT_FOUND" },

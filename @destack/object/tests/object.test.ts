@@ -44,8 +44,13 @@ const card = defineObject(
 );
 
 /** Serve the declared objects over a database, applying their records. */
-async function serve(world: Environment, database: DatabaseConnection): Promise<ObjectStore> {
+async function serve(
+    world: Environment,
+    database: DatabaseConnection,
+    release?: ObjectStore["release"],
+): Promise<ObjectStore> {
     return await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        ...(release === undefined ? {} : { release }),
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -103,11 +108,10 @@ test("read a declaration's release through its step's database while applying", 
         scope: spaceId,
         document: { notes: { one: { title: "first" } } },
         applied: {},
-        store: await serve(world, database),
-        release: async (step) => {
-            await step.read(note.table).findMany();
+        store: await serve(world, database, async (view) => {
+            await view.read(note.table).findMany();
             throw new TypeError("no release in this test");
-        },
+        }),
     }).apply(world.clock.now());
 
     // refuse with the release's failure instead of waiting behind the step's transaction

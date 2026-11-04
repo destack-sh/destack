@@ -176,9 +176,6 @@ export class ExportIndex {
     }
 }
 
-/** The kind of the declarations `defineObject` makes, which object defines. */
-export const OBJECT_KIND = defineDeclarationKind("object");
-
 /** A builder call as written: the builder's name and its arguments. */
 export interface BuilderCall {
     /** The builder: a `field` or `method` function, or a modifier of an earlier result. */
@@ -199,6 +196,9 @@ const objectDescription = schema.object({
     /** The definition as written beside its name, special values tagged. */
     definition: schema.jsonObject(),
 });
+
+/** The kind of the declarations `defineObject` makes, which object defines. */
+export const OBJECT_KIND = defineDeclarationKind("object", objectDescription);
 
 /** A scope as a description encodes it, read as the reference of its object type or its policy. */
 const EncodedScope = schema
@@ -251,9 +251,9 @@ export const ObjectDescription = Object.assign(objectDescription, {
         );
     },
 
-    /** Read the object descriptions a build declares, parsed once per build. */
-    async read(build: Pick<BuildReader, "declared">): Promise<ObjectDescription[]> {
-        const declared = await build.declared(OBJECT_KIND, objectDescription);
+    /** Read the object descriptions a build declares. */
+    async read(build: Pick<BuildReader, "declarations">): Promise<ObjectDescription[]> {
+        const declared = OBJECT_KIND.select(await build.declarations());
 
         return declared.map((each) => each.description);
     },

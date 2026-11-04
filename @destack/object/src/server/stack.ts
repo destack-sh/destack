@@ -108,14 +108,8 @@ export interface StackOptions {
     /** The object store running the declarations' calls, applying records where they live. */
     readonly store: Pick<
         ObjectStore,
-        "mutate" | "query" | "authorizeHere" | "isReplica" | "environment"
+        "mutate" | "query" | "authorizeHere" | "isReplica" | "environment" | "release"
     >;
-    /** Open a package release's build in the scope via a snapshot, the installation's if given. */
-    readonly release?: (
-        snapshot: Snapshot,
-        packageId: PackageId,
-        installation?: Identifier<"installation">,
-    ) => Promise<BuildReader>;
     /** Whether the stack's scope is the enclosing scope's home, which it may declare into. */
     readonly isHome: boolean;
     /** Read the types the stack's installations declare, and whether one waits for its build. */
@@ -692,17 +686,17 @@ export class StackPlan {
         throw new DependencyWait(reason);
     }
 
-    /** Open a package release's build in the scope, the installation's if given, via the step. */
-    release(packageId: PackageId, installation?: Identifier<"installation">): Promise<BuildReader> {
-        // require the machine opening releases
-        const { release } = this.stack.options;
+    /** Open the release of a package the stack's scope runs, absent for one it runs none of. */
+    async release(packageId: PackageId): Promise<BuildReader | undefined> {
+        // require the store opening releases
+        const { release } = this.stack.options.store;
         if (release === undefined) {
             throw new TypeError(
-                `the stack opens the release of ${packageId}, but no machine opens releases`,
+                `the stack opens the release of ${packageId}, but its store opens none`,
             );
         }
 
-        return release(this.transaction.view(), packageId, installation);
+        return release(this.transaction.view(), this.stack.scope, packageId);
     }
 
     /** Write each object type's declarations and retire undeclared records. */

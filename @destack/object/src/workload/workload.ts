@@ -10,7 +10,11 @@ import {
     type PackageId,
 } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
-import { type BuildReader, WorkloadDefinition } from "@destack/package/manifest";
+import {
+    type BuildReader,
+    WorkloadDefinition,
+    WorkloadDescription,
+} from "@destack/package/manifest";
 import type { ResourceContext } from "@destack/resource/context";
 import type { PackageHandler } from "../server/index.ts";
 import type { Deriver } from "@destack/identity";
@@ -21,7 +25,7 @@ import type { Hibernation, SocketHandler } from "./socket.ts";
 export const WORKLOAD_EXPORT = "Workload";
 
 /** The workload declaration kind, which object defines. */
-export const WORKLOAD_KIND = defineDeclarationKind("workload");
+export const WORKLOAD_KIND = defineDeclarationKind("workload", WorkloadDescription);
 
 /** A declared unit of deployment. */
 export interface Workload extends Declaration {

@@ -88,8 +88,8 @@ export interface ObjectProjection<Object extends ObjectType = ObjectType> {
     readonly name?: string;
     /** The input tables, the type's own among them, and the objects their changed rows touch. */
     readonly watches: readonly ObjectWatch[];
-    /** Project one object again from its inputs as they are now. */
-    project(reconciliation: ObjectReconciliation<Object>): Promise<void>;
+    /** Project one object again from its inputs as they are now, absent or not. */
+    project(id: string, reconciliation: ObjectReconciliation<Object>): Promise<void>;
 }
 
 /** Another table whose changed rows select a controller's keys. */
@@ -274,14 +274,15 @@ export const ObjectController = {
                     schema.string().parse(row.id),
                 ),
             project: async (id, reconciliation) => {
-                // project an object of the store's scopes, left to its home where it is a replica
+                // project an absent object or one of the store's scopes, left to its home where it is a replica
                 const rows = await store.database
                     .select()
                     .from(object.table)
                     .where(eq(idColumn, id));
                 const originated = await ObjectController.originated(store, object, rows);
-                if (originated.length > 0) {
+                if (rows.length === 0 || originated.length > 0) {
                     await declared.project(
+                        id,
                         ObjectController.context(store, object, originated, reconciliation),
                     );
                 }

@@ -105,6 +105,8 @@ export interface TestObjectStoreOptions {
     readonly groups?: ReadonlyMap<string, readonly Subject[]>;
     /** Open the publisher toward a followed scope's home, none by default. */
     readonly publisher?: (scope: string) => Publisher;
+    /** Open the release of a package a scope runs, none by default. */
+    readonly release?: ObjectStore["release"];
 }
 
 /** An object store serving packages in one space over a test database, called as its users. */
@@ -350,6 +352,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             database: storage.database,
             ...(ephemeral === undefined ? {} : { ephemeral }),
             ...(options.publisher === undefined ? {} : { publisher: options.publisher }),
+            ...(options.release === undefined ? {} : { release: options.release }),
             environment,
         });
 

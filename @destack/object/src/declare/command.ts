@@ -15,9 +15,6 @@ import type { ObjectType, PermissionOf } from "../object/object.ts";
 import type { ConditionOf } from "../query/index.ts";
 import { Shortcut, type ShortcutText } from "./shortcut.ts";
 
-/** The command declaration kind, which object defines. */
-export const COMMAND_KIND = defineDeclarationKind("command");
-
 /** The method kinds that remove their target, for good unless its type deletes to a trash. */
 const DELETING_KINDS: ReadonlySet<string> = new Set(["delete", "deleteMany"]);
 
@@ -282,6 +279,9 @@ export const CommandDescription = schema.object({
 });
 /** A titled call of an object type's method, as its declaration describes it. */
 export type CommandDescription = schema.Infer<typeof CommandDescription>;
+
+/** The command declaration kind, which object defines. */
+export const COMMAND_KIND = defineDeclarationKind("command", CommandDescription);
 
 /** A method's input as JSON Schema: an object with its properties and the required ones. */
 const InputSchema = schema.looseObject({

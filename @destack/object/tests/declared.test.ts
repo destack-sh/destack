@@ -153,9 +153,6 @@ test("declare records as their create inputs in reference order, the name fillin
             document,
             applied,
             store,
-            release: async () => {
-                throw new TypeError("no release in this test");
-            },
         }).apply(world.clock.now());
         applied = document;
 
