@@ -24,6 +24,7 @@ import { LocalKeyring, MemoryKeychain, PublicKey } from "@destack/identity";
 import { MachineIdentity } from "@destack/account/client";
 import {
     Account,
+    type Allowance,
     Entitlement,
     entitlement,
     account,
@@ -562,29 +563,32 @@ export class TestUniverse implements AsyncDisposable {
         // act as the billing installation of the account's residency space, as finance does
         const { store } = this.universe;
         const snapshot = Snapshot.live(this.storage.database);
-        const { residencyId } = await Account.of(snapshot, accountId);
-        const provider = await this.#entitler(residencyId);
+        const owner = await Account.of(snapshot, accountId);
+        const provider = await this.#entitler(owner.residencyId);
         const now = this.clock.now();
 
-        // replace the one the account has with one of the terms
-        const existing = await Entitlement.read(snapshot, accountId, granted);
-        const created = entitlement.call("create", {
-            ...entitlement.in(accountId),
+        // replace the one the account has for the feature with one of the terms, keeping the others
+        const stored = await snapshot
+            .read(entitlement.table)
+            .findMany({ where: { scope: accountId } });
+        const allowance: Allowance = {
             packageId: feature.packageId,
             feature: feature.name,
             resource: feature.resource,
             value: null,
             limit: null,
+            resetAt: null,
             state: null,
             ...terms,
-        });
+        };
+        const kept = stored.filter((row) => Entitlement.key(row) !== Entitlement.key(allowance));
         await store.mutate(AccessContext.of(Caller.of(provider), now), {
             id: RequestId.create(store.environment),
             calls: [
-                ...(existing === undefined
-                    ? []
-                    : [entitlement.call("delete", entitlement.target(existing))]),
-                created,
+                account.call("entitle", {
+                    ...account.target(owner),
+                    allowances: [...kept.map((row) => Entitlement.allowance(row)), allowance],
+                }),
             ],
         });
     }
