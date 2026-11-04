@@ -2,6 +2,8 @@ import type { Crypto } from "@destack/environment";
 import { Package } from "@destack/package";
 import { type BuildReader, type OutputContent, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
+import { RESOURCE_KIND, ResourceDeclaration } from "@destack/resource";
+import { describeResource } from "@destack/resource/inspect";
 import {
     PACKAGE_KIND,
     PACKAGE_EXPORT,
@@ -36,13 +38,13 @@ export type TestBuildOptions = Omit<
     readonly dependencies?: readonly BuildReader[];
 };
 
-/** Write a package's build as its compiler does, declaring its package and object types. */
+/** Write a package's build as its compiler does: its package, object types and resources. */
 export async function testBuild(
     handle: PackageHandle & { readonly objects: Readonly<Record<string, ObjectType>> },
     crypto: Crypto,
     options: TestBuildOptions = {},
 ): Promise<BuildReader> {
-    // declare the package and each of its object types, as every installable package's build does
+    // declare the package, each of its object types and resources, as every installable package's build does
     const { declared = [], dependencies = [], ...contents } = options;
     const described: TestDeclaration[] = [
         {
@@ -55,6 +57,13 @@ export async function testBuild(
             name: type.name,
             description: ObjectDescription.of(type),
         })),
+        ...Object.values(handle.resources)
+            .filter((resource) => ResourceDeclaration.is(resource))
+            .map((resource) => ({
+                ...RESOURCE_KIND.identity,
+                name: resource.name,
+                description: { ...describeResource(resource), ...resource.state() },
+            })),
     ];
 
     // record each dependency's build and the closure it compiled against, as a compiler resolves them
