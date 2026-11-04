@@ -53,12 +53,17 @@ export class Projection implements Consumer {
 
         // project each, then move the checkpoint past them
         for (const key of touched.keys) {
-            await this.#options.project(key, reconciliation);
+            await this.project(key, reconciliation);
         }
         const now = this.#database.state.environment.clock.now();
         const reader = { name: this.name, tables: this.reads };
         await this.#database.log.advance(reader, touched.through, now + HOLD_MILLISECONDS);
     };
+
+    /** Project one key's rows from its inputs as they are now. */
+    async project(key: string, reconciliation: Reconciliation): Promise<void> {
+        await this.#options.project(key, reconciliation);
+    }
 
     /** Read the keys the changes past the checkpoint touch, every key without them, or none. */
     async #touched(): Promise<
