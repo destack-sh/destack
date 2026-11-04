@@ -159,47 +159,47 @@ export function implementRepository(options: RepositoryOptions): typeof reposito
         ...(github === undefined
             ? {}
             : {
-                  controller: {
-                      pending: {
-                          hosting: "github",
-                          providerRepositoryId: { isNull: true },
-                          deletedAt: { isNull: true },
-                      },
-                      // identify an account's waiting repositories again as their connection's replica changes
-                      watches: [
-                          ObjectWatch.of(connection.table, async (row, database) => {
-                              const rows = await Snapshot.live(database)
-                                  .read(repository.table)
-                                  .findMany({
-                                      where: { connectionId: row.id, hosting: "github" },
-                                  });
+                  controllers: [
+                      {
+                          pending: {
+                              hosting: "github",
+                              providerRepositoryId: { isNull: true },
+                              deletedAt: { isNull: true },
+                          },
+                          // identify an account's waiting repositories again as their connection's replica changes
+                          watches: [
+                              ObjectWatch.of(connection.table, async (row, database) => {
+                                  const rows = await Snapshot.live(database)
+                                      .read(repository.table)
+                                      .findMany({
+                                          where: { connectionId: row.id, hosting: "github" },
+                                      });
 
-                              return rows.map((each) => ({ id: each.id }));
-                          }),
-                      ],
-                      reconcile: async (reconciliation): Promise<undefined> => {
-                          for (const row of reconciliation.rows) {
-                              // identify the repository once its connection's replica names an installation
-                              const reader = Snapshot.live(reconciliation.database);
-                              const connectionId = present(
-                                  row.connectionId,
-                                  `the connection of GitHub repository ${row.id}`,
-                              );
-                              const found = await github.installation(
-                                  reader,
-                                  row.accountId,
-                                  connectionId,
-                              );
-                              if (found !== undefined) {
-                                  await reconciliation.mutate([
-                                      repository.call("identify", repository.target(row)),
-                                  ]);
+                                  return rows.map((each) => ({ id: each.id }));
+                              }),
+                          ],
+                          reconcile: async (reconciliation) => {
+                              for (const row of reconciliation.rows) {
+                                  // identify the repository once its connection's replica names an installation
+                                  const reader = Snapshot.live(reconciliation.database);
+                                  const connectionId = present(
+                                      row.connectionId,
+                                      `the connection of GitHub repository ${row.id}`,
+                                  );
+                                  const found = await github.installation(
+                                      reader,
+                                      row.accountId,
+                                      connectionId,
+                                  );
+                                  if (found !== undefined) {
+                                      await reconciliation.mutate([
+                                          repository.call("identify", repository.target(row)),
+                                      ]);
+                                  }
                               }
-                          }
-
-                          return undefined;
+                          },
                       },
-                  },
+                  ],
               }),
     });
 }
