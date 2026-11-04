@@ -24,9 +24,9 @@ Destack is an **open-source software engine** for building and deploying general
 Think **GitHub + NPM + Convex + Vercel + Sentry in one**, with all the boring decisions already made: auth, migrations, services, multiplayer, workflows, telemetry, testing, and hosting.
 
 Destack **standardises the tools and processes for software production**:
- 1. **Build anything** you need, with your own AI, in a standardised pipeline.
- 2. **Integrate everything**: one account, one database, no walls, all apps and agents.
- 3. **Control it all**: your data, context and code, on any machine you choose.
+ 1. **Build custom software** with your own AI, in a standardised pipeline.
+ 2. **Integrate every app and agent**: one account, one database, no walls.
+ 3. **Control your whole stack**: your data, context and code, on any machine you choose.
 
 The Destack comprises both the platform core for building malleable software _and_ standard apps for common use cases (like Notion or Linear).
 All apps built on Destack get the advantages of standardisation and integration out of the box and are thus fully hackable and programmable by your agents.
