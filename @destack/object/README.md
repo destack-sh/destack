@@ -10,7 +10,7 @@ export const page = defineObject({
     fields,
     permissions,
     constraints: { title: { kind: "index", on: ["title"] } },
-}).methods(); // get and list by read; create, update and delete by write
+}); // get and list by read; create, update and delete by write
 // serves its package over one database
 const store = new ObjectStore({
     servers: [implementPackage(pages, { objects: [page] })],
@@ -175,7 +175,7 @@ defineObject({
     tracked: { by: "write", activity, session: { minutes: 10 } }, // history and revert
     orderable: true, // a fractional index among the siblings
     search: { searchable: ["title"], filterable: ["status"], sortable: ["dueAt"] },
-}).methods(build);
+}, build);
 ```
 
 ## Declarations
@@ -468,7 +468,7 @@ const room = defineObject({
     scope: space,
     isScope: true,
     partition: true,
-}).methods();
+});
 const store = new ObjectStore({
     servers: [implementPackage(rooms, { objects: [message] })],
     partition: roomId,
