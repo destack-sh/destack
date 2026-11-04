@@ -201,6 +201,7 @@ test("record the computer at each start under the same identifier", async () => 
     const device = principal.device.reference(Scope.universe.id, deviceId);
 
     // record the next start's process on the same record, as the device storing it
+    const { id: first } = await client.computer.get({ deviceId, id: machineId });
     const startedAt = opened.clock.now();
     const next = { version: machinePackage.version, pid: 4343, startedAt };
     await ComputerServer.record(
@@ -223,7 +224,8 @@ test("record the computer at each start under the same identifier", async () => 
     });
     expect([status, createdAt <= updatedAt]).toEqual([
         {
-            id: machineId,
+            id: first,
+            machineId,
             scope: deviceId,
             version: machinePackage.version,
             pid: 4343,

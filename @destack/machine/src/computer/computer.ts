@@ -515,7 +515,7 @@ export class Computer implements AsyncDisposable {
         );
         stack.use(device);
         const [existing] = await device.database
-            .select({ id: computer.table.id })
+            .select({ id: computer.table.machineId })
             .from(computer.table);
         const machineId =
             options.machineId ?? existing?.id ?? Identifier.create("machine", options.environment);
@@ -558,7 +558,7 @@ export class Computer implements AsyncDisposable {
         view: Pick<Snapshot, "read">,
         machineId: Identifier<"machine">,
     ): Promise<MachineEnrollment | undefined> {
-        const row = await view.read(computer.table).findFirst({ where: { id: machineId } });
+        const row = await view.read(computer.table).findFirst({ where: { machineId } });
 
         return row?.enrollment ?? undefined;
     }

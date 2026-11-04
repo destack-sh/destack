@@ -348,7 +348,7 @@ export class Gateway {
                 `${SpaceAddress.of(origin)} has no installation ${origin.name}`,
             );
         }
-        const mount = InstallationMount.url(request.url, this.#space.id, found.id);
+        const mount = InstallationMount.url(request.url, this.#space.id, found.installationId);
         const url = new URL(request.url);
 
         // address its webhooks below its mount
@@ -427,19 +427,19 @@ export class Gateway {
         if (this.#packages().some((handle) => handle.id === served.installation.packageId)) {
             const answered = await this.#store(served, installed, authentication);
 
-            return traffic.countResponse(served.scope, served.id, answered);
+            return traffic.countResponse(served.scope, served.installationId, answered);
         }
 
         // deliver a webhook below the installation's mount
         const path = new URL(installed.request.url).pathname;
         if (path.startsWith(`${WEBHOOK_PATH}/`)) {
             const answered = await this.#receive(
-                served.id,
+                served.installationId,
                 path.slice(WEBHOOK_PATH.length),
                 installed.request,
             );
 
-            return traffic.countResponse(served.scope, served.id, answered);
+            return traffic.countResponse(served.scope, served.installationId, answered);
         }
         // refuse the route path to a request the machine routed to no adapter
         else if (
@@ -451,22 +451,22 @@ export class Gateway {
         // hand a routed request to the installation's adapter its route selects
         else if (path.startsWith(`${ROUTE_PATH}/`)) {
             const adapter = decodeURIComponent(path.slice(ROUTE_PATH.length + 1));
-            const answered = await this.#adapter(served.id, adapter, installed.request);
+            const answered = await this.#adapter(served.installationId, adapter, installed.request);
 
-            return traffic.countResponse(served.scope, served.id, answered);
+            return traffic.countResponse(served.scope, served.installationId, answered);
         }
 
         // verify the caller for the installation's package and route the call to the deployment serving its release
         const own = PackageId.parse(served.installation.packageId);
         const called = await this.#authenticate(installed, served, own, authentication);
         const answered = await this.ingress(
-            called.rollout.id,
+            called.rollout.installationId,
             path,
             installed.request,
             called.authentication,
         );
 
-        return traffic.countResponse(called.rollout.scope, called.rollout.id, answered);
+        return traffic.countResponse(called.rollout.scope, called.rollout.installationId, answered);
     }
 
     /** Hand a request below an installation's mount to its package in the store. */
@@ -1008,7 +1008,7 @@ export class Gateway {
         return {
             kind: "installation",
             scope: caller.scope,
-            installationId: found.id,
+            installationId: found.installationId,
             audience,
             path: `${PackageMount.path(audience)}${path}`,
         };
@@ -1039,7 +1039,7 @@ export class Gateway {
             return {
                 kind: "installation",
                 scope: spaceId,
-                installationId: served.id,
+                installationId: served.installationId,
                 audience,
                 path,
             };

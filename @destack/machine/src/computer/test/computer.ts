@@ -740,7 +740,9 @@ export class TestComputer implements AsyncDisposable {
         const read = async () => {
             // read its rollout with the installation
             const snapshot = Snapshot.live(database);
-            const rows = await snapshot.read(rollout.table).findMany({ where: { id: created.id } });
+            const rows = await snapshot
+                .read(rollout.table)
+                .findMany({ where: { installationId: created.id } });
             const [row] = await Rollout.read(snapshot, rows);
 
             return row;

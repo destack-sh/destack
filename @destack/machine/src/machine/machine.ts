@@ -529,7 +529,7 @@ export class Machine {
     async #placed(spaceId: Identifier<"space">): Promise<string | undefined> {
         const row = await this.directory.snapshot
             .read(accountObject.placement.table)
-            .findFirst({ where: { id: spaceId } });
+            .findFirst({ where: { spaceId } });
 
         return row === undefined ? undefined : JSON.stringify(row);
     }
@@ -704,7 +704,7 @@ export class Machine {
         return {
             name: "machine",
             table: computer.table,
-            pending: { id: this.id },
+            pending: { machineId: this.id },
             follow: (_rows, following) => this.follow(following),
         };
     }
@@ -843,7 +843,7 @@ export class Machine {
         }
 
         // start each stored space and each space placed or moving here, reporting a failed start apart from the others
-        for (const space of new Set([...stored, ...rows.map((row) => row.id)])) {
+        for (const space of new Set([...stored, ...rows.map((row) => row.spaceId)])) {
             await this.space(space).catch((error: unknown) => this.report(error));
         }
 
@@ -923,7 +923,7 @@ export class Machine {
             .where(
                 or(eq(placement.table.machineId, this.id), eq(placement.table.targetId, this.id)),
             )
-            .orderBy(placement.table.id);
+            .orderBy(placement.table.spaceId);
 
         return { status: row?.status, placements };
     }

@@ -1,5 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { Event, EventTime } from "@destack/event";
+import { EventTime } from "@destack/event";
 import { AccessContext, Caller } from "@destack/access";
 import { reading } from "@destack/stack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -161,7 +161,11 @@ export class SpaceMeter {
         const parts = isAverage ? SpaceMeter.#months(from, to) : [[from, to] as const];
 
         return parts.map(async ([start, end]) => ({
-            id: await Event.identity(measured.scope, [key, installation, end], crypto),
+            id: await reading.derive(
+                measured.scope,
+                JSON.stringify([key, installation, end]),
+                crypto,
+            ),
             time: EventTime.of(end),
             meter: key,
             installationId: installation,

@@ -1,4 +1,5 @@
-import { Event, EventTime } from "@destack/event";
+import { EventTime } from "@destack/event";
+import { usage } from "@destack/stack/object";
 import { schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
@@ -80,7 +81,11 @@ test("fold a page of readings into each payer's uses, a counter's amount as read
         isLevel: boolean,
         reading: string,
     ) => ({
-        id: await Event.identity(SPACE, [payer, meter, sku, null, START, reading], crypto),
+        id: await usage.derive(
+            SPACE,
+            JSON.stringify([payer, meter, sku, null, START, reading]),
+            crypto,
+        ),
         time: EventTime.of(START + HOUR),
         meter,
         sku,

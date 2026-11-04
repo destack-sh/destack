@@ -1,5 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { Event, EventTime } from "@destack/event";
+import { EventTime } from "@destack/event";
 import { reading } from "@destack/stack/object";
 import { databaseBytes, memory } from "@destack/telemetry/meter";
 import { Identifier, Text } from "@destack/schema";
@@ -117,7 +117,11 @@ test("append a space's use as readings each round, measuring a failed round in t
         const key = DeclarationReference.key(meter.reference);
 
         return {
-            id: await Event.identity(spaceId, [key, installation, to], world.crypto),
+            id: await reading.derive(
+                spaceId,
+                JSON.stringify([key, installation, to]),
+                world.crypto,
+            ),
             time: EventTime.of(to),
             keys: {
                 meter: key,

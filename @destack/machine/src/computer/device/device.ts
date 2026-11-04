@@ -297,7 +297,9 @@ export class Device implements AsyncDisposable {
             }
 
             // forget the keys of each machine the computer's records name, in each machine keychain
-            const recorded = await database.select({ id: computer.table.id }).from(computer.table);
+            const recorded = await database
+                .select({ id: computer.table.machineId })
+                .from(computer.table);
             for (const { id } of recorded) {
                 for (const service of machines) {
                     await keychain(service).remove(id);
@@ -751,7 +753,7 @@ export class Device implements AsyncDisposable {
         });
 
         // call a space of this computer's own machine on loopback
-        return located.placement.machine === recorded.id
+        return located.placement.machine === recorded.machineId
             ? { ...located, url: await this.origin() }
             : located;
     }

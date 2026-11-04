@@ -229,7 +229,7 @@ async function followed(database: DatabaseConnection, id: Identifier<"installati
             installationRevision.table,
             eq(installationRevision.table.id, rollout.table.revisionId),
         )
-        .where(eq(rollout.table.id, id));
+        .where(eq(rollout.table.installationId, id));
 
     return row?.buildId;
 }

@@ -224,7 +224,7 @@ export class ViewOrigin {
             sub: schema.identifier("user").parse(caller.subject.id),
             client: schema.identifier("client").parse(credential.id),
             grant,
-            installation: found.id,
+            installation: found.installationId,
             exp: now + SESSION_SECONDS,
         });
         url.searchParams.delete(TOKEN_PARAMETER);
@@ -305,7 +305,7 @@ export class ViewOrigin {
 
         // refuse a session the space did not sign for this installation
         const session = await this.#read(cookie);
-        if (session === undefined || session.installation !== found.id) {
+        if (session === undefined || session.installation !== found.installationId) {
             throw MachineError.of("SESSION_INVALID", "the page's session is invalid or expired");
         }
 
@@ -365,7 +365,7 @@ export class ViewOrigin {
         }
         // call the installation's package below its mount
         else {
-            const mount = InstallationMount.url(request.url, this.#space.id, found.id);
+            const mount = InstallationMount.url(request.url, this.#space.id, found.installationId);
             const mounted = copyRequest(
                 request,
                 { headers },
@@ -674,7 +674,7 @@ export class ViewOrigin {
         }
         const body = await RequestBody.json(request, `an OTLP/JSON ${signal} export`);
         await this.#gateway.record(
-            { installation: page.rollout.id, build: page.manifest },
+            { installation: page.rollout.installationId, build: page.manifest },
             signal,
             body,
         );
@@ -814,7 +814,7 @@ export class ViewOrigin {
         );
         const document = ViewContext.document(
             {
-                installation: found.id,
+                installation: found.installationId,
                 space: this.#space.id,
                 account: space.scope,
                 view: name,
@@ -891,7 +891,7 @@ export class ViewOrigin {
 
     /** The installation a page acts as for its person. */
     #acting(page: Page): Subject {
-        return principal.installation.reference(this.#space.id, page.rollout.id);
+        return principal.installation.reference(this.#space.id, page.rollout.installationId);
     }
 
     /** Authenticate a page's call to a package in the space, an anonymous visitor by address. */

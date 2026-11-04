@@ -221,14 +221,21 @@ export class ComputerServer {
             buildShape.per(placement, {
                 where: { machineId: id },
                 key: async (row) => ({
-                    key: { scope: row.id, runner: ComputerServer.#runner(id) },
+                    key: { scope: row.spaceId, runner: ComputerServer.#runner(id) },
                 }),
             }),
             buildShape.per(assignment, {
                 where: { machineId: id },
-                key: async (row) => ({
-                    key: { scope: row.placementId, runner: ComputerServer.#runner(id) },
-                }),
+                key: async (row, view) => {
+                    // follow the space of the placement the work is in
+                    const placed = await view
+                        .read(placement.table)
+                        .findFirst({ where: { id: row.placementId } });
+
+                    return placed === undefined
+                        ? undefined
+                        : { key: { scope: placed.spaceId, runner: ComputerServer.#runner(id) } };
+                },
             }),
         ];
 
@@ -259,7 +266,7 @@ export class ComputerServer {
         const [row] = await objects.database
             .select()
             .from(computer.table)
-            .where(eq(computer.table.id, computerOf.machine));
+            .where(eq(computer.table.machineId, computerOf.machine));
         const now = objects.clock.now();
         const context = objects.as(computer, now);
 
@@ -267,7 +274,8 @@ export class ComputerServer {
         const call =
             row === undefined
                 ? computer.call("create", {
-                      ...computer.target({ scope: computerOf.device, id: computerOf.machine }),
+                      ...computer.in(computerOf.device),
+                      machineId: computerOf.machine,
                       ...recorded,
                   })
                 : computer.call("start", { ...computer.target(row), ...recorded });

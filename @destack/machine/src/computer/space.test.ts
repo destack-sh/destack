@@ -593,7 +593,7 @@ test(
             const [row] = await universe
                 .select({ updatedAt: accountObject.endpoint.table.updatedAt })
                 .from(accountObject.endpoint.table)
-                .where(eq(accountObject.endpoint.table.id, source.computer.machine.id));
+                .where(eq(accountObject.endpoint.table.parentId, source.computer.machine.id));
 
             return row?.updatedAt;
         };
@@ -615,7 +615,7 @@ test(
                     await universe
                         .select({ machine: placement.table.machineId })
                         .from(placement.table)
-                        .where(eq(placement.table.id, source.space))
+                        .where(eq(placement.table.spaceId, source.space))
                 )[0]?.machine === target,
         );
         await serving(caller, called.id, 1, source.space);
@@ -685,7 +685,7 @@ test(
                 stackObject.build.table,
                 eq(stackObject.build.table.id, stackObject.installationRevision.table.buildId),
             )
-            .where(eq(stackObject.rollout.table.id, boardId));
+            .where(eq(stackObject.rollout.table.installationId, boardId));
         const instance = present(running, "the board's instance").instanceId;
         const manifest = present(built?.manifest, "the board's build manifest");
 
@@ -738,7 +738,7 @@ test(
             await world.universe.storage.database
                 .select({ target: placement.table.targetId })
                 .from(placement.table)
-                .where(eq(placement.table.id, space)),
+                .where(eq(placement.table.spaceId, space)),
         ]).toEqual([computer.machine.id, [{ target: peer.machine.id }]]);
 
         // grant the peer tokens in the universe, the moving space and the other space it does not receive
@@ -891,7 +891,7 @@ test(
             const [published] = await universe
                 .select({ url: accountObject.endpoint.table.url })
                 .from(accountObject.endpoint.table)
-                .where(eq(accountObject.endpoint.table.id, machine.id));
+                .where(eq(accountObject.endpoint.table.parentId, machine.id));
 
             return published?.url === `https://renamed--${world.owner.handle}.${DOMAINS.machine}`;
         });

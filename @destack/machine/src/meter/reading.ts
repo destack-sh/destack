@@ -2,8 +2,8 @@ import { type CursorPage, Provisioned } from "@destack/object";
 import { and, type DatabaseConnection, eq, gt, isNotNull, isNull, lt, or } from "@destack/db";
 import type { Meter } from "@destack/telemetry/meter";
 import { Duration, type Identifier, present, schema } from "@destack/schema";
-import { bucket, database, deployment, instance, reading } from "@destack/stack/object";
-import { Event, EventTime } from "@destack/event";
+import { bucket, database, deployment, instance, reading, usage } from "@destack/stack/object";
+import { EventTime } from "@destack/event";
 import type { Crypto } from "@destack/environment";
 import { RequestId } from "@destack/sync";
 import { databaseBytes, memory, storageBytes } from "@destack/telemetry/meter";
@@ -200,7 +200,7 @@ export const Reading = {
                     accountId: payerId,
                     read,
                     item: {
-                        id: await Event.identity(spaceId, contents, crypto),
+                        id: await usage.derive(spaceId, JSON.stringify(contents), crypto),
                         time: EventTime.of(from),
                         meter,
                         sku,

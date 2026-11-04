@@ -308,7 +308,7 @@ export class Space {
                     server,
                     declarations,
                     send: async (request) =>
-                        (await this.#current().gateway.promise).hook(row.id, request),
+                        (await this.#current().gateway.promise).hook(row.installationId, request),
                 }),
         };
 
@@ -519,7 +519,7 @@ export class Space {
             readonly revisionId: Identifier<"installation-revision">;
         }[],
     ): ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">> {
-        return new Map(installed.map((entry) => [entry.rollout.id, entry.revisionId]));
+        return new Map(installed.map((entry) => [entry.rollout.installationId, entry.revisionId]));
     }
 
     /** Key served revisions as one sorted string. */

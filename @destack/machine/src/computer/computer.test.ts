@@ -77,7 +77,7 @@ test(
         const published = async () =>
             await Snapshot.live(universe)
                 .read(endpoint.table)
-                .findFirst({ where: { id: relayed.machine.id } });
+                .findFirst({ where: { parentId: relayed.machine.id } });
         await relayed.waitUntil(
             universe,
             async () => (await published())?.relay?.url !== undefined,
@@ -112,7 +112,7 @@ test(
         await relayed.waitUntil(universe, async () => {
             const published = await Snapshot.live(universe)
                 .read(endpoint.table)
-                .findFirst({ where: { id: relayed.machine.id } });
+                .findFirst({ where: { parentId: relayed.machine.id } });
 
             return published?.relay?.url !== undefined;
         });

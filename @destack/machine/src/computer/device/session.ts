@@ -109,7 +109,7 @@ export class Session {
         return {
             url: `${origin}${PACKAGE_PATH}`,
             fetch: (request) =>
-                this.login.send(request, packageId, { partition: place.placement.id }),
+                this.login.send(request, packageId, { partition: place.placement.space }),
         };
     }
 
@@ -136,7 +136,7 @@ export class Session {
         const home = await this.home();
         const place = await this.device.locate(home);
         const { stack, objects } = this.#clients(place);
-        const views = await Declaration.read(stack, objects, place.placement.id, [View.kind]);
+        const views = await Declaration.read(stack, objects, place.placement.space, [View.kind]);
 
         // take the view of the category, the first by installation and name
         const [found] = views
@@ -188,7 +188,7 @@ export class Session {
         let reached: ClientOptions;
         if ("space" in location) {
             const located = await this.device.locate(location.space);
-            scopeId = located.placement.id;
+            scopeId = located.placement.space;
             reached = atMachine(async () => located);
         }
         // call another scope at its endpoint, such as the person's issuer
@@ -254,13 +254,13 @@ export class Session {
 
         // record the person's visit of an opened object
         if ("object" in address) {
-            const { id } = place.placement;
-            await Visit.record(this.device.visits, this.login.subject, id, address.object);
+            const { space } = place.placement;
+            await Visit.record(this.device.visits, this.login.subject, space, address.object);
         }
 
         // exchange the person's token for the installation's package acting under the grant in the space
         const token = await this.login.token(PackageId.parse(found.packageId), {
-            partition: place.placement.id,
+            partition: place.placement.space,
             grants: [grant.id],
         });
         const origin = Session.#origin(view.space, view.installation, place.url);
@@ -290,17 +290,17 @@ export class Session {
             );
         }
         // prove the person's client to this computer's machine below the space's mount
-        else if (at.placement.machine === (await this.device.loopback.computer()).id) {
-            const path = `${SpaceMount.path(at.placement.id)}${PackageMount.path(packageId)}`;
+        else if (at.placement.machine === (await this.device.loopback.computer()).machineId) {
+            const path = `${SpaceMount.path(at.placement.space)}${PackageMount.path(packageId)}`;
 
             return this.#sendOwn(request, path, at.url);
         }
         // send the universe's token bound to the space to another machine
         else {
-            const target = new URL(`${SpaceMount.path(at.placement.id)}${below}`, at.url);
+            const target = new URL(`${SpaceMount.path(at.placement.space)}${below}`, at.url);
 
             return this.login.send(new Request(target.href, request), packageId, {
-                partition: at.placement.id,
+                partition: at.placement.space,
             });
         }
     }
@@ -339,7 +339,7 @@ export class Session {
     async #request(address: Address) {
         // call the stack of the space at the address as the person
         const place = await this.device.locate(address.space);
-        const spaceId = place.placement.id;
+        const spaceId = place.placement.space;
         const { stack, objects } = this.#clients(place);
 
         // choose the view presenting an object among the views the space's installations apply
@@ -417,7 +417,7 @@ export class Session {
         person: Subject,
     ): boolean {
         // decide for an installation in the person's home or one they installed
-        const spaceId = requested.place.placement.id;
+        const spaceId = requested.place.placement.space;
         const installer = ObjectReference.at("createdBy", requested.installation);
         const isOwn = spaceId === requested.home || Subject.same(installer, person);
 

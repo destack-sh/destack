@@ -170,7 +170,7 @@ export async function deployNotes(
         await transaction
             .update(rollout.table)
             .set({ revisionId, appliedRevisionId: revisionId })
-            .where(eq(rollout.table.id, ids.notes));
+            .where(eq(rollout.table.installationId, ids.notes));
     });
 
     // deploy each release and run one instance of it on the fixture's machine

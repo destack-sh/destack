@@ -46,10 +46,12 @@ export type MachineEnrollment = schema.Infer<typeof machineEnrollment>;
 export const computer = defineObject(
     {
         name: "computer",
-        identity: "machine",
         plural: "computers",
         scope: device,
+        key: "machineId",
         fields: {
+            /** The machine the computer runs. */
+            machine: field.reference(principal.machine).immutable(),
             /** The enrollment, absent before the machine enrolled. */
             enrollment: field.json(MachineEnrollment).optional(),
 

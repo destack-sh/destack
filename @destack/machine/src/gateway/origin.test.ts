@@ -895,6 +895,12 @@ test(
             `/spaces/${home.spaceId}/rollouts/${installation.id}`,
         );
         const undeclared = await call(observabilityPackage.id, "/issues");
+        const { database } = await home.computer.machine.space(home.spaceId);
+        const [rolled] = await database
+            .select({ id: stackObject.rollout.table.id })
+            .from(stackObject.rollout.table)
+            .where(eq(stackObject.rollout.table.installationId, installation.id));
+        const { id: rolloutId } = present(rolled, "the tasks rollout");
 
         // refuse a call from another site, and an anonymous visitor without the page's cookie the unshared space
         const listener = home.computer.computer;
@@ -935,10 +941,10 @@ test(
                     status: 403,
                     reason: "GRANT_INSUFFICIENT",
                     domain: "@destack/object",
-                    message: `grant ${page.grant.id} does not give read on rollout ${installation.id}`,
+                    message: `grant ${page.grant.id} does not give read on rollout ${rolloutId}`,
                     data: {
                         permission: stackObject.rollout.permission("read"),
-                        object: stackObject.rollout.reference(home.spaceId, installation.id),
+                        object: stackObject.rollout.reference(home.spaceId, rolloutId),
                         grant: page.grant.id,
                     },
                 },
@@ -1136,7 +1142,7 @@ test(
             where: { status: "enabled" },
         });
         const enabled = new Set(installations.items.map((row) => row.id));
-        expect(rollouts.items.filter((row) => !enabled.has(row.id))).toEqual([]);
+        expect(rollouts.items.filter((row) => !enabled.has(row.installationId))).toEqual([]);
     },
     SCENARIO_MILLISECONDS,
 );
@@ -1588,7 +1594,7 @@ async function declareRoutes(
     const [rollout] = await database
         .select({ revisionId: stackObject.rollout.table.revisionId })
         .from(stackObject.rollout.table)
-        .where(eq(stackObject.rollout.table.id, stack.id));
+        .where(eq(stackObject.rollout.table.installationId, stack.id));
     const revisionId = present(rollout?.revisionId, "the stack's revision");
     const [revision] = await database
         .select()
