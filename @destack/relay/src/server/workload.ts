@@ -27,8 +27,6 @@ import { RequestId, Scope } from "@destack/sync";
 import { issuer, origin, residency } from "../declare/setting.ts";
 import { RelayError } from "../error/index.ts";
 import relayPackage from "../package.ts";
-import { LapseController } from "./lapse-controller.ts";
-import { NameController } from "./name-controller.ts";
 import { Relay } from "./relay.ts";
 import { TunnelToken } from "./token.ts";
 import {
@@ -127,17 +125,20 @@ async function serveRoot(
         },
     });
 
-    // reconcile the tunnels' names
+    // project the tunnels' names from the replica
     const handler = store.package(relayPackage);
     const served: PackageHandler = {
         ...handler,
-        controllers: [...(handler.controllers ?? []), new NameController(relay)],
+        control: {
+            controllers: handler.control?.controllers ?? [],
+            consumers: [...(handler.control?.consumers ?? []), relay.projection(store.database)],
+        },
     };
 
     return { packages: [served] };
 }
 
-/** Serve a machine's partition: its tunnel over the hibernated sockets, and their lapses. */
+/** Serve a machine's partition: its tunnel over the hibernated sockets. */
 async function servePartition(
     context: WorkloadContext,
     server: InstalledServerContext,
@@ -176,7 +177,6 @@ async function servePartition(
 
             return TunnelStanding.parse(await response.json());
         },
-        changed: () => lapses.changed(),
         publish: async (account, lapsesAt) => {
             // publish the tunnel at the universe as the relay installation, at the relay's origin
             const relayed = machine.call("relay", {
@@ -191,16 +191,12 @@ async function servePartition(
         },
         environment: context.environment,
     });
-    const lapses = new LapseController(running);
 
-    // serve the tunnel's sockets, closing them as they lapse on the host's alarm
-    const handler = store.package(relayPackage);
-    const served: PackageHandler = {
-        ...handler,
-        controllers: [...(handler.controllers ?? []), lapses],
-    };
+    // close the sockets that lapsed or stopped standing while the partition slept, as it opens
+    running.sweep().catch((error: unknown) => context.report(error));
 
-    return { packages: [served], sockets: running };
+    // serve the tunnel's sockets, which close as they lapse on the next wake or use
+    return { packages: [store.package(relayPackage)], sockets: running };
 }
 
 /** Open a store following some of the universe's rows into the instance's memory. */

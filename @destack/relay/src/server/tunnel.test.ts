@@ -74,12 +74,11 @@ function openTunnel() {
         close: () => machines.get(id)?.terminate(),
     });
 
-    // stand the machine with its key, counting the lapses' requeues
+    // stand the machine with its key
     const standing: Standing = {
         standing: async () => ({ name: NAME, account: ACCOUNT }),
         keys: new Set([KID]),
     };
-    let changes = 0;
     const published: [string, number][] = [];
     const options = {
         hibernation: {
@@ -101,9 +100,6 @@ function openTunnel() {
         tokens: testTokens(standing),
         identities: async () => {},
         standing: () => standing.standing(),
-        changed: () => {
-            changes += 1;
-        },
         publish: async (account: string, lapsesAt: number) => {
             published.push([account, lapsesAt]);
         },
@@ -169,7 +165,6 @@ function openTunnel() {
         attachments,
         simulation,
         standing,
-        changes: () => changes,
         published,
         telemetry: new TestTelemetry(simulation.telemetry),
     };
@@ -254,7 +249,6 @@ test("run an accepted socket only once its host delivers its first event, and fo
         connect,
         attachments,
         simulation,
-        changes,
         telemetry: recorded,
     } = openTunnel();
     using telemetry = recorded;
@@ -273,11 +267,10 @@ test("run an accepted socket only once its host delivers its first event, and fo
     };
     await running.close(strayed);
 
-    // forward through the connected socket alone, opening and requeueing it once
-    expect([before, after, changes(), telemetry.records()]).toEqual([
+    // forward through the connected socket alone, opening it once
+    expect([before, after, telemetry.records()]).toEqual([
         ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", `machine ${machineId} is disconnected`],
         "host /b",
-        1,
         [event("tunnel.open")],
     ]);
 });
@@ -303,15 +296,14 @@ test("renew a socket's token through a stream the machine opens, answering its n
     const foreign = await ask(machine, "/tunnel", `${otherId}.5000`);
     const afterRefusal = attachments.get(opened.id);
 
-    // keep the renewed lapse 5 s out, then the refused one as lapsed already, and close the socket
-    const wait = await running.closeLapsed();
+    // keep the renewed lapse 5 s out, then the refused one as lapsed already, the socket closed and forwarding nothing
     expect([
         renewed,
         other,
         foreign,
         afterRenewal,
         afterRefusal,
-        wait,
+        await forward(running, "/a"),
         telemetry.records(),
         published,
     ]).toEqual([
@@ -320,7 +312,7 @@ test("renew a socket's token through a stream the machine opens, answering its n
         [403, refused("FORBIDDEN", "TUNNEL_FOREIGN", "machines can only renew their own tunnels")],
         { machineId, lapsesAt: TEST_START + 5000, kid: KID },
         { machineId, lapsesAt: TEST_START, kid: KID },
-        undefined,
+        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", `machine ${machineId} is disconnected`],
         [event("tunnel.open"), event("tunnel.close", "lapsed")],
         // publish the tunnel once it opened and once it renewed, never at a refused renewal
         [
@@ -330,7 +322,7 @@ test("renew a socket's token through a stream the machine opens, answering its n
     ]);
 });
 
-test("refuse a renewal of a machine revoked, left keyless or missing from the directory meanwhile, lapsing its socket at once", async () => {
+test("refuse a renewal of a machine revoked, left keyless or missing from the directory meanwhile, lapsing and closing its socket at once", async () => {
     const {
         tunnel: running,
         connect,
@@ -341,46 +333,52 @@ test("refuse a renewal of a machine revoked, left keyless or missing from the di
         telemetry: recorded,
     } = openTunnel();
     using telemetry = recorded;
-    const opened = await connect("host", simulation.clock.now() + 60_000);
-    const machine = schema.instanceof(Session).parse(machines.get(opened.id));
 
-    // renew after the machine's revoke, then after its keys' revoke
-    standing.standing = async () => ({ reason: "machine-revoked" });
-    const revoked = await ask(machine, "/tunnel", `${machineId}.5000`);
-    const afterRevoke = attachments.get(opened.id);
-    standing.standing = async () => ({ reason: "key-revoked" });
-    const keyless = await ask(machine, "/tunnel", `${machineId}.5000`);
-    const afterKeys = attachments.get(opened.id);
-    standing.standing = async () => ({ reason: "machine-unknown" });
-    const unknown = await ask(machine, "/tunnel", `${machineId}.5000`);
-    const afterUnknown = attachments.get(opened.id);
+    // renew each over a socket of its own once the machine no longer stands for a reason
+    const renew = async (reason: "machine-revoked" | "key-revoked" | "machine-unknown") => {
+        standing.standing = async () => ({ name: NAME, account: ACCOUNT });
+        const opened = await connect("host", simulation.clock.now() + 60_000);
+        const machine = schema.instanceof(Session).parse(machines.get(opened.id));
+        standing.standing = async () => ({ reason });
+        const answered = await ask(machine, "/tunnel", `${machineId}.5000`);
 
-    // refuse each for its reason, the socket lapsed at once and closed
-    expect([
-        revoked,
-        keyless,
-        unknown,
-        afterRevoke,
-        afterKeys,
-        afterUnknown,
-        await running.closeLapsed(),
-        telemetry.records(),
-    ]).toEqual([
-        [401, refused("UNAUTHORIZED", "MACHINE_REVOKED", `machine ${machineId} is revoked`)],
-        [401, refused("UNAUTHORIZED", "MACHINE_UNKEYED", `machine ${machineId} has no key`)],
+        return [answered, attachments.get(opened.id)];
+    };
+    const revoked = await renew("machine-revoked");
+    const keyless = await renew("key-revoked");
+    const unknown = await renew("machine-unknown");
+
+    // refuse each for its reason, each socket lapsed and closed at once, forwarding nothing
+    const lapsed = { machineId, lapsesAt: TEST_START, kid: KID };
+    expect([revoked, keyless, unknown, await forward(running, "/a"), telemetry.records()]).toEqual([
         [
-            401,
-            refused(
-                "UNAUTHORIZED",
-                "MACHINE_UNKNOWN",
-                `machine ${machineId} is not in the directory`,
-            ),
+            [401, refused("UNAUTHORIZED", "MACHINE_REVOKED", `machine ${machineId} is revoked`)],
+            lapsed,
         ],
-        { machineId, lapsesAt: TEST_START, kid: KID },
-        { machineId, lapsesAt: TEST_START, kid: KID },
-        { machineId, lapsesAt: TEST_START, kid: KID },
-        undefined,
-        [event("tunnel.open"), event("tunnel.close", "lapsed")],
+        [
+            [401, refused("UNAUTHORIZED", "MACHINE_UNKEYED", `machine ${machineId} has no key`)],
+            lapsed,
+        ],
+        [
+            [
+                401,
+                refused(
+                    "UNAUTHORIZED",
+                    "MACHINE_UNKNOWN",
+                    `machine ${machineId} is not in the directory`,
+                ),
+            ],
+            lapsed,
+        ],
+        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", `machine ${machineId} is disconnected`],
+        [
+            event("tunnel.open"),
+            event("tunnel.close", "lapsed"),
+            event("tunnel.open"),
+            event("tunnel.close", "lapsed"),
+            event("tunnel.open"),
+            event("tunnel.close", "lapsed"),
+        ],
     ]);
 });
 
@@ -397,30 +395,34 @@ test("refuse a rename the machine refuses to renew for", async () => {
     ]);
 });
 
-test("forward through the newest socket whose token has not lapsed, before the lapses run", async () => {
+test("keep a lapsed socket open until the next use, which closes it and forwards through the newest socket left", async () => {
     const { tunnel: running, connect, simulation, telemetry: recorded } = openTunnel();
-    using _telemetry = recorded;
+    using telemetry = recorded;
 
     // open an older socket lasting a minute and a newer lasting a second, then pass the second
     await connect("older", TEST_START + 60_000);
     await connect("newer", TEST_START + 1000);
     await simulation.run(TEST_START + 1000);
+    const lapsed = telemetry.records();
 
-    expect(await forward(running, "/a")).toBe("older /a");
+    // keep the lapsed socket until the forward, which closes it first and goes through the older
+    expect([lapsed, await forward(running, "/a"), telemetry.records()]).toEqual([
+        [event("tunnel.open"), event("tunnel.open")],
+        "older /a",
+        [event("tunnel.open"), event("tunnel.open"), event("tunnel.close", "lapsed")],
+    ]);
 });
 
-test("answer the wait until a socket's lapse, and close the socket once it lapsed", async () => {
-    const { tunnel: running, connect, simulation, telemetry: recorded } = openTunnel();
+test("close a socket that lapsed while the partition slept on the next wake, forwarding nothing through it", async () => {
+    const { connect, wake, simulation, telemetry: recorded } = openTunnel();
     using telemetry = recorded;
     await connect("host", TEST_START + 1000);
 
-    // read the next lapse, then close the socket past it
-    const wait = await running.closeLapsed();
+    // pass the lapse, then wake a new instance and forward through it
     await simulation.run(TEST_START + 1000);
-    const lapsed = await running.closeLapsed();
-    expect([wait, lapsed, telemetry.records()]).toEqual([
-        1000,
-        undefined,
+    const woken = wake();
+    expect([await forward(woken, "/a"), telemetry.records()]).toEqual([
+        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", `machine ${machineId} is disconnected`],
         [event("tunnel.open"), event("tunnel.close", "lapsed")],
     ]);
 });
@@ -435,15 +437,15 @@ test("verify woken sockets once their standing reads, again after a failed read,
     standing.standing = async () => {
         throw new TypeError("the root is starting");
     };
-    const failed = await woken.closeLapsed().catch((error: unknown) => error);
+    const failed = await woken
+        .fetch(new Request("https://notes--personal--acme.destack.space/a"))
+        .catch((error: unknown) => error);
     standing.standing = async () => ({ name: NAME, account: ACCOUNT });
     standing.keys.clear();
-    const verified = await woken.closeLapsed();
 
     // retry the read without poisoning the instance, then close the socket of the revoked key
-    expect([failed, verified, await forward(woken, "/a"), telemetry.records()]).toEqual([
+    expect([failed, await forward(woken, "/b"), telemetry.records()]).toEqual([
         new TypeError("the root is starting"),
-        undefined,
         ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", `machine ${machineId} is disconnected`],
         [event("tunnel.open"), event("tunnel.close", "key-revoked")],
     ]);

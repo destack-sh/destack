@@ -131,8 +131,6 @@ export interface TunnelOptions {
     readonly identities: () => Promise<void>;
     /** Read from the relay's root whether the machine stands, and its name. */
     readonly standing: () => Promise<TunnelStanding>;
-    /** Tell the lapses' controller a socket opened or its lapse moved. */
-    readonly changed: () => void;
     /** Publish the machine's tunnel here at the universe, lapsing with its token. */
     readonly publish: (account: Identifier<"account">, lapsesAt: number) => Promise<void>;
     /** The clock, randomness and telemetry the tunnel's lapses, socket ids and records run on. */
@@ -201,9 +199,9 @@ export class Tunnel implements SocketHandler {
         });
     }
 
-    /** Take a hibernated socket's message into its session. */
+    /** Take a hibernated socket's message into its session, once the lapsed sockets closed. */
     async message(socket: Socket, message: Uint8Array<ArrayBuffer>): Promise<void> {
-        await this.#list();
+        await this.sweep();
         this.#running(socket)?.session.receive(message);
     }
 
@@ -225,32 +223,11 @@ export class Tunnel implements SocketHandler {
         this.#closeAll(reason);
     }
 
-    /** Close the sockets that no longer stand or lapsed, answering the wait for the next lapse. */
-    async closeLapsed(): Promise<number | undefined> {
-        // close the woken sockets of a machine or key that no longer stands
-        await this.#list();
-        await this.#verifyWoken();
-
-        // close each lapsed socket, telling the machine
-        const now = this.#options.environment.clock.now();
-        for (const lapsed of this.#sockets.filter((each) => each.attachment.lapsesAt <= now)) {
-            this.#remove(lapsed.id)?.session.close();
-            this.#closed("lapsed");
-        }
-
-        // wait for the next lapse
-        const lapses = this.#sockets.map((each) => each.attachment.lapsesAt);
-
-        return lapses.length === 0 ? undefined : Math.min(...lapses) - now;
-    }
-
-    /** Forward a request through the newest verified socket whose token has not lapsed. */
+    /** Forward a request through the newest socket that stands and has not lapsed. */
     async fetch(request: Request): Promise<Response> {
-        // verify the sockets woken since the partition slept, then require one with room for another request
-        await this.#list();
-        await this.#verifyWoken();
-        const now = this.#options.environment.clock.now();
-        const newest = this.#sockets.findLast((each) => each.attachment.lapsesAt > now);
+        // close the sockets that no longer stand or lapsed, then require one with room for another request
+        await this.sweep();
+        const newest = this.#sockets.at(-1);
         if (newest === undefined) {
             throw RelayError.of(
                 "MACHINE_DISCONNECTED",
@@ -269,7 +246,7 @@ export class Tunnel implements SocketHandler {
     /** Take the machine's name from the root, asking the machine to renew once it changed. */
     async rename(name: string): Promise<void> {
         // leave a name the tunnel has, and a machine without a socket
-        await this.#list();
+        await this.sweep();
         const isRenamed = this.#name !== name;
         this.#name = name;
         if (!isRenamed || this.#sockets.length === 0) {
@@ -295,11 +272,10 @@ export class Tunnel implements SocketHandler {
             return running;
         }
 
-        // run the socket the host connected, telling the lapses' controller and publishing the tunnel
+        // run the socket the host connected, publishing the tunnel
         this.#accepted.delete(socket.id);
         const added = this.#attach(socket, accepted, true);
         this.#instruments.log.info("tunnel.open", { machine: this.machineId });
-        this.#options.changed();
         this.#publish(accepted.lapsesAt);
 
         return added;
@@ -332,6 +308,22 @@ export class Tunnel implements SocketHandler {
         });
 
         return this.#listing;
+    }
+
+    /** Close the sockets of a machine or key that no longer stands, then the lapsed ones. */
+    async sweep(): Promise<void> {
+        await this.#list();
+        await this.#verifyWoken();
+        this.#closeLapsed();
+    }
+
+    /** Close each socket whose token lapsed, telling the machine. */
+    #closeLapsed(): void {
+        const now = this.#options.environment.clock.now();
+        for (const lapsed of this.#sockets.filter((each) => each.attachment.lapsesAt <= now)) {
+            this.#remove(lapsed.id)?.session.close();
+            this.#closed("lapsed");
+        }
     }
 
     /** Run an unverified session over each socket hibernated before this instance started. */
@@ -398,10 +390,9 @@ export class Tunnel implements SocketHandler {
 
     /** Store a socket's new lapse and key with it at the host. */
     #relapse(socket: TunnelSocket, attachment: TunnelAttachment): void {
-        // move the lapse here and at the host, telling the lapses' controller
+        // move the lapse here and at the host
         socket.attachment = attachment;
         this.#options.hibernation.attach(socket.id, attachment);
-        this.#options.changed();
     }
 
     /** Send a request over a session. */
@@ -467,7 +458,7 @@ export class Tunnel implements SocketHandler {
             response = refusal(error, this.#options.environment.telemetry);
         }
 
-        // answer the renewal, then lapse a socket whose token or standing the relay refused
+        // answer the renewal, then lapse and close a socket whose token or standing the relay refused
         try {
             await stream.respond(response);
         } finally {
@@ -476,6 +467,7 @@ export class Tunnel implements SocketHandler {
                     ...renewing.attachment,
                     lapsesAt: this.#options.environment.clock.now(),
                 });
+                this.#closeLapsed();
             }
         }
     }
