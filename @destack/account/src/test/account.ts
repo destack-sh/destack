@@ -44,7 +44,6 @@ import {
     Installation,
     PackageMount,
 } from "@destack/object";
-import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
 import {
@@ -1209,16 +1208,11 @@ export class TestAccountStore implements AsyncDisposable {
                     signIn: signIn.promise,
                     releases: { open: opening },
                 }).at(await base(accountPackage)),
-                settingServer({
-                    declared: Setting.declared((value) =>
-                        opening(
-                            value.packageId,
-                            present(value.release, `the release of ${value.name}`),
-                        ),
-                    ),
-                    after: [],
-                }).at(await base(settingPackage)),
+                settingServer({ after: [] }).at(await base(settingPackage)),
             ],
+            // open the version a value names, as the universe installs no release
+            release: async (_view, _scope, packageId, version) =>
+                version === undefined ? undefined : await opening(packageId, version),
             chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
             principal: Scope.universe,
             partitions: [Scope.universe.id],

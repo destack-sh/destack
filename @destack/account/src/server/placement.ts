@@ -155,7 +155,10 @@ async function decide(
 }
 
 /** Decide a placement again as its inputs changed, recording a changed decision. */
-async function project(reconciliation: ObjectReconciliation<typeof placement>): Promise<void> {
+async function project(
+    _id: string,
+    reconciliation: ObjectReconciliation<typeof placement>,
+): Promise<void> {
     // find the placements whose decision changed, as the latest commits read
     const reader = Snapshot.live(reconciliation.database);
     const crypto = reconciliation.store.environment.crypto;
