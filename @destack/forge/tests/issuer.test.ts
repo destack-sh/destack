@@ -1,8 +1,8 @@
 import { accessRelationship, principal } from "@destack/access";
-import type { ResidencyCode } from "@destack/account/object";
+import { Residency, type ResidencyCode } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { Issuer } from "@destack/connection/object";
-import { eq } from "@destack/db";
+import { eq, Snapshot } from "@destack/db";
 import { Identifier } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
@@ -29,6 +29,7 @@ test("declare the residency home's GitHub issuer at the id its home and declarat
         .from(accessRelationship)
         .where(eq(accessRelationship.objectType, issuer.name));
     const declared = await Issuer.declared({ id: forge.space }, "github", forge.environment.crypto);
+    const eu = await Residency.require(Snapshot.live(forge.home.universe.storage.database), "eu");
     expect({ issuers, related }).toEqual({
         issuers: [{ id: declared }],
         related: [
@@ -36,7 +37,7 @@ test("declare the residency home's GitHub issuer at the id its home and declarat
                 objectId: declared,
                 relation: "residency",
                 subjectType: "residency",
-                subjectId: "eu",
+                subjectId: eu.id,
             },
         ],
     });

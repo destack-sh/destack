@@ -18,13 +18,13 @@ export function implementIssuer(app: GitHubApp | undefined): typeof issuer {
                     const homed = await context
                         .read(residency)
                         .findFirst({ where: { space: space.identifier(context.scope) } });
-                    const code = present(homed, `the residency of ${context.scope}`).id;
+                    const residencyId = present(homed, `the residency of ${context.scope}`).id;
 
                     return {
                         relationships: [
                             {
                                 relation: "residency",
-                                subject: residency.reference(Scope.universe.id, code),
+                                subject: residency.reference(Scope.universe.id, residencyId),
                             },
                         ],
                     };

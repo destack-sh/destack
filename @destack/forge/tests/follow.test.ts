@@ -121,7 +121,7 @@ async function moveTag(
 /** Read the release version of an installation's targeted build, absent for another build. */
 async function targetedVersion(database: DatabaseConnection, id: Identifier<"installation">) {
     const snapshot = Snapshot.live(database);
-    const [rolled] = await snapshot.read(rollout.table).findMany({ where: { id } });
+    const [rolled] = await snapshot.read(rollout.table).findMany({ where: { installationId: id } });
     const revision = await snapshot
         .read(installationRevision.table)
         .findFirst({ where: { id: present(rolled?.revisionId, "the targeted revision") } });
@@ -172,7 +172,7 @@ async function serveCommits() {
     const installer = served.as(fixture.owner.subject).client(objectPackage);
     const options = await fixture.options(followed);
     const store = new SpaceStore(options).store;
-    const follow = (id: string) => reconcile(store, "rollout", { id });
+    const follow = (id: string) => reconcile(store, "rollout", { installationId: id });
 
     // install a package following the main branch of a repository in the space's account
     const repositoryId = await claimRepository(environment, universe, ids.account);
@@ -258,7 +258,7 @@ test("build the commit a followed reference resolves to once for the installatio
             installationRevision.table,
             eq(installationRevision.table.id, rollout.table.revisionId),
         )
-        .where(eq(rollout.table.id, installed.id));
+        .where(eq(rollout.table.installationId, installed.id));
     const [only] = await commitBuilds(database);
 
     expect({
