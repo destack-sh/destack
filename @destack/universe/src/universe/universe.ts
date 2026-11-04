@@ -33,9 +33,8 @@ import objectServer, { implementPackage, ObjectStore } from "@destack/object/ser
 import { Package, type PackageId } from "@destack/package";
 import { AccessContext, Authorization, Caller, type Policy } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
-import { Digest, present, schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
-import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
 import objectPackage from "@destack/object/package";
@@ -184,15 +183,7 @@ export class Universe implements AsyncDisposable {
                 signIn: signIn.promise,
                 releases,
             }),
-            settingServer({
-                declared: Setting.declared((value) =>
-                    releases.open(
-                        value.packageId,
-                        present(value.release, `the release of ${value.name}`),
-                    ),
-                ),
-                after: [],
-            }),
+            settingServer({ after: [] }),
             implementPackage(universePackage, {
                 objects: applied.objects,
                 consumers: applied.consumers,
@@ -200,6 +191,9 @@ export class Universe implements AsyncDisposable {
         ];
         const { crypto } = options.environment;
         const store: ObjectStore = new ObjectStore({
+            // open the version a value names, as the universe installs no release
+            release: async (_view, _scope, packageId, version) =>
+                version === undefined ? undefined : await releases.open(packageId, version),
             servers: await Promise.all(
                 implementations.map((server) => server.base(Scope.universe, crypto)),
             ),
