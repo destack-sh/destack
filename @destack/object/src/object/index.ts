@@ -39,6 +39,7 @@ export {
 export {
     type KeyFields,
     ObjectController,
+    type ObjectProjection,
     type ObjectReconciliation,
     ObjectWatch,
 } from "./controller.ts";

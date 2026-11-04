@@ -86,7 +86,7 @@ export type ObjectController<Object extends ObjectType = ObjectType> = {
 export interface ObjectProjection<Object extends ObjectType = ObjectType> {
     /** The projection's name within its type, absent for the type's own projection. */
     readonly name?: string;
-    /** The input tables beside the type's own, and the objects their changed rows touch. */
+    /** The input tables, the type's own among them, and the objects their changed rows touch. */
     readonly watches: readonly ObjectWatch[];
     /** Project one object again from its inputs as they are now. */
     project(reconciliation: ObjectReconciliation<Object>): Promise<void>;
@@ -243,25 +243,31 @@ export const ObjectController = {
 
     /** Build a type's projection as a consumer of its inputs' changes past one checkpoint. */
     project(store: ObjectStore, object: ObjectType, declared: ObjectProjection): Consumer {
-        // read the touched objects' identifiers: the type's own changed row, else the watches'
-        const watches = new Map(declared.watches.map((watch) => [watch.table, watch]));
+        // read the touched objects' identifiers: the watches' of the changed table, else the type's own changed row
+        const watches = Map.groupBy(declared.watches, (watch) => watch.table);
         const keys = async (change: Change, database: DatabaseConnection) => {
-            const watch = watches.get(change.table);
+            const watching = watches.get(change.table);
             const touched =
-                change.table === object.table
-                    ? [{ id: schema.string().parse(change.key["id"]) }]
-                    : watch === undefined
-                      ? []
-                      : await watch.keys(Change.image(change), database, change);
+                watching !== undefined
+                    ? (
+                          await Promise.all(
+                              watching.map(async (watch) =>
+                                  watch.keys(Change.image(change), database, change),
+                              ),
+                          )
+                      ).flat()
+                    : change.table === object.table
+                      ? [{ id: schema.string().parse(change.key["id"]) }]
+                      : [];
 
-            return touched.map((fields) => schema.string().parse(fields["id"]));
+            return [...new Set(touched.map((fields) => schema.string().parse(fields["id"])))];
         };
         const name = declared.name === undefined ? object.name : `${object.name}:${declared.name}`;
         const idColumn = object.table[TABLE].column("id");
 
         return new Projection(store.database, {
             name: `project:${name}`,
-            reads: [object.table, ...watches.keys()],
+            reads: [...new Set([object.table, ...watches.keys()])],
             keys,
             all: async (database) =>
                 (await database.select({ id: idColumn }).from(object.table)).map((row) =>
@@ -283,14 +289,15 @@ export const ObjectController = {
         });
     },
 
-    /** Select the rows of scopes the store writes now: no replicas, none fenced by a transfer. */
+    /** Select the rows of scopes the store writes now: no replicas, and fenced ones for a mover. */
     async originated(
         store: ObjectStore,
         object: ObjectType,
         rows: readonly Row[],
     ): Promise<readonly Row[]> {
-        // read each scope's chain once, and decide whether its rows are replicas
+        // read each scope's chain once, and decide whether its rows are replicas, a type moving scopes working in fenced ones
         const snapshot = Snapshot.live(store.database);
+        const isMoving = (object.policy.definition.moving ?? []).length > 0;
         const scopes = [...new Set(rows.map((row) => schema.string().parse(row["scope"])))];
         const chains = await Scope.chains(snapshot, scopes);
         const owned = new Set(
@@ -299,7 +306,8 @@ export const ObjectController = {
                     scopes.map(async (scope) => {
                         // own a scope that is placed here, unfenced, and no replica
                         const [link] = found(chains, scope);
-                        const isFenced = link === undefined || link.movedTo !== undefined;
+                        const isFenced =
+                            link === undefined || (link.movedTo !== undefined && !isMoving);
                         const isReplica = await store.isReplica(object, snapshot, scope);
 
                         return isFenced || isReplica ? [] : [scope];
@@ -366,9 +374,10 @@ export const ObjectController = {
         rows: readonly Row[],
         reconciliation: Reconciliation,
     ): Promise<void> {
-        // build the context, and observe a report on every row lacking it in one mutation
+        // build the context, and observe a report on every row lacking it in one mutation, where the database writes the type's rows
         const context = ObjectController.context(store, object, rows, reconciliation);
         const { mutate } = context;
+        const isObserved = object.isControlled && !store.database.replicates(object.table);
         const observeAll = async (
             observed: readonly (ObservedRecord & Readonly<Record<string, unknown>>)[],
             observation: ObservationReport,
@@ -390,13 +399,13 @@ export const ObjectController = {
             const reread = await ObjectController.reread(
                 store,
                 object,
-                object.isControlled && outcome !== "waiting" ? rows : [],
+                isObserved && outcome !== "waiting" ? rows : [],
             );
             await observeAll(reread, { conditions: { [SYNCED]: SYNCED_CONDITION } });
         } catch (error) {
             // record a declared failure no retry may resolve
             const failure = Failure.of(error);
-            if (object.isControlled && Failure.isDeclared(error) && !Failure.isTransient(failure)) {
+            if (isObserved && Failure.isDeclared(error) && !Failure.isTransient(failure)) {
                 const condition = ObjectController.failedCondition(failure);
                 const observed = rows.map((row) => ({ ...row, ...ObservedFields.parse(row) }));
                 await observeAll(observed, { conditions: { [SYNCED]: condition } });
