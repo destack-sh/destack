@@ -25,9 +25,6 @@ import { recorded, type RunType, type WaitOf, type Workflow } from "../workflow/
 import type {} from "@destack/package/import-meta";
 import { WorkflowError } from "../error/index.ts";
 
-/** The outcome of an advance that ended the run, or found it moved on by another transition. */
-const ENDED: Outcome = { wake: undefined, isEnded: true };
-
 /** The states of a run: due, waiting to wake, paused by its actor, or ended. */
 export const RUN_STATES = [
     "pending",
@@ -50,9 +47,6 @@ export const ENDED_STATES = [
     "failed",
     "cancelled",
 ] as const satisfies readonly RunState[];
-
-/** The outcome of one advance: when the run wakes, absent once ended or waiting on writes. */
-type Outcome = { readonly wake: number | undefined; readonly isEnded: boolean };
 
 /** A run of a workflow: its state, input, attempts and wake times, advanced step by step. */
 export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = ObjectType> {
@@ -252,7 +246,7 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
     async advance(
         code: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
         reconciliation: ObjectReconciliation,
-    ): Promise<number | undefined> {
+    ): Promise<void> {
         // fail a run past its deadline
         const { now, database } = reconciliation;
         const { target } = this;
@@ -266,53 +260,53 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             );
             await this.#releaseSlot(database);
 
-            return undefined;
+            return;
         }
 
         // wait until a sleeping, retried, limited or later run is due, a run waiting for writes waking on them
         if (this.row.wakeAt !== null && this.row.wakeAt > now && this.row.waitType === null) {
-            return this.#waitUntil(this.row.wakeAt, now);
+            return;
         }
 
         // take a start of the workflow's rate once per run, delaying a limited one
         if (this.row.startedAt === null) {
             const limited = await this.#takeStart(database, now);
             if (limited !== undefined) {
-                const isDelayed = await this.#transition(
+                await this.#transition(
                     reconciliation,
                     this.workflow.run.call("delay", {
                         ...target,
                         attempts: this.row.attempts,
-                        wakeAt: now + limited,
+                        wakeAt: this.#due(now + limited),
                         failure: this.row.failure,
                     }),
                 );
 
-                return isDelayed ? this.#waitUntil(now + limited, now) : undefined;
+                return;
             }
             const isBegun = await this.#transition(
                 reconciliation,
                 this.workflow.run.call("begin", { ...target, startedAt: now }),
             );
             if (!isBegun) {
-                return undefined;
+                return;
             }
         }
 
         // take a concurrency slot while advancing, delaying the run until one frees
         const slot = await this.#takeSlot(database, now);
         if (slot !== undefined && slot.kind === "busy") {
-            const isDelayed = await this.#transition(
+            await this.#transition(
                 reconciliation,
                 this.workflow.run.call("delay", {
                     ...target,
                     attempts: this.row.attempts,
-                    wakeAt: slot.lapsesAt,
+                    wakeAt: this.#due(slot.lapsesAt),
                     failure: this.row.failure,
                 }),
             );
 
-            return isDelayed ? this.#waitUntil(slot.lapsesAt, now) : undefined;
+            return;
         }
 
         // advance the run while renewing its slot
@@ -321,32 +315,30 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             slot === undefined
                 ? Promise.resolve(undefined)
                 : this.#renewSlot(reconciliation, renewing.signal);
-        let settled: Outcome;
+        let isEnded: boolean;
         try {
-            settled = await this.#runSteps(code, reconciliation);
+            isEnded = await this.#runSteps(code, reconciliation);
         } finally {
             renewing.abort();
         }
 
         // release the slot after the advance, except a singleton's until its end
         const renewalFailure = await renewal;
-        if (slot !== undefined && (!this.workflow.isSingleton || settled.isEnded)) {
+        if (slot !== undefined && (!this.workflow.isSingleton || isEnded)) {
             await this.#releaseSlot(database);
         }
 
         // fail with a renewal's failure while the run goes on
-        if (renewalFailure !== undefined && !settled.isEnded) {
+        if (renewalFailure !== undefined && !isEnded) {
             throw renewalFailure;
         }
-
-        return settled.wake === undefined ? undefined : this.#waitUntil(settled.wake, now);
     }
 
     /** Run the workflow's function once over the run's recorded steps, settling what it did. */
     async #runSteps(
         code: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
         reconciliation: ObjectReconciliation,
-    ): Promise<Outcome> {
+    ): Promise<boolean> {
         // replay the run's recorded steps and take the rest, acting as its actor while its grant lasts
         const { store, now } = reconciliation;
         const { target } = this;
@@ -367,23 +359,23 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             });
             await this.#transition(reconciliation, completed);
 
-            return ENDED;
+            return true;
         } catch (error) {
             // wait at a waiting step until its time, or for its type's writes, unless the run waits so already
             if (error instanceof Suspension) {
-                const wakeAt = error.at ?? null;
+                const wakeAt = this.#due(error.at ?? null);
                 const waitType = error.waitType ?? null;
                 if (
                     this.row.state === "waiting" &&
                     this.row.wakeAt === wakeAt &&
                     this.row.waitType === waitType
                 ) {
-                    return { wake: error.at, isEnded: false };
+                    return false;
                 }
                 const waited = this.workflow.run.call("wait", { ...target, waitType, wakeAt });
                 const isWaiting = await this.#transition(reconciliation, waited);
 
-                return isWaiting ? { wake: error.at, isEnded: false } : ENDED;
+                return !isWaiting;
             }
             // fail on a final refusal, or an input or output its schema refuses
             else if (CallError.refusal(error) !== undefined || error instanceof schema.Error) {
@@ -393,7 +385,7 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
                 });
                 await this.#transition(reconciliation, failed);
 
-                return ENDED;
+                return true;
             }
             // retry another failure after its backoff while attempts remain, else fail with it
             else {
@@ -401,8 +393,9 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
                 const failure = Failure.of(error);
                 if (RetryPolicy.isRetried(this.workflow.retries, attempts)) {
                     const drawn = RetryPolicy.draw(`${this.row.id} ${attempts}`);
-                    const wakeAt =
-                        now + RetryPolicy.interval(this.workflow.retries, attempts, () => drawn);
+                    const wakeAt = this.#due(
+                        now + RetryPolicy.interval(this.workflow.retries, attempts, () => drawn),
+                    );
                     const delayed = this.workflow.run.call("delay", {
                         ...target,
                         attempts,
@@ -411,14 +404,14 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
                     });
                     const isDelayed = await this.#transition(reconciliation, delayed);
 
-                    return isDelayed ? { wake: wakeAt, isEnded: false } : ENDED;
+                    return !isDelayed;
                 }
                 await this.#transition(
                     reconciliation,
                     this.workflow.run.call("fail", { ...target, failure }),
                 );
 
-                return ENDED;
+                return true;
             }
         }
     }
@@ -495,11 +488,14 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
         }
     }
 
-    /** Answer the wait until a time, no later than the run's deadline. */
-    #waitUntil(at: number, now: number): number {
-        const due = this.row.deadline === null ? at : Math.min(at, this.row.deadline);
+    /** Cap the time the run wakes at at its deadline, the deadline when it waits for no time. */
+    #due(at: number | null): number | null {
+        const { deadline } = this.row;
+        if (deadline === null) {
+            return at;
+        }
 
-        return Math.max(0, due - now);
+        return at === null ? deadline : Math.min(at, deadline);
     }
 
     /** The name of the limits of the workflow's runs. */

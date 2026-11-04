@@ -1,7 +1,15 @@
 import { none, relation, through } from "@destack/access";
 import { space } from "@destack/account/object";
-import { and, eq, TABLE } from "@destack/db";
-import { defineObject, field, Limits, method, ObjectType, ObjectWatch } from "@destack/object";
+import { and, eq, now, TABLE } from "@destack/db";
+import {
+    defineObject,
+    field,
+    Limits,
+    method,
+    type ObjectReconciliation,
+    ObjectType,
+    ObjectWatch,
+} from "@destack/object";
 import { DeclarationName, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import { RetryPolicy } from "@destack/environment";
@@ -12,7 +20,7 @@ import { changeRequest } from "@destack/object";
 import type { RunContext, Step } from "../step/step.ts";
 import { ENDED_STATES, LIVE_STATES, Run, RUN_STATES } from "../run/run.ts";
 import type { ObjectStore } from "@destack/object/server";
-import type { Controller } from "@destack/db";
+import type { Consumer } from "@destack/db";
 import type { InstalledServerContext, WebhookHandler } from "@destack/object/workload";
 import { ScheduleOn, ScheduleSkip } from "../trigger/schedule.ts";
 import {
@@ -97,8 +105,8 @@ export interface WorkflowServing {
 export interface WorkflowImplementation {
     /** The run, step and trigger types with their handlers and controllers. */
     readonly objects: readonly ObjectType[];
-    /** The controllers recording the declared triggers and following their changes. */
-    readonly controllers: readonly ((store: ObjectStore) => Controller)[];
+    /** The consumers recording the declared triggers and following their changes. */
+    readonly consumers: readonly ((store: ObjectStore) => Consumer)[];
     /** Answer the declared triggers' webhook deliveries through a store. */
     readonly webhooks: (store: ObjectStore) => WebhookHandler;
 }
@@ -214,7 +222,17 @@ export function defineWorkflow<
             code: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
             options: WorkflowServing = {},
         ) => {
+            // serve the triggers through the workflow's server
             const triggers = new TriggerServer(workflow, options.server);
+
+            // advance each run of a reconciliation through the workflow's code
+            const advance = async (reconciliation: ObjectReconciliation<typeof run>) => {
+                await Promise.all(
+                    reconciliation.rows.map((row) =>
+                        new Run(workflow, row).advance(code, reconciliation),
+                    ),
+                );
+            };
             const objects = [
                 run.implement({
                     methods: {
@@ -229,44 +247,57 @@ export function defineWorkflow<
                         cancel: (call, next) =>
                             Run.end(workflow, call, present(call.target, "the run"), next),
                     },
-                    controller: {
-                        pending: { state: { in: ["pending", "waiting"] } },
-                        watches: waits.map((type) =>
-                            ObjectWatch.of(type.table, async (_changed, database) =>
-                                (
-                                    await database
-                                        .select({ id: run.table[TABLE].column("id") })
-                                        .from(run.table)
-                                        .where(
-                                            and(
-                                                eq(run.table[TABLE].column("state"), "waiting"),
-                                                eq(
-                                                    run.table[TABLE].column("waitType"),
-                                                    ObjectTypeReference.key(type.typeReference),
+                    controllers: [
+                        {
+                            // advance a pending run, and a waiting one once a type it waits for changes
+                            pending: { state: { in: ["pending", "waiting"] } },
+                            watches: waits.map((type) =>
+                                ObjectWatch.of(type.table, async (_changed, database) =>
+                                    (
+                                        await database
+                                            .select({ id: run.table[TABLE].column("id") })
+                                            .from(run.table)
+                                            .where(
+                                                and(
+                                                    eq(run.table[TABLE].column("state"), "waiting"),
+                                                    eq(
+                                                        run.table[TABLE].column("waitType"),
+                                                        ObjectTypeReference.key(type.typeReference),
+                                                    ),
                                                 ),
-                                            ),
-                                        )
-                                ).map((row) => ({ id: schema.string().parse(row.id) })),
-                            ),
-                        ),
-                        reconcile: async (reconciliation) => {
-                            // advance each pending run, looking again at the earliest wake time
-                            const wakes = await Promise.all(
-                                reconciliation.rows.map((row) =>
-                                    new Run(workflow, row).advance(code, reconciliation),
+                                            )
+                                    ).map((row) => ({ id: schema.string().parse(row.id) })),
                                 ),
-                            );
-                            const due = wakes.filter((wait) => wait !== undefined);
-
-                            return due.length === 0 ? undefined : Math.min(...due);
+                            ),
+                            reconcile: async (reconciliation) => advance(reconciliation),
                         },
-                    },
+                        {
+                            // wake a run once its sleep, retry, limit or deadline comes, which its controller then advances
+                            name: "wake",
+                            pending: {
+                                state: { in: ["pending", "waiting"] },
+                                wakeAt: { lte: now },
+                            },
+                            reconcile: async ({ rows, mutate }) => {
+                                await mutate(
+                                    rows.map((row) =>
+                                        run.call("delay", {
+                                            ...run.target(row),
+                                            attempts: row.attempts,
+                                            wakeAt: null,
+                                            failure: row.failure,
+                                        }),
+                                    ),
+                                );
+                            },
+                        },
+                    ],
                 }),
                 step,
                 triggers.implement(),
             ];
 
-            return { objects, controllers: triggers.controllers(), webhooks: triggers.webhooks() };
+            return { objects, consumers: triggers.consumers(), webhooks: triggers.webhooks() };
         },
     });
 
@@ -520,6 +551,8 @@ function declareTrigger(
                 failure: field.json(Failure).optional(),
                 /** The latest occurrence fired or skipped. */
                 lastScheduledAt: field.time().optional(),
+                /** When the schedule's next occurrence comes due, absent once none follows. */
+                nextScheduledAt: field.time().optional(),
                 /** The occurrences skipped so far. */
                 skipped: field.integer().default(0),
                 /** The latest skipped occurrence and why it was skipped. */
@@ -546,7 +579,7 @@ function declareTrigger(
             retire: method.delete("advance", { visibility: "package" }),
             /** Record the occurrences fired and skipped, and a changed declared schedule. */
             record: method.update("advance", {
-                fields: ["lastScheduledAt", "skipped", "lastSkip", "schedule"],
+                fields: ["lastScheduledAt", "nextScheduledAt", "skipped", "lastSkip", "schedule"],
                 visibility: "package",
             }),
         }),

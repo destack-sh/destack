@@ -11,6 +11,7 @@ import {
     Log,
     type Match,
     Namespace,
+    now,
     Predicate,
     type Row,
     type Select,
@@ -20,7 +21,7 @@ import {
 } from "@destack/db";
 import { ObjectType, type ObjectReconciliation, refuseInput, refusal } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import type { Controller, ReconcileController } from "@destack/db";
+import type { Consumer } from "@destack/db";
 import { RequestId, type Call, Scope } from "@destack/sync";
 import type { InstalledServerContext, WebhookHandler } from "@destack/object/workload";
 import { Failure } from "@destack/error";
@@ -52,11 +53,8 @@ interface ServedWebhook<Input> {
 /** The most missed occurrences a schedule looks back over at once. */
 const MAX_MISSED_OCCURRENCES = 100;
 
-/** How long a trigger's slot retains changes after its last renewal: the change window, a week. */
+/** How long a trigger's checkpoint keeps changes past its last advance: a week. */
 const SLOT_MILLISECONDS = 7 * 24 * 60 * 60_000;
-
-/** How often an active trigger renews its slot: daily, a seventh of its retention. */
-const RENEWAL_MILLISECONDS = 24 * 60 * 60_000;
 
 /** The rows one snapshot page reads: a few hundred kilobytes. */
 const SNAPSHOT_PAGE_ROWS = 500;
@@ -126,8 +124,10 @@ export class TriggerServer<Input> {
                 create: (call, next) => {
                     // check the created schedule and its runs' input
                     const schedule = this.#checked(call.input.schedule, call.input.input);
+                    const nextScheduledAt =
+                        new Schedule(schedule.timing).following(call.now) ?? null;
 
-                    return next(call.with({ input: { ...call.input, schedule } }));
+                    return next(call.with({ input: { ...call.input, schedule, nextScheduledAt } }));
                 },
                 update: (call, next) => {
                     // check the changed schedule and input
@@ -136,37 +136,62 @@ export class TriggerServer<Input> {
                         input.schedule ?? target.schedule,
                         input.input ?? target.input,
                     );
+                    const nextScheduledAt =
+                        new Schedule(schedule.timing).following(call.now) ?? null;
 
-                    return next(call.with({ input: { ...input, schedule } }));
+                    return next(call.with({ input: { ...input, schedule, nextScheduledAt } }));
                 },
             },
-            controller: {
-                pending: { state: "active", kind: "schedule" },
-                reconcile: async (reconciliation) => {
-                    // fire each schedule's due occurrences, looking again at the earliest next one
-                    const wakes = await Promise.all(
-                        reconciliation.rows.map((row) => this.#fireDue(row, reconciliation)),
-                    );
-                    const due = wakes.filter((wait) => wait !== undefined);
-
-                    return due.length === 0 ? undefined : Math.min(...due);
+            controllers: [
+                {
+                    // fire a declared schedule once, recording its next occurrence
+                    name: "start",
+                    pending: {
+                        state: "active",
+                        kind: "schedule",
+                        nextScheduledAt: { isNull: true },
+                    },
+                    reconcile: async (reconciliation) => {
+                        await Promise.all(
+                            reconciliation.rows.map((row) => this.#fireDue(row, reconciliation)),
+                        );
+                    },
                 },
-            },
+                {
+                    // fire each active schedule's due occurrences once its next one comes due
+                    pending: { state: "active", kind: "schedule", nextScheduledAt: { lte: now } },
+                    reconcile: async (reconciliation) => {
+                        await Promise.all(
+                            reconciliation.rows.map((row) => this.#fireDue(row, reconciliation)),
+                        );
+                    },
+                },
+            ],
         });
     }
 
-    /** List the controllers recording the declared triggers' rows and following their changes. */
-    controllers(): readonly ((store: ObjectStore) => Controller)[] {
+    /** List the consumers recording the declared triggers' rows and following their changes. */
+    consumers(): readonly ((store: ObjectStore) => Consumer)[] {
         // follow the changes of each declared change trigger
+        const { trigger } = this.#workflow;
         const changes = [...this.#declared.values()].filter(
-            (trigger): trigger is ChangeTrigger<Input> => trigger.kind === "change",
+            (declared): declared is ChangeTrigger<Input> => declared.kind === "change",
         );
 
         return [
-            (store) => new DeclarationController(store, this, [...this.#declared.values()]),
-            ...changes.map(
-                (trigger) => (store: ObjectStore) => new ChangeController(store, this, trigger),
-            ),
+            // record the declared triggers at each start, as declarations change with releases
+            (store) => ({
+                name: `${trigger.name}:declared`,
+                reads: [],
+                checkpoint: "none",
+                consume: async () => this.#declare(store, this.scope(store)),
+            }),
+            ...changes.map((declared) => (store: ObjectStore): Consumer => ({
+                name: `${trigger.name}:${declared.name}`,
+                reads: [TriggerServer.#table(declared), trigger.table],
+                checkpoint: "none",
+                consume: async () => this.#follow(store, declared),
+            })),
         ];
     }
 
@@ -217,26 +242,33 @@ export class TriggerServer<Input> {
         return checked;
     }
 
-    /** Fire a schedule's due occurrences, answering the wait until its next one. */
-    async #fireDue(
-        row: TriggerRecord,
-        reconciliation: ObjectReconciliation,
-    ): Promise<number | undefined> {
+    /** Fire a schedule's due occurrences, recording its next one. */
+    async #fireDue(row: TriggerRecord, reconciliation: ObjectReconciliation): Promise<void> {
         // find the latest occurrences due since the last one or within the deadline
-        const { now, store } = reconciliation;
+        const { now: time, store } = reconciliation;
         const schedule = ScheduleOn.parse(row.schedule);
         const { timing, deadline } = schedule;
-        const after = row.lastScheduledAt ?? now - deadline - 1;
+        const after = row.lastScheduledAt ?? time - deadline - 1;
         const occurrences = new Schedule(timing);
-        const { due, earlier } = occurrences.recent(after, now, MAX_MISSED_OCCURRENCES);
+        const { due, earlier } = occurrences.recent(after, time, MAX_MISSED_OCCURRENCES);
         const last = due.at(-1);
-        const next = occurrences.following(now);
+        const next = occurrences.following(time) ?? null;
         if (last === undefined) {
-            return next === undefined ? undefined : next - now;
+            await reconciliation.mutate([
+                this.#workflow.trigger.call("record", {
+                    ...this.#workflow.trigger.target(row),
+                    lastScheduledAt: row.lastScheduledAt,
+                    nextScheduledAt: next,
+                    skipped: row.skipped,
+                    lastSkip: row.lastSkip,
+                }),
+            ]);
+
+            return;
         }
 
         // skip the missed, late and superseded occurrences, counting the uncounted earlier ones on the first
-        const isDue = (at: number) => now - at <= deadline;
+        const isDue = (at: number) => time - at <= deadline;
         const skips: ScheduleSkip[] = due.flatMap((at, index) =>
             at === last && isDue(at) ? [] : [skip(at, isDue(at), index === 0 ? earlier : 0)],
         );
@@ -249,12 +281,11 @@ export class TriggerServer<Input> {
             this.#workflow.trigger.call("record", {
                 ...this.#workflow.trigger.target(row),
                 lastScheduledAt: last,
+                nextScheduledAt: next,
                 skipped: row.skipped + allSkips.length,
                 lastSkip: latest ?? null,
             }),
         ]);
-
-        return next === undefined ? undefined : next - now;
     }
 
     /** Start an occurrence's run as the schedule's concurrency lets it, answering a skip. */
@@ -314,11 +345,11 @@ export class TriggerServer<Input> {
             readonly scope?: string;
         },
     ): Promise<void> {
-        // derive the request from the trigger's slot and the event, stamped at the event's time
+        // derive the request from the trigger's identity and the event, stamped at the event's time
         const workflow = this.#workflow;
         const id = await RequestId.derive(
             event.at,
-            `${this.slot(name)} ${event.key}`,
+            `${this.identity(name)} ${event.key}`,
             store.environment.crypto,
         );
         const self = store.as(workflow.run);
@@ -350,21 +381,21 @@ export class TriggerServer<Input> {
         return row;
     }
 
-    /** Read a trigger's identity, which names its log slot and derives its requests. */
-    slot(name: string): string {
+    /** Read a trigger's identity, which names its log checkpoint and derives its requests. */
+    identity(name: string): string {
         return `trigger/${this.#workflow.package.id}/${this.#workflow.name}/${name}`;
     }
 
-    /** Read the log slot of a change trigger's first snapshot, paged through rows. */
-    snapshotSlot(name: string): string {
-        return `${this.slot(name)}/snapshot`;
+    /** Read the log checkpoint of a change trigger's first snapshot, paged through rows. */
+    snapshotCheckpoint(name: string): string {
+        return `${this.identity(name)}/snapshot`;
     }
 
-    /** Drop a change trigger's log slots, retaining no more changes for it. */
-    async dropSlots(database: DatabaseConnection, name: string): Promise<void> {
+    /** Drop a change trigger's log checkpoints, retaining no more changes for it. */
+    async dropCheckpoints(database: DatabaseConnection, name: string): Promise<void> {
         const log = new Log(database);
-        await log.drop(this.slot(name));
-        await log.drop(this.snapshotSlot(name));
+        await log.drop(this.identity(name));
+        await log.drop(this.snapshotCheckpoint(name));
     }
 
     /** Read the scope the workflow's runs live in: the store's space, or the universe. */
@@ -412,53 +443,15 @@ export class TriggerServer<Input> {
 
         return trigger;
     }
-}
-
-/** The controller recording the rows of a workflow's declared triggers in the store's space. */
-class DeclarationController<Input> implements ReconcileController {
-    /** The controller's name in reports. */
-    readonly name: string;
-    /** The tables whose changes select keys: none, as declarations change with releases. */
-    readonly watches: readonly Table[];
-    /** The store the rows live in. */
-    readonly #store: ObjectStore;
-    /** The server of the triggers. */
-    readonly #server: TriggerServer<Input>;
-    /** The declared triggers. */
-    readonly #triggers: readonly Trigger<Input>[];
-
-    /** Record a workflow's declared triggers in a store's space. */
-    constructor(
-        store: ObjectStore,
-        server: TriggerServer<Input>,
-        triggers: readonly Trigger<Input>[],
-    ) {
-        // name the controller after the trigger type
-        this.name = `${server.workflow.trigger.name}:declared`;
-        this.watches = [];
-        this.#store = store;
-        this.#server = server;
-        this.#triggers = triggers;
-    }
-
-    /** Select no keys from changes. */
-    keys(): readonly string[] {
-        return [];
-    }
-
-    /** List the workflow's space as the one key. */
-    async list(): Promise<readonly string[]> {
-        return [this.#server.scope(this.#store)];
-    }
 
     /** Create missing declared rows, update changed schedules, retire undeclared attached rows. */
-    async reconcile(scope: string): Promise<undefined> {
+    async #declare(store: ObjectStore, scope: string): Promise<void> {
         // read the rows the workflow's installation declared in the space, detached ones too
-        const { trigger } = this.#server.workflow;
-        const served = present(this.#store.readServer(trigger), `the server of ${trigger.name}`);
+        const { trigger } = this.workflow;
+        const served = present(store.readServer(trigger), `the server of ${trigger.name}`);
         const manager = { installationId: served.installation, packageId: trigger.package.id };
         const column = (name: string) => trigger.table[TABLE].column(name);
-        const rows = await this.#store.database
+        const rows = await store.database
             .select()
             .from(trigger.table)
             .where(
@@ -469,9 +462,11 @@ class DeclarationController<Input> implements ReconcileController {
                 ),
             );
 
-        // create each missing declared trigger, and update an attached one's schedule that changed
+        // create each missing declared trigger, and update an attached one's schedule that changed, each due at its next occurrence
         const calls: (readonly [string, Call])[] = [];
-        for (const declared of this.#triggers) {
+        const at = store.clock.now();
+        const due = (schedule: ScheduleOn) => new Schedule(schedule.timing).following(at) ?? null;
+        for (const declared of this.#declared.values()) {
             const { kind } = declared;
             const schedule = declared.kind === "schedule" ? declared.schedule : undefined;
             const row = rows.find((each) => each.name === declared.name);
@@ -495,6 +490,7 @@ class DeclarationController<Input> implements ReconcileController {
                     trigger.call("record", {
                         ...trigger.target(row),
                         lastScheduledAt: row.lastScheduledAt,
+                        nextScheduledAt: due(schedule),
                         skipped: row.skipped,
                         lastSkip: null,
                         schedule,
@@ -507,7 +503,7 @@ class DeclarationController<Input> implements ReconcileController {
         const retired = rows.filter(
             (each) =>
                 Manager.isManaged(each) &&
-                !this.#triggers.some((declared) => declared.name === each.name),
+                ![...this.#declared.values()].some((declared) => declared.name === each.name),
         );
         calls.push(
             ...retired.map(
@@ -515,15 +511,15 @@ class DeclarationController<Input> implements ReconcileController {
             ),
         );
         if (calls.length === 0) {
-            return undefined;
+            return;
         }
 
-        // record each call as the trigger's manager, dropping the retired triggers' log slots in the same commit
-        await Transaction.run(this.#store.database, async (transaction) => {
+        // record each call as the trigger's manager, dropping the retired triggers' log checkpoints in the same commit
+        await Transaction.run(store.database, async (transaction) => {
             for (const [name, call] of calls) {
-                await this.#store.mutate(
-                    this.#store.as(trigger),
-                    { id: RequestId.create(this.#store.environment), calls: [call] },
+                await store.mutate(
+                    store.as(trigger),
+                    { id: RequestId.create(store.environment), calls: [call] },
                     {
                         scope,
                         transaction,
@@ -532,68 +528,26 @@ class DeclarationController<Input> implements ReconcileController {
                 );
             }
             for (const row of retired) {
-                transaction.record((committing) => this.#server.dropSlots(committing, row.name));
+                transaction.record((committing) => this.dropCheckpoints(committing, row.name));
             }
         });
-
-        return undefined;
-    }
-}
-
-/** Follow a change trigger's object changes in the log, starting one run per matching change. */
-class ChangeController<Input> implements ReconcileController {
-    /** The controller's name in reports. */
-    readonly name: string;
-    /** The changed object's table, and the triggers' table, whose row activates this one. */
-    readonly watches: readonly Table[];
-    /** The store the runs start in. */
-    readonly #store: ObjectStore;
-    /** The server of the trigger. */
-    readonly #server: TriggerServer<Input>;
-    /** The followed trigger. */
-    readonly #trigger: ChangeTrigger<Input>;
-
-    /** Follow one change trigger over a store's database. */
-    constructor(store: ObjectStore, server: TriggerServer<Input>, trigger: ChangeTrigger<Input>) {
-        // name the controller after the trigger type and the trigger
-        const { workflow } = server;
-        this.name = `${workflow.trigger.name}:${trigger.name}`;
-        this.watches = [ChangeController.#table(trigger), workflow.trigger.table];
-        this.#store = store;
-        this.#server = server;
-        this.#trigger = trigger;
     }
 
-    /** Select the trigger for a change of its table, or of its own row activating or pausing it. */
-    keys(change: Change): readonly string[] {
-        const isFollowed = change.table === ChangeController.#table(this.#trigger);
-        const isOwn =
-            Change.of(change, this.#server.workflow.trigger.table) &&
-            Change.image(change)["name"] === this.#trigger.name;
-
-        return isFollowed || isOwn ? [this.#trigger.name] : [];
-    }
-
-    /** List the trigger as the one key. */
-    async list(): Promise<readonly string[]> {
-        return [this.#trigger.name];
-    }
-
-    /** Start the runs of the matching changes since the trigger's slot, renewing it daily. */
-    async reconcile(): Promise<number | undefined> {
+    /** Start the runs of a change trigger's matching changes since its checkpoint. */
+    async #follow(store: ObjectStore, trigger: ChangeTrigger<Input>): Promise<void> {
         // wait for the trigger's row to resume or reset it while it is not active
-        const change = this.#trigger.change;
-        const database = this.#store.database;
-        const scope = this.#server.scope(this.#store);
-        const row = await this.#server.row(database, scope, this.#trigger.name);
+        const change = trigger.change;
+        const database = store.database;
+        const scope = this.scope(store);
+        const row = await this.row(database, scope, trigger.name);
         if (row?.state !== "active") {
-            return undefined;
+            return;
         }
 
-        // continue after the trigger's slot, or start it
-        const table = ChangeController.#table(this.#trigger);
+        // continue after the trigger's checkpoint, or start it
+        const table = TriggerServer.#table(trigger);
         const log = new Log(database);
-        const slot = this.#server.slot(this.#trigger.name);
+        const reader = { name: this.identity(trigger.name), tables: [table] };
         const position = await log.position();
         const timeline = { log: position.log, epoch: position.epoch };
         const match =
@@ -603,98 +557,95 @@ class ChangeController<Input> implements ReconcileController {
                       Condition.resolve(change.where, Namespace.fields(table)),
                       table,
                   );
-        const placed = await log.slot(slot);
+        const placed = await log.checkpoint(reader.name);
 
-        // start each matching change's run page by page, advancing the slot past each page of changes
+        // start each matching change's run page by page, advancing the checkpoint past each page of changes
         try {
-            let after = placed ?? (await this.#begin(slot, position));
-            let isRenewed = placed === undefined;
+            let after = placed ?? (await this.#begin(store, trigger, position));
             for (;;) {
                 const page = await log.read({ tables: [table], after });
                 for (const logged of page.changes) {
-                    const matching = ChangeController.#see(
-                        change.operations,
-                        logged,
-                        timeline,
-                        match,
-                    );
+                    const matching = TriggerServer.#see(change.operations, logged, timeline, match);
                     if (matching !== undefined) {
-                        await this.#start(matching, logged.changedAt);
+                        await this.#startChange(store, trigger, matching, logged.changedAt);
                     }
                 }
                 after = Math.max(after, page.sequence);
 
-                // advance past a page of changes, renewing the slot once on a look that found none
-                if (page.changes.length > 0 || !isRenewed) {
-                    await log.advance(slot, after, this.#store.clock.now() + SLOT_MILLISECONDS);
-                    isRenewed = true;
-                }
+                // advance past a page of changes, ending at the head
                 if (page.changes.length === 0) {
                     break;
                 }
+                await log.advance(reader, after, store.clock.now() + SLOT_MILLISECONDS);
             }
         } catch (error) {
-            // stop the trigger on changes compacted past its slot until a manager resets it
+            // stop the trigger on changes compacted past its checkpoint until a manager resets it
             if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
                 throw error;
             }
-            await this.#stop(row, error);
-
-            return undefined;
+            await this.#stop(store, trigger, row, error);
         }
-
-        // look again within a day, renewing the slot while no change arrives
-        return RENEWAL_MILLISECONDS;
     }
 
-    /** Stop a trigger that lost changes to compaction, dropping its slots for a fresh reset. */
-    async #stop(row: TriggerRecord, cause: unknown): Promise<void> {
+    /** Stop a trigger that lost changes to compaction, dropping its checkpoints for a reset. */
+    async #stop(
+        store: ObjectStore,
+        trigger: ChangeTrigger<Input>,
+        row: TriggerRecord,
+        cause: unknown,
+    ): Promise<void> {
         // record why the trigger stopped
-        const { name } = this.#trigger;
-        const { trigger } = this.#server.workflow;
+        const { name } = trigger;
+        const type = this.workflow.trigger;
         const failure = Failure.of(
             WorkflowError.of("CHANGES_COMPACTED", `trigger ${name} lost changes to compaction`, {
                 cause,
             }),
         );
 
-        // record the stop, dropping the slots in the same commit
-        await Transaction.run(this.#store.database, async (transaction) => {
-            await this.#store.mutate(
-                this.#store.as(trigger),
+        // record the stop, dropping the checkpoints in the same commit
+        await Transaction.run(store.database, async (transaction) => {
+            await store.mutate(
+                store.as(type),
                 {
-                    id: RequestId.create(this.#store.environment),
-                    calls: [trigger.call("stop", { ...trigger.target(row), failure })],
+                    id: RequestId.create(store.environment),
+                    calls: [type.call("stop", { ...type.target(row), failure })],
                 },
                 { scope: row.scope, transaction },
             );
-            transaction.record((committing) => this.#server.dropSlots(committing, name));
+            transaction.record((committing) => this.dropCheckpoints(committing, name));
         });
     }
 
-    /** Start the slot at the log's head, first starting the runs of a snapshot's matching rows. */
-    async #begin(slot: string, position: LogPosition): Promise<number> {
-        // start the slot at the head, or resume the snapshot begun at an earlier head
-        const change = this.#trigger.change;
-        const log = new Log(this.#store.database);
-        const snapshotSlot = this.#server.snapshotSlot(this.#trigger.name);
-        const begun = change.from === "snapshot" ? await log.slot(snapshotSlot) : undefined;
+    /** Start the checkpoint at the log's head, first starting a snapshot's matching runs. */
+    async #begin(
+        store: ObjectStore,
+        trigger: ChangeTrigger<Input>,
+        position: LogPosition,
+    ): Promise<number> {
+        // start the checkpoint at the head, or resume the snapshot begun at an earlier head
+        const change = trigger.change;
+        const log = new Log(store.database);
+        const table = TriggerServer.#table(trigger);
+        const reader = { name: this.identity(trigger.name), tables: [table] };
+        const snapshotReader = { name: this.snapshotCheckpoint(trigger.name), tables: [table] };
+        const begun =
+            change.from === "snapshot" ? await log.checkpoint(snapshotReader.name) : undefined;
         const sequence = begun ?? position.sequence;
         const timeline = { log: position.log, epoch: position.epoch };
         if (change.from === "now") {
-            await log.advance(slot, sequence, this.#store.clock.now() + SLOT_MILLISECONDS);
+            await log.advance(reader, sequence, store.clock.now() + SLOT_MILLISECONDS);
 
             return sequence;
         }
 
         // start a run for each matching row as created at the snapshot's reading, page by page
         const snapshot = log.at({ ...timeline, sequence });
-        const at = this.#store.clock.now();
-        const table = ChangeController.#table(this.#trigger);
+        const at = store.clock.now();
         let last: Row | undefined;
         for (;;) {
-            // keep the snapshot's slot for a week past each page
-            await log.advance(snapshotSlot, sequence, this.#store.clock.now() + SLOT_MILLISECONDS);
+            // keep the snapshot's checkpoint for a week past each page
+            await log.advance(snapshotReader, sequence, store.clock.now() + SLOT_MILLISECONDS);
             const rows = await snapshot.ordered(table, {
                 where: change.where ?? {},
                 orderBy: { id: "asc" },
@@ -702,7 +653,9 @@ class ChangeController<Input> implements ReconcileController {
                 limit: SNAPSHOT_PAGE_ROWS,
             });
             for (const row of rows) {
-                await this.#start(
+                await this.#startChange(
+                    store,
+                    trigger,
                     {
                         position: { ...timeline, sequence },
                         operation: "create",
@@ -719,21 +672,26 @@ class ChangeController<Input> implements ReconcileController {
         }
 
         // follow the log after the snapshot
-        await log.advance(slot, sequence, this.#store.clock.now() + SLOT_MILLISECONDS);
-        await log.drop(snapshotSlot);
+        await log.advance(reader, sequence, store.clock.now() + SLOT_MILLISECONDS);
+        await log.drop(snapshotReader.name);
 
         return sequence;
     }
 
     /** Start a change's run once per change, however often the trigger looks at it. */
-    async #start(change: ObjectChange, at: number): Promise<void> {
-        const { name } = this.#trigger;
+    async #startChange(
+        store: ObjectStore,
+        trigger: ChangeTrigger<Input>,
+        change: ObjectChange,
+        at: number,
+    ): Promise<void> {
+        const { name } = trigger;
         const event = { key: ChangeTrigger.key(change), at };
-        await this.#server.start(this.#store, name, this.#trigger.input(change), event, {});
+        await this.start(store, name, trigger.input(change), event, {});
     }
 
     /** Read the table of a trigger's object type, refusing another kind of declaration. */
-    static #table<Input>(trigger: ChangeTrigger<Input>): Table {
+    static #table(trigger: ChangeTrigger): Table {
         const object = trigger.change.object;
         if (!ObjectType.is(object)) {
             throw new TypeError(`trigger ${trigger.name} does not follow an object type`);
@@ -776,7 +734,7 @@ class ChangeController<Input> implements ReconcileController {
             (match === undefined || Predicate.matches(match, image.before));
         const after =
             image.after !== null && (match === undefined || Predicate.matches(match, image.after));
-        const operation = ChangeController.#operation(before, after);
+        const operation = TriggerServer.#operation(before, after);
         if (operation === undefined || !operations.includes(operation)) {
             return undefined;
         }

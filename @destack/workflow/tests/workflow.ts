@@ -214,7 +214,7 @@ export async function openServed<Input, Output>(
                     ...objects,
                     ...implementations.flatMap((each) => each.objects),
                 ],
-                controllers: implementations.flatMap((each) => each.controllers),
+                consumers: implementations.flatMap((each) => each.consumers),
             }),
         ],
         simulation,

@@ -260,7 +260,7 @@ test("start no run while a change trigger is paused, and catch up on its changes
     expect([paused.length, resumed.length]).toEqual([0, 2]);
 });
 
-test("renew an idle change trigger's slot past a week, starting a run for a later note", async () => {
+test("keep an idle change trigger's checkpoint past a week, starting a run for a later note", async () => {
     // let an active trigger idle past a week a day at a time, and compact the log
     const fixture = await openWorkflow(urgent, async () => {});
     await fixture.waitUntil(() => true);
