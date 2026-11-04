@@ -13,6 +13,7 @@ import { SignedRepository, type SigningKey } from "../publish/index.ts";
 import { Release } from "../release/index.ts";
 import { createRootKey, TestUpdate } from "../test/index.ts";
 import { distributionServer } from "./server.ts";
+import { DistributionHost } from "./distribution.ts";
 
 /** Offline signers shared as immutable key material. */
 let rootKeys: SigningKey[];
@@ -49,20 +50,17 @@ test("record a device's distribution once, stage the published release and offer
         environment: repository.environment,
     });
 
-    // serve the distribution in a device's own scope, its controller recording and staging it
+    // serve the distribution in a device's own scope, record it, and let its controller stage it
     const deviceId = Identifier.create("device", repository.environment);
     const device = principal.device.reference(Scope.universe.id, deviceId);
+    const host = { distribution: installed, activate: () => {} };
     await using served = await TestObjectStore.open({
-        packages: [
-            distributionServer({
-                device: deviceId,
-                host: { distribution: installed, activate: () => {} },
-            }),
-        ],
+        packages: [distributionServer(host)],
         scope: device,
         visibility: "private",
         simulation: repository.simulation,
     });
+    await DistributionHost.record(served.store, deviceId, host);
     await served.simulation.idle();
 
     // read the row and the update commands applying to it as the device, and refuse another device

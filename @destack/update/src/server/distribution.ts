@@ -1,6 +1,7 @@
 import type { ObjectStore } from "@destack/object/server";
+import type { ObjectReconciliation } from "@destack/object";
 import type { Identifier } from "@destack/schema";
-import type { ReconcileController } from "@destack/db";
+import { now } from "@destack/db";
 import type { Distribution } from "../distribution/index.ts";
 import { UpdateError } from "../error/index.ts";
 import { distribution } from "../object/index.ts";
@@ -17,6 +18,35 @@ export interface DistributionHost {
     /** Hand activation to a process that outlives the machine. */
     readonly activate: () => void;
 }
+
+/** The distributions machines host, recorded in their devices. */
+export const DistributionHost = {
+    /** Record a host's distribution in its device once, as the device. */
+    async record(
+        objects: Pick<ObjectStore, "database" | "mutate" | "clock" | "as" | "environment">,
+        device: Identifier<"device">,
+        host: DistributionHost,
+    ): Promise<void> {
+        // read the device's recorded distribution
+        const [row] = await objects.database
+            .select()
+            .from(distribution.table)
+            .where(distribution.inScope(device));
+        const context = objects.as(distribution, objects.clock.now());
+
+        // create it with the running release, keeping a recorded one
+        if (row === undefined) {
+            const call = distribution.call("create", {
+                ...distribution.in(device),
+                installed: host.distribution.options.running.version,
+            });
+            await objects.mutate(context, {
+                id: RequestId.create(objects.environment),
+                calls: [call],
+            });
+        }
+    },
+};
 
 /** Stage releases through the installed distribution, and hand activation to the host. */
 export function serveDistributions(host: DistributionHost | undefined) {
@@ -61,79 +91,33 @@ export function serveDistributions(host: DistributionHost | undefined) {
                 },
             },
         },
+        // stage a recorded distribution never checked, then again once its last check is a day old
+        controllers:
+            host === undefined
+                ? []
+                : [
+                      {
+                          pending: { checkedAt: { isNull: true } },
+                          reconcile: stage,
+                      },
+                      {
+                          name: "daily",
+                          pending: {
+                              checkedAt: {
+                                  lte: now.minus({ milliseconds: STAGE_INTERVAL_MILLISECONDS }),
+                              },
+                          },
+                          reconcile: stage,
+                      },
+                  ],
     });
 }
 
-/** Keep a computer's distribution row as its device and stage the latest release daily. */
-export class DistributionController implements ReconcileController {
-    /** The controller's name in reports. */
-    readonly name = "distribution";
-    /** The device's store with the distribution row. */
-    readonly #store: Pick<ObjectStore, "database" | "as" | "mutate" | "environment">;
-    /** The device, the scope of its distribution. */
-    readonly #deviceId: Identifier<"device">;
-    /** The installed distribution. */
-    readonly #host: DistributionHost;
-
-    /** Control the distribution of a computer's device. */
-    constructor(
-        store: Pick<ObjectStore, "database" | "as" | "mutate" | "environment">,
-        deviceId: Identifier<"device">,
-        host: DistributionHost,
-    ) {
-        this.#store = store;
-        this.#deviceId = deviceId;
-        this.#host = host;
-    }
-
-    /** List the device as the one key. */
-    async list(): Promise<readonly string[]> {
-        return [this.#deviceId];
-    }
-
-    /** Record the installed distribution once, then stage the latest release each day. */
-    async reconcile(): Promise<number> {
-        // record the distribution on its first start, as the device
-        const now = this.#store.environment.clock.now();
-        const scope = this.#deviceId;
-        const context = this.#store.as(distribution, now);
-        const [found] = await this.#store.database
-            .select()
-            .from(distribution.table)
-            .where(distribution.inScope(scope));
-        const options = this.#host.distribution.options;
-        const [recorded] =
-            found === undefined
-                ? await this.#store.mutate(
-                      context,
-                      {
-                          id: RequestId.create(this.#store.environment),
-                          calls: [
-                              distribution.call("create", {
-                                  ...distribution.in(scope),
-                                  installed: options.running.version,
-                              }),
-                          ],
-                      },
-                      { component: this.name },
-                  )
-                : [found];
-        if (recorded === undefined) {
-            throw new TypeError("recording the distribution returned nothing");
-        }
-
-        // stage the latest release
-        await this.#store.mutate(
-            context,
-            {
-                id: RequestId.create(this.#store.environment),
-                calls: [distribution.call("stage", distribution.target(recorded))],
-            },
-            { component: this.name },
-        );
-
-        return STAGE_INTERVAL_MILLISECONDS;
-    }
+/** Stage the latest release of each pending distribution. */
+async function stage(reconciliation: ObjectReconciliation<typeof distribution>): Promise<void> {
+    await reconciliation.mutate(
+        reconciliation.rows.map((row) => distribution.call("stage", distribution.target(row))),
+    );
 }
 
 /** Read the host's distribution. */
