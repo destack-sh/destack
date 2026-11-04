@@ -369,7 +369,7 @@ test("trash a vault's secrets with it once its installation goes", async () => {
     ]).toEqual([[{ deletedAt: removedAt }], [{ deletedAt: removedAt }]]);
 });
 
-test("provision a vault the account's home declares in the account, as its connections keep their credentials there", async () => {
+test("store a vault the account's home declares in the enclosing scope in the account", async () => {
     // serve the account's home with the vault package, and declare a vault in its account
     const home = await TestSpace.open({ id: Account.home(ids.account), packages: [vaultPackage] });
     const served = await home.serve({ servers: [vaultServer] });
