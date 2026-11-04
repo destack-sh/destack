@@ -573,9 +573,9 @@ export class Replica {
 
     /** Match the replicas a reader of a scope sees: decided for its readers, or the caller. */
     static #seen(target: string, caller: Subject | undefined): SQL {
-        // match the replicas for the scope, decided for its readers or for the calling principal
+        // match the replicas decided for the scope's readers, and those decided for the calling principal anywhere
         const isTarget = eq(replicaSubscription.target, target);
-        const isReader = eq(replicaSubscription.audience, "reader");
+        const isReader = and(isTarget, eq(replicaSubscription.audience, "reader"));
         const isCaller =
             caller === undefined
                 ? undefined
@@ -587,7 +587,7 @@ export class Replica {
                       eq(replicaSubscription.subjectId, caller.id),
                   );
 
-        return and(isTarget, or(isReader, isCaller));
+        return or(isReader, isCaller);
     }
 
     /** Take rows a database pruned out of every replica including them. */

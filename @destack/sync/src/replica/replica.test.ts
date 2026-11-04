@@ -1240,7 +1240,7 @@ test("finish a snapshot of several pages past a drain, then resume from its comp
     });
 });
 
-test("match the rows of the replicas each reader sees by audience, and retain a row two replicas include until neither does", async () => {
+test("match the rows of the replicas each reader sees by audience and target, and retain a row two replicas include until neither does", async () => {
     await using simulation = new Simulation({ seed: 1, start: START });
     const local = await openReplica({ simulation });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
@@ -1276,7 +1276,7 @@ test("match the rows of the replicas each reader sees by audience, and retain a 
     await replicate(right, local, snapshot(1, ["shared", "z"]));
     await replicate(chain, local, snapshot(1, ["contained"]));
 
-    // match the rows the target's readers see, alice those decided for her too, and other scopes' readers none
+    // match the rows the target's readers see, alice those decided for her in every target, and other scopes' readers none
     const included = async (target: string, reader: Subject | undefined) =>
         (
             await local
@@ -1290,7 +1290,8 @@ test("match the rows of the replicas each reader sees by audience, and retain a 
         await included("reader", BOB),
         await included("reader", ALICE),
         await included("other", ALICE),
-    ]).toEqual([["a", "shared"], ["a", "shared"], ["a", "shared", "z"], []]);
+        await included("other", BOB),
+    ]).toEqual([["a", "shared"], ["a", "shared"], ["a", "shared", "z"], ["shared", "z"], []]);
 
     // retain the shared row while one replica still includes it, and delete it after
     await replicate(left, local, snapshot(2, ["a"]));
