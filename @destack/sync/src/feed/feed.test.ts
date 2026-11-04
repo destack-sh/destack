@@ -1,7 +1,8 @@
 import { expect, test } from "@destack/test";
-import { nth, schema } from "@destack/schema";
+import { type JsonObject, nth, schema } from "@destack/schema";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
+import { Subscription } from "../replica/publication.ts";
 import type { Stream } from "./stream.ts";
 import type { Page } from "../query/page.ts";
 import {
@@ -801,3 +802,127 @@ test("place a stream resumed at the log's head at once, with a completed page of
         now: 1000,
     });
 });
+
+test("reshape an open stream in place once its follower's request asks other parameters over the same tables", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values([
+                { ...first, id: "a", title: "Open" },
+                { ...first, id: "b", title: "Done" },
+            ]),
+    );
+
+    // record a follower's request of the open notes, and stream it under that request
+    const caller = "follower";
+    const asked = async (title: string) =>
+        Subscription.request(
+            database,
+            {
+                name: "notes",
+                publication: "notes",
+                scope: "inbox",
+                target: "inbox",
+                parameters: { title },
+                revision: await database.log.position(),
+            },
+            caller,
+        );
+    await asked("Open");
+    const signal = AbortSignal.timeout(5000);
+    const pages = feed.subscribe(await notesQueries({ title: "Open" }), undefined, signal, {
+        request: {
+            feed,
+            key: { name: "notes", scope: "inbox", target: "inbox", caller },
+            parameters: { title: "Open" },
+            queries: notesQueries,
+        },
+    });
+    const snapshot = await nextValue(pages);
+
+    // ask for the done notes, and receive the move with the parameters it reflects
+    const moved = nextValue(pages);
+    await asked("Done");
+    const page = await moved;
+    expect({
+        snapshot: snapshot.changes.map((change) => change.row["id"]),
+        moved: page.changes.map((change) => [change.operation, change.row["id"]]),
+        parameters: page.parameters,
+    }).toEqual({
+        snapshot: ["a"],
+        moved: [
+            ["delete", "a"],
+            ["insert", "b"],
+        ],
+        parameters: { title: "Done" },
+    });
+});
+
+test("reshape a stream at its start when its follower asked other parameters before it opened", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values([
+                { ...first, id: "a", title: "Open" },
+                { ...first, id: "b", title: "Done" },
+            ]),
+    );
+
+    // record a follower's request of the open notes, then of the done ones, and stream the open ones under it
+    const caller = "follower";
+    const asked = async (title: string) =>
+        Subscription.request(
+            database,
+            {
+                name: "notes",
+                publication: "notes",
+                scope: "inbox",
+                target: "inbox",
+                parameters: { title },
+                revision: await database.log.position(),
+            },
+            caller,
+        );
+    await asked("Open");
+    await asked("Done");
+    const signal = AbortSignal.timeout(5000);
+    const pages = feed.subscribe(await notesQueries({ title: "Open" }), undefined, signal, {
+        request: {
+            feed,
+            key: { name: "notes", scope: "inbox", target: "inbox", caller },
+            parameters: { title: "Open" },
+            queries: notesQueries,
+        },
+    });
+    const snapshot = await nextValue(pages);
+
+    // receive the move to the done notes with the parameters it reflects, unasked again
+    const page = await nextValue(pages);
+    expect({
+        snapshot: snapshot.changes.map((change) => change.row["id"]),
+        moved: page.changes.map((change) => [change.operation, change.row["id"]]),
+        parameters: page.parameters,
+    }).toEqual({
+        snapshot: ["a"],
+        moved: [
+            ["delete", "a"],
+            ["insert", "b"],
+        ],
+        parameters: { title: "Done" },
+    });
+});
+
+/** Compile the queries of the notes in the inbox with the title a request's parameters ask for. */
+async function notesQueries(parameters: JsonObject) {
+    return {
+        notes: {
+            table: note,
+            scopes: ["inbox"],
+            where: { title: schema.string().parse(parameters["title"]) },
+        },
+    };
+}
