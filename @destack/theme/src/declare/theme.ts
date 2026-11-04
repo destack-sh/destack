@@ -1,8 +1,8 @@
 import { defineDeclarationKind, ModuleMetadata, Package } from "@destack/package";
-import { Theme, ThemeDefinition } from "../theme/index.ts";
+import { Theme, ThemeDefinition, ThemeDescription } from "../theme/index.ts";
 
 /** The theme declaration kind, which theme defines. */
-export const THEME_KIND = defineDeclarationKind("theme");
+export const THEME_KIND = defineDeclarationKind("theme", ThemeDescription);
 
 /** Declare a theme, refusing text roles that read below their APCA contrast. */
 export function defineTheme(definition: ThemeDefinition, module?: ModuleMetadata): Theme {
