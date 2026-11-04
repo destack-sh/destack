@@ -1,13 +1,11 @@
-import { type CallInput, ListPage, type MethodContext } from "@destack/object";
+import type { MethodContext } from "@destack/object";
 import type { ImplementationInput } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
 import { NotificationError } from "../error/error.ts";
-import { Catalog, Localization, type LocaleTag } from "@destack/locale";
-import { type Duration, fromJsonSchema, type Identifier, schema } from "@destack/schema";
-import { installation } from "@destack/object";
-import { catalog, declaration, installationRevision, rollout } from "@destack/stack/object";
+import { Localization, type LocaleTag } from "@destack/locale";
+import { type Duration, fromJsonSchema } from "@destack/schema";
 import {
-    NotificationDescription,
+    NOTIFICATION_KIND,
     NotificationType,
     type NotifyInput,
 } from "../notification/notification.ts";
@@ -35,18 +33,7 @@ const BATCH = 100;
 /** The keys reconciled at once by default. */
 const CONCURRENCY = 16;
 
-/** The builds a server caches, 64 of a few kilobytes of notifications and catalogs. */
-const BUILD_CACHE = 64;
-
-/** The notifications a build declares by name, and the catalogs it ships. */
-interface ReadBuild {
-    /** The declared notifications by name. */
-    readonly notifications: ReadonlyMap<string, NotificationType>;
-    /** The catalogs translating its messages and its unpublished dependencies'. */
-    readonly catalogs: readonly Catalog[];
-}
-
-/** The notification package's server in a store: its tuning, and the builds it read. */
+/** The notification package's server in a store: its tuning. */
 export class NotificationServer {
     /** The recipients of one announcement batch. */
     readonly batch: number;
@@ -56,8 +43,6 @@ export class NotificationServer {
     readonly pushTtl: Duration;
     /** How long an email waits for the notification to be read elsewhere. */
     readonly emailDelay: Duration;
-    /** The notifications and translations of the builds read last, least recently used first. */
-    readonly #builds = new Map<string, Promise<ReadBuild>>();
 
     /** Serve notifications with the given tuning, the defaults elsewhere. */
     constructor(options: NotificationOptions) {
@@ -70,13 +55,13 @@ export class NotificationServer {
 
     /** Read a notification the space's installed release declares, refusing an undeclared one. */
     async notification(
-        context: Pick<MethodContext, "read" | "query" | "self" | "scope">,
+        context: Pick<MethodContext, "declarations">,
         packageId: PackageId,
         name: string,
     ): Promise<NotificationType> {
-        // look the notification up in the release's build
-        const { notifications } = await this.#read(context, packageId);
-        const declared = notifications.get(name);
+        // look the notification up in the release's declarations
+        const declarations = await context.declarations(NOTIFICATION_KIND, packageId);
+        const declared = declarations.find((each) => each.name === name);
         if (declared === undefined) {
             throw NotificationError.of(
                 "NOTIFICATION_UNKNOWN",
@@ -84,7 +69,14 @@ export class NotificationServer {
             );
         }
 
-        return declared;
+        // rebuild its payload schema
+        const { package: declaring, payload, actions, ...definition } = declared.description;
+
+        return new NotificationType(
+            declaring,
+            { ...definition, payload: fromJsonSchema(payload) },
+            actions,
+        );
     }
 
     /** Notify a notice's recipients of an occurrence, rendered in each person's locale. */
@@ -103,113 +95,11 @@ export class NotificationServer {
 
     /** Bind a locale to the translations of the release a call's space installs. */
     async localization(
-        context: Pick<MethodContext, "read" | "query" | "self" | "scope">,
+        context: Pick<MethodContext, "catalogs">,
         packageId: PackageId,
         tag: LocaleTag,
     ): Promise<Localization> {
-        const { catalogs } = await this.#read(context, packageId);
-
-        return Localization.of(tag, catalogs);
-    }
-
-    /** Read the notifications and translations of the build the space's installation follows. */
-    async #read(
-        context: Pick<MethodContext, "read" | "query" | "self" | "scope">,
-        packageId: PackageId,
-    ): Promise<ReadBuild> {
-        // read the revision the space's installation of the package follows
-        const scope = schema.identifier("space").parse(context.scope);
-        const [installed] = await context
-            .read(installation)
-            .findMany({ where: { scope, packageId } });
-        const followed =
-            installed === undefined
-                ? undefined
-                : await context.read(rollout).findFirst({ where: { id: installed.id } });
-        const revision =
-            followed === undefined || followed.revisionId === null
-                ? undefined
-                : await context
-                      .read(installationRevision)
-                      .findFirst({ where: { id: followed.revisionId } });
-        if (revision === undefined) {
-            throw NotificationError.of(
-                "INSTALLATION_NOT_FOUND",
-                `no installation in ${context.scope} follows a build of ${packageId}`,
-            );
-        }
-
-        // read its build's notifications and translations once, keeping the builds used last
-        const { buildId } = revision;
-        const known = this.#builds.get(buildId);
-        const reading = known ?? NotificationServer.#index(context, buildId);
-        this.#builds.delete(buildId);
-        this.#builds.set(buildId, reading);
-        const [oldest] = this.#builds.keys();
-        if (this.#builds.size > BUILD_CACHE && oldest !== undefined) {
-            this.#builds.delete(oldest);
-        }
-
-        // forget a failed read, so the next notification reads the build again
-        reading.catch(() => {
-            if (this.#builds.get(buildId) === reading) {
-                this.#builds.delete(buildId);
-            }
-        });
-
-        return reading;
-    }
-
-    /** Read the notifications a build declares and the catalogs it ships, from its index. */
-    static async #index(
-        context: Pick<MethodContext, "query" | "self">,
-        buildId: Identifier<"build">,
-    ): Promise<ReadBuild> {
-        // read every notification the build declares and every catalog it ships
-        const where = { kindPackageId: import.meta.destack.package.id, kind: "notification" };
-        const [declared, shipped] = await Promise.all([
-            Array.fromAsync(
-                ListPage.all(
-                    (input: CallInput<typeof declaration, "list">) =>
-                        context.query(context.self, declaration.call("list", input)),
-                    { buildId, where },
-                ),
-            ),
-            Array.fromAsync(
-                ListPage.all(
-                    (input: CallInput<typeof catalog, "list">) =>
-                        context.query(context.self, catalog.call("list", input)),
-                    { buildId },
-                ),
-            ),
-        ]);
-
-        // rebuild each notification's payload schema, and each catalog
-        const notifications = declared.map((row) => {
-            const {
-                package: declaring,
-                payload,
-                actions,
-                ...definition
-            } = NotificationDescription.parse(row.description);
-
-            return new NotificationType(
-                declaring,
-                { ...definition, payload: fromJsonSchema(payload) },
-                actions,
-            );
-        });
-        const catalogs = shipped.map(({ packageId, locale, messages, drafts }) => ({
-            package: packageId,
-            locale,
-            messages,
-            ...(drafts === null ? {} : { drafts }),
-        }));
-
-        return {
-            notifications: new Map(notifications.map((each) => [each.name, each])),
-            catalogs,
-        };
+        return Localization.of(tag, await context.catalogs(packageId));
     }
 
     /** Define the package's server: its types, their delivery and summaries, and home follows. */

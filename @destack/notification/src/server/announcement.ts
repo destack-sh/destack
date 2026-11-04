@@ -35,22 +35,22 @@ export function implementAnnouncement(server: NotificationServer): typeof announ
                 ),
             expand: (context) => expand(context, server),
         },
-        controller: {
-            // expand a thread's announcements together, in the order they were posted
-            pending: { expandedAt: { isNull: true } },
-            key: (row) => ({ thread: row.thread }),
-            reconcile: async (reconciliation) => {
-                const posted = reconciliation.rows.toSorted(
-                    (left, right) =>
-                        left.postedAt - right.postedAt || Text.compare(left.id, right.id),
-                );
-                await reconciliation.mutate(
-                    posted.map((row) => announcement.call("expand", announcement.target(row))),
-                );
-
-                return undefined;
+        controllers: [
+            {
+                // expand a thread's announcements together, in the order they were posted
+                pending: { expandedAt: { isNull: true } },
+                key: ["thread"],
+                reconcile: async (reconciliation) => {
+                    const posted = reconciliation.rows.toSorted(
+                        (left, right) =>
+                            left.postedAt - right.postedAt || Text.compare(left.id, right.id),
+                    );
+                    await reconciliation.mutate(
+                        posted.map((row) => announcement.call("expand", announcement.target(row))),
+                    );
+                },
             },
-        },
+        ],
     });
 }
 

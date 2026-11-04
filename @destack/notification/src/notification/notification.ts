@@ -5,7 +5,7 @@ import {
     type ObjectType,
     type ResultOf,
 } from "@destack/object";
-import { Package } from "@destack/package";
+import { defineDeclarationKind, Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { Duration, JsonValue, schema, toJsonSchema, zip } from "@destack/schema";
 import { NotificationError } from "../error/error.ts";
@@ -57,6 +57,9 @@ export const NotificationDescription = NotificationMetadata.extend({
 });
 /** A declared notification as manifests describe it. */
 export type NotificationDescription = schema.Infer<typeof NotificationDescription>;
+
+/** The notification declaration kind, which notification defines and other packages declare. */
+export const NOTIFICATION_KIND = defineDeclarationKind("notification", NotificationDescription);
 
 /** The payload fields a notification's messages take as arguments. */
 export type PayloadField<Payload extends schema.Schema> = keyof schema.Infer<Payload> & string;

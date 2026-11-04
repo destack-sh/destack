@@ -1,3 +1,4 @@
+import { now } from "@destack/db";
 import { t } from "@destack/locale";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import { Duration, nth, TimeZone } from "@destack/schema";
@@ -24,20 +25,15 @@ export function implementSummary(server: NotificationServer): typeof summary {
             },
             send: (context) => send(context, server),
         },
-        controller: {
-            // send each summary once due
-            pending: { sentAt: { isNull: true } },
-            reconcile: async (reconciliation) => {
-                // wait for the summary's time, then send it
-                const row = nth(reconciliation.rows, 0);
-                if (row.at > reconciliation.now) {
-                    return row.at - reconciliation.now;
-                }
-                await reconciliation.mutate([summary.call("send", summary.target(row))]);
-
-                return undefined;
+        controllers: [
+            {
+                // send each summary once its time comes
+                pending: { sentAt: { isNull: true }, at: { lte: now } },
+                reconcile: async ({ rows, mutate }) => {
+                    await mutate(rows.map((row) => summary.call("send", summary.target(row))));
+                },
             },
-        },
+        ],
     });
 }
 

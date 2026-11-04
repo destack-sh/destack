@@ -1,9 +1,18 @@
+import { now, Snapshot } from "@destack/db";
+import { Account } from "@destack/account/object";
+import { Subject } from "@destack/sync";
 import { Destination } from "@destack/message";
-import type { MethodContextOf, ResultOf } from "@destack/object";
-import { Duration, nth, present } from "@destack/schema";
+import {
+    type MethodContextOf,
+    type ObjectReconciliation,
+    ObjectWatch,
+    type ResultOf,
+} from "@destack/object";
+import { Duration, type Identifier, nth, present, schema } from "@destack/schema";
 import { Recipient, Routing, Settings } from "../message/index.ts";
 import { InboxEntry } from "../notification/inbox.ts";
-import { notification } from "../object/notification.ts";
+import { Activity, activity } from "../object/activity.ts";
+import { Notification, notification } from "../object/notification.ts";
 import { summary } from "../object/summary.ts";
 import { compose, createMessage, readMessageKey } from "./message.ts";
 import type { NotificationServer } from "./server.ts";
@@ -12,28 +21,63 @@ import type { NotificationServer } from "./server.ts";
 export function implementNotification(server: NotificationServer): typeof notification {
     return notification.implement({
         methods: { deliver: (context) => deliver(context, server) },
-        controller: {
-            // deliver a home's due notifications one home at a time, waiting for the next due one
-            pending: { deliveryAt: { isNotNull: true } },
-            key: (row) => ({ scope: row.scope }),
-            reconcile: async (reconciliation) => {
-                // deliver the due notifications in one mutation
-                const { now } = reconciliation;
-                const times = reconciliation.rows.map((row) =>
-                    present(row.deliveryAt, "a pending delivery's time"),
-                );
-                const due = reconciliation.rows.filter((_row, index) => nth(times, index) <= now);
-                await reconciliation.mutate(
-                    due.map((row) => notification.call("deliver", notification.target(row))),
-                );
-
-                // look again at the next one due
-                const waiting = times.filter((time) => time > now);
-
-                return waiting.length === 0 ? undefined : Math.min(...waiting) - now;
+        projections: [
+            {
+                // plan a home's notification as its activity changes, and again once it is stale or missing
+                watches: [
+                    ObjectWatch.of(activity.table, (row) => [{ id: Notification.of(row.id) }]),
+                ],
+                project: (id, reconciliation) =>
+                    plan(schema.identifier("notification").parse(id), reconciliation),
             },
-        },
+        ],
+        controllers: [
+            {
+                // deliver a home's due notifications in one mutation, one home at a time
+                pending: { deliveryAt: { lte: now } },
+                key: ["scope"],
+                reconcile: async ({ rows, mutate }) => {
+                    await mutate(
+                        rows.map((row) => notification.call("deliver", notification.target(row))),
+                    );
+                },
+            },
+        ],
     });
+}
+
+/** Plan the delivery of a home's notification once its activity occurs again, creating it first. */
+async function plan(
+    id: Identifier<"notification">,
+    reconciliation: ObjectReconciliation<typeof notification>,
+): Promise<void> {
+    // read the notification's activity, none once it left the home
+    const view = Snapshot.live(reconciliation.database);
+    const occurred = await view
+        .read(activity.table)
+        .findFirst({ where: { id: Notification.activity(id) } });
+    if (occurred === undefined) {
+        return;
+    }
+
+    // plan only the activities of the person whose home the store serves
+    const home = present(reconciliation.store.space, "the served space");
+    const person = await Account.homeOwner(view, home);
+    if (person === undefined || !Subject.same(Activity.recipient(occurred), person)) {
+        return;
+    }
+
+    // create the notification, or plan the delivery of its new occurrence to every destination, recording which occurrence it planned
+    const [state] = reconciliation.rows;
+    const target = notification.target({ scope: home, id });
+    const planned = { plannedAt: occurred.occurredAt, deliveryAt: reconciliation.now };
+    if (state === undefined) {
+        await reconciliation.mutate([notification.call("create", { ...target, ...planned })]);
+    } else if (!new InboxEntry(state, occurred, reconciliation.now).isPlanned) {
+        await reconciliation.mutate([
+            notification.call("update", { ...target, ...planned, delivered: [] }),
+        ]);
+    }
 }
 
 /** Deliver the last occurrence to each destination due now, deferring the others. */

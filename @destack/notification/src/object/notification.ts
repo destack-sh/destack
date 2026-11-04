@@ -1,17 +1,11 @@
 import { none, through } from "@destack/access";
 import { space } from "@destack/account/object";
-import { type Select, type SQL, type SQLWrapper, sql } from "@destack/db";
+import type { Select } from "@destack/db";
 import type { Message } from "@destack/message";
 import { defineObject, field } from "@destack/object";
 import { Identifier, Instant, schema } from "@destack/schema";
 import { NotificationError } from "../error/error.ts";
 import { ObjectReference, type ReferenceColumns } from "@destack/sync";
-
-/** The prefix of activity identifiers, ahead of their UUID. */
-const ACTIVITY_PREFIX = "activity-";
-
-/** The prefix of notification identifiers, ahead of the UUID they share with their activity. */
-const NOTIFICATION_PREFIX = "notification-";
 
 /** A person's state of one activity in their home, keyed by the activity's replica. */
 export const notification = defineObject(
@@ -26,7 +20,7 @@ export const notification = defineObject(
             snoozedUntil: field.time().optional(),
             /** When the person last archived it, back in the inbox once the activity recurs. */
             archivedAt: field.time().optional(),
-            /** When the delivery of its last occurrence started. */
+            /** The occurrence whose delivery it planned last, as its activity's occurrence time. */
             plannedAt: field.time(),
             /** When its delivery decides again, absent once every destination has it. */
             deliveryAt: field.time().optional(),
@@ -120,13 +114,6 @@ export const Notification = {
     /** Derive the identifier of an activity's notification, which shares its UUID. */
     of(activityId: Identifier<"activity">): Identifier<"notification"> {
         return Identifier.derive("notification", Identifier.uuid(activityId));
-    },
-
-    /** Derive the notification identifier of an activity identifier column in SQL, as `of` does. */
-    ofColumn(activityId: SQLWrapper): SQL<string> {
-        const uuid = sql`substr(${activityId}, ${sql.raw(String(ACTIVITY_PREFIX.length + 1))})`;
-
-        return sql<string>`${sql.raw(`'${NOTIFICATION_PREFIX}'`)} || ${uuid}`;
     },
 
     /** Derive the identifier of a notification's activity, which shares its UUID. */
