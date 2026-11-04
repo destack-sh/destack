@@ -3,7 +3,7 @@ import { eq, Snapshot } from "@destack/db";
 import { Identifier, present, Digest } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { accessRelationship, InstallationId, principal, Relationship } from "@destack/access";
-import { account, entitlement, residency } from "@destack/account/object";
+import { account, residency } from "@destack/account/object";
 import { UNIVERSE_NODE } from "@destack/universe/test";
 import {
     installation,
@@ -295,8 +295,8 @@ test("relate a residency home's declared installation at the universe once a pas
         permissions: {
             space: {
                 universe: [
+                    account.permission("entitle"),
                     account.permission("serve"),
-                    entitlement.permission("provide"),
                     residency.permission("locate"),
                 ],
             },
