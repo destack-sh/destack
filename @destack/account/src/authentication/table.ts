@@ -1,4 +1,15 @@
-import { defineTable, identifier, index, integer, type Select, text } from "@destack/db";
+import {
+    type Controller,
+    type DatabaseConnection,
+    defineTable,
+    identifier,
+    inArray,
+    index,
+    integer,
+    now,
+    type Select,
+    text,
+} from "@destack/db";
 
 /** An expiring authentication challenge stored by the universe. */
 export const verification = defineTable(
@@ -24,6 +35,30 @@ export const verification = defineTable(
         ],
     },
 );
+
+/** Authentication challenges, removed once they lapse. */
+export const Verification = {
+    /** Declare the controller removing lapsed challenges, a page at a time. */
+    controller(database: DatabaseConnection): Controller<typeof verification> {
+        return {
+            name: "verification-expiry",
+            table: verification,
+            pending: { expiresAt: { lte: now } },
+            key: [],
+            reconcile: async (rows) => {
+                await database.transaction(
+                    async (transaction) =>
+                        await transaction.delete(verification).where(
+                            inArray(
+                                verification.id,
+                                rows.map((row) => row.id),
+                            ),
+                        ),
+                );
+            },
+        };
+    },
+};
 
 /** A shared authentication rate-limit counter. */
 export const rateLimit = defineTable(

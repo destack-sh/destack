@@ -103,7 +103,8 @@ const MODELS = {
             authenticationMethod: { type: "string", input: false, required: false },
         },
     },
-    verification: { modelName: "verification" },
+    // leave lapsed challenges to the verification table's controller, not to each lookup
+    verification: { modelName: "verification", disableCleanup: true },
 } satisfies Pick<BetterAuthOptions, "user" | "account" | "session" | "verification">;
 
 /** Deployment inputs for Destack platform sign-in. */
@@ -255,7 +256,7 @@ export class BetterAuthAuthenticator {
             audit,
             server.paths,
             (headers) => readBrowserSession(auth, headers, environment.scheduler),
-            (request) => environment.scheduler.task(() => server.answer(request)),
+            (request) => environment.scheduler.task(() => server.fetch(request)),
         );
         const signIn = new SignInPage({
             ...pages,

@@ -16,6 +16,7 @@ import { implementKey } from "./key.ts";
 import { implementMachine } from "./machine.ts";
 import { implementApplication } from "./application.ts";
 import { implementOrganization } from "./organization.ts";
+import { Verification } from "../authentication/table.ts";
 import { implementPlacement } from "./placement.ts";
 import { implementResidency } from "./residency.ts";
 import type { PackageId } from "@destack/package";
@@ -64,6 +65,8 @@ export function accountServer(options: AccountOptions): PackageImplementation {
             stage.implement({ declaration: {} }),
             claim,
         ],
+        // remove lapsed authentication challenges, which Better Auth leaves to us
+        controllers: [(store) => Verification.controller(store.database)],
         adapters: { oauth: async (request) => (await options.signIn).handler(request) },
         responseHeaders: { "Cache-Control": "no-store" },
     });
