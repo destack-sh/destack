@@ -4,7 +4,11 @@ import {
     ModuleMetadata,
     type Package,
 } from "@destack/package";
-import type { ViewCategory, ViewPresentationPriority } from "@destack/package/manifest";
+import {
+    type ViewCategory,
+    ViewDescription,
+    type ViewPresentationPriority,
+} from "@destack/package/manifest";
 import type { ObjectType } from "@destack/object";
 import type { PackageHandle } from "@destack/object";
 import type { Component } from "solid-js";
@@ -12,7 +16,7 @@ import type { Environment } from "@destack/environment";
 import { ViewError } from "../error/error.ts";
 
 /** The view declaration kind, which view defines. */
-export const VIEW_KIND = defineDeclarationKind("view");
+export const VIEW_KIND = defineDeclarationKind("view", ViewDescription);
 
 /** How a view renders: in the browser, prerendered at build, or per request on the server. */
 export type ViewRender =
