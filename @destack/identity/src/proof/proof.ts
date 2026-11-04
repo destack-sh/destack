@@ -46,12 +46,14 @@ const ProofClaims = schema.object({
 });
 
 /** The request a request proof authenticates. */
-export interface ProofRequest {
+export const ProofRequest = schema.object({
     /** The HTTP method. */
-    readonly method: string;
+    method: schema.string().min(1),
     /** The URL. */
-    readonly url: string;
-}
+    url: schema.url(),
+});
+/** The request a request proof authenticates. */
+export type ProofRequest = schema.Infer<typeof ProofRequest>;
 
 /** A client's or machine's proof that it has a key's private half, after RFC 9449. */
 export class Proof {
