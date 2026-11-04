@@ -176,12 +176,12 @@ export class ConnectionAuthorization {
         });
     }
 
-    /** Poll a device authorization once (RFC 8628 3.4), returning when to poll again. */
+    /** Poll a device authorization once (RFC 8628 3.4), returning its next poll or null. */
     async poll(
         reconciliation: ObjectReconciliation<typeof connection>,
         row: Connection,
         request: AuthorizationRequest,
-    ): Promise<number | undefined> {
+    ): Promise<number | null> {
         // poll at the interval the server asked for
         const seconds = present(request.interval, "a device authorization's interval");
         const interval = Duration.milliseconds({ seconds });
@@ -204,7 +204,7 @@ export class ConnectionAuthorization {
             }
             const refused = OAuthRefusal.code(error);
             if (refused === "authorization_pending") {
-                return interval;
+                return reconciliation.now + interval;
             } else if (refused === "slow_down") {
                 return ConnectionAuthorization.#slowDown(
                     reconciliation,
@@ -218,7 +218,7 @@ export class ConnectionAuthorization {
         // settle the authorization with the answer
         await this.#settle(reconciliation, row, request, answer);
 
-        return undefined;
+        return null;
     }
 
     /** Send a person to an installation or authorization page in a browser. */
@@ -316,7 +316,7 @@ export class ConnectionAuthorization {
         return this.#tokens.register(placement.scope, request, context);
     }
 
-    /** Keep a longer device poll interval for this and every later poll (RFC 8628 3.5). */
+    /** Keep a longer poll interval for later polls (RFC 8628 3.5), returning the next poll. */
     static async #slowDown(
         reconciliation: ObjectReconciliation<typeof connection>,
         request: AuthorizationRequest,
@@ -330,7 +330,7 @@ export class ConnectionAuthorization {
             }),
         ]);
 
-        return Duration.milliseconds({ seconds });
+        return reconciliation.now + Duration.milliseconds({ seconds });
     }
 
     /** Use up a device authorization's request, then settle the connection. */

@@ -1,7 +1,8 @@
-import { and, eq } from "@destack/db";
+import { and, eq, now } from "@destack/db";
 import {
     type MethodContextOf,
     type ObjectReconciliation,
+    Observation,
     type ResultOf,
     StatusCondition,
 } from "@destack/object";
@@ -71,10 +72,28 @@ export function implementConnection(tokens: TokenSource): typeof connection {
                 handle: (context) => revoke(context),
             },
         },
-        controller: {
-            pending: {},
-            reconcile: (reconciliation) => reconcile(reconciliation, tokens, authorization),
-        },
+        controllers: [
+            // reconcile a connection as it changes, recording when it is next due
+            {
+                pending: {},
+                reconcile: (reconciliation) => reconcile(reconciliation, tokens, authorization),
+            },
+            {
+                // clear a connection's due time once it comes, which its reconcile then takes
+                name: "due",
+                pending: { renewAt: { lte: now } },
+                reconcile: async ({ rows, mutate }) => {
+                    await mutate(
+                        rows.map((row) =>
+                            Observation.call(connection, row, {
+                                conditions: {},
+                                fields: { renewAt: null },
+                            }),
+                        ),
+                    );
+                },
+            },
+        ],
     });
 }
 
@@ -163,40 +182,53 @@ async function withdraw(runner: Runner, withdrawn: Connection, tokens: TokenSour
     await tokens.remove(runner, withdrawn.vault, withdrawn.id);
 }
 
-/** Renew a connection's credential before it lapses. */
+/** Reconcile a connection's credential, then record when it is next due. */
 async function reconcile(
     reconciliation: ObjectReconciliation<typeof connection>,
     tokens: TokenSource,
     authorization: ConnectionAuthorization,
-): Promise<number | undefined> {
+): Promise<void> {
     // read the key's one connection at its current revision
-    const { now } = reconciliation;
-    const runner = Runner.of(reconciliation.store);
     const [current] = await reconciliation.database
         .select()
         .from(connection.table)
         .where(eq(connection.table.id, nth(reconciliation.rows, 0).id));
     if (current === undefined) {
-        return undefined;
+        return;
     }
-    const reason = Connection.authorized(current);
-    const isAuthorized = current.conditions["Authorized"]?.status === "true";
-    const kind = current.protocol.kind;
 
     // destroy a deleted connection's credential before it goes
     if (current.deletedAt !== null) {
         await finalize(reconciliation, current, tokens);
-
-        return undefined;
     }
+    // act on a live one, and record when it is next due
+    else {
+        const renewAt = await advance(reconciliation, current, tokens, authorization);
+        await schedule(reconciliation, current, renewAt);
+    }
+}
+
+/** Act on a live connection's credential, returning when it is next due, null for never. */
+async function advance(
+    reconciliation: ObjectReconciliation<typeof connection>,
+    current: Connection,
+    tokens: TokenSource,
+    authorization: ConnectionAuthorization,
+): Promise<number | null> {
+    // read the connection's authorization
+    const runner = Runner.of(reconciliation.store);
+    const reason = Connection.authorized(current);
+    const isAuthorized = current.conditions["Authorized"]?.status === "true";
+    const kind = current.protocol.kind;
+
     // withdraw a revoked connection's credential once, then leave it
-    else if (reason === "Revoked") {
+    if (reason === "Revoked") {
         if (current.storedAt !== null) {
             await withdraw(runner, current, tokens);
             await tokens.observe(runner, current, REVOKED, { storedAt: null });
         }
 
-        return undefined;
+        return null;
     }
     // mark supplied material authorized
     else if (SUPPLIED_KINDS.has(kind)) {
@@ -209,7 +241,7 @@ async function reconcile(
             );
         }
 
-        return undefined;
+        return null;
     }
     // poll a device authorization or wait for a person to authorize the others
     else if (PERSON_KINDS.has(kind) && isAwaitingPerson(reason)) {
@@ -217,12 +249,33 @@ async function reconcile(
     }
     // obtain or refresh a token before it expires
     else if (reason !== "Expired") {
-        return renewToken(runner, current, tokens, now);
+        return renewToken(runner, current, tokens, reconciliation.now);
     }
     // leave an expired grant for a person to authorize again
     else {
-        return undefined;
+        return null;
     }
+}
+
+/** Record when a connection is next due, unless it has that time already or is gone. */
+async function schedule(
+    reconciliation: ObjectReconciliation<typeof connection>,
+    row: Connection,
+    renewAt: number | null,
+): Promise<void> {
+    // read the connection as the reconcile left it
+    const [current] = await reconciliation.database
+        .select()
+        .from(connection.table)
+        .where(eq(connection.table.id, row.id));
+    if (current === undefined || current.renewAt === renewAt) {
+        return;
+    }
+
+    // observe the due time at the connection's revision
+    await reconciliation.mutate([
+        Observation.call(connection, current, { conditions: {}, fields: { renewAt } }),
+    ]);
 }
 
 /** Withdraw a deleted connection's credential as a revocation does, then let it go. */
@@ -235,14 +288,14 @@ async function finalize(
     await reconciliation.mutate([connection.call("finalize", connection.target(current))]);
 }
 
-/** Poll a device authorization, or mark it pending for a person, returning when to look again. */
+/** Poll a due device authorization, or mark it pending for a person, returning the next poll. */
 async function awaitPerson(
     reconciliation: ObjectReconciliation<typeof connection>,
     current: Connection,
     tokens: TokenSource,
     authorization: ConnectionAuthorization,
-): Promise<number | undefined> {
-    // poll a pending device authorization
+): Promise<number | null> {
+    // poll a pending device authorization once its poll is due
     const [request] = await reconciliation.database
         .select()
         .from(authorizationRequest.table)
@@ -253,7 +306,9 @@ async function awaitPerson(
             ),
         );
     if (request !== undefined) {
-        return authorization.poll(reconciliation, current, request);
+        return current.renewAt !== null && current.renewAt > reconciliation.now
+            ? current.renewAt
+            : authorization.poll(reconciliation, current, request);
     }
 
     // mark the connection pending until a person authorizes it
@@ -263,44 +318,49 @@ async function awaitPerson(
         await tokens.observe(Runner.of(reconciliation.store), current, pending, {});
     }
 
-    return undefined;
+    return null;
 }
 
-/** Obtain a connection's token, or refresh it before it expires, returning when to look again. */
+/** Obtain a connection's token, or refresh it before it expires, returning its next refresh. */
 async function renewToken(
     runner: Runner,
     current: Connection,
     tokens: TokenSource,
-    now: number,
-): Promise<number | undefined> {
+    time: number,
+): Promise<number | null> {
     // leave a stored token that never expires as it is
     const authorized = current.conditions["Authorized"];
     const isRetained = authorized?.status === "true" && current.storedAt !== null;
     if (isRetained && current.expiresAt === null) {
-        return undefined;
+        return null;
     }
 
-    // wait until its refresh is due, then obtain or refresh it
-    const due = isRetained && current.expiresAt !== null ? current.expiresAt - REFRESH_MARGIN : now;
-    if (due > now) {
-        return due - now;
+    // wait out a failed refresh's retry, else until the refresh is due, then obtain or refresh it
+    const isRetrying = current.failures > 0 && current.renewAt !== null;
+    const due = isRetrying
+        ? current.renewAt
+        : isRetained && current.expiresAt !== null
+          ? current.expiresAt - REFRESH_MARGIN
+          : time;
+    if (due !== null && due > time) {
+        return due;
     }
 
-    return refresh(runner, current, tokens, now);
+    return refresh(runner, current, tokens, time);
 }
 
-/** Refresh a connection's token, recording failures besides a refused grant, then waiting. */
+/** Refresh a connection's token, recording failures but a refused grant, returning its next try. */
 async function refresh(
     runner: Runner,
     row: Connection,
     tokens: TokenSource,
-    now: number,
-): Promise<number | undefined> {
+    time: number,
+): Promise<number | null> {
     try {
-        const { token } = await tokens.refresh(runner, row, now);
+        const { token } = await tokens.refresh(runner, row, time);
         const expiresAt = token?.expiresAt;
 
-        return expiresAt === undefined ? undefined : Math.max(0, expiresAt - REFRESH_MARGIN - now);
+        return expiresAt === undefined ? null : Math.max(time, expiresAt - REFRESH_MARGIN);
     } catch (error) {
         // pass on a failure that is no connection refusal
         if (!ConnectionError.is(error)) {
@@ -309,18 +369,18 @@ async function refresh(
         // retry a failure besides a refused grant, keeping a token that has not lapsed leasable
         else if (!TokenSource.isGrantExpired(error)) {
             const failures = row.failures + 1;
-            const isLive = row.storedAt !== null && row.expiresAt !== null && row.expiresAt > now;
+            const isLive = row.storedAt !== null && row.expiresAt !== null && row.expiresAt > time;
             const status = isLive ? "true" : "false";
             const failing = { status, reason: "Failing", message: error.message } as const;
             await tokens.observe(runner, row, failing, { failures });
 
             const drawn = RetryPolicy.draw(`${row.id} ${failures}`);
 
-            return Math.ceil(RetryPolicy.interval(RETRY, failures, () => drawn));
+            return time + Math.ceil(RetryPolicy.interval(RETRY, failures, () => drawn));
         }
         // leave a refused grant expired, for a person to authorize again
         else {
-            return undefined;
+            return null;
         }
     }
 }

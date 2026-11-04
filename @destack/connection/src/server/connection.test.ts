@@ -187,7 +187,8 @@ test("acquire a client credentials token in the controller, refresh it before ex
     });
 
     // acquire the token and lease it
-    const waits = await fixture.control();
+    const now = fixture.environment.clock.now();
+    const renewals = await fixture.control();
     const first = await lease(fixture, reference);
 
     // lease a token near its expiry as it is, then refresh it once in the controller
@@ -204,14 +205,15 @@ test("acquire a client credentials token in the controller, refresh it before ex
     );
 
     expect({
-        waited: (waits[0] ?? 0) > 3_000_000,
+        renewals,
         first,
         near,
         refreshed,
         lapsed,
         tokenRequests: tokenRequests.map((request) => request.body["grant_type"]),
     }).toEqual({
-        waited: true,
+        // refresh the hour-long token a minute before it expires
+        renewals: [now + 3_540_000],
         first: "Bearer access-1",
         near: ["Bearer access-1", "Bearer access-1", "Bearer access-1"],
         refreshed: "Bearer access-2",
@@ -250,17 +252,18 @@ test("back off a connection's failing refreshes by their count, and reset the co
     });
 
     // refresh three times
+    const now = fixture.environment.clock.now();
     const refresh = async () => {
-        const waits = await fixture.control();
+        const renewals = await fixture.control();
         const row = await readConnection(fixture, reference);
 
-        return { waits, failures: row.failures, reason: Connection.authorized(row) };
+        return { renewals, failures: row.failures, reason: Connection.authorized(row) };
     };
     expect([await refresh(), await refresh(), await refresh()]).toEqual([
-        // wait the jittered refresh intervals
-        { waits: [688], failures: 1, reason: "Failing" },
-        { waits: [9737], failures: 2, reason: "Failing" },
-        { waits: [3_540_000], failures: 0, reason: "Authorized" },
+        // retry after the jittered refresh intervals, then refresh a minute before expiry
+        { renewals: [now + 688], failures: 1, reason: "Failing" },
+        { renewals: [now + 9737], failures: 2, reason: "Failing" },
+        { renewals: [now + 3_540_000], failures: 0, reason: "Authorized" },
     ]);
 });
 
@@ -376,6 +379,7 @@ test("poll a device authorization in the controller until the person approves it
         .then(([written]) => written);
 
     // poll while pending and after approval
+    const now = fixture.environment.clock.now();
     const waiting = await fixture.control();
     fixture.server.approveDevice(present(userCode, "the user code"));
     await fixture.control();
@@ -389,7 +393,7 @@ test("poll a device authorization in the controller until the person approves it
     }).toEqual({
         url: "https://auth.test/activate",
         userCode: "USER-1",
-        waiting: [1000],
+        waiting: [now + 1000],
         authorized: ["true", "Authorized", true],
         leased: "Bearer access-1",
     });
@@ -421,8 +425,11 @@ test("poll a slowed device authorization five seconds slower from then on, and r
     fixture.server.answerDevice(slowed.userCode, "slow_down");
 
     // poll each at its interval
+    const now = fixture.environment.clock.now();
     const waits = async () =>
-        (await fixture.control()).toSorted((left, right) => Number(left) - Number(right));
+        (await fixture.control())
+            .map((renewAt) => Number(renewAt) - now)
+            .toSorted((left, right) => left - right);
     const first = await waits();
     const later = await waits();
     const rows = await fixture.objects.database.select().from(authorizationRequest.table);

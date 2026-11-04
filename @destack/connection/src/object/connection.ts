@@ -173,6 +173,8 @@ export const connection = defineObject(
             storedAt: field.time().optional(),
             /** The refreshes that failed in a row since the last one that succeeded. */
             failures: field.integer().default(0),
+            /** When the controller next refreshes, retries or polls, absent while none is due. */
+            renewAt: field.time().optional(),
         },
         // let its consumers and the servers of its scope read it, and its consumers use it
         permissions: {

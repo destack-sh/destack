@@ -16,7 +16,7 @@ import { Account, account, space } from "@destack/account/object";
 import { AccessContext, Authentication, Caller, principal, relation } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { STACKS } from "@destack/account/test";
-import { TestDatabase, reconcileOnce } from "@destack/db/test";
+import { TestDatabase, reconciliation } from "@destack/db/test";
 import {
     defineObject,
     type ObjectType,
@@ -698,7 +698,7 @@ export class TestConnection {
         return Server.start({
             environment: objects.environment,
             ...objects.package(handle),
-            controllers: [],
+            control: { controllers: [], consumers: [] },
             drainTimeout: 1000,
             health: new Health("connection"),
             resources: new ResourceContext(),
@@ -954,29 +954,52 @@ export class TestConnection {
         );
     }
 
-    /** Run the connection controller over every connection once, answering its waits. */
-    async control(): Promise<(number | undefined)[]> {
-        // find the controller and reconcile each key once
-        const controller = this.objects.controllers().find((each) => each.name === connection.name);
-        if (controller === undefined) {
+    /** Reconcile every connection once as its due time came, answering each one's next due time. */
+    async control(): Promise<(number | null)[]> {
+        // find the connection controller and its due one
+        const { controllers } = this.objects.control();
+        const [reconciling, due] = [connection.name, `${connection.name}:due`].map((name) => {
+            const found = controllers.find((each) => each.name === name);
+            if (found === undefined || !("reconcile" in found)) {
+                throw new TypeError(`the connection package reconciles no ${name} controller`);
+            }
+
+            return found;
+        });
+        if (reconciling === undefined || due === undefined) {
             throw new TypeError("the connection package controls its connections");
         }
 
-        return reconcileOnce(controller, this.objects.database);
+        // clear each connection's due time as it comes, then reconcile it
+        const { database } = this.objects;
+        const rows = await database.select().from(connection.table);
+        for (const row of rows) {
+            if (row.renewAt !== null) {
+                await due.reconcile([row], reconciliation());
+            }
+            const [current] = await database
+                .select()
+                .from(connection.table)
+                .where(eq(connection.table.id, row.id));
+            if (current !== undefined) {
+                await reconciling.reconcile([current], reconciliation());
+            }
+        }
+
+        // read each connection's next due time, none for a removed one
+        const after = await database.select().from(connection.table);
+
+        return rows.map((row) => after.find((each) => each.id === row.id)?.renewAt ?? null);
     }
 
     /** Follow the store's replicas in a control loop until the test ends. */
     follow(): void {
-        // run the replica controller, collecting every failure
+        // run the store's replica syncing, collecting every failure
         const controller = new AbortController();
         const failures: unknown[] = [];
-        const loop = new ControlLoop(
-            this.database,
-            this.objects.controllers().filter((each) => each.name === "replica"),
-            {
-                report: (_controller, _key, error) => failures.push(error),
-            },
-        );
+        const loop = new ControlLoop(this.database, this.objects.syncing(), {
+            report: (_controller, _key, error) => failures.push(error),
+        });
         const running = loop.run(controller.signal);
         onTestFinished(async () => {
             controller.abort();
