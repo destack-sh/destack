@@ -1,15 +1,15 @@
 ---
 title: "Introducing Destack"
 subtitle: "The open, standardised, hackable stack for personal software."
-date: "2026-10-24"
+date: "2026-11-07"
 author: "Florian"
 ---
 
 > [!ABSTRACT]
 > Destack is an **open-source software engine** for general purpose application software, just like Unity and Unreal are engines for games.
-> Think GitHub + NPM + Convex + Vercel + Sentry with all the boring decisions already made: auth, migrations, multiplayer, permissions, workflows, telemetry, testing.
+> Think GitHub + NPM + Convex + Vercel + Sentry in one, with all the boring decisions already made: auth, migrations, multiplayer, permissions, workflows, telemetry, testing.
 > 
-> Destack **standardises the tools and processes for software production**:
+> Destack **standardises software production and deployment**:
 > 1. **Build custom software**, with your own AI, in a standardised pipeline.
 > 2. **Integrate every app and agent**: one account, one database, no walls.
 > 3. **Control your whole stack**: your data, your context, your machine.
@@ -122,7 +122,7 @@ Higher order programming requires higher order processes with higher order speci
 which requires integrating and standardising the full stack.
 Thus, we need a complete _software engine_ that provides both the fundamental building blocks for development and the platform services for deployment.
 
-That is Destack: an open-source, hackable software engine and platform.
+That is Destack: an open-source, hackable software engine.
 In product terms, think of Destack as an integrated system of software production with the principal building blocks for modern software _and_ a ready-to-wear suite of common applications built on top of them, ready to deploy, remix, and adopt. 
 
 ![Eleven versions of Picasso's bull, progressing from a detailed animal to a few essential lines.](./picasso-bull.jpg)
