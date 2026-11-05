@@ -80,6 +80,14 @@ const { url } = await session.launch(address); // GRANT_REQUIRED with the permis
 await session.grant(address); // once the person allows, then launch again
 ```
 
+A session opens a scope's objects as the person in a client in memory, closed with the stack.
+
+```ts
+const inbox = await session.open(home, { notification, activity, message }, stack);
+for await (const rows of inbox.query.notification.findMany({ with: { activity: true } }).watch(signal)) show(rows);
+const latest = RelationalQuery.latest({ messages: inbox.query.message.findMany(), activities: inbox.query.activity.findMany() }, signal);
+```
+
 ## Checkouts
 
 A `CheckoutServer` registers working trees through `Git`, builds a checkout's packages in a space as a person, and previews them while a `PreviewController` watches their sources.

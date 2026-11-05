@@ -24,10 +24,11 @@ test(
         // replicate the home's installations on the laptop as the owner
         const session = await laptop.device.session(signedIn.id);
         const space = `home--${world.owner.handle}`;
-        const replica = await session.open({ space }, { installation });
+        await using stack = new AsyncDisposableStack();
+        const replica = await session.open({ space }, { installation }, stack);
         const named = (rows: readonly Select<typeof installation.table>[] | void) =>
             (rows ?? []).find((row) => row.name === "home");
-        const watched = replica.watch((query) => query.installation.findMany({}));
+        const watched = replica.query.installation.findMany({}).watch(new AbortController().signal);
         const first = await world.simulation.wait(watched.next());
         const before = present(named(first.value), "the home's Home installation");
 
@@ -57,7 +58,6 @@ test(
                 elapsed = world.simulation.clock.now() - ready;
             }
         }
-        await replica.close();
 
         expect(elapsed).toBeLessThanOrEqual(5000);
     },

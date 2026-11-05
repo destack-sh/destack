@@ -29,9 +29,10 @@ import { call, device, Installation, type ObjectType, tablesOf } from "@destack/
 import objectPackage from "@destack/object/package";
 import { distribution } from "@destack/update/object";
 import { implementPackage, ObjectStore, type PackageImplementation } from "@destack/object/server";
-import { ObjectClient, type ObjectQueries, type RelationalQuery } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/client";
 import { Package, PackageId } from "@destack/package";
 import { Identifier, nth, schema } from "@destack/schema";
+import { TelemetryScope } from "@destack/telemetry";
 import { type Fetch, PackageHandle, PackageMount } from "@destack/object";
 import { Bookmark, type ClientOptions, createClient } from "@destack/object/client";
 import { type CallKey } from "@destack/object";
@@ -61,77 +62,6 @@ export type MachineStatus =
     | { readonly kind: "absent" }
     | { readonly kind: "stopped" }
     | { readonly kind: "running"; readonly computer: Select<typeof computer.table> };
-
-/** A scope's objects replicated into a replica in memory until closed. */
-export class ScopeReplica<
-    Objects extends Readonly<Record<string, ObjectType>> = Readonly<Record<string, ObjectType>>,
-> {
-    /** The replica. */
-    readonly client: ObjectClient<Objects>;
-    /** Rejects with the first failure and stops the replica. */
-    readonly failed: Promise<never>;
-    /** The controller that stops following. */
-    readonly #stopping: AbortController;
-    /** The replica's database in memory. */
-    readonly #database: Pick<SqliteDatabase, "close">;
-
-    /** Take a replica following its scope until stopped. */
-    constructor(fields: {
-        readonly client: ObjectClient<Objects>;
-        readonly failed: Promise<never>;
-        readonly stopping: AbortController;
-        readonly database: Pick<SqliteDatabase, "close">;
-    }) {
-        // take the client and its failure, then what stops and releases it
-        this.client = fields.client;
-        this.failed = fields.failed;
-        this.#stopping = fields.stopping;
-        this.#database = fields.database;
-    }
-
-    /** Aborts once the replica stops following. */
-    get signal(): AbortSignal {
-        return this.#stopping.signal;
-    }
-
-    /** Read a query of the replica once and close it. */
-    async read<Value>(
-        select: (query: ObjectQueries<Objects>) => RelationalQuery<Value>,
-    ): Promise<Value> {
-        try {
-            // wait for the value or the first failure
-            return await Promise.race([select(this.client.query), this.failed]);
-        } finally {
-            await this.close();
-        }
-    }
-
-    /** Yield a query's value at every change, until the replica stops or fails. */
-    async *watch<Value>(
-        select: (query: ObjectQueries<Objects>) => RelationalQuery<Value>,
-    ): AsyncGenerator<Value> {
-        const live = select(this.client.query).subscribe();
-        try {
-            // yield each change once the value arrived
-            await Promise.race([live.ready, this.failed]);
-            for await (const value of live.watch(this.signal)) {
-                yield value;
-            }
-
-            // fail with the replica's failure, ending quietly once it closed
-            await Promise.race([this.failed, Promise.resolve()]);
-        } finally {
-            await live.close();
-        }
-    }
-
-    /** Stop following and release the replica. */
-    async close(): Promise<void> {
-        this.#stopping.abort();
-        await this.client.close();
-        await this.#database.close();
-    }
-}
 
 /** A device's identity, as its identity file names it. */
 const DeviceIdentity = schema.object({
@@ -555,16 +485,26 @@ export class Device implements AsyncDisposable {
 
     /** Read the person this computer acts as. */
     async login(): Promise<Login["row"] | undefined> {
-        // read the signed-in people and the one the login setting names
-        const [items, chosen] = await Promise.all([
+        const [signedIn, values] = await Promise.all([
             this.logins.query.login.findMany(),
-            this.setting(currentLogin),
+            this.settings.query.deviceSetting.findMany({ where: currentLogin.reference }),
         ]);
-        const [signedIn, other] = items;
+
+        return this.choose(signedIn, values);
+    }
+
+    /** Pick the person this computer acts as among those signed in, as the login setting says. */
+    choose(
+        signedIn: readonly Login["row"][],
+        values: readonly Select<typeof deviceSetting.table>[],
+    ): Login["row"] | undefined {
+        // resolve the login setting from this device's values
+        const chosen = currentLogin.resolve({ scope: this.id }, [], [this.id], values).value;
+        const [first, other] = signedIn;
 
         // take the signed-in person the setting names
         if (chosen !== null) {
-            const found = items.find((item) => item.id === chosen);
+            const found = signedIn.find((item) => item.id === chosen);
             if (found === undefined) {
                 throw MachineError.of(
                     "LOGIN_NOT_SIGNED_IN",
@@ -581,8 +521,10 @@ export class Device implements AsyncDisposable {
                 "several people are signed in: choose one with the login setting",
             );
         }
-
-        return signedIn;
+        // take the one person signed in, none without one
+        else {
+            return first;
+        }
     }
 
     /** Resolve a setting on this computer. */
@@ -691,7 +633,8 @@ export class Device implements AsyncDisposable {
     /** Follow some of the machine's own objects, such as its checkouts, as its owner. */
     async follow<const Objects extends Readonly<Record<string, ObjectType>>>(
         objects: Objects,
-    ): Promise<ScopeReplica<Objects>> {
+        stack: AsyncDisposableStack,
+    ): Promise<ObjectClient<Objects>> {
         // require one package's objects in their scope's partition
         const { id } = await this.loopback.computer();
         const [first] = Object.values(objects);
@@ -711,6 +654,8 @@ export class Device implements AsyncDisposable {
                     `this computer's objects moved to ${machine}`,
                 );
             },
+            undefined,
+            stack,
         );
     }
 
@@ -815,19 +760,21 @@ export class Device implements AsyncDisposable {
         });
     }
 
-    /** Follow a scope's objects into a replica in memory until closed or the first failure. */
+    /** Follow a scope's objects into a client in memory until the stack closes. */
     async replicate<const Objects extends Readonly<Record<string, ObjectType>>>(
         scope: string,
         objects: Objects,
         caller: Subject,
         endpoint: ClientOptions,
         reconnect: (machine: Identifier<"machine">) => ClientOptions,
-        homes?: (scope: string) => ClientOptions,
-    ): Promise<ScopeReplica<Objects>> {
-        // store the objects in memory
+        homes: ((scope: string) => ClientOptions) | undefined,
+        stack: AsyncDisposableStack,
+    ): Promise<ObjectClient<Objects>> {
+        // store the objects in memory, closed after the client
         const database = await connectBunSqlite(":memory:", ObjectClient.tables(objects), {
             environment: this.environment,
         });
+        stack.defer(() => database.close());
         const client = await ObjectClient.open({
             environment: this.environment,
             database,
@@ -838,22 +785,30 @@ export class Device implements AsyncDisposable {
             reconnect,
             ...(homes === undefined ? {} : { homes }),
         });
+        stack.defer(() => client.close());
 
-        // stop following at the first failure
-        const stopping = new AbortController();
-        const failed = Promise.withResolvers<never>();
-        failed.promise.catch(() => {});
-        const fail = (error: unknown) => {
-            failed.reject(error);
-            stopping.abort();
-        };
-        void client.follow(stopping.signal, fail).catch(fail);
+        // follow until the stack closes, warning of each failure the follow retries
+        const instruments = TelemetryScope.of(
+            import.meta.destack.package,
+            this.environment.telemetry,
+        );
+        const report = (error: unknown) =>
+            instruments.captureException(error, { level: "warning" });
+        const following = new AbortController();
+        const followed = client.follow(following.signal, report).catch(report);
+        stack.defer(async () => {
+            following.abort();
+            await followed;
+        });
 
-        return new ScopeReplica({ client, failed: failed.promise, stopping, database });
+        return client;
     }
 
     /** Replicate a person's settings along their scope chain at the universe, as the person. */
-    personSettings(person: Login): Promise<ScopeReplica<{ readonly setting: typeof setting }>> {
+    personSettings(
+        person: Login,
+        stack: AsyncDisposableStack,
+    ): Promise<ObjectClient<{ readonly setting: typeof setting }>> {
         const scope = person.subject.id;
 
         return this.replicate(
@@ -867,6 +822,8 @@ export class Device implements AsyncDisposable {
                     `the settings of ${scope} cannot move, but moved to ${machine}`,
                 );
             },
+            undefined,
+            stack,
         );
     }
 
@@ -877,24 +834,13 @@ export class Device implements AsyncDisposable {
     ): Promise<schema.Infer<Value>> {
         // follow the person's values at the universe as the person
         const scope = person.subject.id;
-        const replica = await this.personSettings(person);
-        try {
-            // wait for the values and the access rows of the person's chain
-            const { client } = replica;
-            const live = client.query.setting.findMany({}).subscribe();
-            await Promise.race([live.ready, replica.failed]);
-            await live.close();
-            const isAccessed = async () =>
-                (await client.access.position(client.database)) !== undefined;
-            await Promise.race([
-                client.database.log.waitUntil(isAccessed, replica.signal),
-                replica.failed,
-            ]);
+        await using stack = new AsyncDisposableStack();
+        const settings = await this.personSettings(person, stack);
 
-            // resolve the value along the chain
-            return await SettingValue.resolve(Snapshot.live(client.database), declared, { scope });
-        } finally {
-            await replica.close();
-        }
+        // wait for the values and the access rows of the person's chain
+        await settings.query.setting.findMany({});
+
+        // resolve the value along the chain
+        return await SettingValue.resolve(Snapshot.live(settings.database), declared, { scope });
     }
 }

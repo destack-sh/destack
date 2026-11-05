@@ -13,7 +13,7 @@ import {
     SpaceMount,
 } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { type ClientOptions, createClient } from "@destack/object/client";
+import { type ClientOptions, createClient, type ObjectClient } from "@destack/object/client";
 import { Package, PackageId } from "@destack/package";
 import {
     type ViewCategory,
@@ -27,7 +27,7 @@ import { InstallationView, type InstallationRollout } from "@destack/stack/objec
 import stackPackage from "@destack/stack/package";
 import { type Address, TARGET_PARAMETER, View, ViewAddress } from "@destack/view/declare";
 import { MachineError } from "../../error/index.ts";
-import type { Device, ScopeReplica } from "./device.ts";
+import type { Device } from "./device.ts";
 import { Visit } from "./object/index.ts";
 import { HostAddress } from "@destack/environment";
 
@@ -162,13 +162,14 @@ export class Session {
         };
     }
 
-    /** Open a scope's objects, following its moves through the directory. */
+    /** Open a scope's objects as the person, following their moves, until the stack closes. */
     async open<const Objects extends Readonly<Record<string, ObjectType>>>(
         location:
-            | { readonly endpoint: string; readonly scope: string }
+            | { readonly scope: string }
             | { readonly space: SpaceAddress; readonly installation?: string },
         objects: Objects,
-    ): Promise<ScopeReplica<Objects>> {
+        stack: AsyncDisposableStack,
+    ): Promise<ObjectClient<Objects>> {
         // connect as the person to the package serving the objects
         const [first] = Object.values(objects);
         if (first === undefined) {
@@ -191,14 +192,10 @@ export class Session {
             scopeId = located.placement.space;
             reached = atMachine(async () => located);
         }
-        // call another scope at its endpoint, such as the person's issuer
+        // call a scope at the person's universe, such as their account, with an access token
         else {
             scopeId = location.scope;
-            reached = {
-                url: UNRESOLVED_ORIGIN,
-                fetch: (request) =>
-                    this.#sendOwn(request, PackageMount.path(serving.id), location.endpoint),
-            };
+            reached = this.login.universe(serving.id);
         }
 
         // follow the objects as the person through their installation
@@ -211,7 +208,15 @@ export class Session {
                 serving.id,
             );
 
-            return this.device.replicate(scopeId, objects, caller, served, () => served, homes);
+            return this.device.replicate(
+                scopeId,
+                objects,
+                caller,
+                served,
+                () => served,
+                homes,
+                stack,
+            );
         }
 
         // follow the objects as the person, a space's again at the machine it moved to
@@ -220,7 +225,7 @@ export class Session {
                 ? () => atMachine(async () => this.device.locate(location.space))
                 : () => reached;
 
-        return this.device.replicate(scopeId, objects, caller, reached, reconnect, homes);
+        return this.device.replicate(scopeId, objects, caller, reached, reconnect, homes, stack);
     }
 
     /** Grant a view's installation what the view asks the person to grant. */
