@@ -1,0 +1,14 @@
+{
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "Destack",
+    "mainBinaryName": "Destack",
+    "version": "../package.json",
+    "identifier": "app.destack.desktop",
+    "app": { "windows": [], "security": { "capabilities": [] } },
+    "bundle": {
+        "active": true,
+        "macOS": { "minimumSystemVersion": "14.0" },
+        "targets": ["app"],
+        "icon": ["icon.png", "icon.icns"]
+    }
+}
