@@ -25,7 +25,7 @@ import { type Digest, Identifier, present, schema } from "@destack/schema";
 import { join } from "node:path";
 import settingPackage from "@destack/setting/package";
 import { describeSetting } from "@destack/setting/inspect";
-import { binding } from "@destack/stack/object";
+import { installationRevision } from "@destack/stack/object";
 import { TestPackage, TestSpace } from "@destack/stack/test";
 import { RequestId, type Subject } from "@destack/sync";
 import { defineVault } from "@destack/vault/declare";
@@ -399,13 +399,19 @@ export class TestForge {
         return { installation, tenants };
     }
 
-    /** Read the forge's installation in the home from its binding of the repository storage. */
+    /** Read the forge's installation from its revision's binding of the repository storage. */
     static async #installation(served: TestObjectStore): Promise<Identifier<"installation">> {
-        const rows = await Snapshot.live(served.database)
-            .read(binding.table)
-            .findMany({ where: { packageId: forgePackage.id, name: repositoryStorage.name } });
+        const revisions = await Snapshot.live(served.database)
+            .read(installationRevision.table)
+            .findMany({});
+        const bound = revisions.find((revision) =>
+            revision.bindings.some(
+                (entry) =>
+                    entry.packageId === forgePackage.id && entry.name === repositoryStorage.name,
+            ),
+        );
 
-        return present(rows[0], "the forge's repository storage binding").installationId;
+        return present(bound, "the forge's repository storage binding").installationId;
     }
 
     /** Call the forge as a person with their client's token, or anonymously. */
@@ -693,12 +699,15 @@ export class TestForge {
 
     /** Open the forge's platform repositories as its bound Git storage keeps them. */
     async storage(): Promise<LocalGitStorage> {
-        const rows = await Snapshot.live(this.served.database)
-            .read(binding.table)
-            .findMany({
-                where: { installationId: this.installation, name: repositoryStorage.name },
-            });
-        const target = present(rows[0], "the forge's Git storage binding").target;
+        // take the target its revisions bind the repository storage to
+        const revisions = await Snapshot.live(this.served.database)
+            .read(installationRevision.table)
+            .findMany({ where: { installationId: this.installation } });
+        const bound = revisions.flatMap((revision) => revision.bindings);
+        const target = present(
+            bound.find((entry) => entry.name === repositoryStorage.name),
+            "the forge's Git storage binding",
+        ).target;
 
         return new LocalGitStorage(join(this.home.resources, target), this.home.environment);
     }
