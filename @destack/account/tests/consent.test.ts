@@ -56,7 +56,7 @@ test("let an installation act for a person under the grant the person created, u
             subject: owner.subject,
             ...(grants === undefined ? {} : { grants }),
         });
-    const acting = fixture.issuer.accounts((await exchange([granted.id])).accessToken);
+    const acting = fixture.issuer.accounts(await exchange([granted.id]));
 
     // refuse a chain linking a grant the universe stores no record of
     const unknown = Identifier.create("grant", fixture.environment);
@@ -137,7 +137,7 @@ test("stamp a token acting for a person under their grant with the universe's po
         });
     const { log } = fixture.storage.database;
     const granted = await log.position();
-    const { accessToken } = await exchange();
+    const accessToken = await exchange();
     const exchanged = await log.position();
     const stamped = single(
         present(TestJwt.claims(accessToken).caller.credential.watermarks, "the watermarks"),

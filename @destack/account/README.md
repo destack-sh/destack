@@ -94,14 +94,14 @@ await UniverseRole.operating(snapshot); // the organization holding the operator
 
 ## Sign-in on a computer
 
-`NativeSignIn` signs a person in from the CLI or the desktop.
+`NativeClient` signs people in on a computer's machine and keeps their credentials in its keychain.
 
 ```ts
-import { NativeSignIn } from "@destack/account/native";
+import { NativeClient } from "@destack/account/native";
 
-const signIn = new NativeSignIn({ issuer, sessions, keys, logins, clock, client });
-const login = await signIn.device(async ({ url, userCode }) => print(url, userCode));
-await signIn.email("bea@example.com", ask, {
+const native = new NativeClient({ issuer, sessions, keys, logins, environment, client });
+const login = await native.device(async ({ url, userCode }) => print(url, userCode));
+await native.email("bea@example.com", ask, {
     name: "Bea",
     handle: "bea",
     residencyId: "eu",

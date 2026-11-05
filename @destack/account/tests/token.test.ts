@@ -346,9 +346,7 @@ test("exchange an installation's token for tokens of its account's spaces with i
             partition: space,
             ...(subject === undefined ? {} : { subject }),
         });
-    const { credential, ...identity } = TestJwt.claims(
-        (await exchange(sibling)).accessToken,
-    ).caller;
+    const { credential, ...identity } = TestJwt.claims(await exchange(sibling)).caller;
     const onAccount = account.reference(owner.id, accountId);
     expect([identity, credential.kind]).toEqual([
         {
@@ -498,6 +496,6 @@ test("grant an installation a token naming no space toward the universe, and one
     const source = fixture.source(automation);
     const universe = TestJwt.claims(await source.grantedToken(objectPackage.id));
     const exchanged = await source.exchange(objectPackage.id, { partition: spaceId });
-    const space = TestJwt.claims(exchanged.accessToken);
+    const space = TestJwt.claims(exchanged);
     expect([universe.partition, space.partition]).toEqual([undefined, spaceId]);
 });

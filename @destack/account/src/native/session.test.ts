@@ -1,5 +1,6 @@
 import { testSimulation } from "@destack/object/test";
-import { MemoryKeychain } from "@destack/identity";
+import { Jwt, MemoryKeychain } from "@destack/identity";
+import { TestJwt } from "../test/jwt.ts";
 import { Identifier, present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { SessionStore } from "./session.ts";
@@ -77,17 +78,16 @@ test("refresh a session's access token once for every caller at once, and anew o
     const refresh = async () => {
         refreshed += 1;
 
-        return { accessToken: `access-${refreshed}`, expiresAt: NOW + 60_000 };
+        return TestJwt.encode({ jti: `access-${refreshed}`, exp: NOW / 1000 + 60 });
     };
-    const tokens = await Promise.all([
-        sessions.accessTokens(person).token("account", NOW, refresh),
-        sessions.accessTokens(person).token("account", NOW, refresh),
-    ]);
-    const cached = await sessions.accessTokens(person).token("account", NOW, refresh);
+    const read = async () =>
+        Jwt.claims(await sessions.accessTokens(person).token("account", NOW, refresh)).jti;
+    const tokens = await Promise.all([read(), read()]);
+    const cached = await read();
 
     // forget the session as signing out does, and refresh again for the next caller
     await sessions.forget(person);
-    const renewed = await sessions.accessTokens(person).token("account", NOW, refresh);
+    const renewed = await read();
 
     expect({ tokens, cached, renewed, refreshed }).toEqual({
         tokens: ["access-1", "access-1"],

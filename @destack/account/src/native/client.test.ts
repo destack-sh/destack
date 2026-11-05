@@ -15,7 +15,7 @@ import { Issuer } from "./issuer.ts";
 import { ClientKey } from "./client-key.ts";
 import { SessionStore } from "./session.ts";
 import { login, Login } from "./login.ts";
-import { NativeSignIn } from "./sign-in.ts";
+import { NativeClient } from "./client.ts";
 import { SimulatedClock } from "@destack/environment/simulation";
 
 /** The time the native device's clock reads, in UTC epoch milliseconds: 2026-01-01. */
@@ -102,7 +102,7 @@ async function native(accounts: TestAccountStore) {
     // sign people in with the keychain's refresh tokens
     const issuer = new Issuer(ISSUER, (request) => accounts.fetch(request), laptop, new Bookmark());
     const sessions = new SessionStore(new MemoryKeychain());
-    const signIn = new NativeSignIn({
+    const nativeClient = new NativeClient({
         issuer,
         sessions,
         keys: new ClientKey(new MemoryKeychain(), laptop),
@@ -116,17 +116,17 @@ async function native(accounts: TestAccountStore) {
         },
     });
 
-    return { signIn, issuer, logins, sessions, network, laptop };
+    return { nativeClient, issuer, logins, sessions, network, laptop };
 }
 
 test("ask the issuer for a fresh sign-in within the challenged age in a step-up, which takes every factor the person enrolled", async () => {
     await using accounts = await TestAccountStore.open();
-    const { signIn } = await native(accounts);
+    const { nativeClient } = await native(accounts);
 
     // open the browser at the issuer and stop the sign-in before it returns
     const opened: URL[] = [];
     const stopping = new AbortController();
-    const signedIn = signIn.browser(
+    const signedIn = nativeClient.browser(
         async (url) => {
             opened.push(new URL(url));
             stopping.abort();
@@ -148,13 +148,13 @@ test("ask the issuer for a fresh sign-in within the challenged age in a step-up,
 test("sign a person in through a browser redirect with PKCE as a new client, and forget them and their refresh token", async () => {
     await using accounts = await TestAccountStore.open();
     const { person: owner, browser: ownerBrowser } = await accounts.signInWithLink(EMAIL);
-    const { signIn, logins, sessions, network } = await native(accounts);
+    const { nativeClient, logins, sessions, network } = await native(accounts);
     const before = await nativeClients(accounts, owner);
 
     // allow the sign-in on the consent page and return to the loopback redirect
     const callbacks: string[] = [];
     const pages: Response[] = [];
-    const signedIn = await signIn.browser(async (url) => {
+    const signedIn = await nativeClient.browser(async (url) => {
         const callback = await consent(ownerBrowser, url);
         callbacks.push(callback);
         pages.push(await network.fetch(new Request(callback)));
@@ -183,7 +183,7 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
     );
 
     // forget the person here, their refresh token and their login
-    await signIn.forget(signedIn);
+    await nativeClient.forget(signedIn);
     expect({
         rows: await logins.query.login.findMany(),
         session: await sessions.load(person),
@@ -192,12 +192,12 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
 
 test("fail a browser sign-in whose redirect names another issuer", async () => {
     await using accounts = await TestAccountStore.open();
-    const { signIn, logins, network } = await native(accounts);
+    const { nativeClient, logins, network } = await native(accounts);
 
     // answer the redirect with another issuer
     const pages: Response[] = [];
     const failed = await refusal(
-        signIn.browser(async (url) => {
+        nativeClient.browser(async (url) => {
             const asked = new URL(url).searchParams;
             const callback = new URL(present(asked.get("redirect_uri"), "the redirect"));
             callback.search = new URLSearchParams({
@@ -225,16 +225,16 @@ test("fail a browser sign-in whose redirect names another issuer", async () => {
 test("sign a person in with a device code once they approve it, and replace the client an earlier sign-in here registered", async () => {
     await using accounts = await TestAccountStore.open();
     const { person: owner, browser } = await accounts.signInWithLink(EMAIL);
-    const { signIn, logins } = await native(accounts);
+    const { nativeClient, logins } = await native(accounts);
     const before = await nativeClients(accounts, owner);
 
     // wait while the person has not decided yet
-    const waiting = await signIn.startDevice();
+    const waiting = await nativeClient.startDevice();
     const pending = await waiting.poll();
 
     // approve each code on the verification page before its first poll, as the issuer paces polls
     const signInWithCode = () =>
-        signIn.device(async (started) => {
+        nativeClient.device(async (started) => {
             await browser.fetch(started.url, new URLSearchParams({ action: "approve" }));
         });
     const first = await signInWithCode();
@@ -262,11 +262,11 @@ test("sign a person in with a device code once they approve it, and replace the 
 test("sign a person in with a mailed code as a new client, refusing a wrong code", async () => {
     await using accounts = await TestAccountStore.open();
     const owner = await accounts.signIn(EMAIL);
-    const { signIn, logins } = await native(accounts);
+    const { nativeClient, logins } = await native(accounts);
     const before = await nativeClients(accounts, owner);
 
     // mail a code, refuse a wrong one, and sign in with the mailed one
-    const started = await signIn.startEmail(EMAIL);
+    const started = await nativeClient.startEmail(EMAIL);
     const otp = await accounts.code();
     const wrong = await refusal(started.verify(otp === "000000" ? "111111" : "000000"));
     const signedIn = await started.verify(otp);
@@ -287,7 +287,7 @@ test("sign a person in with a mailed code as a new client, refusing a wrong code
 
 test("sign a new person up with a mailed code and their handle, refusing a new email without one", async () => {
     await using accounts = await TestAccountStore.open();
-    const { signIn, logins } = await native(accounts);
+    const { nativeClient, logins } = await native(accounts);
     const email = "bea@example.com";
     const signUp = SignUp.parse({
         name: "Bea",
@@ -298,8 +298,10 @@ test("sign a new person up with a mailed code and their handle, refusing a new e
     });
 
     // refuse a new email's code without a handle, then sign the person up with one
-    const refused = await refusal((await signIn.startEmail(email)).verify(await accounts.code()));
-    await (await signIn.startEmail(email, signUp)).verify(await accounts.code());
+    const refused = await refusal(
+        (await nativeClient.startEmail(email)).verify(await accounts.code()),
+    );
+    await (await nativeClient.startEmail(email, signUp)).verify(await accounts.code());
 
     // read the login and the personal account the sign-up created together
     const signedIn = await logins.query.login.findFirst();
@@ -320,14 +322,14 @@ test("sign a new person up with a mailed code and their handle, refusing a new e
 test("read a person's account through tokens refreshed after a mailed code signed them in, without a browser session", async () => {
     await using accounts = await TestAccountStore.open();
     const owner = await accounts.signIn(EMAIL);
-    const { signIn, sessions, laptop } = await native(accounts);
+    const { nativeClient, laptop } = await native(accounts);
 
     // sign in with the mailed code and read the person's account through a refreshed token
-    const started = await signIn.startEmail(EMAIL);
+    const started = await nativeClient.startEmail(EMAIL);
     const signedIn = await started.verify(await accounts.code());
     const person = new Login(
         signedIn,
-        sessions,
+        nativeClient,
         (request) => accounts.fetch(request),
         laptop,
         new Bookmark(),
@@ -338,14 +340,14 @@ test("read a person's account through tokens refreshed after a mailed code signe
 test("list the addresses of the spaces of every account a signed-in person belongs to", async () => {
     await using accounts = await TestAccountStore.open();
     const owner = await accounts.signIn(EMAIL);
-    const { signIn, sessions, laptop } = await native(accounts);
+    const { nativeClient, laptop } = await native(accounts);
 
     // sign in with the mailed code and list the person's spaces
-    const started = await signIn.startEmail(EMAIL);
+    const started = await nativeClient.startEmail(EMAIL);
     const signedIn = await started.verify(await accounts.code());
     const person = new Login(
         signedIn,
-        sessions,
+        nativeClient,
         (request) => accounts.fetch(request),
         laptop,
         new Bookmark(),
@@ -358,14 +360,14 @@ test("list the addresses of the spaces of every account a signed-in person belon
 test("find a signed-in person's home and the space of their account's residency", async () => {
     await using accounts = await TestAccountStore.open();
     const owner = await accounts.signIn(EMAIL);
-    const { signIn, sessions, laptop } = await native(accounts);
+    const { nativeClient, laptop } = await native(accounts);
 
     // sign in with the mailed code
-    const started = await signIn.startEmail(EMAIL);
+    const started = await nativeClient.startEmail(EMAIL);
     const signedIn = await started.verify(await accounts.code());
     const person = new Login(
         signedIn,
-        sessions,
+        nativeClient,
         (request) => accounts.fetch(request),
         laptop,
         new Bookmark(),

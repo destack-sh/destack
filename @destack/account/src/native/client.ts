@@ -5,8 +5,8 @@ import { RequestId } from "@destack/sync";
 import { waitAborted } from "@destack/environment";
 import { client, type ClientRegistration } from "../object/client.ts";
 import type { DeviceAuthorization, DevicePoll, Issuer, SignedIn } from "./issuer.ts";
-import type { Residency } from "../object/residency.ts";
-import { type Login, login } from "./login.ts";
+import { type Login, login, type LoginCredential } from "./login.ts";
+import type { TokenCache } from "@destack/access/token";
 import type { ClientKey } from "./client-key.ts";
 import type { SessionStore } from "./session.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
@@ -27,7 +27,7 @@ const SLOW_DOWN_MILLISECONDS = 5000;
 export type LoginClient = ObjectClient<{ readonly login: typeof login }>;
 
 /** What a native device signs people in with. */
-export interface NativeSignInOptions {
+export interface NativeClientOptions {
     /** The issuer people sign in with. */
     readonly issuer: Issuer;
     /** The keychain's refresh tokens of the signed-in people. */
@@ -65,13 +65,13 @@ export interface EmailSignIn {
     readonly verify: (code: string) => Promise<Login["row"]>;
 }
 
-/** Sign people in on a native device, each sign-in registering a new client for the person. */
-export class NativeSignIn {
+/** Sign people in on a native device and act with the credentials its keychain stores. */
+export class NativeClient implements LoginCredential {
     /** What the client signs people in with. */
-    readonly #options: NativeSignInOptions;
+    readonly #options: NativeClientOptions;
 
     /** Sign people in with an issuer, the keychain's refresh tokens and the client's logins. */
-    constructor(options: NativeSignInOptions) {
+    constructor(options: NativeClientOptions) {
         this.#options = options;
     }
 
@@ -218,9 +218,38 @@ export class NativeSignIn {
         return { email, verify };
     }
 
-    /** List the residencies a new person's account may store data in. */
-    residencies(): Promise<Pick<Residency, "code" | "name">[]> {
-        return this.#options.issuer.residencies();
+    /** Read the cache of a login's access tokens. */
+    tokens(row: Login["row"]): TokenCache {
+        return this.#options.sessions.accessTokens(row);
+    }
+
+    /** Refresh a login's account token, storing the refresh token the issuer rotates to. */
+    async issue(person: Login): Promise<string> {
+        // read the refresh token the keychain stores, refusing a signed-out person
+        const { sessions } = this.#options;
+        const refreshToken = await sessions.load(person.row);
+        if (refreshToken === undefined) {
+            throw AccountError.of("SIGNED_OUT", "the person signed out");
+        }
+
+        // refresh, storing the rotated refresh token
+        const tokens = await person.issuer.refresh(
+            client.identifier(person.row.clientId),
+            refreshToken,
+        );
+        await sessions.replace(person.row, tokens.refreshToken);
+
+        return tokens.accessToken;
+    }
+
+    /** Prove a login's client with its private key. */
+    prove(person: Login): Promise<string> {
+        return this.#options.keys.prove(client.identifier(person.row.clientId));
+    }
+
+    /** Verify a proof of a client this computer registered, returning the client. */
+    verify(proof: string): Promise<Identifier<"client">> {
+        return this.#options.keys.verify(proof);
     }
 
     /** Forget a person whose client was withdrawn: their refresh token and their login here. */

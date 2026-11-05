@@ -176,8 +176,10 @@ export class MachineIdentity {
         // reuse a pending or fresh token, else ask the token endpoint with an assertion the machine's key signs
         const key = JSON.stringify([audience, scope.partition ?? null]);
 
-        return this.#tokens.token(key, this.#environment.clock.now(), () =>
-            this.#grant(audience, issuer, fetch, scope),
+        return this.#tokens.token(
+            key,
+            this.#environment.clock.now(),
+            async () => (await this.#grant(audience, issuer, fetch, scope)).accessToken,
         );
     }
 

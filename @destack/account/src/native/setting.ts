@@ -1,14 +1,13 @@
 import type { Setting } from "@destack/setting";
 import { defineSetting } from "@destack/setting/declare";
 import { schema } from "@destack/schema";
-import { SpaceAddress } from "../address/index.ts";
 
 /** The space a computer's terminal acts in without a --space, as `destack switch` sets it. */
 export const currentSpace = defineSetting({
     name: "space",
     title: "Space",
     description: "The space the terminal acts in when a command names none.",
-    schema: SpaceAddress.nullable(),
+    schema: schema.identifier("space").nullable(),
     default: null,
     scope: "device",
     overrides: [],

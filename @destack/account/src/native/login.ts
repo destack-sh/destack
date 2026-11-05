@@ -9,12 +9,10 @@ import { RequestId, ObjectReference, Scope, type Subject } from "@destack/sync";
 import { canonicalize, type Identifier, schema } from "@destack/schema";
 import { SpaceAddress } from "../address/index.ts";
 import { Account } from "../object/account.ts";
-import { client } from "../object/client.ts";
 import objectPackage from "@destack/object/package";
 import accountPackage from "../package.ts";
 import { Issuer, type TokenBinding } from "./issuer.ts";
-import type { SessionStore } from "./session.ts";
-import type { PartitionId } from "@destack/access/token";
+import type { PartitionId, TokenCache } from "@destack/access/token";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 import { ACCESS_TOKEN_TYPE } from "../oauth/exchange.ts";
@@ -43,14 +41,26 @@ export const login = defineObject({
         subject: { kind: "unique", on: ["scope", "issuer", "subjectId"] },
     },
 });
-/** A person signed in on a computer, acting through the session the keychain stores for them. */
+/** The source of a login's account tokens and client proofs: the keychain, or its machine. */
+export interface LoginCredential {
+    /** Read the cache of a login's access tokens, by package and binding. */
+    readonly tokens: (row: Login["row"]) => TokenCache;
+    /** Issue a login's account access token anew. */
+    readonly issue: (person: Login) => Promise<string>;
+    /** Prove the login's client to this computer's machine. */
+    readonly prove: (person: Login) => Promise<string>;
+    /** Forget a signed-out login: its refresh token and its login here. */
+    readonly forget: (row: Login["row"]) => Promise<void>;
+}
+
+/** A person signed in on a computer, acting through a credential. */
 export class Login {
     /** The login's row. */
     readonly row: Select<typeof login.table>;
     /** The issuer that signed the person in. */
     readonly issuer: Issuer;
-    /** The keychain storing the client's refresh token, which each refresh replaces. */
-    readonly #sessions: SessionStore;
+    /** The credential issuing the person's account tokens and client proofs. */
+    readonly #credential: LoginCredential;
     /** The fetch calling the issuer and the machines. */
     readonly #fetch: Fetch;
     /** The environment the calls run in, whose clock the tokens are reused by. */
@@ -58,10 +68,10 @@ export class Login {
     /** The positions the device's calls saw, which later calls wait for. */
     readonly #bookmark: Bookmark;
 
-    /** Act as the person of a login through the refresh token a keychain stores for them. */
+    /** Act as the person of a login through a credential. */
     constructor(
         row: Login["row"],
-        sessions: SessionStore,
+        credential: LoginCredential,
         fetch: Fetch,
         environment: Environment,
         bookmark: Bookmark,
@@ -71,10 +81,10 @@ export class Login {
             throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");
         }
 
-        // store the login, its issuer, the keychain, the fetch, the environment and the bookmark
+        // store the login, its issuer, the credential, the fetch, the environment and the bookmark
         this.row = row;
         this.issuer = new Issuer(row.issuer, fetch, environment, bookmark);
-        this.#sessions = sessions;
+        this.#credential = credential;
         this.#fetch = fetch;
         this.#environment = environment;
         this.#bookmark = bookmark;
@@ -180,21 +190,26 @@ export class Login {
     }
 
     /** Read the person's token for a package under a binding, answering a step-up. */
-    token(audience: PackageId, bound: TokenBinding = {}, stepUp?: StepUp): Promise<string> {
+    async token(audience: PackageId, bound: TokenBinding = {}, stepUp?: StepUp): Promise<string> {
         // take the account token itself toward the account package outside spaces
         const isUnbound = Object.keys(bound).length === 0;
         if (audience === accountPackage.id && isUnbound) {
-            return this.#accountToken(stepUp);
+            return this.accountToken(stepUp);
         }
 
         // exchange it for the package's token, cached per package and binding
-        return this.#sessions.accessTokens(this.row).token(
+        return this.#credential.tokens(this.row).token(
             canonicalize([audience, bound]),
             this.#environment.clock.now(),
             async () => {
-                const token = await this.#accountToken(stepUp);
+                const token = await this.accountToken(stepUp);
+                const exchanged = await this.issuer.exchange(
+                    { token, type: ACCESS_TOKEN_TYPE },
+                    audience,
+                    bound,
+                );
 
-                return this.issuer.exchange({ token, type: ACCESS_TOKEN_TYPE }, audience, bound);
+                return exchanged.accessToken;
             },
             stepUp,
         );
@@ -244,28 +259,20 @@ export class Login {
         return this.#fetch(new Request(request, { headers }));
     }
 
-    /** Read the person's access token for the account package, refreshing it for a step-up. */
-    #accountToken(stepUp?: StepUp): Promise<string> {
-        return this.#sessions.accessTokens(this.row).token(
-            accountPackage.id,
-            this.#environment.clock.now(),
-            async () => {
-                // read the refresh token the keychain stores, refusing a signed-out person
-                const refreshToken = await this.#sessions.load(this.row);
-                if (refreshToken === undefined) {
-                    throw AccountError.of("SIGNED_OUT", "the person signed out");
-                }
+    /** Read the person's account token, renewed for a step-up. */
+    accountToken(stepUp?: StepUp): Promise<string> {
+        return this.#credential
+            .tokens(this.row)
+            .token(
+                accountPackage.id,
+                this.#environment.clock.now(),
+                () => this.#credential.issue(this),
+                stepUp,
+            );
+    }
 
-                // refresh, storing the refresh token the issuer rotates to
-                const tokens = await this.issuer.refresh(
-                    client.identifier(this.row.clientId),
-                    refreshToken,
-                );
-                await this.#sessions.replace(this.row, tokens.refreshToken);
-
-                return tokens;
-            },
-            stepUp,
-        );
+    /** Prove the person's client to this computer's machine. */
+    prove(): Promise<string> {
+        return this.#credential.prove(this);
     }
 }

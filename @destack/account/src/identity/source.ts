@@ -9,7 +9,6 @@ import {
     ASSERTION_TYPE,
     SPACE_KEY,
     TOKEN_LIFETIME_MILLISECONDS,
-    type ExchangedToken,
     TokenCache,
     TokenIssuer,
 } from "@destack/access/token";
@@ -130,20 +129,25 @@ export class TokenSource {
     grantedToken(audience: PackageId, partition?: string): Promise<string> {
         const key = partition === undefined ? audience : `${audience} ${partition}`;
 
-        return this.#granted.token(key, this.keystore.environment.clock.now(), () =>
-            this.#grant(audience, partition),
+        return this.#granted.token(
+            key,
+            this.keystore.environment.clock.now(),
+            async () => (await this.#grant(audience, partition)).accessToken,
         );
     }
 
     /** Exchange the subject's token for a person's token of a package (RFC 8693). */
-    async exchange(audience: PackageId, bound: TokenBinding): Promise<ExchangedToken> {
+    async exchange(audience: PackageId, bound: TokenBinding): Promise<string> {
+        // exchange the subject's account token at the universe's issuer
         const accountToken = await this.grantedToken(accountPackage.id);
-
-        return new Issuer(this.issuer, this.send, this.environment, new Bookmark()).exchange(
+        const issuer = new Issuer(this.issuer, this.send, this.environment, new Bookmark());
+        const exchanged = await issuer.exchange(
             { token: accountToken, type: ACCESS_TOKEN_TYPE },
             audience,
             bound,
         );
+
+        return exchanged.accessToken;
     }
 
     /** Sign an assertion of the subject for a token endpoint (RFC 7523). */
