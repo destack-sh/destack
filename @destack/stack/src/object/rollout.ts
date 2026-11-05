@@ -1,3 +1,4 @@
+import { Failure } from "@destack/error";
 import { DeclarationReference } from "@destack/package/declare";
 import {
     declaredStack,
@@ -1504,9 +1505,10 @@ async function selectedRelease(
     const { selection, packageId } = installed;
     const { forge, builds, registry } = options;
     if (selection.kind === "release") {
-        const manifest = selection.manifest ?? (await registry.find(packageId, selection.version));
+        const manifest =
+            selection.manifest ?? (await published(registry, packageId, selection.version));
 
-        return { version: selection.version, manifest };
+        return manifest === undefined ? undefined : { version: selection.version, manifest };
     }
     // take the version a tag points at in the forge's replica
     else if (selection.kind === "tag" && forge !== null) {
@@ -1522,7 +1524,10 @@ async function selectedRelease(
     }
     // resolve a tag at the registry once, on a machine following no forge
     else if (selection.kind === "tag") {
-        const manifest = await registry.find(packageId, selection.tag);
+        const manifest = await published(registry, packageId, selection.tag);
+        if (manifest === undefined) {
+            return undefined;
+        }
         const version = (await builds.pull(registry, packageId, manifest)).manifest.package.version;
 
         return { version, manifest };
@@ -1531,6 +1536,21 @@ async function selectedRelease(
     else {
         return undefined;
     }
+}
+
+/** Find a published release's manifest by version or tag, absent while none is published. */
+async function published(
+    registry: Pick<Registry, "find">,
+    packageId: PackageId,
+    release: string,
+): Promise<Digest | undefined> {
+    return await registry.find(packageId, release).catch((error: unknown) => {
+        // answer absent for the forge's missing release, and fail on any other refusal
+        if (Failure.of(error).reason === "RELEASE_NOT_FOUND") {
+            return undefined;
+        }
+        throw error;
+    });
 }
 
 /** Describe the tables a build's types keep in the space's main database, none without types. */

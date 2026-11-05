@@ -500,6 +500,32 @@ test("follow a distribution tag, recording the version of the release it points 
     ]);
 });
 
+test("wait for a release no one has published under the selected tag, reporting it on the installation", async () => {
+    // install the package following a tag its registry never published
+    const fixture = await TestSpace.open();
+    const serving = await fixture.serve({ isControlled: false });
+    const installer = serving.as(fixture.owner.subject).client(objectPackage);
+    const store = new SpaceStore(await fixture.options()).store;
+    const notes = await installer.installation.create({
+        scope: ids.space,
+        requestId: RequestId.create(fixture.machine.environment),
+        packageId: ids.package,
+        selection: { kind: "tag", tag: "beta" },
+        name: "notes",
+    });
+
+    // reconcile its rollout, which finds no release to revise
+    await reconcile(store, "rollout", { installationId: notes.id });
+    const waiting = await readInstalled(fixture.database, notes.id);
+    const ready = waiting.installation.conditions["Ready"];
+    expect([waiting.revisionId, ready?.status, ready?.reason, ready?.message]).toEqual([
+        null,
+        "false",
+        "ReleaseNotPublished",
+        "notes has no published release for its selection",
+    ]);
+});
+
 test("open the build each package's installation in a space follows, and none for a package the space does not install", async () => {
     // install two packages at different releases, publishing the second's
     const fixture = await TestSpace.open();

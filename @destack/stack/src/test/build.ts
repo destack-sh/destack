@@ -1,7 +1,7 @@
+import { Failure } from "@destack/error";
 import { RESOURCE_KIND } from "@destack/resource";
 import type { Crypto } from "@destack/environment";
 import { StackDefinition } from "../declare/index.ts";
-import { CallError } from "@destack/object";
 import { StackError } from "../error/index.ts";
 import { type Digest, type JsonObject, schema } from "@destack/schema";
 import { Package, PackageId } from "@destack/package";
@@ -133,7 +133,10 @@ export class TestRegistry implements Registry, ReleaseRegistry {
         }
         // refuse any other release, as a forge does
         else {
-            throw CallError.http("NOT_FOUND", {
+            throw Failure.error({
+                code: "NOT_FOUND",
+                reason: "RELEASE_NOT_FOUND",
+                domain: "@destack/forge",
                 message: `${packageId} has no release ${release}`,
             });
         }

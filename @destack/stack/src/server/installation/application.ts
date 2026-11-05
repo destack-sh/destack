@@ -154,6 +154,7 @@ export const REFUSAL_REASONS = [
     "UninstalledDependency",
     "DeclaredDatabase",
     "MissingBinding",
+    "ReleaseNotPublished",
 ] as const;
 
 /** Why an application refuses to deploy a build, as its ready condition reports it. */
@@ -343,6 +344,16 @@ export class ApplicationInstallation {
                 call.self,
                 active.map((entry) => Deployment.drain(entry)),
             );
+
+            // report an enabled application whose selected release is not published yet
+            const { kind } = target.installation.selection;
+            const isEnabled = !isDeleted && target.installation.status === "enabled";
+            if (isEnabled && revision === undefined && (kind === "release" || kind === "tag")) {
+                await this.#refuse(call, {
+                    reason: "ReleaseNotPublished",
+                    message: `${target.installation.name} has no published release for its selection`,
+                });
+            }
 
             // remove a deleted application once none of its deployments runs and nothing it consumed relates it
             if (isDeleted && live.length === 0) {

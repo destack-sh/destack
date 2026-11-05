@@ -75,11 +75,15 @@ export interface InstallOptions {
     readonly isolation?: InstallationDefinition["isolation"];
     /** User-defined labels. */
     readonly tags?: InstallationDefinition["tags"];
+    /** The release to follow, the handle's version by default. */
+    readonly selection?: InstallationDefinition["selection"];
 }
 
 /** Install a package release, binding its declarations to this space's resources and secrets. */
 export function install<
-    const Handle extends Pick<PackageHandle, "id" | "name" | "version" | "resources" | "secrets">,
+    const Handle extends Pick<PackageHandle, "id" | "name" | "resources" | "secrets"> & {
+        readonly version?: string;
+    },
 >(
     handle: Handle,
     bindings: InstallBindingMap<Handle>,
@@ -128,9 +132,17 @@ export function install<
         }
     }
 
+    // follow the selected release, else the handle's version
+    const selection =
+        options.selection ??
+        (handle.version === undefined ? undefined : { kind: "release", version: handle.version });
+    if (selection === undefined) {
+        throw StackError.of("DEFINITION_INVALID", `${handle.name} needs a version or a selection`);
+    }
+
     return InstallationDefinition.parse({
         packageId: handle.id,
-        selection: { kind: "release", version: handle.version },
+        selection,
         status: options.status ?? "enabled",
         name: options.name ?? handle.name.slice(handle.name.lastIndexOf("/") + 1),
         bindings: bound,
