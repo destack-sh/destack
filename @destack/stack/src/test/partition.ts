@@ -24,13 +24,13 @@ export const card = defineObject(
     { package: BOARD },
 );
 
-/** Notes an account hands down to its spaces, written at the account's home. */
+/** Notes an account propagates to its spaces, written at the account's home. */
 export const memo = defineObject(
     {
         name: "memo",
         plural: "memos",
         scope: [space, account],
-        inherited: {},
+        propagated: {},
         fields: { title: field.string() },
         permissions: ["read", "write"],
     },

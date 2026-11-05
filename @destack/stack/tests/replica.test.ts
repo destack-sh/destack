@@ -82,7 +82,7 @@ async function serveInstallation() {
         Identifier.create("installation", fixture.environment),
     );
 
-    // read the snapshot of one scope's chain replica, with a type it hands down, as an installation with each row's scope
+    // read the snapshot of one scope's chain replica, with a type it propagates, as an installation with each row's scope
     const snapshot = async (as: Subject, scope: string, type?: ObjectTypeReference) => {
         const pages = await served
             .as(as)

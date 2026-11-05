@@ -39,7 +39,7 @@ test("accept a token bound to an account at the account's home, writing an accou
     });
 });
 
-test("write an account's handed-down memo at the account's home, and refuse it as a replica at another space of the account", async () => {
+test("write an account's propagated memo at the account's home, and refuse it as a replica at another space of the account", async () => {
     // host the account's home and another space of the account, each serving the memos
     const { home, other } = await TestPartition.open();
     const homed = await home.serve({ servers: serversOf([memo]) });
