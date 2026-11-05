@@ -10,7 +10,7 @@ export const hostname = defineObject(
         plural: "hostnames",
         scope: account,
         // replicate an account's hostnames into its spaces
-        inherited: {},
+        propagated: {},
         fields: {
             /** The canonical lowercase hostname, such as notes.acme.com. */
             name: field.string(HostnamePattern),

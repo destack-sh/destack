@@ -47,7 +47,7 @@ export const client = defineObject(
         scope: user,
         represents: principal.client,
         // replicate a user's clients into the scopes inside the user's scope
-        inherited: {},
+        propagated: {},
         attachments: [key.attach({ by: "rotate" })],
         fields: {
             /** The person's name for the client. */
