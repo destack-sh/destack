@@ -35,7 +35,7 @@ import {
 import { testEvents, TestBearer, testCallKey, testServerContext } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
 import { Identifier, present, schema, Uuid } from "@destack/schema";
-import { binding, capture, deployment } from "@destack/stack/object";
+import { deployment, installationRevision, rollout } from "@destack/stack/object";
 import { secret, vault } from "@destack/vault/object";
 import { implementSecret, implementSecretVersion, implementVault } from "@destack/vault/server";
 import { vaultTables } from "@destack/vault/stack";
@@ -109,8 +109,8 @@ const INSTALLATION = schema
 const SPACE_REPLICATED: readonly Table[] = [
     account.table,
     space.table,
-    binding.table,
-    capture.table,
+    rollout.table,
+    installationRevision.table,
     deployment.table,
 ];
 
