@@ -1,4 +1,5 @@
 import { expect, test } from "@destack/test";
+import { canonicalize, JsonValue } from "./json.ts";
 import { fromJsonSchema, toJsonSchema } from "./schema.ts";
 import * as schema from "../validate/index.ts";
 
@@ -57,6 +58,7 @@ function declared() {
         note: schema.string().nullable(),
         mixed: schema.union([schema.string(), schema.number(), schema.null()]),
         anything: schema.json(),
+        described: schema.json().meta({ description: "Any value, with a description." }),
 
         // lists, tuples, records and optional properties
         tags: schema.array(schema.string()).min(1).max(5).readonly(),
@@ -85,10 +87,13 @@ function declared() {
 }
 
 test("describe a schema built from its own description alike, for every declarable builder", () => {
-    // build the schema from its description and describe it again
+    // build the schema from its description, and from the canonical form a store keeps, and describe it again
     const described = toJsonSchema(declared());
+    const stored = JsonValue.object(JSON.parse(canonicalize(described)));
 
-    expect(toJsonSchema(fromJsonSchema(described))).toEqual(described);
+    expect([toJsonSchema(fromJsonSchema(described)), toJsonSchema(fromJsonSchema(stored))]).toEqual(
+        [described, described],
+    );
 });
 
 test("describe random compositions of declarable builders alike once built from their descriptions", () => {

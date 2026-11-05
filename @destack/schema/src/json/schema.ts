@@ -3,6 +3,7 @@ import { z } from "zod";
 import { HASH_ALGORITHMS, HASH_ENCODINGS, requireDeclarable } from "../validate/declarable.ts";
 import { canonicalize, type JsonValue } from "./json.ts";
 import { present } from "../presence/presence.ts";
+import { isJsonCheck, json, JSON_DESCRIPTION } from "../validate/json.ts";
 
 /** The JSON Schema Draft 2020-12 description for inspection and external tooling. */
 export type JsonSchema = z.core.JSONSchema.JSONSchema;
@@ -66,15 +67,8 @@ const FORMATS: ReadonlyMap<string, readonly FormatBuilder[]> = new Map(
 /** The descriptive keywords any node may have, which the built validator carries as metadata. */
 const ANNOTATIONS = ["title", "description", "deprecated", "examples"] as const;
 
-/** The description of any JSON value, as `toJsonSchema` describes `schema.json()`. */
-const JSON_VALUE: Readonly<Record<string, unknown>> = Object.fromEntries(
-    Object.entries(z.toJSONSchema(z.json(), { target: "draft-2020-12" })).filter(
-        ([key]) => key !== "$schema",
-    ),
-);
-
-/** The description of any JSON value as text, compared with a node of the same keys. */
-const JSON_VALUE_TEXT = JSON.stringify(JSON_VALUE);
+/** The options of any JSON value's description in canonical text, compared with a node's. */
+const JSON_VALUE_TEXT = canonicalize(JSON_DESCRIPTION.anyOf);
 
 /** The keywords a string node may have. */
 const STRING_KEYWORDS = [
@@ -155,7 +149,7 @@ function describe(schema: z.ZodType): JsonSchema {
     // describe the schema, then order its sets so equal schemas describe alike
     const description = z.toJSONSchema(schema, {
         target: "draft-2020-12",
-        unrepresentable: "throw",
+        unrepresentable: unrepresented,
         io: "input",
     });
     sortRequiredInPlace(description);
@@ -249,7 +243,7 @@ function validator(node: JsonSchema, context: ImportContext): z.ZodType<JsonValu
 
     // build any JSON value
     if (isJsonValue(node)) {
-        return z.json();
+        return json();
     }
     // follow a reference
     else if (node.$ref !== undefined) {
@@ -285,13 +279,13 @@ function validator(node: JsonSchema, context: ImportContext): z.ZodType<JsonValu
 
 /** Decide whether a node describes any JSON value, as `toJsonSchema` describes `schema.json()`. */
 function isJsonValue(node: JsonSchema): boolean {
-    // compare the text only of a node with the same keys
-    const { $schema: _schema, ...rest } = node;
-    const keys = Object.keys(rest);
-    const isSameKeys =
-        keys.length === Object.keys(JSON_VALUE).length && keys.every((key) => key in JSON_VALUE);
+    // compare the options of a node with only annotations beside them
+    const { $schema: _schema, anyOf, ...rest } = node;
+    const isAnnotated = Object.keys(rest).every((key) =>
+        ANNOTATIONS.some((annotation) => annotation === key),
+    );
 
-    return isSameKeys && JSON.stringify(rest) === JSON_VALUE_TEXT;
+    return isAnnotated && anyOf !== undefined && canonicalize(anyOf) === JSON_VALUE_TEXT;
 }
 
 /** Build the validator of one type. */
@@ -744,4 +738,11 @@ function checked<Built extends z.ZodType<JsonValue>>(
     }
 
     return built;
+}
+
+/** Describe the JSON value check, leaving zod to refuse other unrepresentable schemas. */
+function unrepresented(
+    issue: Parameters<z.core.UnrepresentableHandler>[0],
+): z.core.JSONSchema.BaseSchema | "throw" {
+    return isJsonCheck(issue.zodSchema) ? structuredClone(JSON_DESCRIPTION) : "throw";
 }

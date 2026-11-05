@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isJsonCheck, json } from "./json.ts";
 import { canonicalize } from "../json/json.ts";
 
 /** Zod's built-in guard for string and array length checks. */
@@ -88,8 +89,8 @@ function requireNode(
         throw new TypeError("default schemas are only supported as object properties");
     }
 
-    // visit shared and recursive schemas at each position
-    if (!markVisited(visited, schema, position)) {
+    // visit shared and recursive schemas at each position, taking the JSON value check whole
+    if (!markVisited(visited, schema, position) || isJsonCheck(schema)) {
         return;
     }
 
@@ -137,7 +138,7 @@ function requireMetadata(schema: z.core.$ZodType): void {
 
     // require metadata to be JSON
     if (metadata !== undefined) {
-        z.json().parse(metadata);
+        json().parse(metadata);
     }
 }
 
@@ -181,7 +182,7 @@ function componentsOf(
     // require literal values to survive JSON serialization
     else if (schema instanceof z.core.$ZodLiteral) {
         for (const value of schema._zod.def.values) {
-            z.json().parse(value);
+            json().parse(value);
         }
 
         return [];
@@ -248,7 +249,7 @@ function componentsOf(
         const { innerType } = schema._zod.def;
         const first: unknown = schema._zod.def.defaultValue;
         const second: unknown = schema._zod.def.defaultValue;
-        if (!z.json().safeParse(first).success) {
+        if (!json().safeParse(first).success) {
             throw new TypeError("declared defaults must be JSON values");
         }
         // refuse a default a function computes
