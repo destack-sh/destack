@@ -30,7 +30,7 @@ import {
 } from "../../test/index.ts";
 import { principal } from "@destack/access";
 import * as object from "../../object/index.ts";
-import { binding, capture, deployment, installationRevision } from "../../object/index.ts";
+import { deployment, installationRevision } from "../../object/index.ts";
 
 /** The resources and records of the scenarios, in addition to the fixture's space. */
 const named = {
@@ -39,7 +39,6 @@ const named = {
     installation: schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-000000000009"),
-    binding: schema.identifier("binding").parse("binding-01996ab0-0000-7000-8000-00000000000a"),
 };
 
 /** Store the space's databases as SQLite files below a directory, main as the space does. */
@@ -215,19 +214,6 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
         [],
         fixture.machine.environment,
     );
-    await database.transaction(
-        async (transaction) =>
-            await transaction.insert(binding.table).values({
-                id: named.binding,
-                scope: ids.space,
-                installationId: named.installation,
-                packageId: ids.package,
-                name: "archive",
-                target: named.kept,
-                createdAt: now,
-                updatedAt: now,
-            }),
-    );
     const bind = async (tables: readonly Table[]) => {
         // follow a revision requiring the tables' state of the archive
         const state = defineDatabase({ name: "archive", tables }).state();
@@ -242,6 +228,16 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
                 buildId: pulled.id,
                 dependencies: [],
                 states: { archive: digest },
+                generation: 1,
+                bindings: [
+                    {
+                        packageId: ids.package,
+                        name: "archive",
+                        target: named.kept,
+                        targetSpaceId: null,
+                        version: 1,
+                    },
+                ],
                 digest: revisionDigest,
                 createdAt: now,
                 updatedAt: now,
@@ -427,6 +423,16 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
                 buildId: pulled.id,
                 dependencies: [],
                 states: { removed },
+                generation: 1,
+                bindings: [
+                    {
+                        packageId: ids.package,
+                        name: "removed",
+                        target: named.removed,
+                        targetSpaceId: null,
+                        version: 1,
+                    },
+                ],
                 digest: Digest.parse("e".repeat(64)),
                 createdAt: now,
                 updatedAt: now,
@@ -456,22 +462,6 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
                     compute: {},
                     sandbox: {},
                 },
-                createdAt: now,
-                updatedAt: now,
-            }),
-    );
-    await database.transaction(
-        async (transaction) =>
-            await transaction.insert(capture.table).values({
-                id: schema
-                    .identifier("capture")
-                    .parse("capture-01996ab0-0000-7000-8000-00000000000e"),
-                scope: ids.space,
-                deploymentId,
-                packageId: ids.package,
-                name: "removed",
-                target: named.removed,
-                version: 1,
                 createdAt: now,
                 updatedAt: now,
             }),

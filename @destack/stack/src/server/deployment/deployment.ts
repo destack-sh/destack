@@ -43,18 +43,20 @@ import {
 } from "../../runtime/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import {
+    Binding,
     Build,
-    capture,
-    type Capture,
+    Database,
     Deployment,
     deployment,
     type Instance,
     instance,
     type InstanceCondition,
     installationRevision,
+    type InstallationRevision,
     Rollout,
     dependency,
 } from "../../object/index.ts";
+import { MAIN_DATABASE } from "../../declare/index.ts";
 import { StackError } from "../../error/index.ts";
 import type { ProviderIndex } from "../resource/resource.ts";
 import type { ObjectBindable } from "../resource/binding.ts";
@@ -80,8 +82,8 @@ export interface DeploymentOptions {
     readonly bindables: readonly ObjectBindable[];
 }
 
-/** A resource a deployment captured, with its kind and readiness. */
-interface WorkloadCapture {
+/** A resource a deployment binds, with its kind and readiness. */
+interface BoundResource {
     /** The package declaring the binding. */
     readonly packageId: PackageId;
     /** The declaration's name within its package. */
@@ -105,9 +107,6 @@ interface WorkloadCapture {
     /** The conditions the controller reports. */
     readonly conditions: Readonly<Record<string, StatusCondition>>;
 }
-
-/** The fields of a deployment's capture its instance's start reads. */
-type CaptureStart = Pick<Capture, "packageId" | "name" | "target" | "version" | "targetSpaceId">;
 
 /** Implement deployments: roll each out on this machine's runtimes. */
 export function implementDeployment(options: DeploymentOptions) {
@@ -142,26 +141,43 @@ export function implementDeployment(options: DeploymentOptions) {
                         return fenced.success ? liveDeployments(fenced.data, database) : [];
                     }),
                     Space.watch(liveDeployments),
-                    // reconcile the live deployments capturing a changed resource of any kind
+                    // reconcile the live deployments whose revision binds a changed resource of any kind, or keeps tables in a changed main
                     ...options.providers.objects().map((object) =>
-                        ObjectWatch.of(object.table, async (row, database) =>
-                            !space.identifies(row.scope)
-                                ? []
-                                : database
-                                      .selectDistinct({ id: capture.table.deploymentId })
-                                      .from(capture.table)
-                                      .innerJoin(
-                                          deployment.table,
-                                          eq(deployment.table.id, capture.table.deploymentId),
-                                      )
-                                      .where(
-                                          and(
-                                              eq(capture.table.scope, row.scope),
-                                              eq(capture.table.target, row.id),
-                                              Condition.render(Deployment.live(), deployment.table),
-                                          ),
-                                      ),
-                        ),
+                        ObjectWatch.of(object.table, async (row, connection) => {
+                            // leave a resource outside spaces
+                            const scope = schema.identifier("space").safeParse(row.scope);
+                            if (!scope.success) {
+                                return [];
+                            }
+                            const isMain = Database.isMain(object, row);
+                            const live = await connection
+                                .select()
+                                .from(deployment.table)
+                                .where(
+                                    and(
+                                        eq(deployment.table.scope, scope.data),
+                                        Condition.render(Deployment.live(), deployment.table),
+                                    ),
+                                );
+                            const revisions = await runningRevisions(connection, scope.data);
+
+                            return live
+                                .filter((entry) => {
+                                    const revision = revisions.find(
+                                        (each) => each.id === entry.revisionId,
+                                    );
+
+                                    return (
+                                        revision !== undefined &&
+                                        (isMain
+                                            ? revision.states[MAIN_DATABASE] !== undefined
+                                            : revision.bindings.some(
+                                                  (bound) => bound.target === row.id,
+                                              ))
+                                    );
+                                })
+                                .map((entry) => ({ id: entry.id }));
+                        }),
                     ),
                 ],
                 reconcile: async (reconciliation) => {
@@ -369,22 +385,21 @@ class Reconcile {
             present(called, `installation ${current.installationId}`).name,
             `the name of installation ${current.installationId}`,
         );
-        const pinned = await database
-            .select({ name: capture.table.name, states: installationRevision.table.states })
-            .from(capture.table)
-            .innerJoin(dependency.table, eq(dependency.table.id, capture.table.target))
-            .innerJoin(deployment.table, eq(deployment.table.id, capture.table.deploymentId))
-            .innerJoin(
-                installationRevision.table,
-                eq(installationRevision.table.id, deployment.table.revisionId),
-            )
+        const dependencies = await database
+            .select({ id: dependency.table.id })
+            .from(dependency.table)
             .where(
                 and(
                     eq(dependency.table.scope, current.scope),
                     eq(dependency.table.reference, name),
-                    Condition.render(Deployment.available(), deployment.table),
                 ),
             );
+        const callers = new Set<string>(dependencies.map((entry) => entry.id));
+        const pinned = (await runningRevisions(database, current.scope)).flatMap((revision) =>
+            revision.bindings
+                .filter((entry) => entry.targetSpaceId === null && callers.has(entry.target))
+                .map((entry) => ({ name: entry.name, states: revision.states })),
+        );
 
         // serve while one caller is pinned to a release the replacement no longer serves, as its revision records
         const { blobs } = this.#reconciliation.store;
@@ -419,7 +434,7 @@ class Reconcile {
         return present(started, `the instance of ${current.id}`);
     }
 
-    /** Run an instance after its captured resources apply. */
+    /** Run an instance after its bound resources apply. */
     async #run(recorded: Instance): Promise<void> {
         // leave a running instance running while its process runs
         const reconciliation = this.#reconciliation;
@@ -432,9 +447,9 @@ class Reconcile {
             return;
         }
 
-        // wait until every captured resource applied its current generation, observing which
-        const captures = await this.#readCaptures();
-        const resources = await this.#readResources(captures);
+        // wait until every bound resource applied its current generation, observing which
+        const bindings = await this.#readBindings();
+        const resources = await this.#readResources(bindings);
         const waiting = Reconcile.#waiting(resources);
         if (waiting.length > 0) {
             const names = waiting.map((entry) => entry.id).join(", ");
@@ -457,7 +472,7 @@ class Reconcile {
         );
         const built = await Build.require(snapshot, revision.scope, revision.buildId);
         try {
-            await this.#launch(recorded, built.manifest, captures, resources, running);
+            await this.#launch(recorded, built.manifest, bindings, resources, running);
         } catch (error) {
             // record the failure on the instance and restart it after its backoff
             return this.#recordFailure(recorded, restarts, error);
@@ -490,8 +505,8 @@ class Reconcile {
         });
     }
 
-    /** List the captured resources yet to apply their current generation. */
-    static #waiting(resources: readonly WorkloadCapture[]): WorkloadCapture[] {
+    /** List the bound resources yet to apply their current generation. */
+    static #waiting(resources: readonly BoundResource[]): BoundResource[] {
         return resources.filter(
             (entry) =>
                 entry.conditions["Ready"]?.status !== "true" ||
@@ -503,15 +518,15 @@ class Reconcile {
     async #launch(
         recorded: Instance,
         manifest: Digest,
-        captures: readonly CaptureStart[],
-        resources: readonly WorkloadCapture[],
+        bindings: readonly Binding[],
+        resources: readonly BoundResource[],
         running: Runtime,
     ): Promise<void> {
         // refuse what the runtime cannot grant
         const current = this.#current;
         this.#refuseUnsupported(running);
 
-        // start the workload as its installation, by its name, with its captures, and record an unasked exit
+        // start the workload as its installation, by its name, with its bindings, and record an unasked exit
         const reader = await this.#options.builds.contents(manifest);
         const installed = present(
             await Snapshot.live(this.#reconciliation.database)
@@ -540,8 +555,8 @@ class Reconcile {
                 sandbox: current.description.sandbox,
                 enabled: current.enabled,
                 directories: current.directories,
-                served: this.#served(captures),
-                installations: await Reconcile.#installations(captures, reader),
+                served: this.#served(bindings),
+                installations: await Reconcile.#installations(bindings, reader),
                 resources: resources
                     .filter((entry) => Reconcile.#isUsed(current.description, entry))
                     .map((entry) => this.#workloadResource(entry)),
@@ -554,10 +569,10 @@ class Reconcile {
         );
     }
 
-    /** Report whether a workload uses a captured resource, as its description lists it. */
+    /** Report whether a workload uses a bound resource, as its description lists it. */
     static #isUsed(
         description: Deployment["description"],
-        resource: Pick<WorkloadCapture, "packageId" | "name">,
+        resource: Pick<BoundResource, "packageId" | "name">,
     ): boolean {
         return description.resources.some(
             (used) => used.packageId === resource.packageId && used.name === resource.name,
@@ -604,24 +619,24 @@ class Reconcile {
         return running;
     }
 
-    /** Read the captured resources of each kind the providers serve, by the captures' targets. */
-    async #readResources(captures: readonly CaptureStart[]): Promise<WorkloadCapture[]> {
-        // read each kind's captured resources at once
+    /** Read the bound resources of each kind the providers serve, by the bindings' targets. */
+    async #readResources(bindings: readonly Binding[]): Promise<BoundResource[]> {
+        // read each kind's bound resources at once
         const providers = this.#options.providers;
-        const found: WorkloadCapture[] = [];
+        const found: BoundResource[] = [];
         for (const object of providers.objects()) {
-            const captured = captures.filter((entry) => object.identifies(entry.target));
-            if (captured.length === 0) {
+            const bound = bindings.filter((entry) => object.identifies(entry.target));
+            if (bound.length === 0) {
                 continue;
             }
             const rows = await this.#reconciliation.database
                 .select()
                 .from(object.table)
-                .where(object.withIds(captured.map((entry) => entry.target)));
+                .where(object.withIds(bound.map((entry) => entry.target)));
 
-            // pair each capture with its resource
+            // pair each binding with its resource
             const kind = providers.kind(object).name;
-            for (const entry of captured) {
+            for (const entry of bound) {
                 const row = present(
                     rows.find((each) => each.id === entry.target),
                     `resource ${entry.target}`,
@@ -645,24 +660,40 @@ class Reconcile {
         return found;
     }
 
-    /** Read the deployment's captures. */
-    async #readCaptures(): Promise<CaptureStart[]> {
-        return await this.#reconciliation.database
-            .select({
-                packageId: capture.table.packageId,
-                name: capture.table.name,
-                target: capture.table.target,
-                version: capture.table.version,
-                targetSpaceId: capture.table.targetSpaceId,
-            })
-            .from(capture.table)
-            .where(eq(capture.table.deploymentId, this.#current.id));
+    /** Read what the deployment runs with: its revision's bindings, and main if it keeps tables. */
+    async #readBindings(): Promise<Binding[]> {
+        // read the revision the deployment runs
+        const current = this.#current;
+        const snapshot = Snapshot.live(this.#reconciliation.database);
+        const revision = present(
+            await snapshot
+                .read(installationRevision.table)
+                .findFirst({ where: { id: current.revisionId } }),
+            `revision ${current.revisionId}`,
+        );
+
+        // add the space's main database at its current generation, which its migrations move
+        if (revision.states[MAIN_DATABASE] === undefined) {
+            return revision.bindings;
+        }
+        const main = await Database.main(snapshot, current.scope);
+
+        return [
+            ...revision.bindings,
+            {
+                packageId: current.packageId,
+                name: MAIN_DATABASE,
+                target: main.id,
+                targetSpaceId: null,
+                version: main.generation,
+            },
+        ];
     }
 
-    /** Select the served objects among the deployment's captures, such as secret versions. */
-    #served(rows: readonly CaptureStart[]): WorkloadServed[] {
+    /** Select the served objects among the deployment's bindings, such as secret versions. */
+    #served(rows: readonly Binding[]): WorkloadServed[] {
         return rows.flatMap((row) => {
-            // take the versioned captures of a served kind
+            // take the versioned bindings of a served kind
             const kind = this.#options.bindables.find((each) => each.object.identifies(row.target));
 
             return kind !== undefined && row.version !== null
@@ -681,13 +712,13 @@ class Reconcile {
         });
     }
 
-    /** Select the installations of other spaces among a deployment's captures. */
+    /** Select the installations of other spaces among a deployment's bindings. */
     static async #installations(
-        captures: readonly CaptureStart[],
+        bindings: readonly Binding[],
         build: BuildReader,
     ): Promise<WorkloadInstallation[]> {
-        // read the package each captured declaration calls from the build
-        const rows = captures.filter((row) => row.targetSpaceId !== null);
+        // read the package each bound declaration calls from the build
+        const rows = bindings.filter((row) => row.targetSpaceId !== null);
         const declarations = rows.length === 0 ? [] : await build.declarations();
 
         return rows.map((row) => {
@@ -712,15 +743,15 @@ class Reconcile {
         });
     }
 
-    /** Read a captured resource as a workload binds it, refusing one not provisioned. */
-    #workloadResource(capturedResource: WorkloadCapture): WorkloadResource {
+    /** Read a bound resource as a workload binds it, refusing one not provisioned. */
+    #workloadResource(bound: BoundResource): WorkloadResource {
         // require the provider of an applied resource
         const {
             generation: _generation,
             conditions: _conditions,
             connection: lentFrom,
             ...entry
-        } = capturedResource;
+        } = bound;
         if (entry.provider === null || entry.reference === null) {
             throw StackError.of(
                 "RESOURCE_UNPROVISIONED",
@@ -837,4 +868,27 @@ async function replacedBy(
 /** Match the deployments the machine runs: those selecting it, or selecting none. */
 function selectAssigned(machine: Identifier<"machine">) {
     return or(isNull(deployment.table.machineId), eq(deployment.table.machineId, machine));
+}
+
+/** Read the revisions a space's available deployments run. */
+async function runningRevisions(
+    database: DatabaseConnection,
+    scope: Identifier<"space">,
+): Promise<InstallationRevision[]> {
+    const running = await database
+        .select({ id: deployment.table.revisionId })
+        .from(deployment.table)
+        .where(
+            and(
+                eq(deployment.table.scope, scope),
+                Condition.render(Deployment.available(), deployment.table),
+            ),
+        );
+
+    return database
+        .select()
+        .from(installationRevision.table)
+        .where(
+            inArray(installationRevision.table.id, [...new Set(running.map((entry) => entry.id))]),
+        );
 }

@@ -3,7 +3,6 @@ import type { ObjectType } from "@destack/object";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { DeclarationReference } from "@destack/package/declare";
-import { MAIN_DATABASE } from "../../declare/index.ts";
 import { AccessContext, Caller, Manager, principal } from "@destack/access";
 import {
     and,
@@ -17,6 +16,7 @@ import {
     installation,
     InstallationBindingSpec,
     InstallationKind,
+    type MethodContext,
     type MethodContextOf,
     type ObjectReconciliation,
     PackageDescription,
@@ -54,10 +54,7 @@ import { RequestId, Scope } from "@destack/sync";
 import { StackError } from "../../error/index.ts";
 import type { Runtime } from "../../runtime/runtime.ts";
 import {
-    binding,
-    Binding,
     Build,
-    capture,
     Deployment,
     deployment,
     InstallationRevision,
@@ -67,6 +64,7 @@ import {
     rollout,
     type InstallationRollout,
     type ResourceNeed,
+    type StackEvaluation,
 } from "../../object/index.ts";
 import type { Binder } from "../resource/binding.ts";
 import { SpaceBuildStore, type Registry } from "./build.ts";
@@ -83,7 +81,7 @@ const OtherDescription = schema.object({ name: DeclarationName }).catchall(schem
 
 /** What a machine deploys applications with: its binder, its builds and its server runtimes. */
 export interface ApplicationOptions {
-    /** The kinds of objects bindings target and deployments capture. */
+    /** The kinds of objects bindings target. */
     readonly binder: Binder;
     /** The space's builds, read through to the machine's cache. */
     readonly builds: SpaceBuildStore;
@@ -179,22 +177,21 @@ export class ApplicationInstallation {
         this.#options = options;
     }
 
-    /** Target an unmanaged installation's release, deploy it in a served space, then relate it. */
+    /** Revise an unmanaged installation, deploy it in a served space, then relate it. */
     async reconcile(reconciliation: ObjectReconciliation): Promise<undefined> {
-        // leave the application of a space not served here, or suspended until its resume wakes it
+        // leave the application of a space not served here
         const target = this.#target;
         const [served] = await reconciliation.database
-            .select({ suspendedAt: space.table.suspendedAt })
+            .select({ id: space.table.id })
             .from(space.table)
             .where(and(eq(space.table.id, target.scope), Space.served()));
-        if (served === undefined || served.suspendedAt !== null) {
+        if (served === undefined) {
             return undefined;
         }
 
-        // target an unmanaged installation's selected release here, its manager targeting a managed one's, then deploy it
-        const { kind } = target.installation.selection;
-        if (!Manager.isManaged(target.installation) && (kind === "release" || kind === "tag")) {
-            await Rollout.target(reconciliation, [target], this.#options);
+        // revise an unmanaged installation once an input changed, its manager revising a managed one, then deploy it
+        if (!Manager.isManaged(target.installation) && (await this.#isChanged(reconciliation))) {
+            await Rollout.revise(reconciliation, [target], this.#options);
         }
         await reconciliation.mutate([
             rollout.call(
@@ -229,6 +226,96 @@ export class ApplicationInstallation {
         }
 
         return undefined;
+    }
+
+    /** Report whether an input of the targeted revision changed. */
+    async #isChanged(reconciliation: ObjectReconciliation): Promise<boolean> {
+        // revise a release or tag selection, which may pick another build, and an installation without a revision
+        const target = this.#target;
+        const { kind } = target.installation.selection;
+        if (kind === "release" || kind === "tag" || target.revisionId === null) {
+            return true;
+        }
+
+        // revise again past the generation the revision was made at, or once a bound target moved
+        const snapshot = Snapshot.live(reconciliation.database);
+        const revision = await snapshot
+            .read(installationRevision.table)
+            .findFirst({ where: { id: target.revisionId } });
+
+        return (
+            revision === undefined ||
+            revision.generation !== target.installation.generation ||
+            (await this.#options.binder.isOutdated(snapshot, target, revision))
+        );
+    }
+
+    /** Revise the installation: a build at its bindings, retaining each revision once. */
+    async revise(
+        call: MethodContext,
+        input: {
+            readonly build: Identifier<"build">;
+            readonly dependencies: InstallationRevision["dependencies"];
+            readonly states: InstallationRevision["states"];
+            readonly evaluation?: StackEvaluation | undefined;
+        },
+    ): Promise<InstallationRevision> {
+        // bind an application's needs, creating and following the installation's own resources
+        const target = this.#target;
+        const built = await Build.require(
+            { read: (table) => call.read(table) },
+            target.scope,
+            input.build,
+        );
+        const reader = await this.#options.builds.contents(built.manifest);
+        const description = await PackageDescription.of(reader);
+        const { stranded } = this.#selectWorkloads(built.manifest, reader, description);
+        const isRefused =
+            this.#describeRefusal(built.manifest, reader, stranded, description) !== undefined ||
+            (await this.#describeDatabases(reader)) !== undefined;
+
+        // bind a stack's nothing, and a refused build's selected targets alone, as it creates nothing
+        const { bindings: selected } = target.installation;
+        const needs = (await this.#readNeeds(reader, [])).filter(
+            (need) =>
+                !this.#isUnaddressed(need) &&
+                (!isRefused || selected[need.package.id]?.[need.name] !== undefined),
+        );
+        const bindings =
+            target.installation.export !== null
+                ? []
+                : await this.#options.binder.bind(call, target, needs);
+
+        // retain the revision once per digest, releasing the owned resources no current revision binds
+        const [revision] = await call.mutate(call.self, [
+            await InstallationRevision.create(
+                target.installation,
+                { id: built.id, manifest: built.manifest },
+                input,
+                input.evaluation,
+                bindings,
+                call.environment.crypto,
+            ),
+        ]);
+        await this.#releaseUnbound(call, revision);
+
+        return revision;
+    }
+
+    /** Release the owned resources neither a revision nor a live deployment's revision binds. */
+    async #releaseUnbound(call: MethodContext, revision: InstallationRevision): Promise<void> {
+        // read the revisions the live deployments run
+        const target = this.#target;
+        const live = await call.read(deployment).findMany({
+            where: { ...Deployment.live(), installationId: target.installationId },
+        });
+        const running = await call.read(installationRevision).findMany({
+            where: { id: { in: [...new Set(live.map((entry) => entry.revisionId))] } },
+        });
+        await this.#options.binder.release(call, target, [
+            ...revision.bindings,
+            ...running.flatMap((each) => each.bindings),
+        ]);
     }
 
     /** Deploy the revision of an enabled application, and drain a suspended one. */
@@ -273,7 +360,7 @@ export class ApplicationInstallation {
             await this.#deploy(call, revision, live);
         }
 
-        // relate the application as consumer of exactly what its live deployments captured
+        // relate the application as consumer of exactly what its live deployments' revisions bind
         await this.#relate(call);
     }
 
@@ -281,9 +368,9 @@ export class ApplicationInstallation {
     async #finalize(call: MethodContextOf<typeof rollout, "deploy">): Promise<void> {
         // release its owned resources to their retention
         const target = this.#target;
-        await this.#options.binder.attach(call, target, []);
+        await this.#options.binder.release(call, target, []);
 
-        // delete its retired deployments with their instances and captures
+        // delete its retired deployments with their instances
         const retired = await call
             .read(deployment)
             .findMany({ where: { installationId: target.installationId } });
@@ -291,12 +378,8 @@ export class ApplicationInstallation {
         const instances = await call
             .read(instance)
             .findMany({ where: { deploymentId: { in: ids } } });
-        const captures = await call
-            .read(capture)
-            .findMany({ where: { deploymentId: { in: ids } } });
         await call.mutate(call.self, [
             ...instances.map((row) => instance.call("delete", { id: row.id })),
-            ...captures.map((row) => capture.call("delete", { id: row.id })),
             ...retired.map((row) => deployment.call("delete", { id: row.id })),
         ]);
 
@@ -304,9 +387,9 @@ export class ApplicationInstallation {
         await Rollout.upsertAccess(call, target, undefined);
     }
 
-    /** Relate the application as consumer of exactly what its live deployments captured. */
+    /** Relate the application as consumer of exactly what its live deployments' revisions bind. */
     async #relate(call: MethodContextOf<typeof rollout, "deploy">): Promise<void> {
-        // relate it as consumer of what its live deployments captured
+        // relate it as consumer of what its live deployments' revisions bind
         const target = this.#target;
         const digest = await this.#options.binder.relate(call, target, target.consumption);
 
@@ -337,13 +420,8 @@ export class ApplicationInstallation {
             revision.buildId,
         );
 
-        // serve a linked release or a trusted installation's build in the store, else select its build's workloads
-        const isStored =
-            this.#options.linked.get(target.installation.packageId)?.manifest === built.manifest ||
-            target.installation.isolation === "process";
-        const { workloads, stranded } = isStored
-            ? { workloads: [this.#processWorkload(description)], stranded: [] }
-            : this.#selectWorkloads(build, description);
+        // select the workloads the machine runs
+        const { workloads, stranded } = this.#selectWorkloads(built.manifest, build, description);
 
         // refuse an unrunnable workload, an undeclared or unentitled capability or directory, or a database
         const refusal =
@@ -376,7 +454,7 @@ export class ApplicationInstallation {
 
         // refuse installation needs without a bound address
         const needs = await this.#readNeeds(build, workloads);
-        const unbound = await this.#describeUnboundInstallations(call, needs);
+        const unbound = this.#describeUnboundInstallations(revision, needs);
         if (unbound !== undefined) {
             await this.#refuse(call, unbound);
 
@@ -416,9 +494,9 @@ export class ApplicationInstallation {
             return;
         }
 
-        // attach the resources it needs
-        await this.#options.binder.attach(call, target, needs);
-        if (!(await this.#options.binder.ready(call, target, needs))) {
+        // wait for the resources its revision binds
+        const bindings = revision.bindings;
+        if (!(await this.#options.binder.ready(call, target, bindings, needs))) {
             const message = "bound targets wait for their resources";
             await call.observe(installation, target.installation, {
                 conditions: {
@@ -473,13 +551,16 @@ export class ApplicationInstallation {
             replaced.map((entry) => Deployment.drain(entry)),
         );
 
-        // activate each fresh workload's deployment with its bindings captured
+        // activate each fresh workload's deployment
         const releases = {
             served: await servedRelease(build),
         };
         for (const workload of fresh) {
             await this.#activate(call, revision, workload, releases);
         }
+
+        // release the owned resources neither the revision nor a live deployment's revision binds
+        await this.#releaseUnbound(call, revision);
 
         // observe the revision applied
         await call.observe(installation, target.installation, {
@@ -709,12 +790,9 @@ export class ApplicationInstallation {
         workloads: readonly BuildWorkload[],
         live: readonly Deployment[],
     ): Promise<{ readonly fresh: BuildWorkload[]; readonly replaced: Deployment[] }> {
-        // choose the active deployments to reuse
+        // reuse the active deployments of the revision's workloads, a binding change making another revision
         const active = live.filter((entry) => entry.status === "active");
-        const isRebound = await this.#isRebound(call, active);
-        const chosen = isRebound
-            ? []
-            : active.filter((entry) => isChosen(entry, revision, workloads));
+        const chosen = active.filter((entry) => isChosen(entry, revision, workloads));
 
         // deploy the other workloads anew in place of the other active deployments
         const fresh = workloads.filter(
@@ -725,26 +803,25 @@ export class ApplicationInstallation {
         return { fresh, replaced };
     }
 
-    /** Describe the installation needs of the application without an address. */
-    async #describeUnboundInstallations(
-        call: MethodContextOf<typeof rollout, "deploy">,
-        needs: readonly ResourceNeed[],
-    ): Promise<Refusal | undefined> {
-        // read the installation's bindings
-        const bound = await call.read(binding).findMany({
-            where: {
-                scope: this.#target.scope,
-                installationId: this.#target.installationId,
-            },
-        });
+    /** Report whether a need calls an installation without an address of its own or a selection. */
+    #isUnaddressed(need: ResourceNeed): boolean {
+        return (
+            need.kind === InstallationKind.name &&
+            InstallationBindingSpec.parse(need.spec).address === undefined &&
+            this.#target.installation.bindings[need.package.id]?.[need.name] === undefined
+        );
+    }
 
-        // list the installation needs with no address of their own that no binding or stack selection binds
-        const selected = this.#target.installation.bindings;
+    /** Describe the installation needs of the application without an address. */
+    #describeUnboundInstallations(
+        revision: InstallationRevision,
+        needs: readonly ResourceNeed[],
+    ): Refusal | undefined {
+        // list the installation needs with no address of their own that the revision leaves unbound
+        const bound = revision.bindings;
         const unbound = needs.filter(
             (need) =>
-                need.kind === InstallationKind.name &&
-                InstallationBindingSpec.parse(need.spec).address === undefined &&
-                selected[need.package.id]?.[need.name] === undefined &&
+                this.#isUnaddressed(need) &&
                 !bound.some(
                     (entry) => entry.packageId === need.package.id && entry.name === need.name,
                 ),
@@ -760,14 +837,14 @@ export class ApplicationInstallation {
         };
     }
 
-    /** Activate a fresh workload's deployment of a revision and capture its bindings. */
+    /** Activate a fresh workload's deployment of a revision. */
     async #activate(
         call: MethodContextOf<typeof rollout, "deploy">,
         revision: InstallationRevision,
         workload: BuildWorkload,
         releases: Releases,
     ): Promise<void> {
-        const [activated] = await call.mutate(call.self, [
+        await call.mutate(call.self, [
             deployment.call("create", {
                 installationId: this.#target.installationId,
                 packageId: this.#target.installation.packageId,
@@ -782,58 +859,6 @@ export class ApplicationInstallation {
                 activatedAt: call.now,
             }),
         ]);
-        await this.#options.binder.capture(call, activated);
-    }
-
-    /** Report whether the bindings changed since the active deployments captured them. */
-    async #isRebound(
-        call: MethodContextOf<typeof rollout, "deploy">,
-        active: readonly Deployment[],
-    ): Promise<boolean> {
-        // report no change without active deployments
-        if (active.length === 0) {
-            return false;
-        }
-
-        // read the bindings and the active deployments' captures
-        const target = this.#target;
-        const bindings = await call.read(binding).findMany({
-            where: {
-                scope: target.scope,
-                installationId: target.installationId,
-            },
-        });
-        const captures = await call.read(capture).findMany({
-            where: {
-                scope: target.scope,
-                deploymentId: { in: active.map((entry) => entry.id) },
-            },
-        });
-
-        // compare each deployment's binding captures with the bindings by declaration, main's coming with the revision
-        const bound = new Map(
-            bindings.map((entry) => [Binding.key(entry.packageId, entry.name), entry]),
-        );
-
-        return active.some((deployed) => {
-            const captured = captures.filter(
-                (entry) => entry.deploymentId === deployed.id && entry.name !== MAIN_DATABASE,
-            );
-            const isSame =
-                captured.length === bound.size &&
-                captured.every((entry) => {
-                    const current = bound.get(Binding.key(entry.packageId, entry.name));
-
-                    return (
-                        current !== undefined &&
-                        current.target === entry.target &&
-                        current.targetSpaceId === entry.targetSpaceId &&
-                        (current.version === null || current.version === entry.version)
-                    );
-                });
-
-            return !isSame;
-        });
     }
 
     /** Open the build a revision evaluated from the build store. */
@@ -971,14 +996,24 @@ export class ApplicationInstallation {
         };
     }
 
-    /** Select each workload of a build from the server output of the machine's first runtime. */
+    /** Select a build's workloads: one in the store for a linked or process build, else its own. */
     #selectWorkloads(
+        manifest: Digest,
         build: BuildReader,
         description: PackageDescription | undefined,
     ): {
         readonly workloads: BuildWorkload[];
         readonly stranded: string[];
     } {
+        // serve a linked release or a process installation's build in the store
+        const { installation: installed } = this.#target;
+        const isStored =
+            this.#options.linked.get(installed.packageId)?.manifest === manifest ||
+            installed.isolation === "process";
+        if (isStored) {
+            return { workloads: [this.#processWorkload(description)], stranded: [] };
+        }
+
         // list the workloads of the emitted server outputs, each sandbox joined with what the enabled capabilities unlock
         const target = this.#target;
         const enabled = Rollout.enabled(target.installation, description);

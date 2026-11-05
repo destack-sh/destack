@@ -3,9 +3,7 @@ import { BUILD_STORE_TABLES } from "@destack/build/table";
 import { defineAdapter, definePackage, installation } from "@destack/object";
 import { catalog, declaration, module, symbol } from "./object/graph.ts";
 import {
-    binding,
     build,
-    capture,
     deployment,
     installationKey,
     installationRevision,
@@ -39,9 +37,7 @@ export default definePackage({
         rollout,
         installationRevision,
         installationKey,
-        binding,
         deployment,
-        capture,
         instance,
         transfer,
         snapshot,

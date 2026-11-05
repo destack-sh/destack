@@ -17,7 +17,7 @@ import {
 } from "@destack/object";
 import { entitlement, Space, space } from "@destack/account/object";
 import {
-    binding,
+    Binding,
     build,
     deployment,
     installationRevision,
@@ -40,6 +40,7 @@ import { StackInstallation } from "./stack.ts";
 import type { TokenIssuer } from "@destack/access/token";
 import { InstallationAssertion } from "./token.ts";
 import { StackError } from "../../error/index.ts";
+import type { ObjectBindable } from "../resource/binding.ts";
 
 /** The options a machine serves installations with. */
 export interface InstallationOptions extends RevisionOptions, ApplicationOptions {
@@ -140,7 +141,7 @@ function rolloutProjection(options: InstallationOptions): ObjectProjection<typeo
                     ? [rolloutKey(row)]
                     : [],
             ),
-            ...rolloutWatches(options.resources),
+            ...rolloutWatches(options.resources, options.binder.objects()),
             ...(options.forge === null ? [] : forgeWatches(options.forge)),
         ],
         project: async (_id, reconciliation) => {
@@ -289,6 +290,19 @@ export function implementRollouts(options: InstallationOptions) {
 
                 return {};
             },
+            revise: async (call) => {
+                // revise the installation: its build at its bindings, and target the revision
+                const target = await Rollout.of(call);
+                const revision = await new ApplicationInstallation(target, options).revise(
+                    call,
+                    call.input,
+                );
+                if (target.revisionId !== revision.id) {
+                    await call.update({ revisionId: revision.id });
+                }
+
+                return { revisionId: revision.id };
+            },
             approve: async (call) => {
                 // accept each plan waiting as the approver reviewed them
                 const target = await Rollout.of(call);
@@ -348,15 +362,12 @@ async function submit(
                   reader,
                   options,
               );
-    const [revision] = await context.mutate(context.self, [
-        await InstallationRevision.create(
-            target.installation,
-            resolved,
-            { dependencies: prepared.dependencies, states: prepared.states },
-            evaluation,
-            context.environment.crypto,
-        ),
-    ]);
+    const revision = await new ApplicationInstallation(target, options).revise(context, {
+        build: resolved.id,
+        dependencies: prepared.dependencies,
+        states: prepared.states,
+        evaluation,
+    });
 
     // select the submitted build and arguments on the installation
     const selected = { selection, ...stack };
@@ -541,45 +552,48 @@ function checkoutWatch() {
     });
 }
 
-/** Wake rollouts on the changes of their resources, deployments, bindings and placement. */
-function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
+/** Wake rollouts on the changes of their bound targets, deployments and placement. */
+function rolloutWatches(
+    resources: readonly ResourceType<typeof space>[],
+    objects: readonly ObjectBindable[],
+) {
     return [
-        // wake the space's stack while it waits for its resources and the applications binding a changed resource
+        // wake the space's stack while it waits for its resources and the applications binding one, as their status moves too
         ...resources.map((object) =>
-            ObjectWatch.of(object.table, async (row, database) => {
-                // leave a resource of an account, which no installation binds
-                if (!space.identifies(row.scope)) {
-                    return [];
-                }
+            ObjectWatch.of(
+                object.table,
+                async (row, database) => {
+                    // leave a resource of an account, which no installation binds
+                    if (!space.identifies(row.scope)) {
+                        return [];
+                    }
 
-                // find the space's stack, which reads its resources however it last stood
-                const [stack] = await database
-                    .select({ id: rollout.table.installationId })
-                    .from(rollout.table)
-                    .innerJoin(
-                        installation.table,
-                        eq(installation.table.id, rollout.table.installationId),
-                    )
-                    .where(
-                        and(
-                            eq(rollout.table.scope, row.scope),
-                            isNotNull(installation.table.export),
-                        ),
-                    );
+                    // find the space's stack, which reads its resources however it last stood
+                    const [stack] = await database
+                        .select({ id: rollout.table.installationId })
+                        .from(rollout.table)
+                        .innerJoin(
+                            installation.table,
+                            eq(installation.table.id, rollout.table.installationId),
+                        )
+                        .where(
+                            and(
+                                eq(rollout.table.scope, row.scope),
+                                isNotNull(installation.table.export),
+                            ),
+                        );
 
-                // find the applications binding it
-                const bound = await database
-                    .select({ id: binding.table.installationId })
-                    .from(binding.table)
-                    .where(
-                        and(eq(binding.table.scope, row.scope), eq(binding.table.target, row.id)),
-                    );
+                    // find the applications whose targeted revision binds it, which revise again at its new version
+                    const scope = schema.identifier("space").parse(row.scope);
+                    const bound = await Binding.binders(Snapshot.live(database), scope, row.id);
 
-                return [
-                    ...(stack === undefined ? [] : [{ installationId: stack.id }]),
-                    ...bound.map((entry) => ({ installationId: entry.id })),
-                ];
-            }),
+                    return [
+                        ...(stack === undefined ? [] : [{ installationId: stack.id }]),
+                        ...bound.map((id) => ({ installationId: id })),
+                    ];
+                },
+                { isObserving: true },
+            ),
         ),
         // wake an installation's rollout and its stack once it comes, goes or changes, past its observed status
         ObjectWatch.of(installation.table, (row, _database, change) =>
@@ -593,7 +607,7 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                           : [{ installationId: row.managerInstallationId }]),
                   ],
         ),
-        // wake every other rollout of the space once it serves another revision, as what they wait for may be served now
+        // wake the space's other rollouts still waiting once one serves another revision, as what they wait for may be served now
         ObjectWatch.of(rollout.table, async (row, database, change) => {
             // leave a change that serves no other revision
             const before = Change.before(change);
@@ -601,10 +615,17 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                 return [];
             }
 
-            // find the space's other rollouts
+            // find the space's other rollouts, with whether each is ready
             const rollouts = await database
-                .select({ id: rollout.table.installationId })
+                .select({
+                    id: rollout.table.installationId,
+                    conditions: installation.table.conditions,
+                })
                 .from(rollout.table)
+                .innerJoin(
+                    installation.table,
+                    eq(installation.table.id, rollout.table.installationId),
+                )
                 .where(
                     and(
                         eq(rollout.table.scope, row.scope),
@@ -612,7 +633,9 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                     ),
                 );
 
-            return rollouts.map((entry) => ({ installationId: entry.id }));
+            return rollouts
+                .filter((entry) => entry.conditions["Ready"]?.status !== "true")
+                .map((entry) => ({ installationId: entry.id }));
         }),
         // wake a space's rollouts once its row arrives or changes, as the space serves its applications only then
         ObjectWatch.of(space.table, async (row, database) => {
@@ -624,7 +647,20 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
             return rollouts.map((entry) => ({ installationId: entry.id }));
         }),
         ObjectWatch.of(deployment.table, (row) => [{ installationId: row.installationId }]),
-        ObjectWatch.of(binding.table, (row) => [{ installationId: row.installationId }]),
+        // wake the applications whose targeted revision binds an object of a served kind, which revise again at its new version
+        ...objects.map((kind) =>
+            ObjectWatch.of(kind.object.table, async (row, database) => {
+                // read the object's space and identifier, leaving one outside spaces
+                const scope = schema.identifier("space").safeParse(row["scope"]);
+                const id = row["id"];
+                if (!scope.success || typeof id !== "string") {
+                    return [];
+                }
+                const bound = await Binding.binders(Snapshot.live(database), scope.data, id);
+
+                return bound.map((installationId) => ({ installationId }));
+            }),
+        ),
         // wake the applications of the account's spaces refused for an unentitled capability
         ObjectWatch.of(entitlement.table, async (row, database) => {
             const spaces = await Space.within(database, row.scope);
@@ -643,41 +679,47 @@ function rolloutWatches(resources: readonly ResourceType<typeof space>[]) {
                 .map((each) => ({ installationId: each.id }));
         }),
         // wake the space's applications waiting for a dependency once its package is installed or served
-        ObjectWatch.of(installation.table, async (row, database) => {
-            // leave an installation outside a space, which no application of a space waits for
-            const scope = schema.identifier("space").safeParse(row.scope);
-            if (!scope.success) {
-                return [];
-            }
+        ObjectWatch.of(
+            installation.table,
+            async (row, database) => {
+                // leave an installation outside a space, which no application of a space waits for
+                const scope = schema.identifier("space").safeParse(row.scope);
+                if (!scope.success) {
+                    return [];
+                }
 
-            // read the space's rollouts with their conditions and dependencies
-            const refused = await database
-                .select({
-                    id: rollout.table.installationId,
-                    conditions: installation.table.conditions,
-                    dependencies: installationRevision.table.dependencies,
-                })
-                .from(rollout.table)
-                .innerJoin(
-                    installation.table,
-                    eq(installation.table.id, rollout.table.installationId),
-                )
-                .innerJoin(
-                    installationRevision.table,
-                    eq(installationRevision.table.id, rollout.table.revisionId),
-                )
-                .where(eq(rollout.table.scope, scope.data));
+                // read the space's rollouts with their conditions and dependencies
+                const refused = await database
+                    .select({
+                        id: rollout.table.installationId,
+                        conditions: installation.table.conditions,
+                        dependencies: installationRevision.table.dependencies,
+                    })
+                    .from(rollout.table)
+                    .innerJoin(
+                        installation.table,
+                        eq(installation.table.id, rollout.table.installationId),
+                    )
+                    .innerJoin(
+                        installationRevision.table,
+                        eq(installationRevision.table.id, rollout.table.revisionId),
+                    )
+                    .where(eq(rollout.table.scope, scope.data));
 
-            return refused
-                .filter(
-                    (each) =>
-                        ["UninstalledDependency", "WaitingForSpace"].includes(
-                            each.conditions["Ready"]?.reason ?? "",
-                        ) &&
-                        each.dependencies.some((release) => release.package.id === row.packageId),
-                )
-                .map((each) => ({ installationId: each.id }));
-        }),
+                return refused
+                    .filter(
+                        (each) =>
+                            ["UninstalledDependency", "WaitingForSpace"].includes(
+                                each.conditions["Ready"]?.reason ?? "",
+                            ) &&
+                            each.dependencies.some(
+                                (dependency) => dependency.package.id === row.packageId,
+                            ),
+                    )
+                    .map((each) => ({ installationId: each.id }));
+            },
+            { isObserving: true },
+        ),
         // wake the space's applications waiting for a setting of its package once a value is placed
         ObjectWatch.of(setting.table, async (row, database) => {
             // leave a value outside a space, which no application of a space waits for

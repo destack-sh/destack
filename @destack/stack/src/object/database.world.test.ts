@@ -59,6 +59,8 @@ test("serve an installation once its targets are bound and the space's main data
                 buildId: pulled.id,
                 dependencies: [],
                 states: { main: state },
+                generation: 1,
+                bindings: [],
                 digest: Digest.parse("e".repeat(64)),
             }),
     );

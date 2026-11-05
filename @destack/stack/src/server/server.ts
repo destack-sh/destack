@@ -474,7 +474,6 @@ function ownObjects(
         ...providers.provided(),
         implementRollouts(installationOptions(options, providers, binder)),
         implementInstallationRevision(),
-        binder.serve(),
         implementDeployment({
             providers,
             bindables: binder.objects(),

@@ -14,7 +14,6 @@ import type { Crypto } from "@destack/environment";
 import { canonicalize, present, schema } from "@destack/schema";
 import { MAIN_DATABASE } from "../../declare/index.ts";
 import {
-    binding,
     Database,
     installationRevision,
     type InstallationRollout,
@@ -227,19 +226,14 @@ async function readResources(
     resources: readonly ResourceType<typeof space>[],
     target: Omit<Rollout, "id">,
 ): Promise<{ readonly object: ResourceType<typeof space>; readonly row: Resource }[]> {
-    // read the targets of its bindings
-    const bound = await view.read(binding.table).findMany({
-        where: {
-            scope: target.scope,
-            installationId: target.installationId,
-        },
-    });
+    // read the targeted revision and the targets here it binds
     const revision =
         target.revisionId === null
             ? undefined
             : await view
                   .read(installationRevision.table)
                   .findFirst({ where: { id: target.revisionId } });
+    const bound = revision === undefined ? [] : revision.bindings;
     const main =
         revision?.states[MAIN_DATABASE] === undefined
             ? undefined

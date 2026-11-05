@@ -1196,7 +1196,7 @@ export class TestSpace implements AsyncDisposable {
     projection(store: ObjectStore, spaceId: Identifier<"space">): Projection {
         return new Projection(store.database, {
             name: "host",
-            tables: [object.rollout.table, object.binding.table, object.database.table],
+            tables: [object.rollout.table, object.database.table],
             keys: async () => [spaceId],
             all: async () => [spaceId],
             project: async () => this.serveInstalled(store, spaceId),
@@ -1746,7 +1746,7 @@ export class TestSpace implements AsyncDisposable {
             this.database,
             {
                 controllers: controllers.filter((controller) => controller.name === "replica"),
-                cursors: cursors.filter((cursor) => cursor.name === "replica-requests"),
+                cursors: cursors.filter((cursor) => cursor.name === "subscriptions"),
             },
             {
                 report: (_controller, _key, error) => {

@@ -8,7 +8,7 @@ import { type SpaceOptions, SpaceStore } from "../index.ts";
 import { pathToFileURL } from "node:url";
 import { PACKAGE_KIND, PackageHandle, SERVER_EXPORT } from "@destack/object";
 import { expect, refusal, test } from "@destack/test";
-import { and, databaseProvider, defineDatabase, eq, isNotNull } from "@destack/db";
+import { and, databaseProvider, defineDatabase, eq, isNotNull, Snapshot } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
 import { implementPackage, ObjectStore } from "@destack/object/server";
 import { Plan } from "@destack/resource";
@@ -30,7 +30,7 @@ import stackPackage from "../../package.ts";
 import * as object from "../../object/index.ts";
 import { installation } from "@destack/object";
 import {
-    binding,
+    Binding,
     rollout,
     type InstallationRollout,
     type StackEvaluation,
@@ -429,16 +429,21 @@ test("replace an installation's own binding once its stack binds the declaration
         .select({ name: object.bucket.table.name })
         .from(object.bucket.table)
         .where(isNotNull(object.bucket.table.deletedAt));
-    const bound = await database
-        .select({
-            name: binding.table.name,
-            target: binding.table.target,
-            manager: binding.table.managerInstallationId,
-        })
-        .from(binding.table);
+    const [named] = await database
+        .select({ id: installation.table.id, scope: installation.table.scope })
+        .from(installation.table)
+        .where(eq(installation.table.name, "notes"));
+    const installed = present(named, "the notes installation");
+    const bound = (
+        await Binding.targeted(
+            Snapshot.live(database),
+            schema.identifier("space").parse(installed.scope),
+            installed.id,
+        )
+    ).map((entry) => ({ name: entry.name, target: entry.target }));
     // bind the installation itself, which the stack's binding selects for it
     expect({ bound, released }).toEqual({
-        bound: [{ name: "files", target: present(files, "the files bucket").id, manager: null }],
+        bound: [{ name: "files", target: present(files, "the files bucket").id }],
         released: [{ name: "notes.files" }],
     });
 });
@@ -485,13 +490,14 @@ test("bind a declaration to an installation of another space by name, unpinned, 
         ];
     };
     const bound = await applied({ type: "installation", name: board, spaceId: acme });
-    const rows = await fixture.database
-        .select({
-            name: binding.table.name,
-            target: binding.table.target,
-            targetSpaceId: binding.table.targetSpaceId,
-        })
-        .from(binding.table);
+    const revisions = await fixture.database.select().from(object.installationRevision.table);
+    const rows = revisions.flatMap((revision) =>
+        revision.bindings.map((entry) => ({
+            name: entry.name,
+            target: entry.target,
+            targetSpaceId: entry.targetSpaceId,
+        })),
+    );
 
     // keep the binding with the other space and block pinning or rebinding it
     expect({

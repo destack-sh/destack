@@ -73,13 +73,13 @@ test("deploy an installation capturing each binding at its target's generation o
         .from(object.deployment.table)
         .where(eq(object.deployment.table.installationId, ids.notes));
     const created = present(deployed, "the deployment");
-    const captured = await database
+    const [revision] = await database
         .select()
-        .from(object.capture.table)
-        .where(eq(object.capture.table.deploymentId, created.id));
+        .from(object.installationRevision.table)
+        .where(eq(object.installationRevision.table.id, created.revisionId));
     expect(
-        captured
-            .map((entry) => [entry.name, entry.target, entry.version])
+        present(revision, "the deployment's revision")
+            .bindings.map((entry) => [entry.name, entry.target, entry.version])
             .toSorted((left, right) => String(left[0]).localeCompare(String(right[0]))),
     ).toEqual([
         ["archive", archive.id, 4],

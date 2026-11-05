@@ -534,6 +534,8 @@ test("open the build each package's installation in a space follows, and none fo
                     buildId: built.id,
                     dependencies: [],
                     states: {},
+                    generation: 1,
+                    bindings: [],
                     digest: Digest.parse(suffix.repeat(32)),
                     createdAt: now,
                     updatedAt: now,

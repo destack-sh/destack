@@ -80,8 +80,9 @@ import type { SpaceBuildStore, Registry } from "../server/installation/build.ts"
 import type { Forge } from "../server/installation/follow.ts";
 import type { BuildStore } from "@destack/build/store";
 import { residency, space, Space } from "@destack/account/object";
-import { type StackEvaluation, Submission } from "./stack.ts";
+import { StackEvaluation, Submission } from "./stack.ts";
 import { StackError } from "../error/index.ts";
+import { Binding } from "./binding.ts";
 
 /** The name under which an installation manages its permissions binding and space grant. */
 const GRANT_NAME = "permissions";
@@ -268,12 +269,22 @@ export const rollout = defineObject(
             output: schema.object({}),
         }),
 
-        /** Target a revision for an installation, as its controller does. */
-        target: method.mutation({
+        /** Revise an installation: its build at its bindings, targeted, as its controller does. */
+        revise: method.mutation({
             permission: "target",
             visibility: "package",
             input: schema.object({
-                /** The revision to target. */
+                /** The build to run. */
+                build: schema.identifier("build"),
+                /** The installable packages the build depends on, at their compiled releases. */
+                dependencies: schema.array(PackageRelease),
+                /** The state each declaration of the build requires of its target, as a blob. */
+                states: schema.record(schema.string(), Digest),
+                /** The stack's evaluation of the build, for a stack. */
+                evaluation: StackEvaluation.exactOptional(),
+            }),
+            output: schema.object({
+                /** The targeted revision. */
                 revisionId: schema.identifier("installation-revision"),
             }),
         }),
@@ -323,7 +334,6 @@ export const rollout = defineObject(
 
             return { revisionId: previous.id };
         },
-        target: (call) => call.update(call.input),
     },
 });
 
@@ -351,7 +361,11 @@ export const installationRevision = defineObject(
             states: field.blobMap(),
             /** The evaluated stack definition, for stacks. */
             definition: field.json(StackDefinition).optional(),
-            /** The SHA-256 digest of the build and the stack evaluation's inputs. */
+            /** The targets its package's declarations run with, by package and declaration name. */
+            bindings: field.json(schema.array(Binding)),
+            /** The installation's generation the revision was made at. */
+            generation: field.integer(),
+            /** The SHA-256 digest of the build, the stack evaluation's inputs and the bindings. */
             digest: field.string(Digest),
         },
         permissions: ["read", "record"],
@@ -367,7 +381,16 @@ export const installationRevision = defineObject(
     (method) => ({
         create: method.create("record", {
             visibility: "package",
-            fields: ["installationId", "buildId", "dependencies", "states", "definition", "digest"],
+            fields: [
+                "installationId",
+                "buildId",
+                "dependencies",
+                "states",
+                "definition",
+                "bindings",
+                "generation",
+                "digest",
+            ],
             input: schema.object({
                 /** The package whose build the revision evaluates. */
                 packageId: PackageId,
@@ -1118,8 +1141,8 @@ export const Rollout = {
         }));
     },
 
-    /** Target each installation's selected build in one transaction, described before it. */
-    async target(
+    /** Revise each installation: its selected or targeted build at its current bindings. */
+    async revise(
         reconciliation: ObjectReconciliation,
         rows: readonly InstallationRollout[],
         options: RevisionOptions,
@@ -1139,72 +1162,59 @@ export const Rollout = {
                 .findMany({ where: { id: { in: targeted.map((each) => each.buildId) } } })
         ).map((each) => Build.of(each));
 
-        // describe the revision of each one whose target is not its selected build, before the transaction
-        const { crypto } = store.environment;
-        const changed: {
-            readonly row: InstallationRollout;
-            readonly selected: SelectedBuild;
-            readonly evaluation: StackEvaluation | undefined;
-            readonly digest: Digest;
-            readonly described: Pick<InstallationRevision, "dependencies" | "states">;
-        }[] = [];
+        // revise each one: its selected build, else its targeted one, at its bindings as they stand
+        const calls: Call[] = [];
         for (const row of rows) {
-            // leave one whose selected build is not built yet, or whose target is already it
+            // take a release or tag selection's build once built, else the targeted revision's
             const revision = targeted.find((each) => each.id === row.revisionId);
             const current = built.find((each) => each.id === revision?.buildId);
-            const selected = await selectBuild(reconciliation, row, current, options);
-            if (selected === undefined) {
+            const { kind } = row.installation.selection;
+            const selected =
+                kind === "release" || kind === "tag"
+                    ? await selectBuild(reconciliation, row, current, options)
+                    : undefined;
+            const chosen =
+                selected ??
+                (revision === undefined || current === undefined
+                    ? undefined
+                    : { build: current.id, manifest: Build.manifest(current) });
+            if (chosen === undefined) {
                 continue;
             }
 
-            // leave one whose target is the build at the same inputs, then evaluate a stack's export of it
+            // describe a new build's revision, reusing the targeted one's for the same build
+            const reader = await options.builds.contents(chosen.manifest);
+            const described =
+                revision !== undefined && revision.buildId === chosen.build
+                    ? { dependencies: revision.dependencies, states: revision.states }
+                    : await InstallationRevision.describe(
+                          row.installation,
+                          reader,
+                          store.objects,
+                          options,
+                      );
+
+            // evaluate a stack's export of it at its inputs
             const inputs =
                 row.installation.export === null
                     ? undefined
                     : await Rollout.inputs(snapshot, row.installation);
-            const digest = await InstallationRevision.digest(selected.manifest, inputs, crypto);
-            if (revision?.digest === digest) {
-                continue;
-            }
-            const reader = await options.builds.contents(selected.manifest);
             const evaluation =
                 inputs === undefined ? undefined : await Rollout.evaluate(inputs, reader, options);
-
-            // describe its revision from its build
-            const described = await InstallationRevision.describe(
-                row.installation,
-                reader,
-                store.objects,
-                options,
-            );
-            changed.push({ row, selected, evaluation, digest, described });
-        }
-        if (changed.length === 0) {
-            return;
-        }
-
-        // record each missing revision and target each revision in one transaction
-        const calls: Call[] = [];
-        for (const { row, selected, evaluation, digest, described } of changed) {
-            // retain the revision of the build once, and target it
-            const revisionId = await InstallationRevision.id(row.installationId, digest, crypto);
             calls.push(
-                await InstallationRevision.create(
-                    row.installation,
-                    { id: selected.build, manifest: selected.manifest },
-                    described,
-                    evaluation,
-                    crypto,
-                ),
-            );
-            calls.push(
-                rollout.call("target", {
+                rollout.call("revise", {
                     ...rollout.target({ scope: row.scope, id: row.installationId }),
-                    revisionId,
+                    build: chosen.build,
+                    ...described,
+                    ...(evaluation === undefined ? {} : { evaluation }),
                 }),
             );
         }
-        await reconciliation.mutate(calls);
+
+        // revise them in one transaction, each at most once per digest
+        if (calls.length > 0) {
+            await reconciliation.mutate(calls);
+        }
     },
 };
 
@@ -1253,16 +1263,18 @@ export const InstallationRevision = {
     digest(
         manifest: Digest,
         inputs: Omit<StackEvaluation, "definition"> | undefined,
+        bindings: readonly Binding[],
         crypto: DigestCrypto,
     ): Promise<Digest> {
         return Digest.json(
             inputs === undefined
-                ? { manifest }
+                ? { manifest, bindings }
                 : {
                       manifest,
                       export: inputs.export,
                       parameters: inputs.parameters,
                       settings: inputs.settings,
+                      bindings,
                   },
             crypto,
         );
@@ -1314,10 +1326,11 @@ export const InstallationRevision = {
 
     /** Describe the call that records a space's build and its stack evaluation as a revision. */
     async create(
-        target: Pick<Installation, "id" | "scope" | "packageId">,
+        target: Pick<Installation, "id" | "scope" | "packageId" | "generation">,
         evaluated: { readonly id: Identifier<"build">; readonly manifest: Digest },
         described: Pick<InstallationRevision, "dependencies" | "states">,
         evaluation: StackEvaluation | undefined,
+        bindings: readonly Binding[],
         crypto: DigestCrypto,
     ) {
         return installationRevision.call("create", {
@@ -1328,7 +1341,14 @@ export const InstallationRevision = {
             dependencies: described.dependencies,
             states: described.states,
             ...(evaluation === undefined ? {} : { definition: evaluation.definition }),
-            digest: await InstallationRevision.digest(evaluated.manifest, evaluation, crypto),
+            bindings: [...bindings],
+            generation: target.generation,
+            digest: await InstallationRevision.digest(
+                evaluated.manifest,
+                evaluation,
+                bindings,
+                crypto,
+            ),
         });
     },
 };

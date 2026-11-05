@@ -407,7 +407,7 @@ export interface WorkloadServed {
     readonly provider: string;
     /** The bound object. */
     readonly target: ResourceId;
-    /** The version the deployment captured. */
+    /** The version the deployment's revision binds. */
     readonly version: number;
     /** The address of the package serving the object. */
     readonly reference: string;
@@ -465,7 +465,7 @@ function bindings(spec: InstanceSpec, egress: string, secret: string): WorkloadS
         }
     }
 
-    // bind each served object's captured version to the package serving it at the egress
+    // bind each served object's bound version to the package serving it at the egress
     for (const entry of spec.served) {
         bound[entry.name] = {
             resource: entry.target,

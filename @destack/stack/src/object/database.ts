@@ -1,11 +1,10 @@
 import { DatabaseKind, type Select, type Snapshot } from "@destack/db";
 import { MAIN_DATABASE } from "../declare/index.ts";
-import { defineObject, ObjectDescription, Observation } from "@destack/object";
+import { defineObject, ObjectDescription, type ObjectType, Observation } from "@destack/object";
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
 import { Digest, type Identifier, present } from "@destack/schema";
 import { RESOURCE_KIND } from "@destack/resource";
-import { binding } from "./binding.ts";
 import { Build, build } from "./build.ts";
 import {
     type InstallationRevision,
@@ -36,6 +35,11 @@ export type Database = Select<typeof database.table>;
 
 /** The databases of spaces. */
 export const Database = {
+    /** Report whether a resource of some type is a space's main database. */
+    isMain(object: ObjectType, row: Readonly<Record<string, unknown>>): boolean {
+        return object.same(database) && row["name"] === MAIN_DATABASE;
+    },
+
     /** Read a space's main database, which the space has from its birth on. */
     async main(snapshot: Pick<Snapshot, "read">, spaceId: Identifier<"space">): Promise<Database> {
         return present(
@@ -78,12 +82,11 @@ export const Database = {
             return [];
         }
 
-        // read the rollouts with their installations, their bindings, and their revisions' builds
+        // read the rollouts with their installations, and their revisions with their bindings and builds
         const installations = await Rollout.read(
             snapshot,
             await snapshot.read(rollout.table).findMany({ where: { scope: spaceId } }),
         );
-        const bindings = await snapshot.read(binding.table).findMany({ where: { scope: spaceId } });
         const revisionIds = installations.flatMap((entry) =>
             [entry.revisionId, entry.appliedRevisionId].filter((id) => id !== null),
         );
@@ -152,11 +155,7 @@ export const Database = {
             }),
         );
 
-        // select each one whose own resources are all bound, since servers open them at start and read secrets on use
-        const bound = new Set(
-            bindings.map((entry) => `${entry.installationId}:${entry.packageId}:${entry.name}`),
-        );
-
+        // select each one whose revision binds its own resources, since servers open them at start and read secrets on use
         return served.flat().flatMap(({ rollout: entry, revisionId }) => {
             // read the served revision's build and declarations
             const { manifest, declarations } = present(
@@ -166,12 +165,16 @@ export const Database = {
 
             // serve a stack at once, which runs nothing and whose resources its document instantiates
             const isStack = entry.installation.export !== null;
+            const revision = revisions.find((each) => each.id === revisionId);
+            const { packageId } = entry.installation;
             const hasBindings = declarations
                 .filter((each) => RESOURCE_KIND.has(each))
-                .every((each) =>
-                    bound.has(
-                        `${entry.installationId}:${entry.installation.packageId}:${each.name}`,
-                    ),
+                .every(
+                    (each) =>
+                        revision !== undefined &&
+                        revision.bindings.some(
+                            (bound) => bound.packageId === packageId && bound.name === each.name,
+                        ),
                 );
 
             return isStack || hasBindings

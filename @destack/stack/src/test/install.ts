@@ -243,6 +243,8 @@ async function installNotes(
                 buildId: release.id,
                 dependencies: [],
                 states: {},
+                generation: 1,
+                bindings: [],
                 digest: Digest.parse("e".repeat(64)),
             }),
     );

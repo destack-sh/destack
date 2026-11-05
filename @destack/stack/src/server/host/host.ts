@@ -69,8 +69,8 @@ import {
 import { SPACE_BASE_PACKAGES, type SpaceOptions } from "../server.ts";
 import {
     ACTIVE_BUILD_STATES,
-    binding,
-    type Binding,
+    Binding,
+    installationRevision,
     bucket,
     build,
     Database,
@@ -532,9 +532,21 @@ export class SpaceHost {
         const stored = load.kind === "process" ? load.server : undefined;
         if (load.kind === "unserved") {
             return undefined;
-        } else if (stored !== undefined) {
-            const caller = this.#callerOnce(row, stored.package, start);
-            const resources = await this.#resources(row, stored.package, start, caller, trusted);
+        }
+        const revision = await Snapshot.live(this.database)
+            .read(installationRevision.table)
+            .findFirst({ where: { id: revisionId } });
+        const { bindings } = present(revision, `revision ${revisionId}`);
+        if (stored !== undefined) {
+            const caller = this.#callerOnce(row, stored.package, start, bindings);
+            const resources = await this.#resources(
+                row,
+                stored.package,
+                start,
+                caller,
+                trusted,
+                bindings,
+            );
             const context = await this.#context(row, revisionId, resources, start, caller);
             const requested = Rollout.permissions(row.installation, stored.package, "space");
             const isLent = Object.entries(requested).some(
@@ -547,7 +559,7 @@ export class SpaceHost {
         }
         // run another package's hooks in its sandbox, which binds its resources itself
         else {
-            const caller = this.#callerOnce(row, { resources: {} }, start);
+            const caller = this.#callerOnce(row, { resources: {} }, start, bindings);
             const context = await this.#context(
                 row,
                 revisionId,
@@ -610,6 +622,7 @@ export class SpaceHost {
         start: SpaceStart,
         caller: () => Promise<EgressCaller>,
         trusted: readonly PackageImplementation[],
+        bindings: readonly Binding[],
     ): Promise<ResourceContext> {
         const bound = new ResourceContext();
         for (const declaration of [
@@ -622,7 +635,10 @@ export class SpaceHost {
                     `installation ${row.installationId} binds ${declaration.name}, which is no declaration of this process's resource kinds`,
                 );
             }
-            bound.bind(declaration, await this.#open(row, declaration, start, caller, trusted));
+            bound.bind(
+                declaration,
+                await this.#open(row, declaration, start, caller, trusted, bindings),
+            );
         }
 
         return bound;
@@ -635,14 +651,15 @@ export class SpaceHost {
         start: SpaceStart,
         caller: () => Promise<EgressCaller>,
         trusted: readonly PackageImplementation[],
+        bindings: readonly Binding[],
     ): Promise<unknown> {
-        // read the target the installation binds the declaration to
-        const { scope, installationId: id } = row;
+        // take the target the served revision binds the declaration to
+        const { scope } = row;
         const { packageId } = row.installation;
-        const [bound] = await Snapshot.live(this.database)
-            .read(binding.table)
-            .findMany({ where: { scope, installationId: id, packageId, name: declaration.name } });
-        const found = present(bound, `the binding of ${declaration.name} by ${id}`);
+        const found = present(
+            bindings.find((each) => each.packageId === packageId && each.name === declaration.name),
+            `the binding of ${declaration.name} by ${row.installationId}`,
+        );
         const { target } = found;
         const bindable = ObjectBindable.of(trusted).find(
             (each) => each.declaration.name === declaration.kind,
@@ -744,10 +761,11 @@ export class SpaceHost {
         row: InstallationRollout,
         handle: Pick<PackageHandle, "resources">,
         start: SpaceStart,
+        bindings: readonly Binding[],
     ): () => Promise<EgressCaller> {
         let built: Promise<EgressCaller> | undefined;
 
-        return () => (built ??= this.#caller(row, handle, start));
+        return () => (built ??= this.#caller(row, handle, start, bindings));
     }
 
     /** Read an in-process installation as its egress's caller, with what it binds. */
@@ -755,12 +773,9 @@ export class SpaceHost {
         row: InstallationRollout,
         handle: Pick<PackageHandle, "resources">,
         start: SpaceStart,
+        bindings: readonly Binding[],
     ): Promise<EgressCaller> {
-        // read the installation's bindings and the resources here they target
-        const view = Snapshot.live(this.database);
-        const bindings = await view
-            .read(binding.table)
-            .findMany({ where: { scope: row.scope, installationId: row.installationId } });
+        // take the served revision's bindings to targets here, and the resources they target
         const local = bindings.filter((each) => each.targetSpaceId === null);
         const provided = start.providers.filter(
             (each): each is SpaceProvider => !("connect" in each),

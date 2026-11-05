@@ -1,6 +1,6 @@
 import { expect, refusal, test } from "@destack/test";
 import { eq, Snapshot } from "@destack/db";
-import { Identifier, present, Digest } from "@destack/schema";
+import { Identifier, present, Digest, nth } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { accessRelationship, InstallationId, principal, Relationship } from "@destack/access";
 import { account, residency } from "@destack/account/object";
@@ -124,6 +124,8 @@ test("find and list only the enabled installations not being deleted, as a machi
                     buildId: pulled.id,
                     dependencies: [],
                     states: {},
+                    generation: 1,
+                    bindings: [],
                     digest: Digest.parse("e".repeat(64)),
                     createdAt: now,
                     updatedAt: now,
@@ -189,6 +191,8 @@ test("roll an installation back to the revision applied before, a reused one too
                     buildId: built.id,
                     dependencies: [],
                     states: {},
+                    generation: 1,
+                    bindings: [],
                     digest: Digest.parse(version.replaceAll(".", "").padEnd(64, "0")),
                     createdAt: now,
                     updatedAt: now,
@@ -384,14 +388,19 @@ test("relate a shipped server as consumer of the bucket it binds while its revis
 
         return rows.filter((row) => row.subject === installed);
     };
-    const [bound] = await fixture.database
-        .select({ target: object.binding.table.target, runtime: object.deployment.table.runtime })
-        .from(object.binding.table)
-        .innerJoin(
-            object.deployment.table,
-            eq(object.deployment.table.installationId, object.binding.table.installationId),
-        )
-        .where(eq(object.binding.table.installationId, installed));
+    const [deployed] = await fixture.database
+        .select()
+        .from(object.deployment.table)
+        .where(eq(object.deployment.table.installationId, installed));
+    const live = present(deployed, "the installation's deployment");
+    const [revision] = await fixture.database
+        .select()
+        .from(object.installationRevision.table)
+        .where(eq(object.installationRevision.table.id, live.revisionId));
+    const bound = {
+        target: nth(present(revision, "its revision").bindings, 0).target,
+        runtime: live.runtime,
+    };
     const serving = await consumed();
 
     // uninstall it, which stops its process deployment

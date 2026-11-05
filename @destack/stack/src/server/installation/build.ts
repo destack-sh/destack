@@ -67,6 +67,8 @@ export class BuildCache {
     readonly runtimes: readonly Runtime[];
     /** The published builds opened in place, by manifest, each opened once. */
     readonly #opened = new Map<Digest, Promise<BuildReader>>();
+    /** The published builds pulled with their runtime closures, by manifest, each pulled once. */
+    readonly #pulled = new Map<Digest, Promise<BuildReader>>();
 
     /** Cache builds in a store for the runtimes the machine serves. */
     constructor(store: BuildStore, runtimes: readonly Runtime[]) {
@@ -101,7 +103,25 @@ export class BuildCache {
     }
 
     /** Pull what the machine's runtimes load of a published build, with its runtime closures. */
-    async pull(
+    pull(
+        registry: Pick<Registry, "locate">,
+        packageId: PackageId,
+        manifest: Digest,
+    ): Promise<BuildReader> {
+        // pull a build once, as its files and closure stay cached while it is served, forgetting a failed pull
+        const known = this.#pulled.get(manifest);
+        if (known !== undefined) {
+            return known;
+        }
+        const pulling = this.#pullClosure(registry, packageId, manifest);
+        this.#pulled.set(manifest, pulling);
+        pulling.catch(() => this.#pulled.delete(manifest));
+
+        return pulling;
+    }
+
+    /** Pull a build whole with what its emitted outputs' runtime closures pin. */
+    async #pullClosure(
         registry: Pick<Registry, "locate">,
         packageId: PackageId,
         manifest: Digest,
@@ -115,8 +135,10 @@ export class BuildCache {
             return found;
         };
         const read: ManifestRead = async (digest, at) => {
-            if (await this.store.has(digest)) {
-                return this.store.get(digest);
+            // read a stored build's manifest, else open the located build
+            const stored = await this.store.find(digest);
+            if (stored !== undefined) {
+                return stored;
             }
             const { location, fetch } = await locate(digest, at);
 

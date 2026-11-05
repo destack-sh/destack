@@ -46,7 +46,7 @@ export class StackInstallation {
         const kind = following?.stack.installation.selection.kind;
         const isFollowing = following?.stack.submittedById === null;
         if (following !== undefined && isFollowing && (kind === "release" || kind === "tag")) {
-            await Rollout.target(reconciliation, [following.stack], this.#options);
+            await Rollout.revise(reconciliation, [following.stack], this.#options);
         }
 
         // apply the stack's document, then target the revisions of the installations it manages while it lives
@@ -199,7 +199,7 @@ export class StackInstallation {
             },
         });
         const rows = await Rollout.installed(snapshot, managed);
-        await Rollout.target(reconciliation, rows, this.#options);
+        await Rollout.revise(reconciliation, rows, this.#options);
     }
 }
 

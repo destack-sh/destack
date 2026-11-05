@@ -21,13 +21,8 @@ import {
     type DatabaseConnection,
     eq,
     inArray,
-    isNotNull,
-    isNull,
-    ne,
-    or,
     Projection,
     type Row,
-    type Select,
     type Snapshot,
     type Table,
     type TableState,
@@ -43,13 +38,10 @@ import {
     type StackPlan,
 } from "@destack/object/server";
 import { RESOURCE_KIND, type ResourceKind } from "@destack/resource";
-import { canonicalize, Digest, type Identifier, nth, present, schema } from "@destack/schema";
+import { canonicalize, Digest, type Identifier, present, schema } from "@destack/schema";
 import { StackError } from "../../error/index.ts";
 import {
     Binding,
-    binding,
-    capture,
-    Database,
     database,
     Deployment,
     deployment,
@@ -57,6 +49,7 @@ import {
     rollout,
     type InstallationRollout,
     installationRevision,
+    type InstallationRevision,
     type ResourceNeed,
 } from "../../object/index.ts";
 
@@ -83,7 +76,7 @@ export interface ObjectBindable<
         need: ResourceNeed,
         bindings: readonly Binding[],
     ) => Promise<string | undefined>;
-    /** Report whether a bound target is ready to capture, reading it alone. */
+    /** Report whether a bound target is ready to run with, reading it alone. */
     readonly ready: (
         context: MethodContext,
         bound: Binding,
@@ -96,7 +89,7 @@ export interface ObjectBindable<
         bound: Binding,
         need: ResourceNeed,
     ) => Promise<void>;
-    /** Connect an in-process installation to a binding's target at its captured version. */
+    /** Connect an in-process installation to a binding's target at its bound version. */
     readonly connect: (
         store: Promise<ObjectStore>,
         row: InstallationRollout,
@@ -131,7 +124,7 @@ export const ObjectBindable = {
 
 /** Resource kinds as bindings target them. */
 export const ResourceBindable = {
-    /** Bind resources of one kind, captured at their generation or a binding's pinned version. */
+    /** Bind resources of one kind, at their generation or a binding's pinned version. */
     of(kind: ResourceKind, object: ResourceType<typeof space>): ResourceBindable {
         return {
             object,
@@ -139,7 +132,7 @@ export const ResourceBindable = {
             declaration: RESOURCE_KIND,
             used: [object],
             version: (target, pin) => pin ?? target.generation,
-            uses: async (captured) => [object.reference(captured.scope, captured.target)],
+            uses: async (bound) => [object.reference(bound.scope, bound.target)],
         };
     },
 };
@@ -176,35 +169,6 @@ export class Binder {
     /** Report whether a bindable kind binds a declaration, by its kind's identity. */
     binds(declaration: { readonly kind: string; readonly kindPackageId: string }): boolean {
         return this.#kinds.some((kind) => kind.declaration.has(declaration));
-    }
-
-    /** Serve bindings, each released with the owned resource of its installation. */
-    serve() {
-        return binding.implement({
-            methods: {
-                release: async (call, next) => {
-                    // delete the binding, then disown its resource for deletion as its installation declares it
-                    const released = await next();
-                    const resource = Binder.#kind(
-                        call.target.target,
-                        this.#resources.values(),
-                    ).object;
-                    const [row] = await call
-                        .read(rollout.table)
-                        .findMany({ where: { installationId: call.target.installationId } });
-                    const declaring = await Rollout.read(call, [
-                        present(row, `the rollout of ${call.target.installationId}`),
-                    ]);
-                    const declarer = Binder.#declarer(call, nth(declaring, 0), resource);
-                    await call.mutate(declarer, [
-                        resource.call("adopt", { id: call.target.target, owner: null }),
-                        resource.call("delete", { id: call.target.target }),
-                    ]);
-
-                    return released;
-                },
-            },
-        });
     }
 
     /** Resolve the targets an installation's declared bindings name to the records they select. */
@@ -264,85 +228,6 @@ export class Binder {
         }
     }
 
-    /** Capture a new deployment's bindings, and main when its revision keeps tables there. */
-    async capture(
-        context: MethodContext,
-        created: Select<typeof deployment.table>,
-    ): Promise<Select<typeof capture.table>[]> {
-        // read the installation's bindings
-        const bindings = await context.read(binding.table).findMany({
-            where: {
-                scope: created.scope,
-                installationId: created.installationId,
-            },
-        });
-        const byKind = Map.groupBy(
-            bindings.filter((entry) => entry.targetSpaceId === null),
-            (entry) => Binder.#kind(entry.target, this.#kinds),
-        );
-
-        // capture each binding to another space's target
-        const captures = bindings.flatMap((entry) =>
-            entry.targetSpaceId === null
-                ? []
-                : [Binder.#captureCall(created, entry, { targetSpaceId: entry.targetSpaceId })],
-        );
-
-        // resolve each binding in the deployment's space to the version of its target it runs with
-        for (const [kind, entries] of byKind) {
-            const targets = await context.read(kind.object.table).findMany({
-                where: {
-                    id: { in: entries.map((entry) => entry.target) },
-                },
-            });
-            const byId = new Map(targets.map((row) => [row["id"], row]));
-            for (const entry of entries) {
-                const target = byId.get(entry.target);
-                if (target === undefined) {
-                    throw StackError.of(
-                        "DEFINITION_INVALID",
-                        `binding ${entry.name} targets unknown ${kind.object.name} ${entry.target}`,
-                    );
-                }
-                const at = { version: kind.version(target, entry.version) };
-                captures.push(Binder.#captureCall(created, entry, at));
-            }
-        }
-
-        // capture the space's main database at its generation when the revision keeps tables there
-        const revision = await context
-            .read(installationRevision)
-            .findFirst({ where: { id: created.revisionId } });
-        if (revision?.states[MAIN_DATABASE] !== undefined) {
-            const main = await Database.main(context, created.scope);
-            const kind = Binder.#kind(main.id, this.#kinds);
-            captures.push(
-                Binder.#captureCall(
-                    created,
-                    { packageId: created.packageId, name: MAIN_DATABASE, target: main.id },
-                    { version: kind.version(main, null) },
-                ),
-            );
-        }
-
-        return [...(await context.mutate(context.self, captures))];
-    }
-
-    /** Describe what a deployment runs with for one binding. */
-    static #captureCall(
-        created: Select<typeof deployment.table>,
-        entry: Pick<Binding, "packageId" | "name" | "target">,
-        at: { readonly version: number | null } | { readonly targetSpaceId: Identifier<"space"> },
-    ) {
-        return capture.call("create", {
-            deploymentId: created.id,
-            packageId: entry.packageId,
-            name: entry.name,
-            target: entry.target,
-            ...at,
-        });
-    }
-
     /** List the kinds of some needs no provider here serves yet, which wait until one does. */
     unprovided(needs: readonly ResourceNeed[]): string[] {
         const kinds = needs
@@ -353,94 +238,152 @@ export class Binder {
     }
 
     /** Bind each declaration no stack binding satisfies to an owned target of the installation. */
-    async attach(
+    async bind(
         context: MethodContext,
         target: InstallationRollout,
         needs: readonly ResourceNeed[],
-    ): Promise<void> {
-        // read the installation's bindings by declaration with their owned resources
-        const rows = await Binder.#bindings(context, target);
-        const bindings = await Promise.all(
-            rows.map(async (entry) => ({
-                binding: entry,
-                owned: await this.owned(context, entry, target.installationId),
-            })),
-        );
-        const bound = new Map(
-            bindings.map((entry) => [
-                Binding.key(entry.binding.packageId, entry.binding.name),
-                entry,
-            ]),
-        );
-
-        // bind each needed declaration the installation selects a target for, replacing an owned binding of it
-        const selected = Object.entries(target.installation.bindings).flatMap(
-            ([packageId, names]) =>
-                Object.entries(names).map(([name, declared]) => ({ packageId, name, declared })),
-        );
+    ): Promise<Binding[]> {
+        // bind each need the installation selects a target for, at the target's version unless pinned
+        const bound: Binding[] = [];
+        const set = (need: ResourceNeed, selection: BindingSelection) => {
+            const selected = selection.target;
+            bound.push({
+                packageId: need.package.id,
+                name: need.name,
+                target: "id" in selected ? selected.id : selected.name,
+                targetSpaceId: "spaceId" in selected ? selected.spaceId : null,
+                version: selection.version ?? null,
+            });
+        };
         for (const need of needs) {
             const declared = target.installation.bindings[need.package.id]?.[need.name];
             if (declared !== undefined) {
-                await this.#bindSelected(
-                    context,
-                    target,
-                    need,
-                    declared,
-                    bound.get(Binding.key(need.package.id, need.name)),
+                set(need, await this.#select(context, target, need, declared));
+            }
+        }
+
+        // own a resource for each other resource need, following its declaration
+        const isUnselected = (need: ResourceNeed) =>
+            target.installation.bindings[need.package.id]?.[need.name] === undefined;
+        for (const need of needs.filter(
+            (each) => this.#resources.has(each.kind) && isUnselected(each),
+        )) {
+            const owned = await this.#own(context, target, need);
+            const id = schema.anyIdentifier().parse(owned.id);
+            set(need, { target: { type: owned.type, id }, version: owned.version });
+        }
+
+        // provision the other kinds' owned targets among the bindings so far, leaving a kind no provider serves yet
+        const isOther = (need: ResourceNeed) =>
+            !this.#resources.has(need.kind) && this.#objects.has(need.kind) && isUnselected(need);
+        const current = await Binding.targeted(context, target.scope, target.installationId);
+        for (const need of needs.filter(isOther)) {
+            // keep the target the targeted revision binds, as an owned target stays across revisions, else provision one
+            const kept = current.find(
+                (entry) => entry.packageId === need.package.id && entry.name === need.name,
+            );
+            const id = kept?.target ?? (await this.#ownOther(context, target, need, bound));
+
+            // bind it at its current version
+            if (id !== undefined) {
+                const selection = {
+                    target: { type: need.kind, id: schema.anyIdentifier().parse(id) },
+                };
+                set(need, await this.#select(context, target, need, selection));
+            }
+        }
+
+        // order them by package and name, as the revision's digest covers them
+        return bound.toSorted((left, right) =>
+            `${left.packageId} ${left.name}`.localeCompare(`${right.packageId} ${right.name}`),
+        );
+    }
+
+    /** Resolve a need to the target its installation selects, at its version unless pinned. */
+    async #select(
+        context: MethodContext,
+        target: InstallationRollout,
+        need: ResourceNeed,
+        declared: BindingSelection,
+    ): Promise<BindingSelection> {
+        // bind another space's installation by its name, unpinned
+        const selected = declared.target;
+        if ("spaceId" in selected) {
+            return { target: selected };
+        }
+        // require the record here, and take its version unless the selection pins one
+        else if ("id" in selected) {
+            const kind = Binder.#kind(selected.id, this.#kinds);
+            const row = await context
+                .read(kind.object.table)
+                .findFirst({ where: { id: selected.id, scope: target.scope } });
+            if (row === undefined) {
+                throw StackError.of(
+                    "DEFINITION_INVALID",
+                    `binding ${need.name} of ${target.installation.name} targets unknown ${kind.object.name} ${selected.id}`,
                 );
             }
-        }
-        const isSelected = (need: ResourceNeed) =>
-            target.installation.bindings[need.package.id]?.[need.name] !== undefined;
+            const version = kind.version(row, declared.version ?? null);
 
-        // create an owned resource for each unbound declaration, and update owned ones to follow their declaration
-        const resources = needs.filter(
-            (need) => this.#resources.has(need.kind) && !isSelected(need),
+            return { target: selected, ...(version === null ? {} : { version }) };
+        }
+        throw StackError.of(
+            "DEFINITION_INVALID",
+            `binding ${need.name} of ${target.installation.name} selects an unresolved target`,
         );
-        for (const need of resources) {
-            const existing = bound.get(Binding.key(need.package.id, need.name));
-            // create an owned resource for an unbound declaration
-            if (existing === undefined) {
-                await this.#own(context, target, need);
+    }
+
+    /** Report whether a bound target here moved past the version a revision runs it at. */
+    async isOutdated(
+        reader: Pick<Snapshot, "read">,
+        target: InstallationRollout,
+        revision: InstallationRevision,
+    ): Promise<boolean> {
+        // read each local target, and compare its version at the selection's pin
+        for (const entry of revision.bindings.filter((each) => each.targetSpaceId === null)) {
+            const kind = Binder.#kind(entry.target, this.#kinds);
+            const row = await reader
+                .read(kind.object.table)
+                .findFirst({ where: { id: schema.anyIdentifier().parse(entry.target) } });
+            const pinned = target.installation.bindings[entry.packageId]?.[entry.name]?.version;
+            if (row === undefined || kind.version(row, pinned ?? null) !== entry.version) {
+                return true;
             }
-            // update an owned resource to follow its declaration
-            else if (existing.owned !== undefined) {
-                await this.#follow(context, target, existing.binding, existing.owned, need);
+        }
+
+        return false;
+    }
+
+    /** Release an installation's owned resources that no current revision binds. */
+    async release(
+        context: MethodContext,
+        target: InstallationRollout,
+        current: readonly Binding[],
+    ): Promise<void> {
+        // read the resources the installation owns, still live
+        const owner = principal.installation.reference(target.scope, target.installationId);
+        const bound = new Set(current.map((entry) => entry.target));
+        for (const kind of this.#resources.values()) {
+            const owned = await context.read(kind.object.table).findMany({
+                where: {
+                    scope: target.scope,
+                    deletedAt: { isNull: true },
+                    ...ObjectReference.columns("owner", owner),
+                },
+            });
+
+            // disown each one no revision binds, for deletion as the installation declares it
+            const released = owned.filter((row) => !bound.has(row.id));
+            if (released.length > 0) {
+                const declarer = Binder.#declarer(context, target, kind.object);
+                await context.mutate(
+                    declarer,
+                    released.flatMap((row) => [
+                        kind.object.call("adopt", { id: row.id, owner: null }),
+                        kind.object.call("delete", { id: row.id }),
+                    ]),
+                );
             }
-        }
-
-        // create the other owned targets of unbound declarations
-        const others = needs.filter((need) => !this.#resources.has(need.kind) && !isSelected(need));
-        for (const need of others.filter(
-            (each) => !bound.has(Binding.key(each.package.id, each.name)),
-        )) {
-            await this.#ownOther(context, target, need);
-        }
-
-        // delete the bindings no declaration needs to targets of other kinds, which resources may contain
-        const needed = new Set([
-            ...needs.map((need) => Binding.key(need.package.id, need.name)),
-            ...selected.map((each) => Binding.key(each.packageId, each.name)),
-        ]);
-        const unneeded = bindings.filter(
-            (entry) => !needed.has(Binding.key(entry.binding.packageId, entry.binding.name)),
-        );
-        const contained = unneeded.filter(
-            (entry) =>
-                ![...this.#resources.values()].some((kind) =>
-                    kind.object.identifies(entry.binding.target),
-                ),
-        );
-        if (contained.length > 0) {
-            await context.mutate(
-                context.self,
-                contained.map((entry) => binding.call("delete", { id: entry.binding.id })),
-            );
-        }
-
-        // then release the owned resources no declaration needs
-        for (const entry of unneeded.filter((each) => each.owned !== undefined)) {
-            await context.mutate(context.self, [binding.call("release", { id: entry.binding.id })]);
         }
     }
 
@@ -449,71 +392,13 @@ export class Binder {
         return this.#resources.get(type)?.object ?? plan.object(type);
     }
 
-    /** Bind a need to the target its installation selects, releasing an owned binding. */
-    async #bindSelected(
-        context: MethodContext,
-        target: InstallationRollout,
-        need: ResourceNeed,
-        declared: BindingSelection,
-        existing:
-            | { readonly binding: Select<typeof binding.table>; readonly owned?: unknown }
-            | undefined,
-    ): Promise<void> {
-        // read the selected target: another space's installation by name, or a record here
-        const { name } = need;
-        const selected =
-            "spaceId" in declared.target
-                ? { target: declared.target.name, targetSpaceId: declared.target.spaceId }
-                : "id" in declared.target
-                  ? { target: declared.target.id, targetSpaceId: null }
-                  : undefined;
-        if (selected === undefined) {
-            throw StackError.of(
-                "DEFINITION_INVALID",
-                `binding ${name} of ${target.installation.name} selects an unresolved target`,
-            );
-        }
-        const version = declared.version ?? null;
-
-        // reuse a binding to the selected target
-        const current = existing?.binding;
-        if (
-            current !== undefined &&
-            current.target === selected.target &&
-            current.targetSpaceId === selected.targetSpaceId &&
-            current.version === version
-        ) {
-            return;
-        }
-
-        // release an owned binding or delete another one, then bind the selected target
-        if (current !== undefined) {
-            await context.mutate(context.self, [
-                binding.call(existing?.owned === undefined ? "delete" : "release", {
-                    id: current.id,
-                }),
-            ]);
-        }
-        await context.mutate(context.self, [
-            binding.call("create", {
-                installationId: target.installationId,
-                packageId: need.package.id,
-                name,
-                ...selected,
-                version,
-            }),
-        ]);
-    }
-
     /** Make every bound target of an installation's needs ready to capture where it can. */
     async ready(
         context: MethodContext,
         target: InstallationRollout,
+        bindings: readonly Binding[],
         needs: readonly ResourceNeed[],
     ): Promise<boolean> {
-        // read the installation's bindings
-        const bindings = await Binder.#bindings(context, target);
-
         // ready each bound need whose target is in the space and whose kind prepares its targets
         let isReady = true;
         for (const need of needs) {
@@ -606,37 +491,13 @@ export class Binder {
         return parent !== undefined && Provisioned.isProvisioned({ reference });
     }
 
-    /** Read the resource a binding targets when its installation is the owner, else absent. */
-    async owned(
-        snapshot: Pick<Snapshot, "read">,
-        bound: Binding,
-        installationId: Identifier<"installation">,
-    ): Promise<Resource | undefined> {
-        // look only at resource targets
-        const kind = [...this.#resources.values()].find((each) =>
-            each.object.identifies(bound.target),
-        );
-        if (kind === undefined) {
-            return undefined;
-        }
-
-        // read the target when the installation is the owner
-        const table = kind.object.table;
-        const owner = principal.installation.reference(bound.scope, installationId);
-        const id = schema.identifier(kind.object.identity).parse(bound.target);
-
-        return snapshot
-            .read(table)
-            .findFirst({ where: { id, ...ObjectReference.columns("owner", owner) } });
-    }
-
-    /** Relate an installation as consumer of exactly the objects its live deployments captured. */
+    /** Relate an installation as consumer of the objects its live deployments' revisions bind. */
     async relate(
         context: MethodContext,
         target: InstallationRollout,
         related: Digest | null,
     ): Promise<Digest> {
-        // read the captures of the installation's live deployments of targets in its own space
+        // read the bindings of its live deployments' revisions to targets in its own space
         const live = await context.read(deployment.table).findMany({
             where: {
                 ...Deployment.live(),
@@ -644,18 +505,21 @@ export class Binder {
                 installationId: target.installationId,
             },
         });
-        const captured = await context.read(capture.table).findMany({
-            where: {
-                deploymentId: { in: live.map((entry) => entry.id) },
-                targetSpaceId: { isNull: true },
-            },
+        const revisions = await context.read(installationRevision.table).findMany({
+            where: { id: { in: [...new Set(live.map((entry) => entry.revisionId))] } },
         });
+        const bound = revisions
+            .flatMap((revision) => revision.bindings)
+            .filter((entry) => entry.targetSpaceId === null);
 
-        // read the objects each capture lets the installation use
+        // read the objects each binding lets the installation use
         const wanted = (
             await Promise.all(
-                captured.map((entry) =>
-                    Binder.#kind(entry.target, this.#kinds).uses(entry, context),
+                bound.map((entry) =>
+                    Binder.#kind(entry.target, this.#kinds).uses(
+                        { ...entry, scope: target.scope },
+                        context,
+                    ),
                 ),
             )
         ).flat();
@@ -714,7 +578,7 @@ export class Binder {
         context: MethodContext,
         target: InstallationRollout,
         need: ResourceNeed,
-    ): Promise<void> {
+    ): Promise<{ readonly type: string; readonly id: string; readonly version: number }> {
         // require an object kind of the declaration's resource
         const kind = this.#resources.get(need.kind);
         if (kind === undefined) {
@@ -751,6 +615,15 @@ export class Binder {
                 }),
             ]);
         }
+        // follow the installation's own live resource to its declaration
+        else if (
+            named.deletedAt === null &&
+            named.ownerId !== null &&
+            Subject.same(ObjectReference.at("owner", named), owner)
+        ) {
+            ownedId = named.id;
+            await this.#upgrade(context, target, kind.object, named, need);
+        }
         // adopt a retained resource of the same package's declaration without another owner, and cancel its deletion
         else if (
             named.deletedAt !== null &&
@@ -771,23 +644,24 @@ export class Binder {
             );
         }
 
-        // bind the declaration to it
-        await context.mutate(context.self, [
-            binding.call("create", {
-                installationId: target.installationId,
-                packageId: need.package.id,
-                name: need.name,
-                target: ownedId,
+        // bind the declaration to it at its current generation
+        const row = present(
+            await context.read(kind.object.table).findFirst({
+                where: { id: schema.identifier(kind.object.identity).parse(ownedId) },
             }),
-        ]);
+            `resource ${ownedId}`,
+        );
+
+        return { type: need.kind, id: ownedId, version: row.generation };
     }
 
-    /** Bind a declaration of another kind to the target its kind provides for it. */
+    /** Provision a declaration of another kind's owned target, among the bindings so far. */
     async #ownOther(
         context: MethodContext,
         target: InstallationRollout,
         need: ResourceNeed,
-    ): Promise<void> {
+        bound: readonly Binding[],
+    ): Promise<string | undefined> {
         // require a kind binding the declaration's kind
         const kind = this.#objects.get(need.kind);
         if (kind === undefined) {
@@ -797,20 +671,10 @@ export class Binder {
             );
         }
 
-        // create the target among the bindings so far and bind the declaration to it
-        const bindings = await Binder.#bindings(context, target);
+        // create the target among the bindings so far
         const declarer = Binder.#declarer(context, target, kind.object);
-        const provisioned = await kind.provision(context, declarer, target, need, bindings);
-        if (provisioned !== undefined) {
-            await context.mutate(context.self, [
-                binding.call("create", {
-                    installationId: target.installationId,
-                    packageId: need.package.id,
-                    name: need.name,
-                    target: provisioned,
-                }),
-            ]);
-        }
+
+        return kind.provision(context, declarer, target, need, bound);
     }
 
     /** Read who declares an installation's resource: itself for its kind, else its consenter. */
@@ -824,34 +688,6 @@ export class Binder {
             object.package.id === target.installation.packageId ? owner : Rollout.consenter(target);
 
         return AccessContext.of(Caller.acting(declarer, context.self.subject), context.now);
-    }
-
-    /** Read an installation's bindings. */
-    static async #bindings(
-        snapshot: Pick<Snapshot, "read">,
-        target: InstallationRollout,
-    ): Promise<Binding[]> {
-        return snapshot
-            .read(binding.table)
-            .findMany({ where: { scope: target.scope, installationId: target.installationId } });
-    }
-
-    /** Update an owned resource and its binding to a declaration. */
-    async #follow(
-        context: MethodContext,
-        target: InstallationRollout,
-        bound: Binding,
-        owned: Resource,
-        need: ResourceNeed,
-    ): Promise<void> {
-        // update the resource's release and specification
-        await this.#upgrade(
-            context,
-            target,
-            Binder.#kind(owned.id, this.#resources.values()).object,
-            owned,
-            need,
-        );
     }
 
     /** Update an owned resource to its declaration's release and specification. */
@@ -886,8 +722,6 @@ export class Binder {
             name: "specification",
             tables: [
                 rollout.table,
-                binding.table,
-                capture.table,
                 deployment.table,
                 space.table,
                 placement.table,
@@ -908,7 +742,7 @@ export class Binder {
     async #specificationKeys(change: Change, store: ObjectStore): Promise<readonly string[]> {
         const connection = store.database;
 
-        // select the space's main database and the resources an installation targeting another revision binds
+        // select the space's main database and the resources a rollout's revisions bind
         if (Change.of(change, rollout.table)) {
             const changed = Change.image(change);
             const main = await connection
@@ -920,30 +754,13 @@ export class Binder {
                         eq(database.table.name, MAIN_DATABASE),
                     ),
                 );
-            const bound = await connection
-                .selectDistinct({ target: binding.table.target })
-                .from(binding.table)
-                .where(eq(binding.table.installationId, changed.installationId));
+            const ids = [changed.revisionId, changed.appliedRevisionId].filter((id) => id !== null);
 
-            return [
-                ...main.map((entry) => entry.id),
-                ...this.#targets(bound.map((entry) => entry.target)),
-            ];
+            return [...main.map((entry) => entry.id), ...(await this.#bound(connection, ids))];
         }
-        // select the resource a changed binding or capture targets
-        else if (Change.of(change, binding.table) || Change.of(change, capture.table)) {
-            return this.#targets([
-                Change.image<typeof binding.table | typeof capture.table>(change).target,
-            ]);
-        }
-        // select the resources a changed deployment captured
+        // select the resources a changed deployment's revision binds
         else if (Change.of(change, deployment.table)) {
-            const captured = await connection
-                .selectDistinct({ target: capture.table.target })
-                .from(capture.table)
-                .where(eq(capture.table.deploymentId, Change.image(change).id));
-
-            return this.#targets(captured.map((entry) => entry.target));
+            return this.#bound(connection, [Change.image(change).revisionId]);
         }
         // select the resources of a space whose approval threshold changed
         else if (Change.of(change, space.table)) {
@@ -959,6 +776,21 @@ export class Binder {
 
             return typeof changed === "string" ? [changed] : [];
         }
+    }
+
+    /** List the resources of a served kind some revisions bind. */
+    async #bound(
+        connection: DatabaseConnection,
+        ids: readonly Identifier<"installation-revision">[],
+    ): Promise<string[]> {
+        const revisions = await connection
+            .select()
+            .from(installationRevision.table)
+            .where(inArray(installationRevision.table.id, [...ids]));
+
+        return this.#targets(
+            revisions.flatMap((revision) => revision.bindings.map((entry) => entry.target)),
+        );
     }
 
     /** List the resources of the spaces the machine serves. */
@@ -1042,9 +874,9 @@ export class Binder {
             );
         }
 
-        // stop the draining deployments that captured a draining resource
+        // stop the draining deployments whose revision binds a draining resource
         if (row.conditions[DRAINING]?.status === "true") {
-            await this.#stopDraining(row, store);
+            await this.#stopDraining(row, isMain, store);
         }
     }
 
@@ -1089,45 +921,30 @@ export class Binder {
         return read;
     }
 
-    /** Stop the draining deployments that captured a resource. */
-    async #stopDraining(row: Pick<Resource, "id" | "scope">, store: ObjectStore): Promise<void> {
-        // find the deployments capturing the resource on their way out: draining, or active on a revision their installation no longer targets
-        const draining = await store.database
-            .selectDistinct({ deployment: deployment.table })
-            .from(capture.table)
-            .innerJoin(deployment.table, eq(deployment.table.id, capture.table.deploymentId))
-            .innerJoin(
-                rollout.table,
-                eq(rollout.table.installationId, deployment.table.installationId),
-            )
-            .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
-            .where(
-                and(
-                    eq(capture.table.scope, row.scope),
-                    eq(capture.table.target, row.id),
-                    or(
-                        eq(deployment.table.status, "draining"),
-                        and(
-                            eq(deployment.table.status, "active"),
-                            or(
-                                isNotNull(installation.table.deletedAt),
-                                isNull(rollout.table.revisionId),
-                                ne(deployment.table.revisionId, rollout.table.revisionId),
-                            ),
-                        ),
-                    ),
-                ),
-            );
+    /** Stop the draining deployments whose revision binds a resource. */
+    async #stopDraining(
+        row: Pick<Resource, "id" | "scope">,
+        isMain: boolean,
+        store: ObjectStore,
+    ): Promise<void> {
+        // find the deployments whose revision binds the resource on their way out: draining, or active on a revision their installation no longer targets
+        const scope = schema.identifier("space").parse(row.scope);
+        const { running } = await consumersOf(store.database, scope, row.id, isMain);
+        const draining = running.filter(
+            (entry) => !entry.isCurrent && entry.deployment.status !== "retired",
+        );
         await store.mutate(
             store.as(deployment),
             {
                 id: RequestId.create(store.environment),
-                calls: draining.map((entry) =>
-                    deployment.call("update", {
-                        ...deployment.target(entry.deployment),
-                        status: "stopping",
-                    }),
-                ),
+                calls: draining
+                    .filter((entry) => ["draining", "active"].includes(entry.deployment.status))
+                    .map((entry) =>
+                        deployment.call("update", {
+                            ...deployment.target(entry.deployment),
+                            status: "stopping",
+                        }),
+                    ),
             },
             { component: "specification" },
         );
@@ -1163,10 +980,10 @@ interface ConsumedStates {
     /** The state each installation's targeted revision requires, with its package. */
     readonly targeted: readonly { readonly packageId: string; readonly state: Digest }[];
     /** The state each deployment's revision requires, current while its revision is targeted. */
-    readonly captured: readonly { readonly isCurrent: boolean; readonly state: Digest }[];
+    readonly running: readonly { readonly isCurrent: boolean; readonly state: Digest }[];
 }
 
-/** Read the states consumers require of a resource: all installations for main, else binders. */
+/** Read the states consumers require of a resource: every installation's for main. */
 async function consumedStates(
     connection: DatabaseConnection,
     object: ResourceType<typeof space>,
@@ -1176,94 +993,122 @@ async function consumedStates(
     // require no states of a kind without a state
     const { kind } = present(object.provisioned, `the kind of ${object.name}`);
     if (!kind.isStateful) {
-        return { targeted: [], captured: [] };
+        return { targeted: [], running: [] };
     }
 
-    // read the revisions the consuming installations target, under the declaration they require the state for
-    const targeted = isMain
-        ? await connection
-              .select({
-                  packageId: installation.table.packageId,
-                  revisionId: rollout.table.revisionId,
-              })
-              .from(rollout.table)
-              .innerJoin(
-                  installation.table,
-                  and(
-                      eq(installation.table.id, rollout.table.installationId),
-                      eq(installation.table.scope, rollout.table.scope),
-                  ),
-              )
-              .where(and(eq(rollout.table.scope, row.scope), isNull(installation.table.deletedAt)))
-              .then((rows) => rows.map((entry) => ({ ...entry, name: MAIN_DATABASE })))
-        : await connection
-              .select({
-                  packageId: binding.table.packageId,
-                  name: binding.table.name,
-                  revisionId: rollout.table.revisionId,
-              })
-              .from(binding.table)
-              .innerJoin(
-                  rollout.table,
-                  eq(rollout.table.installationId, binding.table.installationId),
-              )
-              .where(and(eq(binding.table.scope, row.scope), eq(binding.table.target, row.id)));
+    // take the state each consumer's declaration requires of it
+    const scope = schema.identifier("space").parse(row.scope);
+    const { targeted, running } = await consumersOf(connection, scope, row.id, isMain);
 
-    // read the revisions the available deployments capturing it run, and the ones their installations target
-    const captured = await connection
+    return {
+        targeted: targeted.flatMap((entry) => {
+            const state = entry.revision.states[entry.name];
+
+            return state === undefined ? [] : [{ packageId: entry.packageId, state }];
+        }),
+        running: running.flatMap((entry) => {
+            const state = entry.revision.states[entry.name];
+
+            return state === undefined ? [] : [{ isCurrent: entry.isCurrent, state }];
+        }),
+    };
+}
+
+/** Read the revisions binding a resource that rollouts target and available deployments run. */
+async function consumersOf(
+    connection: DatabaseConnection,
+    scope: Identifier<"space">,
+    id: string,
+    isMain: boolean,
+): Promise<{
+    readonly targeted: readonly {
+        readonly packageId: string;
+        readonly name: string;
+        readonly revision: InstallationRevision;
+    }[];
+    readonly running: readonly {
+        readonly name: string;
+        readonly revision: InstallationRevision;
+        readonly deployment: Deployment;
+        readonly isCurrent: boolean;
+    }[];
+}> {
+    // read the space's rollouts with their installations, and its available deployments
+    const rollouts = await connection
         .select({
-            name: capture.table.name,
-            revisionId: deployment.table.revisionId,
-            status: deployment.table.status,
-            targetedId: rollout.table.revisionId,
+            installationId: rollout.table.installationId,
+            revisionId: rollout.table.revisionId,
+            packageId: installation.table.packageId,
             deletedAt: installation.table.deletedAt,
         })
-        .from(capture.table)
-        .innerJoin(deployment.table, eq(deployment.table.id, capture.table.deploymentId))
-        .innerJoin(rollout.table, eq(rollout.table.installationId, deployment.table.installationId))
-        .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
+        .from(rollout.table)
+        .innerJoin(
+            installation.table,
+            and(
+                eq(installation.table.id, rollout.table.installationId),
+                eq(installation.table.scope, rollout.table.scope),
+            ),
+        )
+        .where(eq(rollout.table.scope, scope));
+    const deployed = await connection
+        .select()
+        .from(deployment.table)
         .where(
             and(
-                eq(capture.table.scope, row.scope),
-                eq(capture.table.target, row.id),
+                eq(deployment.table.scope, scope),
                 Condition.render(Deployment.available(), deployment.table),
             ),
         );
 
-    // read each revision's states once, and take the state each consumer's declaration requires
-    const ids = [...targeted, ...captured].flatMap((entry) =>
-        entry.revisionId === null ? [] : [entry.revisionId],
-    );
-    const revisions = new Map<string, Readonly<Record<string, Digest>>>(
+    // read their revisions once
+    const ids = [
+        ...rollouts.flatMap((entry) => (entry.revisionId === null ? [] : [entry.revisionId])),
+        ...deployed.map((entry) => entry.revisionId),
+    ];
+    const revisions = new Map(
         (
             await connection
-                .select({
-                    id: installationRevision.table.id,
-                    states: installationRevision.table.states,
-                })
+                .select()
                 .from(installationRevision.table)
                 .where(inArray(installationRevision.table.id, [...new Set(ids)]))
-        ).map((entry) => [entry.id, entry.states]),
+        ).map((revision) => [revision.id, revision]),
     );
-    const required = <Entry extends { readonly revisionId: string | null; readonly name: string }>(
-        entry: Entry,
-    ) => {
-        const state =
-            entry.revisionId === null ? undefined : revisions.get(entry.revisionId)?.[entry.name];
 
-        return state === undefined ? [] : [{ ...entry, state }];
-    };
+    // take the declarations binding the resource: main for a revision keeping tables there, else its bindings
+    const binders = (revision: InstallationRevision): string[] =>
+        isMain
+            ? revision.states[MAIN_DATABASE] === undefined
+                ? []
+                : [MAIN_DATABASE]
+            : revision.bindings
+                  .filter((entry) => entry.targetSpaceId === null && entry.target === id)
+                  .map((entry) => entry.name);
 
-    // count a deployment current while it is active on the revision its live installation targets
-    const current = captured.map((entry) => ({
-        ...entry,
-        isCurrent:
+    // list the targeted revisions of live installations, and the deployments running a revision
+    const targeted = rollouts.flatMap((entry) => {
+        const revision = entry.revisionId === null ? undefined : revisions.get(entry.revisionId);
+        const isLive = !isMain || entry.deletedAt === null;
+
+        return revision === undefined || !isLive
+            ? []
+            : binders(revision).map((name) => ({ packageId: entry.packageId, name, revision }));
+    });
+    const running = deployed.flatMap((entry) => {
+        // count a deployment current while active on the revision its live installation targets
+        const revision = revisions.get(entry.revisionId);
+        const owner = rollouts.find((each) => each.installationId === entry.installationId);
+        const isCurrent =
             entry.status === "active" &&
-            entry.deletedAt === null &&
-            entry.revisionId === entry.targetedId,
-    }));
+            owner !== undefined &&
+            owner.deletedAt === null &&
+            owner.revisionId === entry.revisionId;
 
-    return { targeted: targeted.flatMap(required), captured: current.flatMap(required) };
+        return revision === undefined
+            ? []
+            : binders(revision).map((name) => ({ name, revision, deployment: entry, isCurrent }));
+    });
+
+    return { targeted, running };
 }
 
 /** List the distinct desired states of a resource, active and draining, by digest in order. */
@@ -1275,10 +1120,10 @@ function desiredStates(
     const active = new Set([
         ...platform.keys(),
         ...consumed.targeted.map((entry) => entry.state),
-        ...consumed.captured.filter((entry) => entry.isCurrent).map((entry) => entry.state),
+        ...consumed.running.filter((entry) => entry.isCurrent).map((entry) => entry.state),
     ]);
     const draining = new Set(
-        consumed.captured
+        consumed.running
             .filter((entry) => !entry.isCurrent && !active.has(entry.state))
             .map((entry) => entry.state),
     );

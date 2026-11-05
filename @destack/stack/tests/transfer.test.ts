@@ -242,9 +242,22 @@ test(
             present(installed, "the notes installation"),
             declaring,
         );
-        const revisionId = schema
-            .identifier("installation-revision")
-            .parse("installation-revision-01996ab0-0000-7000-8000-00000000000f");
+        const bindings = [
+            {
+                packageId: ids.package,
+                name: "notes",
+                target: declared.id,
+                targetSpaceId: null,
+                version: 1,
+            },
+        ];
+        const released = await object.InstallationRevision.digest(
+            await declaring.digest(),
+            undefined,
+            bindings,
+            world.crypto,
+        );
+        const revisionId = await object.InstallationRevision.id(ids.notes, released, world.crypto);
         await source.transaction(async (transaction) => {
             await transaction.insert(object.installationRevision.table).values({
                 id: revisionId,
@@ -252,7 +265,9 @@ test(
                 installationId: ids.notes,
                 buildId: notesBuild.build,
                 ...described,
-                digest: Digest.parse("e".repeat(64)),
+                generation: 1,
+                bindings,
+                digest: released,
                 createdAt: now,
                 updatedAt: now,
             });
@@ -262,24 +277,16 @@ test(
                 .where(eq(object.rollout.table.installationId, ids.notes));
             await transaction
                 .update(installation.table)
-                .set({ status: "suspended" })
+                .set({
+                    status: "suspended",
+                    bindings: {
+                        [ids.package]: {
+                            notes: { target: { type: "database", id: declared.id } },
+                        },
+                    },
+                })
                 .where(eq(installation.table.id, ids.notes));
         });
-        await source.transaction(
-            async (transaction) =>
-                await transaction.insert(object.binding.table).values({
-                    id: schema
-                        .identifier("binding")
-                        .parse("binding-01996ab0-0000-7000-8000-00000000000d"),
-                    scope: ids.space,
-                    installationId: ids.notes,
-                    packageId: ids.package,
-                    name: "notes",
-                    target: declared.id,
-                    createdAt: now,
-                    updatedAt: now,
-                }),
-        );
         const provisioned = DatabaseKind.record(resource);
         await sources.reconcile.apply(
             provisioned,
@@ -556,9 +563,7 @@ test("move every table of the space database with rows in spaces, leaving out th
         "destack__stack__rollout",
         "destack__stack__installation_revision",
         "destack__stack__installation_key",
-        "destack__stack__binding",
         "destack__stack__deployment",
-        "destack__stack__capture",
         "destack__stack__instance",
         "destack__stack__build",
         "destack__stack__route",
