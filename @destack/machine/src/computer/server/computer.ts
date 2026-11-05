@@ -4,6 +4,7 @@ import { assignment, placement, Platform, space } from "@destack/account/object"
 import { AccountError } from "@destack/account/error";
 import type { Session } from "../device/session.ts";
 import {
+    defineAdapter,
     type CallKey,
     type Follow,
     type MethodContextOf,
@@ -31,11 +32,15 @@ import { RequestId, Scope, Subject } from "@destack/sync";
 import { Machine } from "../../machine/index.ts";
 import { MachineError } from "../../error/index.ts";
 import { computer, type MachineEnrollment } from "../device/object/index.ts";
+import { SignInRunner } from "./sign-in.ts";
 import { ScopeReceiver } from "./scope.ts";
 import type { BuildRunner } from "../build.ts";
 import machinePackage from "../../package.ts";
 import { CheckoutServer, PreviewSource } from "../checkout/server/index.ts";
 import type {} from "@destack/package/import-meta";
+
+/** The path below which the device forwards the machine owner's calls as a signed-in person. */
+export const PEOPLE_PATH = "/people";
 
 /** The longest machine name taken from a computer's name: a DNS label (RFC 1035 2.3.4). */
 const NAME_LENGTH = 63;
@@ -201,12 +206,23 @@ export class ComputerServer {
         // declare the record beside the device's local types under this package
         const handle = PackageHandle.of(Package.of(machinePackage), {
             objects: Object.fromEntries([computer, ...objects].map((type) => [type.name, type])),
+            // forward the owner's calls as a person signed in here: /people/<login>/<target>
+            adapters: {
+                people: defineAdapter("people", {
+                    path: PEOPLE_PATH,
+                    callers: [principal.device],
+                }),
+            },
         });
 
         return implementPackage(handle, {
             objects: [this.#computer(), ...objects],
-            // serve the spaces as the machine while its record states an enrollment
-            controllers: [() => this.machine.controller()],
+            adapters: { people: (request) => this.#people(request) },
+            // serve the spaces as the machine while its record states an enrollment, and carry out sign-ins
+            controllers: [
+                () => this.machine.controller(),
+                (store) => new SignInRunner(this.device, store).controller(),
+            ],
         });
     }
 
@@ -250,6 +266,30 @@ export class ComputerServer {
                 (store) => new PreviewSource(store, checkouts).controller(),
             ],
         });
+    }
+
+    /** Answer a call below `/people/<login>` as that person: resolve a name, else forward it. */
+    async #people(request: Request): Promise<Response> {
+        // read the login and the target below the adapter's path
+        const { pathname } = new URL(request.url);
+        const [, login, ...target] = pathname.split("/");
+        const loginId = schema.identifier("login").safeParse(login);
+
+        // forward as that person, refusing a path without a login
+        if (!loginId.success) {
+            throw MachineError.of("TARGET_INVALID", `${pathname} has no login`);
+        }
+        const session = await this.device.session(loginId.data);
+        const [kind, name] = target;
+
+        // answer the space a name resolves to
+        if (kind === "resolve" && name !== undefined) {
+            return Response.json({ space: await session.resolve(decodeURIComponent(name)) });
+        }
+        // forward anything else to its target
+        else {
+            return session.forward(request, target);
+        }
     }
 
     /** Record the running machine process on this computer's record, as the device storing it. */
@@ -331,16 +371,16 @@ export class ComputerServer {
 
                     // find the space by its identifier or its address in the machine's directory replica
                     const { directory } = machine;
-                    const named = call.input.space;
-                    const parsed = schema.identifier("space").safeParse(named);
-                    const found = parsed.success ? undefined : await directory.find(space, named);
+                    const given = call.input.space;
+                    const parsed = schema.identifier("space").safeParse(given);
+                    const found = parsed.success ? undefined : await directory.find(space, given);
                     const spaceId = parsed.success
                         ? parsed.data
                         : found === undefined
                           ? undefined
                           : schema.identifier("space").parse(found.id);
                     if (spaceId === undefined) {
-                        throw AccountError.of("ADDRESS_NOT_FOUND", `nothing responds at ${named}`);
+                        throw AccountError.of("ADDRESS_NOT_FOUND", `nothing responds at ${given}`);
                     }
 
                     // answer where the space's machine answers, this machine's origin for its own

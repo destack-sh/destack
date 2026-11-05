@@ -58,7 +58,7 @@ import { MachineError } from "../error/index.ts";
 import { LOOPBACK_DOMAIN } from "./device/session.ts";
 import { ComputerServer } from "./server/index.ts";
 import { LocalSpaceStorage } from "./storage.ts";
-import { computer, type MachineEnrollment, visit } from "./device/object/index.ts";
+import { computer, type MachineEnrollment, signIn, visit } from "./device/object/index.ts";
 import { MachineProcess, LOCK_FILE, StageHome } from "./process/index.ts";
 import { BuildRunner } from "./build.ts";
 import { computerServer, machineWorkload, deviceWorkload } from "./server/workload.ts";
@@ -517,7 +517,7 @@ export class Computer implements AsyncDisposable {
         stack.defer(() => database.close());
         await database.migrate(Computer.database.tables);
 
-        // open this computer's device, its local objects beside its logins, settings and visits
+        // open this computer's device, its local objects beside its logins, settings, visits and sign-ins
         const device = await Device.create(
             {
                 home: options.directory,
@@ -525,7 +525,7 @@ export class Computer implements AsyncDisposable {
                 issuer: options.issuer,
                 keychain: options.keychain,
             },
-            { ...options.localObjects, login, deviceSetting, visit },
+            { ...options.localObjects, login, deviceSetting, visit, signIn },
         );
         stack.use(device);
         const [existing] = await device.database
@@ -818,7 +818,7 @@ export class Computer implements AsyncDisposable {
             },
             events: opened.events,
             deviceEvents,
-            localObjects: [...Object.values(options.localObjects), visit],
+            localObjects: [...Object.values(options.localObjects), visit, signIn],
             process: options.process,
             platform: options.environment.host,
             enrollment: options.enrollment,

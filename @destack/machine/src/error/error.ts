@@ -56,6 +56,7 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
 
     // not found
     SPACE_NOT_STORED: { code: "NOT_FOUND" },
+    SPACE_NOT_FOUND: { code: "NOT_FOUND" },
     ACCOUNT_NOT_FOUND: { code: "NOT_FOUND" },
     CHECKOUT_NOT_FOUND: { code: "NOT_FOUND" },
     CHECKOUT_SPACE_ELSEWHERE: { code: "NOT_FOUND" },
@@ -83,6 +84,8 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     SITE_RULE_INVALID: { code: "UNPROCESSABLE_CONTENT" },
     ALREADY_RUNNING: { code: "CONFLICT" },
     PERSON_AMBIGUOUS: { code: "CONFLICT" },
+    SIGN_IN_NOT_WAITING: { code: "CONFLICT" },
+    SPACE_AMBIGUOUS: { code: "CONFLICT" },
     BUILD_ENDED: { code: "CONFLICT" },
     ENROLLED: { code: "CONFLICT" },
     TREE_NOT_MOVED: { code: "CONFLICT" },

@@ -1,11 +1,19 @@
 import { currentLogin, currentSpace } from "@destack/account/native";
+import { PackageMount } from "@destack/object";
 import { DynamicObjectClient } from "@destack/object/client";
 import { rollout } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { setting } from "@destack/setting/object";
+import { present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { focus } from "@destack/notification/setting";
 import { OWNER_EMAIL, TestComputer } from "../test/index.ts";
+import machinePackage from "../../package.ts";
+import { signIn } from "./object/index.ts";
+import { PEOPLE_PATH } from "../server/index.ts";
+
+/** How long a sign-in may take on the simulated clock: a minute. */
+const SIGN_IN_MILLISECONDS = 60_000;
 
 /** The email of a second person signed in on the computer. */
 const OTHER_EMAIL = "grace@example.test";
@@ -124,4 +132,113 @@ test("push a person's mutation through a scope the session opens, confirmed once
 
     // expect the universe to resolve it
     expect(await device.setting(focus)).toEqual(value);
+});
+
+test("forward the owner's calls as a signed-in person to a space's package, refusing an unknown target", async () => {
+    // reach the home's stack package through the machine as the owner's person
+    const { home, login } = await TestComputer.home();
+    const { device, world } = home;
+    const machine = device.loopback.options(machinePackage.id);
+    const people = `http://127.0.0.1${PackageMount.path(machinePackage.id)}${PEOPLE_PATH}/${login}`;
+    const stack = new DynamicObjectClient({
+        objects: [rollout],
+        scope: world.owner.home,
+        endpoint: { ...machine, url: `${people}/space/${world.owner.home}/${stackPackage.id}` },
+        environment: device.environment,
+    });
+
+    // describe the rollouts there, and through a target of no kind
+    const described = await stack.describe([rollout.typeReference]);
+    const nowhere = new DynamicObjectClient({
+        objects: [rollout],
+        scope: world.owner.home,
+        endpoint: { ...machine, url: `${people}/elsewhere/${stackPackage.id}` },
+        environment: device.environment,
+    });
+
+    // expect the space's answer, as the session gives it directly, and the target refused
+    expect({
+        described: described.map((type) => type.name).slice(0, 2),
+        nowhere: await refusal(nowhere.describe([rollout.typeReference])),
+    }).toEqual({
+        described: ["rollout", "installation-revision"],
+        nowhere: [
+            "BAD_REQUEST",
+            "TARGET_INVALID",
+            "elsewhere is no target: use universe/<package>, space/<space>/<package> or installation/<space>/<installation>/<package>",
+        ],
+    });
+});
+
+test("resolve the owner's spaces by address, identifier, home and residency, refusing an unknown name", async () => {
+    // resolve the owner's home three ways, their residency's space, and a space they have none of
+    const { home, login } = await TestComputer.home();
+    const { device, world } = home;
+    const people = `http://127.0.0.1${PackageMount.path(machinePackage.id)}${PEOPLE_PATH}/${login}`;
+    const session = await device.session(login);
+    const address = await session.address(world.owner.home);
+    const residency = await session.residency(await session.login.account());
+    const resolve = async (name: string) => {
+        const response = await device.loopback.fetch(new Request(`${people}/resolve/${name}`));
+
+        return [response.status, await response.json()] as const;
+    };
+
+    // expect each name of the home to resolve to its address, and the other refused
+    expect([
+        await resolve(address),
+        await resolve(world.owner.home),
+        await resolve("home"),
+        await resolve("residency"),
+        await resolve("nowhere"),
+    ]).toEqual([
+        [200, { space: world.owner.home }],
+        [200, { space: world.owner.home }],
+        [200, { space: world.owner.home }],
+        [200, { space: residency }],
+        [
+            404,
+            {
+                defined: true,
+                code: "NOT_FOUND",
+                status: 404,
+                message: "no space of yours is called nowhere",
+                reason: "SPACE_NOT_FOUND",
+                domain: "@destack/machine",
+            },
+        ],
+    ]);
+});
+
+test("sign a person up through a sign-in the machine carries out, answering the code mailed to them", async () => {
+    // start signing up by mail through the machine, as a program of this computer
+    const computer = await TestComputer.open();
+    const { device, world } = computer;
+    await using stack = new AsyncDisposableStack();
+    const local = await device.objects({ signIn });
+    stack.defer(() => local.close());
+    const email = "lin@example.test";
+    const signUp = { name: "Lin", handle: "lin", residencyId: "eu", timeZone: "UTC", locale: "en" };
+    const { id } = await local.mutate(signIn).start({ method: { kind: "signUp", email, signUp } })
+        .predicted;
+    const read = async () =>
+        present(await local.query.signIn.findFirst({ where: { id } }), "the sign-in").state;
+
+    // answer the mailed code once the sign-in waits for it, then wait for the login
+    const deadline = () => world.simulation.clock.now() + SIGN_IN_MILLISECONDS;
+    await world.simulation.waitUntil(async () => (await read()).kind !== "starting", deadline());
+    const waiting = await read();
+    const codes = await world.universe.mail.codes();
+    const code = codes.findLast((mailed) => mailed.email === email);
+    await local.mutate(signIn).answer({ id, code: present(code, "the mailed code").otp }).predicted;
+    await world.simulation.waitUntil(async () => (await read()).kind !== "answered", deadline());
+    const signedIn = await read();
+
+    // expect the wait for the mailed code, then the login the machine signed in
+    const logins = await device.logins.query.login.findMany();
+    expect({ waiting, signedIn, logins: logins.map((login) => login.id) }).toEqual({
+        waiting: { kind: "waiting", email },
+        signedIn: { kind: "signedIn", login: logins[0]?.id },
+        logins: [expect.any(String)],
+    });
 });

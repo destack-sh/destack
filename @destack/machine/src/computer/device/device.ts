@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { type Select, Snapshot, type Table } from "@destack/db";
+import { type Select, type Table } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { pathToFileURL } from "node:url";
 import { AccessContext, Authorization, Caller, principal, type StepUp } from "@destack/access";
@@ -37,7 +37,7 @@ import { Bookmark, createClient } from "@destack/object/client";
 import { type CallKey } from "@destack/object";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import type { Setting } from "@destack/setting";
-import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
+import { deviceSetting } from "@destack/setting/object";
 import settingPackage from "@destack/setting/package";
 import machinePackage from "../../package.ts";
 import { MachineError } from "../../error/index.ts";
@@ -539,7 +539,7 @@ export class Device implements AsyncDisposable {
                 throw MachineError.of("SIGN_IN_REQUIRED", "nobody is signed in");
             }
 
-            return this.#userSetting(declared, await this.session(signedIn.id));
+            return (await this.session(signedIn.id)).setting(declared);
         }
         // read the values this device stores
         else if (scope === "device") {
@@ -767,22 +767,5 @@ export class Device implements AsyncDisposable {
             login: signedIn.id,
             accountId: await login.account(),
         });
-    }
-
-    /** Resolve a person's setting from a replica of their values at the universe. */
-    async #userSetting<Value extends schema.Schema>(
-        declared: Setting<Value>,
-        session: Session,
-    ): Promise<schema.Infer<Value>> {
-        // follow the person's values at the universe as the person
-        const scope = session.login.subject.id;
-        await using stack = new AsyncDisposableStack();
-        const settings = await session.open({ scope }, { setting }, stack);
-
-        // wait for the values and the access rows of the person's chain
-        await settings.query.setting.findMany({});
-
-        // resolve the value along the chain
-        return await SettingValue.resolve(Snapshot.live(settings.database), declared, { scope });
     }
 }

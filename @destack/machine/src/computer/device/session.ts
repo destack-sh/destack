@@ -1,4 +1,9 @@
 import type { GrantClaim } from "@destack/access";
+import { Snapshot } from "@destack/db";
+import type { Setting } from "@destack/setting";
+import { setting, SettingValue } from "@destack/setting/object";
+import { spaceAliases } from "@destack/account/declare";
+import { HOME_SPACE, RESIDENCY_SPACE } from "@destack/account/object";
 import { GrantPermission, PermissionSet, principal } from "@destack/access";
 import { DOMAINS, InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import type { PlacementEndpoint } from "@destack/account/object";
@@ -21,7 +26,7 @@ import {
     ViewDescription,
     ViewPresentationPriority,
 } from "@destack/package/manifest";
-import { type Identifier, schema, Text } from "@destack/schema";
+import { type Identifier, nth, schema, Text } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { Declaration } from "@destack/stack/client";
 import { InstallationView, type InstallationRollout } from "@destack/stack/object";
@@ -296,14 +301,115 @@ export class Session {
         return this.device.keys.prove(schema.identifier("client").parse(this.login.row.clientId));
     }
 
+    /** Resolve one of the person's settings from a replica of their values. */
+    async setting<Value extends schema.Schema>(
+        declared: Setting<Value>,
+    ): Promise<schema.Infer<Value>> {
+        // follow the person's values at the universe as the person
+        const scope = this.login.subject.id;
+        await using stack = new AsyncDisposableStack();
+        const settings = await this.open({ scope }, { setting }, stack);
+
+        // wait for the values and the access rows of the person's chain
+        await settings.query.setting.findMany({});
+
+        // resolve the value along the chain
+        return await SettingValue.resolve(Snapshot.live(settings.database), declared, { scope });
+    }
+
+    /** Resolve the space a person types: an address, identifier, alias, or one of their spaces. */
+    async resolve(name: string): Promise<Identifier<"space">> {
+        // take an identifier as given, and find an address's space
+        const address = SpaceAddress.safeParse(name);
+        const id = schema.identifier("space").safeParse(name);
+        if (id.success) {
+            return id.data;
+        } else if (address.success) {
+            return (await this.device.locate(address.data)).placement.space;
+        }
+
+        // take the person's own name for a space
+        const alias = (await this.setting(spaceAliases))[name];
+        if (alias !== undefined) {
+            return (await this.device.locate(alias)).placement.space;
+        }
+
+        // take the person's home and their residency's space
+        if (name === HOME_SPACE) {
+            return this.login.home();
+        } else if (name === RESIDENCY_SPACE) {
+            return this.login.residency();
+        }
+
+        // find the person's one space of that name among every account's
+        const matching = (await this.login.spaces()).filter(
+            (each) => SpaceAddress.origin(each).space === name,
+        );
+        if (matching.length === 1) {
+            return (await this.device.locate(nth(matching, 0))).placement.space;
+        } else if (matching.length === 0) {
+            throw MachineError.of("SPACE_NOT_FOUND", `no space of yours is called ${name}`);
+        } else {
+            throw MachineError.of(
+                "SPACE_AMBIGUOUS",
+                `${name} matches several of your spaces: use one of ${matching.join(", ")}`,
+            );
+        }
+    }
+
+    /** Forward a request as the person to a universe, space or installation package. */
+    async forward(request: Request, target: readonly string[]): Promise<Response> {
+        // read the target's kind and the request below it
+        const [kind, ...rest] = target;
+        const search = new URL(request.url).search;
+        const below = (path: readonly string[], origin: string) => {
+            const url = `${origin}${path.map((each) => `/${each}`).join("")}${search}`;
+
+            return new Request(url, request);
+        };
+
+        // send to a package at the person's issuer
+        if (kind === "universe") {
+            const packageId = PackageId.parse(rest[0]);
+
+            return this.send(below(rest.slice(1), UNRESOLVED_ORIGIN), packageId, "universe");
+        }
+        // send to a package in a space, at the machine serving it
+        else if (kind === "space") {
+            const placed = await this.device.locate(Session.#space(schema.string().parse(rest[0])));
+            const packageId = PackageId.parse(rest[1]);
+
+            return this.send(below(rest.slice(2), UNRESOLVED_ORIGIN), packageId, placed);
+        }
+        // send to an installation's package at its origin, with the token bound to its space
+        else if (kind === "installation") {
+            const address = SpaceAddress.parse(rest[0]);
+            const name = schema.string().parse(rest[1]);
+            const packageId = PackageId.parse(rest[2]);
+            const place = await this.device.locate(address);
+            const origin = `${Session.#origin(address, name, place.url)}${PACKAGE_PATH}`;
+
+            return this.login.send(below(rest.slice(3), origin), packageId, {
+                partition: place.placement.space,
+            });
+        }
+        // refuse any other target
+        else {
+            throw MachineError.of(
+                "TARGET_INVALID",
+                `${String(kind)} is no target: use universe/<package>, space/<space>/<package> or installation/<space>/<installation>/<package>`,
+            );
+        }
+    }
+
     /** Send a request to a package: at the person's issuer, or in a space. */
     async send(
         request: Request,
         packageId: PackageId,
         at: "universe" | PlacementEndpoint,
     ): Promise<Response> {
-        const named = new URL(request.url);
-        const below = `${PackageMount.path(packageId)}${named.pathname}${named.search}`;
+        const url = new URL(request.url);
+        const below = `${PackageMount.path(packageId)}${url.pathname}${url.search}`;
 
         // send to a universe package at the person's issuer
         if (at === "universe") {
@@ -331,8 +437,8 @@ export class Session {
     /** Send a request below a path at this computer's machine, proving the person's client. */
     async #sendOwn(request: Request, path: string, origin: string): Promise<Response> {
         // address the target below the path with a fresh proof of the person's client
-        const named = new URL(request.url);
-        const target = new URL(`${path}${named.pathname}${named.search}`, origin);
+        const url = new URL(request.url);
+        const target = new URL(`${path}${url.pathname}${url.search}`, origin);
         const headers = new Headers(request.headers);
         headers.set("authorization", `Bearer ${await this.prove()}`);
 
@@ -495,18 +601,25 @@ export class Session {
         return { rollout: chosen.rollout, view: chosen.view };
     }
 
+    /** Read a target's space: its identifier, else its address. */
+    static #space(segment: string): Identifier<"space"> | SpaceAddress {
+        const id = schema.identifier("space").safeParse(segment);
+
+        return id.success ? id.data : SpaceAddress.parse(segment);
+    }
+
     /** Write an installation's origin: the loopback domain's on loopback, else the space's. */
     static #origin(space: SpaceAddress, installation: string, endpoint: string): string {
         // move a loopback endpoint's port below the loopback domain
-        const named = { ...SpaceAddress.origin(space), name: installation };
+        const origin = { ...SpaceAddress.origin(space), name: installation };
         const url = new URL(endpoint);
         if (HostAddress.isLoopbackName(url.hostname)) {
-            url.hostname = InstallationOrigin.format(named, LOOPBACK_DOMAIN);
+            url.hostname = InstallationOrigin.format(origin, LOOPBACK_DOMAIN);
 
             return url.origin;
         }
 
         // name it one label below the space domain, wherever the space runs
-        return `https://${InstallationOrigin.format(named, DOMAINS.space)}`;
+        return `https://${InstallationOrigin.format(origin, DOMAINS.space)}`;
     }
 }

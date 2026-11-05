@@ -110,6 +110,11 @@ export class Loopback {
         });
     }
 
+    /** Send a request to the running machine as its owner. */
+    fetch(request: Request): Promise<Response> {
+        return this.#send(request, undefined);
+    }
+
     /** Send a request to the running machine's current port with its current credential. */
     async #send(request: Request, options: RequestInit | undefined): Promise<Response> {
         // read the endpoint and credential together after any restart
