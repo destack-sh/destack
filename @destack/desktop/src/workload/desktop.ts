@@ -241,7 +241,13 @@ export class Desktop implements AsyncDisposable {
         const stopping = new AbortController();
         const signal = AbortSignal.any([this.#stopping.signal, stopping.signal]);
         const signedIn = native.signIn(
-            async (url) => shell.send({ action: "browser.open", url }),
+            { kind: "browser" },
+            async (state) => {
+                // open the sign-in page in the browser
+                if (state.kind === "open") {
+                    await shell.send({ action: "browser.open", url: state.url });
+                }
+            },
             signal,
         );
 

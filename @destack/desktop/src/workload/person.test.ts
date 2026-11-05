@@ -1,6 +1,6 @@
 import { machine, placement, space } from "@destack/account/object";
-import { Login, login, SessionStore } from "@destack/account/native";
-import { MemoryKeychain } from "@destack/identity";
+import { Login, login } from "@destack/account/native";
+import { TokenCache } from "@destack/access/token";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import { MachineError } from "@destack/machine/error";
 import { computer } from "@destack/machine/device";
@@ -119,7 +119,12 @@ async function signedIn(
                 ...session,
                 login: new Login(
                     row,
-                    new SessionStore(new MemoryKeychain()),
+                    {
+                        tokens: () => new TokenCache(),
+                        issue: refuse,
+                        prove: refuse,
+                        forget: refuse,
+                    },
                     refuse,
                     environment,
                     new Bookmark(),
