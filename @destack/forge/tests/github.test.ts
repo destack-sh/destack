@@ -339,7 +339,7 @@ test("connect a GitHub repository, refresh it, and refresh it again as the syste
     ];
     expect(forge.github.requests).toEqual([...refresh, ...refresh, ...refresh]);
 
-    // audit the identification and each refresh as the forge's own components, and the first refresh's reference changes before it
+    // audit the identification and each refresh as the forge's own components, never their nested calls
     const success = "success";
     const target = { type: "repository", id: created.id };
     const refreshed = ["repository.refresh", target, success];
@@ -356,14 +356,7 @@ test("connect a GitHub repository, refresh it, and refresh it again as the syste
                 execution.target.type === "reference" ? "reference" : execution.target,
                 execution.outcome.kind,
             ]),
-    ).toEqual([
-        ["repository.identify", target, success],
-        ["reference.createMany", { type: "scope", id: forge.space }, success],
-        ["reference.updateMany", { type: "scope", id: forge.space }, success],
-        refreshed,
-        refreshed,
-        refreshed,
-    ]);
+    ).toEqual([["repository.identify", target, success], refreshed, refreshed, refreshed]);
 
     // refuse a delivery signed with another secret before the forge sees it, and a read of the webhook
     const refused = await deliver(

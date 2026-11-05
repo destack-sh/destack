@@ -238,7 +238,7 @@ test("administer releases and distribution tags of a published package as its ac
         "NOT_FOUND",
     ]);
 
-    // audit each change once, the publication's vocabulary, tag and its pointing included, failures too, and never a read
+    // audit each caller's change once, failures too, never a nested call or a read
     await forge.simulation.idle();
     const forgeTypes = ["package.", "release.", "tag."];
     const audited = (await auditedCalls(forge.served.database))
@@ -247,9 +247,6 @@ test("administer releases and distribution tags of a published package as its ac
         .map((ended) => [ended.method, ended.execution.outcome.kind]);
     expect(audited).toEqual([
         ["package.create", "success"],
-        ["package.advance", "success"],
-        ["tag.create", "success"],
-        ["package.point", "success"],
         ["release.create", "success"],
         ["tag.create", "success"],
         ["tag.update", "success"],
