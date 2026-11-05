@@ -2,7 +2,6 @@ import type { Environment, FileSystem } from "@destack/environment";
 import { ListPage, type MethodOutput, Observation, type PackageHandle } from "@destack/object";
 import type { Package } from "@destack/package";
 import { preview, type Preview } from "../object/index.ts";
-import { declaredStack } from "@destack/stack/declare";
 import type { CommandHost } from "../../process/command.ts";
 import { join } from "node:path";
 import * as check from "@destack/check/workspace";
@@ -260,7 +259,7 @@ export class CheckoutServer {
         source: CheckoutStack,
     ): Promise<MethodOutput<typeof checkout, "submit">> {
         // build every output the package implies in the space as the person
-        const { selection, built, builds, reader } = await this.#open(
+        const { selection, built, reader } = await this.#open(
             { checkout: registered.id, root: registered.root, directory: source.directory },
             source.login,
             source.space,
@@ -272,13 +271,7 @@ export class CheckoutServer {
             submission: {
                 selection,
                 build: { kind: "build", build: built.id },
-                evaluation: {
-                    export: source.export,
-                    parameters: { ...source.parameters },
-                    definition: await declaredStack(reader, source.export, {}, (opened, manifest) =>
-                        builds.read(this.machine.releases, opened, manifest),
-                    ),
-                },
+                stack: { export: source.export, parameters: { ...source.parameters } },
             },
         };
     }

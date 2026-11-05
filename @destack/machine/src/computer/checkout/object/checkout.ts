@@ -28,8 +28,10 @@ export type CheckoutStack = schema.Infer<typeof CheckoutStack>;
 const CheckoutSubmission = schema.object({
     /** The stack package the checkout built. */
     packageId: PackageId,
-    /** The build and its evaluation. */
-    submission: Submission.extend({ evaluation: StackEvaluation }),
+    /** The build with the export and arguments its space evaluates. */
+    submission: Submission.extend({
+        stack: StackEvaluation.pick({ export: true, parameters: true }),
+    }),
 });
 
 /** A Git working directory registered on a machine. */

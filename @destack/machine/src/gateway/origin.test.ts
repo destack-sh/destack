@@ -6,7 +6,6 @@ import { DOMAINS } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import { TestDns } from "@destack/account/test";
 import { KeyPair, Proof, PROOF_HEADER } from "@destack/identity";
-import { Plan } from "@destack/resource";
 import * as accountObject from "@destack/account/object";
 import { space, user } from "@destack/account/object";
 import { ANONYMOUS, anyone, LinkSecret, principal, relation, Role } from "@destack/access";
@@ -1570,63 +1569,25 @@ async function verifyHostname(served: Served, name: string): Promise<void> {
     await simulation.idle();
 }
 
-/** Declare routes in a space's stack beside what it declares, approving its plan as the owner. */
-async function declareRoutes(
+/** Create a route in a space as its owner, serving it once the space applies it. */
+async function createRoute(
     served: Served,
-    routes: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
+    route: { readonly hostname: string; readonly installationId: Identifier<"installation"> },
 ): Promise<void> {
-    // read the stack installation and the definition and build of its revision
-    const { device: native, environment, machine } = served.computer;
+    // create the route as the owner, at the machine serving the space
+    const { device: native, environment } = served.computer;
     const login = await native.session(served.login);
     const place = await native.locate(served.spaceId);
-    const objects = createClient(
-        objectPackage,
-        login.endpoint(objectPackage.id, place),
-        environment,
-    );
     const stacks = createClient(stackPackage, login.endpoint(stackPackage.id, place), environment);
-    const listed = await objects.installation.list({ scope: served.spaceId });
-    const stack = present(
-        listed.items.find((entry) => entry.export !== null),
-        "the space's stack installation",
-    );
-    const database = (await machine.space(served.spaceId)).database;
-    const [rollout] = await database
-        .select({ revisionId: stackObject.rollout.table.revisionId })
-        .from(stackObject.rollout.table)
-        .where(eq(stackObject.rollout.table.installationId, stack.id));
-    const revisionId = present(rollout?.revisionId, "the stack's revision");
-    const [revision] = await database
-        .select()
-        .from(stackObject.installationRevision.table)
-        .where(eq(stackObject.installationRevision.table.id, revisionId));
-    const { buildId, definition } = present(revision, "the stack's revision row");
-
-    // submit the definition with the routes, approving a plan that waits for it
-    await stacks.rollout.submit({
+    await stacks.route.create({
         spaceId: served.spaceId,
-        id: stack.id,
-        selection: stack.selection,
-        build: { kind: "build", build: buildId },
-        evaluation: {
-            export: present(stack.export, "the stack's export"),
-            parameters: stack.parameters,
-            definition: { ...present(definition, "the stack's definition"), routes },
-        },
         requestId: RequestId.create(environment),
+        hostname: route.hostname,
+        path: "/",
+        match: "prefix",
+        installationId: route.installationId,
     });
     await served.computer.world.simulation.idle();
-    const waiting = await objects.installation.get({ scope: served.spaceId, id: stack.id });
-    if (waiting.conditions["Ready"]?.reason === "AwaitingApproval") {
-        const plan = await stacks.rollout.plan({ spaceId: served.spaceId, id: stack.id });
-        await stacks.rollout.approve({
-            spaceId: served.spaceId,
-            id: stack.id,
-            requestId: RequestId.create(environment),
-            plan: await Plan.digest(plan, environment.crypto),
-        });
-        await served.computer.world.simulation.idle();
-    }
 }
 
 test(
@@ -1659,9 +1620,7 @@ test(
             await siteBuild(opened.computer.environment.crypto),
             "site",
         );
-        await declareRoutes(opened, {
-            site: { hostname, path: "/", match: "prefix", installation: { id: site.id } },
-        });
+        await createRoute(opened, { hostname, installationId: site.id });
 
         // visit as an anonymous visitor through the machine, reading each answer
         const visit = async (path: string, init: RequestInit = {}) => {

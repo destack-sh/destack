@@ -17,10 +17,8 @@ import { type DatabaseConnection, eq, or, Snapshot } from "@destack/db";
 import { PackageManifest } from "@destack/package/manifest";
 import { nth, Identifier, present, schema } from "@destack/schema";
 import { CallError, Installation } from "@destack/object";
-import { evaluateStack } from "@destack/stack/test";
 import observabilityPackage from "@destack/observability/package";
 import { createClient } from "@destack/object/client";
-import { defineStack } from "@destack/stack";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { checkout, preview } from "../checkout/index.ts";
 import { Authenticator } from "../device/authentication/index.ts";
@@ -694,15 +692,7 @@ test("register a working tree's directory, build its stack in a space as the per
         },
         submission: {
             selection: followed,
-            evaluation: {
-                export: "personal",
-                parameters: {},
-                definition: {
-                    ...evaluateStack({ personal: defineStack([], {}) }, "personal", {}),
-                    installations: {},
-                    settings: {},
-                },
-            },
+            stack: { export: "personal", parameters: {} },
         },
         build: { kind: "build", build: built.id },
         built: [followed, ["bun", "workerd"], "succeeded", null, null],
