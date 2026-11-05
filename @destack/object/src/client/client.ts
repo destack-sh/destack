@@ -2497,7 +2497,7 @@ export class ObjectClient<
             return named;
         }
 
-        // take the scope of the target the replica has, such as an enclosing scope's inherited row
+        // take the scope of the target the replica has, such as an enclosing scope's propagated row
         const id = input["id"];
         const row =
             Method.loads(object.method(name)) && typeof id === "string"

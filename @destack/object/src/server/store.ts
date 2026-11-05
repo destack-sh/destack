@@ -1983,9 +1983,9 @@ export class ObjectStore {
 
     /** Decide whether a scope's rows of a type are replicas here, written only by their home. */
     async isReplica(object: ObjectType, snapshot: Snapshot, scope: string): Promise<boolean> {
-        // originate the inherited rows of a scope the store serves, such as a home's account's
+        // originate the propagated rows of a scope the store serves, such as a home's account's
         const isOriginated =
-            object.inherited !== undefined && this.partitions.slice(1).includes(scope);
+            object.propagated !== undefined && this.partitions.slice(1).includes(scope);
 
         return (
             !isOriginated &&

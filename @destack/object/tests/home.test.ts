@@ -60,13 +60,13 @@ const room = defineObject({
     permissions: { read: none(), write: none() },
 });
 
-/** Preferences a person sets, handed down to their rooms. */
+/** Preferences a person sets, propagated to their rooms. */
 const preference = defineObject(
     {
         name: "preference",
         plural: "preferences",
         scope: [person, room],
-        inherited: {},
+        propagated: {},
         fields: { name: field.string(), value: field.string() },
         permissions: { read: none(), write: none() },
     },

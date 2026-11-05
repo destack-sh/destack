@@ -163,7 +163,7 @@ export class ObjectSource {
             }),
     });
 
-    /** The publication of a scope's access and handed-down rows, for scopes inside or outside. */
+    /** The publication of a scope's access and propagated rows, for scopes inside or outside. */
     readonly chainPublication = sync.definePublication({
         name: CHAIN_PUBLICATION,
         parameters: ChainParameters,

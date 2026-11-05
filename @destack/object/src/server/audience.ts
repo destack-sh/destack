@@ -206,7 +206,7 @@ export class ObjectAudience implements Audience {
         // decide in memory the rows at their home in other scopes than the followed one, each in its chain
         else if (
             listed.object.storage === "durable" &&
-            listed.object.inherited === undefined &&
+            listed.object.propagated === undefined &&
             !this.#store.database.replicates(listed.object.table) &&
             !this.#authorization.isHomeOf(listed.object)
         ) {

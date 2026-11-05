@@ -191,7 +191,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                     ...local,
                     name: "sticky",
                     plural: "stickies",
-                    inherited: {},
+                    propagated: {},
                 }),
             ),
         ),
@@ -215,7 +215,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
         "local object draft only exists in its scope's store",
         "local object shared must belong to one scope type",
         "local object spread must belong to one scope type",
-        "local object sticky cannot have inherited",
+        "local object sticky cannot have propagated",
         "local object remote cannot run method create outside the client",
     ]);
 });

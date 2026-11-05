@@ -435,11 +435,11 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     });
 });
 
-test("pass the keys an account hands down to its space for listing, and only those the caller uses under the query's permission", async () => {
+test("decide the keys an account propagates to its space like its own rows, by the type's list and use permissions", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // hand down two keys of an account to its space, one ada uses and one bob uses
+    // propagate three keys of an account to its space: ada reads two, uses one, and has no relation to carol's
     const account = defineObject({
         name: "account",
         plural: "accounts",
@@ -461,10 +461,13 @@ test("pass the keys an account hands down to its space for listing, and only tho
         name: "key",
         plural: "keys",
         scope: [account, room],
-        inherited: {},
+        propagated: {},
         fields: { name: field.string() },
-        relations: { consumer: { subjects: [principal.user] } },
-        permissions: { read: none(), use: relation("consumer") },
+        relations: {
+            consumer: { subjects: [principal.user] },
+            reader: { subjects: [principal.user] },
+        },
+        permissions: { read: relation("reader"), use: relation("consumer") },
     });
     const storage = await TestDatabase.create(
         tablesOf({
@@ -482,33 +485,36 @@ test("pass the keys an account hands down to its space for listing, and only tho
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(room.reference(accountId, roomId), room.policy);
     const bob = principal.user.reference(Scope.universe.id, "bob");
+    const carol = principal.user.reference(Scope.universe.id, "carol");
     const keys = [
-        { id: newId("key", world), name: "Ada's", consumer: ada },
-        { id: newId("key", world), name: "Bob's", consumer: bob },
+        { id: newId("key", world), name: "Ada's", consumer: ada, isRead: true },
+        { id: newId("key", world), name: "Bob's", consumer: bob, isRead: true },
+        { id: newId("key", world), name: "Carol's", consumer: carol, isRead: false },
     ];
-    for (const { id, name, consumer } of keys) {
-        await database.transaction(
-            async (transaction) =>
-                await transaction
-                    .insert(key.table)
-                    .values({ id, scope: accountId, name, createdAt: 1, updatedAt: 1 }),
-        );
-        await database.transaction(
-            async (transaction) =>
-                await transaction.insert(accessRelationship).values(
-                    Relationship.encode({
-                        id: newId("relationship", world),
-                        object: key.reference(accountId, id),
-                        relation: "consumer",
-                        subject: consumer,
-                        createdAt: 1,
-                        expiresAt: null,
-                    }),
-                ),
-        );
+    const relate = (id: string, name: string, subject: typeof ada) =>
+        Relationship.encode({
+            id: newId("relationship", world),
+            object: key.reference(accountId, id),
+            relation: name,
+            subject,
+            createdAt: 1,
+            expiresAt: null,
+        });
+    for (const { id, name, consumer, isRead } of keys) {
+        await database.transaction(async (transaction) => {
+            await transaction
+                .insert(key.table)
+                .values({ id, scope: accountId, name, createdAt: 1, updatedAt: 1 });
+            await transaction
+                .insert(accessRelationship)
+                .values([
+                    relate(id, "consumer", consumer),
+                    ...(isRead ? [relate(id, "reader", ada)] : []),
+                ]);
+        });
     }
 
-    // decide the handed-down keys for ada in the room, by listing and by her use of them
+    // decide the propagated keys for ada in the room, by listing and by her use of them
     const store = await TestObjectStore.at(principal.space.reference(Scope.universe.id, roomId), {
         chain: async () => undefined,
         environment: world,
@@ -536,7 +542,7 @@ test("pass the keys an account hands down to its space for listing, and only tho
             : (await database.select().from(key.table).where(where)).map((row) => row.name);
     };
 
-    // pass both keys for listing in SQL and in memory, and only ada's under her use, decided in memory
+    // pass the two keys ada reads for listing in SQL and in memory, never carol's, and only ada's under her use
     expect({
         listed: names(await audience.visible(key.table, rows, position)),
         used: names(await audience.visible(key.table, rows, position, "use")),

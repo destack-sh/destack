@@ -136,9 +136,9 @@ export class Authorization extends access.Authorization {
         const permitted = this.authorizer.where(permission, this.access, table);
         const isReplica = sql<boolean>`${table[TABLE].column("scope")} <> ${this.access.scope}`;
 
-        // pass the replicas handed down from enclosing scopes
-        if (object.inherited !== undefined) {
-            return or(isReplica, permitted);
+        // check the replicas propagated from enclosing scopes like the scope's own rows
+        if (object.propagated !== undefined) {
+            return permitted;
         }
         // pass the replicas decided for the caller below the scope
         else {
@@ -180,12 +180,12 @@ export class Authorization extends access.Authorization {
         if (replicas === "checked") {
             passed = new Set();
         }
-        // pass the replicas handed down from enclosing scopes wholesale
-        else if (object.inherited !== undefined) {
-            passed = new Set(others.map((entry) => entry.position));
-        }
-        // pass the durable replicas the caller's replica includes
-        else if (object.storage === "durable" && others.length > 0) {
+        // pass the durable replicas the caller's replica includes, which propagated rows are not
+        else if (
+            object.storage === "durable" &&
+            object.propagated === undefined &&
+            others.length > 0
+        ) {
             const included = await Replica.keysIncluded(
                 this.transaction.database,
                 table,
@@ -210,7 +210,7 @@ export class Authorization extends access.Authorization {
         );
         const left = others.filter((entry) => !passed.has(entry.position));
         const under = left.filter((entry) => !ancestors.has(entry.scope));
-        if (object.storage === "durable" && object.inherited === undefined && under.length > 0) {
+        if (object.storage === "durable" && object.propagated === undefined && under.length > 0) {
             below = await this.descend(scope, [...new Set(under.map((entry) => entry.scope))]);
         }
 

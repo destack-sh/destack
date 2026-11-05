@@ -1,4 +1,12 @@
-import { type Authorization, InstallationId, none, principal, Role, self } from "@destack/access";
+import {
+    type Authorization,
+    InstallationId,
+    none,
+    principal,
+    resource,
+    Role,
+    self,
+} from "@destack/access";
 import { type Select, Table } from "@destack/db";
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
 import { type DigestCrypto, Instant, schema } from "@destack/schema";
@@ -32,8 +40,8 @@ export const installation = defineObject(
         represents: principal.installation,
         // let its controller roll it out, apply its plans once approved, and finalize an uninstall
         controlled: { approval: true },
-        // hand the universe's installations down to every scope, as every space's chain includes them
-        inherited: { where: { scope: Scope.universe.id } },
+        // propagate each installation into the scopes inside its scope, read there by permission
+        propagated: {},
         fields: {
             /** The installed package. */
             packageId: field.string(PackageId),
@@ -60,9 +68,12 @@ export const installation = defineObject(
             /** How its server is isolated: a sandbox, or the store's process once trusted. */
             isolation: field.enum(["sandbox", "process"]).default("sandbox"),
         },
+        // let permissions read the scope an installation lives in
+        attributes: { scope: "string" },
         permissions: {
             read: none(),
-            list: none(),
+            // let every scope list the universe's installations, the platform services it runs on
+            list: resource({ scope: Scope.universe.id }),
             install: none(),
             update: none(),
             delete: none(),

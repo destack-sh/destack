@@ -352,8 +352,8 @@ export interface ObjectTraits<Permissions extends string = string> {
     readonly expiring?: readonly ExpiryRule[];
     /** The unique column callers and sources also address the objects by. */
     readonly key?: string;
-    /** The scopes inside each object's scope that replica the objects, matching any condition. */
-    readonly inherited?: { readonly where?: Condition };
+    /** The objects the scopes inside each object's scope replicate, matching any condition. */
+    readonly propagated?: { readonly where?: Condition };
     /** The objects are immutable, numbered versions of their parent. */
     readonly versioned?: VersionsDefinition;
     /** A controller reconciles the objects. */
@@ -925,9 +925,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.keyed === undefined || this.identifies(value) ? "id" : this.keyed;
     }
 
-    /** The rows the scopes inside each object's scope replica, for inherited objects. */
-    get inherited(): { readonly where?: Condition } | undefined {
-        return this.definition.inherited;
+    /** The rows the scopes inside each object's scope replicate, for propagated objects. */
+    get propagated(): { readonly where?: Condition } | undefined {
+        return this.definition.propagated;
     }
 
     /** The kind whose resources the objects are, absent for other objects. */
@@ -1501,7 +1501,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readScopes(chain: readonly string[]): string[] {
         const held = this.table[TABLE].column("scope").definition.schema;
 
-        return this.inherited === undefined
+        return this.propagated === undefined
             ? [nth(chain, 0)]
             : chain.filter((scope) => held.safeParse(scope).success);
     }
@@ -2671,7 +2671,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     ): string[] {
         const keys = [
             "audited",
-            "inherited",
+            "propagated",
             "isScope",
             "partition",
             "aggregates",

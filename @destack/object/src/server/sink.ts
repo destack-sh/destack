@@ -460,7 +460,7 @@ export class ObjectSink {
         ];
     }
 
-    /** List a scope chain's replicas: each scope's access rows and each type it hands down. */
+    /** List a scope chain's replicas: each scope's access rows and each type it propagates. */
     async #scopeChain(
         view: Snapshot,
         target: string,
@@ -478,7 +478,7 @@ export class ObjectSink {
             replicated = options.kind === "home" ? ancestors : chain;
         }
 
-        // replicate each scope's access rows and handed down types for the target, in one replica of the nearest
+        // replicate each scope's access rows and propagated types for the target, in one replica of the nearest
         const [nearest] = replicated;
         if (nearest === undefined) {
             throw new TypeError(`the chain of ${target} replicates no scope`);
@@ -492,10 +492,10 @@ export class ObjectSink {
                 parameters: {
                     scopes: chain,
                     local: [...this.store.authorizer.local],
-                    // leave out the inherited rows of a scope the store serves beside its own, which it originates
+                    // leave out the propagated rows of a scope the store serves beside its own, which it originates
                     replicated: replicated.map((scope) => ({
                         scope,
-                        types: isScoped ? this.#handedDownTypes(scope) : [],
+                        types: isScoped ? this.#propagatedTypes(scope) : [],
                     })),
                     via: [],
                     between: [],
@@ -562,26 +562,26 @@ export class ObjectSink {
         ];
     }
 
-    /** List the replicated types a scope hands down to the store, less those it originates. */
-    #handedDownTypes(scope: string): ObjectTypeReference[] {
-        // originate the inherited rows of a scope served beside the store's own, as isReplica decides
+    /** List the replicated types a scope propagates to the store, less those it originates. */
+    #propagatedTypes(scope: string): ObjectTypeReference[] {
+        // originate the propagated rows of a scope served beside the store's own, as isReplica decides
         const { authorizer, partitions } = this.store;
         const isServed = partitions.slice(1).includes(scope);
 
         return authorizer.replicated.filter(
             (type) =>
-                authorizer.handsDown(type, scope) &&
-                !(isServed && authorizer.requireMapping(type).inherited !== undefined),
+                authorizer.propagates(type, scope) &&
+                !(isServed && authorizer.requireMapping(type).propagated !== undefined),
         );
     }
 
-    /** List the replicated types outside scopes store for the store: inherited and scoped ones. */
+    /** List the propagated and scoped types that outside scopes store for the store. */
     #outsideTypes(): ObjectTypeReference[] {
         const { authorizer } = this.store;
 
         return [
             ...authorizer.replicated.filter(
-                (type) => authorizer.requireMapping(type).inherited !== undefined,
+                (type) => authorizer.requireMapping(type).propagated !== undefined,
             ),
             ...authorizer.scoped,
         ];

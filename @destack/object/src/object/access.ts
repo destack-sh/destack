@@ -73,14 +73,14 @@ export const ObjectPolicy = {
 
     /** Map a type's rows for access: its table, relations and attributes. */
     mapping(type: ObjectType): TableMapping {
-        // replicate every inherited row the condition matches
-        const inherited =
-            type.inherited === undefined ? {} : { inherited: type.inherited.where ?? {} };
+        // replicate every propagated row the condition matches
+        const propagated =
+            type.propagated === undefined ? {} : { propagated: type.propagated.where ?? {} };
 
         // reuse the mapping of another package's table
         const foreign = type.source.mapping;
         if (foreign !== undefined) {
-            return { ...foreign, policy: type.policy, ...inherited };
+            return { ...foreign, policy: type.policy, ...propagated };
         }
 
         // map each declared relation to its field and add trait mappings
@@ -120,7 +120,7 @@ export const ObjectPolicy = {
             ),
             relations,
             ...(type.owner === undefined ? {} : { owner: type.owner }),
-            ...inherited,
+            ...propagated,
             ...placed,
         };
     },
