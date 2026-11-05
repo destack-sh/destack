@@ -469,14 +469,15 @@ export class View {
         run: Run,
         relations: RelationView | undefined,
     ): Omit<WindowRead, "where"> {
+        // match the visible rows once, in SQL unless the audience decides them in memory
+        const where = audience.where(node.table, node.permission);
+
         return {
             orderBy: node.orderBy,
             namespace: node.namespace((table: Table) => View.#visibleSQL(audience, table)),
             limit: count,
             visible: {
-                ...(audience.where(node.table, node.permission) === "memory"
-                    ? {}
-                    : { current: View.#visibleSQL(audience, node.table, node.permission) }),
+                ...(where === "memory" ? {} : { current: where }),
                 image: async (row: Row) =>
                     (await run.seen(node.table, [row], node.permission)).length > 0,
             },
