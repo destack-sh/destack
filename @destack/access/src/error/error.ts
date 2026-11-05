@@ -56,7 +56,7 @@ export const AccessError = defineErrorFamily(import.meta.destack.package, {
     SCOPE_NOT_FOUND: { code: "NOT_FOUND" },
     SUBJECT_OUTSIDE_CHAIN: { code: "FORBIDDEN" },
     ACCESS_NOT_LOCAL: { code: "FORBIDDEN" },
-    INHERITED_ROWS_MISSING: { code: "NOT_FOUND" },
+    PROPAGATED_ROWS_MISSING: { code: "NOT_FOUND" },
     REPLICATED_TYPE_MISSING: { code: "NOT_FOUND" },
     STALE: { code: "SERVICE_UNAVAILABLE" },
     MANAGED: { code: "CONFLICT" },

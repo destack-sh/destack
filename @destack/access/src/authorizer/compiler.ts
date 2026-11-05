@@ -1144,16 +1144,16 @@ export class Compiler {
         return sql`${TableMapping.scopeColumn(parent, target)} = ${scope}`;
     }
 
-    /** Match a related row in the decided rows' scope, or a handed down one above it. */
+    /** Match a related row in the decided rows' scope, or a propagated one above it. */
     static #reaches(target: TableMapping, parent: Table, compilation: Compilation): SQL {
-        // reach a global row always, else a row of the rows' scope or a handed down one above
+        // reach a global row always, else a row of the rows' scope or a propagated one above
         if (target.scope === undefined) {
             return sql`true`;
         }
         const scope = TableMapping.scopeColumn(parent, target);
         const above = Compiler.#onSourceChain(scope, compilation);
 
-        return sql`(${scope} = ${compilation.chain.scope} OR (${above} AND ${TableMapping.handedDown(target, parent)}))`;
+        return sql`(${scope} = ${compilation.chain.scope} OR (${above} AND ${TableMapping.propagated(target, parent)}))`;
     }
 
     /** Correlate a field's direct parent, in the source object's scope or the field's scope. */

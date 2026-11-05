@@ -248,7 +248,7 @@ export const accountTable = defineTable("example_account", {
     scope: text("scope").notNull(),
 });
 
-/** Policies a scope sets for itself or hands down to the scopes inside it. */
+/** Policies a scope sets for itself or propagates to the scopes inside it. */
 export const policyTable = defineTable(
     "example_policy",
     {
@@ -281,7 +281,7 @@ export const mappings: TableMapping[] = [
         scope: "scope",
         attributes: {},
         relations: {},
-        inherited: { mode: "require" },
+        propagated: { mode: "require" },
     },
     { policy: group, table: groupTable, id: "id", scope: "scope", attributes: {}, relations: {} },
     { policy: region, table: regionTable, id: "id", attributes: {}, relations: {} },

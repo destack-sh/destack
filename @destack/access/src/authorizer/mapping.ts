@@ -36,8 +36,8 @@ export interface TableMapping {
     readonly owner?: string;
     /** Whether the table has several object types, told apart by its packageId and type columns. */
     readonly isShared?: boolean;
-    /** The rows the replicas of the scopes inside each row's scope store, for inherited objects. */
-    readonly inherited?: Condition;
+    /** The rows the scopes inside each row's scope replicate, for propagated objects. */
+    readonly propagated?: Condition;
     /** Application columns supplying declared scalar attributes. */
     readonly attributes: Readonly<Record<string, string>>;
     /** Relations with the subject in a field, the others stored as relationships. */
@@ -81,28 +81,28 @@ export const TableMapping = {
         };
     },
 
-    /** Decide whether the scopes below a row's scope receive it: a scope's, global or inherited. */
-    isHandedDown(mapping: TableMapping, row: Row): boolean {
-        // hand down scope objects and global rows, and inherited rows their condition matches
+    /** Decide whether the scopes below a row's scope receive it. */
+    isPropagated(mapping: TableMapping, row: Row): boolean {
+        // propagate scope objects, global rows, and the rows of propagated types their condition matches
         if (mapping.policy.definition.scope === true || mapping.scope === undefined) {
             return true;
-        } else if (mapping.inherited === undefined) {
+        } else if (mapping.propagated === undefined) {
             return false;
         }
-        const predicate = Condition.resolve(mapping.inherited, Namespace.fields(mapping.table));
+        const predicate = Condition.resolve(mapping.propagated, Namespace.fields(mapping.table));
 
         return Predicate.matches(Predicate.compile(predicate, mapping.table), row);
     },
 
     /** Match a type's rows that the scopes below their scope receive, in a table or its alias. */
-    handedDown(mapping: TableMapping, table: Table): SQL {
-        // hand down scope objects and global rows, and inherited rows their condition matches
+    propagated(mapping: TableMapping, table: Table): SQL {
+        // propagate scope objects, global rows, and the rows of propagated types their condition matches
         if (mapping.policy.definition.scope === true || mapping.scope === undefined) {
             return sql`true`;
-        } else if (mapping.inherited === undefined) {
+        } else if (mapping.propagated === undefined) {
             return sql`false`;
         }
-        const predicate = Condition.resolve(mapping.inherited, Namespace.fields(mapping.table));
+        const predicate = Condition.resolve(mapping.propagated, Namespace.fields(mapping.table));
 
         return sql`coalesce(${Predicate.render(predicate, Predicate.bind(table))}, false)`;
     },

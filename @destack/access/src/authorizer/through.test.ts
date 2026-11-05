@@ -133,7 +133,7 @@ const passTable = defineTable("example_pass", {
     scope: text("scope").notNull(),
 });
 
-/** The mappings of every type to its table, open vaults and every crate handed down. */
+/** The mappings of every type to its table, open vaults and every crate propagated. */
 const mappings: TableMapping[] = [
     { policy: realm, table: realmTable, id: "id", scope: "scope", attributes: {}, relations: {} },
     {
@@ -151,7 +151,7 @@ const mappings: TableMapping[] = [
         scope: "scope",
         attributes: {},
         relations: { keeper: { column: "keeper", scope: "universe" } },
-        inherited: { reach: "open" },
+        propagated: { reach: "open" },
     },
     { policy: ticket, table: ticketTable, id: "id", scope: "scope", attributes: {}, relations: {} },
     { policy: zone, table: zoneTable, id: "id", scope: "scope", attributes: {}, relations: {} },
@@ -162,7 +162,7 @@ const mappings: TableMapping[] = [
         scope: "scope",
         attributes: {},
         relations: {},
-        inherited: {},
+        propagated: {},
     },
     { policy: pass, table: passTable, id: "id", scope: "scope", attributes: {}, relations: {} },
 ];
@@ -294,7 +294,7 @@ test("decide a related object's permission with the chain of its scope, in memor
         stranger: false,
     });
 
-    // refuse everyone a ticket for the realm's sealed vault, which the realm hands down to no district
+    // refuse everyone a ticket for the realm's sealed vault, which the realm propagates to no district
     const refused = {
         keeper: false,
         "realm-owner": false,

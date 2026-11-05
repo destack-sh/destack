@@ -103,13 +103,13 @@ export const ChainParameters = schema.object({
     scopes: schema.array(schema.string().min(1)).readonly(),
     /** The object types the target homes and decides, left out of its own scope's rows. */
     local: schema.array(ObjectTypeReference).readonly(),
-    /** The scopes the replica reads, each with the object types it hands down. */
+    /** The scopes the replica reads, each with the object types it propagates. */
     replicated: schema
         .array(
             schema.object({
                 /** The replicated scope. */
                 scope: schema.string().min(1),
-                /** The object types whose rows the scope hands down or stores. */
+                /** The object types whose rows the scope propagates or stores. */
                 types: schema.array(ObjectTypeReference).readonly(),
             }),
         )
@@ -175,7 +175,7 @@ export class Authorizer {
     readonly #tables: ReadonlySet<Table> | undefined;
     /** The object types whose access rows live in this database, rather than as replicas. */
     readonly local: readonly ObjectTypeReference[];
-    /** The object types replicated from scopes above: inherited rows and stored scope types. */
+    /** The object types replicated from scopes above: propagated rows and stored scope types. */
     readonly replicated: readonly ObjectTypeReference[];
     /** The replicated object types whose rows live in a scope. */
     readonly scoped: readonly ObjectTypeReference[];
@@ -412,13 +412,13 @@ export class Authorizer {
             }));
     }
 
-    /** List the mapped types this database replicates: inherited and replicated scope types. */
+    /** List the mapped types this database replicates: propagated and replicated scope types. */
     #replicatedTypes(replicated: ReadonlySet<Table>): ObjectTypeReference[] {
         return [...this.#mappings.values()]
             .filter(
                 (mapping) =>
                     !accessTables.includes(mapping.table) &&
-                    (mapping.inherited !== undefined ||
+                    (mapping.propagated !== undefined ||
                         (replicated.has(mapping.table) &&
                             mapping.policy.definition.scope === true &&
                             mapping.table !== Scope.table)),
@@ -429,14 +429,14 @@ export class Authorizer {
             }));
     }
 
-    /** List the replicated types whose rows live in a scope, beside inherited and scope types. */
+    /** List the replicated types whose rows live in a scope, beside propagated and scope types. */
     #scopedTypes(replicated: ReadonlySet<Table>): ObjectTypeReference[] {
         return [...this.#mappings.values()]
             .filter(
                 (mapping) =>
                     !accessTables.includes(mapping.table) &&
                     replicated.has(mapping.table) &&
-                    mapping.inherited === undefined &&
+                    mapping.propagated === undefined &&
                     mapping.policy.definition.scope !== true &&
                     mapping.scope !== undefined,
             )
@@ -1071,7 +1071,7 @@ export class Authorizer {
         return Replica.union(request.name, request.scope, arms);
     }
 
-    /** Build the rows a chain replica reads of one scope: its access rows and handed-down rows. */
+    /** Build the rows a chain replica reads of one scope: its access rows and propagated rows. */
     #chainScope(
         request: Pick<Subscription, "name" | "scope" | "target">,
         parameters: ChainParameters,
@@ -1097,7 +1097,7 @@ export class Authorizer {
         const isHomed = !isUniverse && scope === target && local.length > 0;
         where.set(accessRelationship, isHomed ? { AND: [followed, homed] } : followed);
 
-        // read the role permissions on the types the target decides: its own, those handed down, scopes, and those their arrows reach
+        // read the role permissions on the types the target decides: its own, those propagated, scopes, and those their arrows reach
         const decided = this.#reaching([...local, ...types, ...this.#scopeTypes()]);
         where.set(accessRolePermission, {
             OR: decided.map(({ packageId, type }) => ({ packageId, type })),
@@ -1109,7 +1109,7 @@ export class Authorizer {
         }
         const access = [...decisionTables, ...(isGranting ? [accessGrant] : [])];
 
-        // take the stored types the scope hands down or stores for a follower outside
+        // take the stored types the scope propagates or stores for a follower outside
         const stored = types.filter((type) => {
             const mapping = this.mapping(type);
 
@@ -1216,8 +1216,8 @@ export class Authorizer {
         return { subjects: depth === 1 ? true : { with: Authorizer.#subjects(depth - 1) } };
     }
 
-    /** Decide whether a scope hands down rows of an object type. */
-    handsDown(type: ObjectTypeReference, scope: string): boolean {
+    /** Decide whether a scope propagates rows of an object type. */
+    propagates(type: ObjectTypeReference, scope: string): boolean {
         return this.#replicatedRows(type, [scope], []).length > 0;
     }
 
@@ -1230,8 +1230,8 @@ export class Authorizer {
         const mapping = this.requireMapping(type);
         const table = this.#replicatedTable(type);
 
-        // replicate an inherited type's inherited rows in the scopes its objects may live in
-        if (mapping.inherited !== undefined) {
+        // replicate a propagated type's rows in the scopes its objects may live in
+        if (mapping.propagated !== undefined) {
             const scope = mapping.scope;
             const living =
                 scope === undefined
@@ -1242,7 +1242,7 @@ export class Authorizer {
                                   .success,
                       );
 
-            return living.length === 0 ? [] : [[table, mapping.inherited, living]];
+            return living.length === 0 ? [] : [[table, mapping.propagated, living]];
         }
         // replicate a scoped type's rows living in the replicated scopes of a follower outside their chains
         else if (mapping.policy.definition.scope !== true && mapping.scope !== undefined) {
@@ -1253,9 +1253,9 @@ export class Authorizer {
 
             return living.length === 0 ? [] : [[table, undefined, living]];
         }
-        // refuse a type that is neither inherited, a scope nor replicated through its scopes
+        // refuse a type that is neither propagated, a scope nor replicated through its scopes
         else if (mapping.policy.definition.scope !== true) {
-            throw AccessError.of("INHERITED_ROWS_MISSING", `no inherited rows of ${type.type}`);
+            throw AccessError.of("PROPAGATED_ROWS_MISSING", `no propagated rows of ${type.type}`);
         }
         // replicate the scope objects' rows whose identifiers are of the scope type
         else {

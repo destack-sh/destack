@@ -992,9 +992,9 @@ export class TupleReader {
         return bindings.flat().filter((relationship) => Relationship.isBinding(relationship));
     }
 
-    /** Keep the related rows a scope reaches: global, in the scope, or handed down above it. */
+    /** Keep the related rows a scope reaches: global, in the scope, or propagated above it. */
     async #reached(scope: string, target: TableMapping, rows: readonly Row[]): Promise<Row[]> {
-        // reach a global row always, else a row of the scope or a handed down one above it
+        // reach a global row always, else a row of the scope or a propagated one above it
         const chain = await this.#chain(scope);
 
         return rows.filter((row) => {
@@ -1004,7 +1004,7 @@ export class TupleReader {
             return (
                 target.scope === undefined ||
                 other === scope ||
-                (isAbove && TableMapping.isHandedDown(target, row))
+                (isAbove && TableMapping.isPropagated(target, row))
             );
         });
     }

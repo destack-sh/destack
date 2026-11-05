@@ -82,7 +82,7 @@ const CHAIN = [SPACE, "account-0", Scope.universe.id];
 /** The outside scopes of a target's chain: none. */
 const OWN = { via: [], between: [] } as const;
 
-test("replicate a space's chain up to the universe in one replica, with the policies each scope hands down, and follow a grant", async () => {
+test("replicate a space's chain up to the universe in one replica, with the policies each scope propagates, and follow a grant", async () => {
     // insert an account and its space, both of alice, in the home database
     const home = await openDatabase();
     const app = await openFixture();
@@ -121,7 +121,7 @@ test("replicate a space's chain up to the universe in one replica, with the poli
             ]),
     );
 
-    // follow every scope's access rows and handed down policies from the home database in one replica
+    // follow every scope's access rows and propagated policies from the home database in one replica
     const feed = new Feed(home.database, [...accessTables, policyTable], {});
     const chain = ["personal", "account-1", "universe"];
     const followed = chainOf(
@@ -136,7 +136,7 @@ test("replicate a space's chain up to the universe in one replica, with the poli
     );
     await follow(app.database, followed, feed);
 
-    // replicate the account's access row for row, and only the policies the account and the universe hand down
+    // replicate the account's access row for row, and only the policies the account and the universe propagate
     expect([
         await replicated(app.database),
         await app.database.select().from(policyTable).orderBy(asc(policyTable.id)),
