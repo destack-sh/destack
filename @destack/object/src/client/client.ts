@@ -1,4 +1,5 @@
 import { ObjectReference, type Item, Subject, RequestId } from "@destack/sync";
+import { TelemetryScope } from "@destack/telemetry";
 import { ObjectError } from "../error/error.ts";
 import {
     FindOptions,
@@ -577,6 +578,31 @@ export class ObjectClient<
             ...options,
             origin: options.origin ?? RequestId.create(options.environment),
         });
+    }
+
+    /** Open a client over a database only it uses, pushing and following until the stack closes. */
+    static async start<const Objects extends Readonly<Record<string, ObjectType>>>(
+        options: ObjectClientOptions<Objects>,
+        stack: AsyncDisposableStack,
+    ): Promise<ObjectClient<Objects>> {
+        // open the client, closed with the stack
+        const client = await ObjectClient.open(options);
+        stack.defer(() => client.close());
+
+        // push and follow until then, warning of each failure the loops retry
+        const telemetry = TelemetryScope.of(
+            import.meta.destack.package,
+            options.environment.telemetry,
+        );
+        const report = (error: unknown) => telemetry.captureException(error, { level: "warning" });
+        const stopping = new AbortController();
+        const running = client.run(stopping.signal, report).catch(report);
+        stack.defer(async () => {
+            stopping.abort();
+            await running;
+        });
+
+        return client;
     }
 
     /** Build the mutators of object types, by key. */
