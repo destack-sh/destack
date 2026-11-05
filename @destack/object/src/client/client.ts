@@ -1871,7 +1871,10 @@ export class ObjectClient<
         };
 
         return {
-            ready: Promise.all(followed.map(({ live }) => live.ready)).then(() => {}),
+            // wait for the members only once asked, leaving no derived promise unobserved
+            get ready() {
+                return Promise.all(followed.map(({ live }) => live.ready)).then(() => {});
+            },
             read: async () => merge(await Promise.all(followed.map(({ live }) => live.read()))),
             watch: (signal) =>
                 Observable.latest(
