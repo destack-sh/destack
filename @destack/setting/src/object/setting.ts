@@ -16,8 +16,8 @@ export const setting = defineObject(
     {
         name: "setting",
         plural: "settings",
-        // hand every value down to the scopes inside its scope
-        inherited: {},
+        // propagate every value into the scopes inside its scope
+        propagated: {},
         // let a stack write a declared value against the release of the build declaring its setting
         supplied: ["release"],
         fields: {
