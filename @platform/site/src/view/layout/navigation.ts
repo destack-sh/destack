@@ -58,7 +58,7 @@ export const discord: Destination = {
 
 /** Destack's places off the site: X, LinkedIn, the repository and the community. */
 export const socialDestinations: readonly Destination[] = [
-    { href: "https://x.com/destacksh", label: "X", keybinding: "alt+x", icon: xLogo },
+    { href: "https://x.com/destack_sh", label: "X", keybinding: "alt+x", icon: xLogo },
     {
         href: "https://www.linkedin.com/company/76992016",
         label: "LinkedIn",
