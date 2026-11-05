@@ -110,13 +110,21 @@ test("describe commands by the call each makes, and read them back from their de
         described: [
             {
                 ...call,
+                name: "mark-done",
                 title: t`Mark Done`,
                 category: t`Note`,
                 method: "mark",
                 input: { status: "done" },
                 when: { status: "open" },
             },
-            { ...call, title: t`New Note`, method: "create", input: {}, keybinding: "mod+n" },
+            {
+                ...call,
+                name: "new-note",
+                title: t`New Note`,
+                method: "create",
+                input: {},
+                keybinding: "mod+n",
+            },
         ],
         read: described,
     });

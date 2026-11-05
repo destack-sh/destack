@@ -189,6 +189,7 @@ export class Command<
     describe(): CommandDescription {
         return {
             package: this.package,
+            name: this.name,
             title: this.title,
             ...(this.category === undefined ? {} : { category: this.category }),
             packageId: this.object.package.id,
@@ -260,6 +261,8 @@ export type CommandReference = schema.Infer<typeof CommandReference>;
 export const CommandDescription = schema.object({
     /** The package declaring the command. */
     package: Package,
+    /** The name, unique among the package's commands. */
+    name: schema.string().min(1),
     /** The command's title. */
     title: Message,
     /** The group the command palette shows the title under. */

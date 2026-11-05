@@ -75,6 +75,7 @@ import {
     type UuidEnvironment,
 } from "@destack/schema";
 import { type InstalledServerContext, ServerContext } from "../workload/workload.ts";
+import { COMMAND_KIND } from "../declare/command.ts";
 import type { Watermark } from "@destack/sync";
 import { refuseInput } from "../error/error.ts";
 import { copyRequest } from "@destack/environment";
@@ -94,6 +95,7 @@ import {
     storeProcedures,
     type PushResult,
     type StoreProcedures,
+    type InstallationDescription,
 } from "../replica/replica.ts";
 import { Branch, type BranchEntry, type BranchType } from "../branch/index.ts";
 import { MethodContext, type ResultsOf, type Run } from "../method/context.ts";
@@ -818,6 +820,44 @@ export class ObjectStore {
         };
     }
 
+    /** Describe the installations the store runs, with their listed types and declarations. */
+    describeInstallations(): Promise<InstallationDescription[]> {
+        return Promise.all(
+            this.#catalog.served.map(async ({ package: served, objects, server }) => {
+                // require the installation every store runs its packages in
+                const installation = present(server, `the installation of ${served.name}`);
+
+                // read an installed build's listed declarations, else the base package's commands
+                const isInstalled = ServerContext.isInstalled(installation);
+                const declarations = isInstalled
+                    ? (await installation.build.declarations()).map(
+                          ({ kind, kindPackageId, name, description }) => ({
+                              kind,
+                              kindPackageId,
+                              name,
+                              description,
+                          }),
+                      )
+                    : Object.values(served.commands).map((command) => ({
+                          ...COMMAND_KIND.identity,
+                          name: command.name,
+                          description: command.describe(),
+                      }));
+
+                return {
+                    id: installation.installation,
+                    scope: installation.scope,
+                    ...(isInstalled ? { name: installation.name } : {}),
+                    packageId: served.id,
+                    types: objects
+                        .filter((type) => type.listing !== undefined)
+                        .map((type) => type.typeReference),
+                    declarations,
+                };
+            }),
+        );
+    }
+
     /** Describe known types and every type they refer to, every served one when given none. */
     describe(types?: readonly ObjectTypeReference[]): ObjectDescription[] {
         // index the known types and every type their descriptions mention
@@ -1272,8 +1312,9 @@ export class ObjectStore {
 
                 return {};
             }),
-            describe: store.describe.handler(({ input }) => ({
+            describe: store.describe.handler(async ({ input }) => ({
                 objects: this.describe(input.types),
+                installations: await this.describeInstallations(),
             })),
         });
     }

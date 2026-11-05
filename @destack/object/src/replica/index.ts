@@ -8,6 +8,7 @@ export {
     storeProcedures,
     STORE_PATHS,
     PushResult,
+    InstallationDescription,
     type StoreProcedures,
 } from "./replica.ts";
 

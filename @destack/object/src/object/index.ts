@@ -46,3 +46,4 @@ export {
 export { ObjectPolicy } from "./access.ts";
 export * from "./cursor.ts";
 export { device } from "./device.ts";
+export { Casing } from "./name.ts";

@@ -1,5 +1,5 @@
 import { present, schema } from "@destack/schema";
-import { Package, PackageId } from "@destack/package";
+import { DeclarationName, Package, PackageId } from "@destack/package";
 import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
 import { eventIterator } from "../procedure/index.ts";
 import {
@@ -81,6 +81,35 @@ export const PUSH_MUTATIONS = 100;
 
 /** The most object types one description request lists: every type of a large platform. */
 export const DESCRIBED_TYPES = 1000;
+
+/** An installation a store runs: its identity, its package, its listed types and declarations. */
+export const InstallationDescription = schema.object({
+    /** The installation. */
+    id: schema.identifier("installation"),
+    /** The scope it is installed in. */
+    scope: schema.string(),
+    /** The scope-local name, absent for a base installation. */
+    name: schema.string().exactOptional(),
+    /** The installed package. */
+    packageId: PackageId,
+    /** The object types it lists, its own and those of other packages it serves. */
+    types: schema.array(ObjectTypeReference),
+    /** Its declarations: an installed build's listed ones, a base package's commands. */
+    declarations: schema.array(
+        schema.object({
+            /** The declaration kind, such as `setting` or `command`. */
+            kind: DeclarationName,
+            /** The package defining the kind. */
+            kindPackageId: PackageId,
+            /** The declaration's name within its kind. */
+            name: schema.string().min(1),
+            /** The description, as the kind's schema reads it. */
+            description: schema.jsonObject(),
+        }),
+    ),
+});
+/** An installation a store runs. */
+export type InstallationDescription = schema.Infer<typeof InstallationDescription>;
 
 /** The identifier an object client generates for itself as the writer of its ephemeral objects. */
 export const WriterId = schema.string().min(1).max(64);
@@ -290,6 +319,8 @@ export const storeProcedures = {
             schema.object({
                 /** The descriptions, each type once, as `ObjectDescription` reads them. */
                 objects: schema.array(schema.jsonObject()),
+                /** The installations the store runs. */
+                installations: schema.array(InstallationDescription),
             }),
         ),
 };
