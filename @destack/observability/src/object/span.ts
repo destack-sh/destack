@@ -52,6 +52,8 @@ export const span = defineObject(
         scope: [space, machine],
         storage: {
             kind: "events",
+            // index each trace's spans
+            indexes: ["trace"],
             flush: EVENT_FLUSH,
             retention: { setting: telemetryRetention.definition },
             delivery: "at-most-once",

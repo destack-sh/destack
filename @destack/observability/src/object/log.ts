@@ -30,6 +30,8 @@ export const log = defineObject(
         scope: [space, machine],
         storage: {
             kind: "events",
+            // index each trace's logs
+            indexes: ["trace"],
             flush: EVENT_FLUSH,
             retention: { setting: telemetryRetention.definition },
             delivery: "at-most-once",

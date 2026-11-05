@@ -256,10 +256,7 @@ class IssueGroup {
             installationId,
             fingerprint: this.#first.fingerprint,
             errorType: thrown.errorType,
-            title: `${thrown.type ?? thrown.errorType}: ${firstLine}`.slice(
-                0,
-                ISSUE_TITLE_LENGTH,
-            ),
+            title: `${thrown.type ?? thrown.errorType}: ${firstLine}`.slice(0, ISSUE_TITLE_LENGTH),
             ...(culprit === undefined ? {} : { culprit }),
             ...(declaration === undefined ? {} : { declaration: declaration.moniker }),
             level: this.level,

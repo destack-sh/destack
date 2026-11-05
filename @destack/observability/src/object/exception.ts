@@ -24,6 +24,8 @@ export const exception = defineObject(
         scope: space,
         storage: {
             kind: "events",
+            // index each issue's exceptions
+            indexes: ["issue"],
             flush: EVENT_FLUSH,
             retention: { setting: telemetryRetention.definition },
             delivery: "exactly-once",

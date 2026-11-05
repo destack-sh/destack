@@ -1,6 +1,6 @@
 import { Subscription } from "@destack/notification";
 import { ObjectWatch, Observation } from "@destack/object";
-import { now, Snapshot } from "@destack/db";
+import { Change, now, Snapshot } from "@destack/db";
 import { EventTime } from "@destack/event";
 import { implementPackage } from "@destack/object/server";
 import { present, schema } from "@destack/schema";
@@ -253,7 +253,7 @@ export default implementPackage(observabilityPackage, {
             declaration: {},
             controllers: [
                 {
-                    // evaluate a rule as it, its space's issues, silences or its alerts change
+                    // evaluate a rule as it, its space's issues, silences or its alerts change, and once its due time clears
                     pending: {},
                     watches: [
                         ObjectWatch.of(issue.table, async (row, database) => {
@@ -273,6 +273,15 @@ export default implementPackage(observabilityPackage, {
                             return rules.map((rule) => ({ id: rule.id }));
                         }),
                         ObjectWatch.of(alert.table, (row) => [{ id: row.ruleId }]),
+                        ObjectWatch.of(
+                            alertRule.table,
+                            (row, _database, change) =>
+                                row.evaluateAt === null &&
+                                Change.before(change)?.["evaluateAt"] !== null
+                                    ? [{ id: row.id }]
+                                    : [],
+                            { isObserving: true },
+                        ),
                     ],
                     reconcile: async (reconciliation) => {
                         for (const row of reconciliation.rows) {
