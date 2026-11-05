@@ -267,6 +267,7 @@ export class TestTunnelMachine implements AsyncDisposable {
                 return new Response(`hello ${request.method} ${url.pathname}${body}`);
             },
             renewed: renew,
+            changed: () => {},
             heartbeat: QUICK.heartbeat,
             retry: QUICK.retry,
             environment: this.simulation.environment("computer"),
