@@ -14,6 +14,8 @@ export const call = defineObject({
         delivery: "exactly-once",
         isLocked: true,
         subject: "actor",
+        // index each target's calls
+        indexes: ["target"],
     },
     fields: {
         /** The ended call, its personal values masked unless the reader may unmask them. */

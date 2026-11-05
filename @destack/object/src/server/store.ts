@@ -2289,9 +2289,7 @@ export class ObjectStore {
 
         return [
             ...this.blobs.controllers(),
-            ...(this.#journal === undefined
-                ? []
-                : [this.#journal.controller(), ...this.#journal.events.controllers()]),
+            ...(this.#journal === undefined ? [] : this.#journal.events.controllers()),
             ...(this.claims?.home === undefined
                 ? []
                 : [Reservation.controller(this, this.claims.object, this.claims.home)]),
@@ -3431,7 +3429,7 @@ export class ObjectStore {
         }
     }
 
-    /** Record a call: audit durable changes, and journal every call of a request for retries. */
+    /** Record a principal's call: audit durable changes, and journal requests for retries. */
     #record(
         transaction: Transaction,
         object: ObjectType,
@@ -3444,6 +3442,11 @@ export class ObjectStore {
         component: string | undefined,
         isEffective: boolean,
     ): void {
+        // record only a principal's calls, a nested call taking effect within its parent
+        if (execution.parentId !== undefined) {
+            return;
+        }
+
         // audit durable changes, a component's only once they take effect, and journal client requests
         const { method, scope, name } = context;
         const isAudited =
@@ -3474,7 +3477,6 @@ export class ObjectStore {
         const recorder = this.audit(scope, caller, {
             package: this.#implementing(object),
             ...(component === undefined ? {} : { component }),
-            ...(execution.parentId === undefined ? {} : { parentId: execution.parentId }),
         });
         transaction.batch(this.#calls, (stamp: string | undefined) => {
             const stamped =

@@ -225,15 +225,18 @@ export const ObjectTable = {
         return defined;
     },
 
-    /** Log a table's changes: tracked history, event appends. */
+    /** Log a table's changes: tracked history, event appends, a controlled generation. */
     readLog(definition: ObjectDefinition, storage: ObjectStorage) {
         // append only events
         if (storage === "events") {
             return { appendOnly: true };
         }
 
-        // record tracked history
-        return definition.tracked === undefined ? {} : { retention: "history" as const };
+        // record tracked history, and tell a controlled object's observations by its generation
+        return {
+            ...(definition.tracked === undefined ? {} : { retention: "history" as const }),
+            ...(definition.controlled === undefined ? {} : { generation: "generation" }),
+        };
     },
 
     /** Build an object's columns: the record trait's, the scope, other traits' and the fields'. */

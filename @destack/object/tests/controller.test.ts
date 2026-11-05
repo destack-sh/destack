@@ -458,11 +458,11 @@ test("project a type's objects at the first start, then each one its own or a wa
     await settleControl(store);
     const watched = projected.splice(0);
     await settleControl(store);
-    // project tea once per change of the gate naming it: its creation, then its controller's sync
+    // project tea once for the gate naming it, its controller's sync being status alone
     expect({ first, created, watched, unchanged: projected }).toEqual({
         first: ["tea"],
         created: ["cake"],
-        watched: ["tea", "tea"],
+        watched: ["tea"],
         unchanged: [],
     });
 });

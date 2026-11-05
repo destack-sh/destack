@@ -86,7 +86,7 @@ test("trash a folder's pages with it, restore only the ones trashed with it, ref
     });
 });
 
-test("record a folder's deletion as the parent of its pages' deletions, which its package runs", async () => {
+test("record a folder's deletion alone, its pages' deletions running within it", async () => {
     // serve alice's folder with a page, and trash the folder as her
     await using objects = await TestObjectStore.open({
         packages: [pagesPackage],
@@ -110,21 +110,14 @@ test("record a folder's deletion as the parent of its pages' deletions, which it
     );
     const calls = recorded.events.map((event) => CallEvent.parse(event.data));
     const deletions = calls.filter((each) => each.method.endsWith(".delete"));
-    const [folderDeletion, pageDeletion] = [
-        deletions.find((each) => each.method === "folder.delete"),
-        deletions.find((each) => each.method === "page.delete"),
-    ];
 
-    // expect the page's deletion run as the package, run under alice's deletion of the folder
-    expect({
-        folder: folderDeletion?.execution.context.caller.subject.id,
-        page: pageDeletion?.execution.context.caller.subject.type,
-        parent: pageDeletion?.execution.context.parentId,
-    }).toEqual({
-        folder: users.alice,
-        page: "installation",
-        parent: folderDeletion?.execution.id,
-    });
+    // expect alice's deletion of the folder alone, the page's deletion taking effect within it
+    expect(
+        deletions.map((each) => ({
+            method: each.method,
+            caller: each.execution.context.caller.subject.id,
+        })),
+    ).toEqual([{ method: "folder.delete", caller: users.alice }]);
 });
 
 test("refuse a child trashed with its parent without a trash, or with a shorter window than its parent's", () => {

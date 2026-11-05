@@ -2,7 +2,6 @@ import { Orderable } from "../trait/orderable.ts";
 import { ObjectError } from "../error/error.ts";
 import {
     AccessError,
-    accessRelationship,
     isPrincipal,
     type Access,
     type Creation,
@@ -662,7 +661,7 @@ export const RecordMethod = {
     async createTogether(context: MethodContext, execution: StoreExecution): Promise<string[]> {
         // build each item's row under an unused identifier
         const created = await RecordMethod.eachItem(context, async (item) => {
-            const id = await RecordMethod.createdId(item, execution);
+            const id = await RecordMethod.createdId(item);
             const row = RecordMethod.createdRow(
                 context.object.table,
                 await RecordMethod.createdValues(item.with({ id }), execution),
@@ -1207,7 +1206,7 @@ export const RecordMethod = {
         try {
             return await execution.transaction.savepoint(async () => {
                 // insert under an unused identifier
-                const id = await RecordMethod.createdId(context, execution);
+                const id = await RecordMethod.createdId(context);
                 const created = context.identify(id);
 
                 return { id, created, row: await insert(created) };
@@ -1444,40 +1443,11 @@ export const RecordMethod = {
         }
     },
 
-    /** Accept a caller's unused identifier, or generate one, random in a prediction. */
-    async createdId(context: MethodContext, execution: StoreExecution): Promise<string> {
-        // generate a missing identifier
+    /** Take a caller's identifier, which the insert refuses once taken, or generate one. */
+    async createdId(context: MethodContext): Promise<string> {
         const { object, id: chosen } = context;
-        if (chosen === undefined) {
-            return context.generateId(object);
-        }
 
-        // find a row with the identifier, or a relationship a deleted object left under it
-        const { packageId, name } = object.policy.definition;
-        const id = object.idSchema.parse(chosen);
-        const [rows, relationships] = await Promise.all([
-            execution.transaction.view().read<Table>(object.table).findMany({ where: { id } }),
-            execution.authorization.transaction
-                .view()
-                .read(accessRelationship)
-                .findMany({
-                    where: {
-                        objectPackageId: packageId,
-                        objectType: name,
-                        objectId: id,
-                    },
-                }),
-        ]);
-        const isTaken = rows.length > 0 || relationships.length > 0;
-
-        // refuse a taken identifier, as a lost race when a later commit took it
-        if (isTaken) {
-            await execution.transaction.requireCurrent();
-            await execution.authorization.transaction.requireCurrent();
-            throw ObjectError.of("ID_TAKEN", `${object.name} identifier is taken`);
-        }
-
-        return chosen;
+        return chosen === undefined ? context.generateId(object) : object.idSchema.parse(chosen);
     },
 
     /** Refuse changing a managed object as a whole, such as deleting it, but as its manager. */

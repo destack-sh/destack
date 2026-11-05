@@ -478,6 +478,8 @@ export interface EventStorage {
     readonly subject?: string;
     /** The data entry recording a distribution of values, which quantile folds merge. */
     readonly distribution?: string;
+    /** The fields events are looked up by alone, indexed by scope and time. */
+    readonly indexes?: readonly string[];
 }
 
 /** The storage kind of a written storage: its name, or the kind of the settings it gives. */
@@ -1534,6 +1536,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             return error;
         }
 
+        // refuse a taken identifier
+        const isIdentity =
+            key.columns.length === definition.key.length &&
+            key.columns.every((column) => definition.key.includes(column));
+        if (isIdentity) {
+            return ObjectError.of("ID_TAKEN", `${this.name} identifier is taken`, { cause: error });
+        }
+
         // map the columns of each relation and reference to its name
         const { relations, references = {} } = this.mapping;
         const named = new Map<string, string>();
@@ -2369,7 +2379,18 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** Refuse durable-only declarations, writes and work on ephemeral, external, local objects. */
     #requireStorage(definition: ObjectDefinition, traits: readonly TraitInstance[]): void {
+        // read the declarations the storage refuses
         const refused = ObjectType.#refusedDeclarations(definition, traits, this.storage);
+
+        // refuse relationships on objects outside the durable database, which deletes them with their object
+        const relating = Object.entries(ObjectType.#methodsOf(this)).find(
+            ([, declared]) => declared.creation !== undefined,
+        );
+        if (this.storage !== "durable" && relating !== undefined) {
+            throw new TypeError(
+                `${this.storage} object ${this.name} cannot relate its creation in method ${relating[0]}`,
+            );
+        }
 
         // refuse the event log without its settings
         if (this.storage === "events" && this.events === undefined) {

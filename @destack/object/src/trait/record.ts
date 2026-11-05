@@ -1,6 +1,5 @@
 import { accessRelationship, Manager } from "@destack/access";
 import {
-    type Column,
     type ColumnBuilder,
     identifier,
     index,
@@ -107,11 +106,17 @@ export type WriterBuilderMap<Storage> = Storage extends "ephemeral"
     : {};
 
 /** The record trait every object takes, by the objects' storage. */
-export const record: Trait<ObjectStorage> & {
-    /** Report whether an event column is a key an index covers: an event column, no map. */
-    readonly isKeyColumn: (name: string, column: Column) => boolean;
-} = {
-    options: (definition) => ObjectType.storageKind(definition.storage),
+export const record: Trait<{
+    readonly kind: ObjectStorage;
+    readonly indexes: readonly string[];
+}> = {
+    options: (definition) => ({
+        kind: ObjectType.storageKind(definition.storage),
+        indexes:
+            typeof definition.storage === "object" && definition.storage.kind === "events"
+                ? (definition.storage.indexes ?? [])
+                : [],
+    }),
     columns: (_options, object) =>
         object.storage === "events"
             ? eventRecordColumns(object.identity)
@@ -120,8 +125,8 @@ export const record: Trait<ObjectStorage> & {
                   ...(object.storage === "ephemeral" ? writerColumns() : {}),
                   ...(object.storage === "durable" ? managedColumns() : {}),
               },
-    // check a durable record's manager, and index the event log by time and by each key without a map
-    constraints: (storage, table, columns) =>
+    // check a durable record's manager, and index the event log by time and by each field it declares indexed
+    constraints: ({ kind: storage, indexes }, table, columns) =>
         storage === "durable"
             ? Manager.constraints(table, {
                   managerInstallationId: present(columns["managerInstallationId"], "the manager"),
@@ -137,15 +142,15 @@ export const record: Trait<ObjectStorage> & {
                         present(columns["time"], "the time column"),
                         present(columns["id"], "the identity column"),
                     ),
-                    ...Object.entries(columns)
-                        .filter(([name, column]) => record.isKeyColumn(name, column))
-                        .map(([, column]) =>
-                            index(`${table}_${column.definition.name}`).on(
-                                present(columns["scope"], "the scope column"),
-                                column,
-                                present(columns["time"], "the time column"),
-                            ),
-                        ),
+                    ...indexes.map((name) => {
+                        const column = present(columns[name], `the indexed field ${name}`);
+
+                        return index(`${table}_${column.definition.name}`).on(
+                            present(columns["scope"], "the scope column"),
+                            column,
+                            present(columns["time"], "the time column"),
+                        );
+                    }),
                 ],
     // cascade durable objects' relationships
     table: (_options, object) =>
@@ -162,7 +167,4 @@ export const record: Trait<ObjectStorage> & {
                   ],
               },
     methods: () => ({}),
-    isKeyColumn(name: string, column: Column): boolean {
-        return !Object.hasOwn(eventColumns(), name) && column.definition.kind !== "json";
-    },
 };

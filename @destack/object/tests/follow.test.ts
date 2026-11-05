@@ -15,7 +15,7 @@ import {
     TABLE,
 } from "@destack/db";
 import { subjectContext, testCallKey } from "@destack/object/test";
-import { reconciliation, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import {
     FeedPublisher,
     followReplicas,
@@ -1107,7 +1107,7 @@ test("follow replicates as a server without methods, journal or call key", async
     const { controllers, cursors } = store.control();
     expect([controllers.map((each) => each.name), cursors.map((each) => each.name)]).toEqual([
         ["blob-leases", "blob-retired", "blob-freed", "replica"],
-        ["replica-requests"],
+        ["subscriptions"],
     ]);
 });
 

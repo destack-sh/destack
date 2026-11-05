@@ -1,6 +1,5 @@
 import { Failure } from "@destack/error";
 import { expect, refusal, test } from "@destack/test";
-import { ControlLoop } from "@destack/db";
 import { journal } from "../src/index.ts";
 import { AuditStorage, documentRename, rename } from "./fixture/journal.ts";
 
@@ -64,11 +63,8 @@ test("refuse a second outcome of a call, its call event recording the first", as
     }
 });
 
-test("remove calls past their lifetime through the journal's controller, ended or running, leaving their call events", async () => {
+test("remove calls past their lifetime as the journal writes again, ended or running, leaving their call events", async () => {
     const storage = await AuditStorage.open({ milliseconds: 50 });
-    const stopping = new AbortController();
-    const failures: unknown[] = [];
-    const report = (_controller: unknown, _key: string, error: unknown) => failures.push(error);
     try {
         // record an ended call and a running one
         const recorded = await storage.recorder.record(undefined, documentRename, {
@@ -78,29 +74,21 @@ test("remove calls past their lifetime through the journal's controller, ended o
         const pending = storage.recorder.begin(documentRename, rename);
         await storage.recorder.append(pending);
 
-        // let the journal's control loop remove both once their lifetime ends
+        // record a third call once both outlive their lifetime
         const { simulation } = storage;
-        const loop = new ControlLoop(
-            storage.database,
-            { controllers: [storage.journal.controller()], cursors: [] },
-            {
-                report,
-            },
-        ).run(stopping.signal);
-        const remaining = async () =>
-            (await storage.database.select({ id: journal.id }).from(journal)).map((row) => row.id);
-        await simulation.waitUntil(async () => (await remaining()).length === 0);
-        stopping.abort();
-        await loop;
+        await simulation.jump(simulation.clock.now() + 50);
+        const third = await storage.recorder.record(undefined, documentRename, {
+            ...rename,
+            outcome: { kind: "success" },
+        });
 
-        // retain the ended call's event past the journal's lifetime
-        expect([await remaining(), await storage.calls("universe"), failures]).toEqual([
-            [],
-            [recorded],
-            [],
+        // keep the third call alone, and the ended calls' events past the journal's lifetime
+        const remaining = await storage.database.select({ id: journal.id }).from(journal);
+        expect([remaining.map((row) => row.id), await storage.calls("universe")]).toEqual([
+            [third.execution.id],
+            [recorded, third],
         ]);
     } finally {
-        stopping.abort();
         await storage.close();
     }
 });

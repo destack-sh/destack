@@ -1,6 +1,6 @@
 import { testSimulation } from "../src/test/index.ts";
 import { AccessContext, Caller, none, principal, relation, through } from "@destack/access";
-import { defineDatabase } from "@destack/db";
+import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { EventTime } from "@destack/event";
 import { schema, type Identifier } from "@destack/schema";
@@ -35,6 +35,8 @@ const visit = defineObject(
             flush: { maxAge: { hours: 1 }, maxRows: 1000 },
             retention: { days: 30 },
             delivery: "exactly-once",
+            // index each page's visits
+            indexes: ["page"],
         },
         fields: {
             /** The visitor. */
@@ -280,6 +282,15 @@ test("append a visitor's visit publicly, refusing another's, and read visits fro
         refused: ["NOT_FOUND", "NOT_FOUND", "visit not found"],
         counted: { count: 1 },
     });
+});
+
+test("index events by time and by each field their storage declares indexed, and nothing else", () => {
+    const indexes = visit.table[TABLE]
+        .constraints("sqlite")
+        .flatMap((constraint) => (constraint.kind === "index" ? [constraint.name] : []))
+        .toSorted();
+
+    expect(indexes).toEqual(["visit_page", "visit_time"]);
 });
 
 test("read the events a space appended after a log sequence, in commit order", async () => {

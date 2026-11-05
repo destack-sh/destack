@@ -49,6 +49,8 @@ export class ObjectCursor implements Cursor {
     readonly tables: readonly [ObjectType["table"]];
     /** How long its first untaken event waits before it takes the page, in milliseconds. */
     readonly batch: number;
+    /** Whether it claims pages, as every host serving the events table reads them. */
+    readonly isClaimed = true;
     /** The store serving the events. */
     readonly #store: ObjectStore;
     /** The events type the cursor reads. */

@@ -4,11 +4,9 @@ import {
     eq,
     isNull,
     sql,
-    inArray,
+    lte,
     type DatabaseConnection,
     type TransactionOptions,
-    type Controller,
-    now,
 } from "@destack/db";
 import { type EventKind, type EventStore, EventTime } from "@destack/event";
 import { canonicalize, Digest, Duration } from "@destack/schema";
@@ -85,6 +83,8 @@ export class Journal {
     readonly lifetime: number;
     /** The environment retry periods and lifetimes run on, and call identifiers draw from. */
     readonly environment: Environment;
+    /** When the journal last removed its expired calls, absent before its first write. */
+    #prunedAt: number | undefined;
 
     /** Journal a database's calls, fingerprinting sensitive inputs under the deployment's key. */
     constructor(database: DatabaseConnection, key: CallKey, options: JournalOptions) {
@@ -174,8 +174,16 @@ export class Journal {
             )
             .map(({ entry }) => Journal.event(CallEvent.parse(Journal.recorded(entry))));
 
+        // remove the expired calls once a lifetime, as a replay refuses an expired request anyway
+        const now = this.clock.now();
+        const isPruning = this.#prunedAt === undefined || now >= this.#prunedAt + this.lifetime;
+        if (isPruning) {
+            this.#prunedAt = now;
+        }
+
         // insert or finish the calls, and append the ended audited ones, in one round trip
-        const [written, refusal] = await Promise.all([
+        const [, written, refusal] = await Promise.all([
+            isPruning ? transaction.delete(journal).where(lte(journal.expiresAt, now)) : undefined,
             transaction
                 .insert(journal)
                 .values(rows)
@@ -348,28 +356,6 @@ export class Journal {
         const recorded = await this.#recorded(database, request);
 
         return recorded.at(-1)?.execution.outcome;
-    }
-
-    /** Remove the calls past their request's retry lifetime as they expire. */
-    controller(): Controller<typeof journal> {
-        return {
-            name: "journal",
-            table: journal,
-            pending: { expiresAt: { lte: now } },
-            key: [],
-            reconcile: async (rows) => {
-                // remove the calls past their lifetime
-                await this.database.transaction(
-                    async (transaction) =>
-                        await transaction.delete(journal).where(
-                            inArray(
-                                journal.id,
-                                rows.map((row) => row.id),
-                            ),
-                        ),
-                );
-            },
-        };
     }
 
     /** Read a request's recorded calls in order. */

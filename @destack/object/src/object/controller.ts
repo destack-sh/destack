@@ -96,6 +96,8 @@ export interface ObjectProjection<Object extends ObjectType = ObjectType> {
 export interface ObjectWatch<Watched extends Table = Table> {
     /** The watched table. */
     readonly table: Watched;
+    /** Whether observations of its rows select keys too, as an owner waits for what it owns. */
+    readonly isObserving?: boolean;
     /** Read the keys a changed row selects, given the change with its row before and after. */
     keys(
         row: RowImage<Watched>,
@@ -106,12 +108,13 @@ export interface ObjectWatch<Watched extends Table = Table> {
 
 /** Watch other tables for a controller. */
 export const ObjectWatch = {
-    /** Watch a table's changed rows, typing them by the table. */
+    /** Watch a table's changed rows, typing them by the table, observations too if asked. */
     of<Watched extends Table>(
         table: Watched,
         keys: ObjectWatch<Watched>["keys"],
+        options: { readonly isObserving?: boolean } = {},
     ): ObjectWatch<Watched> {
-        return { table, keys };
+        return { table, keys, ...options };
     },
 };
 
@@ -158,6 +161,7 @@ export const ObjectController = {
         const key = declared.key ?? ["id"];
         const watches = (declared.watches ?? []).map((watch): Watch => ({
             table: watch.table,
+            ...(watch.isObserving === undefined ? {} : { isObserving: watch.isObserving }),
             keys: (change, database) => watch.keys(Change.image(change), database, change),
         }));
 
@@ -269,6 +273,9 @@ export const ObjectController = {
         return new Projection(store.database, {
             name: `project:${name}`,
             tables: [...new Set([object.table, ...watches.keys()])],
+            observed: declared.watches.flatMap((watch) =>
+                watch.isObserving === true ? [watch.table] : [],
+            ),
             keys,
             all: async (database) =>
                 (await database.select({ key: keyColumn }).from(object.table)).map((row) =>

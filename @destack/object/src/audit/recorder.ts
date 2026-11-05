@@ -40,8 +40,6 @@ export interface AuditRecorderOptions {
     readonly requestId?: string;
     /** The code making the calls, such as a controller's name. */
     readonly component?: string;
-    /** The call running these inside its transaction, absent for calls sent to the store. */
-    readonly parentId?: Identifier<"call">;
 }
 
 /** The request a recorded call belongs to, and what a retry replays. */
@@ -148,7 +146,6 @@ export class AuditRecorder {
                     package: options.package,
                     scope,
                     ...(options.component === undefined ? {} : { component: options.component }),
-                    ...(options.parentId === undefined ? {} : { parentId: options.parentId }),
                 },
                 options.requestId,
             );

@@ -17,6 +17,7 @@ import {
     type ObjectOf,
     defineObject,
     field,
+    ObjectDescription,
     type CallableName,
     type ObjectType,
 } from "../src/index.ts";
@@ -98,6 +99,25 @@ const profile = defineObject(
 
 /** The package serving the boards, profiles and presence. */
 const boardsPackage = definePackage({ objects: { presence, board, profile } });
+
+test("refuse relating an ephemeral object's creator, as no relationship outlives it", () => {
+    expect(() =>
+        ObjectDescription.of(
+            defineObject(
+                {
+                    name: "marker",
+                    plural: "markers",
+                    scope: space,
+                    storage: "ephemeral",
+                    fields: { note: field.string() },
+                    relations: { author: { subjects: [user] } },
+                    permissions: { write: relation("author") },
+                },
+                (method) => ({ create: method.create("write", { creator: "author" }) }),
+            ),
+        ),
+    ).toThrow(new TypeError("ephemeral object marker cannot relate its creation in method create"));
+});
 
 test("share presence on a board across instances, guarded by access, gone after its writer", async () => {
     // run in a world of its own, moving its time while the work waits

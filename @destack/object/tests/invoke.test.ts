@@ -210,7 +210,7 @@ test("invoke another object's method in a call, as its caller, audited and refus
     context = userContext(users.grace, spaceId, { environment: world });
     const foreign = await call(book, "create", { shelf: "home" });
 
-    // tidy user-1's writable books on the shelf, auditing both calls
+    // tidy user-1's writable books on the shelf, auditing the shelf's call alone
     context = userContext(users.frank, spaceId, { environment: world });
     const before = (await auditedActions(storage.database, "caller")).length;
     const tidied = await call(shelf, "tidy", { id: home.id });
@@ -228,7 +228,7 @@ test("invoke another object's method in a call, as its caller, audited and refus
     const described = rows.map((row) => `${userName(row.owner)} ${String(row.isTidy)}`).toSorted();
     expect([tidied, auditedTidy, described]).toEqual([
         { count: 2 },
-        ["book.tidy", "shelf.tidy"],
+        ["shelf.tidy"],
         ["frank true", "frank true", "grace false"],
     ]);
 });

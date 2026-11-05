@@ -1,30 +1,32 @@
 import type { DatabaseConnection } from "@destack/db";
-import { CallEvent, call, journal } from "../index.ts";
+import { CallEvent, call } from "../index.ts";
 
-/** Read the audited calls a database records as call events, in journal order. */
+/** Read the audited calls a database records as call events, in the order the log appended them. */
 export async function auditedCalls(database: DatabaseConnection): Promise<CallEvent[]> {
     // read the call events
     const table = call.eventKind().table;
-    const rows = await database.select({ data: table.data }).from(table);
+    const rows = await database.select({ id: table.id, data: table.data }).from(table);
 
-    // read the journal's whole log, noting where each entry was first written
+    // read the events' whole log, noting where each was appended
     const positions = new Map<unknown, number>();
     for (let after = 0, isDone = false; !isDone;) {
-        const page = await database.log.read({ tables: [journal], after });
+        const page = await database.log.read({ tables: [table], after });
         for (const change of page.changes) {
-            if (!positions.has(change.key.id)) {
-                positions.set(change.key.id, positions.size);
+            if (!positions.has(change.key["id"])) {
+                positions.set(change.key["id"], positions.size);
             }
         }
         isDone = page.changes.length === 0 || page.sequence === after;
         after = page.sequence;
     }
 
-    // order each call by its entry's place in the log
-    const calls = rows.map((row) => CallEvent.parse(row.data));
-    const position = (ended: CallEvent) => positions.get(ended.execution.id) ?? Infinity;
+    // order each call by its event's place in the log
+    const ordered = rows.toSorted(
+        (left, right) =>
+            (positions.get(left.id) ?? Infinity) - (positions.get(right.id) ?? Infinity),
+    );
 
-    return calls.toSorted((left, right) => position(left) - position(right));
+    return ordered.map((row) => CallEvent.parse(row.data));
 }
 
 /** Read the methods a database's audited calls ran, a failed one with its error code. */

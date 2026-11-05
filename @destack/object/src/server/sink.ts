@@ -18,8 +18,8 @@ import { waitAborted } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
 import { replicaRequest } from "../replica/request.ts";
 
-/** The cursor listing a store's replica requests, whose checkpoint the listing moves. */
-const REQUESTS_CURSOR = "replica-requests";
+/** The cursor deciding the replicas a store follows, whose checkpoint each decision moves. */
+const SUBSCRIPTIONS_CURSOR = "subscriptions";
 
 /** One requested replica as its row stores it. */
 type ReplicaRequest = typeof replicaRequest.$inferSelect;
@@ -44,7 +44,7 @@ export class ObjectSink {
     /** Build the cursor listing the requested replicas at each start and as their tables change. */
     cursor(subscriber: Subscriber): Cursor {
         return {
-            name: REQUESTS_CURSOR,
+            name: SUBSCRIPTIONS_CURSOR,
             tables: this.#replicaWatches(),
             take: async () => this.#request(subscriber),
         };
@@ -165,7 +165,7 @@ export class ObjectSink {
         }
         this.#listed = position.sequence;
         await database.log.advance(
-            { name: REQUESTS_CURSOR, tables: this.#replicaWatches() },
+            { name: SUBSCRIPTIONS_CURSOR, tables: this.#replicaWatches() },
             position.sequence,
             this.store.clock.now(),
         );
@@ -205,23 +205,14 @@ export class ObjectSink {
         }
     }
 
-    /** List the tables whose changes list the replicas again. */
+    /** List the tables whose changes decide the replicas again, none the follows write. */
     #replicaWatches(): Table[] {
-        // watch the replicated scope types, the stored replicas and their keys
+        // watch the scopes, the replicated scope types and the rows the follows key on
         const scopes = this.store.replicated
             .filter((object) => object.policy.definition.scope === true)
             .map((object) => object.table);
 
-        return [
-            ...new Set([
-                Scope.table,
-                sync.replica,
-                sync.replicaSubscription,
-                sync.replicaKey,
-                ...scopes,
-                ...this.store.watched,
-            ]),
-        ];
+        return [...new Set([Scope.table, ...scopes, ...this.store.watched])];
     }
 
     /** Follow or drop one requested replica until stopped, revised as its request changes. */

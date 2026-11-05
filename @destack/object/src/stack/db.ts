@@ -49,11 +49,8 @@ export const journal = defineTable(
         expiresAt: integer("expires_at").notNull(),
     },
     {
-        log: {},
         constraints: (entry) => [
             uniqueIndex("journal_request").on(entry.request, entry.position),
-            index("journal_scope_time").on(entry.scope, entry.startedAt),
-            index("journal_caller").on(entry.scope, entry.caller),
             index("journal_expiry").on(entry.expiresAt),
         ],
     },
