@@ -148,6 +148,11 @@ export class Login {
         return Account.home(await this.account());
     }
 
+    /** Find the space of the residency the person's personal account stores its data in. */
+    async residency(): Promise<Identifier<"space">> {
+        return this.accounts().residency.locate({ account: await this.account() });
+    }
+
     /** Connect to a package a machine mounts in a partition, with the person's bound token. */
     package<Handle extends PackageHandle>(
         handle: Handle,

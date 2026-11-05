@@ -1,12 +1,13 @@
 import { principal } from "@destack/access";
-import { and, eq } from "@destack/db";
+import { and, eq, Snapshot } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { MemoryKeychain } from "@destack/identity";
 import { Bookmark, ObjectClient } from "@destack/object/client";
 import { present, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, single, test } from "@destack/test";
-import { account } from "../object/account.ts";
+import { Account, account } from "../object/account.ts";
+import { Residency } from "../object/residency.ts";
 import { client } from "../object/client.ts";
 import { SignUp } from "../better-auth/sign-up.ts";
 import { TestAccountStore, TestBrowser, ISSUER, type TestPerson } from "../test/index.ts";
@@ -352,4 +353,35 @@ test("list the addresses of the spaces of every account a signed-in person belon
 
     // expect the home of their personal account, their only space
     expect(await person.spaces()).toEqual([`home--${owner.handle}`]);
+});
+
+test("find a signed-in person's home and the space of their account's residency", async () => {
+    await using accounts = await TestAccountStore.open();
+    const owner = await accounts.signIn(EMAIL);
+    const { signIn, sessions, laptop } = await native(accounts);
+
+    // sign in with the mailed code
+    const started = await signIn.startEmail(EMAIL);
+    const signedIn = await started.verify(await accounts.code());
+    const person = new Login(
+        signedIn,
+        sessions,
+        (request) => accounts.fetch(request),
+        laptop,
+        new Bookmark(),
+    );
+
+    // read the residency the personal account stores its data in, as the store has it
+    const snapshot = Snapshot.live(accounts.database);
+    const [row] = await accounts.database
+        .select({ residencyId: account.table.residencyId })
+        .from(account.table)
+        .where(eq(account.table.id, owner.account));
+    const residency = await Residency.space(snapshot, present(row, "the account").residencyId);
+
+    // expect the home of the personal account and the residency's space
+    expect({ home: await person.home(), residency: await person.residency() }).toEqual({
+        home: Account.home(owner.account),
+        residency,
+    });
 });

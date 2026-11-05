@@ -28,6 +28,9 @@ import { AccountError } from "../error/error.ts";
 /** The name of every account's home space. */
 export const HOME_SPACE = "home";
 
+/** The name a person calls the space of their account's residency by. */
+export const RESIDENCY_SPACE = "residency";
+
 /** An account, the scope of its spaces. */
 export const account = defineObject(
     {
