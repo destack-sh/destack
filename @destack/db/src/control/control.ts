@@ -93,6 +93,8 @@ export type KeyFields = Readonly<Record<string, Scalar>>;
 export interface Watch<Watched extends Table = Table> {
     /** The watched table. */
     readonly table: Watched;
+    /** Whether observations of its rows select keys too, as an owner waits for what it owns. */
+    readonly isObserving?: boolean;
     /** Read the keys a changed row selects. */
     keys(
         change: Change<Watched>,
@@ -132,6 +134,10 @@ export type Controller<Definition extends Table = Table> = {
 
 /** A position in the log: some tables' changes past one checkpoint, each taken once. */
 export interface Cursor extends LogCursor {
+    /** Whether hosts share it by claiming pages, so a pass reads again for untaken changes. */
+    readonly isClaimed?: boolean;
+    /** The read tables whose observations wake it too, none by default. */
+    readonly observed?: readonly Table[];
     /** How long its first untaken change waits before it is taken, in ms. */
     readonly batch?: number;
     /** Take the changes past its checkpoint, moving the checkpoint past them. */
@@ -628,9 +634,14 @@ export class ControlLoop {
         const name = change.table[TABLE].sqlName;
         const at = this.#clock.now();
 
+        // leave an observation to the jobs reading observations, as they alone wait for it
+        const isObservation = Change.isObservation(change);
+
         // take a read table's change, due once the cursor's batch passed
         for (const cursor of this.control.cursors) {
-            if (cursor.tables.some((table) => table[TABLE].sqlName === name)) {
+            const isRead = (tables: readonly Table[]) =>
+                tables.some((table) => table[TABLE].sqlName === name);
+            if (isRead(cursor.tables) && (!isObservation || isRead(cursor.observed ?? []))) {
                 this.enqueue(cursor, ONE_CHECKPOINT, at + (cursor.batch ?? 0));
             }
         }
@@ -639,19 +650,25 @@ export class ControlLoop {
             const { controller } = compiled;
             if (controller.table[TABLE].sqlName === name) {
                 // tell the running key of the row before its change, then select the row after it
+                //  unless an observation leaves it in a pending condition that reads no fields
                 const before = Change.before(change);
                 const after = Change.after(change);
                 if (before !== null) {
                     this.#notify(controller, ControlLoop.#keyOf(compiled, before));
                 }
-                if (after !== null) {
+                if (
+                    after !== null &&
+                    (!isObservation || Object.keys(controller.pending).length > 0)
+                ) {
                     this.#select(compiled, after, at);
                 }
             }
 
             // take the keys a watched table's change selects
             const watches = (controller.watches ?? []).filter(
-                (watch) => watch.table[TABLE].sqlName === name,
+                (watch) =>
+                    watch.table[TABLE].sqlName === name &&
+                    (!isObservation || watch.isObserving === true),
             );
             for (const watch of watches) {
                 const keys = await (async () => watch.keys(change, this.database))().catch(
@@ -1078,7 +1095,9 @@ export class ControlLoop {
                 // take a cursor's changes, then again while changes remain past its checkpoint
                 if (ControlLoop.#isCursor(controller)) {
                     await controller.take(reconciliation);
-                    await this.#readUntaken(controller);
+                    if (controller.isClaimed === true) {
+                        await this.#readUntaken(controller);
+                    }
 
                     return;
                 }

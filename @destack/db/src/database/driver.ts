@@ -160,12 +160,13 @@ export class DatabaseDriver {
         );
     }
 
-    /** Submit work that commits by itself and writes some tables, some of them by scripts. */
+    /** Run work that commits by itself, then announce the tables it wrote and its last sequence. */
     async commit<Value>(
         operation: () => Promise<Value>,
         tables: ReadonlySet<string>,
         scripted: ReadonlySet<string>,
         statement: DriverStatement,
+        sequence: () => number | undefined = () => undefined,
     ): Promise<Value> {
         // record the tables in the enclosing transaction, marking a replica's write that derives rows first
         const transaction = this.transaction;
@@ -189,9 +190,9 @@ export class DatabaseDriver {
         // commit
         const result = await this.run(operation, statement);
 
-        // announce a commit that wrote tables
+        // announce a commit that wrote tables, with the last sequence it logged
         if (tables.size > 0) {
-            this.state.commits.notify(tables, scripted);
+            this.state.commits.notify(tables, scripted, sequence());
         }
 
         return result;

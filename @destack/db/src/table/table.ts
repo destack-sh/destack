@@ -129,6 +129,7 @@ export class Table<
                 constraints: () => [],
                 retention: state.log?.retention ?? "none",
                 isAppendOnly: state.log?.appendOnly === true,
+                generation: undefined,
                 moved: {},
                 convert: {},
                 aggregates: [],
@@ -275,6 +276,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly retention: ChangeRetention;
     /** Whether rows are only ever inserted, deletes going unlogged. */
     readonly isAppendOnly: boolean;
+    /** The column counting the desired state's changes, absent for a table without one. */
+    readonly generation: string | undefined;
     /** The table's previous names. */
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
@@ -329,6 +332,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         this.columns = columns;
         this.retention = declaration.retention;
         this.isAppendOnly = declaration.isAppendOnly;
+        this.generation = declaration.generation;
         this.moved = declaration.moved;
         this.convert = declaration.convert;
         this.aggregates = declaration.aggregates;
@@ -619,6 +623,8 @@ interface TableDeclaration {
     readonly retention: ChangeRetention;
     /** Whether rows are only ever inserted, deletes going unlogged. */
     readonly isAppendOnly: boolean;
+    /** The column counting the desired state's changes, absent for a table without one. */
+    readonly generation: string | undefined;
     /** The table's previous names. */
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
@@ -685,6 +691,8 @@ export type LogOptions = {
     readonly retention?: Exclude<ChangeRetention, "none">;
     /** Whether rows are only inserted, as events are, their deletes going unlogged. */
     readonly appendOnly?: boolean;
+    /** The column counting the desired state's changes: an update leaving it is status alone. */
+    readonly generation?: string;
 };
 
 /** The options of a table. */
@@ -829,6 +837,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
             constraints: () => options.constraints?.(columns) ?? [],
             retention: options.log === undefined ? "none" : (options.log.retention ?? "window"),
             isAppendOnly: options.log?.appendOnly === true,
+            generation: options.log?.generation,
             moved: options.moved ?? {},
             convert: options.convert ?? {},
             aggregates: options.aggregates ?? [],
@@ -861,6 +870,7 @@ export function alias<Definition extends Table, Name extends string>(
             constraints: () => [],
             retention: source[TABLE].retention,
             isAppendOnly: source[TABLE].isAppendOnly,
+            generation: source[TABLE].generation,
             moved: source[TABLE].moved,
             convert: source[TABLE].convert,
             aggregates: source[TABLE].aggregates,

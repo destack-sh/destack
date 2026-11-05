@@ -356,7 +356,13 @@ function define(table: CommonTable, target: Target): string {
 
 /** Report whether a statement only reads: it selects, with no writing verb outside its quotes. */
 function isReading(text: string): boolean {
-    const bare = text.replace(QUOTED, "''");
+    // refuse another verb, and take a read naming no writing verb, quoted or not
+    if (!READ.test(text)) {
+        return false;
+    } else if (!WRITING.test(text)) {
+        return true;
+    }
 
-    return READ.test(bare) && !WRITING.test(bare);
+    // look for the writing verb outside the quotes
+    return !WRITING.test(text.replace(QUOTED, "''"));
 }

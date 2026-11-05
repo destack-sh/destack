@@ -120,6 +120,17 @@ export const Change = {
         return change.operation === "delete" ? null : change.after;
     },
 
+    /** Report whether an update leaves its table's generation, recording an observation alone. */
+    isObservation(change: Write): boolean {
+        const generation = change.table[TABLE].generation;
+
+        return (
+            generation !== undefined &&
+            change.operation === "update" &&
+            change.before[generation] === change.after[generation]
+        );
+    },
+
     /** Report whether a change is to one table, typing its rows by it. */
     of<Definition extends Table>(change: Change, table: Definition): change is Change<Definition> {
         return change.table === table;
@@ -144,6 +155,8 @@ export interface ChangePage<Definition extends Table = Table> {
     readonly changes: readonly Change<Definition>[];
     /** The sequence the next read continues after. */
     readonly sequence: number;
+    /** Whether the page reached the log's end as read, leaving nothing past it for now. */
+    readonly isLast: boolean;
 }
 
 /** The write-order id of a log entry: the row id on SQLite, the identity column on PostgreSQL. */
@@ -572,7 +585,7 @@ export class Log {
         const sequence =
             changes.length >= limit ? end : Math.max(end, latestOf(bounds.logged, bounds.horizon));
 
-        return { changes, sequence };
+        return { changes, sequence, isLast: changes.length < limit };
     }
 
     /** Read the open transaction's identity, stamping it, absent outside a transaction or a log. */
@@ -664,14 +677,13 @@ export class Log {
             // yield a page with changes, or an advance when asked
             const isYielded =
                 page.changes.length > 0 || (options.isAdvancing === true && page.sequence > after);
-            const isFull = page.changes.length >= (selection.limit ?? PAGE_LIMIT);
             after = Math.max(after, page.sequence);
             if (isYielded) {
                 yield page;
             }
 
             // read on after a full page, else wait for a commit past it
-            if (!isFull) {
+            if (page.isLast) {
                 const next = after + 1;
                 await this.waitUntil(
                     async (committed) =>

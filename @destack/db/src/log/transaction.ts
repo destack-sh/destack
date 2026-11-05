@@ -1,9 +1,10 @@
 import { quote } from "../dialect/quote.ts";
 import type { Session } from "../database/session.ts";
-import { schema, Uuid } from "@destack/schema";
+import { present, schema, Uuid } from "@destack/schema";
 import type { ConnectionState } from "../database/connection.ts";
 import { CHANGED_AT_SETTING, COMMIT_TOKEN_SETTING, LOG, LOG_TRANSACTION } from "./schema.ts";
 import { relation } from "../table/namespace.ts";
+import { LogColumn } from "./position.ts";
 import { FullTextIndex } from "../search/search.ts";
 
 /** The token a PostgreSQL commit notification sends back to its writer. */
@@ -117,8 +118,8 @@ export class TransactionIdentity {
         }
     }
 
-    /** Update a stamped transaction's full-text rows, then clear its marker before commit. */
-    async close(): Promise<void> {
+    /** Update written searched tables' full text, clear the marker, and read the last sequence. */
+    async close(written: ReadonlySet<string>): Promise<number | undefined> {
         // surface a failed PostgreSQL stamp, and ask in statement order whether the transaction logged
         if (this.#session.dialect === "postgresql") {
             await this.#timed;
@@ -132,22 +133,31 @@ export class TransactionIdentity {
                 this.#token.isLogged.catch(() => undefined);
             }
 
-            return;
+            return undefined;
         }
 
         // leave a transaction that logged nothing
         if ((await this.#stamped) === undefined) {
-            return;
+            return undefined;
         }
 
-        // update the full-text rows, then clear the marker
-        await FullTextIndex.update(
-            this.#session,
-            this.#connection.searched,
-            this.#connection.namespace,
+        // update the full-text rows of the searched tables written, then clear the marker
+        const searched = new Map(
+            [...this.#connection.searched].filter(([name]) => written.has(name)),
         );
-        const marker = quote(relation(LOG_TRANSACTION, this.#connection.namespace));
-        await this.#session.run(`DELETE FROM ${marker} WHERE slot = 1`, []);
+        await FullTextIndex.update(this.#session, searched, this.#connection.namespace);
+        const { namespace } = this.#connection;
+        const marker = quote(relation(LOG_TRANSACTION, namespace));
+        const log = quote(relation(LOG, namespace));
+        const [cleared] = await this.#session.all(
+            `DELETE FROM ${marker} WHERE slot = 1 RETURNING (SELECT max(sequence) FROM ${log}) AS sequence`,
+            [],
+        );
+
+        return (
+            LogColumn.nullableInteger(present(cleared, "the transaction marker")["sequence"]) ??
+            undefined
+        );
     }
 
     /** Set PostgreSQL's transaction-local time, and the token while the connection listens. */

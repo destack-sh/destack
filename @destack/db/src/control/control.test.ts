@@ -54,6 +54,22 @@ const note = defineTable(
     { log: {} },
 );
 
+/** Logged orders, an update leaving their generation being status. */
+const order = defineTable(
+    "controller_order",
+    {
+        /** The order's name. */
+        id: text("id").primaryKey(),
+        /** The space with the order. */
+        scope: text("scope").notNull(),
+        /** The count of the order's desired state's changes. */
+        generation: integer("generation").notNull(),
+        /** The order's observed state. */
+        state: text("state").notNull(),
+    },
+    { log: { generation: "generation" } },
+);
+
 /** Unlogged tickets a controller reads. */
 const ticket = defineTable("controller_ticket", {
     /** The ticket's name. */
@@ -432,6 +448,75 @@ test("select the jobs a watched table's change names, reporting a failing watch 
         reconciled: ["first", "first", "first", "second", "second"],
         reported: ["controller_note: unreadable note"],
     });
+});
+
+test("wake a watch on an observation only when it observes, and on a desired change always", async () => {
+    // record a job of a space, and an order there whose watches select it
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [job, note, order, lock]);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(job)
+            .values({ id: "first", scope: "space", status: "open", dueAt: 0 })
+            .execute(),
+    );
+    await database.transaction((transaction) =>
+        transaction
+            .insert(order)
+            .values({ id: "order", scope: "space", generation: 1, state: "new" })
+            .execute(),
+    );
+
+    // count the passes of a controller watching desired changes, and of one observing too
+    const counted = { desired: 0, observing: 0 };
+    const controller = (
+        name: keyof typeof counted,
+        isObserving: boolean,
+    ): Controller<typeof job> => ({
+        name,
+        table: job,
+        pending: { status: "open" },
+        key: ["scope"],
+        watches: [
+            {
+                table: order,
+                isObserving,
+                keys: (change) => [{ scope: schema.string().parse(Change.image(change)["scope"]) }],
+            },
+        ],
+        reconcile: async () => {
+            counted[name] += 1;
+        },
+    });
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller("desired", false), controller("observing", true)], cursors: [] },
+        { report: ignore },
+    );
+    running(loop);
+    await loop.idle();
+    const started = { ...counted };
+
+    // update the order's state alone, then its desired state
+    await database.transaction((transaction) =>
+        transaction.update(order).set({ state: "running" }).where(eq(order.id, "order")).execute(),
+    );
+    await loop.idle();
+    const noted = { ...counted };
+    await database.transaction((transaction) =>
+        transaction
+            .update(order)
+            .set({ state: "new", generation: 2 })
+            .where(eq(order.id, "order"))
+            .execute(),
+    );
+    await loop.idle();
+
+    // wake the observing watch alone on the observation, and both on the desired change
+    expect({
+        observation: [noted.desired - started.desired, noted.observing - started.observing],
+        desired: [counted.desired - noted.desired, counted.observing - noted.observing],
+    }).toEqual({ observation: [0, 1], desired: [1, 1] });
 });
 
 test("report a key failing transiently only once its retries last past the window, and any other failure at once", async () => {
@@ -814,6 +899,40 @@ test("take a cursor's changes once its first untaken one is a batch old, at the 
     stopping.abort();
     await run;
     expect(taken).toEqual([50, 110]);
+});
+
+test("project the keys of changes past one log page in one take, through the log's head", async () => {
+    // place the projection's checkpoint, then record more notes than one page reads
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [note, lock]);
+    await database.log.place({ name: "note-pages", tables: [note] }, Number.MAX_SAFE_INTEGER);
+    const scopes = Array.from({ length: 1100 }, (_, index) => `space-${index}`);
+    for (let first = 0; first < scopes.length; first += 100) {
+        const rows = scopes.slice(first, first + 100).map((scope) => ({ id: scope, scope }));
+        await database.transaction((transaction) =>
+            transaction.insert(note).values(rows).execute(),
+        );
+    }
+
+    // project each space a note touches
+    const projected: string[] = [];
+    const projection = new Projection(database, {
+        name: "note-pages",
+        tables: [note],
+        keys: async (change) => [schema.string().parse(Change.image(change)["scope"])],
+        all: async () => [],
+        project: async (key) => {
+            projected.push(key);
+        },
+    });
+
+    // take once, projecting every space and moving the checkpoint to the head
+    await projection.take({ signal: new AbortController().signal, changed: async () => {} });
+    const { sequence } = await database.log.position();
+    expect({
+        projected: projected.toSorted(),
+        checkpoint: await database.log.checkpoint("note-pages"),
+    }).toEqual({ projected: scopes.toSorted(), checkpoint: sequence });
 });
 
 test("project every key at the first start, then only the keys the changes past its checkpoint touch, across restarts", async () => {

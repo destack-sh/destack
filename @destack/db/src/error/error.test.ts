@@ -3,7 +3,13 @@ import { text } from "../table/column.ts";
 import { uniqueIndex } from "../table/constraint.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { TestDatabase } from "../test/database.ts";
-import { classifyError, DatabaseError, type DeclaredNames, violatedKeyOf } from "./error.ts";
+import {
+    classifyError,
+    DatabaseError,
+    type DeclaredNames,
+    isAborted,
+    violatedKeyOf,
+} from "./error.ts";
 import { testSimulation } from "@destack/test/world";
 
 /** Notes as a database declares them, their title column named apart from its property. */
@@ -49,6 +55,17 @@ test("classify driver failures and leave domain errors that wrap them alone", ()
         "DUPLICATE",
         domain,
     ]);
+});
+
+test("report an aborted transaction thrown directly or wrapped in a cause, and no other failure", () => {
+    // a driver's aborted transaction, a failure wrapping it, and an unrelated driver failure
+    const aborted = Object.assign(new Error("current transaction is aborted"), { code: "25P02" });
+    const wrapped = new Error("query failed", {
+        cause: new Error("statement failed", { cause: aborted }),
+    });
+    const other = Object.assign(new Error("duplicate key value"), { code: "23505" });
+
+    expect([aborted, wrapped, other].map(isAborted)).toEqual([true, true, false]);
 });
 
 test("read the table and key columns a duplicate violates", async () => {

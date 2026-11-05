@@ -155,9 +155,16 @@ export function errorCode(error: unknown): string | undefined {
         : undefined;
 }
 
-/** Report whether a failure only reports a transaction an earlier statement's failure aborted. */
+/** Report whether a failure, or one it wraps, reports a transaction already aborted. */
 export function isAborted(failure: unknown): boolean {
-    return errorCode(failure) === "25P02";
+    for (let current = failure; current !== undefined;) {
+        if (errorCode(current) === "25P02") {
+            return true;
+        }
+        current = current instanceof Error ? current.cause : undefined;
+    }
+
+    return false;
 }
 
 /** Report whether an error is or wraps a failure. */

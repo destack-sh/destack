@@ -152,7 +152,10 @@ export class CommitWatch {
     }
 
     /** Wake a commit's readers here, and announce what the database leaves unannounced. */
-    notify(tables: ReadonlySet<string>, scripted: ReadonlySet<string>): void {
+    notify(tables: ReadonlySet<string>, scripted: ReadonlySet<string>, sequence?: number): void {
+        // advance to the commit's last sequence, every earlier one committed under SQLite's one writer
+        this.#sequence = Math.max(this.#sequence, sequence ?? 0);
+
         // wake this connection's readers of every written table, which it knows before the channel delivers
         this.#wake([...tables]);
 

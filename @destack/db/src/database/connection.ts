@@ -468,6 +468,7 @@ export class DatabaseConnection<
         const written = this.driver.transaction?.written ?? new Set<string>();
         const scripted = this.driver.transaction?.scripted ?? new Set<string>();
         let attempt: TransactionIdentity | undefined;
+        let sequence: number | undefined;
         const execute = () =>
             this.driver.session.transaction(
                 async (session) => {
@@ -506,7 +507,7 @@ export class DatabaseConnection<
                     });
                     await deferring;
                     if (!isNested) {
-                        await identity.close();
+                        sequence = await identity.close(new Set([...written, ...scripted]));
                     }
 
                     return result;
@@ -540,6 +541,7 @@ export class DatabaseConnection<
                         written,
                         scripted,
                         TRANSACTION,
+                        () => sequence,
                     );
                     attempt?.commit();
                     if (written.size > 0) {
