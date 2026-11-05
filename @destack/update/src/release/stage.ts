@@ -1,4 +1,4 @@
-import type { Environment, OperatingSystem } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import { UpdateError } from "../error/error.ts";
 
 /** The names of the stages a build belongs to: the published platform, or the local universe. */
@@ -15,13 +15,6 @@ const ISSUERS = {
     production: "https://destack.app",
     local: "http://127.0.0.1:4100",
 } as const satisfies Readonly<Record<(typeof NAMES)[number], string>>;
-
-/** The machine executable's file name a release ships on each operating system. */
-export const MACHINE_EXECUTABLES: Readonly<Record<OperatingSystem, string>> = {
-    darwin: "destack-machine",
-    linux: "destack-machine",
-    win32: "destack-machine.exe",
-};
 
 /** The stage a build belongs to: its universe, command, directory and application identity. */
 export class Stage {

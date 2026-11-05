@@ -265,9 +265,8 @@ async function verifyRelease(
 ): Promise<void> {
     // execute only an archive previously authenticated by the update repository
     const { clock, files, process } = environment;
-    const name = release.target.includes("windows") ? "destack.exe" : "destack";
+    const name = Release.executable("destack", Release.system(release.target));
     const child = process.spawn([join(directory, "bin", name), "--version", "--json"], {
-        variables: { ...process.variables, DESTACK_UPDATE_CHECK: "1" },
         stdin: "ignore",
         stdout: "pipe",
         stderr: "pipe",

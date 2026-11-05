@@ -5,7 +5,7 @@ import { verifyApplication } from "../apple/install.ts";
 import { ShellPath } from "../install/path.ts";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import type { StagedRelease } from "../install/installer.ts";
-import { MACHINE_EXECUTABLES, RELEASE_ROOT, Release, type Stage } from "../release/index.ts";
+import { RELEASE_ROOT, Release, type Stage } from "../release/index.ts";
 import { UpdateError } from "../error/index.ts";
 import { Updater } from "../update/index.ts";
 
@@ -314,8 +314,8 @@ export class Distribution {
         }
     }
 
-    /** Locate a helper executable inside a Mac application. */
-    static helper(application: string, name: string): string {
+    /** Locate an executable bundled in a Mac application, in its Contents/Helpers. */
+    static bundled(application: string, name: string): string {
         return join(application, "Contents", "Helpers", name);
     }
 
@@ -335,14 +335,14 @@ export class Distribution {
         // link the bundle's command unless the link already points at it
         const { files, random } = this.options.environment;
         const path = join(bin, stage.command);
-        const target = Distribution.helper(application, "destack");
+        const target = Distribution.bundled(application, "destack");
         if ((await files.readLink(path).catch(FileSystemError.absent)) !== target) {
             const pending = join(bin, `.destack-${Uuid.v4(random)}`);
             await files.symlink(target, pending);
             await files.rename(pending, path);
         }
 
-        return Distribution.helper(application, MACHINE_EXECUTABLES.darwin);
+        return Distribution.bundled(application, Release.executable("destack-machine", "darwin"));
     }
 
     /** Write a native package's command shim into bin, following the activated Windows release. */
@@ -375,7 +375,7 @@ export class Distribution {
                 }
             });
 
-        return join(release, "bin", MACHINE_EXECUTABLES[host.os]);
+        return join(release, "bin", Release.executable("destack-machine", host.os));
     }
 
     /** Register the desktop in the user's menu and as its stage's link handler. */

@@ -1,4 +1,5 @@
-import { Commit, schema, Version } from "@destack/schema";
+import { Commit, present, schema, Version } from "@destack/schema";
+import type { OperatingSystem } from "@destack/environment";
 import { UpdateError } from "../error/error.ts";
 
 /** Operating systems and architectures supported by Destack distributions. */
@@ -53,6 +54,21 @@ export class Release {
         }
 
         return target.data;
+    }
+
+    /** Read the file name of an executable in a release's `bin`, with `.exe` on Windows. */
+    static executable(name: "destack" | "destack-machine", os: OperatingSystem): string {
+        return os === "win32" ? `${name}.exe` : name;
+    }
+
+    /** Read the operating system a release target runs on. */
+    static system(target: Target): OperatingSystem {
+        const systems: readonly OperatingSystem[] = ["darwin", "linux", "win32"];
+
+        return present(
+            systems.find((os) => target.endsWith(`-${SYSTEMS[os]}`)),
+            `the operating system of ${target}`,
+        );
     }
 
     /** Calendar version of the distribution. */
