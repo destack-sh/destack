@@ -1,5 +1,5 @@
-import { eq, Snapshot } from "@destack/db";
-import { binding, Rollout, rollout } from "@destack/stack/object";
+import { Snapshot } from "@destack/db";
+import { Binding, Rollout, rollout } from "@destack/stack/object";
 import { ids } from "@destack/stack/test";
 import { expect, refusal, single, test } from "@destack/test";
 import { vault } from "../object/index.ts";
@@ -34,10 +34,11 @@ test("read a bound vault's secret in process as its installation, and refuse ano
     const otherInstallation = await fixture.space.install(fixture.served, built);
     const bindingOf = async (installationId: typeof otherInstallation) =>
         single(
-            await fixture.served.database
-                .select()
-                .from(binding.table)
-                .where(eq(binding.table.installationId, installationId)),
+            await Binding.targeted(
+                Snapshot.live(fixture.served.database),
+                fixture.space.id,
+                installationId,
+            ),
         );
     const strayBinding = await bindingOf(otherInstallation);
     const strayId = strayBinding.target;

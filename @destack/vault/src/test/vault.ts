@@ -5,7 +5,7 @@ import type { Crypto, Environment } from "@destack/environment";
 import { AccessContext, Caller, type PermissionReference, principal } from "@destack/access";
 import * as account from "@destack/account/object";
 import type { TestPerson } from "@destack/account/test";
-import { and, eq } from "@destack/db";
+import { Snapshot } from "@destack/db";
 import { SimulatedClock } from "@destack/environment/simulation";
 import type { TestCaller, TestObjectStore } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
@@ -13,7 +13,7 @@ import { type BuildReader, Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { RESOURCE_KIND } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
-import { binding } from "@destack/stack/object";
+import { Binding } from "@destack/stack/object";
 import { fixtureOutputs, ids, TestSpace, workload } from "@destack/stack/test";
 import { type Call, RequestId } from "@destack/sync";
 import { single } from "@destack/test";
@@ -226,17 +226,10 @@ export class TestVault {
 
     /** Find the vault the application's binding of a declared vault targets. */
     async vault(name = CREDENTIALS): Promise<Identifier<"vault">> {
-        const found = await this.served.database
-            .select({ target: binding.table.target })
-            .from(binding.table)
-            .where(
-                and(
-                    eq(binding.table.installationId, this.installation),
-                    eq(binding.table.name, name),
-                ),
-            );
+        const reader = Snapshot.live(this.served.database);
+        const bound = await Binding.targeted(reader, this.space.id, this.installation);
 
-        return vault.identifier(single(found).target);
+        return vault.identifier(single(bound.filter((entry) => entry.name === name)).target);
     }
 
     /** Grant a person exactly some permissions through a role the space's stack declares. */

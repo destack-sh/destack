@@ -1,7 +1,7 @@
-import { and, eq, Snapshot } from "@destack/db";
+import { eq, Snapshot, type DatabaseConnection } from "@destack/db";
 import { CallEvent, call } from "@destack/object";
 import { Duration, type Identifier, schema } from "@destack/schema";
-import { binding, Rollout, rollout } from "@destack/stack/object";
+import { Binding, Rollout, rollout } from "@destack/stack/object";
 import { ids, TestSpace } from "@destack/stack/test";
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { principal } from "@destack/access";
@@ -397,7 +397,14 @@ test("deny plaintext while the space is suspended, keeping its metadata readable
     const suspended = [await refusal(client.secret.read(key)), await client.secret.get(key)];
     await fixture.space.change("resume");
     expect([suspended, await client.secret.read(key)]).toEqual([
-        [["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"], metadata],
+        [
+            [
+                "FORBIDDEN",
+                "SCOPE_SUSPENDED",
+                "scope space-01996ab0-0000-7000-8000-000000000002 is suspended",
+            ],
+            metadata,
+        ],
         FIRST,
     ]);
 });
@@ -461,10 +468,9 @@ test("generate a declared key in the vault its installation binds, and read what
     const jwk = schema
         .looseObject({ kty: schema.string(), crv: schema.string(), alg: schema.string() })
         .parse(JSON.parse(value.value));
-    const bound = await database
-        .select({ installationId: binding.table.installationId, name: binding.table.name })
-        .from(binding.table)
-        .where(eq(binding.table.target, row.id));
+    const bound = (await targetedBindings(database))
+        .filter((entry) => entry.target === row.id)
+        .map((entry) => ({ installationId: entry.installationId, name: entry.name }));
     const snapshot = Snapshot.live(database);
     const uses = (captured: number | null) =>
         secretBindable.uses({ scope: ids.space, target: row.id, version: captured }, snapshot);
@@ -512,15 +518,9 @@ test("read a bound secret in process as its installation, and refuse another ins
     const row = single(await Rollout.read(snapshot, rows));
     const keyOf = async (installationId: Identifier<"installation">) =>
         single(
-            await database
-                .select()
-                .from(binding.table)
-                .where(
-                    and(
-                        eq(binding.table.installationId, installationId),
-                        eq(binding.table.name, "key"),
-                    ),
-                ),
+            (await Binding.targeted(Snapshot.live(database), ids.space, installationId)).filter(
+                (entry) => entry.name === "key",
+            ),
         );
     const strayBinding = await keyOf(otherInstallation);
     const strayId = strayBinding.target;
@@ -593,14 +593,13 @@ test("bind a secret the stack declares at a fixed version, and trash it once the
             },
         },
     );
-    const bound = await fixture.served.database
-        .select({
-            installationId: binding.table.installationId,
-            target: binding.table.target,
-            version: binding.table.version,
-        })
-        .from(binding.table)
-        .where(eq(binding.table.name, "token"));
+    const bound = (await targetedBindings(fixture.served.database))
+        .filter((entry) => entry.name === "token")
+        .map((entry) => ({
+            installationId: entry.installationId,
+            target: entry.target,
+            version: entry.version,
+        }));
 
     // drop the consumer and the secret from the stack at a paused time, trashing the secret
     const before = await client.secret.get({ scope: ids.space, id: declared.id });
@@ -649,3 +648,20 @@ test("point a secret the stack declares at a version as the space's owner, keepi
         name: "github",
     });
 });
+
+/** Read the bindings of the space's targeted revisions, with their installations. */
+async function targetedBindings(database: DatabaseConnection) {
+    const snapshot = Snapshot.live(database);
+    const rollouts = await snapshot.read(rollout.table).findMany({ where: { scope: ids.space } });
+
+    return (
+        await Promise.all(
+            rollouts.map(async (row) =>
+                (await Binding.targeted(snapshot, ids.space, row.installationId)).map((entry) => ({
+                    ...entry,
+                    installationId: row.installationId,
+                })),
+            ),
+        )
+    ).flat();
+}
