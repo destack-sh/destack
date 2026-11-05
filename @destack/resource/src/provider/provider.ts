@@ -44,7 +44,7 @@ const resourceBinding = schema.object({
     credential: schema.string().min(1).exactOptional(),
     /** The space keeping a bound object its service serves, such as a secret. */
     scope: schema.identifier("space").exactOptional(),
-    /** The version of the bound object the deployment captured, such as a secret's. */
+    /** The version of the bound object the deployment runs with, such as a secret's. */
     version: schema.number().int().positive().exactOptional(),
 });
 
