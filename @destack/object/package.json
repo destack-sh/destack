@@ -49,6 +49,7 @@
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
+        "test": "bun --bun run vitest run --config vitest.config.ts",
+        "bench": "bun --bun run vitest run --config vitest.config.ts --project 'bench:*'"
     }
 }
