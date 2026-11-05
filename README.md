@@ -23,7 +23,7 @@
 Destack is an **open-source software engine** for building and deploying general purpose applications, much like what Unreal Engine is for games.
 Think **GitHub + NPM + Convex + Vercel + Sentry in one**, with all the boring decisions already made: auth, migrations, services, multiplayer, workflows, telemetry, testing, and hosting.
 
-Destack **standardises software production**:
+Destack **standardises software production and deployment**:
  1. **Build custom software** with your own AI, in a standardised pipeline.
  2. **Integrate every app and agent**: one account, one database, no walls.
  3. **Control your whole stack**: your data, context and code, on any machine you choose.
@@ -31,8 +31,8 @@ Destack **standardises software production**:
 The Destack comprises both the platform core for building malleable software _and_ standard apps for common use cases (like Notion or Linear).
 All apps built on Destack get the advantages of standardisation and integration out of the box and are thus fully hackable and programmable by your agents.
 
-_Your_ entire Destack - your own personal superapp, with your complete personal context, standardised apps, and custom tools - runs on a _single_ machine (e.g., a SQLite instance on a Cloudflare worker), on your laptop, or on your server, or on our cloud.
-It's as simple and portable as we could make it.
+_Your_ entire Destack - your own personal superapp, with your personal context, your standardised apps, and your custom tools - runs on a _single_ machine wherever you want: on your laptop, or on your server, or on our cloud.
+Everything is as simple and portable as we could make it.
 
 ## Install
 
@@ -49,7 +49,7 @@ curl -fsSL https://destack.sh/install | sh
 
 ## Architecture
 
-Destack is almost entirely written "in itself" using TypeScript and other modern boring Web technologies.
+Destack is (almost) entirely written "in itself" using TypeScript and other modern, boring Web technologies.
 The actual "stack" is carefully composed with [incremental granularity](https://caseymuratori.com/blog_0016) in mind, generally organised into six layers:
 
  1. **[Identity](ARCHITECTURE.md#01-identity)**: one account for every person, agent and app
