@@ -2515,7 +2515,7 @@ export class ObjectStore {
         const chain = await Scope.chain(Snapshot.live(this.database), scope);
         const scopes = chain.map((link) => link.object.id);
 
-        return { scope, ...(await this.database.log.changed("every", scopes)) };
+        return { scope, ...(await this.database.log.changed(this.feed.tables, scopes)) };
     }
 
     /** Decide where a watermark's history is here: local log, an older one, replicas, or none. */
