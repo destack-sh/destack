@@ -2,6 +2,7 @@ import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
 import { users, userName } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { TestDatabase } from "@destack/db/test";
 import { journal, ViewSubscriber } from "../src/index.ts";
 import { eq, Snapshot } from "@destack/db";
 import { BrowserTab, type BrowserTabWorker } from "../src/browser/index.ts";
@@ -905,3 +906,52 @@ async function reached<Value>(
     }
     throw new TypeError("the watch ended before the value was reached");
 }
+
+test("fail the queries open once the source refuses to follow, and refuse later ones again", async () => {
+    const { endpoint, environment } = await serveNotes();
+    const errors: unknown[] = [];
+
+    // follow a space the store does not serve, as alice
+    const storage = await TestDatabase.create(ObjectClient.tables({ notebook, note }), {
+        environment,
+        dialect: "sqlite",
+        storage: "file",
+    });
+    const client = await ObjectClient.open({
+        database: storage.database,
+        objects: { notebook, note },
+        scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000ff"),
+        caller: principal.user.reference("universe", users.alice),
+        endpoint: endpoint(users.alice),
+        reconnect: unmoved,
+        environment,
+    });
+    const stopping = new AbortController();
+    const running = client.run(stopping.signal, (error) => errors.push(error));
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+        await client.close();
+        await storage.close();
+    });
+
+    // watch the notebooks and read them, then read the notes after the refusal, refused each time
+    const outside = [
+        "NOT_FOUND",
+        "SCOPE_OUTSIDE_REQUEST",
+        "scope space-01996ab0-0000-7000-8000-0000000000ff is outside the request's scope",
+    ];
+    const watched = client.query.notebook.findMany().watch(stopping.signal);
+    const failed = await Promise.allSettled([watched.next(), client.query.notebook.findMany()]);
+    const again = await Promise.allSettled([client.query.note.findMany()]);
+    const reasons = [...failed, ...again].map((settled) =>
+        settled.status === "rejected" ? refusal(Promise.reject(settled.reason)) : settled.value,
+    );
+
+    // expect each query to fail with the refusal, which every refused follow reported
+    const reported = await Promise.all(errors.map((error) => refusal(Promise.reject(error))));
+    expect({
+        reasons: await Promise.all(reasons),
+        reported: [...new Set(reported.map((refused) => JSON.stringify(refused)))],
+    }).toEqual({ reasons: [outside, outside, outside], reported: [JSON.stringify(outside)] });
+});

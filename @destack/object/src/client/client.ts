@@ -384,8 +384,12 @@ export class ObjectClient<
     readonly #retry: RetryPolicy;
     /** The environment the client runs in: its clock, network and randomness. */
     readonly environment: Environment;
-    /** Aborts outcome waits and lookups on close. */
+    /** Aborts outcome waits, lookups and watches on close. */
     readonly #closing = new AbortController();
+    /** The refusal the queries open now fail with once the source refuses a follow for good. */
+    #refusal = new FollowRefusal();
+    /** Settles once the replica has the caller's access rows, or false once the client closes. */
+    #accessed: Promise<boolean> | undefined;
     /** The object rows the replica had at a log sequence, absent before the first count. */
     #counted: { readonly sequence: number; readonly rows: number } | undefined;
     /** The open followed queries. */
@@ -1110,6 +1114,11 @@ export class ObjectClient<
                     report(error);
                 }
                 isFinal = Replay.failure(error) !== undefined;
+
+                // fail the queries open now, and let later ones follow again
+                if (isFinal) {
+                    this.#refusal = this.#refusal.refuse(error);
+                }
             } finally {
                 reshaped.abort();
             }
@@ -1292,7 +1301,11 @@ export class ObjectClient<
                     compiled,
                     this.objects,
                 ),
-            watch: (signal) => this.#watch(named, compiled, signal),
+            watch: (signal) =>
+                this.#refusal.watch(
+                    (stop) => this.#watch(named, compiled, stop),
+                    [signal, this.#closing.signal],
+                ),
             close: () => followed.close(),
         };
     }
@@ -1319,7 +1332,11 @@ export class ObjectClient<
                           compiled,
                           isDurable ? this.prediction : undefined,
                       ),
-            watch: (signal) => this.#watchResults(named, compiled, signal),
+            watch: (signal) =>
+                this.#refusal.watch(
+                    (stop) => this.#watchResults(named, compiled, stop),
+                    [signal, this.#closing.signal],
+                ),
             close: () => followed.close(),
         };
     }
@@ -1351,13 +1368,17 @@ export class ObjectClient<
         );
         this.#subscriptions.add(subscribed);
 
-        // mark readiness handled, and answer its failure in the returned query's ready
-        subscribed.ready.catch(() => {});
+        // settle once the replica has the query, and the caller's access for objects it follows, or refused
+        const refusal = this.#refusal;
+        const accessed = object.storage === "local" ? true : this.#access();
+        const replicated = Promise.all([subscribed.ready, accessed]).then(() => {});
+        const ready = Promise.race([replicated, refusal.failed]);
+        ready.catch(() => {});
 
         return {
             compiled,
             named: subscribed.named,
-            ready: subscribed.ready,
+            ready,
             close: async () => {
                 // stop following or mark released
                 closed.abort();
@@ -1849,6 +1870,14 @@ export class ObjectClient<
         for await (const items of watched) {
             yield this.#presenter.present(items, query, this.objects);
         }
+    }
+
+    /** Wait until the replica has the caller's access rows, once for every query. */
+    #access(): Promise<boolean> {
+        const isAccessed = async () => (await this.access.position(this.database)) !== undefined;
+        this.#accessed ??= this.database.log.waitUntil(isAccessed, this.#closing.signal);
+
+        return this.#accessed;
     }
 
     /** Watch an aggregate query's groups through the local feed until aborted. */
@@ -2658,6 +2687,48 @@ export class ObjectClient<
         const { [field]: _omitted, ...rest } = input;
 
         return rest;
+    }
+}
+
+/** A refusal of a client's follow, which fails the queries open until the source refuses. */
+class FollowRefusal {
+    /** Rejects with the refusal once the source refuses the follow for good. */
+    readonly failed: Promise<never>;
+    /** Aborts the watches open until the refusal. */
+    readonly #stopping = new AbortController();
+    /** Reject the queries waiting until the refusal. */
+    readonly #reject: (error: unknown) => void;
+    /** The refusal, absent until the source refuses. */
+    #refused: { readonly error: unknown } | undefined;
+
+    /** Wait for a refusal, marked handled for queries nobody waits on. */
+    constructor() {
+        // reject once refused, marked handled
+        const failed = Promise.withResolvers<never>();
+        failed.promise.catch(() => {});
+        this.failed = failed.promise;
+        this.#reject = failed.reject;
+    }
+
+    /** Fail the queries open until now with an error, and return the refusal later ones wait on. */
+    refuse(error: unknown): FollowRefusal {
+        // fail the waiting queries and stop the open watches
+        this.#refused = { error };
+        this.#reject(error);
+        this.#stopping.abort();
+
+        return new FollowRefusal();
+    }
+
+    /** Yield a watch until a signal or the refusal stops it, then throw the refusal. */
+    async *watch<Value>(
+        watch: (signal: AbortSignal) => AsyncGenerator<Value>,
+        signals: readonly AbortSignal[],
+    ): AsyncGenerator<Value> {
+        yield* watch(AbortSignal.any([...signals, this.#stopping.signal]));
+        if (this.#refused !== undefined) {
+            throw this.#refused.error;
+        }
     }
 }
 
