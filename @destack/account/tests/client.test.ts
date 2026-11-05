@@ -24,7 +24,7 @@ function sortIds(ids: readonly string[]): string[] {
     return ids.toSorted((left, right) => left.localeCompare(right));
 }
 
-/** Sign a proof for a client or machine by a key pair at a time, of a request if given, in a world. */
+/** Sign a proof for a client or machine by a key pair at a time, of a request if given. */
 function prove(
     pair: KeyPair,
     subject: string,

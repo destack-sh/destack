@@ -1,10 +1,11 @@
 import { Failure } from "@destack/error";
-import { AuditCaller, JournalEntry, journal } from "@destack/object";
+import { AuditCaller } from "@destack/object";
+import { auditedCalls } from "@destack/object/test";
 import { ObjectReference, Subject, RequestId } from "@destack/sync";
 import { Account, account, factor, passkey, session, userLogin } from "../src/object/index.ts";
 import { user } from "../src/object/user.ts";
 import { expect, single, test } from "@destack/test";
-import { eq, inArray } from "@destack/db";
+import { eq } from "@destack/db";
 import { Identifier, type JsonObject, type JsonValue, present, schema } from "@destack/schema";
 import { Ciphertext } from "@destack/identity";
 import { ActiveSession } from "../src/better-auth/active-session.ts";
@@ -24,9 +25,6 @@ import { DeviceGrant, Redirect, Tokens } from "./fixture.ts";
 import { principal } from "@destack/access";
 import { PackageId } from "@destack/package";
 import accountPackage from "../src/package.ts";
-
-/** The most journal changes a test reads at once, beyond any test's calls. */
-const JOURNAL_LIMIT = 10_000;
 
 /** The port HTTPS origins listen on. */
 const HTTPS_PORT = 443;
@@ -160,7 +158,7 @@ function answerProviders(fixture: TestAccountStore): void {
 test("sign a person up by a mailed link once, and end the browser's session from the command line and by signing out", async () => {
     await using fixture = await TestAccountStore.open();
     const { database, authenticator } = fixture;
-    const { sequence: started } = await database.log.position();
+    const started = (await auditedCalls(database)).length;
 
     // request a sign-in link through the HTTP route a browser calls
     const requested = await fixture.fetch(
@@ -242,7 +240,7 @@ test("sign a person up by a mailed link once, and end the browser's session from
     ]);
 
     // revoke the browser's session from the person's command line, without waiting for the cookie to expire
-    const { sequence: revoking } = await database.log.position();
+    const revoking = (await auditedCalls(database)).length;
     const commandLine = await fixture.signIn(EMAIL);
     await commandLine.client(accountPackage).session.revoke({
         userId: commandLine.id,
@@ -271,34 +269,9 @@ test("sign a person up by a mailed link once, and end the browser's session from
     ]).toEqual([[200, { success: true }], null, []]);
 
     // retain each authentication request and its outcome without credential contents
-    const { changes } = await database.log.read({
-        tables: [journal],
-        after: started,
-        limit: JOURNAL_LIMIT,
-    });
-    const inserted = changes.flatMap((change) =>
-        change.operation === "insert" ? [{ id: change.after.id, sequence: change.sequence }] : [],
-    );
-    const stored = await database
-        .select()
-        .from(journal)
-        .where(
-            inArray(
-                journal.id,
-                inserted.map((entry) => entry.id),
-            ),
-        );
-    const rows = inserted.map((entry) => ({
-        ...entry,
-        call: JournalEntry.parse(
-            present(
-                stored.find((row) => row.id === entry.id),
-                `call ${entry.id}`,
-            ).call,
-        ),
-    }));
-    const calls = rows.map((row) => row.call);
-    const browsing = rows.filter((row) => row.sequence <= revoking).map((row) => row.call);
+    const audited = await auditedCalls(database);
+    const calls = audited.slice(started);
+    const browsing = audited.slice(started, revoking);
     expect(
         calls
             .filter((call) => call.method === "authentication.request")

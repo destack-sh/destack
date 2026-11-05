@@ -85,14 +85,6 @@ async function grant(
     return ask(accounts, await signer.assert(ENDPOINT), partition);
 }
 
-/** Refuse a machine a token in a space other machines serve. */
-function placedElsewhere(spaceId: Identifier<"space">) {
-    return [
-        400,
-        { error: "invalid_grant", error_description: `${spaceId} is placed on other machines` },
-    ];
-}
-
 /** Create a space in the owner's account, placed on a machine. */
 async function place(
     accounts: TestAccountStore,

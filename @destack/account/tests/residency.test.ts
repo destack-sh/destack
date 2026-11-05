@@ -35,14 +35,7 @@ import {
 } from "../src/test/index.ts";
 import type { TestCaller } from "@destack/object/test";
 import { claimNames, firstPage, place } from "./fixture.ts";
-import {
-    Claim,
-    Claimant,
-    PACKAGE_KIND,
-    PackageHandle,
-    QUERIES_PUBLICATION,
-    RESERVATION_MILLISECONDS,
-} from "@destack/object";
+import { Claim, Claimant, PACKAGE_KIND, PackageHandle, QUERIES_PUBLICATION } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
