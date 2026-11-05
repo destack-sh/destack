@@ -59,14 +59,14 @@ test(
         const running = desktop.run(undefined);
         await world.simulation.wait(next(isAction("browser.open")));
 
-        // sign in by mail and enroll the laptop as the CLI does, and see the desktop show them and their Home
+        // sign in by mail and enroll the laptop as the CLI does, and see the desktop show them and their start page
         const shown = next(isOffered("Sign Out"));
         const opened = next(isAction("window.open"));
         const signedIn = await laptop.signIn(OWNER_EMAIL);
         await laptop.enroll(signedIn, world.owner.account);
         await world.simulation.wait(Promise.all([shown, opened]));
 
-        // press the palette's shortcut, and see the palette float over Home
+        // press the palette's shortcut, and see the palette float over the start page
         const floated = next(isAction("window.open"));
         emit({ action: "shortcut.pressed", id: "palette" });
         const { kind, title, url = "" } = Sent.parse(await world.simulation.wait(floated));
@@ -94,7 +94,7 @@ test(
             palette: [
                 "palette",
                 "Commands",
-                "https://home--home--account-39751c3a0e7f.destack.space/command",
+                "https://start--home--account-39751c3a0e7f.destack.space/command",
             ],
             tray: [
                 { action: "tray.set", tooltip: "Destack: ⁨Serving 0 spaces⁩" },
