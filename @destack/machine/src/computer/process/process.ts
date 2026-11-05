@@ -2,7 +2,7 @@ import { Bookmark } from "@destack/object/client";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CommandHost } from "./command.ts";
-import { MACHINE_EXECUTABLES } from "@destack/update/release";
+import { Release } from "@destack/update/release";
 import { StageHome } from "./home.ts";
 import { type LoopbackEndpoint, ENDPOINT_FILE, LOCK_FILE, Loopback } from "./endpoint.ts";
 import { MachineError } from "../../error/index.ts";
@@ -72,7 +72,7 @@ export class MachineProcess {
         const { executable } = environment.process;
 
         return environment.process.runtime.isStandalone
-            ? join(dirname(executable), MACHINE_EXECUTABLES[environment.host.os])
+            ? join(dirname(executable), Release.executable("destack-machine", environment.host.os))
             : executable;
     }
 

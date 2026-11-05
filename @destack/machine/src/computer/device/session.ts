@@ -13,7 +13,6 @@ import {
     type Installation,
     InstallationMount,
     type ObjectType,
-    PACKAGE_PATH,
     PackageMount,
     SpaceMount,
 } from "@destack/object";
@@ -64,22 +63,6 @@ export class Session {
         };
     }
 
-    /** Connect to a platform package of a residency's home by its installation's name. */
-    async platform(
-        packageId: PackageId,
-        name: string,
-        home: Identifier<"space">,
-    ): Promise<ClientOptions> {
-        // find the machine serving the residency's home
-        const located = await this.device.locate(home);
-
-        // send the universe's token for the package bound to the home, which its machine verifies
-        return {
-            url: `${InstallationMount.url(located.url, home, name)}${PackageMount.path(packageId)}`,
-            fetch: (request) => this.login.send(request, packageId, { partition: home }),
-        };
-    }
-
     /** Read the home of the residency an account stores its data in. */
     residency(accountId: Identifier<"account">): Promise<Identifier<"space">> {
         return this.login.accounts().residency.locate({ account: accountId });
@@ -101,22 +84,30 @@ export class Session {
         return this.endpoint(accountPackage.id, "universe");
     }
 
-    /** Connect to an installation's package at its origin. */
+    /** Connect to an installation's package below the machine serving its space. */
     async installation(
-        address: SpaceAddress,
+        space: Identifier<"space"> | SpaceAddress,
         name: string,
         packageId: PackageId,
     ): Promise<ClientOptions> {
-        // find the installation's origin below its space's machine
-        const place = await this.device.locate(address);
-        const origin = Session.#origin(address, name, place.url);
+        // send the universe's token for the installation's package bound to the space, which its machine verifies
+        const { url, partition } = await this.#mount(space, name, packageId);
 
-        // call from the origin with the universe's token for the installation's package bound to the space
-        return {
-            url: `${origin}${PACKAGE_PATH}`,
-            fetch: (request) =>
-                this.login.send(request, packageId, { partition: place.placement.space }),
-        };
+        return { url, fetch: (request) => this.login.send(request, packageId, { partition }) };
+    }
+
+    /** Find an installation's package below the machine serving its space, and the space. */
+    async #mount(
+        space: Identifier<"space"> | SpaceAddress,
+        name: string,
+        packageId: PackageId,
+    ): Promise<{ readonly url: string; readonly partition: Identifier<"space"> }> {
+        // locate the space, then the installation's mount below its machine
+        const located = await this.device.locate(space);
+        const partition = located.placement.space;
+        const url = `${InstallationMount.url(located.url, partition, name)}${PackageMount.path(packageId)}`;
+
+        return { url, partition };
     }
 
     /** Read the address of a space the person reads: its name and its account's handle. */
@@ -172,7 +163,10 @@ export class Session {
     async open<const Objects extends Readonly<Record<string, ObjectType>>>(
         location:
             | { readonly scope: string }
-            | { readonly space: SpaceAddress; readonly installation?: string },
+            | {
+                  readonly space: Identifier<"space"> | SpaceAddress;
+                  readonly installation?: string;
+              },
         objects: Objects,
         stack: AsyncDisposableStack,
     ): Promise<ObjectClient<Objects>> {
@@ -298,7 +292,7 @@ export class Session {
 
     /** Sign a proof of the client the person registered on this computer. */
     prove(): Promise<string> {
-        return this.device.keys.prove(schema.identifier("client").parse(this.login.row.clientId));
+        return this.login.prove();
     }
 
     /** Resolve one of the person's settings from a replica of their values. */
@@ -383,15 +377,12 @@ export class Session {
         }
         // send to an installation's package at its origin, with the token bound to its space
         else if (kind === "installation") {
-            const address = SpaceAddress.parse(rest[0]);
+            const space = Session.#space(schema.string().parse(rest[0]));
             const name = schema.string().parse(rest[1]);
             const packageId = PackageId.parse(rest[2]);
-            const place = await this.device.locate(address);
-            const origin = `${Session.#origin(address, name, place.url)}${PACKAGE_PATH}`;
+            const { url, partition } = await this.#mount(space, name, packageId);
 
-            return this.login.send(below(rest.slice(3), origin), packageId, {
-                partition: place.placement.space,
-            });
+            return this.login.send(below(rest.slice(3), url), packageId, { partition });
         }
         // refuse any other target
         else {

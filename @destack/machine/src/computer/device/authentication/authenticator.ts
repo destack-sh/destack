@@ -11,7 +11,7 @@ import {
     type Credential,
     principal,
 } from "@destack/access";
-import { type ClientKey, login } from "@destack/account/native";
+import { login, type NativeClient } from "@destack/account/native";
 import { and, eq, type DatabaseConnection } from "@destack/db";
 import { Digest, schema } from "@destack/schema";
 import { space } from "@destack/account/object";
@@ -38,8 +38,8 @@ const OWNER_TOKEN_BYTES = 32;
 export class Authenticator {
     /** The owner's credential, published in the endpoint file. */
     readonly token: string;
-    /** The keys of the native device's clients, which prove a signed-in person's own client. */
-    readonly keys: ClientKey;
+    /** The native device's credential, which verifies a signed-in person's own client. */
+    readonly #credential: Pick<NativeClient, "verify">;
     /** The native device whose logins name the people signed in here. */
     readonly #device: { readonly id: string; readonly database: DatabaseConnection };
     /** This machine as a principal. */
@@ -59,7 +59,7 @@ export class Authenticator {
         device: {
             readonly id: string;
             readonly database: DatabaseConnection;
-            readonly keys: ClientKey;
+            readonly credential: Pick<NativeClient, "verify">;
         },
         machine: Pick<Machine, "verify" | "requireStanding" | "space">,
         environment: Pick<Environment, "clock" | "random" | "crypto">,
@@ -70,7 +70,7 @@ export class Authenticator {
         // set the machine, its device, its peers and the clock
         this.subject = principal.machine.reference(Scope.universe.id, machineId);
         this.machineId = machineId;
-        this.keys = device.keys;
+        this.#credential = device.credential;
         this.#device = device;
         this.#machine = machine;
         this.#clock = environment.clock;
@@ -136,7 +136,7 @@ export class Authenticator {
                 "the credential is not accepted from this origin",
             );
         }
-        const clientId = schema.identifier("client").parse(await this.keys.verify(token));
+        const clientId = schema.identifier("client").parse(await this.#credential.verify(token));
         const person = await this.#person(clientId);
 
         // act as the person inside the native device, bound to the partition the call targets

@@ -40,6 +40,7 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
 
     // forbidden
     CONNECTION_MISMATCH: { code: "FORBIDDEN" },
+    SIGN_IN_FAILED: { code: "FORBIDDEN" },
     FOREIGN_SCOPE_PUSH: { code: "FORBIDDEN" },
     FOREIGN_PARTITION_TOKEN: { code: "FORBIDDEN" },
     GRANT_REQUIRED: { code: "FORBIDDEN", data: GrantPrompt },
@@ -107,6 +108,7 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     COMMAND_MISSING: { code: "INTERNAL_SERVER_ERROR" },
     CONFIGURATION_INVALID: { code: "INTERNAL_SERVER_ERROR" },
     START_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    MACHINE_ANSWER_INVALID: { code: "INTERNAL_SERVER_ERROR" },
     STOP_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     ROUTE_BASE_MISMATCH: { code: "INTERNAL_SERVER_ERROR" },
     SERVER_INVALID: { code: "INTERNAL_SERVER_ERROR" },

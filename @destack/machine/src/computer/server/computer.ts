@@ -26,6 +26,8 @@ import type { EventStore } from "@destack/event";
 import { DistributionHost, distributionServer } from "@destack/update/server";
 import * as accountObject from "@destack/account/object";
 import type { Device } from "../device/device.ts";
+import type { NativeClient } from "@destack/account/native";
+import { PEOPLE_PATH } from "../device/credential.ts";
 import { type Identifier, present, schema } from "@destack/schema";
 import { buildShape } from "@destack/stack/object";
 import { RequestId, Scope, Subject } from "@destack/sync";
@@ -38,9 +40,6 @@ import type { BuildRunner } from "../build.ts";
 import machinePackage from "../../package.ts";
 import { CheckoutServer, PreviewSource } from "../checkout/server/index.ts";
 import type {} from "@destack/package/import-meta";
-
-/** The path below which the device forwards the machine owner's calls as a signed-in person. */
-export const PEOPLE_PATH = "/people";
 
 /** The longest machine name taken from a computer's name: a DNS label (RFC 1035 2.3.4). */
 const NAME_LENGTH = 63;
@@ -66,7 +65,7 @@ export class ComputerServer {
     /** What the development workflow builds with. */
     readonly build: Pick<CheckoutServer, "connect" | "compilers" | "host">;
     /** This computer's device, whose partition stores the computer's record and distribution. */
-    readonly device: Device;
+    readonly device: Device<NativeClient>;
     /** The key sensitive call inputs are fingerprinted under in the journal. */
     readonly callKey: CallKey;
     /** The installed distribution the machine stages and activates, none in development. */
@@ -268,7 +267,7 @@ export class ComputerServer {
         });
     }
 
-    /** Answer a call below `/people/<login>` as that person: resolve a name, else forward it. */
+    /** Answer a call below `/people/<login>` as that person, forwarding all but its own paths. */
     async #people(request: Request): Promise<Response> {
         // read the login and the target below the adapter's path
         const { pathname } = new URL(request.url);
@@ -280,11 +279,21 @@ export class ComputerServer {
             throw MachineError.of("TARGET_INVALID", `${pathname} has no login`);
         }
         const session = await this.device.session(loginId.data);
-        const [kind, name] = target;
+        const [kind] = target;
 
-        // answer the space a name resolves to
-        if (kind === "resolve" && name !== undefined) {
-            return Response.json({ space: await session.resolve(decodeURIComponent(name)) });
+        // answer the person's account token for this computer's programs
+        if (kind === "token") {
+            return Response.json({ token: await session.login.accountToken() });
+        }
+        // answer a proof of the person's client
+        else if (kind === "proof") {
+            return Response.json({ proof: await session.prove() });
+        }
+        // forget the person signed out by a program of this computer
+        else if (kind === "forget" && request.method === "POST") {
+            await this.device.credential.forget(session.login.row);
+
+            return Response.json({});
         }
         // forward anything else to its target
         else {

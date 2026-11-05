@@ -366,7 +366,9 @@ test("authenticate a signed-in person's own client by its key's proof, reading n
     const signedIn = await computer.signIn(OWNER_EMAIL);
     computer.keychain(SESSIONS).secrets.clear();
     const registration = schema.identifier("client").parse(signedIn.clientId);
-    const proof = await native.keys.prove(registration);
+    const proof = await native.credential.prove(
+        await native.session(signedIn.id).then((session) => session.login),
+    );
 
     // take the client's proof from this machine as the person
     const authentication = await authenticator.authenticate(

@@ -152,7 +152,7 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
     // call its package below the installation on the cloud machine serving the home, as the owner
     const owner = createClient(
         registryPackage,
-        await person.platform(registryPackage.id, found.installation.name, residency),
+        await person.installation(residency, found.installation.name, registryPackage.id),
         device.environment,
     );
 

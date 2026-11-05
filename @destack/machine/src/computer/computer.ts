@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { inspect } from "node:util";
 import { distribution } from "@destack/update/object";
 import { MachineIdentity } from "@destack/account/client";
-import { login } from "@destack/account/native";
+import { login, type NativeClient } from "@destack/account/native";
 import {
     call,
     Egress,
@@ -177,8 +177,8 @@ export class Computer implements AsyncDisposable {
 
     /** The machine serving its spaces while enrolled. */
     readonly machine: Machine;
-    /** This computer's device, which this machine created, with its people's sessions. */
-    readonly device: Device;
+    /** This computer's device, which this machine created, with its people's keychain. */
+    readonly device: Device<NativeClient>;
     /** The authenticator of local clients and peers. */
     readonly authenticator: Authenticator;
     /** The events of this machine's own calls and telemetry. */
@@ -523,9 +523,9 @@ export class Computer implements AsyncDisposable {
                 home: options.directory,
                 environment: options.environment,
                 issuer: options.issuer,
-                keychain: options.keychain,
             },
             { ...options.localObjects, login, deviceSetting, visit, signIn },
+            options.keychain,
         );
         stack.use(device);
         const [existing] = await device.database

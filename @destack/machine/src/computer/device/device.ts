@@ -2,16 +2,17 @@ import { join } from "node:path";
 import { type Select, type Table } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { pathToFileURL } from "node:url";
-import { AccessContext, Authorization, Caller, principal, type StepUp } from "@destack/access";
+import { AccessContext, Authorization, Caller, principal } from "@destack/access";
 import { SpaceAddress } from "@destack/account/address";
 import type { PlacementEndpoint } from "@destack/account/object";
 import {
     CLIENT_KEYS,
     ClientKey,
-    type EmailSignIn,
     Issuer,
     type LoginClient,
-    NativeSignIn,
+    type LoginCredential,
+    NativeClient,
+    type NativeClientOptions,
     Login,
     SESSIONS,
     SessionStore,
@@ -19,19 +20,18 @@ import {
 } from "@destack/account/native";
 import * as native from "@destack/account/native";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
-import { Platform } from "@destack/account/object";
+import { Platform, type Residency } from "@destack/account/object";
 import { connectBunSqlite, openBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import type { EventStore } from "@destack/event";
 import type { Keychain } from "@destack/identity";
-import { BunKeychain } from "@destack/identity/bun";
 import { call, device, Installation, type ObjectType, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { distribution } from "@destack/update/object";
 import { implementPackage, ObjectStore, type PackageImplementation } from "@destack/object/server";
 import { ObjectClient } from "@destack/object/client";
 import { Package, PackageId } from "@destack/package";
-import { Identifier, nth, schema } from "@destack/schema";
+import { Identifier, nth, present, schema } from "@destack/schema";
 import { type Fetch, PackageHandle, PackageMount } from "@destack/object";
 import { Bookmark, createClient } from "@destack/object/client";
 import { type CallKey } from "@destack/object";
@@ -42,9 +42,9 @@ import settingPackage from "@destack/setting/package";
 import machinePackage from "../../package.ts";
 import { MachineError } from "../../error/index.ts";
 import { Session } from "./session.ts";
-import { computer, visit } from "./object/index.ts";
+import { MachineCredential } from "./credential.ts";
+import { computer, signIn, type SignInMethod, type SignInState, visit } from "./object/index.ts";
 import { Loopback, StageHome } from "../process/index.ts";
-import type { SignUp } from "@destack/account/better-auth";
 import { type Clock, type Environment, FileSystemError } from "@destack/environment";
 
 /** The file of the device's local objects, in the machine's directory. */
@@ -76,12 +76,12 @@ export interface DeviceOptions {
     readonly environment: Environment<"files" | "host" | "server">;
     /** The origin of the universe people sign in at. */
     readonly issuer: string;
-    /** Open the keychain of a service's secrets. */
-    readonly keychain: (service: string) => Keychain;
 }
 
-/** This computer's device: its identity, local objects, people's sessions and client verbs. */
-export class Device implements AsyncDisposable {
+/** This computer's device: its identity, local objects, people's credentials and client verbs. */
+export class Device<
+    Credential extends LoginCredential = LoginCredential,
+> implements AsyncDisposable {
     /** The package the device's store serves its local objects as: the machine's. */
     static readonly AUDIENCE: PackageId = machinePackage.id;
     /** The directory with the machine's state and the device's database. */
@@ -100,26 +100,22 @@ export class Device implements AsyncDisposable {
     readonly settings: ObjectClient<{ readonly deviceSetting: typeof deviceSetting }>;
     /** The objects the people signed in on this computer opened. */
     readonly visits: ObjectClient<{ readonly visit: typeof visit }>;
-    /** The keychain's sessions of the people signed in. */
-    readonly sessions: SessionStore;
-    /** The keys of this computer's devices, which prove a person's client to the machine. */
-    readonly keys: ClientKey;
-    /** Sign people in on this device. */
-    readonly signIns: NativeSignIn;
+    /** The issuer people sign in with. */
+    readonly issuer: Issuer;
+    /** The people's credentials: the keychain in the machine, the machine in its clients. */
+    readonly credential: Credential;
     /** The fetch calling the issuer and the machines. */
     readonly #fetch: Fetch;
     /** The clock, network, files, platform and server the device runs on. */
     readonly environment: Environment<"files" | "host" | "server">;
 
-    /** Take a device's local objects and sessions. */
+    /** Take a device's local objects, and build the credential of its people. */
     private constructor(
         options: DeviceOptions,
-        fields: Pick<
-            Device,
-            "subject" | "database" | "logins" | "settings" | "visits" | "sessions" | "keys"
-        >,
+        fields: Pick<Device, "subject" | "database" | "logins" | "settings" | "visits">,
+        credential: (device: Device) => Credential,
     ) {
-        // set the device's state and sign people in with its issuer
+        // set the device's state and its issuer
         this.home = options.home;
         this.loopback = new Loopback(options.home, options.environment, this.bookmark);
         this.subject = fields.subject;
@@ -127,53 +123,34 @@ export class Device implements AsyncDisposable {
         this.logins = fields.logins;
         this.settings = fields.settings;
         this.visits = fields.visits;
-        this.sessions = fields.sessions;
-        this.keys = fields.keys;
         this.#fetch = (request) => options.environment.network.fetch(request);
         this.environment = options.environment;
+        this.issuer = new Issuer(
+            `${PackageMount.url(options.issuer, accountPackage.id)}${OAUTH_PATH}`,
+            this.#fetch,
+            options.environment,
+            this.bookmark,
+        );
 
-        // register the computer's operating system with its client, when Client Hints list it
-        const host = options.environment.host;
-        const system = Platform.ofNode(host.os);
-        this.signIns = new NativeSignIn({
-            issuer: new Issuer(
-                `${PackageMount.url(options.issuer, accountPackage.id)}${OAUTH_PATH}`,
-                this.#fetch,
-                options.environment,
-                this.bookmark,
-            ),
-            sessions: fields.sessions,
-            keys: fields.keys,
-            logins: fields.logins,
-            environment: options.environment,
-            client: {
-                name: host.hostname,
-                ...(system === undefined ? {} : { platform: system }),
-                architecture: host.architecture,
-                version: import.meta.destack.package.version,
-            },
-        });
+        // build the people's credential
+        this.credential = credential(this);
     }
 
-    /** Open this release channel's device in an environment, with the system's keychains. */
+    /** Open this release channel's device in an environment, as a client of its machine. */
     static current(
         environment: Environment<"files" | "process" | "host" | "server">,
-    ): Promise<Device> {
+    ): Promise<Device<MachineCredential>> {
         const home = StageHome.current(environment);
 
-        return Device.open({
-            home: home.directory,
-            environment,
-            issuer: home.issuer,
-            keychain: (service) => new BunKeychain(service, environment.files),
-        });
+        return Device.open({ home: home.directory, environment, issuer: home.issuer });
     }
 
-    /** Create the device and its local objects at the machine's first start, then open it. */
+    /** Create the device and its local objects at the machine's first start, with the keychain. */
     static async create(
         options: DeviceOptions,
         objects: Readonly<Record<string, ObjectType>>,
-    ): Promise<Device> {
+        keychain: (service: string) => Keychain,
+    ): Promise<Device<NativeClient>> {
         // name the device once
         const identity = join(options.home, IDENTITY_FILE);
         const created = JSON.stringify({ id: Identifier.create("device", options.environment) });
@@ -193,7 +170,21 @@ export class Device implements AsyncDisposable {
             await database.close();
         }
 
-        return Device.open(options);
+        // sign people in with the keychain's sessions and client keys
+        const { environment } = options;
+
+        return Device.#open(
+            options,
+            (opened) =>
+                new NativeClient({
+                    issuer: opened.issuer,
+                    sessions: new SessionStore(keychain(SESSIONS)),
+                    keys: new ClientKey(keychain(CLIENT_KEYS), environment),
+                    logins: opened.logins,
+                    environment,
+                    client: Device.#registration(environment),
+                }),
+        );
     }
 
     /** Forget a device's sessions, client keys and machine keys, as uninstalls do. */
@@ -239,8 +230,16 @@ export class Device implements AsyncDisposable {
         }
     }
 
+    /** Open the device its machine created, asking the machine for its people's credentials. */
+    static open(options: DeviceOptions): Promise<Device<MachineCredential>> {
+        return Device.#open(options, (opened) => new MachineCredential(opened.loopback));
+    }
+
     /** Open the device its machine created: its local objects, logins, settings and visits. */
-    static async open(options: DeviceOptions): Promise<Device> {
+    static async #open<Credential extends LoginCredential>(
+        options: DeviceOptions,
+        credential: (device: Device) => Credential,
+    ): Promise<Device<Credential>> {
         // open the shared database and its logins, settings and visits
         const { environment } = options;
         const { subject, database } = await Device.#file(options.home, environment);
@@ -253,15 +252,20 @@ export class Device implements AsyncDisposable {
         const settings = await Device.#objects(subject, database, { deviceSetting }, environment);
         const visits = await Device.#objects(subject, database, { visit }, environment);
 
-        return new Device(options, {
-            subject,
-            database,
-            logins,
-            settings,
-            visits,
-            sessions: new SessionStore(options.keychain(SESSIONS)),
-            keys: new ClientKey(options.keychain(CLIENT_KEYS), environment),
-        });
+        return new Device(options, { subject, database, logins, settings, visits }, credential);
+    }
+
+    /** Describe the client a sign-in here registers, with its system when Client Hints list it. */
+    static #registration(environment: Environment<"host">): NativeClientOptions["client"] {
+        const { host } = environment;
+        const system = Platform.ofNode(host.os);
+
+        return {
+            name: host.hostname,
+            ...(system === undefined ? {} : { platform: system }),
+            architecture: host.architecture,
+            version: import.meta.destack.package.version,
+        };
     }
 
     /** Open the device's identity and shared database, refusing before its machine created them. */
@@ -434,39 +438,54 @@ export class Device implements AsyncDisposable {
         return this.loopback.connect(machinePackage);
     }
 
-    /** Sign a person in through the browser, and enroll an unenrolled machine in their account. */
+    /** Sign a person in through the machine, showing each step it writes until it signs them in. */
     async signIn(
-        open: (url: string) => Promise<void>,
-        signal?: AbortSignal,
-        stepUp?: StepUp,
-    ): Promise<Login["row"]> {
-        const signedIn = await this.signIns.browser(open, stepUp, signal);
-        await this.#enroll(signedIn);
-
-        return signedIn;
-    }
-
-    /** Sign a person in with a device code, and enroll an unenrolled machine in their account. */
-    async signInWithCode(
-        show: Parameters<NativeSignIn["device"]>[0],
+        method: SignInMethod,
+        show: (state: SignInState, answer: (code: string) => Promise<void>) => Promise<void>,
         signal?: AbortSignal,
     ): Promise<Login["row"]> {
-        const signedIn = await this.signIns.device(show, signal);
-        await this.#enroll(signedIn);
+        // start the sign-in the machine carries out, removed once read
+        await using stack = new AsyncDisposableStack();
+        const local = await this.objects({ signIn });
+        stack.defer(() => local.close());
+        const { id } = await local.mutate(signIn).start({ method }).predicted;
+        stack.defer(async () => {
+            await local.mutate(signIn).remove({ id }).predicted;
+        });
 
-        return signedIn;
-    }
+        // show each step once as the machine writes it, until it signs the person in or fails
+        const watching = new AbortController();
+        stack.defer(() => watching.abort());
+        const answer = async (code: string) => {
+            await local.mutate(signIn).answer({ id, code }).predicted;
+        };
+        const shown = new Set<string>();
+        const until =
+            signal === undefined ? watching.signal : AbortSignal.any([watching.signal, signal]);
+        for await (const row of local.query.signIn.findFirst({ where: { id } }).watch(until)) {
+            const { state } = present(row, `sign-in ${id}`);
 
-    /** Sign a person in with a mailed code, and enroll an unenrolled machine in their account. */
-    async signInWithEmail(
-        email: string,
-        ask: (started: EmailSignIn) => Promise<string>,
-        signUp?: schema.Input<typeof SignUp>,
-    ): Promise<Login["row"]> {
-        const signedIn = await this.signIns.email(email, ask, signUp);
-        await this.#enroll(signedIn);
+            // read the login the machine signed in
+            if (state.kind === "signedIn") {
+                const found = await this.logins.query.login.findFirst({
+                    where: { id: state.login },
+                });
 
-        return signedIn;
+                return present(found, `login ${state.login}`);
+            }
+            // refuse a failed sign-in
+            else if (state.kind === "failed") {
+                throw MachineError.of("SIGN_IN_FAILED", state.reason);
+            }
+            // show a step the first time the machine writes it
+            else if (!shown.has(state.kind)) {
+                shown.add(state.kind);
+                await show(state, answer);
+            }
+        }
+
+        // refuse a sign-in removed or stopped before it ended
+        throw MachineError.of("SIGN_IN_FAILED", `sign-in ${id} ended before it signed anyone in`);
     }
 
     /** Sign a person out on this computer, revoking this computer's client and their session. */
@@ -479,7 +498,12 @@ export class Device implements AsyncDisposable {
         });
 
         // forget the session and the login
-        await this.signIns.forget(login.row);
+        await this.credential.forget(login.row);
+    }
+
+    /** List the residencies a new person's account may store data in. */
+    residencies(): Promise<Pick<Residency, "code" | "name">[]> {
+        return this.issuer.residencies();
     }
 
     /** Read the person this computer acts as. */
@@ -674,7 +698,7 @@ export class Device implements AsyncDisposable {
         const signedIn = await this.#login(loginId);
         const login = new Login(
             signedIn,
-            this.sessions,
+            this.credential,
             this.#fetch,
             this.environment,
             this.bookmark,
@@ -751,7 +775,7 @@ export class Device implements AsyncDisposable {
     }
 
     /** Enroll a machine that is not enrolled in the signed-in person's own account. */
-    async #enroll(signedIn: Login["row"]): Promise<void> {
+    async enroll(signedIn: Login["row"]): Promise<void> {
         // leave an enrolled machine
         const recorded = await this.loopback.computer();
         if (recorded.enrollment?.status === "enrolled") {

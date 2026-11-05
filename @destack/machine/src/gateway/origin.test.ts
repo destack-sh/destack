@@ -1391,7 +1391,7 @@ test(
             scope: work.spaceId,
             endpoint: await (
                 await native.session(home.login)
-            ).platform(tasks.id, "tasks", work.spaceId),
+            ).installation(work.spaceId, "tasks", tasks.id),
             environment: home.computer.device.environment,
         });
         await remote.call("task", "create", { title: "Write the report" });

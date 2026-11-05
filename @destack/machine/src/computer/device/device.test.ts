@@ -4,13 +4,13 @@ import { DynamicObjectClient } from "@destack/object/client";
 import { rollout } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { setting } from "@destack/setting/object";
-import { present } from "@destack/schema";
+import { Identifier, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { focus } from "@destack/notification/setting";
 import { OWNER_EMAIL, TestComputer } from "../test/index.ts";
 import machinePackage from "../../package.ts";
 import { signIn } from "./object/index.ts";
-import { PEOPLE_PATH } from "../server/index.ts";
+import { PEOPLE_PATH } from "./credential.ts";
 
 /** How long a sign-in may take on the simulated clock: a minute. */
 const SIGN_IN_MILLISECONDS = 60_000;
@@ -24,8 +24,10 @@ test("store this computer's space and login settings as the native device's loca
     const { device } = computer;
     const signedIn = await computer.signIn(OWNER_EMAIL);
     const defaults = [await device.setting(currentSpace), await device.setting(currentLogin)];
-    await device.set(currentSpace, "work--acme");
-    await device.set(currentSpace, "home--acme");
+    const work = Identifier.create("space", device.environment);
+    const home = Identifier.create("space", device.environment);
+    await device.set(currentSpace, work);
+    await device.set(currentSpace, home);
     await device.set(currentLogin, signedIn.id);
     const rows = await device.settings.query.deviceSetting.findMany();
 
@@ -36,9 +38,9 @@ test("store this computer's space and login settings as the native device's loca
         rows: rows.map((row) => [row.name, row.value, row.revision]),
     }).toEqual({
         defaults: [null, null],
-        resolved: ["home--acme", signedIn.id],
+        resolved: [home, signedIn.id],
         rows: [
-            ["space", "home--acme", 2],
+            ["space", home, 2],
             ["login", signedIn.id, 1],
         ],
     });
@@ -174,40 +176,23 @@ test("resolve the owner's spaces by address, identifier, home and residency, ref
     // resolve the owner's home three ways, their residency's space, and a space they have none of
     const { home, login } = await TestComputer.home();
     const { device, world } = home;
-    const people = `http://127.0.0.1${PackageMount.path(machinePackage.id)}${PEOPLE_PATH}/${login}`;
     const session = await device.session(login);
     const address = await session.address(world.owner.home);
     const residency = await session.residency(await session.login.account());
-    const resolve = async (name: string) => {
-        const response = await device.loopback.fetch(new Request(`${people}/resolve/${name}`));
 
-        return [response.status, await response.json()] as const;
-    };
-
-    // expect each name of the home to resolve to its address, and the other refused
-    expect([
-        await resolve(address),
-        await resolve(world.owner.home),
-        await resolve("home"),
-        await resolve("residency"),
-        await resolve("nowhere"),
-    ]).toEqual([
-        [200, { space: world.owner.home }],
-        [200, { space: world.owner.home }],
-        [200, { space: world.owner.home }],
-        [200, { space: residency }],
-        [
-            404,
-            {
-                defined: true,
-                code: "NOT_FOUND",
-                status: 404,
-                message: "no space of yours is called nowhere",
-                reason: "SPACE_NOT_FOUND",
-                domain: "@destack/machine",
-            },
+    // expect each name of the home to resolve to its space, and the other refused
+    expect({
+        resolved: [
+            await session.resolve(address),
+            await session.resolve(world.owner.home),
+            await session.resolve("home"),
+            await session.resolve("residency"),
         ],
-    ]);
+        nowhere: await refusal(session.resolve("nowhere")),
+    }).toEqual({
+        resolved: [world.owner.home, world.owner.home, world.owner.home, residency],
+        nowhere: ["NOT_FOUND", "SPACE_NOT_FOUND", "no space of yours is called nowhere"],
+    });
 });
 
 test("sign a person up through a sign-in the machine carries out, answering the code mailed to them", async () => {

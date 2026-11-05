@@ -622,7 +622,7 @@ export class TestComputer implements AsyncDisposable {
     /** Sign a person in on the computer's device with the code the universe mails them. */
     async signIn(email: string): Promise<Login["row"]> {
         // mail the code, signing a new person up in the residency
-        const started = await this.device.signIns.startEmail(email, {
+        const started = await this.device.credential.startEmail(email, {
             name: email,
             handle: freshHandle(this.environment),
             residencyId: RESIDENCY,
@@ -651,14 +651,10 @@ export class TestComputer implements AsyncDisposable {
         const { universe, owner, simulation } = this.world;
         const browser = simulation.environment(BROWSER_NODE).network;
 
-        return this.device.signIn(
-            async (url) => {
-                const back = await universe.approve(url, owner);
-                await (await browser.fetch(new Request(back))).body?.cancel();
-            },
-            undefined,
-            stepUp,
-        );
+        return this.device.credential.browser(async (url) => {
+            const back = await universe.approve(url, owner);
+            await (await browser.fetch(new Request(back))).body?.cancel();
+        }, stepUp);
     }
 
     /** Enroll the computer's machine in an account as a person signed in on its device. */

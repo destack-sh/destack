@@ -5,7 +5,7 @@ import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import type { Device } from "../device/device.ts";
 import { signIn, type SignInState } from "../device/object/index.ts";
-import type { Login } from "@destack/account/native";
+import type { Login, NativeClient } from "@destack/account/native";
 import { SignUp } from "@destack/account/better-auth";
 
 /** The most sign-ins the machine runs at once: a few programs asking together. */
@@ -14,13 +14,13 @@ const RUNNING_SIGN_INS = 8;
 /** Run the sign-ins this computer's programs start, writing where each stands. */
 export class SignInRunner {
     /** The native device signing people in. */
-    readonly #device: Device;
+    readonly #device: Device<NativeClient>;
     /** The device's store holding the sign-ins. */
     readonly #store: Pick<ObjectStore, "database" | "mutate" | "as" | "clock" | "environment">;
 
     /** Run the sign-ins of a device's store. */
     constructor(
-        device: Device,
+        device: Device<NativeClient>,
         store: Pick<ObjectStore, "database" | "mutate" | "as" | "clock" | "environment">,
     ) {
         this.#device = device;
@@ -52,6 +52,7 @@ export class SignInRunner {
         if (row.state.kind === "starting") {
             try {
                 const login = await this.#run(row, signal);
+                await this.#device.enroll(login);
                 await this.#advance(row, { kind: "signedIn", login: login.id });
             } catch (error) {
                 if (!signal.aborted) {
@@ -78,16 +79,18 @@ export class SignInRunner {
 
     /** Sign the person in by the sign-in's method, writing what they see at each step. */
     async #run(row: Select<typeof signIn.table>, signal: AbortSignal): Promise<Login["row"]> {
+        // read the method and write each step as the person sees it
         const { method } = row;
         const advance = (state: SignInState) => this.#advance(row, state);
 
         // open the browser's page
+        const { credential } = this.#device;
         if (method.kind === "browser") {
-            return this.#device.signIn((url) => advance({ kind: "open", url }), signal);
+            return credential.browser((url) => advance({ kind: "open", url }), undefined, signal);
         }
         // show a code to enter at a page
         else if (method.kind === "code") {
-            return this.#device.signInWithCode(
+            return credential.device(
                 ({ url, userCode }) => advance({ kind: "enter", url, userCode }),
                 signal,
             );
@@ -101,8 +104,8 @@ export class SignInRunner {
             };
 
             return method.kind === "email"
-                ? this.#device.signInWithEmail(method.email, ask)
-                : this.#device.signInWithEmail(method.email, ask, SignUp.parse(method.signUp));
+                ? credential.email(method.email, ask)
+                : credential.email(method.email, ask, SignUp.parse(method.signUp));
         }
     }
 
