@@ -12,6 +12,7 @@ const tunnel = TunnelClient.open({
     fetch: (request) => gateway.relay(request),
     renewed: ({ name, lapsesAt }) =>
         machine.publish({ url: `https://${name}`, relay: { url: relayOrigin, lapsesAt } }),
+    changed: (status) => record.link(status), // "open" once it opens, "dialing" once it ends
     environment,
 });
 await tunnel.opened();

@@ -4,7 +4,7 @@ import { expect, refusal, test } from "@destack/test";
 import { Simulation } from "@destack/environment/simulation";
 import { schema } from "@destack/schema";
 import { Frame, FrameFlag, FrameType, PING_MESSAGE, TUNNEL_PROTOCOL } from "../session/index.ts";
-import { TunnelClient } from "./client.ts";
+import { TunnelClient, type TunnelStatus } from "./client.ts";
 
 /** The close code of a normal closure, from RFC 6455 section 7.4.1. */
 const NORMAL_CLOSURE = 1000;
@@ -55,6 +55,48 @@ function silentRelay(simulation: Simulation) {
     return { url: `${listener.url.origin}/tunnel`, connections };
 }
 
+/** Serve a relay that answers each session ping, dropping the first connections as it answers. */
+function answeringRelay(simulation: Simulation, dropped = 0) {
+    // accept each upgrade with the tunnel protocol, counting the connections
+    const sockets = new Set<{ close: () => void }>();
+    let connections = 0;
+    const listener = simulation.network.server("relay").http<undefined>({
+        hostname: "relay.test",
+        port: 80,
+        fetch: () => {
+            connections += 1;
+
+            return {
+                attachment: undefined,
+                headers: { "sec-websocket-protocol": TUNNEL_PROTOCOL },
+            };
+        },
+        websocket: {
+            open: (socket) => void sockets.add(socket),
+            message: (socket, message) => {
+                // answer a session ping, closing the first connections in the same turn
+                const frame = typeof message === "string" ? undefined : Frame.decode(message);
+                if (frame?.type === FrameType.ping && frame.has(FrameFlag.syn)) {
+                    socket.send(new Frame(FrameType.ping, FrameFlag.ack, 0, frame.value).encode());
+                    if (connections <= dropped) {
+                        socket.close();
+                    }
+                }
+            },
+            close: (socket) => void sockets.delete(socket),
+        },
+    });
+
+    // drop every open connection
+    const drop = () => {
+        for (const socket of sockets) {
+            socket.close();
+        }
+    };
+
+    return { url: `${listener.url.origin}/tunnel`, connections: () => connections, drop };
+}
+
 /** Describe a warning the tunnel package recorded. */
 function warning(message: string) {
     return {
@@ -68,28 +110,32 @@ function warning(message: string) {
 test("refuse callers waiting for a tunnel once the client closes", async () => {
     // dial a relay that never answers, as a machine with a token
     await using simulation = testSimulation();
+    const statuses: TunnelStatus[] = [];
     const client = TunnelClient.open({
         url: NOWHERE,
         machineId: MACHINE,
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
         renewed: () => {},
+        changed: (status) => void statuses.push(status),
         environment: simulation.environment("machine"),
         retry: { initialInterval: 10, maximumInterval: 10 },
     });
     const waiting = refusal(client.opened());
 
-    // refuse the caller waiting before the close, and one asking after it
+    // refuse the caller waiting before the close, and one asking after it, never telling it open
     await client.close();
-    expect([await waiting, await refusal(client.opened())]).toEqual([
+    expect([await waiting, await refusal(client.opened()), statuses]).toEqual([
         ["SERVICE_UNAVAILABLE", "CLIENT_CLOSED", "tunnel client is closed"],
         ["SERVICE_UNAVAILABLE", "CLIENT_CLOSED", "tunnel client is closed"],
+        [],
     ]);
 });
 
 test("dial again after the issuer grants no token, warning of each failed dial", async () => {
     // dial with a token the issuer refuses
     await using simulation = testSimulation();
+    const statuses: TunnelStatus[] = [];
     using telemetry = new TestTelemetry(simulation.telemetry);
     const client = TunnelClient.open({
         url: NOWHERE,
@@ -99,6 +145,7 @@ test("dial again after the issuer grants no token, warning of each failed dial",
         },
         fetch: async () => new Response(null, { status: 204 }),
         renewed: () => {},
+        changed: (status) => void statuses.push(status),
         environment: simulation.environment("machine"),
         retry: { initialInterval: 10, maximumInterval: 10 },
     });
@@ -110,12 +157,13 @@ test("dial again after the issuer grants no token, warning of each failed dial",
         warning(`dialing ${NOWHERE} failed: TypeError: the issuer is unreachable`),
         warning(`tunnel to ${NOWHERE} did not open`),
     ];
-    expect(telemetry.records()).toEqual([...failed, ...failed]);
+    expect([telemetry.records(), statuses]).toEqual([[...failed, ...failed], []]);
 });
 
 test("drop a tunnel whose relay stops answering, dialing again and closing without its close answered", async () => {
     // dial a relay that accepts the upgrade and answers nothing after
     await using simulation = testSimulation();
+    const statuses: TunnelStatus[] = [];
     using telemetry = new TestTelemetry(simulation.telemetry);
     const relay = silentRelay(simulation);
     const client = TunnelClient.open({
@@ -124,6 +172,7 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
         renewed: () => {},
+        changed: (status) => void statuses.push(status),
         environment: simulation.environment("machine"),
         heartbeat: 20,
         retry: { initialInterval: 10, maximumInterval: 10 },
@@ -136,7 +185,7 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
 
     // offer the token, ping and probe before dropping the first connection, and ping on the second before the close
     const ping = new Frame(FrameType.ping, FrameFlag.syn, 0).encode();
-    expect([relay.connections, telemetry.records()]).toEqual([
+    expect([relay.connections, telemetry.records(), statuses]).toEqual([
         [
             {
                 protocols: `${TUNNEL_PROTOCOL}, destack.bearer.dG9rZW4`,
@@ -150,5 +199,53 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
             },
         ],
         [warning(`tunnel to ${relay.url} did not open`)],
+        [],
     ]);
+});
+
+test("tell the tunnel open once the relay answers, dialing once it drops, and nothing once the client closes", async () => {
+    // dial a relay that answers
+    await using simulation = testSimulation();
+    const statuses: TunnelStatus[] = [];
+    const relay = answeringRelay(simulation);
+    const client = TunnelClient.open({
+        url: relay.url,
+        machineId: MACHINE,
+        token: async () => "token",
+        fetch: async () => new Response(null, { status: 204 }),
+        renewed: () => {},
+        changed: (status) => void statuses.push(status),
+        environment: simulation.environment("machine"),
+        retry: { initialInterval: 10, maximumInterval: 10 },
+    });
+
+    // open the tunnel, drop it, open the next, then close the client
+    await client.opened();
+    relay.drop();
+    await simulation.waitUntil(() => relay.connections() === 2 && statuses.length === 3);
+    await client.close();
+    expect(statuses).toEqual(["open", "dialing", "open"]);
+});
+
+test("tell no tunnel open whose relay drops it while answering", async () => {
+    // dial a relay that drops the first connection as it answers
+    await using simulation = testSimulation();
+    const statuses: TunnelStatus[] = [];
+    const relay = answeringRelay(simulation, 1);
+    const client = TunnelClient.open({
+        url: relay.url,
+        machineId: MACHINE,
+        token: async () => "token",
+        fetch: async () => new Response(null, { status: 204 }),
+        renewed: () => {},
+        changed: (status) => void statuses.push(status),
+        environment: simulation.environment("machine"),
+        retry: { initialInterval: 10, maximumInterval: 10 },
+    });
+
+    // open only the second tunnel
+    await simulation.waitUntil(() => statuses.length === 1);
+    const opened = [relay.connections(), statuses];
+    await client.close();
+    expect(opened).toEqual([2, ["open"]]);
 });

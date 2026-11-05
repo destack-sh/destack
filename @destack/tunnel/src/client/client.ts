@@ -30,6 +30,12 @@ const UNSUPPORTED_DATA = 1003;
 /** How a machine waits before dialing again: 0.5 s doubling to 30 s, with AWS's full jitter. */
 const RETRY = RetryPolicy.of({ initialInterval: 500, maximumInterval: 30_000, jitter: "full" });
 
+/** Whether a machine's tunnel is open, or dialing its relay until it opens again. */
+export const TUNNEL_STATUSES = ["open", "dialing"] as const;
+
+/** Whether a machine's tunnel is open or dialing. */
+export type TunnelStatus = (typeof TUNNEL_STATUSES)[number];
+
 /** How a machine runs its tunnel. */
 export interface TunnelClientOptions {
     /** The relay's tunnel URL. */
@@ -42,6 +48,8 @@ export interface TunnelClientOptions {
     readonly fetch: (request: Request) => Promise<Response>;
     /** Learn the machine's name and its tunnel's lapse at each renewal. */
     readonly renewed: (renewal: Renewal) => void;
+    /** Learn that the tunnel opened, or ended and dials again, until the client closes. */
+    readonly changed: (status: TunnelStatus) => void;
     /** How often to probe the tunnel's liveness, in milliseconds. */
     readonly heartbeat?: number;
     /** How to wait between attempts, below the policy's interval. */
@@ -222,9 +230,13 @@ export class TunnelClient {
         // probe liveness each heartbeat
         void this.#beat(dial);
 
-        // open the tunnel once the relay answers its first ping
+        // open the tunnel once the relay answers its first ping, unless the dial ended meanwhile
         session.ping().then(
-            () => this.#release(dial, session),
+            () => {
+                if (!dial.following.signal.aborted) {
+                    this.#release(dial, session);
+                }
+            },
             () => {},
         );
     }
@@ -235,6 +247,7 @@ export class TunnelClient {
         this.#session = session;
         this.#waiting?.resolve();
         this.#waiting = undefined;
+        this.#options.changed("open");
 
         // learn the machine's name and its token's lifetime
         void this.#schedule(dial, session, 0);
@@ -277,9 +290,12 @@ export class TunnelClient {
         dial.following.abort();
         dial.renewal?.abort();
 
-        // end the session's streams
+        // end the session's streams, and tell an opened tunnel dialing again unless the client closed
         session?.terminate();
         dial.ended.resolve(isOpened);
+        if (isOpened && !this.#stopping.signal.aborted) {
+            this.#options.changed("dialing");
+        }
     }
 
     /** Probe the tunnel's liveness each heartbeat until the dial ends. */
