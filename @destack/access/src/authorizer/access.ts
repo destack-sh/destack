@@ -632,6 +632,23 @@ export class Access {
         );
     }
 
+    /** Read the same access with its scope chain active, as a resume would leave it. */
+    active(): Access {
+        return new Access(this.#authorizer, {
+            scope: this.scope,
+            context: this.context,
+            permissions: this.permissions,
+            authority: this.authority,
+            links: this.#links.map((link) => ({ ...link, isSuspended: false })),
+            grants: this.grants,
+            confined: this.#confined,
+            assumed: this.#assumed,
+            approvers: this.#approvers,
+            bindings: this.bindings,
+            until: this.until,
+        });
+    }
+
     /** Read the gate a request fails on any object: its elevation or the scope's suspension. */
     blocked(permission: PermissionReference): Gate | undefined {
         const key = PermissionReference.key(permission);

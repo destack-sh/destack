@@ -52,6 +52,7 @@ export const AccessError = defineErrorFamily(import.meta.destack.package, {
 
     // decisions
     PERMISSION_DENIED: { code: "FORBIDDEN" },
+    SCOPE_SUSPENDED: { code: "FORBIDDEN" },
     OBJECT_NOT_FOUND: { code: "NOT_FOUND" },
     SCOPE_NOT_FOUND: { code: "NOT_FOUND" },
     SUBJECT_OUTSIDE_CHAIN: { code: "FORBIDDEN" },

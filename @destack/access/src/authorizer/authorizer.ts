@@ -1638,6 +1638,30 @@ export class Authorizer {
         return undefined;
     }
 
+    /** Refuse a denied caller for its gate: a step-up it can take, or its suspended scope. */
+    async refusal(
+        snapshot: Snapshot,
+        permission: PermissionReference,
+        access: Access,
+        allows: (access: Access) => Promise<boolean>,
+    ): Promise<Error | undefined> {
+        // challenge for step-up authentication first
+        const stepUp = await this.challenge(snapshot, permission, access, allows);
+        if (stepUp !== undefined) {
+            return AccessError.of(
+                "AUTHENTICATION_INSUFFICIENT",
+                "authentication assurance is too low: authenticate again",
+                { data: stepUp },
+            );
+        }
+        // refuse a caller its suspended scope alone denies
+        else if (access.isSuspended && (await allows(access.active()))) {
+            return AccessError.of("SCOPE_SUSPENDED", `scope ${access.scope} is suspended`);
+        }
+
+        return undefined;
+    }
+
     /** Read the fewest approvals letting a denied caller use a permission, absent for none. */
     async requiredApprovals(
         snapshot: Snapshot,
@@ -1893,20 +1917,15 @@ export class Authorizer {
         target: ObjectReference,
         access: Access,
     ): Promise<never> {
-        const stepUp = await this.challenge(
+        const refused = await this.refusal(
             snapshot,
             permission,
             access,
-            async (stepped) => (await this.check(snapshot, permission, target, stepped)).isAllowed,
+            async (each) => (await this.check(snapshot, permission, target, each)).isAllowed,
         );
-        if (stepUp !== undefined) {
-            throw AccessError.of(
-                "AUTHENTICATION_INSUFFICIENT",
-                "authentication assurance is too low: authenticate again",
-                { data: stepUp },
-            );
-        }
-        throw AccessError.of("PERMISSION_DENIED", `permission denied: ${permission.name}`);
+        throw (
+            refused ?? AccessError.of("PERMISSION_DENIED", `permission denied: ${permission.name}`)
+        );
     }
 
     /** Read the gate a request fails on a row before any grant. */
