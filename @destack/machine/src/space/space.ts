@@ -36,13 +36,7 @@ import { ResourceContext } from "@destack/resource/context";
 import { Health, type PackageHandler } from "@destack/object/server";
 import { defineWorkload, type WorkloadContext, WorkloadInstance } from "@destack/object/workload";
 import { type Identifier, present } from "@destack/schema";
-import {
-    binding,
-    Database,
-    Rollout,
-    rollout,
-    type InstallationRollout,
-} from "@destack/stack/object";
+import { Database, Rollout, rollout, type InstallationRollout } from "@destack/stack/object";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import {
     SpaceBuildStore,
@@ -90,11 +84,10 @@ export interface SpaceRun {
 
 /** A space a machine serves: its database, events, traffic, workload and outbound calls. */
 export class Space {
-    /** The installations, their rollouts, bindings and main, which decide what a primary serves. */
+    /** The installations, rollouts and main, which decide what a primary serves. */
     readonly watches: readonly Table[] = [
         installation.table,
         rollout.table,
-        binding.table,
         stackObject.database.table,
     ];
     /** The machine serving the space. */
@@ -382,7 +375,12 @@ export class Space {
             name: "space",
             table: Scope.table,
             pending: { scope: this.id },
-            watches: this.watches.map((table) => ({ table, keys: () => [{ scope: this.id }] })),
+            // serve again as the installed set or its installations' and resources' status moves
+            watches: this.watches.map((table) => ({
+                table,
+                isObserving: true,
+                keys: () => [{ scope: this.id }],
+            })),
             reconcile: () => this.serveInstalled(),
         };
     }

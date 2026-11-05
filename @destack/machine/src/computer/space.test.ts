@@ -434,20 +434,31 @@ async function bind(
     peer: Peer,
 ): Promise<void> {
     const { computer, space } = served;
-    const now = computer.clock.now();
     const database = (await computer.machine.space(space)).database;
-    await database.transaction(async (transaction) => {
-        await transaction.insert(stackObject.binding.table).values({
-            id: Identifier.create("binding", computer.environment),
-            scope: space,
-            installationId,
-            packageId: visitor.id,
-            name: peerBinding.name,
-            ...peer,
-            createdAt: now,
-            updatedAt: now,
-        });
-    });
+
+    // select the peer for the visitor's binding, moving the generation as an update does
+    const [row] = await database
+        .select({
+            bindings: installation.table.bindings,
+            generation: installation.table.generation,
+        })
+        .from(installation.table)
+        .where(eq(installation.table.id, installationId));
+    const { bindings, generation } = present(row, `installation ${installationId}`);
+    const target = { type: "installation", name: peer.target, spaceId: peer.targetSpaceId };
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(installation.table)
+                .set({
+                    bindings: {
+                        ...bindings,
+                        [visitor.id]: { ...bindings[visitor.id], [peerBinding.name]: { target } },
+                    },
+                    generation: generation + 1,
+                })
+                .where(eq(installation.table.id, installationId)),
+    );
 }
 
 /** Connect to the stack package of a space at a computer's endpoint with an access token. */

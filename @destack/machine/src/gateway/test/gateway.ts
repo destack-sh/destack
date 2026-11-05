@@ -165,7 +165,9 @@ export async function deployNotes(
             buildId: release.id,
             dependencies: [],
             states: {},
+            bindings: [],
             digest: Digest.parse("e".repeat(64)),
+            generation: 1,
         });
         await transaction
             .update(rollout.table)
