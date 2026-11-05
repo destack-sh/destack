@@ -351,7 +351,7 @@ export const installationRevision = defineObject(
             states: field.blobMap(),
             /** The evaluated stack definition, for stacks. */
             definition: field.json(StackDefinition).optional(),
-            /** The SHA-256 digest of the canonical build, parameters and definition. */
+            /** The SHA-256 digest of the build and the stack evaluation's inputs. */
             digest: field.string(Digest),
         },
         permissions: ["read", "record"],
@@ -941,16 +941,11 @@ export const Rollout = {
         return Object.fromEntries(resolved);
     },
 
-    /** Evaluate a stack installation's export of a build with its space stack's setting values. */
-    async evaluate(
+    /** Read what a stack installation's evaluation reads: its export, arguments and settings. */
+    async inputs(
         snapshot: Pick<Snapshot, "read">,
         installed: Pick<Installation, "scope" | "packageId" | "export" | "parameters">,
-        reader: BuildReader,
-        options: {
-            readonly builds: Pick<SpaceBuildStore, "read">;
-            readonly registry: Pick<Registry, "locate">;
-        },
-    ): Promise<StackEvaluation> {
+    ): Promise<Omit<StackEvaluation, "definition">> {
         // read the export and its arguments, which every stack installation has
         const exported = present(installed.export, `the export of ${installed.packageId}`);
         const parameters = present(installed.parameters, `the arguments of ${exported}`);
@@ -963,12 +958,27 @@ export const Rollout = {
         const stack = present(owner, `the space ${installed.scope}`).stack;
         const settings = stack.packageId === installed.packageId ? stack.settings : {};
 
-        // read the stack the build declares at the export
-        const definition = await declaredStack(reader, exported, settings, (packageId, manifest) =>
-            options.builds.read(options.registry, packageId, manifest),
+        return { export: exported, parameters, settings };
+    },
+
+    /** Evaluate a build's stack at an export from its inputs, with the releases it reads. */
+    async evaluate(
+        inputs: Omit<StackEvaluation, "definition">,
+        reader: BuildReader,
+        options: {
+            readonly builds: Pick<SpaceBuildStore, "read">;
+            readonly registry: Pick<Registry, "locate">;
+        },
+    ): Promise<StackEvaluation> {
+        // read the stack the build declares at the export, with the settings it places
+        const definition = await declaredStack(
+            reader,
+            inputs.export,
+            inputs.settings,
+            (packageId, manifest) => options.builds.read(options.registry, packageId, manifest),
         );
 
-        return { export: exported, parameters, definition };
+        return { ...inputs, definition };
     },
 
     /** Read the fields recording a revision applied, with the one applied before as previous. */
@@ -1147,16 +1157,18 @@ export const Rollout = {
                 continue;
             }
 
-            // evaluate a stack's export of the build, and leave one whose target is it already
-            const reader = await options.builds.contents(selected.manifest);
-            const evaluation =
+            // leave one whose target is the build at the same inputs, then evaluate a stack's export of it
+            const inputs =
                 row.installation.export === null
                     ? undefined
-                    : await Rollout.evaluate(snapshot, row.installation, reader, options);
-            const digest = await InstallationRevision.digest(selected.manifest, evaluation, crypto);
+                    : await Rollout.inputs(snapshot, row.installation);
+            const digest = await InstallationRevision.digest(selected.manifest, inputs, crypto);
             if (revision?.digest === digest) {
                 continue;
             }
+            const reader = await options.builds.contents(selected.manifest);
+            const evaluation =
+                inputs === undefined ? undefined : await Rollout.evaluate(inputs, reader, options);
 
             // describe its revision from its build
             const described = await InstallationRevision.describe(
@@ -1237,19 +1249,20 @@ export const InstallationRevision = {
         return revision;
     },
 
-    /** Digest a build's manifest and its stack evaluation, the same for every build row of it. */
+    /** Digest a build's manifest and its stack evaluation's inputs, which decide its definition. */
     digest(
         manifest: Digest,
-        evaluation: Submission["evaluation"] | undefined,
+        inputs: Omit<StackEvaluation, "definition"> | undefined,
         crypto: DigestCrypto,
     ): Promise<Digest> {
         return Digest.json(
-            evaluation === undefined
+            inputs === undefined
                 ? { manifest }
                 : {
                       manifest,
-                      parameters: evaluation.parameters,
-                      definition: evaluation.definition,
+                      export: inputs.export,
+                      parameters: inputs.parameters,
+                      settings: inputs.settings,
                   },
             crypto,
         );
@@ -1304,7 +1317,7 @@ export const InstallationRevision = {
         target: Pick<Installation, "id" | "scope" | "packageId">,
         evaluated: { readonly id: Identifier<"build">; readonly manifest: Digest },
         described: Pick<InstallationRevision, "dependencies" | "states">,
-        evaluation: Submission["evaluation"] | undefined,
+        evaluation: StackEvaluation | undefined,
         crypto: DigestCrypto,
     ) {
         return installationRevision.call("create", {

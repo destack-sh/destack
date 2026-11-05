@@ -20,7 +20,6 @@ import {
     Rollout,
     rollout,
 } from "../../object/rollout.ts";
-import type { StackEvaluation } from "../../object/stack.ts";
 import type { SpaceBuildStore, CommitSource, Registry } from "./build.ts";
 import { SelectedRepository } from "./selection.ts";
 import { space } from "@destack/account/object";
@@ -122,15 +121,23 @@ export class CommitBuild {
             return;
         }
 
-        // submit the succeeded build, a stack's with its evaluation
+        // submit the succeeded build, a stack's with its export
         await reconciliation.mutate([
             rollout.call("submit", {
                 ...rollout.target({ scope: target.scope, id: target.installationId }),
                 selection,
                 build: { kind: "build", build: built.id },
-                ...(target.installation.export !== null
-                    ? { evaluation: await this.#evaluate(built, database) }
-                    : {}),
+                ...(target.installation.export === null
+                    ? {}
+                    : {
+                          stack: {
+                              export: target.installation.export,
+                              parameters: present(
+                                  target.installation.parameters,
+                                  `the arguments of ${target.installation.export}`,
+                              ),
+                          },
+                      }),
             }),
         ]);
     }
@@ -236,18 +243,5 @@ export class CommitBuild {
             .where(eq(installationRevision.table.id, row.revisionId));
 
         return revision?.buildId === buildId;
-    }
-
-    /** Evaluate the stack installation's export of a succeeded build, as its rollout does. */
-    async #evaluate(built: Build, database: DatabaseConnection): Promise<StackEvaluation> {
-        const options = this.#options;
-        const reader = await options.builds.contents(Build.manifest(built));
-
-        return Rollout.evaluate(
-            Snapshot.live(database),
-            this.#target.installation,
-            reader,
-            options,
-        );
     }
 }

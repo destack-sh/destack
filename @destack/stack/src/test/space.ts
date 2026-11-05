@@ -1,7 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { KERNEL_TYPES } from "../stack/kernel.ts";
 import { copyRequest, Crypto } from "@destack/environment";
-import { InstallationDefinition, StackDefinition } from "../declare/index.ts";
+import { InstallationDefinition, STACK_KIND, StackDefinition } from "../declare/index.ts";
 import type { Environment, HostCapability } from "@destack/environment";
 import { type Connector, Plan } from "@destack/resource";
 import { dirname, join } from "node:path";
@@ -1463,23 +1463,31 @@ export class TestSpace implements AsyncDisposable {
         return { kind: "build", build: id };
     }
 
-    /** Resolve each declared installation to its release's manifest in the registry. */
-    async resolve(definition: JsonObject): Promise<JsonObject> {
+    /** Write a build of the space's stack declaring a definition at an export. */
+    async buildStack(exported: string, definition: JsonObject): Promise<BuildReader> {
+        // resolve each installed release in the registry, as the stack's build depends on it
         const { installations } = StackDefinition.collections(definition);
-        const pinned = await Promise.all(
-            Object.entries(installations).map(async ([key, installed]) => {
-                // pin an installed release to its manifest
-                const { packageId, selection } = installed;
-                if (selection.kind !== "release") {
-                    return [key, installed] as const;
-                }
-                const manifest = await this.registry.find(packageId, selection.version);
+        const released = Object.values(installations).flatMap(({ packageId, selection }) =>
+            selection.kind === "release" ? [{ packageId, version: selection.version }] : [],
+        );
+        const dependencies = await Promise.all(
+            released.map(async ({ packageId, version }) => {
+                const manifest = await this.registry.find(packageId, version);
+                const owner = PackageManifest.package(
+                    (await this.registry.open(packageId, version)).manifest,
+                );
 
-                return [key, { ...installed, selection: { ...selection, manifest } }] as const;
+                return [owner.name, { kind: "destack", package: owner, manifest }] as const;
             }),
         );
 
-        return { ...definition, installations: Object.fromEntries(pinned) };
+        // declare the definition at the space stack's export
+        return MemoryBuild.of(
+            PackageManifest.package(this.releases.space.manifest),
+            [{ ...STACK_KIND.identity, name: exported, description: definition }],
+            this.machine.environment.crypto,
+            { dependencies: Object.fromEntries(dependencies) },
+        );
     }
 
     /** Put a package's fixture release in the build store, as the space's build of it. */
@@ -1900,14 +1908,14 @@ export class TestSpace implements AsyncDisposable {
         const listed = await installed.installation.list({ scope: this.id });
         const stack = single(listed.items.filter((entry) => entry.export !== null));
 
-        // submit the stack's build evaluated to the definition
-        const definition = await this.resolve(this.#stack);
+        // submit a build of the space's stack declaring the definition, which the space evaluates
+        const built = await this.buildStack(STACKS.space.export, this.#stack);
         await owner.rollout.submit({
             spaceId: this.id,
             id: stack.id,
             selection: stack.selection,
-            build: await this.recordBuild(this.releases.space),
-            evaluation: { export: STACKS.space.export, parameters: {}, definition },
+            build: await this.recordBuild(built),
+            stack: { export: STACKS.space.export, parameters: {} },
             requestId: RequestId.create(this.machine.environment),
         });
 

@@ -29,10 +29,15 @@ import { defineStack } from "../../declare/index.ts";
 import stackPackage from "../../package.ts";
 import * as object from "../../object/index.ts";
 import { installation } from "@destack/object";
-import { binding, rollout, type Submission, type InstallationRollout } from "../../object/index.ts";
+import {
+    binding,
+    rollout,
+    type InstallationRollout,
+    type StackEvaluation,
+    type Submission,
+} from "../../object/index.ts";
 import {
     evaluateStack,
-    fixtureBuild,
     fixtureOutputs,
     readStack,
     reconcile,
@@ -56,33 +61,26 @@ const personal = defineStack([], {
     buckets: { files: filesBucket.declare({ retention: { within: { days: 30 } } }) },
 });
 
-/** Submit a build of a manifest to a space's stack, apply it, and reconcile its installations. */
+/** Submit a build declaring a stack to a space, apply it, and reconcile its installations. */
 async function submit(
     fixture: TestSpace,
     store: ObjectStore,
     stack: InstallationRollout,
-    submission: Omit<Submission, "build">,
+    submission: Omit<Submission, "build" | "stack"> & {
+        /** The export, its arguments and the definition the stack's build declares there. */
+        readonly stack: Omit<StackEvaluation, "settings">;
+    },
 ): Promise<InstallationRollout> {
-    // record the stack's build and the submission pinned as its evaluation is, as the system
-    const build = await fixture.recordBuild(
-        await fixtureBuild(stack.installation.packageId, "2026.9.0", fixture.environment.crypto),
-    );
-    const evaluation =
-        submission.evaluation === undefined
-            ? {}
-            : {
-                  evaluation: {
-                      ...submission.evaluation,
-                      definition: await fixture.resolve(submission.evaluation.definition),
-                  },
-              };
+    // record a build of the stack declaring the definition, and submit it for the space to evaluate
+    const { export: exported, parameters, definition } = submission.stack;
+    const build = await fixture.recordBuild(await fixture.buildStack(exported, definition));
     await store.mutate(store.as(rollout), {
         id: RequestId.create(fixture.machine.environment),
         calls: [
             rollout.call("submit", {
                 ...rollout.target({ scope: stack.scope, id: stack.installationId }),
-                ...submission,
-                ...evaluation,
+                selection: submission.selection,
+                stack: { export: exported, parameters },
                 build,
             }),
         ],
@@ -137,7 +135,7 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
             checkout: ids.checkout,
             directory: "." as const,
         },
-        evaluation: { export: "personal", parameters: {}, definition },
+        stack: { export: "personal", parameters: {}, definition },
     };
 
     // apply the submission and create every declared record once, at a fixed time
@@ -165,8 +163,8 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
     const { archive: _archive, ...remaining } = schema.jsonObject().parse(definition["databases"]);
     const removal = {
         ...submission,
-        evaluation: {
-            ...submission.evaluation,
+        stack: {
+            ...submission.stack,
             definition: { ...definition, databases: remaining },
         },
     };
@@ -237,7 +235,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
             checkout: ids.checkout,
             directory: "." as const,
         },
-        evaluation: {
+        stack: {
             export: "personal",
             parameters: {},
             definition: { ...evaluatePersonal(), installations: { notes }, gauges: { main: {} } },
@@ -330,7 +328,7 @@ test("leave a declared installation whose fields are unchanged as it is when its
             checkout: ids.checkout,
             directory: "." as const,
         },
-        evaluation: {
+        stack: {
             export: "personal",
             parameters: {},
             definition: { ...evaluatePersonal(), installations: { notes } },
@@ -395,7 +393,7 @@ test("replace an installation's own binding once its stack binds the declaration
             checkout: ids.checkout,
             directory: "." as const,
         },
-        evaluation: {
+        stack: {
             export: "personal",
             parameters: {},
             definition: {
@@ -414,10 +412,10 @@ test("replace an installation's own binding once its stack binds the declaration
     };
     await submit(fixture, store, stack, {
         ...submission,
-        evaluation: {
-            ...submission.evaluation,
+        stack: {
+            ...submission.stack,
             definition: {
-                ...submission.evaluation.definition,
+                ...submission.stack.definition,
                 installations: { notes: { ...notes, bindings } },
             },
         },
@@ -474,7 +472,7 @@ test("bind a declaration to an installation of another space by name, unpinned, 
                 checkout: ids.checkout,
                 directory: "." as const,
             },
-            evaluation: {
+            stack: {
                 export: "personal",
                 parameters: {},
                 definition: { ...evaluatePersonal(), installations: { notes } },
@@ -558,7 +556,7 @@ test("block a stack relating a role or installation of another space by identifi
                 checkout: ids.checkout,
                 directory: "." as const,
             },
-            evaluation: {
+            stack: {
                 export: "personal",
                 parameters: {},
                 definition: {
@@ -627,9 +625,7 @@ test("install a package and declare records of its type in one approved plan, ap
     const definition = { installations: { notes }, meters: { main: {} } };
     const stack = await readStack(database);
     const store = await serve(fixture);
-    const build = await fixture.recordBuild(
-        await fixtureBuild(stack.installation.packageId, "2026.9.0", fixture.environment.crypto),
-    );
+    const build = await fixture.recordBuild(await fixture.buildStack("personal", definition));
     await store.mutate(store.as(rollout), {
         id: RequestId.create(fixture.machine.environment),
         calls: [
@@ -641,7 +637,7 @@ test("install a package and declare records of its type in one approved plan, ap
                     checkout: ids.checkout,
                     directory: ".",
                 },
-                evaluation: { export: "personal", parameters: {}, definition },
+                stack: { export: "personal", parameters: {} },
                 build,
             }),
         ],

@@ -191,7 +191,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
 
     // apply the second build as the space's owner does, without the space's stack
     const apply = async () => {
-        const { installed, revision } = await stack();
+        const { installed } = await stack();
         const owner = served.as(fixture.owner.subject).client(stackPackage);
         await owner.rollout.submit({
             spaceId: fixture.id,
@@ -199,11 +199,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
             requestId: RequestId.create(fixture.machine.environment),
             selection: { kind: "release", version: stacked.version },
             build: { kind: "release", version: stacked.version, manifest: second },
-            evaluation: {
-                export: "home",
-                parameters: {},
-                definition: present(revision.definition, "the definition"),
-            },
+            stack: { export: "home", parameters: {} },
         });
     };
 

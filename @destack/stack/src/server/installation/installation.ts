@@ -307,15 +307,15 @@ async function submit(
     prepared: SubmissionPreparation,
     options: InstallationOptions,
 ): Promise<Rollout> {
-    // require a stack's evaluation for a stack and none for an application
-    const { selection, evaluation, build: submitted } = context.input;
+    // require a stack's export for a stack and none for an application
+    const { selection, stack, build: submitted } = context.input;
     const isStack = target.installation.export !== null;
-    if (isStack !== (evaluation !== undefined)) {
+    if (isStack !== (stack !== undefined)) {
         throw StackError.of(
             "SUBMISSION_KIND_MISMATCH",
             isStack
-                ? `${target.installation.name} is a stack, submitted with its evaluation`
-                : `${target.installation.name} is an application, submitted without a stack's evaluation`,
+                ? `${target.installation.name} is a stack, submitted with its export`
+                : `${target.installation.name} is an application, submitted without a stack's export`,
         );
     }
 
@@ -339,7 +339,15 @@ async function submit(
         }
     }
 
-    // retain the evaluation once
+    // evaluate a stack's export of the build here, and retain the revision once
+    const evaluation =
+        stack === undefined
+            ? undefined
+            : await Rollout.evaluate(
+                  await Rollout.inputs(context, { ...target.installation, ...stack }),
+                  reader,
+                  options,
+              );
     const [revision] = await context.mutate(context.self, [
         await InstallationRevision.create(
             target.installation,
@@ -351,16 +359,11 @@ async function submit(
     ]);
 
     // select the submitted build and arguments on the installation
-    const selected = {
-        selection,
-        ...(evaluation === undefined
-            ? {}
-            : { export: evaluation.export, parameters: evaluation.parameters }),
-    };
+    const selected = { selection, ...stack };
     const { installation: installed } = target;
     const current = {
         selection: installed.selection,
-        ...(evaluation === undefined
+        ...(stack === undefined
             ? {}
             : { export: installed.export, parameters: installed.parameters }),
     };

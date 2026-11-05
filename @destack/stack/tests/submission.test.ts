@@ -48,46 +48,31 @@ test("apply a submitted stack build and open its installations' views", async ()
 
     // follow a checkout with the stack installation the space's birth gave it
     const stack = await readStack(fixture.database);
-    const submission = {
-        spaceId: ids.space,
-        id: stack.installationId,
-        selection,
-        build: await fixture.recordBuild(
-            await fixtureBuild(
-                stack.installation.packageId,
-                "2026.9.0",
-                fixture.environment.crypto,
-            ),
-        ),
-        evaluation: {
-            export: "personal",
-            parameters: {},
-            definition: {
-                roles: { reviewer: { description: "Review notes", permissions: [] } },
-                installations: {
-                    notes: {
-                        packageId: ids.package,
-                        selection: { kind: "release", version: "2026.9.0" },
-                        status: "enabled",
-                        name: "notes",
-                        bindings: {},
-                        compute: {},
-                        capabilities: [],
-                        directories: [],
-                        isolation: "sandbox",
-                        tags: {},
-                    },
-                },
+    const definition = {
+        roles: { reviewer: { description: "Review notes", permissions: [] } },
+        installations: {
+            notes: {
+                packageId: ids.package,
+                selection: { kind: "release", version: "2026.9.0" },
+                status: "enabled",
+                name: "notes",
+                bindings: {},
+                compute: {},
+                capabilities: [],
+                directories: [],
+                isolation: "sandbox",
+                tags: {},
             },
         },
     };
 
-    // submit the build pinned as its evaluation is and have the stack controller apply its safe plan without approval
-    const definition = await fixture.resolve(submission.evaluation.definition);
-    const evaluation = { ...submission.evaluation, definition };
+    // submit a build of the stack declaring it, which the space evaluates, and have the stack controller apply its safe plan without approval
     await owner.rollout.submit({
-        ...submission,
-        evaluation,
+        spaceId: ids.space,
+        id: stack.installationId,
+        selection,
+        build: await fixture.recordBuild(await fixture.buildStack("personal", definition)),
+        stack: { export: "personal", parameters: {} },
         requestId: RequestId.create(fixture.machine.environment),
     });
     await reconcile(store, "rollout", {
@@ -154,23 +139,14 @@ test("apply an earlier build submitted again after a later one, approving each p
     const stack = await readStack(fixture.database);
 
     // submit a build declaring one role and one declaring both
-    const submit = async (role: string, version: string) => {
+    const submit = async (role: string) => {
+        const definition = { roles: { [role]: { description: role, permissions: [] } } };
         const submission = {
             spaceId: ids.space,
             id: stack.installationId,
             selection,
-            build: await fixture.recordBuild(
-                await fixtureBuild(
-                    stack.installation.packageId,
-                    version,
-                    fixture.environment.crypto,
-                ),
-            ),
-            evaluation: {
-                export: "personal",
-                parameters: {},
-                definition: { roles: { [role]: { description: role, permissions: [] } } },
-            },
+            build: await fixture.recordBuild(await fixture.buildStack("personal", definition)),
+            stack: { export: "personal", parameters: {} },
         };
         await owner.rollout.submit({
             ...submission,
@@ -201,9 +177,9 @@ test("apply an earlier build submitted again after a later one, approving each p
 
         return { revision: (await read()).revisionId, isWaiting };
     };
-    const first = await submit("reviewer", "2026.9.0");
-    const second = await submit("guest", "2026.10.0");
-    const third = await submit("reviewer", "2026.9.0");
+    const first = await submit("reviewer");
+    const second = await submit("guest");
+    const third = await submit("reviewer");
 
     // apply the first build's revision once more, each submission after the first waiting on its plan
     const applied = await readInstalled(fixture.database, stack.installationId);
