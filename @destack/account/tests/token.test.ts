@@ -152,11 +152,11 @@ test("issue a token client with its grant, act through it, and revoke both", asy
         },
     });
 
-    // stamp each token with the universe's position at its exchange, and the account's groups in its space
+    // stamp each token with the universe's watermark at its exchange, and the account's groups in its space
     const { log } = fixture.database;
-    const universalAt = await log.position();
+    const universalAt = await fixture.store.watermark(Scope.universe.id);
     const universal = TestJwt.claims((await exchange()).accessToken);
-    const spacedAt = await log.position();
+    const spacedAt = await fixture.store.watermark(Scope.universe.id);
     const spaced = TestJwt.claims((await exchange(spaceId)).accessToken);
     const exchangedAt = await log.position();
     const onAccount = account.reference(owner.id, accountId);

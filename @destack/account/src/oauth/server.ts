@@ -60,7 +60,7 @@ export interface AuthorizationServerOptions {
     /** The account database. */
     readonly database: DatabaseConnection;
     /** The account objects, which store the server's records and register devices' clients. */
-    readonly objects: Pick<ObjectStore, "mutate" | "as" | "database" | "environment">;
+    readonly objects: Pick<ObjectStore, "mutate" | "as" | "database" | "environment" | "watermark">;
     /** The clock, randomness, WebCrypto and network the server runs on. */
     readonly environment: Environment;
     /** The policies expanding memberships, which token exchanges check. */
@@ -99,15 +99,15 @@ export class AuthorizationServer {
     readonly #base: string;
     /** The endpoints, by their path below the issuer. */
     readonly #endpoints: ReadonlyMap<string, Endpoint>;
-    /** The account database, whose log position each answer reports. */
-    readonly #database: DatabaseConnection;
+    /** The account objects, whose universe watermark each answer reports. */
+    readonly #objects: Pick<ObjectStore, "watermark">;
 
     /** Compose the server's endpoints. */
     constructor(options: AuthorizationServerOptions) {
         // compose the endpoints that decide and issue
         const { issuer, pages } = options;
         this.#base = new URL(issuer).pathname;
-        this.#database = options.database;
+        this.#objects = options.objects;
         this.authorization = new AuthorizationEndpoint({ ...options, ...pages });
         this.device = new DeviceAuthorizationEndpoint({ ...options, ...pages });
         this.token = new TokenEndpoint(
@@ -165,10 +165,9 @@ export class AuthorizationServer {
             response.headers.set("cache-control", "no-store");
         }
 
-        // add the universe's position, so the caller's later calls read the sign-in's writes
+        // add the universe's watermark, so the caller's later calls read the sign-in's writes
         const bookmark = new Bookmark();
-        const position = await this.#database.log.position();
-        bookmark.observe({ scope: Scope.universe.id, ...position });
+        bookmark.observe(await this.#objects.watermark(Scope.universe.id));
         response.headers.set(BOOKMARK_HEADER, bookmark.format());
 
         return response;

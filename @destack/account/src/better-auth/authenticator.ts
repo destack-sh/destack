@@ -126,7 +126,7 @@ export interface BetterAuthAuthenticatorOptions {
     /** The account objects, which create a new person's personal account and decide access. */
     objects: Pick<
         ObjectStore,
-        "mutate" | "claims" | "authorizer" | "database" | "as" | "environment"
+        "mutate" | "claims" | "authorizer" | "database" | "as" | "environment" | "watermark"
     >;
     /** The event log the journal stores audited calls in. */
     events: EventStore;

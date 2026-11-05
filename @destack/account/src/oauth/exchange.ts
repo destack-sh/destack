@@ -1,3 +1,4 @@
+import type { ObjectStore } from "@destack/object/server";
 import {
     Access,
     AccessContext,
@@ -85,6 +86,8 @@ const ExchangeRequest = schema.looseObject({
 export interface ExchangeOptions {
     /** The account database with the people, grants and placements. */
     readonly database: DatabaseConnection;
+    /** The account objects, whose universe watermark stamps tokens acting under grants. */
+    readonly objects: Pick<ObjectStore, "watermark">;
     /** The policies expanding memberships. */
     readonly authorizer: Authorizer;
     /** The universe's issuer, which the exchanged access tokens include. */
@@ -128,12 +131,7 @@ export function exchangeGrant(options: ExchangeOptions): TokenGrant {
                       ...authentication,
                       credential: {
                           ...credential,
-                          watermarks: [
-                              {
-                                  scope: Scope.universe.id,
-                                  ...(await options.database.log.position()),
-                              },
-                          ],
+                          watermarks: [await options.objects.watermark(Scope.universe.id)],
                       },
                   };
 

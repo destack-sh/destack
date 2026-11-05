@@ -136,7 +136,7 @@ test("stamp a token acting for a person under their grant with the universe's po
             credential: sessionId,
         });
     const { log } = fixture.storage.database;
-    const granted = await log.position();
+    const granted = await fixture.store.watermark(Scope.universe.id);
     const accessToken = await exchange();
     const exchanged = await log.position();
     const stamped = single(
@@ -150,7 +150,7 @@ test("stamp a token acting for a person under their grant with the universe's po
         requestId: RequestId.create(fixture.store.environment),
     });
 
-    // stamp the universe's position between the grant's write and the exchange
+    // stamp the universe's watermark at the exchange
     const { sequence, ...position } = stamped;
     const { sequence: grantedAt, ...grantedPosition } = granted;
     expect({ position, ended: await refusal(exchange()) }).toEqual({
