@@ -9,6 +9,7 @@ import {
     BUILDS_VARIABLE,
     PLATFORM_PACKAGES,
     STACK_FIXTURE,
+    START_FIXTURE,
     TestDistribution,
 } from "./distribution.ts";
 import { SCENARIO_FIXTURES, WORLD_FIXTURES, WorldDriver } from "./world.ts";
@@ -29,7 +30,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
             ...PLATFORM_PACKAGES.map(
                 (name) => [name, built, () => TestDistribution.platform(name, compilers)] as const,
             ),
-            ...[...WORLD_FIXTURES, STACK_FIXTURE, ...SCENARIO_FIXTURES].map(
+            ...[...WORLD_FIXTURES, STACK_FIXTURE, START_FIXTURE, ...SCENARIO_FIXTURES].map(
                 (name) =>
                     [
                         name,

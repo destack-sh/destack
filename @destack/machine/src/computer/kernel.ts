@@ -6,7 +6,7 @@ import { schema } from "@destack/schema";
 export const KERNEL_FILE = "kernel.json";
 
 /** The workspace scopes a kernel walk enters, leaving npm packages to the builds bundling them. */
-const WORKSPACE_SCOPES = ["@destack/", "@platform/", "@app/"] as const;
+const WORKSPACE_SCOPES = ["@destack/", "@platform/"] as const;
 
 /** The subpaths a runtime imports another package through without providing it. */
 const EXEMPT_SUBPATHS: ReadonlySet<string> = new Set(["declare", "client"]);

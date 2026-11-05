@@ -6,9 +6,9 @@
         ".": "./src/index.ts"
     },
     "dependencies": {
-        "@app/home": "workspace:*",
         "@destack/connection": "workspace:*",
         "@destack/forge": "workspace:*",
+        "@destack/machine-start-fixture": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/observability": "workspace:*",

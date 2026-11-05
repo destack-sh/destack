@@ -7,7 +7,7 @@ import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { OWNER_EMAIL, SCENARIO_MILLISECONDS, TestComputer } from "../src/computer/test/index.ts";
 
-/** The tag a change after the restart sets on the home's Home installation. */
+/** The tag a change after the restart sets on the home's start installation. */
 const RESUMED = { resumed: "yes" };
 
 test(
@@ -26,13 +26,11 @@ test(
         const space = `home--${world.owner.handle}`;
         await using stack = new AsyncDisposableStack();
         const replica = await session.open({ space }, { installation }, stack);
-        const named = (rows: readonly Select<typeof installation.table>[] | void) =>
-            (rows ?? []).find((row) => row.name === "home");
         const watched = replica.query.installation.findMany({}).watch(new AbortController().signal);
         const first = await world.simulation.wait(watched.next());
-        const before = present(named(first.value), "the home's Home installation");
+        const before = present(startOf(first), "the home's start installation");
 
-        // restart the home's computer, then tag Home as the owner once it serves the home again
+        // restart the home's computer, then tag the start page as the owner once it serves the home again
         const restarted = await home.restart();
         await restarted.ready(world.owner.home);
         const ready = world.simulation.clock.now();
@@ -53,7 +51,7 @@ test(
         let elapsed: number | undefined;
         while (elapsed === undefined) {
             const next = await world.simulation.wait(watched.next());
-            const row = named(next.value);
+            const row = startOf(next);
             if (row !== undefined && JSON.stringify(row.tags) === JSON.stringify(RESUMED)) {
                 elapsed = world.simulation.clock.now() - ready;
             }
@@ -63,3 +61,10 @@ test(
     },
     SCENARIO_MILLISECONDS,
 );
+
+/** Find the start installation among a watch's rows, absent once the watch ends. */
+function startOf(
+    result: IteratorResult<readonly Select<typeof installation.table>[], void>,
+): Select<typeof installation.table> | undefined {
+    return result.done === true ? undefined : result.value.find((row) => row.name === "start");
+}

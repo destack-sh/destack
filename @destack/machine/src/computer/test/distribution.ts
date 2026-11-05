@@ -19,7 +19,6 @@ export const BUILDS_VARIABLE = "DESTACK_MACHINE_BUILDS";
 
 /** The platform packages a test distribution ships, built from the workspace as releases are. */
 export const PLATFORM_PACKAGES = [
-    "@app/home",
     "@destack/vault",
     "@destack/message",
     "@destack/notification",
@@ -31,6 +30,9 @@ export const PLATFORM_PACKAGES = [
 
 /** The fixture package declaring the stacks spaces are born with, as the platform's does. */
 export const STACK_FIXTURE = "stack";
+
+/** The fixture start page the stack fixture installs in every person's home. */
+export const START_FIXTURE = "start";
 
 /** What a test computer ships: the platform's stacks, what they install, and other builds. */
 export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
@@ -84,6 +86,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
 
         // pin the stacks spaces are born with, and the residencies' homes', from the stack fixture
         const stack = await read(STACK_FIXTURE);
+        const start = await read(START_FIXTURE);
         const stacks = {
             person: await TestDistribution.pinned(stack, "PERSON_STACK", crypto),
             account: await TestDistribution.pinned(stack, "ACCOUNT_STACK", crypto),
@@ -92,7 +95,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const residencyHome = await TestDistribution.pinned(stack, "RESIDENCY_STACK", crypto);
 
         // ship the stacks, the packages they install, and the builds the test adds
-        const builds = [...platform, stack, ...given];
+        const builds = [...platform, stack, start, ...given];
 
         // serve the shipped releases from the run's store of their closures' builds
         const registry = new TestRegistry(store);

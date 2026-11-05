@@ -1,4 +1,4 @@
-import homePackage from "@app/home/package";
+import startPackage from "@destack/machine-start-fixture/package";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
 import forgePackage from "@destack/forge/package";
@@ -31,12 +31,12 @@ const ACCOUNT_HOME = {
 /** The stack of every other account's home, as the platform's: its connections. */
 export const ACCOUNT_STACK = defineStack([vaultPackage], ACCOUNT_HOME);
 
-/** The stack of every person's home: an account's, with Home, its inbox and observability. */
+/** The stack of every person's home: an account's, with a start page, inbox and observability. */
 export const PERSON_STACK = defineStack([vaultPackage], {
     ...ACCOUNT_HOME,
     installations: {
         ...ACCOUNT_HOME.installations,
-        home: install(homePackage, {}, { name: "home" }),
+        start: install(startPackage, {}, { name: "start" }),
         message: install(
             messagePackage,
             {},

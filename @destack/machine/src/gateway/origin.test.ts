@@ -1029,14 +1029,14 @@ test(
 );
 
 test(
-    "serve Home's page with its session cookie after its computer restarts, its document and its home path's calls answering",
+    "serve the start page with its session cookie after its computer restarts, its document and its home path's calls answering",
     async () => {
-        // open Home's start view, then restart the computer serving the home
+        // open the start page, then restart the computer serving the home
         const home = await openHome();
         const page = await openPage(home, {
             space: home.address,
-            installation: "home",
-            view: "home",
+            installation: "start",
+            view: "start",
             path: "/",
         });
         const restarted = await home.computer.restart();
@@ -1064,12 +1064,12 @@ test(
         );
         const installations = await objects.installation.list({ scope: home.spaceId });
 
-        // launch Home afresh after the restart from the browser keeping its cookie, as a window the desktop restores does
+        // launch the start page afresh after the restart from the browser keeping its cookie, as a window the desktop restores does
         const login = await restarted.device.session(home.login);
         const launched = await login.launch({
             space: home.address,
-            installation: "home",
-            view: "home",
+            installation: "start",
+            view: "start",
             path: "/",
         });
         const traded = await restarted.computer.fetch(
@@ -1089,12 +1089,12 @@ test(
             document: 200,
             named: [
                 "connection",
-                "home",
                 "inbox",
                 "message",
                 "observability",
                 "social",
                 "stack",
+                "start",
                 "vault",
             ],
             base: 7,
@@ -1106,12 +1106,12 @@ test(
 test(
     "list a space's rollouts and installations through its home path, at the packages its store serves",
     async () => {
-        // open Home's start view, whose grant lists the space's installations and rollouts
+        // open the start page, whose grant lists the space's installations and rollouts
         const home = await openHome();
         const page = await openPage(home, {
             space: home.address,
-            installation: "home",
-            view: "home",
+            installation: "start",
+            view: "start",
             path: "/",
         });
         const below = (packageId: PackageId) => ({
@@ -1149,17 +1149,17 @@ test(
 test(
     "refuse a page's push to a scope's home for a call outside the view's grant",
     async () => {
-        // open Home's start view, whose grant gives the owner's settings alone
+        // open the start page, whose grant gives the owner's settings alone
         const home = await openHome();
         const { owner } = home.computer.world;
         const page = await openPage(home, {
             space: home.address,
-            installation: "home",
-            view: "home",
+            installation: "start",
+            view: "start",
             path: "/",
         });
 
-        // push revoking the owner's client, which Home's grant does not allow
+        // push revoking the owner's client, which the start page's grant does not allow
         const call = accountObject.client.call("revoke", {
             ...accountObject.client.target({
                 scope: user.identifier(owner.id),
@@ -1177,7 +1177,7 @@ test(
             }),
         );
 
-        // refuse the call at the universe as outside Home's grant, which revokes no clients
+        // refuse the call at the universe as outside the start page's grant, which revokes no clients
         const client = schema.identifier("client").parse(page.login.login.row.clientId);
         expect([response.status, await response.json()]).toEqual([
             403,
@@ -1202,13 +1202,13 @@ test(
 test(
     "register the browser as the person's client from a view granted it, refusing a view granted none",
     async () => {
-        // open Home's start view and the tasks board
+        // open the start page and the tasks board
         const home = await openHome();
         await installTasks(home);
         const homePage = await openPage(home, {
             space: home.address,
-            installation: "home",
-            view: "home",
+            installation: "start",
+            view: "start",
             path: "/",
         });
         const board = await openPage(home, {
@@ -1218,7 +1218,7 @@ test(
             path: "/",
         });
 
-        // register a browser client from Home, granted it, then from the board, granted none
+        // register a browser client from the start page, granted it, then from the board, granted none
         const person = (await home.computer.device.session(home.login)).login.subject.id;
         const client = Identifier.create("client", home.computer.device.environment);
         const registered = await registerClient(homePage, client);
@@ -1245,14 +1245,14 @@ test(
 );
 
 test(
-    "bind Home's page to a registered client by a proof of its key for the bind, refusing a proof for another request, and answer a removed client as gone",
+    "bind the start page to a registered client by a proof of its key for the bind, refusing a proof for another request, and answer a removed client as gone",
     async () => {
-        // open Home's start view, and register a browser client and its key from it
+        // open the start page, and register a browser client and its key from it
         const home = await openHome();
         const page = await openPage(home, {
             space: home.address,
-            installation: "home",
-            view: "home",
+            installation: "start",
+            view: "start",
             path: "/",
         });
         const { environment } = home.computer.device;

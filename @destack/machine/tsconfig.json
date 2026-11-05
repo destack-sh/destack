@@ -18,6 +18,8 @@
         "noUncheckedSideEffectImports": true,
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
+        "jsx": "preserve",
+        "jsxImportSource": "@destack/view",
         "lib": [
             "ES2024",
             "ESNext.Array",

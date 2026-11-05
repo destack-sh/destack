@@ -1,0 +1,16 @@
+{
+    "name": "@destack/machine-start-fixture",
+    "version": "2026.11.0",
+    "type": "module",
+    "exports": {
+        "./package": "./src/package.ts",
+        "./view": "./src/view/index.ts"
+    },
+    "dependencies": {
+        "@destack/account": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/view": "workspace:*"
+    }
+}
