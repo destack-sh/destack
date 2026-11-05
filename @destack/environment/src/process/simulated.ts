@@ -33,8 +33,8 @@ export interface ProcessOptions {
     readonly runtime: Runtime;
     /** The channel to the parent process, absent when no parent connected it. */
     readonly parent?: ProcessChannel;
-    /** The bytes the standard input reads, none by default. */
-    readonly stdin?: Uint8Array<ArrayBuffer>;
+    /** The bytes or stream the standard input reads, none by default. */
+    readonly stdin?: Uint8Array<ArrayBuffer> | ReadableStream<Uint8Array>;
     /** Whether the standard streams are a terminal, false by default. */
     readonly isTerminal?: boolean;
 }
@@ -57,7 +57,7 @@ export class SimulatedProcess implements Process {
     readonly runtime: Runtime;
     /** The channel to the parent process, absent when no parent connected it. */
     readonly parent: ProcessChannel | undefined;
-    /** The standard input, reading the given bytes once. */
+    /** The standard input, reading the given stream or bytes once. */
     readonly stdin: Input;
     /** The standard output, written into its chunks. */
     readonly stdout: Output & { readonly chunks: Uint8Array[] };
@@ -89,16 +89,19 @@ export class SimulatedProcess implements Process {
         this.parent = options.parent;
         this.#scheduler = scheduler;
 
-        // read the given bytes on standard input, then its end, and write output into chunks
+        // read the given stream on standard input, else the given bytes then its end, and write output into chunks
         const { stdin, isTerminal = false } = options;
-        const readable = new ReadableStream<Uint8Array>({
-            start(controller) {
-                if (stdin !== undefined) {
-                    controller.enqueue(stdin);
-                }
-                controller.close();
-            },
-        });
+        const readable =
+            stdin instanceof ReadableStream
+                ? stdin
+                : new ReadableStream<Uint8Array>({
+                      start(controller) {
+                          if (stdin !== undefined) {
+                              controller.enqueue(stdin);
+                          }
+                          controller.close();
+                      },
+                  });
         this.stdin = { readable, isTerminal };
         this.stdout = SimulatedProcess.#output(isTerminal);
         this.stderr = SimulatedProcess.#output(isTerminal);
