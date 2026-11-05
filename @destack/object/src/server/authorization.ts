@@ -4,7 +4,6 @@ import { ObjectError } from "../error/error.ts";
 import * as access from "@destack/access";
 import { Replica, Scope, type ObjectReference } from "@destack/sync";
 import {
-    AccessError,
     earliest,
     AccessContext,
     Caller,
@@ -316,19 +315,15 @@ export class Authorization extends access.Authorization {
             return row;
         }
 
-        // challenge for step-up authentication first and for a grant giving too little second
-        const stepUp = await this.authorizer.challenge(
+        // refuse a gate's denial first, then a grant giving too little
+        const refused = await this.authorizer.refusal(
             this.snapshot,
             permission,
             governing,
-            async (stepped) => (await select(stepped)).length > 0,
+            async (each) => (await select(each)).length > 0,
         );
-        if (stepUp !== undefined) {
-            throw AccessError.of(
-                "AUTHENTICATION_INSUFFICIENT",
-                "authentication assurance is too low: authenticate again",
-                { data: stepUp },
-            );
+        if (refused !== undefined) {
+            throw refused;
         }
         await this.#requireGranted(context, id, permission, governing, select);
 

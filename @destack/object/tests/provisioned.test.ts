@@ -272,7 +272,7 @@ async function serve(world: Environment, boxes: Boxes) {
     return { store, database, reconcile, read, want };
 }
 
-test("provision a box, apply its consumers' growth, and apply a destructive shrink only once its plan is approved", async () => {
+test("provision a box once its space is unfenced and active, apply its consumers' growth, and apply a destructive shrink only once its plan is approved", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -301,8 +301,18 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     await reconcile("box", ids.first);
     const fenced = present(await read(ids.first), "the fenced box");
 
-    // provision it and grow it to the size its consumer requires
+    // leave it alone while a suspension holds its space too
+    await Transaction.run(database, (transaction) =>
+        Scope.change(transaction, spaceId, { suspendedAt: now }),
+    );
     await Transaction.run(database, (transaction) => Scope.unfence(transaction, spaceId));
+    await reconcile("box", ids.first);
+    const suspended = present(await read(ids.first), "the suspended box");
+
+    // provision it and grow it to the size its consumer requires once its space resumes
+    await Transaction.run(database, (transaction) =>
+        Scope.change(transaction, spaceId, { suspendedAt: null }),
+    );
     await reconcile("box", ids.first);
     const grown = present(await read(ids.first), "the grown box");
 
@@ -348,6 +358,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     expect({
         unset: [unset.reference, unset.conditions],
         fenced: [fenced.reference, fenced.conditions],
+        suspended: [suspended.reference, suspended.conditions],
         grown: [
             grown.provider,
             grown.reference,
@@ -363,6 +374,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     }).toEqual({
         unset: [null, {}],
         fenced: [null, {}],
+        suspended: [null, {}],
         grown: ["memory", `memory:${ids.first}`, machineId, "Applied"],
         waiting: [
             "AwaitingApproval",

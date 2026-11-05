@@ -165,31 +165,24 @@ export const ObjectController = {
             keys: (change, database) => watch.keys(Change.image(change), database, change),
         }));
 
-        // select a scope's keys again once its transfer fence lifts
-        const unfenced: Watch = {
+        // select the keys of a scope's subtree again once its fence or suspension lifts
+        const released: Watch = {
             table: Scope.table,
             keys: async (change, database) => {
-                // pass every change but a lifted fence, read in memory
-                const before = Change.before(change);
-                const after = Change.after(change);
-                if (
-                    before === null ||
-                    after === null ||
-                    before["movedTo"] === null ||
-                    after["movedTo"] !== null
-                ) {
+                // read the released scopes
+                const scopes = await ObjectController.released(change, database);
+                if (scopes.length === 0) {
                     return [];
                 }
 
-                // select the scope's keys
-                const scope = schema.string().parse(after["scope"]);
+                // select their keys
                 const columns = Object.fromEntries(
                     key.map((field) => [field, object.table[TABLE].column(field)]),
                 );
                 const rows = await database
                     .selectDistinct(columns)
                     .from(object.table)
-                    .where(object.inScope(scope));
+                    .where(object.inScopes(scopes));
 
                 return rows.map((row) => KEY_FIELDS.parse(row));
             },
@@ -199,7 +192,7 @@ export const ObjectController = {
             table: object.table,
             pending: declared.pending,
             key,
-            watches: [...watches, unfenced],
+            watches: [...watches, released],
             ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
         };
 
@@ -249,8 +242,22 @@ export const ObjectController = {
     project(store: ObjectStore, object: ObjectType, declared: ObjectProjection): Cursor {
         // read the touched keys: the watches' of the changed table, else the type's own changed row's
         const field = object.keyed ?? "id";
+        const keyColumn = object.table[TABLE].column(field);
         const watches = Map.groupBy(declared.watches, (watch) => watch.table);
         const keys = async (change: Change, database: DatabaseConnection) => {
+            // project the keys of a subtree whose fence or suspension lifted
+            if (change.table === Scope.table) {
+                const scopes = await ObjectController.released(change, database);
+                const rows =
+                    scopes.length === 0
+                        ? []
+                        : await database
+                              .selectDistinct({ key: keyColumn })
+                              .from(object.table)
+                              .where(object.inScopes(scopes));
+
+                return rows.map((row) => schema.string().parse(row.key));
+            }
             const watching = watches.get(change.table);
             const touched =
                 watching !== undefined
@@ -268,11 +275,10 @@ export const ObjectController = {
             return [...new Set(touched.map((fields) => schema.string().parse(fields[field])))];
         };
         const name = declared.name === undefined ? object.name : `${object.name}:${declared.name}`;
-        const keyColumn = object.table[TABLE].column(field);
 
         return new Projection(store.database, {
             name: `project:${name}`,
-            tables: [...new Set([object.table, ...watches.keys()])],
+            tables: [...new Set([object.table, Scope.table, ...watches.keys()])],
             observed: declared.watches.flatMap((watch) =>
                 watch.isObserving === true ? [watch.table] : [],
             ),
@@ -289,22 +295,47 @@ export const ObjectController = {
                     .where(eq(keyColumn, key));
                 const originated = await ObjectController.originated(store, object, rows);
                 if (rows.length === 0 || originated.length > 0) {
-                    await declared.project(
-                        key,
-                        ObjectController.context(store, object, originated, reconciliation),
-                    );
+                    await declared
+                        .project(
+                            key,
+                            ObjectController.context(store, object, originated, reconciliation),
+                        )
+                        .catch((error: unknown) => {
+                            // hold a pass a suspension refused midway, until the resume projects it again
+                            if (Failure.of(error).reason !== "SCOPE_SUSPENDED") {
+                                throw error;
+                            }
+                        });
                 }
             },
         });
     },
 
-    /** Select the rows of scopes the store writes now: no replicas, and fenced ones for a mover. */
+    /** List the subtree a scope's change releases once its fence or suspension lifts. */
+    async released(change: Change, database: DatabaseConnection): Promise<string[]> {
+        // release nothing on an insert or a delete
+        const before = Change.before(change);
+        const after = Change.after(change);
+        if (before === null || after === null) {
+            return [];
+        }
+
+        // release the subtree of a lifted fence or suspension
+        const isUnfenced = before["movedTo"] !== null && after["movedTo"] === null;
+        const isResumed = before["suspendedAt"] !== null && after["suspendedAt"] === null;
+
+        return !isUnfenced && !isResumed
+            ? []
+            : await Scope.subtree(Snapshot.live(database), schema.string().parse(after["scope"]));
+    },
+
+    /** Select the rows of active scopes the store writes now, fenced ones only for a mover. */
     async originated(
         store: ObjectStore,
         object: ObjectType,
         rows: readonly Row[],
     ): Promise<readonly Row[]> {
-        // read each scope's chain once, and decide whether its rows are replicas, a type moving scopes working in fenced ones
+        // read each scope's chain once, and decide whether the store owns it
         const snapshot = Snapshot.live(store.database);
         const isMoving = (object.policy.definition.moving ?? []).length > 0;
         const scopes = [...new Set(rows.map((row) => schema.string().parse(row["scope"])))];
@@ -313,13 +344,15 @@ export const ObjectController = {
             (
                 await Promise.all(
                     scopes.map(async (scope) => {
-                        // own a scope that is placed here, unfenced, and no replica
-                        const [link] = found(chains, scope);
+                        // own a scope that is placed here, unfenced, active, and no replica
+                        const links = found(chains, scope);
+                        const [link] = links;
                         const isFenced =
                             link === undefined || (link.movedTo !== undefined && !isMoving);
+                        const isSuspended = links.some((each) => each.isSuspended);
                         const isReplica = await store.isReplica(object, snapshot, scope);
 
-                        return isFenced || isReplica ? [] : [scope];
+                        return isFenced || isSuspended || isReplica ? [] : [scope];
                     }),
                 )
             ).flat(),
@@ -412,8 +445,13 @@ export const ObjectController = {
             );
             await observeAll(reread, { conditions: { [SYNCED]: SYNCED_CONDITION } });
         } catch (error) {
-            // record a declared failure no retry may resolve
+            // hold a pass a suspension refused midway, until the resume selects it again
             const failure = Failure.of(error);
+            if (failure.reason === "SCOPE_SUSPENDED") {
+                return;
+            }
+
+            // record a declared failure no retry may resolve
             if (isObserved && Failure.isDeclared(error) && !Failure.isTransient(failure)) {
                 const condition = ObjectController.failedCondition(failure);
                 const observed = rows.map((row) => ({ ...row, ...ObservedFields.parse(row) }));

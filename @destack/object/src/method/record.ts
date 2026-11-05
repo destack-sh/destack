@@ -1,7 +1,6 @@
 import { Orderable } from "../trait/orderable.ts";
 import { ObjectError } from "../error/error.ts";
 import {
-    AccessError,
     isPrincipal,
     type Access,
     type Creation,
@@ -1312,14 +1311,10 @@ export const RecordMethod = {
             return;
         }
 
-        // challenge for step-up authentication
-        const stepUp = await authorizer.challenge(snapshot, permission, access, allows);
-        if (stepUp !== undefined) {
-            throw AccessError.of(
-                "AUTHENTICATION_INSUFFICIENT",
-                "authentication assurance is too low: authenticate again",
-                { data: stepUp },
-            );
+        // refuse a gate's denial: a step-up or a suspended scope
+        const refused = await authorizer.refusal(snapshot, permission, access, allows);
+        if (refused !== undefined) {
+            throw refused;
         }
 
         // refuse openly, or hide an object the caller cannot read
