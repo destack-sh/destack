@@ -151,7 +151,7 @@ export const connection = defineObject(
         // relate the installations a person binds the connection to as its consumers
         bindable: { by: "manage" },
         // replicate the connections of accounts and organizations into their scopes
-        inherited: {},
+        propagated: {},
         fields: {
             /** How the connection authenticates. */
             protocol: field.json(ConnectionProtocol),

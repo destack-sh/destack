@@ -98,7 +98,7 @@ export const integration = defineObject(
         name: "integration",
         plural: "integrations",
         // replicate the integrations of platforms and organizations into their scopes and the spaces connecting through them
-        inherited: {},
+        propagated: {},
         fields: {
             /** Who issues the integration's tokens. */
             issuer: field.json(IntegrationIssuer),
