@@ -13,7 +13,8 @@ import {
     SpaceMount,
 } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { type ClientOptions, createClient, type ObjectClient } from "@destack/object/client";
+import { type ClientOptions, createClient, ObjectClient } from "@destack/object/client";
+import { connectBunSqlite } from "@destack/db/bun";
 import { Package, PackageId } from "@destack/package";
 import {
     type ViewCategory,
@@ -198,34 +199,51 @@ export class Session {
             reached = this.login.universe(serving.id);
         }
 
-        // follow the objects as the person through their installation
-        const homes = (scope: string) => this.store(scope);
-        const caller = this.login.subject;
+        // call the objects through the person's installation, or where the space or scope moved
+        let endpoint: ClientOptions;
+        let reconnect: () => ClientOptions;
+        // call through the installation, again at the same endpoint
         if ("installation" in location && location.installation !== undefined) {
             const served = await this.installation(
                 location.space,
                 location.installation,
                 serving.id,
             );
-
-            return this.device.replicate(
-                scopeId,
-                objects,
-                caller,
-                served,
-                () => served,
-                homes,
-                stack,
-            );
+            endpoint = served;
+            reconnect = () => served;
+        }
+        // call the space again at the machine it moved to
+        else if ("space" in location) {
+            endpoint = reached;
+            reconnect = () => atMachine(async () => this.device.locate(location.space));
+        }
+        // call the scope again at the person's universe
+        else {
+            endpoint = reached;
+            reconnect = () => reached;
         }
 
-        // follow the objects as the person, a space's again at the machine it moved to
-        const reconnect =
-            "space" in location
-                ? () => atMachine(async () => this.device.locate(location.space))
-                : () => reached;
+        // store the objects in memory, closed after the client
+        const { environment } = this.device;
+        const database = await connectBunSqlite(":memory:", ObjectClient.tables(objects), {
+            environment,
+        });
+        stack.defer(() => database.close());
 
-        return this.device.replicate(scopeId, objects, caller, reached, reconnect, homes, stack);
+        // follow them as the person until the stack closes
+        return ObjectClient.start(
+            {
+                environment,
+                database,
+                objects,
+                scope: scopeId,
+                caller: this.login.subject,
+                endpoint,
+                reconnect,
+                homes: (scope) => this.store(scope),
+            },
+            stack,
+        );
     }
 
     /** Grant a view's installation what the view asks the person to grant. */

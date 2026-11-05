@@ -32,9 +32,8 @@ import { implementPackage, ObjectStore, type PackageImplementation } from "@dest
 import { ObjectClient } from "@destack/object/client";
 import { Package, PackageId } from "@destack/package";
 import { Identifier, nth, schema } from "@destack/schema";
-import { TelemetryScope } from "@destack/telemetry";
 import { type Fetch, PackageHandle, PackageMount } from "@destack/object";
-import { Bookmark, type ClientOptions, createClient } from "@destack/object/client";
+import { Bookmark, createClient } from "@destack/object/client";
 import { type CallKey } from "@destack/object";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import type { Setting } from "@destack/setting";
@@ -540,7 +539,7 @@ export class Device implements AsyncDisposable {
                 throw MachineError.of("SIGN_IN_REQUIRED", "nobody is signed in");
             }
 
-            return this.#userSetting(declared, (await this.session(signedIn.id)).login);
+            return this.#userSetting(declared, await this.session(signedIn.id));
         }
         // read the values this device stores
         else if (scope === "device") {
@@ -643,18 +642,28 @@ export class Device implements AsyncDisposable {
         }
         const isLocal = first.scopes.some((type) => type.name === device.name);
 
-        return this.replicate(
-            isLocal ? this.id : id,
-            objects,
-            principal.machine.reference(Scope.universe.id, id),
-            this.loopback.options(first.package.id),
-            (machine) => {
-                throw MachineError.of(
-                    "OBJECTS_MOVED",
-                    `this computer's objects moved to ${machine}`,
-                );
+        // store the objects in memory, closed after the client
+        const database = await connectBunSqlite(":memory:", ObjectClient.tables(objects), {
+            environment: this.environment,
+        });
+        stack.defer(() => database.close());
+
+        // follow them as the machine until the stack closes
+        return ObjectClient.start(
+            {
+                environment: this.environment,
+                database,
+                objects,
+                scope: isLocal ? this.id : id,
+                caller: principal.machine.reference(Scope.universe.id, id),
+                endpoint: this.loopback.options(first.package.id),
+                reconnect: (machine) => {
+                    throw MachineError.of(
+                        "OBJECTS_MOVED",
+                        `this computer's objects moved to ${machine}`,
+                    );
+                },
             },
-            undefined,
             stack,
         );
     }
@@ -760,82 +769,15 @@ export class Device implements AsyncDisposable {
         });
     }
 
-    /** Follow a scope's objects into a client in memory until the stack closes. */
-    async replicate<const Objects extends Readonly<Record<string, ObjectType>>>(
-        scope: string,
-        objects: Objects,
-        caller: Subject,
-        endpoint: ClientOptions,
-        reconnect: (machine: Identifier<"machine">) => ClientOptions,
-        homes: ((scope: string) => ClientOptions) | undefined,
-        stack: AsyncDisposableStack,
-    ): Promise<ObjectClient<Objects>> {
-        // store the objects in memory, closed after the client
-        const database = await connectBunSqlite(":memory:", ObjectClient.tables(objects), {
-            environment: this.environment,
-        });
-        stack.defer(() => database.close());
-        const client = await ObjectClient.open({
-            environment: this.environment,
-            database,
-            objects,
-            scope,
-            caller,
-            endpoint,
-            reconnect,
-            ...(homes === undefined ? {} : { homes }),
-        });
-        stack.defer(() => client.close());
-
-        // follow until the stack closes, warning of each failure the follow retries
-        const instruments = TelemetryScope.of(
-            import.meta.destack.package,
-            this.environment.telemetry,
-        );
-        const report = (error: unknown) =>
-            instruments.captureException(error, { level: "warning" });
-        const following = new AbortController();
-        const followed = client.follow(following.signal, report).catch(report);
-        stack.defer(async () => {
-            following.abort();
-            await followed;
-        });
-
-        return client;
-    }
-
-    /** Replicate a person's settings along their scope chain at the universe, as the person. */
-    personSettings(
-        person: Login,
-        stack: AsyncDisposableStack,
-    ): Promise<ObjectClient<{ readonly setting: typeof setting }>> {
-        const scope = person.subject.id;
-
-        return this.replicate(
-            scope,
-            { setting },
-            person.subject,
-            person.universe(settingPackage.id),
-            (machine) => {
-                throw MachineError.of(
-                    "OBJECTS_MOVED",
-                    `the settings of ${scope} cannot move, but moved to ${machine}`,
-                );
-            },
-            undefined,
-            stack,
-        );
-    }
-
     /** Resolve a person's setting from a replica of their values at the universe. */
     async #userSetting<Value extends schema.Schema>(
         declared: Setting<Value>,
-        person: Login,
+        session: Session,
     ): Promise<schema.Infer<Value>> {
         // follow the person's values at the universe as the person
-        const scope = person.subject.id;
+        const scope = session.login.subject.id;
         await using stack = new AsyncDisposableStack();
-        const settings = await this.personSettings(person, stack);
+        const settings = await session.open({ scope }, { setting }, stack);
 
         // wait for the values and the access rows of the person's chain
         await settings.query.setting.findMany({});

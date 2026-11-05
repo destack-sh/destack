@@ -2,7 +2,9 @@ import { currentLogin, currentSpace } from "@destack/account/native";
 import { DynamicObjectClient } from "@destack/object/client";
 import { rollout } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
+import { setting } from "@destack/setting/object";
 import { expect, refusal, test } from "@destack/test";
+import { focus } from "@destack/notification/setting";
 import { OWNER_EMAIL, TestComputer } from "../test/index.ts";
 
 /** The email of a second person signed in on the computer. */
@@ -100,4 +102,26 @@ test("route a describe call without a scope in its body to the stack package of 
         "user",
         "space",
     ]);
+});
+
+test("push a person's mutation through a scope the session opens, confirmed once the universe applies it", async () => {
+    // sign the owner in and follow their settings
+    const computer = await TestComputer.open();
+    const { device } = computer;
+    const signedIn = await computer.signIn(OWNER_EMAIL);
+    const session = await device.session(signedIn.id);
+    await using stack = new AsyncDisposableStack();
+    const settings = await session.open({ scope: signedIn.subjectId }, { setting }, stack);
+
+    // set the focus through that client
+    const value = { schedules: [], allowed: [], isTimeSensitiveAllowed: false };
+    await settings.mutate(setting).create({
+        ...focus.reference,
+        value,
+        release: focus.package.version,
+        mode: "set",
+    }).confirmed;
+
+    // expect the universe to resolve it
+    expect(await device.setting(focus)).toEqual(value);
 });
