@@ -87,14 +87,13 @@ export const route = defineObject(
         permissions: ["read", "write"],
     },
     (method) => ({
-        create: method.create("write", { visibility: "package" }),
+        create: method.create("write"),
         get: method.get("read"),
         list: method.list("read"),
         update: method.update("write", {
-            visibility: "package",
             fields: ["installationId", "view", "object", "adapter", "redirect", "redirectStatus"],
         }),
-        delete: method.delete("write", { visibility: "package" }),
+        delete: method.delete("write"),
     }),
 );
 
