@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { onTestFinished } from "@destack/test";
 import { isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -11,6 +12,9 @@ import { space, unmoved } from "./space.ts";
 import { TestObjectStore } from "../../src/test/index.ts";
 import type { Environment } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
+
+/** How long a device waits on the simulated clock for its replica to reach a value: a minute. */
+const WAIT_MILLISECONDS = 60_000;
 
 /** The space with the notes. */
 export const spaceId = schema
@@ -158,6 +162,13 @@ export class Device {
             .where(isNull(note.table.deletedAt));
 
         return rows.map((row) => row.title).toSorted();
+    }
+
+    /** Wait at each commit of the device's database until a read returns the expected value. */
+    async waitFor<Value>(read: () => Promise<Value>, expected: Value): Promise<void> {
+        const { database, environment } = this.client;
+        const isReached = async () => isDeepStrictEqual(await read(), expected);
+        await database.log.waitUntil(isReached, environment.clock.timeout(WAIT_MILLISECONDS));
     }
 
     /** Stop and remove the device. */

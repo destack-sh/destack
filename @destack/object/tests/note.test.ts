@@ -6,7 +6,7 @@ import { journal, ViewSubscriber } from "../src/index.ts";
 import { eq, Snapshot } from "@destack/db";
 import { BrowserTab, type BrowserTabWorker } from "../src/browser/index.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, RelationalQuery } from "../src/client/index.ts";
 import { broadcastChannel, serveDatabase, WasmClient } from "@destack/db/browser";
 import { schema, present } from "@destack/schema";
 import { RequestId, ObjectReference, type Page } from "@destack/sync";
@@ -160,7 +160,7 @@ test("store notes private until shared, move them between notebooks and sync the
     // follow the notes on bob's device and write into the shared notebook, predicted at once
     const device = await openDevice(users.bob);
     device.online();
-    await expect.poll(() => device.titles()).toEqual(["Ideas", "Sources"]);
+    await device.waitFor(() => device.titles(), ["Ideas", "Sources"]);
     const questions = device.client
         .mutate(note)
         .create({ parentId: research.id, title: "Questions" });
@@ -253,7 +253,7 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
 
         return [title, text];
     };
-    await expect.poll(local).toEqual(["Luggage", "passport, charger"]);
+    await device.waitFor(local, ["Luggage", "passport, charger"]);
 
     // push the new title beside the other device's text
     device.push();
@@ -272,7 +272,7 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
         subject: principal.user.reference("universe", users.bob),
     });
     bob.online();
-    await expect.poll(() => bob.titles()).toEqual(["Luggage"]);
+    await bob.waitFor(() => bob.titles(), ["Luggage"]);
     const intrusion = bob.client.mutation(async (mutation) => {
         await mutation.call(notebook).create({ name: "Mine" });
         await mutation.call(note).create({ parentId: book.id, title: "Graffiti" });
@@ -299,9 +299,7 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
     device.push();
     const lost = device.client.mutate(note).create({ parentId: book.id, title: "Tickets" });
     const { id: lostId } = await lost.predicted;
-    await expect
-        .poll(async () => await device.client.prediction.pending(device.client.database))
-        .toEqual([]);
+    await device.waitFor(() => device.client.prediction.pending(device.client.database), []);
     await database.transaction(
         async (transaction) =>
             await transaction.delete(note.table).where(eq(note.table.id, lostId)),
@@ -354,14 +352,14 @@ test("replicate only the queries a device subscribes to, with their includes, as
         requestId: RequestId.create(environment),
         parentId: travel.id,
     });
-    await expect.poll(() => device.titles()).toEqual(["Packing", "Plan"]);
+    await device.waitFor(() => device.titles(), ["Packing", "Plan"]);
     await alice.note.move({
         spaceId,
         id: plan.id,
         requestId: RequestId.create(environment),
         parentId: work.id,
     });
-    await expect.poll(() => device.titles()).toEqual(["Packing"]);
+    await device.waitFor(() => device.titles(), ["Packing"]);
 
     // add the work notebook with its notes and stop following travel
     const workBook = device.client.query.notebook
@@ -373,13 +371,13 @@ test("replicate only the queries a device subscribes to, with their includes, as
         ["Travel", "Work"],
     ]);
     await travelNotes.close();
-    await expect.poll(() => device.titles()).toEqual(["Plan"]);
+    await device.waitFor(() => device.titles(), ["Plan"]);
     expect(await books()).toEqual(["Work"]);
 
     // resume from the recorded queries after a restart, without starting over
     await device.offline();
     device.online();
-    await expect.poll(() => device.titles()).toEqual(["Plan"]);
+    await device.waitFor(() => device.titles(), ["Plan"]);
     expect(device.errors).toEqual([]);
 });
 
@@ -396,11 +394,10 @@ test("count a notebook's notes outside the trash, predicted on a device before t
     // predict the count of a note created offline, before the server has it
     const device = await openDevice(users.alice);
     device.follow();
-    await expect
-        .poll(async () =>
-            device.client.database.select({ id: notebook.table.id }).from(notebook.table),
-        )
-        .toEqual([{ id: travel.id }]);
+    await device.waitFor(
+        async () => device.client.database.select({ id: notebook.table.id }).from(notebook.table),
+        [{ id: travel.id }],
+    );
     const created = device.client.mutate(note).create({ parentId: travel.id, title: "Packing" });
     const { id } = await created.predicted;
     const count = async () => {
@@ -424,7 +421,7 @@ test("count a notebook's notes outside the trash, predicted on a device before t
     ]).toEqual([1, 1]);
     await alice.note.delete({ spaceId, id, requestId: RequestId.create(environment) });
     expect((await alice.notebook.get({ spaceId, id: travel.id })).noteCount).toBe(0);
-    await expect.poll(count).toBe(0);
+    await device.waitFor(count, 0);
     expect(device.errors).toEqual([]);
 });
 
@@ -522,7 +519,7 @@ test("decide checks on a device from its replica of the caller's access rows, an
         relation: "editor",
         subject: principal.user.reference("universe", users.bob),
     });
-    await expect.poll(checks).toEqual([true, true, false]);
+    await device.waitFor(checks, [true, true, false]);
 
     // take the access away again once the revocation arrives at the device
     await alice.notebook.revoke({
@@ -531,7 +528,7 @@ test("decide checks on a device from its replica of the caller's access rows, an
         requestId: RequestId.create(environment),
         relationshipId: granted.id,
     });
-    await expect.poll(checks).toEqual([false, false, false]);
+    await device.waitFor(checks, [false, false, false]);
     expect(device.errors).toEqual([]);
 });
 
@@ -566,7 +563,7 @@ test("decide checks on a device as the server decides them, for a group its auth
         await device.client.check(notebook, research.id, "manage"),
     ];
     expect((await bob.notebook.get({ spaceId, id: research.id })).name).toBe("Research");
-    await expect.poll(checks).toEqual([true, true, false]);
+    await device.waitFor(checks, [true, true, false]);
     expect(device.errors).toEqual([]);
 });
 
@@ -701,7 +698,7 @@ test("restart a caller's access stream only on access changes concerning the cal
             errors.push(error);
         }
     });
-    await expect.poll(() => pages.some((page) => page.complete)).toBe(true);
+    await simulation.waitUntil(() => pages.some((page) => page.complete));
 
     // share the notebook with carol, then with bob
     const share = async (user: (typeof users)[keyof typeof users]) =>
@@ -729,13 +726,13 @@ test("restart a caller's access stream only on access changes concerning the cal
                 page.position.log === watermark.log &&
                 page.position.sequence >= watermark.sequence,
         );
-    await expect.poll(isPast).toBe(true);
+    await simulation.waitUntil(isPast);
     const resetsPastCarol = pages.filter((page) => page.reset).length;
     const shared = await share(users.bob);
 
     // start one snapshot for bob's share alone, none for carol's, and deliver the share
     const resets = () => pages.filter((page) => page.reset).length;
-    await expect.poll(resets).toBe(2);
+    await simulation.waitUntil(() => resets() === 2);
     const isShared = pages.some((page) =>
         page.changes.some((change) => change.row["id"] === shared.id),
     );
@@ -853,3 +850,58 @@ test("read notebooks with their notes and notes with their notebook in a method'
         ],
     });
 });
+
+test("watch a query's value at each change and several queries' latest values together, ending once aborted", async () => {
+    const { connect, openDevice, environment } = await serveNotes();
+    const alice = connect(users.alice);
+    const create = (name: string) =>
+        alice.notebook.create({ spaceId, requestId: RequestId.create(environment), name });
+
+    // watch the notebooks' names, and the names beside the notes' titles
+    const device = await openDevice(users.alice);
+    device.online();
+    const { query } = device.client;
+    const watching = new AbortController();
+    const names = query.notebook.findMany({ orderBy: { name: "asc" } }).watch(watching.signal);
+    const together = RelationalQuery.latest(
+        {
+            books: query.notebook.findMany({ orderBy: { name: "asc" } }),
+            notes: query.note.findMany({ orderBy: { title: "asc" } }),
+        },
+        watching.signal,
+    );
+    const named = async () =>
+        (await reached(names, (rows) => rows.length === 2)).map((row) => row.name);
+    const joined = async () => {
+        const { books, notes } = await reached(together, ({ books }) => books.length === 2);
+
+        return [books.map((row) => row.name), notes.map((row) => row.title)];
+    };
+
+    // see both notebooks once the second arrives, then nothing after the abort
+    await create("Travel");
+    await create("Work");
+    const seen = [await named(), await joined()];
+    watching.abort();
+    const ended = [(await names.next()).done, (await together.next()).done];
+    expect({ seen, ended }).toEqual({
+        seen: [
+            ["Travel", "Work"],
+            [["Travel", "Work"], []],
+        ],
+        ended: [true, true],
+    });
+});
+
+/** Read a watched value until one meets a condition. */
+async function reached<Value>(
+    values: AsyncGenerator<Value>,
+    isReached: (value: Value) => boolean,
+): Promise<Value> {
+    for (let next = await values.next(); next.done !== true; next = await values.next()) {
+        if (isReached(next.value)) {
+            return next.value;
+        }
+    }
+    throw new TypeError("the watch ended before the value was reached");
+}

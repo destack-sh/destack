@@ -26,6 +26,7 @@ const [created] = await store.mutate(caller, {
     calls: [page.call("create", { spaceId, title: "Ideas" })],
 });
 const listed = client.query.page.findMany().subscribe(); // a client's live local replica
+for await (const pages of client.query.page.findMany().watch(signal)) show(pages); // each change
 ```
 
 ## Objects
@@ -161,6 +162,16 @@ await notes.create({ ...ObjectReference.columns("origin", page.reference(scope, 
 const origin = ObjectReference.at("origin", row);
 ```
 
+## Keys
+
+Every object has its own identifier, and `key` is a unique column that callers can also address it by.
+
+```ts
+const channel = defineObject({ name: "channel", key: "slug", fields: { slug: field.string(Slug).immutable() } });
+await store.query(caller, channel.call("get", { spaceId, id: "core" })); // by key or by identifier
+await post.call("create", { spaceId, channelId: "core", text: "Hi" }); // stored as the channel's identifier
+```
+
 ## Traits
 
 A trait adds columns, permissions and methods to a type.
@@ -283,6 +294,14 @@ page.implement({
         rename: (context) => context.update({ title: context.input.title }), // target: the loaded page
     },
 });
+```
+
+A handler reads object types as clients query them, and plain tables row by row.
+
+```ts
+const pages = await context.read(page).findMany({ where: { folderId } });
+const books = await context.read({ notebook, note }).notebook.findMany({ with: { notes: true } });
+const [row] = await context.read(accessGrant).findMany({ where: { id } }); // a table
 ```
 
 ## Implementations

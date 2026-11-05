@@ -1,5 +1,6 @@
 import * as db from "@destack/db";
 import type { Extras } from "@destack/db";
+import { waitAborted } from "@destack/environment";
 import { type Duration, mapValues } from "@destack/schema";
 import * as sync from "@destack/sync";
 import type { AggregateGroup } from "@destack/sync";
@@ -125,6 +126,9 @@ export class ObjectQueryBuilder<Object extends ObjectType, Objects extends Objec
     }
 }
 
+/** The value a query reads. */
+export type QueryValue<Query> = Query extends RelationalQuery<infer Value> ? Value : never;
+
 /** A lazy query of a client's replica, read once when awaited and live when subscribed. */
 export class RelationalQuery<Value> implements PromiseLike<Value> {
     /** The queried object type. */
@@ -216,6 +220,77 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
             return await live.read();
         } finally {
             await live.close();
+        }
+    }
+
+    /** Read the query's value once the replica has it, then at every change until aborted. */
+    async *watch(signal: AbortSignal): AsyncGenerator<Value> {
+        const live = this.subscribe();
+        try {
+            // wait for the replica to have the query, unless aborted first
+            await Promise.race([live.ready, waitAborted(signal)]);
+            if (!signal.aborted) {
+                yield* live.watch(signal);
+            }
+        } finally {
+            await live.close();
+        }
+    }
+
+    /** Read independent queries' latest values together at any one's change, until one ends. */
+    static async *latest<const Queries extends Readonly<Record<string, RelationalQuery<unknown>>>>(
+        queries: Queries,
+        signal: AbortSignal,
+    ): AsyncGenerator<{ readonly [Key in keyof Queries]: QueryValue<Queries[Key]> }> {
+        // watch each query, keeping its latest value and waking at each change
+        const count = Object.keys(queries).length;
+        const latest = new Map<string, unknown>();
+        const stopped = new AbortController();
+        const watching = AbortSignal.any([signal, stopped.signal]);
+        const aborted = waitAborted(signal);
+        let changed = Promise.withResolvers<void>();
+        let end: { readonly error: unknown } | "ended" | undefined;
+        const watched = Promise.all(
+            Object.entries(queries).map(async ([key, query]) => {
+                // keep each value, and record how the first watch to stop stopped
+                try {
+                    for await (const value of query.watch(watching)) {
+                        latest.set(key, value);
+                        changed.resolve();
+                    }
+                    end ??= "ended";
+                } catch (error: unknown) {
+                    end ??= { error };
+                }
+                changed.resolve();
+            }),
+        );
+
+        // yield every query's latest value once each has one, until one watch stops
+        try {
+            while (!signal.aborted) {
+                await Promise.race([changed.promise, aborted]);
+                changed = Promise.withResolvers<void>();
+
+                // fail with a watch's failure
+                if (typeof end === "object") {
+                    throw end.error;
+                }
+                // end once a watch ends, as it does when its replica closes
+                else if (end === "ended") {
+                    return;
+                }
+                // yield once every query has a value
+                else if (latest.size === count) {
+                    yield mapValues<
+                        Queries,
+                        { readonly [Key in keyof Queries]: QueryValue<Queries[Key]> }
+                    >(queries, (_query, key) => latest.get(key));
+                }
+            }
+        } finally {
+            stopped.abort();
+            await watched;
         }
     }
 
