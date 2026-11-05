@@ -28,7 +28,6 @@ generate:
 # typecheck
 typecheck:
     just @destack/typecheck
-    just @app/typecheck
     just @template/typecheck
     just @platform/typecheck
 
@@ -36,7 +35,6 @@ typecheck:
 lint:
     actionlint
     just @destack/lint
-    just @app/lint
     just @template/lint
     just @platform/lint
     bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/site/content
@@ -44,7 +42,6 @@ lint:
 # check formatting
 format-check:
     just @destack/format-check
-    just @app/format-check
     just @template/format-check
     just @platform/format-check
 
@@ -54,13 +51,11 @@ check: typecheck lint format-check
 # test
 test: (postgres "up")
     just @destack/test
-    just @app/test
     just @platform/test
 
 # format
 format:
     just @destack/format
-    just @app/format
     just @template/format
     just @platform/format
 
@@ -76,7 +71,7 @@ affected base="":
     fi
     # list every package when a change reaches every package
     if [ "$directories" = "*" ]; then
-        directories="$(printf '%s\n' @destack/* @app/* @platform/* @template/*)"
+        directories="$(printf '%s\n' @destack/* @platform/* @template/*)"
     fi
     # keep packages with sources, leaving out test fixtures
     for directory in $directories; do

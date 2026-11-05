@@ -5,7 +5,6 @@
     "type": "module",
     "workspaces": [
         "@destack/*",
-        "@app/*",
         "@platform/*",
         "@template/*",
         "@destack/build/tests/fixture/*/source",
